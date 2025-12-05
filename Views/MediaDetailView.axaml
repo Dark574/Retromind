@@ -1,0 +1,120 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:models="clr-namespace:Retromind.Models"
+             xmlns:helpers="clr-namespace:Retromind.Helpers"
+             xmlns:vm="clr-namespace:Retromind.ViewModels"
+             xmlns:p="clr-namespace:Retromind.Resources"
+             mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="600"
+             x:Class="Retromind.Views.MediaDetailView"
+             x:DataType="models:MediaItem">
+
+    <UserControl.Resources>
+        <helpers:BitmapAssetValueConverter x:Key="PathToBitmapConverter" />
+    </UserControl.Resources>
+
+    <ScrollViewer>
+        <StackPanel Margin="15" Spacing="15">
+
+            <Grid>
+                <!-- 1. Header Bereich (Logo oder Text-Titel) -->
+                <Panel MinHeight="80" Margin="0,0,40,0">
+                    <!-- Fallback: Text Titel -->
+                    <TextBlock Text="{Binding Title}"
+                               FontSize="28" FontWeight="Bold" TextWrapping="Wrap"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               TextAlignment="Center"
+                               IsVisible="{Binding LogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+
+                    <!-- Primär: Logo Grafik -->
+                    <Image Source="{Binding LogoPath, Converter={StaticResource PathToBitmapConverter}}"
+                           Stretch="Uniform" MaxHeight="150"
+                           HorizontalAlignment="Center"
+                           IsVisible="{Binding LogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </Panel>
+
+                <!-- Der Button oben rechts: Kleines Stift-Symbol -->
+                <Button Content="✎"
+                        ToolTip.Tip="{x:Static p:Strings.Edit}"
+                        FontSize="18"
+                        Width="30" Height="30"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditMediaCommand}"
+                        CommandParameter="{Binding .}" />
+            </Grid>
+
+            <!-- Play Button -->
+            <Button Content="{x:Static p:Strings.PlayButton}"
+                    Classes="accent"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Height="40"
+                    FontSize="18"
+                    FontWeight="Bold"
+                    Margin="0,10"
+                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).PlayCommand}"
+                    CommandParameter="{Binding .}" />
+
+            <Separator Height="2" Background="Gray" Opacity="0.3" />
+
+            <!-- 2. Metadaten Grid -->
+            <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,5">
+                <Grid.Styles>
+                    <Style Selector="TextBlock.Label">
+                        <Setter Property="FontWeight" Value="SemiBold" />
+                        <Setter Property="Foreground" Value="Gray" />
+                        <Setter Property="Margin" Value="0,0,10,8" />
+                        <Setter Property="VerticalAlignment" Value="Top" />
+                    </Style>
+                    <Style Selector="TextBlock.Value">
+                        <Setter Property="TextWrapping" Value="Wrap" />
+                        <Setter Property="Margin" Value="0,0,0,8" />
+                    </Style>
+                </Grid.Styles>
+
+                <!-- Veröffentlichung -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static p:Strings.ReleaseDate}" Classes="Label" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ReleaseDate, StringFormat='{}{0:dd.MM.yyyy}'}"
+                           Classes="Value" />
+
+                <!-- Publisher -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static p:Strings.Developer}" Classes="Label" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Developer}" Classes="Value" />
+
+                <!-- Genre -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="{x:Static p:Strings.Genre}" Classes="Label" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Genre}" Classes="Value" />
+
+                <!-- Last Played -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="{x:Static p:Strings.LastPlayed}" Classes="Label" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LastPlayed, StringFormat='{}{0:g}'}"
+                           Classes="Value" />
+
+                <!-- Play Count -->
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="{x:Static p:Strings.PlayCount}" Classes="Label" />
+                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding PlayCount}" Classes="Value" />
+
+                <!-- Status -->
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="{x:Static p:Strings.Status}" Classes="Label" />
+                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Status}" Classes="Value" />
+            </Grid>
+
+            <Separator Height="2" Background="Gray" Opacity="0.3" />
+
+            <!-- 3. Zusammenfassung -->
+            <StackPanel Spacing="5">
+                <TextBlock Text="{x:Static p:Strings.Summary}" FontWeight="SemiBold" FontSize="16" />
+                <TextBlock Text="{Binding Description}"
+                           TextWrapping="Wrap"
+                           LineHeight="22"
+                           Opacity="0.8" />
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

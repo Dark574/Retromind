@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Retromind.ViewModels"
+        x:Class="Retromind.Views.BulkScrapeView"
+        x:DataType="vm:BulkScrapeViewModel"
+        Title="Bereich Scrapen"
+        Width="600" Height="400"
+        WindowStartupLocation="CenterOwner">
+    
+    <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="20">
+        
+        <TextBlock Grid.Row="0" Text="Automatische Metadaten-Suche" FontSize="18" FontWeight="Bold" Margin="0,0,0,20"/>
+        
+        <Grid Grid.Row="1" ColumnDefinitions="Auto, 10, *" Margin="0,0,0,20">
+            <TextBlock Grid.Column="0" Text="Quelle:" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="2" ItemsSource="{Binding AvailableScrapers}" 
+                      SelectedItem="{Binding SelectedScraper}" HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+        </Grid>
+        
+        <!-- Log und Status -->
+        <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="5">
+            <TextBox x:Name="LogBox" Text="{Binding LogText}" IsReadOnly="True" AcceptsReturn="True" 
+                     FontFamily="Monospace" FontSize="12" BorderThickness="0"/>
+        </Border>
+        
+        <!-- Progress -->
+        <StackPanel Grid.Row="3" Spacing="10" Margin="0,20,0,0">
+            <TextBlock Text="{Binding StatusText}" HorizontalAlignment="Center"/>
+            <ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="20"/>
+            
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Content="Abbrechen" Command="{Binding CancelCommand}" IsEnabled="{Binding IsWorking}"/>
+                <Button Content="Starten" Command="{Binding StartCommand}" Classes="accent" IsEnabled="{Binding !IsWorking}"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

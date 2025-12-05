@@ -1,0 +1,104 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="clr-namespace:Retromind.Models"
+             xmlns:vm="clr-namespace:Retromind.ViewModels"
+             xmlns:helpers="clr-namespace:Retromind.Helpers"
+             xmlns:p="clr-namespace:Retromind.Resources"
+             x:Class="Retromind.Views.MediaAreaView"
+             x:DataType="vm:MediaAreaViewModel">
+
+    <UserControl.Resources>
+        <helpers:BitmapAssetValueConverter x:Key="PathToBitmapConverter" />
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="Auto, *">
+        <!-- Header Leiste -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10" Spacing="20">
+            <TextBlock Text="{Binding Node.Name}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" />
+
+            <!-- Zoom Slider -->
+            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                <TextBlock Text="Zoom:" VerticalAlignment="Center" />
+                <Slider Value="{Binding ItemWidth}" Minimum="50" Maximum="300" Width="150" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Die Medien-Liste -->
+        <ListBox Grid.Row="1"
+                 ItemsSource="{Binding Node.Items}"
+                 SelectedItem="{Binding SelectedMediaItem}"
+                 Background="Transparent">
+
+            <!-- Kontextmenü für den LEEREN Bereich -->
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Medium hinzufügen"
+                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
+                              CommandParameter="{Binding Node}" />
+                    <MenuItem Header="Importieren (Ordner)..."
+                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
+                              CommandParameter="{Binding Node}" />
+                </ContextMenu>
+            </ListBox.ContextMenu>
+
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+
+            <!-- Aussehen eines einzelnen Items -->
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:MediaItem">
+                    <!-- Breite wird an den Slider im ViewModel gebunden -->
+                    <Border Width="{Binding $parent[UserControl].((vm:MediaAreaViewModel)DataContext).ItemWidth}"
+                            Height="{Binding $parent[UserControl].((vm:MediaAreaViewModel)DataContext).ItemWidth}"
+                            Margin="5"
+                            CornerRadius="5"
+                            ClipToBounds="True"
+                            Background="Transparent"
+                            DoubleTapped="OnItemDoubleTapped">
+
+                        <Border.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="{x:Static p:Strings.Edit}"
+                                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditMediaCommand}"
+                                          CommandParameter="{Binding .}" 
+                                          FontWeight="Bold"/>
+                                <Separator/>
+                                <MenuItem Header="Metadaten laden..."
+                                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeMediaCommand}"
+                                          CommandParameter="{Binding .}" />
+                                <Separator/>
+                                <!-- HIER WURDE ENTFERNT: Cover ändern, Logo ändern, Wallpaper ändern, Musik ändern -->
+                                <!-- Die Musik-Verwaltung könntest du analog zu den Bildern in den Edit-Dialog packen oder hier lassen, wenn es selten genutzt wird. Ich habe es hier mal mit entfernt, der Konsistenz halber -->
+                                    
+                                <MenuItem Header="Löschen"
+                                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
+                                          CommandParameter="{Binding .}"
+                                          Foreground="Red" />
+                            </ContextMenu>
+                        </Border.ContextMenu>
+
+                        <Grid>
+                            <!-- Titel: Nur sichtbar, wenn KEIN CoverPath da ist -->
+                            <TextBlock Text="{Binding Title}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       Margin="5"
+                                       Foreground="Black"
+                                       IsVisible="{Binding CoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+
+                            <!-- Cover-Bild: Nur sichtbar, wenn CoverPath da ist -->
+                            <Image Source="{Binding CoverPath, Converter={StaticResource PathToBitmapConverter}}"
+                                   Stretch="Uniform"
+                                   IsVisible="{Binding CoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+</UserControl>

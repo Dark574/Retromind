@@ -1,0 +1,63 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Retromind.ViewModels"
+        xmlns:p="clr-namespace:Retromind.Resources"
+        x:Class="Retromind.Views.NodeSettingsView"
+        x:DataType="vm:NodeSettingsViewModel"
+        Title="Einstellungen"
+        Width="500" Height="450"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Grid nimmt den gesamten Platz ein -->
+    <Grid RowDefinitions="*, Auto" Margin="20">
+        
+        <!-- Zeile 0: Inhalt mit Scrollbar -->
+        <ScrollViewer Grid.Row="0" Padding="0,0,10,20">
+            <StackPanel Spacing="20">
+                <!-- Name -->
+                <StackPanel>
+                    <TextBlock Text="Name:" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <TextBox Text="{Binding Name}"/>
+                </StackPanel>
+
+                <!-- Zufalls-Optionen -->
+                <StackPanel>
+                    <TextBlock Text="Optionen:" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <StackPanel Spacing="10">
+                        <CheckBox IsChecked="{Binding RandomizeCovers}" 
+                                  IsThreeState="True" 
+                                  Content="Zufällige Cover (■ = Geerbt)"
+                                  ToolTip.Tip="Beim Anzeigen des Ordners werden zufällige Bilder aus dem Medien-Ordner gewählt."/>
+                        
+                        <CheckBox IsChecked="{Binding RandomizeMusic}" 
+                                  IsThreeState="True" 
+                                  Content="Zufällige Musik (■ = Geerbt)"
+                                  ToolTip.Tip="Beim Anzeigen des Ordners wird zufällige Musik aus dem Medien-Ordner gewählt."/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Emulator Auswahl -->
+                <StackPanel>
+                    <TextBlock Text="Standard Emulator (für diesen Ordner):" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <ComboBox ItemsSource="{Binding AvailableEmulators}" 
+                              SelectedItem="{Binding SelectedEmulator}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Text="Gilt für alle Spiele in diesem Ordner und Unterordnern, die keinen eigenen Emulator haben." 
+                               FontSize="10" Foreground="Gray" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Zeile 1: Buttons (Fixiert am Boden) -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button Content="{x:Static p:Strings.Cancel}" Command="{Binding CancelCommand}" Width="100" HorizontalContentAlignment="Center"/>
+            <Button Content="{x:Static p:Strings.Save}" Command="{Binding SaveCommand}" Classes="accent" Width="100" HorizontalContentAlignment="Center" IsDefault="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

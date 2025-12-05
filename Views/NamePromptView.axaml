@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Retromind.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="Retromind.Views.NamePromptView"
+        x:DataType="vm:NamePromptViewModel"
+        Title="{Binding Title}"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight"
+        CanResize="False">
+
+    <StackPanel Margin="20" Spacing="10">
+        <TextBlock Text="{Binding Message}" FontSize="16" />
+
+        <!-- x:Name hinzugefügt, damit wir es im Code finden -->
+        <TextBox x:Name="NameBox"
+                 Text="{Binding InputText}"
+                 Width="300" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <!-- IsDefault=True erlaubt Bestätigen mit ENTER -->
+            <Button Content="OK"
+                    Click="OnOkClick"
+                    IsDefault="True"
+                    Width="80" />
+
+            <!-- IsCancel=True erlaubt Abbrechen mit ESC -->
+            <Button Content="Abbrechen"
+                    Click="OnCancelClick"
+                    IsCancel="True"
+                    Width="80" />
+        </StackPanel>
+    </StackPanel>
+</Window>

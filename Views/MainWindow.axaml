@@ -1,0 +1,251 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Retromind.ViewModels"
+        xmlns:views="using:Retromind.Views"
+        xmlns:models="using:Retromind.Models"
+        xmlns:helpers="clr-namespace:Retromind.Helpers"
+
+        xmlns:p="clr-namespace:Retromind.Resources"
+
+        x:Class="Retromind.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        WindowState="Maximized"
+        x:Name="MainWin"
+        Title="{x:Static p:Strings.AppTitle}"
+        
+        SystemDecorations="None" 
+        Background="{Binding WindowBackground}"
+        ExtendClientAreaToDecorationsHint="False"
+        ExtendClientAreaTitleBarHeightHint="-1">
+
+    <Window.DataTemplates>
+        <DataTemplate DataType="{x:Type vm:MediaAreaViewModel}">
+            <views:MediaAreaView />
+        </DataTemplate>
+    </Window.DataTemplates>
+    <Window.Resources>
+        <helpers:BitmapAssetValueConverter x:Key="PathToBitmapConverter" />
+    </Window.Resources>
+
+    <!-- Wir nutzen ein Panel als Root, um Layering zu ermöglichen -->
+    <Panel>
+       <!-- LAYER -1: Globaler Fallback Hintergrund -->
+       <Border Background="{Binding WindowBackground}" />
+
+       <!-- LAYER 0: Wallpaper (legt sich drüber) -->
+       <Image x:CompileBindings="False"
+              Source="{Binding SelectedNodeContent.SelectedMediaItem.WallpaperPath, Converter={StaticResource PathToBitmapConverter}}"
+              Stretch="UniformToFill"
+              Opacity="0.8"
+              IsHitTestVisible="False"
+              IsVisible="{Binding SelectedNodeContent.SelectedMediaItem.WallpaperPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+       <!-- LAYER 1: Das UI Grid (mit teil-transparenten Hintergründen) -->
+       <Grid RowDefinitions="30, *"> <!-- Neue Zeile für Custom Titlebar -->
+       
+           <!-- CUSTOM TITLEBAR (Zeile 0) -->
+           <Grid Grid.Row="0" Background="{Binding WindowBackground}" PointerPressed="OnTitleBarPointerPressed"
+                 ColumnDefinitions="*, Auto">
+               
+               <!-- Titel -->
+               <TextBlock Grid.Column="0" Text="{Binding Title, ElementName=MainWin}" 
+                          VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.5" 
+                          IsHitTestVisible="False"/> <!-- Wichtig: HitTestFalse damit Drag geht -->
+               
+               <!-- Buttons StackPanel -->
+               <StackPanel Grid.Column="1" Orientation="Horizontal">
+                   
+                   <!-- Minimize -->
+                   <Button Content="_" Width="30" Height="30" Background="Transparent" BorderThickness="0"
+                           Command="{Binding MinimizeWindow, ElementName=MainWin}" />
+
+                   <!-- Maximize/Restore -->
+                   <Button Content="□" Width="30" Height="30" Background="Transparent" BorderThickness="0"
+                           Command="{Binding ToggleWindowState, ElementName=MainWin}" />
+
+                   <!-- Close -->
+                   <Button Content="✕" Width="30" Height="30" Background="Transparent" BorderThickness="0"
+                           Command="{Binding CloseWindow, ElementName=MainWin}" 
+                           Foreground="{Binding TextColor}" FontWeight="Bold"/> <!-- TextColor statt Rot -->
+               </StackPanel>
+           </Grid>
+
+           <!-- REST DER APP (Zeile 1) -->
+           <Grid Grid.Row="1">
+               <!-- LAYER 1: Das UI Grid (mit teil-transparenten Hintergründen) -->
+               <!-- TextElement.Foreground vererbt die Farbe an alle Kinder, außer sie überschreiben es -->
+               <Grid TextElement.Foreground="{Binding TextColor}">
+                   <Grid.ColumnDefinitions>
+                       <ColumnDefinition Width="{Binding TreePaneWidth, Mode=TwoWay}" MinWidth="100" />
+                       <ColumnDefinition Width="5" />
+                       <ColumnDefinition Width="*" />
+                       <ColumnDefinition Width="5" />
+                       <ColumnDefinition Width="{Binding DetailPaneWidth, Mode=TwoWay}" MinWidth="200" />
+                   </Grid.ColumnDefinitions>
+
+                   <!-- LEFT CONTENT (Spalte 0) -->
+                   <!-- Background an PanelBackground binden! -->
+                   <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="0,0,1,0" 
+                           Background="{Binding PanelBackground}">
+
+                       <!-- Wir packen TreeView und Header in ein Grid -->
+                       <Grid RowDefinitions="Auto, *">
+
+                           <!-- Header Leiste mit Settings Button -->
+                           <Grid Grid.Row="0" ColumnDefinitions="*, Auto, Auto" Margin="10">
+                               <TextBlock Text="{x:Static p:Strings.Library}" 
+                                          FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+
+                               <!-- NEU: Theme Toggle Button -->
+                               <Button Grid.Column="1" Content="🌗" 
+                                       Command="{Binding ToggleThemeCommand}"
+                                       Background="Transparent" BorderThickness="0"
+                                       ToolTip.Tip="Toggle Dark/Light Theme"
+                                       FontSize="16" Cursor="Hand" Margin="0,0,5,0"
+                                       Foreground="{Binding TextColor}"/>
+
+                               <Button Grid.Column="2" Content="⚙" 
+                                       Command="{Binding OpenSettingsCommand}"
+                                       Background="Transparent" BorderThickness="0"
+                                       ToolTip.Tip="{x:Static p:Strings.SettingsTitle}"
+                                       FontSize="16" Cursor="Hand"
+                                       Foreground="{Binding TextColor}"/>
+                           </Grid>
+
+                           <!-- Der eigentliche Baum -->
+                           <TreeView x:Name="Tree" Grid.Row="1"
+                                     ItemsSource="{Binding RootItems}"
+                                     SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Background="Transparent">
+
+                               <TreeView.ContextMenu>
+                                   <ContextMenu>
+                                       <MenuItem Header="{x:Static p:Strings.CtxAddCategory}"
+                                                 Command="{Binding AddCategoryCommand}"
+                                                 CommandParameter="{x:Null}" /> <!-- Null = Root -->
+                                   </ContextMenu>
+                               </TreeView.ContextMenu>
+
+                               <TreeView.Styles>
+                                   <Style Selector="TreeViewItem">
+                                       <Setter x:DataType="models:MediaNode" Property="IsExpanded"
+                                               Value="{Binding IsExpanded, Mode=TwoWay}" />
+                                       <!-- Textfarbe explizit setzen, da TreeViewItem manchmal eigene Styles hat -->
+                                       <Setter Property="Foreground" Value="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TextColor}" />
+                                   </Style>
+                               </TreeView.Styles>
+                               <TreeView.ItemTemplate>
+                                   <!-- TreeDataTemplate für die Nodes -->
+                                   <TreeDataTemplate x:DataType="models:MediaNode" ItemsSource="{Binding Children}">
+                                       <Grid Background="Transparent">
+                                           <Grid.ContextMenu>
+                                               <ContextMenu>
+                                                   <!-- VEREINFACHT & LOKALISIERT -->
+                                                   <MenuItem Header="{x:Static p:Strings.CtxAddCategory}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddCategoryCommand}"
+                                                             CommandParameter="{Binding .}" />
+
+                                                   <Separator />
+                                                   
+                                                   <MenuItem Header="Importieren (Ordner)..."
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
+                                                             CommandParameter="{Binding .}"
+                                                             FontWeight="Bold" />
+                                                   <MenuItem Header="Metadaten suchen (Alle)..."
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeNodeCommand}"
+                                                             CommandParameter="{Binding .}"
+                                                             FontWeight="Bold" />
+                                                   <Separator/>
+                                                   <MenuItem Header="{x:Static p:Strings.CtxAddMedia}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
+                                                             CommandParameter="{Binding .}"
+                                                             FontWeight="Bold" />
+
+                                                   <Separator/>
+
+                                                   <!-- Einstellungen für den Ordner -->
+                                                   <MenuItem Header="Einstellungen / Umbenennen..."
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditNodeCommand}"
+                                                             CommandParameter="{Binding .}"/>
+
+                                                   <Separator />
+
+                                                   <MenuItem Header="{x:Static p:Strings.CtxDelete}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteCommand}"
+                                                             CommandParameter="{Binding .}"
+                                                             Foreground="Red" />
+                                               </ContextMenu>
+                                           </Grid.ContextMenu>
+
+                                           <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                       </Grid>
+                                   </TreeDataTemplate>
+                               </TreeView.ItemTemplate>
+                           </TreeView>
+                       </Grid>
+                   </Border>
+
+                   <!-- Splitter 1 -->
+                   <GridSplitter Grid.Column="1" Width="5" Background="#DDDDDD" Opacity="0.5" ResizeBehavior="PreviousAndNext" />
+
+                   <!-- MIDDLE CONTENT (Spalte 2) -->
+                   <!-- Background entfernen, damit Wallpaper voll durchkommt -->
+                   <Border Grid.Column="2" Background="Transparent"> <!-- Transparent! -->
+                       <ContentControl Content="{Binding SelectedNodeContent}" />
+                   </Border>
+
+                   <!-- Splitter 2 -->
+                   <GridSplitter Grid.Column="3" Width="5" Background="#DDDDDD" Opacity="0.5" ResizeBehavior="PreviousAndNext" />
+
+                   <!-- RIGHT CONTENT (Spalte 4) -->
+                   <!-- Background an PanelBackground binden! -->
+                   <Grid Grid.Column="4" Background="{Binding PanelBackground}" x:CompileBindings="False">
+                       
+                       <TextBlock Text="Wähle ein Medium aus"
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Center"
+                                  Foreground="{Binding DataContext.TextColor, ElementName=MainWin}"
+                                  FontSize="16"
+                                  FontStyle="Italic"
+                                  IsVisible="{Binding SelectedNodeContent.SelectedMediaItem, Converter={x:Static ObjectConverters.IsNull}}" />
+
+                       <!-- ... ContentControl und Fallback wie bisher ... -->
+                       <ContentControl x:CompileBindings="False"
+                                       Content="{Binding SelectedNodeContent.SelectedMediaItem}"
+                                       IsVisible="{Binding SelectedNodeContent.SelectedMediaItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                           <ContentControl.ContentTemplate>
+                               <DataTemplate DataType="models:MediaItem">
+                                   <!-- Hier Background Transparent, da das Grid dahinter schon die Farbe hat -->
+                                   <views:MediaDetailView Background="Transparent" />
+                               </DataTemplate>
+                           </ContentControl.ContentTemplate>
+                       </ContentControl>
+                   </Grid>
+
+               </Grid> <!-- Ende Grid -->
+           </Grid>
+       </Grid>
+
+        <!-- NEU: Resize Grips (Unsichtbare Ränder) -->
+        <!-- Wir nutzen x:Static für WindowEdge. Avalonia.Controls Namespace ist standardmäßig da. -->
+        <Grid RowDefinitions="5,*,5" ColumnDefinitions="5,*,5">
+            <!-- Top Left -->
+            <Rectangle Grid.Row="0" Grid.Column="0" Fill="Transparent" Cursor="TopLeftCorner" Tag="{x:Static WindowEdge.NorthWest}" PointerPressed="OnResizeDrag"/>
+            <!-- Top -->
+            <Rectangle Grid.Row="0" Grid.Column="1" Fill="Transparent" Cursor="TopSide" Tag="{x:Static WindowEdge.North}" PointerPressed="OnResizeDrag"/>
+            <!-- Top Right -->
+            <Rectangle Grid.Row="0" Grid.Column="2" Fill="Transparent" Cursor="TopRightCorner" Tag="{x:Static WindowEdge.NorthEast}" PointerPressed="OnResizeDrag"/>
+            
+            <!-- Left -->
+            <Rectangle Grid.Row="1" Grid.Column="0" Fill="Transparent" Cursor="LeftSide" Tag="{x:Static WindowEdge.West}" PointerPressed="OnResizeDrag"/>
+            <!-- Right -->
+            <Rectangle Grid.Row="1" Grid.Column="2" Fill="Transparent" Cursor="RightSide" Tag="{x:Static WindowEdge.East}" PointerPressed="OnResizeDrag"/>
+            
+            <!-- Bottom Left -->
+            <Rectangle Grid.Row="2" Grid.Column="0" Fill="Transparent" Cursor="BottomLeftCorner" Tag="{x:Static WindowEdge.SouthWest}" PointerPressed="OnResizeDrag"/>
+            <!-- Bottom -->
+            <Rectangle Grid.Row="2" Grid.Column="1" Fill="Transparent" Cursor="BottomSide" Tag="{x:Static WindowEdge.South}" PointerPressed="OnResizeDrag"/>
+            <!-- Bottom Right -->
+            <Rectangle Grid.Row="2" Grid.Column="2" Fill="Transparent" Cursor="BottomRightCorner" Tag="{x:Static WindowEdge.SouthEast}" PointerPressed="OnResizeDrag"/>
+        </Grid>
+    </Panel>
+</Window>

@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<root>
+    <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata"
+                id="root"
+                xmlns="">
+        <xsd:element name="root" msdata:IsDataSet="true">
+
+        </xsd:element>
+    </xsd:schema>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>1.3</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral,
+            PublicKeyToken=b77a5c561934e089
+        </value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral,
+            PublicKeyToken=b77a5c561934e089
+        </value>
+    </resheader>
+    <data name="CtxAddMedia" xml:space="preserve">
+        <value>Medium hinzufügen</value>
+    </data>
+    <data name="CtxDelete" xml:space="preserve">
+        <value>Löschen</value>
+    </data>
+    <data name="MsgEnterName" xml:space="preserve">
+        <value>Bitte Namen eingeben:</value>
+    </data>
+    <data name="NewCategory" xml:space="preserve">
+        <value>Neue Kategorie</value>
+    </data>
+    <data name="Library" xml:space="preserve">
+        <value>Bibliothek</value>
+    </data>
+    <data name="CtxAddCategory" xml:space="preserve">
+        <value>Kategorie hinzufügen</value>
+    </data>
+    <data name="AppTitle" xml:space="preserve">
+        <value>Retromind</value>
+    </data>
+    <data name="Title" xml:space="preserve">
+        <value>Titel</value>
+    </data>
+    <data name="Developer" xml:space="preserve">
+        <value>Entwickler</value>
+    </data>
+    <data name="Genre" xml:space="preserve">
+        <value>Genre</value>
+    </data>
+    <data name="ReleaseDate" xml:space="preserve">
+        <value>Veröffentlicht</value>
+    </data>
+    <data name="Status" xml:space="preserve">
+        <value>Status</value>
+    </data>
+    <data name="Summary" xml:space="preserve">
+    <value>Zusammenfassung</value>
+  </data>
+    <data name="LaunchConfig" xml:space="preserve">
+    <value>Start-Konfiguration</value>
+  </data>
+    <data name="LauncherPath" xml:space="preserve">
+    <value>Emulator / Tool Pfad</value>
+  </data>
+    <data name="LauncherPathHint" xml:space="preserve">
+    <value>/usr/bin/snes9x oder leer lassen für Direktstart</value>
+  </data>
+    <data name="Arguments" xml:space="preserve">
+    <value>Parameter</value>
+  </data>
+    <data name="ArgumentsHint" xml:space="preserve">
+    <value>-fullscreen {file}</value>
+  </data>
+    <data name="Cancel" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+    <data name="Save" xml:space="preserve">
+    <value>Speichern</value>
+  </data>
+    <data name="EditMediaTitle" xml:space="preserve">
+    <value>Medium bearbeiten</value>
+  </data>
+    <data name="ConfirmDeleteNode" xml:space="preserve">
+    <value>Möchtest du '{0}' und alle Unterelemente wirklich löschen?</value>
+  </data>
+    <data name="ConfirmDeleteMedia" xml:space="preserve">
+    <value>Möchtest du '{0}' wirklich löschen? (Dateien bleiben erhalten)</value>
+  </data>
+    <data name="SelectMediaFile" xml:space="preserve">
+    <value>Medium auswählen (Executable, ROM, Video...)</value>
+  </data>
+    <data name="SelectCover" xml:space="preserve">
+    <value>Cover auswählen</value>
+  </data>
+    <data name="SelectLogo" xml:space="preserve">
+    <value>Logo auswählen</value>
+  </data>
+    <data name="SelectWallpaper" xml:space="preserve">
+    <value>Wallpaper auswählen</value>
+  </data>
+    <data name="SelectMusic" xml:space="preserve">
+    <value>Musik auswählen</value>
+  </data>
+    <data name="Zoom" xml:space="preserve">
+    <value>Zoom:</value>
+  </data>
+    <data name="CtxChangeCover" xml:space="preserve">
+    <value>Cover ändern...</value>
+  </data>
+    <data name="CtxChangeLogo" xml:space="preserve">
+    <value>Logo ändern...</value>
+  </data>
+    <data name="CtxChangeWallpaper" xml:space="preserve">
+    <value>Wallpaper ändern...</value>
+  </data>
+    <data name="CtxChangeMusic" xml:space="preserve">
+    <value>Musik ändern...</value>
+  </data>
+    <data name="Edit" xml:space="preserve">
+    <value>Bearbeiten</value>
+  </data>
+    <data name="PlayButton" xml:space="preserve">
+    <value>▶ STARTEN</value>
+  </data>
+    <data name="LastPlayed" xml:space="preserve">
+    <value>Zuletzt gespielt:</value>
+  </data>
+    <data name="PlayCount" xml:space="preserve">
+    <value>Starts:</value>
+  </data>
+    <data name="LaunchMode" xml:space="preserve">
+    <value>Start-Methode</value>
+  </data>
+    <data name="ModeNative" xml:space="preserve">
+    <value>Direktstart (Datei ausführen)</value>
+  </data>
+    <data name="ModeEmulator" xml:space="preserve">
+    <value>Emulator / Benutzerdefiniert</value>
+  </data>
+    <data name="Preview" xml:space="preserve">
+    <value>Vorschau des Befehls:</value>
+  </data>
+    <data name="SettingsTitle" xml:space="preserve">
+    <value>Einstellungen</value>
+  </data>
+    <data name="SectionEmulators" xml:space="preserve">
+    <value>Emulator-Profile</value>
+  </data>
+    <data name="AddProfile" xml:space="preserve">
+    <value>Profil hinzufügen</value>
+  </data>
+    <data name="ProfileName" xml:space="preserve">
+    <value>Profil-Name</value>
+  </data>
+    <data name="ExecutablePath" xml:space="preserve">
+    <value>Pfad zur Datei</value>
+  </data>
+    <data name="DefaultArguments" xml:space="preserve">
+    <value>Standard-Parameter</value>
+  </data>
+    <data name="RemoveProfile" xml:space="preserve">
+    <value>Profil entfernen</value>
+  </data>
+  <data name="GlobalSettingsHint" xml:space="preserve">
+    <value>Verwalte hier deine Emulatoren und Metadaten-Quellen für die Bibliothek.</value>
+  </data>
+  <data name="TabEmulators" xml:space="preserve">
+    <value>Emulatoren</value>
+  </data>
+  <data name="TabMetadata" xml:space="preserve">
+    <value>Metadaten</value>
+  </data>
+  <data name="NewScraperDefaultName" xml:space="preserve">
+    <value>Neue Quelle</value>
+  </data>
+  <data name="HintTmdbKey" xml:space="preserve">
+    <value>(Optional: Leer lassen für Standard-Key)</value>
+  </data>
+  <data name="HintIgdbCredentials" xml:space="preserve">
+    <value>(Optional: Leer lassen für Standard-Zugang)</value>
+  </data>
+  <data name="HintRequired" xml:space="preserve">
+    <value>(Erforderlich)</value>
+  </data>
+</root>

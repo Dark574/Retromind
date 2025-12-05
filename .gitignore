@@ -1,0 +1,22 @@
+# Build folders
+[Bb]in/
+[Oo]bj/
+
+# IDE folders
+.idea/
+.vs/
+*.user
+*.suo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# User Data & Prefixes (WICHTIG!)
+Medien/
+retromind_tree.json
+retromind_tree.bak
+app_settings.json
+
+# Secrets (NICHT HOCHLADEN!)
+ApiSecrets.cs

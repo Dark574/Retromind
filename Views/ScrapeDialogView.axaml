@@ -1,0 +1,103 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:p="clr-namespace:Retromind.Resources"
+        xmlns:helpers="clr-namespace:Retromind.Helpers"
+        x:Class="Retromind.Views.ScrapeDialogView"
+        x:DataType="vm:ScrapeDialogViewModel"
+        Title="Metadaten suchen"
+        Width="800" Height="600"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="Auto, *, Auto" Margin="20">
+        
+        <!-- Header / Suche -->
+        <Grid Grid.Row="0" RowDefinitions="Auto, Auto" ColumnDefinitions="*, 10, Auto" Margin="0,0,0,20">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Quelle wählen:" Margin="0,0,0,5"/>
+            <ComboBox Grid.Row="1" Grid.Column="0" 
+                      ItemsSource="{Binding AvailableScrapers}" 
+                      SelectedItem="{Binding SelectedScraper}"
+                      HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBlock Grid.Row="0" Grid.Column="2" Text="Suchbegriff:" Margin="0,0,0,5"/>
+            <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                <TextBox Text="{Binding SearchQuery}" Width="300" />
+                <Button Content="Suchen" Command="{Binding SearchCommand}" IsDefault="True"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Ergebnisse -->
+        <Grid Grid.Row="1" ColumnDefinitions="*, 10, 300">
+            
+            <!-- Liste -->
+            <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" CornerRadius="5">
+                <ListBox ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedResult}" Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="60, *">
+                                <!-- ASYNC IMAGE LOADER -->
+                                <Border Grid.Column="0" Width="50" Height="70" Background="#EEE" Margin="0,5,10,5">
+                                    <!-- Hier nutzen wir unseren Helper -->
+                                    <Image helpers:AsyncImageHelper.Url="{Binding CoverUrl}" 
+                                           Stretch="Uniform"/>
+                                </Border>
+                                
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding ReleaseDate, StringFormat={}{0:yyyy}}" FontSize="12" Foreground="Gray"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+           
+            <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" 
+                       Text="{Binding StatusMessage}" Foreground="Red" 
+                       HorizontalAlignment="Center" VerticalAlignment="Center" 
+                       IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Background="#CCFFFFFF" Padding="10"/>
+
+            <!-- Detailvorschau (Rechts) -->
+            <ScrollViewer Grid.Column="2">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Vorschau" FontWeight="Bold" FontSize="16"/>
+                    
+                    <!-- AUCH HIER: Async Loader statt ViewModel-Property -->
+                    <!-- Das spart uns den Code im ViewModel! -->
+                    <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.CoverUrl}" 
+                           Width="200" Height="300" Stretch="Uniform"
+                           IsVisible="{Binding SelectedResult.CoverUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="Cover URL:" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding SelectedResult.CoverUrl}" TextWrapping="Wrap" FontSize="10"/>
+                    
+                    <TextBlock Text="Titel:" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding SelectedResult.Title}" TextWrapping="Wrap"/>
+                    
+                    <TextBlock Text="Beschreibung:" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding SelectedResult.Description}" TextWrapping="Wrap" FontSize="12"/>
+                    
+                    <TextBlock Text="Rating:" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding SelectedResult.Rating}" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Loading Overlay -->
+            <Border Grid.Column="0" Grid.ColumnSpan="3" Background="#80000000" IsVisible="{Binding IsSearching}">
+                <TextBlock Text="Suche läuft..." VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="White" FontSize="20"/>
+            </Border>
+        </Grid>
+
+        <!-- Footer Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+            <Button Content="Abbrechen" Click="CloseWindow"/>
+            <Button Content="Übernehmen" Command="{Binding ApplyCommand}" Classes="accent"/>
+        </StackPanel>
+    </Grid>
+</Window>
