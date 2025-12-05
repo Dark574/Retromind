@@ -15,10 +15,10 @@ public class GoogleBooksProvider : IMetadataProvider
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
 
-    public GoogleBooksProvider(ScraperConfig config)
+    public GoogleBooksProvider(ScraperConfig config, HttpClient httpClient)
     {
         _config = config;
-        _httpClient = new HttpClient();
+        _httpClient = httpClient;
     }
 
     public Task<bool> ConnectAsync()

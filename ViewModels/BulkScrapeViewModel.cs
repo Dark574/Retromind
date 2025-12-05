@@ -41,80 +41,100 @@ public partial class BulkScrapeViewModel : ViewModelBase
     public IAsyncRelayCommand StartCommand { get; }
     public IRelayCommand CancelCommand { get; }
     
-    public event Action? RequestClose;
-
     private async Task StartScraping()
     {
         if (SelectedScraper == null) return;
 
         IsWorking = true;
         _cts = new CancellationTokenSource();
-        Log("Starte Bulk-Scrape mit " + SelectedScraper.Name);
+        Log("Starting bulk scrape with " + SelectedScraper.Name);
 
         var provider = _metadataService.GetProvider(SelectedScraper.Id);
         if (provider == null)
         {
-            Log("Fehler: Provider konnte nicht geladen werden.");
+            Log("Error: Could not load provider.");
             IsWorking = false;
             return;
         }
 
-        // Alle Items flach einsammeln
+        // Collect all items flat
         var allItems = new System.Collections.Generic.List<MediaItem>();
         CollectItems(_rootNode, allItems);
         
-        Log($"Gefunden: {allItems.Count} Medien.");
+        Log($"Found: {allItems.Count} media items.");
         ProgressValue = 0;
 
+        // Use atomic counter for thread-safe progress tracking
+        int processedCount = 0;
         double step = 100.0 / Math.Max(1, allItems.Count);
 
+        // Run in parallel but limit concurrency to be polite to APIs (e.g. 4 concurrent requests)
+        var parallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = 4, 
+            CancellationToken = _cts.Token
+        };
+        
         try
         {
-            for (int i = 0; i < allItems.Count; i++)
+            await Parallel.ForEachAsync(allItems, parallelOptions, async (item, token) =>
             {
-                if (_cts.Token.IsCancellationRequested) break;
-
-                var item = allItems[i];
-                StatusText = $"Bearbeite: {item.Title} ({i + 1}/{allItems.Count})";
-                
-                // Nur suchen, wenn wir noch keine Daten haben? 
-                // Oder immer überschreiben? Wir machen hier "Nur wenn Daten fehlen oder explizit gewünscht".
-                // Fürs erste: Einfach machen.
-
-                var results = await provider.SearchAsync(item.Title);
-
-                // Einfache Heuristik: Wenn der Name fast exakt stimmt, nimm den ersten Treffer
-                var match = results.FirstOrDefault(r => 
-                    string.Equals(r.Title, item.Title, StringComparison.OrdinalIgnoreCase));
-
-                // Fallback: Erster Treffer, wenn nichts exaktes
-                if (match == null && results.Count > 0) match = results[0];
-
-                if (match != null)
+                // Update Status (UI Thread)
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => 
                 {
-                    Log($" -> Treffer: {match.Title}");
-                    // KEINE direkte Zuweisung hier! Das macht der Callback im MainVM.
-                    OnItemScraped?.Invoke(item, match);
-                }
-                else
+                    StatusText = $"Processing: {item.Title}";
+                });
+
+                try 
                 {
-                    Log($" -> Nichts gefunden für {item.Title}");
+                    var results = await provider.SearchAsync(item.Title);
+
+                    // Simple heuristic: If the name matches almost exactly, take the first hit
+                    var match = results.FirstOrDefault(r => 
+                        string.Equals(r.Title, item.Title, StringComparison.OrdinalIgnoreCase));
+
+                    // Fallback: First hit if nothing exact
+                    if (match == null && results.Count > 0) match = results[0];
+
+                    if (match != null)
+                    {
+                        // Invoke changes on UI thread to be safe (modifies ObservableObjects/UI)
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            Log($" -> Match: {match.Title}");
+                            OnItemScraped?.Invoke(item, match);
+                        });
+                    }
+                    else
+                    {
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Log($" -> Nothing found for {item.Title}"));
+                    }
+                }
+                catch (Exception ex)
+                {
+                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Log($"Error processing {item.Title}: {ex.Message}"));
                 }
 
-                ProgressValue = (i + 1) * step;
-                
-                // API schonen (Rate Limiting)
-                await Task.Delay(250); 
-            }
+                // Update Progress (Thread-safe)
+                var current = Interlocked.Increment(ref processedCount);
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ProgressValue = current * step);
+
+                // Small dynamic delay per task to prevent burst-banning (politeness delay)
+                await Task.Delay(250, token);
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            Log("Scraping cancelled.");
         }
         catch (Exception ex)
         {
-            Log("Fehler: " + ex.Message);
+            Log("Critical Error: " + ex.Message);
         }
         finally
         {
             IsWorking = false;
-            StatusText = "Fertig.";
+            StatusText = "Done.";
         }
     }
 

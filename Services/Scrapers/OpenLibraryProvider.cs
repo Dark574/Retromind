@@ -14,10 +14,10 @@ public class OpenLibraryProvider : IMetadataProvider
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
 
-    public OpenLibraryProvider(ScraperConfig config)
+    public OpenLibraryProvider(ScraperConfig config, HttpClient httpClient)
     {
         _config = config;
-        _httpClient = new HttpClient();
+        _httpClient = httpClient;
         // Netterweise User-Agent setzen (Good Practice)
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "Retromind/1.0 (OpenSource Media Manager)");
     }

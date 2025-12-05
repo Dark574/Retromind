@@ -16,10 +16,10 @@ public class TmdbProvider : IMetadataProvider
     private const string BaseUrl = "https://api.themoviedb.org/3";
     private const string ImageBaseUrl = "https://image.tmdb.org/t/p/original"; // Oder w500 für kleiner
 
-    public TmdbProvider(ScraperConfig config)
+    public TmdbProvider(ScraperConfig config, HttpClient httpClient)
     {
         _config = config;
-        _httpClient = new HttpClient();
+        _httpClient = httpClient;
     }
 
     // Neue Hilfsmethode, um den richtigen Key zu ermitteln

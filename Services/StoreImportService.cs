@@ -11,14 +11,14 @@ namespace Retromind.Services;
 
 public class StoreImportService
 {
-    // Linux Pfade für Steam
+    // Linux paths for Steam
     private readonly string[] _steamPaths = 
     {
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps"),
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps")
     };
 
-    // Linux Pfad für Heroic (GOG/Epic)
+    // Linux path for Heroic (GOG/Epic)
     private readonly string _heroicConfigPath = 
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config/heroic/gog_store/installed.json");
 
@@ -44,14 +44,14 @@ public class StoreImportService
                     var name = ExtractValue(nameLine);
                     var id = ExtractValue(idLine);
 
-                    // Proton/Linux spezifische Dinge filtern (Steamworks Common Redist etc.)
+                    // Filter Proton/Linux specific entries (Steamworks Common Redist etc.)
                     if (name.Contains("Steamworks") || name.Contains("Proton")) continue;
 
                     results.Add(new MediaItem
                     {
                         Title = name,
-                        // Wir speichern die Steam-URL direkt als "FilePath" oder nutzen LauncherArgs
-                        // Für Retromind nutzen wir MediaType.Command
+                        // We store the Steam URL directly as "FilePath" or use LauncherArgs
+                        // For Retromind we use MediaType.Command
                         FilePath = "steam", 
                         LauncherArgs = $"steam://rungameid/{id}",
                         MediaType = MediaType.Command,
@@ -82,13 +82,14 @@ public class StoreImportService
             
             if (data is JsonObject obj)
             {
-                // Heroic speichert installed.json als Liste von Objekten
+                // Heroic stores installed.json as a list of objects
                 // { "installed": [ ... ] }
                 var list = obj["installed"]?.AsArray();
                 if (list != null)
                 {
                     foreach (var game in list)
                     {
+                        if (game == null) continue; 
                         var title = game["title"]?.ToString();
                         var id = game["appName"]?.ToString(); // GOG ID
                         var platform = game["platform"]?.ToString(); // "windows" oder "linux"
@@ -98,7 +99,7 @@ public class StoreImportService
                             results.Add(new MediaItem
                             {
                                 Title = title,
-                                // Heroic CLI Befehl: heroic "gog://ID"
+                                // Heroic CLI command: heroic "gog://ID"
                                 FilePath = "heroic",
                                 LauncherArgs = $"gog://{id}",
                                 MediaType = MediaType.Command,
@@ -118,11 +119,11 @@ public class StoreImportService
         return results;
     }
 
-    // Hilfsmethode für Steam ACF Format ("key" "value")
+    // Helper method for Steam ACF format ("key" "value")
     private string ExtractValue(string line)
     {
         var parts = line.Split('"', StringSplitOptions.RemoveEmptyEntries);
-        // parts[0] ist key, parts[1] ist value (meistens)
+        // parts[0] is key, parts[1] is value (usually)
         if (parts.Length >= 2) return parts.Last();
         return "Unknown";
     }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics; // For Debug.WriteLine
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Web; 
@@ -16,20 +17,29 @@ namespace Retromind.Services.Scrapers;
 public class EmuMoviesProvider : IMetadataProvider
 {
     private readonly ScraperConfig _config;
+    // Use a shared static HttpClient to prevent socket exhaustion.
+    // Ideally provided via IHttpClientFactory in a full DI setup.
     private readonly HttpClient _httpClient;
     private string? _sessionId;
 
-    public EmuMoviesProvider(ScraperConfig config)
+    public EmuMoviesProvider(ScraperConfig config, HttpClient httpClient)
     {
         _config = config;
-        // Ideally, HttpClient should be injected via IHttpClientFactory to manage lifecycle/sockets properly.
-        // Assuming this Service is used as a Singleton, keeping one instance is acceptable.
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(15)
-        };
+        _httpClient = httpClient;
     }
 
+    /// <summary>
+    /// Helper to create a properly configured request message.
+    /// EmuMovies REQUIRES a User-Agent, otherwise it may reject the connection hard.
+    /// </summary>
+    private HttpRequestMessage CreateRequest(string url)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Add("User-Agent", "Retromind/1.0");
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        return request;
+    }
+    
     /// <summary>
     /// Authenticates with EmuMovies using the credentials from settings.
     /// Stores the Session ID for subsequent requests.
@@ -46,7 +56,8 @@ public class EmuMoviesProvider : IMetadataProvider
             // Note: Always use HTTPS for credential transmission
             var url = $"https://api.emumovies.com/api/login?username={user}&password={pass}";
         
-            var response = await _httpClient.GetAsync(url);
+            using var request = CreateRequest(url);
+            var response = await _httpClient.SendAsync(request);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
@@ -74,7 +85,6 @@ public class EmuMoviesProvider : IMetadataProvider
         // Validate config
         if (string.IsNullOrWhiteSpace(_config.Username) || string.IsNullOrWhiteSpace(_config.Password))
         {
-            // TODO: Use localized string here (e.g. Strings.ErrorMissingCredentials)
             throw new InvalidOperationException("EmuMovies credentials missing. Please configure username and password.");
         }
 
@@ -90,7 +100,24 @@ public class EmuMoviesProvider : IMetadataProvider
             var term = HttpUtility.UrlEncode(query);
             var url = $"https://api.emumovies.com/api/search-games?term={term}&session={_sessionId}";
 
-            var response = await _httpClient.GetAsync(url);
+            // Retry Logic (einfach)
+            HttpResponseMessage? response = null;
+            for (int i = 0; i < 3; i++)
+            {
+                try 
+                {
+                    using var request = CreateRequest(url);
+                    response = await _httpClient.SendAsync(request);
+                    if (response.IsSuccessStatusCode) break;
+                }
+                catch (HttpRequestException) 
+                {
+                    if (i == 2) throw; // Beim letzten Versuch werfen
+                    await Task.Delay(1000); // Kurz warten
+                }
+            }
+            
+            if (response == null) throw new Exception("EmuMovies Connection failed.");
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();

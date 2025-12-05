@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Net.Http;
 using Retromind.Models;
 using Retromind.Services.Scrapers;
 
@@ -10,10 +10,12 @@ namespace Retromind.Services;
 public class MetadataService
 {
     private readonly AppSettings _settings;
+    private readonly HttpClient _httpClient;
 
-    public MetadataService(AppSettings settings)
+    public MetadataService(AppSettings settings, HttpClient httpClient)
     {
         _settings = settings;
+        _httpClient = httpClient;
     }
 
     // Factory-Methode: Holt den Provider basierend auf der ID des Scraper-Profils
@@ -25,24 +27,22 @@ public class MetadataService
         switch (config.Type)
         {
             case ScraperType.IGDB:
-                return new IgdbProvider(config);
+                return new IgdbProvider(config, _httpClient);
             
             case ScraperType.EmuMovies:
-                return new EmuMoviesProvider(config);
+                return new EmuMoviesProvider(config, _httpClient);
             
             case ScraperType.OpenLibrary:
-                return new OpenLibraryProvider(config);
+                return new OpenLibraryProvider(config, _httpClient);
             
             case ScraperType.TMDB:
-                return new TmdbProvider(config);
+                return new TmdbProvider(config, _httpClient);
             
             case ScraperType.GoogleBooks:
-                return new GoogleBooksProvider(config);
+                return new GoogleBooksProvider(config, _httpClient);
             
             case ScraperType.ComicVine:
-                return new ComicVineProvider(config);
-            
-            // Hier würden später ScreenScraper, TMDB etc. folgen
+                return new ComicVineProvider(config, _httpClient);
             
             default:
                 return null;

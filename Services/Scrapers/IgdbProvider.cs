@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Retromind.Models;
@@ -15,17 +14,18 @@ namespace Retromind.Services.Scrapers;
 public class IgdbProvider : IMetadataProvider
 {
     private readonly ScraperConfig _config;
+    // Use a shared static HttpClient to prevent socket exhaustion
     private readonly HttpClient _httpClient;
     private string? _accessToken;
     private DateTime _tokenExpiry;
 
-    public IgdbProvider(ScraperConfig config)
+    public IgdbProvider(ScraperConfig config, HttpClient httpClient)
     {
         _config = config;
-        _httpClient = new HttpClient();
+        _httpClient = httpClient;
     }
 
-    // Helper um die effektiven Credentials zu holen
+    // Helper to get effective credentials
     private (string ClientId, string ClientSecret) GetCredentials()
     {
         var clientId = !string.IsNullOrWhiteSpace(_config.ClientId) ? _config.ClientId : ApiSecrets.IgdbClientId;
@@ -41,7 +41,7 @@ public class IgdbProvider : IMetadataProvider
     
     public async Task<bool> ConnectAsync()
     {
-        // Wenn wir noch ein gültiges Token haben, alles gut
+        // If we still have a valid token, we are good
         if (!string.IsNullOrEmpty(_accessToken) && DateTime.Now < _tokenExpiry)
             return true;
 
@@ -49,7 +49,7 @@ public class IgdbProvider : IMetadataProvider
         {
             var creds = GetCredentials(); // Holt User-Daten ODER Secrets
             
-            // 1. Token von Twitch holen
+            // 1. Get Token from Twitch
             // POST https://id.twitch.tv/oauth2/token
             var url = $"https://id.twitch.tv/oauth2/token?client_id={creds.ClientId}&client_secret={creds.ClientSecret}&grant_type=client_credentials";
             var response = await _httpClient.PostAsync(url, null);
@@ -60,7 +60,7 @@ public class IgdbProvider : IMetadataProvider
 
             _accessToken = doc?["access_token"]?.ToString() ?? "";
             var seconds = doc?["expires_in"]?.GetValue<int>() ?? 3600;
-            _tokenExpiry = DateTime.Now.AddSeconds(seconds - 60); // 1 Minute Puffer
+            _tokenExpiry = DateTime.Now.AddSeconds(seconds - 60); // 1 minute buffer
 
             return !string.IsNullOrEmpty(_accessToken);
         }
@@ -72,27 +72,53 @@ public class IgdbProvider : IMetadataProvider
 
     public async Task<List<ScraperSearchResult>> SearchAsync(string query)
     {
-        // Sicherstellen, dass wir eingeloggt sind
+        // Ensure we are logged in
         await ConnectAsync();
         var creds = GetCredentials();
 
         try
         {
-            // Query erweitert um: involved_companies (Developer) und genres
+            // Query extended by: involved_companies (Developer) and genres
             var igdbQuery =
                 $"search \"{query}\"; fields name, summary, first_release_date, total_rating, cover.url, artworks.url, screenshots.url, genres.name, involved_companies.company.name; limit 20;";
 
-            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.igdb.com/v4/games");
-            // WICHTIG: Client-ID aus den Credentials nehmen, nicht aus _config (wegen Fallback)
-            request.Headers.Add("Client-ID", creds.ClientId);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
-            request.Content = new StringContent(igdbQuery, Encoding.UTF8, "text/plain");
+            // --- RETRY LOGIC START ---
+            int maxRetries = 3;
+            int currentRetry = 0;
+            HttpResponseMessage? response = null;
+            
+            while (currentRetry <= maxRetries)
+            {
+                // Important: HttpRequestMessage cannot be used again, 
+                // it needs to be redone in the loop
+                var request = new HttpRequestMessage(HttpMethod.Post, "https://api.igdb.com/v4/games");
+                request.Headers.Add("Client-ID", creds.ClientId);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+                request.Content = new StringContent(igdbQuery, Encoding.UTF8, "text/plain");
 
-            var response = await _httpClient.SendAsync(request);
+                response = await _httpClient.SendAsync(request);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    // Backoff: on the first try wait 1 second, on the second 2 seconds...
+                    currentRetry++;
+                    if (currentRetry > maxRetries) break; // give up
+
+                    await Task.Delay(1000 * currentRetry);
+                    continue; // next try
+                }
+
+                // if there are other errors or success: get out of the loop
+                break;
+            }
+            // --- RETRY LOGIC END ---
+            
+            // if the response is null or if it still fails -> Exception werfen
+            if (response == null) throw new Exception("No response from IGDB.");
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
-            var items = JsonNode.Parse(json)?.AsArray(); // JsonNode ist oft flexibler als JsonSerializer
+            var items = JsonNode.Parse(json)?.AsArray(); // JsonNode is often more flexibel than JsonSerializer
 
             var results = new List<ScraperSearchResult>();
 
@@ -100,6 +126,8 @@ public class IgdbProvider : IMetadataProvider
 
             foreach (var item in items)
             {
+                if (item == null) continue;
+                
                 var res = new ScraperSearchResult
                 {
                     Source = "IGDB",
@@ -109,14 +137,16 @@ public class IgdbProvider : IMetadataProvider
                     Rating = item?["total_rating"]?.GetValue<double>()
                 };
 
-                // Datum
-                if (item?["first_release_date"] != null)
+                var dateNode = item["first_release_date"];
+                
+                // Date
+                if (dateNode != null)
                 {
-                    var unixTime = item["first_release_date"].GetValue<long>();
+                    long unixTime = dateNode.GetValue<long>();
                     res.ReleaseDate = DateTimeOffset.FromUnixTimeSeconds(unixTime).DateTime;
                 }
 
-                // Genre (Array flachklopfen: "Action, Adventure")
+                // Genre (Flatten array: "Action, Adventure")
                 var genresArr = item?["genres"]?.AsArray();
                 if (genresArr != null)
                 {
@@ -125,14 +155,14 @@ public class IgdbProvider : IMetadataProvider
                 }
 
                 // Developer (Involved Companies -> Company -> Name)
-                // Wir nehmen einfach den ersten Eintrag, IGDB sortiert meistens gut
+                // We just take the first entry, IGDB usually sorts well
                 var companiesArr = item?["involved_companies"]?.AsArray();
                 if (companiesArr != null && companiesArr.Count > 0)
                 {
                     res.Developer = companiesArr[0]?["company"]?["name"]?.ToString();
                 }
 
-                // Bilder
+                // Images
                 var coverUrl = item?["cover"]?["url"]?.ToString();
                 if (!string.IsNullOrEmpty(coverUrl))
                     res.CoverUrl = FixIgdbImageUrl(coverUrl, "t_cover_big");
@@ -157,12 +187,12 @@ public class IgdbProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            // Exception weiterwerfen, damit ViewModel sie anzeigen kann
+            // Rethrow exception so ViewModel can display it
             throw new Exception($"IGDB Fehler: {ex.Message}");
         }
     }
 
-    // Helper: IGDB URLs sind oft "//images..." und "t_thumb". Wir wollen "https://" und HighRes.
+    // Helper: IGDB URLs are often "//images..." and "t_thumb". We want "https://" and HighRes.
     private string FixIgdbImageUrl(string url, string size)
     {
         if (url.StartsWith("//")) url = "https:" + url;

@@ -782,5 +782,23 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("ScrapeArea", resourceCulture);
             }
         }
+        
+        public static string MsgConfirmDelete {
+            get {
+                return ResourceManager.GetString("MsgConfirmDelete", resourceCulture);
+            }
+        }
+        
+        public static string ErrorMissingCredentials {
+            get {
+                return ResourceManager.GetString("ErrorMissingCredentials", resourceCulture);
+            }
+        }
+        
+        public static string CtxImportRoms {
+            get {
+                return ResourceManager.GetString("CtxImportRoms", resourceCulture);
+            }
+        }
     }
 }

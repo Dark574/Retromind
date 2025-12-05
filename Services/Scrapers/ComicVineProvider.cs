@@ -14,10 +14,10 @@ public class ComicVineProvider : IMetadataProvider
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
 
-    public ComicVineProvider(ScraperConfig config)
+    public ComicVineProvider(ScraperConfig config, HttpClient httpClient)
     {
         _config = config;
-        _httpClient = new HttpClient();
+        _httpClient = httpClient;
         // ComicVine blockt Requests ohne eindeutigen User-Agent strikt!
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "Retromind-MediaManager/1.0");
     }

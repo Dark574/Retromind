@@ -19,15 +19,15 @@ public class FileManagementService
     private const string RootFolderName = "Medien";
 
     /// <summary>
-    ///     Importiert eine Asset-Datei (Cover, Wallpaper) in die portable Struktur.
-    ///     Wenn die Datei schon existiert, wird ein Zähler (_01, _02) angehängt.
+    ///     Imports an asset file (Cover, Wallpaper) into the portable structure.
+    ///     If the file already exists, a counter (_01, _02) is appended.
     /// </summary>
     public string ImportAsset(string sourceFilePath, MediaItem item, List<string> nodePath, MediaFileType fileType)
     {
-        // 1. Basis-Verzeichnis der App
+        // 1. Base directory of the application
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
 
-        // 2. Ziel-Ordner Struktur bauen: Medien/Bereich/Gruppe/...
+        // 2. Build target folder structure: Media/Area/Group/...
         var paths = new List<string> { RootFolderName };
         paths.AddRange(nodePath);
         paths.Add(fileType.ToString()); // Unterordner z.B. "Cover"
@@ -35,35 +35,35 @@ public class FileManagementService
         var relativeDirectory = Path.Combine(paths.ToArray());
         var absoluteDirectory = Path.Combine(baseDir, relativeDirectory);
 
-        // Ordner erstellen falls nicht existent
+        // Create directory if it doesn't exist
         if (!Directory.Exists(absoluteDirectory)) Directory.CreateDirectory(absoluteDirectory);
 
-        // 3. Zieldateiname generieren
+        // 3. Generate target filename
         var extension = Path.GetExtension(sourceFilePath);
         var safeTitle = SanitizeFileName(item.Title);
 
-        // Basis: "Super_Mario_Bros_Cover"
+        // Base: e.g. "Super_Mario_Bros_Cover"
         var baseFileName = $"{safeTitle}_{fileType}";
         
-        // Standard-Name: "Super_Mario_Bros_Cover.jpg"
+        // Standard Name: e.g. "Super_Mario_Bros_Cover.jpg"
         var newFileName = $"{baseFileName}{extension}";
         var destinationPath = Path.Combine(absoluteDirectory, newFileName);
 
-        // VERSIONIERUNG: Prüfen ob Datei existiert und hochzählen
+        // VERSIONING: Check if file exists and increment counter
         int counter = 1;
         while (File.Exists(destinationPath))
         {
-            // Wir prüfen hier nicht auf Inhalt (Hash), wir behalten einfach alles.
-            // Neuer Name: "Super_Mario_Bros_Cover_01.jpg"
+            // We don't check content hash here, we just keep everything.
+            // New Name: e.g. "Super_Mario_Bros_Cover_01.jpg"
             newFileName = $"{baseFileName}_{counter:D2}{extension}";
             destinationPath = Path.Combine(absoluteDirectory, newFileName);
             counter++;
         }
 
-        // 4. Kopieren
+        // 4. Copy
         try
         {
-            File.Copy(sourceFilePath, destinationPath); // Kein Überschreiben nötig
+            File.Copy(sourceFilePath, destinationPath); // No overwrite needed
         }
         catch (IOException ex)
         {
@@ -71,31 +71,31 @@ public class FileManagementService
             return string.Empty;
         }
 
-        // 5. Relativen Pfad zurückgeben
+        // 5. Return relative path
         return Path.Combine(relativeDirectory, newFileName);
     }
 
     /// <summary>
-    ///     Entfernt ungültige Zeichen und ersetzt Leerzeichen durch Unterstriche.
+    ///     Removes invalid characters and replaces spaces with underscores.
     /// </summary>
     private string SanitizeFileName(string name)
     {
         if (string.IsNullOrEmpty(name)) return "Unknown";
 
-        // Ungültige Zeichen für Dateinamen entfernen
+        // Remove invalid characters for filenames
         var invalidChars = Regex.Escape(new string(Path.GetInvalidFileNameChars()));
         var invalidRegStr = string.Format(@"([{0}]*\.+$)|([{0}]+)", invalidChars);
 
         var safeName = Regex.Replace(name, invalidRegStr, "_");
 
-        // Leerzeichen durch Unterstrich ersetzen (optional, aber unter Linux oft netter)
+        // Replace spaces with underscores (optional, but often nicer on Linux)
         safeName = safeName.Replace(" ", "_");
 
         return safeName;
     }
 
     /// <summary>
-    ///     Sucht nach einem existierenden Asset für das Item (z.B. manuell reinkopiert).
+    ///     Searches for an existing asset for the item (e.g. manually copied in).
     /// </summary>
     public string? FindExistingAsset(MediaItem item, List<string> nodePath, MediaFileType fileType)
     {
@@ -110,21 +110,21 @@ public class FileManagementService
 
         if (!Directory.Exists(absoluteDirectory)) return null;
 
-        // Wir suchen nach Dateien, die mit "Titel_Typ" anfangen.
-        // z.B. "Super_Mario_Cover.jpg" oder "Super_Mario_Cover.png"
+        // We search for files starting with "Title_Type".
+        // e.g. "Super_Mario_Cover.jpg" or "Super_Mario_Cover.png"
         var safeTitle = SanitizeFileName(item.Title);
-        var searchPattern = $"{safeTitle}_{fileType}*"; // Sternchen am Ende für _01 etc.
+        var searchPattern = $"{safeTitle}_{fileType}*"; // Wildcard at end for _01 etc.
 
-        // Directory.GetFiles gibt volle Pfade zurück
+        // Directory.GetFiles returns full paths
         var foundFiles = Directory.GetFiles(absoluteDirectory, searchPattern);
 
         if (foundFiles.Length > 0)
         {
-            // Wir nehmen den ersten Treffer
+            // Take the first match
             var fullPath = foundFiles[0];
             var fileName = Path.GetFileName(fullPath);
 
-            // Relativen Pfad zurückgeben
+            // Return relative path
             return Path.Combine(relativeDirectory, fileName);
         }
 

@@ -393,4 +393,13 @@
   <data name="ScrapeArea" xml:space="preserve">
     <value>Scraping area</value>
   </data>
+  <data name="MsgConfirmDelete" xml:space="preserve">
+    <value>Do you really want to delete this?</value>
+  </data>
+  <data name="ErrorMissingCredentials" xml:space="preserve">
+    <value>Credentials missing. Please check settings.</value>
+  </data>
+  <data name="CtxImportRoms" xml:space="preserve">
+    <value>Import ROMs...</value>
+  </data>
 </root>
