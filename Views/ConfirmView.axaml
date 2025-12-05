@@ -3,6 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:sys="using:System"
+        xmlns:p="clr-namespace:Retromind.Resources"
         mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="150"
         x:Class="Retromind.Views.ConfirmView"
         x:DataType="sys:String"
@@ -16,12 +17,12 @@
         <TextBlock Text="{Binding}" FontSize="16" TextWrapping="Wrap" MaxWidth="300" />
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-            <Button Content="Ja"
+            <Button Content="{x:Static p:Strings.Yes}"
                     Click="OnOkClick"
                     IsDefault="True"
                     Width="80" />
 
-            <Button Content="Nein"
+            <Button Content="{x:Static p:Strings.No}"
                     Click="OnCancelClick"
                     IsCancel="True"
                     Width="80" />

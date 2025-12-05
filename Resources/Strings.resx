@@ -181,12 +181,216 @@
     <value>New source</value>
   </data>
   <data name="HintTmdbKey" xml:space="preserve">
-    <value />
+    <value>(Optional: Leave blank for default key)</value>
   </data>
   <data name="HintIgdbCredentials" xml:space="preserve">
-    <value />
+    <value>(Optional: Leave blank for default access)</value>
   </data>
   <data name="HintRequired" xml:space="preserve">
-    <value />
+    <value>(Necessary)</value>
+  </data>
+  <data name="AutomaticMetadataSearch" xml:space="preserve">
+    <value>Automatic metadata search</value>
+  </data>
+  <data name="Source" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="Launch" xml:space="preserve">
+    <value>Launch</value>
+  </data>
+  <data name="Yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="No" xml:space="preserve">
+    <value>No</value>
+  </data>
+  <data name="ProcessMonitor" xml:space="preserve">
+    <value>Process monitoring (Optional)</value>
+  </data>
+  <data name="TimePlayedHint" xml:space="preserve">
+    <value>Only needed for Steam/GOG/scripts.&amp;#x0a;Name of the actual game process (without .exe),&amp;#x0a;so that the time is measured correctly.</value>
+  </data>
+  <data name="WatermarkOverrideWatchProcess" xml:space="preserve">
+    <value>e.g. hl2_linux, retroarch, stardewvalley</value>
+  </data>
+  <data name="Profile" xml:space="preserve">
+    <value>Profile</value>
+  </data>
+  <data name="Picture" xml:space="preserve">
+    <value>+ Picture</value>
+  </data>
+  <data name="Logo" xml:space="preserve">
+    <value>Logo</value>
+  </data>
+  <data name="Cover" xml:space="preserve">
+    <value>Cover</value>
+  </data>
+  <data name="Wall" xml:space="preserve">
+    <value>Wall</value>
+  </data>
+  <data name="MusicFiles" xml:space="preserve">
+    <value>Music Files:</value>
+  </data>
+  <data name="Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="SetMusicActive" xml:space="preserve">
+    <value>Set as music</value>
+  </data>
+  <data name="AddMusic" xml:space="preserve">
+    <value>+ music</value>
+  </data>
+  <data name="ToggleTheme" xml:space="preserve">
+    <value>Toggle Dark/Light Theme</value>
+  </data>
+  <data name="GlobalSearch" xml:space="preserve">
+    <value>Open global search</value>
+  </data>
+  <data name="ImportRoms" xml:space="preserve">
+    <value>Local Folder (ROMs)...</value>
+  </data>
+  <data name="Import" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="ImportSteam" xml:space="preserve">
+    <value>Steam library</value>
+  </data>
+  <data name="SearchMetadataAll" xml:space="preserve">
+    <value>Search metadata (All)...</value>
+  </data>
+  <data name="ImportGog" xml:space="preserve">
+    <value>GOG (via Heroic)</value>
+  </data>
+  <data name="MediaSettings" xml:space="preserve">
+    <value>Settings / Rename...</value>
+  </data>
+  <data name="ChooseMedia" xml:space="preserve">
+    <value>Choose a medium</value>
+  </data>
+  <data name="TipRandomGame" xml:space="preserve">
+    <value>Start a random game from the current view</value>
+  </data>
+  <data name="Random" xml:space="preserve">
+    <value>Random</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>Search...</value>
+  </data>
+  <data name="ImportFolder" xml:space="preserve">
+    <value>Import (folder)...</value>
+  </data>
+  <data name="LoadMetadata" xml:space="preserve">
+    <value>Load metadata...</value>
+  </data>
+  <data name="Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Name:</value>
+  </data>
+  <data name="Options" xml:space="preserve">
+    <value>Options:</value>
+  </data>
+  <data name="RandomCover" xml:space="preserve">
+    <value>Random covers (■ = Inherited)</value>
+  </data>
+  <data name="TipRandomImage" xml:space="preserve">
+    <value>When the folder is displayed, random images are selected from the media folder.</value>
+  </data>
+  <data name="RandomMusic" xml:space="preserve">
+    <value>Random music (■ = Inherited)</value>
+  </data>
+  <data name="TipRandomMusic" xml:space="preserve">
+    <value>When the folder is displayed, random music is selected from the media folder.</value>
+  </data>
+  <data name="StandardEmulator" xml:space="preserve">
+    <value>Default emulator (for this folder):</value>
+  </data>
+  <data name="EmulatorSelection" xml:space="preserve">
+    <value>This applies to all games in this folder and subfolders that do not have their own emulator.</value>
+  </data>
+  <data name="ChooseSource" xml:space="preserve">
+    <value>Select source:</value>
+  </data>
+  <data name="SearchMetadata" xml:space="preserve">
+    <value>Search metadata</value>
+  </data>
+  <data name="SearchTerm" xml:space="preserve">
+    <value>Search term</value>
+  </data>
+  <data name="PreviewShort" xml:space="preserve">
+    <value>preview</value>
+  </data>
+  <data name="CoverURL" xml:space="preserve">
+    <value>Cover URL:</value>
+  </data>
+  <data name="TitleEx" xml:space="preserve">
+    <value>Title:</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Description:</value>
+  </data>
+  <data name="Rating" xml:space="preserve">
+    <value>Rating:</value>
+  </data>
+  <data name="SearchProceeds" xml:space="preserve">
+    <value>Search is ongoing...</value>
+  </data>
+  <data name="TakeOver" xml:space="preserve">
+    <value>Take Over</value>
+  </data>
+  <data name="GlobalSearchShort" xml:space="preserve">
+    <value>Global search</value>
+  </data>
+  <data name="TitleSearch" xml:space="preserve">
+    <value>Search title...</value>
+  </data>
+  <data name="Year" xml:space="preserve">
+    <value>Year (e.g. 1998)</value>
+  </data>
+  <data name="Area" xml:space="preserve">
+    <value>Areas:</value>
+  </data>
+  <data name="RandomMatch" xml:space="preserve">
+    <value>Start random matches</value>
+  </data>
+  <data name="NoResult" xml:space="preserve">
+    <value>No results found (or filters empty).</value>
+  </data>
+  <data name="ConfigureMetadata" xml:space="preserve">
+    <value>Configure metadata</value>
+  </data>
+  <data name="Designation" xml:space="preserve">
+    <value>Designation</value>
+  </data>
+  <data name="Type" xml:space="preserve">
+    <value>Type / Service</value>
+  </data>
+  <data name="AccessData" xml:space="preserve">
+    <value>Access data</value>
+  </data>
+  <data name="Client" xml:space="preserve">
+    <value>Client ID</value>
+  </data>
+  <data name="ClientSecret" xml:space="preserve">
+    <value>Client Secret</value>
+  </data>
+  <data name="UserName" xml:space="preserve">
+    <value>User name</value>
+  </data>
+  <data name="Password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="ApiKey" xml:space="preserve">
+    <value>API Key</value>
+  </data>
+  <data name="DataLanguage" xml:space="preserve">
+    <value>Data language</value>
+  </data>
+  <data name="ChooseASource" xml:space="preserve">
+    <value>Choose a source</value>
+  </data>
+  <data name="ScrapeArea" xml:space="preserve">
+    <value>Scraping area</value>
   </data>
 </root>

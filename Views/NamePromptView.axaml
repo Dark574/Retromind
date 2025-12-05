@@ -3,6 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:p="clr-namespace:Retromind.Resources"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="Retromind.Views.NamePromptView"
         x:DataType="vm:NamePromptViewModel"
@@ -21,13 +22,13 @@
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
             <!-- IsDefault=True erlaubt Bestätigen mit ENTER -->
-            <Button Content="OK"
+            <Button Content="{x:Static p:Strings.Ok}"
                     Click="OnOkClick"
                     IsDefault="True"
                     Width="80" />
 
             <!-- IsCancel=True erlaubt Abbrechen mit ESC -->
-            <Button Content="Abbrechen"
+            <Button Content="{x:Static p:Strings.Cancel}"
                     Click="OnCancelClick"
                     IsCancel="True"
                     Width="80" />

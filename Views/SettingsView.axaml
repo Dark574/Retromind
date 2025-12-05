@@ -94,38 +94,38 @@
                                 IsVisible="{Binding SelectedScraper, Converter={x:Static ObjectConverters.IsNotNull}}">
     
                             <StackPanel Spacing="15" DataContext="{Binding SelectedScraper}">
-                                <TextBlock Text="Metadaten konfigurieren" FontWeight="Bold" FontSize="16"
+                                <TextBlock Text="{x:Static p:Strings.ConfigureMetadata}" FontWeight="Bold" FontSize="16"
                                            Margin="0,0,0,10" />
     
                                 <!-- Name -->
                                 <StackPanel>
-                                    <TextBlock Text="Bezeichnung" FontWeight="Bold" />
+                                    <TextBlock Text="{x:Static p:Strings.Designation}" FontWeight="Bold" />
                                     <TextBox Text="{Binding Name}" />
                                 </StackPanel>
                                 
                                 <!-- Typ -->
                                 <StackPanel>
-                                    <TextBlock Text="Typ / Dienst" FontWeight="Bold" />
+                                    <TextBlock Text="{x:Static p:Strings.Type}" FontWeight="Bold" />
                                     <ComboBox ItemsSource="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).AvailableScraperTypes}"
                                               SelectedItem="{Binding Type}" HorizontalAlignment="Stretch"/>
                                 </StackPanel>
                                 
                                 <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,10"/>
                                 
-                                <TextBlock Text="Zugangsdaten" FontWeight="Bold" FontSize="14" Margin="0,5,0,0"/>
+                                <TextBlock Text="{x:Static p:Strings.AccessData}" FontWeight="Bold" FontSize="14" Margin="0,5,0,0"/>
     
                                 <!-- IGDB Felder -->
                                 <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsIgdbSelected}">
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Client ID" FontWeight="Bold" />
+                                            <TextBlock Text="{x:Static p:Strings.Client}" FontWeight="Bold" />
                                             <TextBlock Text="{x:Static p:Strings.HintIgdbCredentials}" FontSize="10" Opacity="0.6" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
                                         </StackPanel>
                                         <TextBox Text="{Binding ClientId}" />
                                     </StackPanel>
                                     <StackPanel Margin="0,10,0,0">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Client Secret" FontWeight="Bold" />
+                                            <TextBlock Text="{x:Static p:Strings.ClientSecret}" FontWeight="Bold" />
                                             <TextBlock Text="{x:Static p:Strings.HintIgdbCredentials}" FontSize="10" Opacity="0.6" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
                                         </StackPanel>
                                         <TextBox Text="{Binding ClientSecret}" PasswordChar="*" />
@@ -136,14 +136,14 @@
                                 <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsEmuMoviesSelected}">
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Benutzername" FontWeight="Bold" />
+                                            <TextBlock Text="{x:Static p:Strings.UserName}" FontWeight="Bold" />
                                             <TextBlock Text="{x:Static p:Strings.HintRequired}" FontSize="10" Foreground="Red" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
                                         </StackPanel>
                                         <TextBox Text="{Binding Username}" />
                                     </StackPanel>
                                     <StackPanel Margin="0,10,0,0">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Passwort" FontWeight="Bold" />
+                                            <TextBlock Text="{x:Static p:Strings.Password}" FontWeight="Bold" />
                                             <TextBlock Text="{x:Static p:Strings.HintRequired}" FontSize="10" Foreground="Red" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
                                         </StackPanel>
                                         <TextBox Text="{Binding Password}" PasswordChar="*" />
@@ -163,7 +163,7 @@
                                     </StackPanel.IsVisible>
 
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="API Key" FontWeight="Bold" />
+                                        <TextBlock Text="{x:Static p:Strings.ApiKey}" FontWeight="Bold" />
                                         <!-- Spezieller TMDB Hinweis -->
                                         <TextBlock Text="{x:Static p:Strings.HintTmdbKey}" 
                                                    IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsTmdbSelected}"
@@ -173,7 +173,7 @@
                                 </StackPanel>
                                 <!-- Sprache (Nur für TMDB sichtbar) -->
                                 <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsTmdbSelected}">
-                                    <TextBlock Text="Daten-Sprache" FontWeight="Bold" Margin="0,10,0,2"/>
+                                    <TextBlock Text="{x:Static p:Strings.DataLanguage}" FontWeight="Bold" Margin="0,10,0,2"/>
                                     <ComboBox SelectedItem="{Binding Language}" HorizontalAlignment="Stretch">
                                         <ComboBox.Items>
                                             <x:String>de-DE</x:String>
@@ -188,7 +188,7 @@
                     
                      <!-- Fallback -->
                     <TextBlock Grid.Column="2"
-                               Text="Wähle eine Quelle aus"
+                               Text="{x:Static p:Strings.ChooseASource}"
                                VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.5"
                                IsVisible="{Binding SelectedScraper, Converter={x:Static ObjectConverters.IsNull}}" />
                 </Grid>

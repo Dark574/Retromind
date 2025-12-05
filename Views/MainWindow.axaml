@@ -104,7 +104,7 @@
                                <Button Grid.Column="1" Content="🌗" 
                                        Command="{Binding ToggleThemeCommand}"
                                        Background="Transparent" BorderThickness="0"
-                                       ToolTip.Tip="Toggle Dark/Light Theme"
+                                       ToolTip.Tip="{x:Static p:Strings.ToggleTheme}"
                                        FontSize="16" Cursor="Hand" Margin="0,0,5,0"
                                        Foreground="{Binding TextColor}"/>
 
@@ -112,7 +112,7 @@
                                <Button Grid.Column="2" Content="🔍" 
                                        Command="{Binding OpenSearchCommand}"
                                        Background="Transparent" BorderThickness="0"
-                                       ToolTip.Tip="Globale Suche öffnen"
+                                       ToolTip.Tip="{x:Static p:Strings.GlobalSearch}"
                                        FontSize="14" Cursor="Hand" Margin="0,2,5,0"
                                        Foreground="{Binding TextColor}"/>
 
@@ -159,19 +159,19 @@
                                                    <Separator />
                                                    
                                                    <!-- IMPORT UNTERMENÜ -->
-                                                   <MenuItem Header="Importieren" FontWeight="Bold">
-                                                       <MenuItem Header="Lokaler Ordner (ROMs)..."
+                                                   <MenuItem Header="{x:Static p:Strings.Import}" FontWeight="Bold">
+                                                       <MenuItem Header="{x:Static p:Strings.ImportRoms}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
                                                                  CommandParameter="{Binding .}"/>
                                                        <Separator/>
-                                                       <MenuItem Header="Steam Bibliothek"
+                                                       <MenuItem Header="{x:Static p:Strings.ImportSteam}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportSteamCommand}"
                                                                  CommandParameter="{Binding .}"/>
-                                                       <MenuItem Header="GOG (via Heroic)"
+                                                       <MenuItem Header="{x:Static p:Strings.ImportGog}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportGogCommand}"
                                                                  CommandParameter="{Binding .}"/>
                                                    </MenuItem>
-                                                   <MenuItem Header="Metadaten suchen (Alle)..."
+                                                   <MenuItem Header="{x:Static p:Strings.SearchMetadataAll}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeNodeCommand}"
                                                              CommandParameter="{Binding .}"
                                                              FontWeight="Bold" />
@@ -184,7 +184,7 @@
                                                    <Separator/>
 
                                                    <!-- Einstellungen für den Ordner -->
-                                                   <MenuItem Header="Einstellungen / Umbenennen..."
+                                                   <MenuItem Header="{x:Static p:Strings.MediaSettings}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditNodeCommand}"
                                                              CommandParameter="{Binding .}"/>
 
@@ -221,7 +221,7 @@
                    <!-- Background an PanelBackground binden! -->
                    <Grid Grid.Column="4" Background="{Binding PanelBackground}" x:CompileBindings="False">
                        
-                       <TextBlock Text="Wähle ein Medium aus"
+                       <TextBlock Text="{x:Static p:Strings.ChooseMedia}"
                                   VerticalAlignment="Center"
                                   HorizontalAlignment="Center"
                                   Foreground="{Binding DataContext.TextColor, ElementName=MainWin}"

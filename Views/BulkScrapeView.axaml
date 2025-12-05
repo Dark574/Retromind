@@ -1,18 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:p="clr-namespace:Retromind.Resources"
         x:Class="Retromind.Views.BulkScrapeView"
         x:DataType="vm:BulkScrapeViewModel"
-        Title="Bereich Scrapen"
+        Title="{x:Static p:Strings.ScrapeArea}"
         Width="600" Height="400"
         WindowStartupLocation="CenterOwner">
     
     <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="20">
         
-        <TextBlock Grid.Row="0" Text="Automatische Metadaten-Suche" FontSize="18" FontWeight="Bold" Margin="0,0,0,20"/>
+        <TextBlock Grid.Row="0" Text="{x:Static p:Strings.AutomaticMetadataSearch}" FontSize="18" FontWeight="Bold" Margin="0,0,0,20"/>
         
         <Grid Grid.Row="1" ColumnDefinitions="Auto, 10, *" Margin="0,0,0,20">
-            <TextBlock Grid.Column="0" Text="Quelle:" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="0" Text="{x:Static p:Strings.Source}" VerticalAlignment="Center"/>
             <ComboBox Grid.Column="2" ItemsSource="{Binding AvailableScrapers}" 
                       SelectedItem="{Binding SelectedScraper}" HorizontalAlignment="Stretch">
                 <ComboBox.ItemTemplate>
@@ -35,8 +36,8 @@
             <ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="20"/>
             
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                <Button Content="Abbrechen" Command="{Binding CancelCommand}" IsEnabled="{Binding IsWorking}"/>
-                <Button Content="Starten" Command="{Binding StartCommand}" Classes="accent" IsEnabled="{Binding !IsWorking}"/>
+                <Button Content="{x:Static p:Strings.Cancel}" Command="{Binding CancelCommand}" IsEnabled="{Binding IsWorking}"/>
+                <Button Content="{x:Static p:Strings.Launch}" Command="{Binding StartCommand}" Classes="accent" IsEnabled="{Binding !IsWorking}"/>
             </StackPanel>
         </StackPanel>
     </Grid>

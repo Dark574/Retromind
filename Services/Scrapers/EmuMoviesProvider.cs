@@ -1,14 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics; // For Debug.WriteLine
 using System.Net.Http;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using System.Web; // Oder System.Net.WebUtility
+using System.Web; 
 using Retromind.Models;
 
 namespace Retromind.Services.Scrapers;
 
+/// <summary>
+/// Metadata provider for EmuMovies.com API.
+/// Handles authentication and fetching of metadata and media assets.
+/// </summary>
 public class EmuMoviesProvider : IMetadataProvider
 {
     private readonly ScraperConfig _config;
@@ -18,34 +22,40 @@ public class EmuMoviesProvider : IMetadataProvider
     public EmuMoviesProvider(ScraperConfig config)
     {
         _config = config;
-        _httpClient = new HttpClient();
-        // Timeout setzen, damit wir nicht ewig warten
-        _httpClient.Timeout = TimeSpan.FromSeconds(15);
+        // Ideally, HttpClient should be injected via IHttpClientFactory to manage lifecycle/sockets properly.
+        // Assuming this Service is used as a Singleton, keeping one instance is acceptable.
+        _httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(15)
+        };
     }
 
+    /// <summary>
+    /// Authenticates with EmuMovies using the credentials from settings.
+    /// Stores the Session ID for subsequent requests.
+    /// </summary>
     public async Task<bool> ConnectAsync()
     {
         if (!string.IsNullOrEmpty(_sessionId)) return true;
 
         try
         {
-            // WICHTIG: HTTPS verwenden!
             var user = HttpUtility.UrlEncode(_config.Username);
             var pass = HttpUtility.UrlEncode(_config.Password);
-            
+        
+            // Note: Always use HTTPS for credential transmission
             var url = $"https://api.emumovies.com/api/login?username={user}&password={pass}";
-            
+        
             var response = await _httpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
             var doc = JsonNode.Parse(json);
-            
+        
             var resultInfo = doc?["Result"]?.ToString();
             if (resultInfo != "Success")
             {
-                // Fehler im Log ausgeben, damit User es sieht (via StatusMessage im VM)
-                Console.WriteLine($"EmuMovies Login Failed: {resultInfo}");
+                Debug.WriteLine($"[EmuMovies] Login Failed: {resultInfo}");
                 return false;
             }
 
@@ -54,31 +64,30 @@ public class EmuMoviesProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"EmuMovies Connection Error: {ex.Message}");
-            // Werfe Exception weiter, damit sie im Dialog angezeigt wird!
-            throw; 
+            Debug.WriteLine($"[EmuMovies] Connection Error: {ex.Message}");
+            throw; // Rethrow to notify UI/User
         }
     }
 
     public async Task<List<ScraperSearchResult>> SearchAsync(string query)
     {
-        // Hier KEIN Fallback auf ApiSecrets, da User-spezifisch
+        // Validate config
         if (string.IsNullOrWhiteSpace(_config.Username) || string.IsNullOrWhiteSpace(_config.Password))
         {
-            throw new System.Exception("Für EmuMovies werden Benutzername und Passwort benötigt. Bitte in den Einstellungen hinterlegen.");
+            // TODO: Use localized string here (e.g. Strings.ErrorMissingCredentials)
+            throw new InvalidOperationException("EmuMovies credentials missing. Please configure username and password.");
         }
 
-        // Verbindungsversuch
+        // Ensure connection
         if (string.IsNullOrEmpty(_sessionId))
         {
             if (!await ConnectAsync()) 
-                throw new Exception("Login bei EmuMovies fehlgeschlagen. Zugangsdaten prüfen.");
+                throw new Exception("EmuMovies Login failed. Please check your credentials.");
         }
 
         try
         {
             var term = HttpUtility.UrlEncode(query);
-            // Auch hier HTTPS
             var url = $"https://api.emumovies.com/api/search-games?term={term}&session={_sessionId}";
 
             var response = await _httpClient.GetAsync(url);
@@ -86,7 +95,7 @@ public class EmuMoviesProvider : IMetadataProvider
 
             var json = await response.Content.ReadAsStringAsync();
             var doc = JsonNode.Parse(json);
-            
+        
             var games = doc?["Games"]?.AsArray();
             var results = new List<ScraperSearchResult>();
 
@@ -105,13 +114,11 @@ public class EmuMoviesProvider : IMetadataProvider
                     Title = $"{title} ({system})", 
                     Description = game?["Description"]?.ToString() ?? "",
                 };
-                
-                // Medien laden (optional, verlangsamt Suche)
-                // Wir können es hier drin lassen oder erst bei Detail-Klick laden
-                // Um die Liste schnell zu füllen, lassen wir es vielleicht erstmal weg 
-                // ODER wir holen nur Basis-Medien.
+            
+                // Optional: Fetch media URLs immediately. 
+                // This slows down the search list but provides images instantly.
                 await EnrichWithMedia(res, id, system);
-                
+            
                 results.Add(res);
             }
 
@@ -119,52 +126,60 @@ public class EmuMoviesProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            // Fehler weitergeben
-            throw new Exception($"EmuMovies Suche fehlgeschlagen: {ex.Message}");
+            throw new Exception($"EmuMovies search failed: {ex.Message}", ex);
         }
     }
 
+    /// <summary>
+    /// Fetches specific media URLs (Cover, Wallpaper, Logo) for a game result.
+    /// </summary>
     private async Task EnrichWithMedia(ScraperSearchResult item, string gameId, string system)
     {
         try 
         {
-            // HTTPS
             var url = $"https://api.emumovies.com/api/get-game-media?session={_sessionId}&id={gameId}&system={HttpUtility.UrlEncode(system)}";
             var response = await _httpClient.GetAsync(url);
             if (!response.IsSuccessStatusCode) return;
-            
+        
             var json = await response.Content.ReadAsStringAsync();
             var doc = JsonNode.Parse(json);
-            
+        
             var medias = doc?["Medias"]?.AsArray();
             if (medias == null) return;
-            
+        
             foreach (var media in medias)
             {
                 var type = media?["MediaType"]?.ToString();
                 var mediaUrl = media?["Url"]?.ToString();
-                
+            
                 if (string.IsNullOrEmpty(mediaUrl)) continue;
-                
-                // Mapping
-                if (type == "Box 2D" || type == "Box 3D") 
+            
+                // Map EmuMovies types to our model
+                switch (type)
                 {
-                    if (string.IsNullOrEmpty(item.CoverUrl) || type == "Box 2D") 
-                        item.CoverUrl = mediaUrl;
-                }
-                else if (type == "Background" || type == "Fanart")
-                {
-                    item.WallpaperUrl = mediaUrl;
-                }
-                else if (type == "Logo" || type == "Clear Logo")
-                {
-                    item.LogoUrl = mediaUrl;
+                    case "Box 2D":
+                    case "Box 3D":
+                        // Prefer 2D, fallback to 3D if empty
+                        if (string.IsNullOrEmpty(item.CoverUrl) || type == "Box 2D") 
+                            item.CoverUrl = mediaUrl;
+                        break;
+                        
+                    case "Background":
+                    case "Fanart":
+                        item.WallpaperUrl = mediaUrl;
+                        break;
+                        
+                    case "Logo":
+                    case "Clear Logo":
+                        item.LogoUrl = mediaUrl;
+                        break;
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Silent fail
+            // Log error but don't break the whole search for a missing image
+            Debug.WriteLine($"[EmuMovies] Failed to enrich media for {gameId}: {ex.Message}");
         }
     }
 }

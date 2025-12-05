@@ -4,111 +4,131 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Retromind.Models;
-using Retromind.Resources;
-
-// Namespace für Strings
+using Retromind.Resources; 
 
 namespace Retromind.Services;
 
+/// <summary>
+/// Manages the persistence of the media library tree.
+/// Handles loading, saving, and backup restoration of the JSON database.
+/// </summary>
 public class MediaDataService
 {
     private const string FileName = "retromind_tree.json";
     private const string BackupFileName = "retromind_tree.bak";
+    private const string TempFileName = "retromind_tree.tmp";
 
-    // Pfad zur Datei im gleichen Ordner wie die Executable
+    // Path to the data file in the application directory
     private string FilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FileName);
     private string BackupPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, BackupFileName);
+    private string TempPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, TempFileName);
 
+    /// <summary>
+    /// Saves the current state of the library to disk asynchronously.
+    /// Uses an atomic write strategy (Write to Temp -> Move to Final) to prevent data corruption.
+    /// </summary>
     public async Task SaveAsync(ObservableCollection<MediaNode> nodes)
     {
         try
         {
-            // 1. Erstmal ein Backup der existierenden Datei machen, falls vorhanden
-            if (File.Exists(FilePath)) File.Copy(FilePath, BackupPath, true);
-
             var options = new JsonSerializerOptions { WriteIndented = true };
 
-            // 2. Direkt speichern (man könnte auch erst in .tmp speichern und moven, aber Backup reicht für den Anfang)
-            using var stream = File.Create(FilePath);
-            await JsonSerializer.SerializeAsync(stream, nodes, options);
+            // 1. Write to a temporary file first
+            using (var stream = File.Create(TempPath))
+            {
+                await JsonSerializer.SerializeAsync(stream, nodes, options);
+            }
+
+            // 2. Create a backup of the existing valid file
+            if (File.Exists(FilePath))
+            {
+                File.Copy(FilePath, BackupPath, overwrite: true);
+            }
+
+            // 3. Atomic Move: Replace the real file with the temp file
+            // This operation is atomic on most file systems (file is either there or not, no half-written states)
+            File.Move(TempPath, FilePath, overwrite: true);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Fehler beim Speichern: {ex.Message}");
-
-            // Wenn Speichern fehlschlägt, versuchen wir das Backup wiederherzustellen, 
-            // damit wir nicht mit einer halbgeschriebenen (leeren) Datei enden.
-            try
+            Console.Error.WriteLine($"[MediaDataService] Save failed: {ex.Message}");
+            
+            // Cleanup temp file if something went wrong
+            if (File.Exists(TempPath)) File.Delete(TempPath);
+            
+            // Optional: Try to restore backup if the main file got lost during the move (rare edge case)
+            if (!File.Exists(FilePath) && File.Exists(BackupPath))
             {
-                if (File.Exists(BackupPath)) File.Copy(BackupPath, FilePath, true);
-            }
-            catch
-            {
-                /* Worst Case */
+                File.Copy(BackupPath, FilePath);
             }
         }
     }
 
+    /// <summary>
+    /// Loads the library from disk. 
+    /// Attempts to load the main file first, then falls back to the backup if corruption is detected.
+    /// </summary>
+    /// <returns>The media tree or a new default tree if nothing exists.</returns>
     public async Task<ObservableCollection<MediaNode>> LoadAsync()
     {
-        // Variable HIER deklarieren, damit sie überall sichtbar ist
         ObservableCollection<MediaNode>? result = null;
 
-        // Versuche Hauptdatei zu laden
-        try
+        // 1. Try loading the main file
+        if (File.Exists(FilePath))
         {
-            if (File.Exists(FilePath))
+            try
             {
                 using var stream = File.OpenRead(FilePath);
                 result = await JsonSerializer.DeserializeAsync<ObservableCollection<MediaNode>>(stream);
-                if (result != null && result.Count > 0) return result;
+            }
+            catch (JsonException ex)
+            {
+                Console.Error.WriteLine($"[MediaDataService] CRITICAL: Main DB corrupt: {ex.Message}");
+                
+                // Quarantine the corrupt file for manual inspection
+                var corruptPath = FilePath + ".corrupt-" + DateTime.Now.Ticks;
+                File.Move(FilePath, corruptPath);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[MediaDataService] General Load Error: {ex.Message}");
             }
         }
-        catch (JsonException ex)
-        {
-            // WICHTIG: Hier nicht einfach weitermachen!
-            // In einer GUI App ist Console.WriteLine schlecht sichtbar.
-            // Wir werfen den Fehler weiter oder loggen ihn so, dass die App NICHT speichert.
-            Console.WriteLine($"KRITISCH: Hauptdatei korrupt: {ex.Message}");
 
-            // Strategie: Wir benennen die defekte Datei um, damit sie nicht überschrieben wird!
-            var corruptPath = FilePath + ".corrupt-" + DateTime.Now.Ticks;
-            File.Move(FilePath, corruptPath);
-
-            // Jetzt können wir versuchen, das Backup zu laden
-        }
-        catch (Exception ex)
+        // 2. If main file failed or didn't exist, try backup
+        if (result == null || result.Count == 0)
         {
-            Console.WriteLine($"Allgemeiner Fehler: {ex.Message}");
+            if (File.Exists(BackupPath))
+            {
+                Console.WriteLine("[MediaDataService] Attempting to restore from backup...");
+                result = await LoadFromFileAsync(BackupPath);
+            }
         }
 
-        // Wenn Hauptdatei fehlschlägt (oder nicht da war), versuche Backup
-        Console.WriteLine("Versuche Backup...");
-        result = await LoadFromFileAsync(BackupPath);
-        if (result != null && result.Count > 0) return result;
-
-        // Wenn gar nichts geht -> Neue leere Struktur
-        return new ObservableCollection<MediaNode>
+        // 3. If everything failed, return a fresh tree
+        if (result == null || result.Count == 0)
         {
-            // Verwende jetzt den lokalisierten String aus den Ressourcen
-            new(Strings.Library, NodeType.Area)
-        };
+            return new ObservableCollection<MediaNode>
+            {
+                // Default root node
+                new(Strings.Library, NodeType.Area) 
+            };
+        }
+
+        return result;
     }
 
     private async Task<ObservableCollection<MediaNode>?> LoadFromFileAsync(string path)
     {
-        if (!File.Exists(path)) return null;
-
         try
         {
             using var stream = File.OpenRead(path);
-            var result = await JsonSerializer.DeserializeAsync<ObservableCollection<MediaNode>>(stream);
-            return result;
+            return await JsonSerializer.DeserializeAsync<ObservableCollection<MediaNode>>(stream);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Fehler beim Laden von {path}: {ex.Message}");
-            return null; // Signalisieren, dass es nicht geklappt hat
+            Console.Error.WriteLine($"[MediaDataService] Failed to load from {path}: {ex.Message}");
+            return null;
         }
     }
 }

@@ -23,23 +23,23 @@
                     
                 <!-- Zufall Button -->
                 <Button Command="{Binding PlayRandomCommand}" 
-                        ToolTip.Tip="Zufälliges Spiel aus der aktuellen Ansicht starten"
+                        ToolTip.Tip="{x:Static p:Strings.TipRandomGame}"
                         Padding="10,5">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <TextBlock Text="🎲"/>
-                        <TextBlock Text="Zufall"/>
+                        <TextBlock Text="{x:Static p:Strings.Random}"/>
                     </StackPanel>
                 </Button>
 
                 <!-- Suche -->
                 <TextBox Text="{Binding SearchText}" 
-                         Watermark="Suchen..." 
+                         Watermark="{x:Static p:Strings.Search}" 
                          Width="200"
                          VerticalAlignment="Center"/>
 
                 <!-- Zoom Slider -->
                 <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                    <TextBlock Text="Zoom:" VerticalAlignment="Center" />
+                    <TextBlock Text="{x:Static p:Strings.Zoom}" VerticalAlignment="Center" />
                     <Slider Value="{Binding ItemWidth}" Minimum="50" Maximum="300" Width="150" />
                 </StackPanel>
             </StackPanel>
@@ -55,10 +55,10 @@
             <!-- Kontextmenü für den LEEREN Bereich -->
             <ListBox.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="Medium hinzufügen"
+                    <MenuItem Header="{x:Static p:Strings.CtxAddMedia}"
                               Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
                               CommandParameter="{Binding Node}" />
-                    <MenuItem Header="Importieren (Ordner)..."
+                    <MenuItem Header="{x:Static p:Strings.ImportFolder}"
                               Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
                               CommandParameter="{Binding Node}" />
                 </ContextMenu>
@@ -89,14 +89,14 @@
                                           CommandParameter="{Binding .}" 
                                           FontWeight="Bold"/>
                                 <Separator/>
-                                <MenuItem Header="Metadaten laden..."
+                                <MenuItem Header="{x:Static p:Strings.LoadMetadata}"
                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeMediaCommand}"
                                           CommandParameter="{Binding .}" />
                                 <Separator/>
                                 <!-- HIER WURDE ENTFERNT: Cover ändern, Logo ändern, Wallpaper ändern, Musik ändern -->
                                 <!-- Die Musik-Verwaltung könntest du analog zu den Bildern in den Edit-Dialog packen oder hier lassen, wenn es selten genutzt wird. Ich habe es hier mal mit entfernt, der Konsistenz halber -->
                                     
-                                <MenuItem Header="Löschen"
+                                <MenuItem Header="{x:Static p:Strings.CtxDelete}"
                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
                                           CommandParameter="{Binding .}"
                                           Foreground="Red" />
