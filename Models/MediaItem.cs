@@ -26,9 +26,17 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private string? _musicPath;
     [ObservableProperty] private int _playCount;
 
-    // NEU: Pfad zum Wine-Prefix (relativ zu Medien/...)
+    // Pfad zum Wine-Prefix (relativ zu Medien/...)
     [ObservableProperty] private string? _prefixPath;
 
+    // --- NEUE FELDER FÜR PLAYTIME ---
+
+    // Gesamtspielzeit
+    [ObservableProperty] private TimeSpan _totalPlayTime = TimeSpan.Zero;
+
+    // Optionaler Prozessname für manuelles Tracking (z.B. "hl2_linux")
+    [ObservableProperty] private string? _overrideWatchProcess;
+    
     // Metadaten
     [ObservableProperty] private DateTime? _releaseDate;
     // Rating (0-100)
@@ -48,19 +56,19 @@ public partial class MediaItem : ObservableObject
     }
 
     // Basis-Informationen
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    [ObservableProperty] private string _id = Guid.NewGuid().ToString();
 
     // Konfigurationseinstellungen
 
-    // Art des Starts
-    public MediaType MediaType { get; set; } = MediaType.Native;
+    // (Stelle sicher, dass MediaType vom Typ dieses Enums ist)
+    [ObservableProperty] private MediaType _mediaType = MediaType.Native;
 }
 
 public enum MediaType
 {
     Native, // Direkt ausführbar (Linux Binary / Shell Script)
     Emulator, // Braucht Emulator
-    Video // Braucht Video Player
+    Command // Externer Befehl / URL Protocol (Steam, Heroic, Browser)
 }
 
 public enum PlayStatus

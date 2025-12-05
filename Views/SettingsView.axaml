@@ -171,6 +171,16 @@
                                     </StackPanel>
                                     <TextBox Text="{Binding ApiKey}" PasswordChar="*" />
                                 </StackPanel>
+                                <!-- Sprache (Nur für TMDB sichtbar) -->
+                                <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsTmdbSelected}">
+                                    <TextBlock Text="Daten-Sprache" FontWeight="Bold" Margin="0,10,0,2"/>
+                                    <ComboBox SelectedItem="{Binding Language}" HorizontalAlignment="Stretch">
+                                        <ComboBox.Items>
+                                            <x:String>de-DE</x:String>
+                                            <x:String>en-US</x:String>
+                                        </ComboBox.Items>
+                                    </ComboBox>
+                                </StackPanel>
     
                             </StackPanel>
                         </Border>

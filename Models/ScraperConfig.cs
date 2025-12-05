@@ -1,6 +1,5 @@
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
-using Retromind.Resources; // Wichtig für Strings.NewScraperDefaultName
 
 namespace Retromind.Models;
 
@@ -59,6 +58,7 @@ public partial class ScraperConfig : ObservableObject
     [ObservableProperty] private string? _password;
     [ObservableProperty] private string? _clientId;
     [ObservableProperty] private string? _clientSecret;
+    [ObservableProperty] private string _language = "de-DE";
 }
 
 public enum ScraperType

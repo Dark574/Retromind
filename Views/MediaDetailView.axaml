@@ -12,6 +12,7 @@
 
     <UserControl.Resources>
         <helpers:BitmapAssetValueConverter x:Key="PathToBitmapConverter" />
+        <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
     </UserControl.Resources>
 
     <ScrollViewer>
@@ -63,7 +64,7 @@
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 
             <!-- 2. Metadaten Grid -->
-            <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,5">
+            <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,5">
                 <Grid.Styles>
                     <Style Selector="TextBlock.Label">
                         <Setter Property="FontWeight" Value="SemiBold" />
@@ -99,9 +100,13 @@
                 <TextBlock Grid.Row="4" Grid.Column="0" Text="{x:Static p:Strings.PlayCount}" Classes="Label" />
                 <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding PlayCount}" Classes="Value" />
 
+                <!-- Spielzeit -->
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="Gespielt:" FontWeight="Bold" Classes="Label" />
+                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding TotalPlayTime, Converter={StaticResource TimeConverter}}" Classes="Value" />
+
                 <!-- Status -->
-                <TextBlock Grid.Row="5" Grid.Column="0" Text="{x:Static p:Strings.Status}" Classes="Label" />
-                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Status}" Classes="Value" />
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="{x:Static p:Strings.Status}" Classes="Label" />
+                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Status}" Classes="Value" />
             </Grid>
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />

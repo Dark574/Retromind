@@ -13,19 +13,42 @@
 
     <Grid RowDefinitions="Auto, *">
         <!-- Header Leiste -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10" Spacing="20">
-            <TextBlock Text="{Binding Node.Name}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" />
+        <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="10">
+                
+            <!-- Titel -->
+            <TextBlock Grid.Column="0" Text="{Binding Node.Name}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
 
-            <!-- Zoom Slider -->
-            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                <TextBlock Text="Zoom:" VerticalAlignment="Center" />
-                <Slider Value="{Binding ItemWidth}" Minimum="50" Maximum="300" Width="150" />
+            <!-- Rechte Seite: Controls -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
+                    
+                <!-- Zufall Button -->
+                <Button Command="{Binding PlayRandomCommand}" 
+                        ToolTip.Tip="Zufälliges Spiel aus der aktuellen Ansicht starten"
+                        Padding="10,5">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="🎲"/>
+                        <TextBlock Text="Zufall"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- Suche -->
+                <TextBox Text="{Binding SearchText}" 
+                         Watermark="Suchen..." 
+                         Width="200"
+                         VerticalAlignment="Center"/>
+
+                <!-- Zoom Slider -->
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                    <TextBlock Text="Zoom:" VerticalAlignment="Center" />
+                    <Slider Value="{Binding ItemWidth}" Minimum="50" Maximum="300" Width="150" />
+                </StackPanel>
             </StackPanel>
-        </StackPanel>
+        </Grid>
 
         <!-- Die Medien-Liste -->
+        <!-- WICHTIG: ItemsSource geändert auf FilteredItems -->
         <ListBox Grid.Row="1"
-                 ItemsSource="{Binding Node.Items}"
+                 ItemsSource="{Binding FilteredItems}"
                  SelectedItem="{Binding SelectedMediaItem}"
                  Background="Transparent">
 

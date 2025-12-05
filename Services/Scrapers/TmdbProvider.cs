@@ -56,7 +56,11 @@ public class TmdbProvider : IMetadataProvider
             // "search/multi" sucht Filme, Serien und Personen. Das ist oft am besten.
             
             var encodedQuery = HttpUtility.UrlEncode(query);
-            var url = $"{BaseUrl}/search/multi?api_key={apiKey}&query={encodedQuery}&language=de-DE"; // Deutsch bevorzugt
+            
+            // Sprache aus Config nutzen (Fallback auf de-DE)
+            var lang = string.IsNullOrEmpty(_config.Language) ? "en-US" : _config.Language;
+            
+            var url = $"{BaseUrl}/search/multi?api_key={apiKey}&query={encodedQuery}&language={lang}";
 
             var response = await _httpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();

@@ -35,6 +35,7 @@ public class MainWindowViewModel : ViewModelBase
     private readonly FileManagementService _fileService = new();
     private readonly ImportService _importService = new();
     private readonly LauncherService _launcherService = new();
+    private readonly StoreImportService _storeService = new();
 
     // --- Services ---
     private readonly SettingsService _settingsService = new();
@@ -87,8 +88,11 @@ public class MainWindowViewModel : ViewModelBase
         EditNodeCommand = new RelayCommand<MediaNode?>(EditNodeAsync);
         ToggleThemeCommand = new RelayCommand(() => IsDarkTheme = !IsDarkTheme);
         ImportRomsCommand = new RelayCommand<MediaNode?>(ImportRomsAsync);
+        ImportSteamCommand = new RelayCommand<MediaNode?>(ImportSteamAsync);
+        ImportGogCommand = new RelayCommand<MediaNode?>(ImportGogAsync);
         ScrapeMediaCommand = new RelayCommand<MediaItem?>(ScrapeMediaAsync);
         ScrapeNodeCommand = new RelayCommand<MediaNode?>(ScrapeNodeAsync);
+        OpenSearchCommand = new RelayCommand(OpenIntegratedSearch);
 
         // Beim Start: Daten laden
         LoadData();
@@ -184,11 +188,118 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand EditNodeCommand { get; }
     public ICommand ToggleThemeCommand { get; }
     public ICommand ImportRomsCommand { get; }
+    public ICommand ImportSteamCommand { get; }
+    public ICommand ImportGogCommand { get; }
     public ICommand ScrapeMediaCommand { get; }
     public ICommand ScrapeNodeCommand { get; }
+    public ICommand OpenSearchCommand { get; }
 
     // --- Theme Properties ---
 
+    private async void ImportSteamAsync(MediaNode? targetNode)
+    {
+         // Fallback auf SelectedNode wie beim ROM Import
+        if (targetNode == null) targetNode = SelectedNode;
+        if (targetNode == null || CurrentWindow is not { } owner) return;
+
+        var items = await _storeService.ImportSteamGamesAsync();
+
+        if (items.Count == 0)
+        {
+            await ShowConfirmDialog(owner, "Keine installierten Steam-Spiele gefunden (Default Pfade).");
+            return;
+        }
+
+        bool doImport = await ShowConfirmDialog(owner, $"{items.Count} Steam-Spiele gefunden. Importieren nach '{targetNode.Name}'?");
+        
+        if (doImport)
+        {
+            foreach (var item in items)
+            {
+                // Duplikat Check
+                if (!targetNode.Items.Any(x => x.Title == item.Title))
+                {
+                    targetNode.Items.Add(item);
+                }
+            }
+            
+            SortMediaItems(targetNode.Items);
+            await SaveData();
+            if (IsNodeInCurrentView(targetNode)) UpdateContent();
+        }
+    }
+
+    private async void ImportGogAsync(MediaNode? targetNode)
+    {
+        if (targetNode == null) targetNode = SelectedNode;
+        if (targetNode == null || CurrentWindow is not { } owner) return;
+
+        var items = await _storeService.ImportHeroicGogAsync();
+
+        if (items.Count == 0)
+        {
+            await ShowConfirmDialog(owner, "Keine Heroic/GOG Installationen gefunden (~/.config/heroic).");
+            return;
+        }
+
+        bool doImport = await ShowConfirmDialog(owner, $"{items.Count} GOG-Spiele (Heroic) gefunden. Importieren?");
+        
+        if (doImport)
+        {
+            foreach (var item in items)
+            {
+                if (!targetNode.Items.Any(x => x.Title == item.Title))
+                {
+                    targetNode.Items.Add(item);
+                }
+            }
+            
+            SortMediaItems(targetNode.Items);
+            await SaveData();
+            if (IsNodeInCurrentView(targetNode)) UpdateContent();
+        }
+    }
+        
+    // Integrierte Suche öffnen
+    private void OpenIntegratedSearch()
+    {
+        // 1. Auswahl im Baum entfernen (visuelles Feedback, dass wir nicht mehr in einem Ordner sind)
+        _selectedNode = null;
+        OnPropertyChanged(nameof(SelectedNode));
+
+        // 2. Das neue ViewModel erstellen
+        var searchVm = new SearchAreaViewModel(RootItems)
+        {
+            // Aktuellen Zoom übernehmen, damit es smooth wirkt
+            ItemWidth = ItemWidth 
+        };
+
+        // 3. Events verknüpfen (damit Abspielen funktioniert)
+        searchVm.RequestPlay += item => { PlayMedia(item); };
+            
+        // Listener für Detail-Ansicht (Rechts)
+        searchVm.PropertyChanged += (s, e) => 
+        {
+            if (e.PropertyName == nameof(SearchAreaViewModel.SelectedMediaItem))
+            {
+                // Musik etc. updaten wenn nötig (Logik aus UpdateContent)
+                var item = searchVm.SelectedMediaItem;
+                if (item != null && !string.IsNullOrEmpty(item.MusicPath))
+                {
+                    var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath);
+                    _audioService.PlayMusic(fullPath);
+                }
+                else
+                {
+                    _audioService.StopMusic();
+                }
+            }
+        };
+
+        // 4. In die Mitte setzen!
+        SelectedNodeContent = searchVm;
+    }
+    
     public bool IsDarkTheme
     {
         get => _currentSettings.IsDarkTheme;

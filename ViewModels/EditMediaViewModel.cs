@@ -46,6 +46,8 @@ public partial class EditMediaViewModel : ViewModelBase
 
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(PreviewText))]
     private string? _launcherArgs;
+    
+    [ObservableProperty] private string _overrideWatchProcess = string.Empty;
 
     // --- Image Properties (Temporär für Bearbeitung) ---
     [ObservableProperty] private string? _coverPath;
@@ -102,6 +104,7 @@ public partial class EditMediaViewModel : ViewModelBase
         MediaType = item.MediaType;
         LauncherPath = item.LauncherPath;
         MusicPath = item.MusicPath;
+        OverrideWatchProcess = item.OverrideWatchProcess ?? string.Empty;
         
         // Bilder-Pfade kopieren
         CoverPath = item.CoverPath;
@@ -413,7 +416,7 @@ public partial class EditMediaViewModel : ViewModelBase
         if (result != null && result.Count > 0) LauncherPath = result[0].Path.LocalPath;
     }
 
-    // NEU: Musik laden
+    // Musik laden
     private void LoadMusicFiles()
     {
         AvailableMusic.Clear();
@@ -504,6 +507,7 @@ public partial class EditMediaViewModel : ViewModelBase
             _originalItem.EmulatorId = null;
             _originalItem.LauncherPath = LauncherPath;
             _originalItem.LauncherArgs = LauncherArgs;
+            _originalItem.OverrideWatchProcess = OverrideWatchProcess;
         }
 
         RequestClose?.Invoke(true);
