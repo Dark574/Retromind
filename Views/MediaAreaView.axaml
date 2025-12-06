@@ -7,10 +7,6 @@
              x:Class="Retromind.Views.MediaAreaView"
              x:DataType="vm:MediaAreaViewModel">
 
-    <UserControl.Resources>
-        <helpers:BitmapAssetValueConverter x:Key="PathToBitmapConverter" />
-    </UserControl.Resources>
-
     <Grid RowDefinitions="Auto, *">
         <!-- Header Leiste -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="10">

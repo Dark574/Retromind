@@ -26,9 +26,6 @@
             <views:SearchAreaView />
         </DataTemplate>
     </Window.DataTemplates>
-    <Window.Resources>
-        <helpers:BitmapAssetValueConverter x:Key="PathToBitmapConverter" />
-    </Window.Resources>
 
     <!-- Wir nutzen ein Panel als Root, um Layering zu ermöglichen -->
     <Panel>
@@ -37,12 +34,12 @@
 
        <!-- LAYER 0: Wallpaper (legt sich drüber) -->
        <Image x:CompileBindings="False"
-              Source="{Binding SelectedNodeContent.SelectedMediaItem.WallpaperPath, Converter={StaticResource PathToBitmapConverter}}"
+              helpers:AsyncImageHelper.Url="{Binding SelectedNodeContent.SelectedMediaItem.WallpaperPath}"
               Stretch="UniformToFill"
               Opacity="0.4"
               IsHitTestVisible="False"
               IsVisible="{Binding SelectedNodeContent.SelectedMediaItem.WallpaperPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-
+       
        <!-- LAYER 1: Das UI Grid (mit teil-transparenten Hintergründen) -->
        <Grid RowDefinitions="30, *"> <!-- Neue Zeile für Custom Titlebar -->
        

@@ -7,10 +7,6 @@
              x:Class="Retromind.Views.SearchAreaView"
              x:DataType="vm:SearchAreaViewModel">
 
-    <UserControl.Resources>
-        <helpers:BitmapAssetValueConverter x:Key="PathToBitmapConverter" />
-    </UserControl.Resources>
-
     <Grid RowDefinitions="Auto, *">
         
         <!-- HEADER: Filter & Controls -->

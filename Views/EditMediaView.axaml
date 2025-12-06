@@ -11,7 +11,6 @@
 
     <Window.Resources>
         <helpers:MediaTypeToLocalizedNameConverter x:Key="MediaTypeConverter" />
-        <helpers:BitmapAssetValueConverter x:Key="PathToBitmapConverter" />
     </Window.Resources>
 
     <!-- Grid füllt das Fenster -->
@@ -172,7 +171,8 @@
                                         BorderBrush="#40808080" BorderThickness="1" 
                                         CornerRadius="4" Background="#10000000">
                                     <Grid>
-                                        <Image Source="{Binding FilePath, Converter={StaticResource PathToBitmapConverter}}" 
+                                        <Image helpers:AsyncImageHelper.Url="{Binding FilePath}"
+                                               helpers:AsyncImageHelper.DecodeWidth="200"
                                                Stretch="Uniform" Margin="5,5,5,30"/>
                                         
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,5" Spacing="4">
