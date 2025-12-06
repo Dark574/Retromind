@@ -129,7 +129,7 @@ public class EmuMoviesProvider : IMetadataProvider
             if (games == null) return results;
 
             // create a list of tasks, instead of waiting
-            var scraperTasks = new List<Task<ScraperSearchResult>>();
+            var scraperTasks = new List<Task<ScraperSearchResult?>>();
 
             foreach (var game in games)
             {
