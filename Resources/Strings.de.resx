@@ -393,4 +393,16 @@
   <data name="ScrapeArea" xml:space="preserve">
     <value>Bereich Scrapen</value>
   </data>
+  <data name="TypeNative" xml:space="preserve">
+    <value>Native Anwendung / Skript</value>
+  </data>
+  <data name="TypeEmulator" xml:space="preserve">
+    <value>Emulator (via Profil)</value>
+  </data>
+  <data name="TypeCommand" xml:space="preserve">
+    <value>Externer Launcher (Steam, GOG, URL)</value>
+  </data>
+  <data name="TimePlayedNever" xml:space="preserve">
+    <value>Noch nicht gespielt</value>
+  </data>
 </root>

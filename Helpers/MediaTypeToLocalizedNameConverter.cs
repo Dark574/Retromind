@@ -6,20 +6,28 @@ using Retromind.Resources;
 
 namespace Retromind.Helpers;
 
+/// <summary>
+/// Converts the MediaType enum to a localized, human-readable string.
+/// Used in UI for comboboxes and labels.
+/// </summary>
 public class MediaTypeToLocalizedNameConverter : IValueConverter
 {
+    // Optional singleton for simpler code usage
+    public static readonly MediaTypeToLocalizedNameConverter Instance = new();
+
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is MediaType type)
         {
             return type switch
             {
-                // Falls du Resource-Strings hast (z.B. Strings.TypeNative), nutze diese stattdessen.
-                MediaType.Native => "Native Anwendung / Skript",
-                MediaType.Emulator => "Emulator (via Profil)",
+                // Use resource strings for internationalization (I18N)
+                // Make sure these keys exist in your Strings.resx
                 
-                // Der Text für den Command-Typ
-                MediaType.Command => "Externer Launcher (Steam, GOG, URL)",
+                MediaType.Native => Strings.TypeNative,
+                MediaType.Emulator => Strings.TypeEmulator,
+                // Assuming you might add Command type or similar in future, handle it here
+                MediaType.Command => Strings.TypeCommand,
                 
                 _ => type.ToString()
             };
@@ -30,6 +38,6 @@ public class MediaTypeToLocalizedNameConverter : IValueConverter
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException("Converting from localized string back to MediaType is not supported.");
     }
 }

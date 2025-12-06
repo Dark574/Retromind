@@ -402,4 +402,16 @@
   <data name="CtxImportRoms" xml:space="preserve">
     <value>Import ROMs...</value>
   </data>
+  <data name="TypeNative" xml:space="preserve">
+    <value>Native Application / Script</value>
+  </data>
+  <data name="TypeEmulator" xml:space="preserve">
+    <value>Emulator (via Profile)</value>
+  </data>
+  <data name="TypeCommand" xml:space="preserve">
+    <value>External Launcher</value>
+  </data>
+  <data name="TimePlayedNever" xml:space="preserve">
+    <value>Never played</value>
+  </data>
 </root>

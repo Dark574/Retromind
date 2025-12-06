@@ -4,71 +4,76 @@ using System.Linq;
 
 namespace Retromind.Helpers;
 
+/// <summary>
+/// Provides static helper methods for randomization using a thread-safe RNG.
+/// </summary>
 public static class RandomHelper
 {
-    // Einzige Instanz für die gesamte App (vermeidet Seed-Probleme)
-    private static readonly Random _rng = new Random();
+    // Using Random.Shared (available since .NET 6) ensures thread safety automatically.
+    // No need for custom locks or [ThreadStatic].
 
     /// <summary>
-    /// Wählt ein zufälliges Element aus einer Liste oder Collection aus.
+    /// Picks a single random element from a collection.
     /// </summary>
-    /// <typeparam name="T">Der Typ der Elemente (z.B. MediaItem oder GalleryImage)</typeparam>
+    /// <typeparam name="T">The type of elements.</typeparam>
+    /// <param name="source">The source collection.</param>
+    /// <returns>A random element or default if empty/null.</returns>
     public static T? PickRandom<T>(IEnumerable<T>? source)
     {
         if (source == null) return default;
 
-        // Optimierung für Listen/Arrays (direkter Index-Zugriff)
+        // Optimization for Lists/Arrays (Direct Index Access O(1))
         if (source is IList<T> list)
         {
             if (list.Count == 0) return default;
-            return list[_rng.Next(list.Count)];
+            return list[Random.Shared.Next(list.Count)];
         }
 
-        // Fallback für andere Collections (z.B. LINQ Results)
+        // Fallback for generic IEnumerables (requires buffering O(N))
         var array = source.ToArray();
         if (array.Length == 0) return default;
         
-        return array[_rng.Next(array.Length)];
+        return array[Random.Shared.Next(array.Length)];
     }
 
     /// <summary>
-    /// Wählt mehrere einzigartige zufällige Elemente aus (z.B. für "3 zufällige Spiele vorschlagen")
+    /// Picks multiple unique random elements from a collection.
+    /// Uses a partial Fisher-Yates shuffle for O(N) performance.
     /// </summary>
     public static List<T> PickRandomMultiple<T>(IEnumerable<T>? source, int count)
     {
         if (source == null) return new List<T>();
         
+        // Copy to list to avoid modifying original or multiple enumerations
         var list = source.ToList();
-        if (list.Count <= count) return list; // Wenn weniger da sind als gefordert, alle zurückgeben
+        
+        if (list.Count <= count) return list; 
 
-        var results = new List<T>();
-        var availableIndices = Enumerable.Range(0, list.Count).ToList();
-
+        // Fisher-Yates Shuffle (Partial)
+        // We only shuffle as many items as we need to return.
         for (int i = 0; i < count; i++)
         {
-            var indexToRemove = _rng.Next(availableIndices.Count);
-            var selectedIndex = availableIndices[indexToRemove];
-            
-            results.Add(list[selectedIndex]);
-            availableIndices.RemoveAt(indexToRemove); // Index entfernen, damit er nicht doppelt kommt
+            int j = Random.Shared.Next(i, list.Count);
+            (list[i], list[j]) = (list[j], list[i]); // Swap
         }
 
-        return results;
+        // Return the first 'count' elements which are now randomized unique items
+        return list.GetRange(0, count);
     }
 
     /// <summary>
-    /// Gibt true oder false zurück (Münzwurf).
+    /// Returns true or false with 50% probability (Coin Flip).
     /// </summary>
     public static bool CoinFlip()
     {
-        return _rng.Next(2) == 0;
+        return Random.Shared.Next(2) == 0;
     }
     
     /// <summary>
-    /// Gibt eine zufällige Zahl zwischen min (inklusive) und max (exklusive) zurück.
+    /// Returns a random integer between min (inclusive) and max (exclusive).
     /// </summary>
     public static int Next(int min, int max)
     {
-        return _rng.Next(min, max);
+        return Random.Shared.Next(min, max);
     }
 }

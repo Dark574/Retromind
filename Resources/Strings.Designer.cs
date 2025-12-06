@@ -800,5 +800,29 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("CtxImportRoms", resourceCulture);
             }
         }
+        
+        public static string TypeNative {
+            get {
+                return ResourceManager.GetString("TypeNative", resourceCulture);
+            }
+        }
+        
+        public static string TypeEmulator {
+            get {
+                return ResourceManager.GetString("TypeEmulator", resourceCulture);
+            }
+        }
+        
+        public static string TypeCommand {
+            get {
+                return ResourceManager.GetString("TypeCommand", resourceCulture);
+            }
+        }
+        
+        public static string TimePlayedNever {
+            get {
+                return ResourceManager.GetString("TimePlayedNever", resourceCulture);
+            }
+        }
     }
 }
