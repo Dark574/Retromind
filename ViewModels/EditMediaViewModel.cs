@@ -70,6 +70,9 @@ public partial class EditMediaViewModel : ViewModelBase
 
     // --- Commands ---
     public IRelayCommand AddImageCommand { get; }
+    public IAsyncRelayCommand ImportCoverCommand { get; }
+    public IAsyncRelayCommand ImportLogoCommand { get; }
+    public IAsyncRelayCommand ImportWallpaperCommand { get; }
     public IRelayCommand RemoveImageCommand { get; }
     public IRelayCommand SetAsCoverCommand { get; }
     public IRelayCommand SetAsWallpaperCommand { get; }
@@ -151,6 +154,9 @@ public partial class EditMediaViewModel : ViewModelBase
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
 
         AddImageCommand = new AsyncRelayCommand(AddImageAsync);
+        ImportCoverCommand = new AsyncRelayCommand(() => ImportImagesDirectlyAsync(MediaFileType.Cover));
+        ImportLogoCommand = new AsyncRelayCommand(() => ImportImagesDirectlyAsync(MediaFileType.Logo));
+        ImportWallpaperCommand = new AsyncRelayCommand(() => ImportImagesDirectlyAsync(MediaFileType.Wallpaper));
         RemoveImageCommand = new RelayCommand(RemoveImage, () => SelectedGalleryImage != null);
         
         SetAsCoverCommand = new RelayCommand(() => SetImageType(MediaFileType.Cover), () => SelectedGalleryImage != null);
@@ -329,9 +335,12 @@ public partial class EditMediaViewModel : ViewModelBase
             if (!isDuplicate)
             {
                 // Copy to temp if not exists
-                var fileName = Path.GetFileNameWithoutExtension(sourcePath);
+                // Sanitize simple:
+                var rawName = Path.GetFileNameWithoutExtension(sourcePath);
+                var cleanName = string.Join("_", rawName.Split(Path.GetInvalidFileNameChars()));
+                    
                 var ext = Path.GetExtension(sourcePath);
-                var uniqueName = $"{fileName}_{Guid.NewGuid()}{ext}"; // Name_GUID.ext
+                var uniqueName = $"{cleanName}_{Guid.NewGuid()}{ext}"; // Name_GUID.ext
         
                 var targetPath = Path.Combine(tempDir, uniqueName);
     
@@ -348,6 +357,48 @@ public partial class EditMediaViewModel : ViewModelBase
         }
     }
 
+    // Importiert Bilder direkt in den richtigen Ordner (Cover/Wallpaper) ohne sie sofort aktiv zu setzen
+    private async Task ImportImagesDirectlyAsync(MediaFileType type)
+    {
+        if (StorageProvider == null) return;
+
+        var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = $"{type} importieren",
+            AllowMultiple = true,
+            FileTypeFilter = new[] { FilePickerFileTypes.ImageAll }
+        });
+
+        if (result == null || result.Count == 0) return;
+
+        foreach (var file in result)
+        {
+            // Direkt via FileService importieren (benennt um und verschiebt nach Medien/...)
+            var relPath = _fileService.ImportAsset(file.Path.LocalPath, _originalItem, _nodePath, type);
+
+            if (!string.IsNullOrEmpty(relPath))
+            {
+                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relPath);
+                
+                // Zur Galerie hinzufügen, falls noch nicht da
+                if (!GalleryImages.Any(g => g.FilePath == fullPath))
+                {
+                    var newImg = new GalleryImage { FilePath = fullPath };
+                    UpdateImageStatus(newImg);
+                    GalleryImages.Add(newImg);
+                }
+
+                // Wenn wir noch GAR KEIN Cover/Wallpaper haben, setzen wir das erste importierte direkt
+                if (type == MediaFileType.Cover && string.IsNullOrEmpty(CoverPath)) CoverPath = fullPath;
+                if (type == MediaFileType.Wallpaper && string.IsNullOrEmpty(WallpaperPath)) WallpaperPath = fullPath;
+                if (type == MediaFileType.Logo && string.IsNullOrEmpty(LogoPath)) LogoPath = fullPath;
+            }
+        }
+        
+        // Status aller Bilder aktualisieren
+        foreach(var img in GalleryImages) UpdateImageStatus(img);
+    }
+        
     private void SetImageType(MediaFileType type)
     {
         if (SelectedGalleryImage == null) return;
@@ -386,13 +437,16 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         if (SelectedGalleryImage == null) return;
 
-        // Only remove from view, don't delete file unless it's a temp file?
-        // For safety, let's just remove from list.
-        
+        // 1. Prüfen ob das Bild aktuell verwendet wird -> Referenz entfernen
         if (CoverPath == SelectedGalleryImage.FilePath) CoverPath = null;
         if (WallpaperPath == SelectedGalleryImage.FilePath) WallpaperPath = null;
         if (LogoPath == SelectedGalleryImage.FilePath) LogoPath = null;
+        
+        // 2. Versuchen die Datei physikalisch zu löschen
+        // Der FileService prüft intern, ob es sicher ist (im App-Verzeichnis)
+        _fileService.DeleteAsset(SelectedGalleryImage.FilePath);
 
+        // 3. Aus der UI-Liste entfernen
         GalleryImages.Remove(SelectedGalleryImage);
     }
 
@@ -493,16 +547,38 @@ public partial class EditMediaViewModel : ViewModelBase
     private void SetAsMusic()
     {
         if (SelectedAudioItem == null) return;
-        MusicPath = SelectedAudioItem.FilePath;
+
+        // Nicht nur Pfad setzen, sondern Importieren!
+        // Das kopiert die Datei nach Medien/Gruppe/Music/[OriginalName].ext
+        var relPath = _fileService.ImportAsset(SelectedAudioItem.FilePath, _originalItem, _nodePath, MediaFileType.Music);
         
-        // UI Update
-        foreach(var a in AvailableMusic) 
-            a.IsActive = (a.FilePath == MusicPath);
+        if (!string.IsNullOrEmpty(relPath))
+        {
+            // Wir müssen den Pfad absolut machen für die UI-Anzeige/Abspielen,
+            // speichern tun wir später relative.
+            var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relPath);
+            MusicPath = fullPath; 
+
+            // UI Update
+            foreach(var a in AvailableMusic) 
+                a.IsActive = (a.FilePath == MusicPath);
+        }
     }
 
     private void RemoveMusic()
     {
-        // Analog zu RemoveImage...
+        if (SelectedAudioItem == null) return;
+        
+        var fileToDelete = SelectedAudioItem.FilePath;
+        
+        // 1. Referenz entfernen
+        if (MusicPath == fileToDelete) MusicPath = null;
+
+        // 2. Physikalisch löschen
+        _fileService.DeleteAsset(fileToDelete);
+
+        // 3. Aus der Liste entfernen
+        AvailableMusic.Remove(SelectedAudioItem);
     }
 
     partial void OnSelectedAudioItemChanged(AudioItem? value)

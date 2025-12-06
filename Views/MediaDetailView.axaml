@@ -29,7 +29,10 @@
                                IsVisible="{Binding LogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
 
                     <!-- Primär: Logo Grafik -->
+                    <!-- DecodeWidth="400" spart RAM, falls das Logo riesig ist -->
                     <Image Source="{Binding LogoPath, Converter={StaticResource PathToBitmapConverter}}"
+                           helpers:AsyncImageHelper.Url="{Binding LogoPath}"
+                           helpers:AsyncImageHelper.DecodeWidth="400"
                            Stretch="Uniform" MaxHeight="150"
                            HorizontalAlignment="Center"
                            IsVisible="{Binding LogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

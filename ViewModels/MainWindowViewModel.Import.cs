@@ -363,20 +363,63 @@ public partial class MainWindowViewModel
 
     private async Task RescanAllAssetsAsync()
     {
-        await Task.Run(() => { foreach (var rootNode in RootItems) RescanNodeRecursive(rootNode); });
+        await Task.Run(async () => 
+        { 
+            foreach (var rootNode in RootItems) 
+            {
+                await RescanNodeRecursive(rootNode); 
+            }
+        });
     }
 
-    private void RescanNodeRecursive(MediaNode node)
+    private async Task RescanNodeRecursive(MediaNode node)
     {
         var nodePath = PathHelper.GetNodePath(node, RootItems);
+        
+        // Wir sammeln Änderungen, anstatt sie direkt zu setzen
+        var updates = new List<(MediaItem Item, string Property, string Value)>();
+        
         foreach (var item in node.Items)
         {
-            if (string.IsNullOrEmpty(item.CoverPath)) { var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Cover); if (f != null) item.CoverPath = f; }
-            if (string.IsNullOrEmpty(item.LogoPath)) { var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Logo); if (f != null) item.LogoPath = f; }
-            if (string.IsNullOrEmpty(item.WallpaperPath)) { var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Wallpaper); if (f != null) item.WallpaperPath = f; }
-            if (string.IsNullOrEmpty(item.MusicPath)) { var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Music); if (f != null) item.MusicPath = f; }
+            // Checks laufen im Hintergrund (billig)
+            if (string.IsNullOrEmpty(item.CoverPath)) 
+            { 
+                var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Cover); 
+                if (f != null) updates.Add((item, nameof(MediaItem.CoverPath), f)); 
+            }
+            if (string.IsNullOrEmpty(item.LogoPath)) 
+            { 
+                var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Logo); 
+                if (f != null) updates.Add((item, nameof(MediaItem.LogoPath), f)); 
+            }
+            if (string.IsNullOrEmpty(item.WallpaperPath)) 
+            { 
+                var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Wallpaper); 
+                if (f != null) updates.Add((item, nameof(MediaItem.WallpaperPath), f)); 
+            }
+            if (string.IsNullOrEmpty(item.MusicPath)) 
+            { 
+                var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Music); 
+                if (f != null) updates.Add((item, nameof(MediaItem.MusicPath), f)); 
+            }
         }
-        foreach (var child in node.Children) RescanNodeRecursive(child);
+        
+        // Änderungen auf dem UI Thread anwenden
+        if (updates.Any())
+        {
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                foreach (var update in updates)
+                {
+                    if (update.Property == nameof(MediaItem.CoverPath)) update.Item.CoverPath = update.Value;
+                    else if (update.Property == nameof(MediaItem.LogoPath)) update.Item.LogoPath = update.Value;
+                    else if (update.Property == nameof(MediaItem.WallpaperPath)) update.Item.WallpaperPath = update.Value;
+                    else if (update.Property == nameof(MediaItem.MusicPath)) update.Item.MusicPath = update.Value;
+                }
+            });
+        }
+        
+        foreach (var child in node.Children) await RescanNodeRecursive(child);
     }
     
     private async Task SetAssetAsync(MediaItem? item, string title, MediaFileType type, Action<MediaItem, string> updateAction)

@@ -270,27 +270,33 @@ public partial class MainWindowViewModel : ViewModelBase
             bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);
             if (IsRandomizeActive(nodeToLoad) || randomizeMusic)
             {
+                // Wir holen uns den Node-Pfad einmal
+                var nodePath = PathHelper.GetNodePath(nodeToLoad, RootItems);
+                
                 foreach (var item in allItems)
                 {
                     if (token.IsCancellationRequested) return;
                     
-                    // Covers
+                    // Covers Randomization
                     if (IsRandomizeActive(nodeToLoad)) 
                     {
-                        var imgs = MediaSearchHelper.FindPotentialImages(item);
-                        var rndImg = RandomHelper.PickRandom(imgs);
+                        // Nutze FileService um ALLE validen Assets (Cover, Cover_01, etc.) aus dem Struktur-Ordner zu holen
+                        var validCovers = _fileService.GetAvailableAssets(item, nodePath, MediaFileType.Cover);
+                            
+                        var rndImg = RandomHelper.PickRandom(validCovers);
                         if (rndImg != null && rndImg != item.CoverPath)
                         {
-                            // Property changes must happen on UI thread
                             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => item.CoverPath = rndImg);
                         }
                     }
 
-                    // Music
+                    // Music Randomization
                     if (randomizeMusic)
                     {
-                        var audios = MediaSearchHelper.FindPotentialAudio(item);
-                        var rndAudio = RandomHelper.PickRandom(audios);
+                        // Nutze FileService für Musik aus dem Ordner
+                        var validMusic = _fileService.GetAvailableAssets(item, nodePath, MediaFileType.Music);
+                            
+                        var rndAudio = RandomHelper.PickRandom(validMusic);
             
                         if (rndAudio != null && rndAudio != item.MusicPath)
                         {

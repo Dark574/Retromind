@@ -189,14 +189,29 @@
                     <!-- Toolbar Bilder -->
                     <Border Grid.Row="1" Background="#15FFFFFF" CornerRadius="5" Margin="0,5,0,15" Padding="5">
                         <Grid ColumnDefinitions="Auto, *, Auto">
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                                <Button Content="{x:Static p:Strings.Picture}" Command="{Binding AddImageCommand}" />
-                                <Button Content="{x:Static p:Strings.CtxDelete}" Command="{Binding RemoveImageCommand}" Foreground="Red"/>
+                            <!-- Linke Seite: Hinzufügen / Importieren -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
+                                <!-- Direkte Imports -->
+                                <Button Content="Imp. Cover" Command="{Binding ImportCoverCommand}" FontSize="11" 
+                                        ToolTip.Tip="Importiert Bilder direkt als Cover in den Medien-Ordner" />
+                                <Button Content="Imp. Wall" Command="{Binding ImportWallpaperCommand}" FontSize="11" 
+                                        ToolTip.Tip="Importiert Bilder direkt als Wallpaper in den Medien-Ordner" />
+                                <Button Content="Imp. Logo" Command="{Binding ImportLogoCommand}" FontSize="11" 
+                                        ToolTip.Tip="Importiert Bilder direkt als Logo in den Medien-Ordner" />
                             </StackPanel>
+
+                            <!-- Rechte Seite: Aktionen auf Auswahl -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                                 <Button Content="{x:Static p:Strings.Cover}" Command="{Binding SetAsCoverCommand}" FontSize="11"/>
                                 <Button Content="{x:Static p:Strings.Wall}" Command="{Binding SetAsWallpaperCommand}" FontSize="11"/>
                                 <Button Content="{x:Static p:Strings.Logo}" Command="{Binding SetAsLogoCommand}" FontSize="11"/>
+                                
+                                <Rectangle Width="1" Fill="#40808080" Margin="5,4"/>
+                                
+                                <!-- Löschen Button -->
+                                <Button Content="{x:Static p:Strings.CtxDelete}" Command="{Binding RemoveImageCommand}" 
+                                        Foreground="Red" Background="#15FF0000"
+                                        ToolTip.Tip="Löscht die Datei unwiderruflich von der Festplatte!"/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -224,11 +239,22 @@
                     <!-- Toolbar Musik -->
                     <Border Grid.Row="3" Background="#15FFFFFF" CornerRadius="5" Margin="0,5,0,0" Padding="5">
                         <Grid ColumnDefinitions="Auto, *, Auto">
+                            <!-- Linke Seite: Import -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                                <Button Content="{x:Static p:Strings.AddMusic}" Command="{Binding AddMusicCommand}" />
-                                <Button Content="{x:Static p:Strings.CtxDelete}" Command="{Binding RemoveMusicCommand}" Foreground="Red"/>
+                                <Button Content="{x:Static p:Strings.AddMusic}" Command="{Binding AddMusicCommand}" 
+                                        ToolTip.Tip="Importiert Musik direkt in den Medien-Ordner" />
                             </StackPanel>
-                            <Button Grid.Column="2" Content="{x:Static p:Strings.SetMusicActive}" Command="{Binding SetAsMusicCommand}" />
+                            
+                            <!-- Rechte Seite: Aktionen -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                                <Button Content="{x:Static p:Strings.SetMusicActive}" Command="{Binding SetAsMusicCommand}" />
+                                
+                                <Rectangle Width="1" Fill="#40808080" Margin="0,4"/>
+                                
+                                <Button Content="{x:Static p:Strings.CtxDelete}" Command="{Binding RemoveMusicCommand}" 
+                                        Foreground="Red" Background="#15FF0000"
+                                        ToolTip.Tip="Löscht die Datei unwiderruflich von der Festplatte!"/>
+                            </StackPanel>
                         </Grid>
                     </Border>
                 </Grid>
