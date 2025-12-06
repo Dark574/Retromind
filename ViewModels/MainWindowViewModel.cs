@@ -317,7 +317,7 @@ public partial class MainWindowViewModel : ViewModelBase
                         if (item != null && !string.IsNullOrEmpty(item.MusicPath))
                         {
                             var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath);
-                            _audioService.PlayMusic(fullPath);
+                            _ = _audioService.PlayMusicAsync(fullPath);
                         }
                         else
                         {

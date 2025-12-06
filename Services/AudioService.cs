@@ -5,63 +5,98 @@ using System.Threading.Tasks;
 
 namespace Retromind.Services;
 
+/// <summary>
+/// Service to handle background music playback using an external player (ffplay).
+/// Supports formats like mp3, ogg, flac, wav, and sid (C64).
+/// </summary>
 public class AudioService
 {
     private Process? _currentProcess;
+    
+    // Lock object to ensure thread safety when starting/stopping processes
+    private readonly object _processLock = new();
 
-    public async void PlayMusic(string filePath)
+    private const string PlayerExecutable = "ffplay";
+
+    /// <summary>
+    /// Stops currently playing music and starts playback of the specified file.
+    /// </summary>
+    /// <param name="filePath">Full path to the audio file.</param>
+    public async Task PlayMusicAsync(string filePath)
     {
-        StopMusic(); // Altes stoppen
+        // Stop existing music immediately on the calling thread to prevent overlap
+        StopMusic(); 
 
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
-        // Wir starten das Abspielen in einem Task, damit das UI nicht blockiert
+        // Run the process creation in a background task to keep UI responsive
         await Task.Run(() =>
         {
-            try
+            lock (_processLock)
             {
-                // Auf Linux ist 'mpv' oder 'ffplay' super.
-                // 'ffplay -nodisp -autoexit -loop 0' spielt Audio ohne Fenster im Loop.
-                // Wir probieren ffplay, da oft vorhanden. Alternativ 'aplay' für wav.
+                // Double-check if stop was called in the meantime
+                StopMusicInternal(); 
 
-                var startInfo = new ProcessStartInfo
+                try
                 {
-                    FileName = "ffplay",
-                    // -loglevel quiet unterdrückt Ausgaben, das hilft oft zusätzlich
-                    Arguments = $"-nodisp -autoexit -loop 0 -loglevel quiet \"{filePath}\"",
+                    // ffplay arguments explanation:
+                    // -nodisp:     Disable graphical display (audio only).
+                    // -autoexit:   Close player when the track finishes.
+                    // -loop 0:     Loop infinitely.
+                    // -loglevel quiet: Suppress console output to improve performance.
+                    var args = $"-nodisp -autoexit -loop 0 -loglevel quiet \"{filePath}\"";
 
-                    // Wir leiten den Output NICHT mehr um, um Deadlocks zu vermeiden
-                    RedirectStandardOutput = false,
-                    RedirectStandardError = false,
+                    var startInfo = new ProcessStartInfo
+                    {
+                        FileName = PlayerExecutable,
+                        Arguments = args,
+                        RedirectStandardOutput = false, // Prevent deadlocks by not redirecting
+                        RedirectStandardError = false,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
 
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                _currentProcess = Process.Start(startInfo);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Konnte Audio nicht starten (ffplay installiert?): {ex.Message}");
+                    _currentProcess = Process.Start(startInfo);
+                }
+                catch (Exception ex)
+                {
+                    // Use Debug.WriteLine so it appears in the IDE output window
+                    Debug.WriteLine($"[AudioService] Failed to start playback (is ffplay installed?): {ex.Message}");
+                }
             }
         });
     }
 
+    /// <summary>
+    /// Stops the currently playing music process if it exists.
+    /// </summary>
     public void StopMusic()
     {
+        lock (_processLock)
+        {
+            StopMusicInternal();
+        }
+    }
+
+    // Internal helper to avoid recursive locking issues if needed later,
+    // and to keep the logic DRY (Don't Repeat Yourself).
+    private void StopMusicInternal()
+    {
         if (_currentProcess != null && !_currentProcess.HasExited)
+        {
             try
             {
-                _currentProcess.Kill(); // Prozess hart beenden
+                _currentProcess.Kill(); // Forcefully kill the player
                 _currentProcess.Dispose();
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignorieren
+                Debug.WriteLine($"[AudioService] Error stopping process: {ex.Message}");
             }
             finally
             {
                 _currentProcess = null;
             }
+        }
     }
 }

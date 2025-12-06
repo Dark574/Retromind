@@ -125,7 +125,7 @@ public partial class MainWindowViewModel
         await _launcherService.LaunchAsync(item, emulator, nodePath);
         if (SelectedNodeContent is MediaAreaViewModel vm && vm.SelectedMediaItem == item && !string.IsNullOrEmpty(item.MusicPath))
         {
-            _audioService.PlayMusic(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath));
+            _ = _audioService.PlayMusicAsync(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath));
         }
         await SaveData();
     }

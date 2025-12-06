@@ -179,7 +179,7 @@ public partial class MainWindowViewModel
                 item.MusicPath = null;
                 item.MusicPath = relativePath;
                 var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
-                _audioService.PlayMusic(fullPath);
+                _ = _audioService.PlayMusicAsync(fullPath);
                 await SaveData();
             }
         }
@@ -325,7 +325,7 @@ public partial class MainWindowViewModel
             {
                  var item = searchVm.SelectedMediaItem;
                  if (item != null && !string.IsNullOrEmpty(item.MusicPath))
-                     _audioService.PlayMusic(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath));
+                     _ = _audioService.PlayMusicAsync(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath));
                  else _audioService.StopMusic();
             }
         };
