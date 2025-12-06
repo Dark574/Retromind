@@ -112,8 +112,8 @@ public class EmuMoviesProvider : IMetadataProvider
                 }
                 catch (HttpRequestException) 
                 {
-                    if (i == 2) throw; // Beim letzten Versuch werfen
-                    await Task.Delay(1000); // Kurz warten
+                    if (i == 2) throw; // throw at the last try
+                    await Task.Delay(1000); // wait for a short time
                 }
             }
             
@@ -128,26 +128,18 @@ public class EmuMoviesProvider : IMetadataProvider
 
             if (games == null) return results;
 
+            // create a list of tasks, instead of waiting
+            var scraperTasks = new List<Task<ScraperSearchResult>>();
+
             foreach (var game in games)
             {
-                var id = game?["ID"]?.ToString() ?? "";
-                var system = game?["System"]?.ToString() ?? "";
-                var title = game?["Name"]?.ToString() ?? "Unknown";
-
-                var res = new ScraperSearchResult
-                {
-                    Source = "EmuMovies",
-                    Id = id,
-                    Title = $"{title} ({system})", 
-                    Description = game?["Description"]?.ToString() ?? "",
-                };
-            
-                // Optional: Fetch media URLs immediately. 
-                // This slows down the search list but provides images instantly.
-                await EnrichWithMedia(res, id, system);
-            
-                results.Add(res);
+                // local function for processing of one item
+                scraperTasks.Add(ProcessGameAsync(game));
             }
+
+            // wait for all task results. This reduces the waiting time from (20 * request time) to (1 * request time)
+            var processedResults = await Task.WhenAll(scraperTasks);
+            results.AddRange(processedResults);
 
             return results;
         }
@@ -157,6 +149,35 @@ public class EmuMoviesProvider : IMetadataProvider
         }
     }
 
+    // Neue Helper-Methode für parallele Verarbeitung
+    private async Task<ScraperSearchResult?> ProcessGameAsync(JsonNode? game)
+    {
+        try
+        {
+            var id = game?["ID"]?.ToString() ?? "";
+            var system = game?["System"]?.ToString() ?? "";
+            var title = game?["Name"]?.ToString() ?? "Unknown";
+
+            var res = new ScraperSearchResult
+            {
+                Source = "EmuMovies",
+                Id = id,
+                Title = $"{title} ({system})",
+                Description = game?["Description"]?.ToString() ?? "",
+            };
+
+            // Medien laden (Async Call)
+            await EnrichWithMedia(res, id, system);
+                
+            return res;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[EmuMovies] Error processing game result: {ex.Message}");
+            return null; // Bei Fehler null zurückgeben, damit der Rest nicht crasht
+        }
+    }
+    
     /// <summary>
     /// Fetches specific media URLs (Cover, Wallpaper, Logo) for a game result.
     /// </summary>

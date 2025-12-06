@@ -182,8 +182,6 @@ public class MainWindowViewModel : ViewModelBase
         MetadataService metadataService,
         AppSettings preloadedSettings) 
     {
-        Console.WriteLine("[ViewModel] Constructor started.");
-        
         _audioService = audioService;
         _dataService = dataService;
         _fileService = fileService;
@@ -194,8 +192,6 @@ public class MainWindowViewModel : ViewModelBase
         _metadataService = metadataService;
         _currentSettings = preloadedSettings;
         
-        Console.WriteLine("[ViewModel] Services assigned.");
-
         // Initialization of Commands
         AddCategoryCommand = new RelayCommand<MediaNode?>(AddCategoryAsync);
         AddMediaCommand = new RelayCommand<MediaNode?>(AddMediaAsync);
@@ -216,24 +212,15 @@ public class MainWindowViewModel : ViewModelBase
         ScrapeMediaCommand = new RelayCommand<MediaItem?>(ScrapeMediaAsync);
         ScrapeNodeCommand = new RelayCommand<MediaNode?>(ScrapeNodeAsync);
         OpenSearchCommand = new RelayCommand(OpenIntegratedSearch);
-        
-        Console.WriteLine("[ViewModel] Commands initialized.");
-
-        // WICHTIG: Hier darf KEIN LoadData() stehen!
-        // LoadData(); <--- DAS MUSS WEG SEIN.
-        
-        Console.WriteLine("[ViewModel] Constructor finished.");
     }
 
     // --- Persistence ---
     
     public async Task LoadData()
     {
-        Console.WriteLine("[ViewModel] LoadData started...");
         try 
         {
             RootItems = await _dataService.LoadAsync();
-            Console.WriteLine($"[ViewModel] Data loaded. {RootItems.Count} root nodes.");
             
             OnPropertyChanged(nameof(IsDarkTheme));
             OnPropertyChanged(nameof(PanelBackground));
@@ -257,13 +244,10 @@ public class MainWindowViewModel : ViewModelBase
                 else if (RootItems.Count > 0) SelectedNode = RootItems[0];
             }
             else if (RootItems.Count > 0) SelectedNode = RootItems[0];
-            
-            Console.WriteLine("[ViewModel] LoadData finished.");
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[ViewModel] LoadData Error: {ex}");
-            Console.WriteLine($"[ViewModel] LoadData Error: {ex}");
         }
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -12,8 +13,13 @@ namespace Retromind.Helpers;
 
 public class AsyncImageHelper : AvaloniaObject
 {
-    // Cache, damit wir das gleiche Bild nicht 10x laden
+    // Cache, to prevent loading the same image 10 times
     private static readonly Dictionary<string, Bitmap> Cache = new();
+    
+    // Maximum number of images to keep in RAM.
+    // 100 images * ~5MB (uncompressed bitmap) = ~500MB RAM usage.
+    private const int MaxCacheSize = 100; 
+    
     private static readonly HttpClient HttpClient = new();
 
     // Attached Property: Url
@@ -30,7 +36,7 @@ public class AsyncImageHelper : AvaloniaObject
         element.SetValue(UrlProperty, value);
     }
 
-    // Methode um Bild aus Cache zu speichern
+    // Method to save an image from the cache to disk.
     public static async Task<bool> SaveCachedImageAsync(string url, string destinationPath)
     {
         if (Cache.TryGetValue(url, out var bitmap))
@@ -44,21 +50,21 @@ public class AsyncImageHelper : AvaloniaObject
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Fehler beim Speichern aus Cache: {ex.Message}");
+                    Console.WriteLine($"Error saving from cache: {ex.Message}");
                     return false;
                 }
             });
         }
-        return false; // Nicht im Cache
+        return false; // Not in cache
     }
     
     static AsyncImageHelper()
     {
-        // WICHTIG: User-Agent setzen!
-        // Viele Server (ComicVine, Wikipedia, etc.) blockieren requests ohne Agent.
+        // IMPORTANT: Set User-Agent!
+        // Many servers (ComicVine, Wikipedia, etc.) block requests without a User-Agent.
         HttpClient.DefaultRequestHeaders.Add("User-Agent", "Retromind-MediaManager/1.0");
 
-        // Listener: Wenn sich Url ändert, lade Bild
+        // Listener: When Url changes, load the image.
         UrlProperty.Changed.AddClassHandler<Image>((image, args) =>
         {
             var url = args.NewValue as string;
@@ -68,7 +74,7 @@ public class AsyncImageHelper : AvaloniaObject
 
     private static async void LoadImageAsync(Image image, string? url)
     {
-        // Bild erstmal leeren (oder Placeholder setzen)
+        // Clear image first (or set placeholder)
         image.Source = null;
 
         if (string.IsNullOrEmpty(url)) return;
@@ -82,16 +88,16 @@ public class AsyncImageHelper : AvaloniaObject
 
         try
         {
-            // Frischer Client für jeden Request
+            // Fresh client for every request to ensure clean headers
             using var client = new HttpClient();
-            // Headers setzen, um 403 zu vermeiden
+            // Set headers to avoid 403 Forbidden errors
             client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
             // 2. Download
             var data = await HttpClient.GetByteArrayAsync(url);
 
-            // 3. Erstellen (muss im UI Thread sicher sein, aber Bitmap Konstruktor ist meist ok)
-            // Wir packen es trotzdem in Dispatcher, sicher ist sicher.
+            // 3. Create Bitmap (must be safe on UI thread).
+            // Dispatching to UI thread just to be safe, although Bitmap ctor is usually fine.
             Dispatcher.UIThread.Post(() =>
             {
                 try
@@ -100,25 +106,34 @@ public class AsyncImageHelper : AvaloniaObject
                     stream.Position = 0;
                     var bitmap = new Bitmap(stream);
                     
-                    // In Cache packen
+                    // --- SIMPLE HOUSEKEEPING ---
+                    // If cache is full, clear it completely.
+                    // A "Least Recently Used" (LRU) logic would be better but more complex.
+                    // This prevents the application from crashing due to OutOfMemory exceptions.
+                    if (Cache.Count >= MaxCacheSize)
+                    {
+                        Debug.WriteLine("Cache limit reached. Clearing to free memory...");
+                        Cache.Clear();
+                    }
+                    
+                    // Add to Cache
                     Cache[url] = bitmap;
                     
-                    // Nur setzen, wenn URL noch die gleiche ist (falls User schnell scrollt)
+                    // Only set source if the URL is still the same (in case user scrolled fast)
                     if (GetUrl(image) == url)
                     {
                         image.Source = bitmap;
-                        Console.WriteLine($"Source gesetzt für {url}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Bild-Fehler: {ex.Message}");
+                    Console.WriteLine($"Image creation error: {ex.Message}");
                 }
             });
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Download-Fehler für {url}: {ex.Message}");
+            Console.WriteLine($"Download error for {url}: {ex.Message}");
         }
     }
 }
