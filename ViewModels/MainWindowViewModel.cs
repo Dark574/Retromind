@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -10,12 +11,9 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
-using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
-using Retromind.Resources;
 using Retromind.Services;
-using Retromind.Views;
 
 namespace Retromind.ViewModels;
 
@@ -35,6 +33,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly SettingsService _settingsService;
     private readonly MetadataService _metadataService; 
 
+    // Token Source für Abbruch alter Ladevorgänge
+    private CancellationTokenSource? _updateContentCts;
+    
     // --- State ---
     private AppSettings _currentSettings;
 
@@ -228,6 +229,11 @@ public partial class MainWindowViewModel : ViewModelBase
     private void UpdateContent()
     {
         _audioService.StopMusic();
+        
+        // Alten Task abbrechen, falls er noch läuft
+        _updateContentCts?.Cancel();
+        _updateContentCts = new CancellationTokenSource();
+        var token = _updateContentCts.Token;
 
         if (SelectedNode is null || SelectedNode.Type == NodeType.Area)
         {
@@ -241,6 +247,9 @@ public partial class MainWindowViewModel : ViewModelBase
         // Run the heavy collection logic in a background task
         Task.Run(async () => 
         {
+            // Wenn abgebrochen wurde, sofort raus
+            if (token.IsCancellationRequested) return;
+            
             // Collect items into a generic List<T>
             var itemList = new System.Collections.Generic.List<MediaItem>();
             CollectItemsRecursive(nodeToLoad, itemList); 
@@ -248,6 +257,8 @@ public partial class MainWindowViewModel : ViewModelBase
             // Prepare data for UI update
             var allItems = new ObservableCollection<MediaItem>(itemList);
 
+            if (token.IsCancellationRequested) return;
+            
             // Create the display node (still on background thread)
             var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
             {
@@ -261,6 +272,8 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 foreach (var item in allItems)
                 {
+                    if (token.IsCancellationRequested) return;
+                    
                     // Covers
                     if (IsRandomizeActive(nodeToLoad)) 
                     {
@@ -286,6 +299,8 @@ public partial class MainWindowViewModel : ViewModelBase
                     }
                 }
             }
+            
+            if (token.IsCancellationRequested) return;
 
             // Switch back to UI Thread to update the View
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>

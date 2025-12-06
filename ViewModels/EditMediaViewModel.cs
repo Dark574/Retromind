@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Models;
 using Retromind.Helpers;
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
@@ -16,6 +17,10 @@ public partial class EditMediaViewModel : ViewModelBase
 {
     private readonly EmulatorConfig? _inheritedEmulator;
     private readonly MediaItem _originalItem;
+    
+    // Dependencies for proper file handling
+    private readonly FileManagementService _fileService;
+    private readonly List<string> _nodePath;
 
     // --- Metadata Properties ---
     [ObservableProperty] private string _title = "";
@@ -49,7 +54,7 @@ public partial class EditMediaViewModel : ViewModelBase
     
     [ObservableProperty] private string _overrideWatchProcess = string.Empty;
 
-    // --- Image Properties (Temporär für Bearbeitung) ---
+    // --- Image Properties ---
     [ObservableProperty] private string? _coverPath;
     [ObservableProperty] private string? _wallpaperPath;
     [ObservableProperty] private string? _logoPath;
@@ -69,7 +74,6 @@ public partial class EditMediaViewModel : ViewModelBase
     public IRelayCommand SetAsCoverCommand { get; }
     public IRelayCommand SetAsWallpaperCommand { get; }
     public IRelayCommand SetAsLogoCommand { get; }
-
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
     public IAsyncRelayCommand BrowseLauncherCommand { get; }
@@ -80,18 +84,25 @@ public partial class EditMediaViewModel : ViewModelBase
     public IStorageProvider? StorageProvider { get; set; }
     public event Action<bool>? RequestClose;
 
-    // --- Listen für UI ---
+    // --- Lists for UI ---
     public ObservableCollection<EmulatorConfig> AvailableEmulators { get; } = new();
     public List<MediaType> MediaTypeOptions { get; } = new() { MediaType.Native, MediaType.Emulator };
     public List<PlayStatus> StatusOptions { get; } = Enum.GetValues<PlayStatus>().ToList();
 
-    // --- Konstruktor ---
-    public EditMediaViewModel(MediaItem item, AppSettings settings, EmulatorConfig? inheritedEmulator = null)
+    // --- Constructor ---
+    public EditMediaViewModel(
+        MediaItem item, 
+        AppSettings settings, 
+        FileManagementService fileService, 
+        List<string> nodePath, 
+        EmulatorConfig? inheritedEmulator = null)
     {
         _originalItem = item;
+        _fileService = fileService;
+        _nodePath = nodePath; // Store path for correct folder structure (Media/Genre/...)
         _inheritedEmulator = inheritedEmulator;
 
-        // 1. Werte kopieren (vom Original ins ViewModel)
+        // 1. Copy values
         Title = item.Title;
         Developer = item.Developer;
         Genre = item.Genre;
@@ -116,11 +127,11 @@ public partial class EditMediaViewModel : ViewModelBase
         else
             LauncherArgs = item.LauncherArgs;
 
-        // 2. Emulatoren laden
+        // 2. Load Emulators
         AvailableEmulators.Add(new EmulatorConfig { Name = "Custom / Manual", Id = null! });
         foreach (var emu in settings.Emulators) AvailableEmulators.Add(emu);
 
-        // 3. Profil Logik initialisieren
+        // 3. Initialize Profile Logic
         if (!string.IsNullOrEmpty(item.EmulatorId))
         {
             SelectedEmulatorProfile = settings.Emulators.FirstOrDefault(e => e.Id == item.EmulatorId);
@@ -134,7 +145,7 @@ public partial class EditMediaViewModel : ViewModelBase
         if (SelectedEmulatorProfile == null && MediaType == MediaType.Emulator)
             SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(e => e.Id == null!);
 
-        // 4. Commands erstellen
+        // 4. Create Commands
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(Cancel);
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
@@ -142,15 +153,15 @@ public partial class EditMediaViewModel : ViewModelBase
         AddImageCommand = new AsyncRelayCommand(AddImageAsync);
         RemoveImageCommand = new RelayCommand(RemoveImage, () => SelectedGalleryImage != null);
         
-        SetAsCoverCommand = new RelayCommand(() => SetImageType("Cover"), () => SelectedGalleryImage != null);
-        SetAsWallpaperCommand = new RelayCommand(() => SetImageType("Wallpaper"), () => SelectedGalleryImage != null);
-        SetAsLogoCommand = new RelayCommand(() => SetImageType("Logo"), () => SelectedGalleryImage != null);
+        SetAsCoverCommand = new RelayCommand(() => SetImageType(MediaFileType.Cover), () => SelectedGalleryImage != null);
+        SetAsWallpaperCommand = new RelayCommand(() => SetImageType(MediaFileType.Wallpaper), () => SelectedGalleryImage != null);
+        SetAsLogoCommand = new RelayCommand(() => SetImageType(MediaFileType.Logo), () => SelectedGalleryImage != null);
         
         AddMusicCommand = new AsyncRelayCommand(AddMusicAsync);
         SetAsMusicCommand = new RelayCommand(SetAsMusic, () => SelectedAudioItem != null);
         RemoveMusicCommand = new RelayCommand(RemoveMusic, () => SelectedAudioItem != null);
 
-        // 5. Galerie laden
+        // 5. Load Gallery
         LoadGalleryImages();
         LoadMusicFiles();
     }
@@ -252,26 +263,6 @@ public partial class EditMediaViewModel : ViewModelBase
         }
     }
 
-    private void AddIfValid(string? path, HashSet<string> distinctPaths)
-    {
-        if (string.IsNullOrEmpty(path)) return;
-            
-        // Pfad auflösen (Relativ -> Absolut)
-        var fullPath = Path.IsPathRooted(path) 
-            ? path 
-            : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
-            
-        fullPath = Path.GetFullPath(fullPath);
-            
-        if (File.Exists(fullPath) && !distinctPaths.Contains(fullPath.ToLower()))
-        {
-            var img = new GalleryImage { FilePath = fullPath };
-            UpdateImageStatus(img);
-            GalleryImages.Add(img);
-            distinctPaths.Add(fullPath.ToLower());
-        }
-    }
-    
     private void UpdateImageStatus(GalleryImage img)
     {
         var absImg = Path.GetFullPath(img.FilePath);
@@ -298,49 +289,53 @@ public partial class EditMediaViewModel : ViewModelBase
 
         if (result == null || result.Count == 0) return;
 
-        string targetDir;
-        if (!string.IsNullOrEmpty(_originalItem.FilePath))
-             targetDir = Path.Combine(Path.GetDirectoryName(_originalItem.FilePath)!, "media");
-        else
-             targetDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Library", "Unknown");
-
-        if (!Directory.Exists(targetDir)) Directory.CreateDirectory(targetDir);
-
+        // Use a safe temporary cache folder instead of "media" near the ROM.
+        // This keeps the user's ROM folder clean.
+        var tempDir = Path.Combine(Path.GetTempPath(), "RetromindCache", "Gallery");
+        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+        
         foreach (var file in result)
         {
             var sourcePath = file.Path.LocalPath;
             string finalPath = sourcePath;
             bool isDuplicate = false;
 
-            var newHash = FileHelper.CalculateMd5(sourcePath);
+            // Hash-Berechnung in Task auslagern, um UI-Freeze zu verhindern
+            var newHash = await Task.Run(() => FileHelper.CalculateMd5(sourcePath));
+            
+            // Wir müssen dies threadsicher machen oder snapshotten, da wir auf IO zugreifen
+            var existingFiles = Directory.GetFiles(tempDir);
 
-            foreach (var existingFile in Directory.GetFiles(targetDir))
+            // Hash-Vergleich auch im Task (optional, aber sauberer)
+            var duplicateFound = await Task.Run(() => 
             {
-                if (new FileInfo(existingFile).Length != new FileInfo(sourcePath).Length) continue;
-
-                if (FileHelper.CalculateMd5(existingFile) == newHash)
+                foreach (var existingFile in existingFiles)
                 {
-                    finalPath = existingFile;
-                    isDuplicate = true;
-                    break;
+                    if (new FileInfo(existingFile).Length != new FileInfo(sourcePath).Length) continue;
+                    if (FileHelper.CalculateMd5(existingFile) == newHash)
+                    {
+                        return existingFile;
+                    }
                 }
+                return null;
+            });
+
+            if (duplicateFound != null)
+            {
+                finalPath = duplicateFound;
+                isDuplicate = true;
             }
 
             if (!isDuplicate)
             {
-                var fileName = Path.GetFileName(sourcePath);
-                var targetPath = Path.Combine(targetDir, fileName);
-                
-                int c = 1;
-                while (File.Exists(targetPath))
-                {
-                    var name = Path.GetFileNameWithoutExtension(fileName);
-                    var ext = Path.GetExtension(fileName);
-                    targetPath = Path.Combine(targetDir, $"{name}_{c}{ext}");
-                    c++;
-                }
-                
-                File.Copy(sourcePath, targetPath);
+                // Copy to temp if not exists
+                var fileName = Path.GetFileNameWithoutExtension(sourcePath);
+                var ext = Path.GetExtension(sourcePath);
+                var uniqueName = $"{fileName}_{Guid.NewGuid()}{ext}"; // Name_GUID.ext
+        
+                var targetPath = Path.Combine(tempDir, uniqueName);
+    
+                await Task.Run(() => File.Copy(sourcePath, targetPath, true));
                 finalPath = targetPath;
             }
 
@@ -353,23 +348,37 @@ public partial class EditMediaViewModel : ViewModelBase
         }
     }
 
-    private void SetImageType(string type)
+    private void SetImageType(MediaFileType type)
     {
         if (SelectedGalleryImage == null) return;
         
+        // Here we use the FileManagementService to properly import the file 
+        // into the correct structure (Medien/Genre/Cover/...).
+        // This ensures clean organization.
+        var newRelPath = _fileService.ImportAsset(SelectedGalleryImage.FilePath, _originalItem, _nodePath, type);
+
+        if (string.IsNullOrEmpty(newRelPath)) return;
+
+        // The ImportAsset returns a relative path. We might need the absolute path for the UI refresh immediately.
+        var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, newRelPath);
+
         switch (type)
         {
-            case "Cover":
-                CoverPath = SelectedGalleryImage.FilePath;
+            case MediaFileType.Cover:
+                CoverPath = fullPath; 
                 break;
-            case "Wallpaper":
-                WallpaperPath = SelectedGalleryImage.FilePath;
+            case MediaFileType.Wallpaper:
+                WallpaperPath = fullPath;
                 break;
-            case "Logo":
-                LogoPath = SelectedGalleryImage.FilePath;
+            case MediaFileType.Logo:
+                LogoPath = fullPath;
                 break;
         }
 
+        // Update the gallery item to point to the new, correct location
+        // so the "IsCover" check works correctly against the new path.
+        SelectedGalleryImage.FilePath = fullPath;
+        
         foreach(var img in GalleryImages) UpdateImageStatus(img);
     }
 
@@ -377,21 +386,14 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         if (SelectedGalleryImage == null) return;
 
-        try 
-        {
-            if (CoverPath == SelectedGalleryImage.FilePath) CoverPath = null;
-            if (WallpaperPath == SelectedGalleryImage.FilePath) WallpaperPath = null;
-            if (LogoPath == SelectedGalleryImage.FilePath) LogoPath = null;
+        // Only remove from view, don't delete file unless it's a temp file?
+        // For safety, let's just remove from list.
+        
+        if (CoverPath == SelectedGalleryImage.FilePath) CoverPath = null;
+        if (WallpaperPath == SelectedGalleryImage.FilePath) WallpaperPath = null;
+        if (LogoPath == SelectedGalleryImage.FilePath) LogoPath = null;
 
-            if (File.Exists(SelectedGalleryImage.FilePath))
-                File.Delete(SelectedGalleryImage.FilePath);
-            
-            GalleryImages.Remove(SelectedGalleryImage);
-        }
-        catch
-        {
-            // Ignorieren
-        }
+        GalleryImages.Remove(SelectedGalleryImage);
     }
 
     partial void OnSelectedGalleryImageChanged(GalleryImage? value)
@@ -416,7 +418,7 @@ public partial class EditMediaViewModel : ViewModelBase
         if (result != null && result.Count > 0) LauncherPath = result[0].Path.LocalPath;
     }
 
-    // Musik laden
+    // load Music
     private void LoadMusicFiles()
     {
         AvailableMusic.Clear();
@@ -452,11 +454,40 @@ public partial class EditMediaViewModel : ViewModelBase
             FileTypeFilter = new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.ogg", "*.wav" } } }
         });
 
-        // Kopier-Logik analog zu Bildern (gekürzt):
         if (result == null) return;
-        // ... Zielordner bestimmen, Kopieren, Checksumme ...
-        // (Hier exakt denselben Code wie bei AddImage nutzen, nur für Audio)
-        // Am Ende: AddAudio(finalPath);
+        
+        var tempDir = Path.Combine(Path.GetTempPath(), "RetromindCache", "Audio");
+        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+        
+        foreach (var file in result)
+        {
+            var sourcePath = file.Path.LocalPath;
+            string finalPath = sourcePath;
+            bool isDuplicate = false;
+
+            var newHash = FileHelper.CalculateMd5(sourcePath);
+             
+            foreach (var existingFile in Directory.GetFiles(tempDir))
+            {
+                if (new FileInfo(existingFile).Length != new FileInfo(sourcePath).Length) continue;
+                if (FileHelper.CalculateMd5(existingFile) == newHash)
+                {
+                    finalPath = existingFile;
+                    isDuplicate = true;
+                    break;
+                }
+            }
+
+            if (!isDuplicate)
+            {
+                var fileName = Path.GetFileName(sourcePath);
+                var targetPath = Path.Combine(tempDir, Guid.NewGuid() + Path.GetExtension(fileName));
+                await Task.Run(() => File.Copy(sourcePath, targetPath, true));
+                finalPath = targetPath;
+            }
+             
+            AvailableMusic.Add(new AudioItem { FilePath = finalPath, IsActive = false });
+        }
     }
 
     private void SetAsMusic()
@@ -485,15 +516,15 @@ public partial class EditMediaViewModel : ViewModelBase
         _originalItem.Title = Title;
         _originalItem.Developer = Developer;
         _originalItem.Genre = Genre;
-        
-        // Konvertierung zurück zu DateTime?
         _originalItem.ReleaseDate = ReleaseDate?.DateTime;
-        
         _originalItem.Status = Status;
         _originalItem.Description = Description;
         _originalItem.MediaType = MediaType;
+
+        // MusicPath is already updated relative in SetAsMusic
         _originalItem.MusicPath = MusicPath;
 
+        // Convert absolute paths back to relative for storage if they are inside BaseDirectory
         _originalItem.CoverPath = CoverPath;
         _originalItem.WallpaperPath = WallpaperPath;
         _originalItem.LogoPath = LogoPath;
@@ -513,6 +544,17 @@ public partial class EditMediaViewModel : ViewModelBase
         RequestClose?.Invoke(true);
     }
 
+    private string? MakeRelativeIfPossible(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        if (path.StartsWith(baseDir))
+        {
+            return Path.GetRelativePath(baseDir, path);
+        }
+        return path;
+    }
+    
     private void Cancel()
     {
         RequestClose?.Invoke(false);

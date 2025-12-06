@@ -14,10 +14,13 @@ public enum MediaFileType
     Music
 }
 
-public class FileManagementService
+public partial class FileManagementService
 {
     private const string RootFolderName = "Medien";
 
+    [GeneratedRegex(@"([<>\:""/\\|?*]*\.+$)|([<>\:""/\\|?*]+)")]
+    private static partial Regex InvalidCharsRegex();
+    
     /// <summary>
     ///     Imports an asset file (Cover, Wallpaper) into the portable structure.
     ///     If the file already exists, a counter (_01, _02) is appended.
@@ -76,17 +79,15 @@ public class FileManagementService
     }
 
     /// <summary>
+    ///     Imports an asset file (Cover, Wallpaper) into the portable structure.
     ///     Removes invalid characters and replaces spaces with underscores.
     /// </summary>
     private string SanitizeFileName(string name)
     {
         if (string.IsNullOrEmpty(name)) return "Unknown";
-
-        // Remove invalid characters for filenames
-        var invalidChars = Regex.Escape(new string(Path.GetInvalidFileNameChars()));
-        var invalidRegStr = string.Format(@"([{0}]*\.+$)|([{0}]+)", invalidChars);
-
-        var safeName = Regex.Replace(name, invalidRegStr, "_");
+        
+        // Use the generated regex
+        var safeName = InvalidCharsRegex().Replace(name, "_");
 
         // Replace spaces with underscores (optional, but often nicer on Linux)
         safeName = safeName.Replace(" ", "_");

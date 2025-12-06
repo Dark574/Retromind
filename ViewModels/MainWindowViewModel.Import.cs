@@ -148,7 +148,19 @@ public partial class MainWindowViewModel
     {
         if (item == null || CurrentWindow is not { } owner) return;
         var inherited = FindInheritedEmulator(item);
-        var editVm = new EditMediaViewModel(item, _currentSettings, inherited) { StorageProvider = StorageProvider ?? owner.StorageProvider };
+        
+        // Finde den Parent-Node, um den Pfad für den FileService zu bauen
+        var parentNode = FindParentNode(RootItems, item);
+        var nodePath = parentNode != null 
+            ? PathHelper.GetNodePath(parentNode, RootItems) 
+            : new List<string>();
+
+        // Übergebe FileService und NodePath
+        var editVm = new EditMediaViewModel(item, _currentSettings, _fileService, nodePath, inherited) 
+        { 
+            StorageProvider = StorageProvider ?? owner.StorageProvider 
+        };
+        
         var dialog = new EditMediaView { DataContext = editVm };
         editVm.RequestClose += saved => { dialog.Close(saved); };
         if (await dialog.ShowDialog<bool>(owner)) await SaveData();
