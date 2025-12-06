@@ -163,7 +163,7 @@ public partial class EditMediaViewModel : ViewModelBase
         SetAsWallpaperCommand = new RelayCommand(() => SetImageType(MediaFileType.Wallpaper), () => SelectedGalleryImage != null);
         SetAsLogoCommand = new RelayCommand(() => SetImageType(MediaFileType.Logo), () => SelectedGalleryImage != null);
         
-        AddMusicCommand = new AsyncRelayCommand(AddMusicAsync);
+        AddMusicCommand = new AsyncRelayCommand(ImportMusicAsync);
         SetAsMusicCommand = new RelayCommand(SetAsMusic, () => SelectedAudioItem != null);
         RemoveMusicCommand = new RelayCommand(RemoveMusic, () => SelectedAudioItem != null);
 
@@ -498,49 +498,43 @@ public partial class EditMediaViewModel : ViewModelBase
         foreach (var f in found) AddAudio(f);
     }
 
-    private async Task AddMusicAsync()
+    private async Task ImportMusicAsync()
     {
         if (StorageProvider == null) return;
         var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Musik hinzufügen",
+            Title = "Musik importieren",
             AllowMultiple = true,
-            FileTypeFilter = new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.ogg", "*.wav" } } }
+            FileTypeFilter = new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.ogg", "*.wav", "*.flac", "*.sid" } } }
         });
 
         if (result == null) return;
         
-        var tempDir = Path.Combine(Path.GetTempPath(), "RetromindCache", "Audio");
-        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
-        
+        // Wir nutzen direkt den FileService zum Importieren!
+        // Kein Temp-Ordner mehr nötig.
+            
         foreach (var file in result)
         {
-            var sourcePath = file.Path.LocalPath;
-            string finalPath = sourcePath;
-            bool isDuplicate = false;
+            // ImportAsset kümmert sich um Ordnerstruktur und Namenskonvention (Originalname behalten)
+            var relPath = _fileService.ImportAsset(file.Path.LocalPath, _originalItem, _nodePath, MediaFileType.Music);
 
-            var newHash = FileHelper.CalculateMd5(sourcePath);
-             
-            foreach (var existingFile in Directory.GetFiles(tempDir))
+            if (!string.IsNullOrEmpty(relPath))
             {
-                if (new FileInfo(existingFile).Length != new FileInfo(sourcePath).Length) continue;
-                if (FileHelper.CalculateMd5(existingFile) == newHash)
+                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relPath);
+                    
+                // Zur Liste hinzufügen, falls noch nicht da
+                if (!AvailableMusic.Any(a => a.FilePath == fullPath))
                 {
-                    finalPath = existingFile;
-                    isDuplicate = true;
-                    break;
+                    AvailableMusic.Add(new AudioItem { FilePath = fullPath, IsActive = false });
+                }
+                    
+                // Optional: Wenn noch gar keine Musik gesetzt ist, setze die erste importierte automatisch als aktiv
+                if (string.IsNullOrEmpty(MusicPath))
+                {
+                    MusicPath = fullPath;
+                    foreach(var a in AvailableMusic) a.IsActive = (a.FilePath == fullPath);
                 }
             }
-
-            if (!isDuplicate)
-            {
-                var fileName = Path.GetFileName(sourcePath);
-                var targetPath = Path.Combine(tempDir, Guid.NewGuid() + Path.GetExtension(fileName));
-                await Task.Run(() => File.Copy(sourcePath, targetPath, true));
-                finalPath = targetPath;
-            }
-             
-            AvailableMusic.Add(new AudioItem { FilePath = finalPath, IsActive = false });
         }
     }
 

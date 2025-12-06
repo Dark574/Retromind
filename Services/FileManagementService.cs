@@ -178,7 +178,7 @@ public partial class FileManagementService
     private bool IsValidExtension(string path, MediaFileType type)
     {
         var ext = Path.GetExtension(path).ToLowerInvariant();
-        if (type == MediaFileType.Music) return ext is ".mp3" or ".ogg" or ".wav" or ".flac";
+        if (type == MediaFileType.Music) return ext is ".mp3" or ".ogg" or ".wav" or ".flac" or ".sid";
         return ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".webp";
     }
     
