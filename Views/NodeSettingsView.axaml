@@ -16,29 +16,29 @@
             <StackPanel Spacing="20">
                 <!-- Name -->
                 <StackPanel>
-                    <TextBlock Text="{x:Static p:Strings.Name}" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <TextBlock Text="{x:Static p:Strings.Common_Name}" FontWeight="Bold" Margin="0,0,0,5"/>
                     <TextBox Text="{Binding Name}"/>
                 </StackPanel>
 
                 <!-- Zufalls-Optionen -->
                 <StackPanel>
-                    <TextBlock Text="{x:Static p:Strings.Options}" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <TextBlock Text="{x:Static p:Strings.Common_Options}" FontWeight="Bold" Margin="0,0,0,5"/>
                     <StackPanel Spacing="10">
                         <CheckBox IsChecked="{Binding RandomizeCovers}" 
                                   IsThreeState="True" 
-                                  Content="{x:Static p:Strings.RandomCover}"
-                                  ToolTip.Tip="{x:Static p:Strings.TipRandomImage}"/>
+                                  Content="{x:Static p:Strings.Media_RandomCover}"
+                                  ToolTip.Tip="{x:Static p:Strings.Tip_RandomImage}"/>
                         
                         <CheckBox IsChecked="{Binding RandomizeMusic}" 
                                   IsThreeState="True" 
-                                  Content="{x:Static p:Strings.RandomMusic}"
-                                  ToolTip.Tip="{x:Static p:Strings.TipRandomMusic}"/>
+                                  Content="{x:Static p:Strings.Media_RandomMusic}"
+                                  ToolTip.Tip="{x:Static p:Strings.Tip_RandomMusic}"/>
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Emulator Auswahl -->
                 <StackPanel>
-                    <TextBlock Text="{x:Static p:Strings.StandardEmulator}" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <TextBlock Text="{x:Static p:Strings.Media_StandardEmulator}" FontWeight="Bold" Margin="0,0,0,5"/>
                     <ComboBox ItemsSource="{Binding AvailableEmulators}" 
                               SelectedItem="{Binding SelectedEmulator}"
                               HorizontalAlignment="Stretch">
@@ -48,7 +48,7 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <TextBlock Text="{x:Static p:Strings.EmulatorSelection}" 
+                    <TextBlock Text="{x:Static p:Strings.Media_EmulatorSelection}" 
                                FontSize="10" Foreground="Gray" TextWrapping="Wrap" Margin="0,5,0,0"/>
                 </StackPanel>
             </StackPanel>
@@ -56,8 +56,8 @@
 
         <!-- Zeile 1: Buttons (Fixiert am Boden) -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-            <Button Content="{x:Static p:Strings.Cancel}" Command="{Binding CancelCommand}" Width="100" HorizontalContentAlignment="Center"/>
-            <Button Content="{x:Static p:Strings.Save}" Command="{Binding SaveCommand}" Classes="accent" Width="100" HorizontalContentAlignment="Center" IsDefault="True"/>
+            <Button Content="{x:Static p:Strings.Button_Cancel}" Command="{Binding CancelCommand}" Width="100" HorizontalContentAlignment="Center"/>
+            <Button Content="{x:Static p:Strings.Button_Save}" Command="{Binding SaveCommand}" Classes="accent" Width="100" HorizontalContentAlignment="Center" IsDefault="True"/>
         </StackPanel>
     </Grid>
 </Window>

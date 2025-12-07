@@ -28,7 +28,7 @@ public partial class MainWindowViewModel
         var storageProvider = StorageProvider ?? owner.StorageProvider;
         var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = Strings.CtxImportRoms, 
+            Title = Strings.Ctx_ImportRoms, 
             AllowMultiple = false
         });
 
@@ -122,14 +122,14 @@ public partial class MainWindowViewModel
         if (targetNode == null || CurrentWindow is not { } owner) return;
 
         var storageProvider = StorageProvider ?? owner.StorageProvider;
-        var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = Strings.CtxAddMedia, AllowMultiple = true });
+        var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = Strings.Ctx_Media_Add, AllowMultiple = true });
 
         if (result != null && result.Count > 0)
         {
             foreach (var file in result)
             {
                 var rawTitle = Path.GetFileNameWithoutExtension(file.Name);
-                var title = await PromptForName(owner, $"{Strings.Title} '{file.Name}':") ?? rawTitle;
+                var title = await PromptForName(owner, $"{Strings.Common_Title} '{file.Name}':") ?? rawTitle;
                 if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
 
                 var newItem = new MediaItem { Title = title, FilePath = file.Path.LocalPath, MediaType = MediaType.Native };
@@ -174,7 +174,7 @@ public partial class MainWindowViewModel
         var storageProvider = StorageProvider ?? owner.StorageProvider;
         var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = Strings.SelectMusic,
+            Title = Strings.Dialog_Select_Music,
             AllowMultiple = false,
             FileTypeFilter = new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.wav", "*.ogg", "*.flac" } } }
         });
@@ -345,9 +345,9 @@ public partial class MainWindowViewModel
     }
 
     // Wrappers for Assets
-    private async void SetCoverAsync(MediaItem? item) => await SetAssetAsync(item, Strings.SelectCover, MediaFileType.Cover, (i, p) => i.CoverPath = p);
-    private async void SetLogoAsync(MediaItem? item) => await SetAssetAsync(item, Strings.SelectLogo, MediaFileType.Logo, (i, p) => i.LogoPath = p);
-    private async void SetWallpaperAsync(MediaItem? item) => await SetAssetAsync(item, Strings.SelectWallpaper, MediaFileType.Wallpaper, (i, p) => i.WallpaperPath = p);
+    private async void SetCoverAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Cover, MediaFileType.Cover, (i, p) => i.CoverPath = p);
+    private async void SetLogoAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Logo, MediaFileType.Logo, (i, p) => i.LogoPath = p);
+    private async void SetWallpaperAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Wallpaper, MediaFileType.Wallpaper, (i, p) => i.WallpaperPath = p);
 
     private EmulatorConfig? FindInheritedEmulator(MediaItem item)
     {

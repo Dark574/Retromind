@@ -19,7 +19,7 @@ public partial class ScraperConfig : ObservableObject
     // We automatically update the name based on the selected Type, 
     // UNTIL the user manually edits the name. 
 
-    private string _name = Strings.NewScraper; // Localized default
+    private string _name = Strings.Metadata_NewScraper; // Localized default
     private bool _isNameCustomized = false;
 
     /// <summary>

@@ -19,23 +19,23 @@
                     
                 <!-- Zufall Button -->
                 <Button Command="{Binding PlayRandomCommand}" 
-                        ToolTip.Tip="{x:Static p:Strings.TipRandomGame}"
+                        ToolTip.Tip="{x:Static p:Strings.Tip_RandomGame}"
                         Padding="10,5">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <TextBlock Text="🎲"/>
-                        <TextBlock Text="{x:Static p:Strings.Random}"/>
+                        <TextBlock Text="{x:Static p:Strings.Button_Random}"/>
                     </StackPanel>
                 </Button>
 
                 <!-- Suche -->
                 <TextBox Text="{Binding SearchText}" 
-                         Watermark="{x:Static p:Strings.Search}" 
+                         Watermark="{x:Static p:Strings.Search_Search}" 
                          Width="200"
                          VerticalAlignment="Center"/>
 
                 <!-- Zoom Slider -->
                 <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Static p:Strings.Zoom}" VerticalAlignment="Center" />
+                    <TextBlock Text="{x:Static p:Strings.Zoom_Zoom}" VerticalAlignment="Center" />
                     <Slider Value="{Binding ItemWidth}" Minimum="50" Maximum="300" Width="150" />
                 </StackPanel>
             </StackPanel>
@@ -51,10 +51,10 @@
             <!-- Kontextmenü für den LEEREN Bereich -->
             <ListBox.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="{x:Static p:Strings.CtxAddMedia}"
+                    <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
                               Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
                               CommandParameter="{Binding Node}" />
-                    <MenuItem Header="{x:Static p:Strings.ImportFolder}"
+                    <MenuItem Header="{x:Static p:Strings.Import_Folder}"
                               Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
                               CommandParameter="{Binding Node}" />
                 </ContextMenu>
@@ -80,19 +80,19 @@
 
                         <Border.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="{x:Static p:Strings.Edit}"
+                                <MenuItem Header="{x:Static p:Strings.Button_Edit}"
                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditMediaCommand}"
                                           CommandParameter="{Binding .}" 
                                           FontWeight="Bold"/>
                                 <Separator/>
-                                <MenuItem Header="{x:Static p:Strings.LoadMetadata}"
+                                <MenuItem Header="{x:Static p:Strings.Dialog_LoadMetadata}"
                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeMediaCommand}"
                                           CommandParameter="{Binding .}" />
                                 <Separator/>
                                 <!-- HIER WURDE ENTFERNT: Cover ändern, Logo ändern, Wallpaper ändern, Musik ändern -->
                                 <!-- Die Musik-Verwaltung könntest du analog zu den Bildern in den Edit-Dialog packen oder hier lassen, wenn es selten genutzt wird. Ich habe es hier mal mit entfernt, der Konsistenz halber -->
                                     
-                                <MenuItem Header="{x:Static p:Strings.CtxDelete}"
+                                <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
                                           CommandParameter="{Binding .}"
                                           Foreground="Red" />

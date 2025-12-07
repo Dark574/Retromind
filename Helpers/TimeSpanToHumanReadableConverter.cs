@@ -19,7 +19,7 @@ public class TimeSpanToHumanReadableConverter : IValueConverter
         {
             // Handle exact zero (never played)
             if (span.TotalSeconds == 0) 
-                return Strings.TimePlayedNever;
+                return Strings.TimePlayed_Never;
 
             // Less than a minute but played a bit
             if (span.TotalMinutes < 1) 

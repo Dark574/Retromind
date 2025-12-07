@@ -5,7 +5,7 @@
         xmlns:helpers="clr-namespace:Retromind.Helpers"
         x:Class="Retromind.Views.ScrapeDialogView"
         x:DataType="vm:ScrapeDialogViewModel"
-        Title="{x:Static p:Strings.SearchMetadata}"
+        Title="{x:Static p:Strings.Metadata_SearchMetadata}"
         Width="800" Height="600"
         WindowStartupLocation="CenterOwner">
 
@@ -13,7 +13,7 @@
         
         <!-- Header / Suche -->
         <Grid Grid.Row="0" RowDefinitions="Auto, Auto" ColumnDefinitions="*, 10, Auto" Margin="0,0,0,20">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static p:Strings.ChooseSource}" Margin="0,0,0,5"/>
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static p:Strings.Dialog_ChooseSource}" Margin="0,0,0,5"/>
             <ComboBox Grid.Row="1" Grid.Column="0" 
                       ItemsSource="{Binding AvailableScrapers}" 
                       SelectedItem="{Binding SelectedScraper}"
@@ -25,10 +25,10 @@
                 </ComboBox.ItemTemplate>
             </ComboBox>
 
-            <TextBlock Grid.Row="0" Grid.Column="2" Text="{x:Static p:Strings.SearchTerm}" Margin="0,0,0,5"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Text="{x:Static p:Strings.Dialog_SearchTerm}" Margin="0,0,0,5"/>
             <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="10">
                 <TextBox Text="{Binding SearchQuery}" Width="300" />
-                <Button Content="{x:Static p:Strings.Search}" Command="{Binding SearchCommand}" IsDefault="True"/>
+                <Button Content="{x:Static p:Strings.Search_Search}" Command="{Binding SearchCommand}" IsDefault="True"/>
             </StackPanel>
         </Grid>
 
@@ -67,37 +67,37 @@
             <!-- Detailvorschau (Rechts) -->
             <ScrollViewer Grid.Column="2">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="{x:Static p:Strings.PreviewShort}" FontWeight="Bold" FontSize="16"/>
+                    <TextBlock Text="{x:Static p:Strings.Common_PreviewShort}" FontWeight="Bold" FontSize="16"/>
                     
                     <!-- AUCH HIER: Async Loader statt ViewModel-Property -->
                     <!-- Das spart uns den Code im ViewModel! -->
                     <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.CoverUrl}" 
                            Width="200" Height="300" Stretch="Uniform"
                            IsVisible="{Binding SelectedResult.CoverUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                    <TextBlock Text="{x:Static p:Strings.CoverURL}" FontWeight="Bold"/>
+                    <TextBlock Text="{x:Static p:Strings.Common_CoverURL}" FontWeight="Bold"/>
                     <TextBlock Text="{Binding SelectedResult.CoverUrl}" TextWrapping="Wrap" FontSize="10"/>
                     
-                    <TextBlock Text="{x:Static p:Strings.TitleEx}" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock Text="{x:Static p:Strings.Common_TitleEx}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Title}" TextWrapping="Wrap"/>
                     
-                    <TextBlock Text="{x:Static p:Strings.Description}" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock Text="{x:Static p:Strings.Common_Description}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Description}" TextWrapping="Wrap" FontSize="12"/>
                     
-                    <TextBlock Text="{x:Static p:Strings.Rating}" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock Text="{x:Static p:Strings.Common_Rating}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Rating}" />
                 </StackPanel>
             </ScrollViewer>
 
             <!-- Loading Overlay -->
             <Border Grid.Column="0" Grid.ColumnSpan="3" Background="#80000000" IsVisible="{Binding IsSearching}">
-                <TextBlock Text="{x:Static p:Strings.SearchProceeds}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="White" FontSize="20"/>
+                <TextBlock Text="{x:Static p:Strings.Metadata_Search_InProgress}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="White" FontSize="20"/>
             </Border>
         </Grid>
 
         <!-- Footer Buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
-            <Button Content="{x:Static p:Strings.Cancel}" Click="CloseWindow"/>
-            <Button Content="{x:Static p:Strings.TakeOver}" Command="{Binding ApplyCommand}" Classes="accent"/>
+            <Button Content="{x:Static p:Strings.Button_Cancel}" Click="CloseWindow"/>
+            <Button Content="{x:Static p:Strings.Button_TakeOver}" Command="{Binding ApplyCommand}" Classes="accent"/>
         </StackPanel>
     </Grid>
 </Window>

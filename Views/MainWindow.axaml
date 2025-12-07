@@ -11,7 +11,7 @@
         x:DataType="vm:MainWindowViewModel"
         WindowState="Maximized"
         x:Name="MainWin"
-        Title="{x:Static p:Strings.AppTitle}"
+        Title="{x:Static p:Strings.App_Title}"
         
         SystemDecorations="None" 
         Background="{Binding WindowBackground}"
@@ -94,14 +94,14 @@
                            <!-- Header Leiste mit Settings Button -->
                            <!-- KORRIGIERT: Eine "Auto" Spalte mehr hinzugefügt -->
                            <Grid Grid.Row="0" ColumnDefinitions="*, Auto, Auto, Auto" Margin="10">
-                               <TextBlock Text="{x:Static p:Strings.Library}" 
+                               <TextBlock Text="{x:Static p:Strings.Media_Library}" 
                                           FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
 
                                <!-- Theme Toggle Button -->
                                <Button Grid.Column="1" Content="🌗" 
                                        Command="{Binding ToggleThemeCommand}"
                                        Background="Transparent" BorderThickness="0"
-                                       ToolTip.Tip="{x:Static p:Strings.ToggleTheme}"
+                                       ToolTip.Tip="{x:Static p:Strings.Toggle_Theme}"
                                        FontSize="16" Cursor="Hand" Margin="0,0,5,0"
                                        Foreground="{Binding TextColor}"/>
 
@@ -109,14 +109,14 @@
                                <Button Grid.Column="2" Content="🔍" 
                                        Command="{Binding OpenSearchCommand}"
                                        Background="Transparent" BorderThickness="0"
-                                       ToolTip.Tip="{x:Static p:Strings.GlobalSearch}"
+                                       ToolTip.Tip="{x:Static p:Strings.Search_Global}"
                                        FontSize="14" Cursor="Hand" Margin="0,2,5,0"
                                        Foreground="{Binding TextColor}"/>
 
                                <Button Grid.Column="3" Content="⚙" 
                                        Command="{Binding OpenSettingsCommand}"
                                        Background="Transparent" BorderThickness="0"
-                                       ToolTip.Tip="{x:Static p:Strings.SettingsTitle}"
+                                       ToolTip.Tip="{x:Static p:Strings.Settings_Title}"
                                        FontSize="16" Cursor="Hand"
                                        Foreground="{Binding TextColor}"/>
                            </Grid>
@@ -128,7 +128,7 @@
 
                                <TreeView.ContextMenu>
                                    <ContextMenu>
-                                       <MenuItem Header="{x:Static p:Strings.CtxAddCategory}"
+                                       <MenuItem Header="{x:Static p:Strings.Ctx_Category_Add}"
                                                  Command="{Binding AddCategoryCommand}"
                                                  CommandParameter="{x:Null}" /> <!-- Null = Root -->
                                    </ContextMenu>
@@ -149,31 +149,31 @@
                                            <Grid.ContextMenu>
                                                <ContextMenu>
                                                    <!-- VEREINFACHT & LOKALISIERT -->
-                                                   <MenuItem Header="{x:Static p:Strings.CtxAddCategory}"
+                                                   <MenuItem Header="{x:Static p:Strings.Ctx_Category_Add}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddCategoryCommand}"
                                                              CommandParameter="{Binding .}" />
 
                                                    <Separator />
                                                    
                                                    <!-- IMPORT UNTERMENÜ -->
-                                                   <MenuItem Header="{x:Static p:Strings.Import}" FontWeight="Bold">
-                                                       <MenuItem Header="{x:Static p:Strings.ImportRoms}"
+                                                   <MenuItem Header="{x:Static p:Strings.Button_Import}" FontWeight="Bold">
+                                                       <MenuItem Header="{x:Static p:Strings.Import_Roms}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
                                                                  CommandParameter="{Binding .}"/>
                                                        <Separator/>
-                                                       <MenuItem Header="{x:Static p:Strings.ImportSteam}"
+                                                       <MenuItem Header="{x:Static p:Strings.Import_Steam}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportSteamCommand}"
                                                                  CommandParameter="{Binding .}"/>
-                                                       <MenuItem Header="{x:Static p:Strings.ImportGog}"
+                                                       <MenuItem Header="{x:Static p:Strings.Import_Gog}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportGogCommand}"
                                                                  CommandParameter="{Binding .}"/>
                                                    </MenuItem>
-                                                   <MenuItem Header="{x:Static p:Strings.SearchMetadataAll}"
+                                                   <MenuItem Header="{x:Static p:Strings.Metadata_SearchMetadataAll}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeNodeCommand}"
                                                              CommandParameter="{Binding .}"
                                                              FontWeight="Bold" />
                                                    <Separator/>
-                                                   <MenuItem Header="{x:Static p:Strings.CtxAddMedia}"
+                                                   <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
                                                              CommandParameter="{Binding .}"
                                                              FontWeight="Bold" />
@@ -181,13 +181,13 @@
                                                    <Separator/>
 
                                                    <!-- Einstellungen für den Ordner -->
-                                                   <MenuItem Header="{x:Static p:Strings.MediaSettings}"
+                                                   <MenuItem Header="{x:Static p:Strings.Media_Settings}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditNodeCommand}"
                                                              CommandParameter="{Binding .}"/>
 
                                                    <Separator />
 
-                                                   <MenuItem Header="{x:Static p:Strings.CtxDelete}"
+                                                   <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteCommand}"
                                                              CommandParameter="{Binding .}"
                                                              Foreground="Red" />
@@ -218,7 +218,7 @@
                    <!-- Background an PanelBackground binden! -->
                    <Grid Grid.Column="4" Background="{Binding PanelBackground}" x:CompileBindings="False">
                        
-                       <TextBlock Text="{x:Static p:Strings.ChooseMedia}"
+                       <TextBlock Text="{x:Static p:Strings.Dialog_ChooseMedia}"
                                   VerticalAlignment="Center"
                                   HorizontalAlignment="Center"
                                   Foreground="{Binding DataContext.TextColor, ElementName=MainWin}"

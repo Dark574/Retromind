@@ -111,7 +111,7 @@ public class MediaDataService
             return new ObservableCollection<MediaNode>
             {
                 // Default root node
-                new(Strings.Library, NodeType.Area) 
+                new(Strings.Media_Library, NodeType.Area) 
             };
         }
 

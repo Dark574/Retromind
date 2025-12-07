@@ -15,27 +15,27 @@
                 
                 <!-- Zeile 1: Titel & Hauptfilter -->
                 <Grid ColumnDefinitions="Auto, 20, Auto, 10, Auto, 10, Auto, *, Auto">
-                    <TextBlock Grid.Column="0" Text="{x:Static p:Strings.GlobalSearchShort}" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="{x:Static p:Strings.Search_GlobalShort}" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
                     
                     <!-- Text -->
-                    <TextBox Grid.Column="2" Text="{Binding SearchText}" Watermark="{x:Static p:Strings.TitleSearch}" Width="200"/>
+                    <TextBox Grid.Column="2" Text="{Binding SearchText}" Watermark="{x:Static p:Strings.Dialog_TitleSearch}" Width="200"/>
                     
                     <!-- Jahr -->
-                    <TextBox Grid.Column="4" Text="{Binding SearchYear}" Watermark="{x:Static p:Strings.Year}" Width="120"/>
+                    <TextBox Grid.Column="4" Text="{Binding SearchYear}" Watermark="{x:Static p:Strings.Common_Year}" Width="120"/>
                     
                     <!-- Button -->
                     <Button Grid.Column="6" Command="{Binding SearchCommand}" Classes="accent" Content="🔍 Suchen"/>
                     
                     <!-- Zoom (ganz rechts) -->
                     <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                         <TextBlock Text="{x:Static p:Strings.Zoom}" VerticalAlignment="Center" FontSize="10"/>
+                         <TextBlock Text="{x:Static p:Strings.Zoom_Zoom}" VerticalAlignment="Center" FontSize="10"/>
                          <Slider Value="{Binding ItemWidth}" Minimum="50" Maximum="300" Width="100"/>
                     </StackPanel>
                 </Grid>
 
                 <!-- Zeile 2: Bereiche (Expander oder einfache Liste horizontal) -->
                 <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Static p:Strings.Area}" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,5,0"/>
+                    <TextBlock Text="{x:Static p:Strings.Common_Area}" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,5,0"/>
                     <ItemsControl ItemsSource="{Binding Scopes}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -56,7 +56,7 @@
                         HorizontalAlignment="Left">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <TextBlock Text="🎲"/>
-                        <TextBlock Text="{x:Static p:Strings.RandomMatch}"/>
+                        <TextBlock Text="{x:Static p:Strings.RandomMatch_Start}"/>
                     </StackPanel>
                 </Button>
             </StackPanel>
@@ -88,7 +88,7 @@
                         <Border.ContextMenu>
                             <ContextMenu>
                                 <!-- KORRIGIERT: Binding auf PlayCommand statt RequestPlay -->
-                                <MenuItem Header="{x:Static p:Strings.Launch}" 
+                                <MenuItem Header="{x:Static p:Strings.Button_Launch}" 
                                           Command="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).PlayCommand}"
                                           CommandParameter="{Binding .}"/>
                             </ContextMenu>
@@ -110,7 +110,7 @@
         </ListBox>
         
         <!-- Info wenn leer -->
-        <TextBlock Grid.Row="1" Text="{x:Static p:Strings.NoResult}" 
+        <TextBlock Grid.Row="1" Text="{x:Static p:Strings.Dialog_NoResult}" 
                    HorizontalAlignment="Center" VerticalAlignment="Center" 
                    IsVisible="{Binding !SearchResults.Count}"
                    Opacity="0.5" FontSize="16"/>

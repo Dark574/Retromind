@@ -24,10 +24,10 @@ public class MediaTypeToLocalizedNameConverter : IValueConverter
                 // Use resource strings for internationalization (I18N)
                 // Make sure these keys exist in your Strings.resx
                 
-                MediaType.Native => Strings.TypeNative,
-                MediaType.Emulator => Strings.TypeEmulator,
+                MediaType.Native => Strings.Type_Native,
+                MediaType.Emulator => Strings.Type_Emulator,
                 // Assuming you might add Command type or similar in future, handle it here
-                MediaType.Command => Strings.TypeCommand,
+                MediaType.Command => Strings.Type_Command,
                 
                 _ => type.ToString()
             };

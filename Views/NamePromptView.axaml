@@ -22,13 +22,13 @@
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
             <!-- IsDefault=True erlaubt Bestätigen mit ENTER -->
-            <Button Content="{x:Static p:Strings.Ok}"
+            <Button Content="{x:Static p:Strings.Button_Ok}"
                     Click="OnOkClick"
                     IsDefault="True"
                     Width="80" />
 
             <!-- IsCancel=True erlaubt Abbrechen mit ESC -->
-            <Button Content="{x:Static p:Strings.Cancel}"
+            <Button Content="{x:Static p:Strings.Button_Cancel}"
                     Click="OnCancelClick"
                     IsCancel="True"
                     Width="80" />

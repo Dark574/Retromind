@@ -45,795 +45,711 @@ namespace Retromind.Resources {
             }
         }
         
-        public static string CtxAddCategory {
+        public static string App_Title {
             get {
-                return ResourceManager.GetString("CtxAddCategory", resourceCulture);
+                return ResourceManager.GetString("App.Title", resourceCulture);
             }
         }
         
-        public static string CtxAddMedia {
+        public static string Button_Cancel {
             get {
-                return ResourceManager.GetString("CtxAddMedia", resourceCulture);
+                return ResourceManager.GetString("Button.Cancel", resourceCulture);
             }
         }
         
-        public static string CtxDelete {
+        public static string Button_Edit {
             get {
-                return ResourceManager.GetString("CtxDelete", resourceCulture);
+                return ResourceManager.GetString("Button.Edit", resourceCulture);
             }
         }
         
-        public static string MsgEnterName {
+        public static string Button_Import {
             get {
-                return ResourceManager.GetString("MsgEnterName", resourceCulture);
+                return ResourceManager.GetString("Button.Import", resourceCulture);
             }
         }
         
-        public static string NewCategory {
+        public static string Button_Ok {
             get {
-                return ResourceManager.GetString("NewCategory", resourceCulture);
+                return ResourceManager.GetString("Button.Ok", resourceCulture);
             }
         }
         
-        public static string Library {
+        public static string Button_Play {
             get {
-                return ResourceManager.GetString("Library", resourceCulture);
+                return ResourceManager.GetString("Button.Play", resourceCulture);
             }
         }
         
-        public static string AppTitle {
+        public static string Button_Random {
             get {
-                return ResourceManager.GetString("AppTitle", resourceCulture);
+                return ResourceManager.GetString("Button.Random", resourceCulture);
             }
         }
         
-        public static string Title {
+        public static string Button_Save {
             get {
-                return ResourceManager.GetString("Title", resourceCulture);
+                return ResourceManager.GetString("Button.Save", resourceCulture);
             }
         }
         
-        public static string Developer {
+        public static string Button_TakeOver {
             get {
-                return ResourceManager.GetString("Developer", resourceCulture);
+                return ResourceManager.GetString("Button.TakeOver", resourceCulture);
             }
         }
         
-        public static string Genre {
+        public static string Button_No {
             get {
-                return ResourceManager.GetString("Genre", resourceCulture);
+                return ResourceManager.GetString("Button.No", resourceCulture);
             }
         }
         
-        public static string ReleaseDate {
+        public static string Button_Yes {
             get {
-                return ResourceManager.GetString("ReleaseDate", resourceCulture);
+                return ResourceManager.GetString("Button.Yes", resourceCulture);
             }
         }
         
-        public static string Status {
+        public static string Button_Cover {
             get {
-                return ResourceManager.GetString("Status", resourceCulture);
+                return ResourceManager.GetString("Button.Cover", resourceCulture);
             }
         }
         
-        public static string Summary {
+        public static string Button_Logo {
             get {
-                return ResourceManager.GetString("Summary", resourceCulture);
+                return ResourceManager.GetString("Button.Logo", resourceCulture);
             }
         }
         
-        public static string LaunchConfig {
+        public static string Button_Wall {
             get {
-                return ResourceManager.GetString("LaunchConfig", resourceCulture);
+                return ResourceManager.GetString("Button.Wall", resourceCulture);
             }
         }
         
-        public static string LauncherPath {
+        public static string Button_Delete {
             get {
-                return ResourceManager.GetString("LauncherPath", resourceCulture);
+                return ResourceManager.GetString("Button.Delete", resourceCulture);
             }
         }
         
-        public static string LauncherPathHint {
+        public static string Button_Launch {
             get {
-                return ResourceManager.GetString("LauncherPathHint", resourceCulture);
+                return ResourceManager.GetString("Button.Launch", resourceCulture);
             }
         }
         
-        public static string Arguments {
+        public static string Common_Active {
             get {
-                return ResourceManager.GetString("Arguments", resourceCulture);
+                return ResourceManager.GetString("Common.Active", resourceCulture);
             }
         }
         
-        public static string ArgumentsHint {
+        public static string Common_Area {
             get {
-                return ResourceManager.GetString("ArgumentsHint", resourceCulture);
+                return ResourceManager.GetString("Common.Area", resourceCulture);
             }
         }
         
-        public static string Cancel {
+        public static string Common_Description {
             get {
-                return ResourceManager.GetString("Cancel", resourceCulture);
+                return ResourceManager.GetString("Common.Description", resourceCulture);
             }
         }
         
-        public static string Save {
+        public static string Common_Developer {
             get {
-                return ResourceManager.GetString("Save", resourceCulture);
+                return ResourceManager.GetString("Common.Developer", resourceCulture);
             }
         }
         
-        public static string EditMediaTitle {
+        public static string Common_Genre {
             get {
-                return ResourceManager.GetString("EditMediaTitle", resourceCulture);
+                return ResourceManager.GetString("Common.Genre", resourceCulture);
             }
         }
         
-        public static string ConfirmDeleteNode {
+        public static string Common_Name {
             get {
-                return ResourceManager.GetString("ConfirmDeleteNode", resourceCulture);
+                return ResourceManager.GetString("Common.Name", resourceCulture);
             }
         }
         
-        public static string ConfirmDeleteMedia {
+        public static string Common_Options {
             get {
-                return ResourceManager.GetString("ConfirmDeleteMedia", resourceCulture);
+                return ResourceManager.GetString("Common.Options", resourceCulture);
             }
         }
         
-        public static string SelectMediaFile {
+        public static string Common_PreviewShort {
             get {
-                return ResourceManager.GetString("SelectMediaFile", resourceCulture);
+                return ResourceManager.GetString("Common.PreviewShort", resourceCulture);
             }
         }
         
-        public static string SelectCover {
+        public static string Common_Rating {
             get {
-                return ResourceManager.GetString("SelectCover", resourceCulture);
+                return ResourceManager.GetString("Common.Rating", resourceCulture);
             }
         }
         
-        public static string SelectLogo {
+        public static string Common_ReleaseDate {
             get {
-                return ResourceManager.GetString("SelectLogo", resourceCulture);
+                return ResourceManager.GetString("Common.ReleaseDate", resourceCulture);
             }
         }
         
-        public static string SelectWallpaper {
+        public static string Common_Status {
             get {
-                return ResourceManager.GetString("SelectWallpaper", resourceCulture);
+                return ResourceManager.GetString("Common.Status", resourceCulture);
             }
         }
         
-        public static string SelectMusic {
+        public static string Common_Summary {
             get {
-                return ResourceManager.GetString("SelectMusic", resourceCulture);
+                return ResourceManager.GetString("Common.Summary", resourceCulture);
             }
         }
         
-        public static string Zoom {
+        public static string Common_Title {
             get {
-                return ResourceManager.GetString("Zoom", resourceCulture);
+                return ResourceManager.GetString("Common.Title", resourceCulture);
             }
         }
         
-        public static string CtxChangeCover {
+        public static string Common_Year {
             get {
-                return ResourceManager.GetString("CtxChangeCover", resourceCulture);
+                return ResourceManager.GetString("Common.Year", resourceCulture);
             }
         }
         
-        public static string CtxChangeLogo {
+        public static string Common_CoverURL {
             get {
-                return ResourceManager.GetString("CtxChangeLogo", resourceCulture);
+                return ResourceManager.GetString("Common.CoverURL", resourceCulture);
             }
         }
         
-        public static string CtxChangeWallpaper {
+        public static string Common_TitleEx {
             get {
-                return ResourceManager.GetString("CtxChangeWallpaper", resourceCulture);
+                return ResourceManager.GetString("Common.TitleEx", resourceCulture);
             }
         }
         
-        public static string CtxChangeMusic {
+        public static string Common_UserName {
             get {
-                return ResourceManager.GetString("CtxChangeMusic", resourceCulture);
+                return ResourceManager.GetString("Common.UserName", resourceCulture);
             }
         }
         
-        public static string Edit {
+        public static string Common_Password {
             get {
-                return ResourceManager.GetString("Edit", resourceCulture);
+                return ResourceManager.GetString("Common.Password", resourceCulture);
             }
         }
         
-        public static string PlayButton {
+        public static string Ctx_Category_Add {
             get {
-                return ResourceManager.GetString("PlayButton", resourceCulture);
+                return ResourceManager.GetString("Ctx.Category.Add", resourceCulture);
             }
         }
         
-        public static string LastPlayed {
+        public static string Ctx_ImportRoms {
             get {
-                return ResourceManager.GetString("LastPlayed", resourceCulture);
+                return ResourceManager.GetString("Ctx.ImportRoms", resourceCulture);
             }
         }
         
-        public static string PlayCount {
+        public static string Ctx_Media_Add {
             get {
-                return ResourceManager.GetString("PlayCount", resourceCulture);
+                return ResourceManager.GetString("Ctx.Media.Add", resourceCulture);
             }
         }
         
-        public static string LaunchMode {
+        public static string Ctx_ChangeCover {
             get {
-                return ResourceManager.GetString("LaunchMode", resourceCulture);
+                return ResourceManager.GetString("Ctx.ChangeCover", resourceCulture);
             }
         }
         
-        public static string ModeNative {
+        public static string Dialog_ChooseASource {
             get {
-                return ResourceManager.GetString("ModeNative", resourceCulture);
+                return ResourceManager.GetString("Dialog.ChooseASource", resourceCulture);
             }
         }
         
-        public static string ModeEmulator {
+        public static string Dialog_ChooseMedia {
             get {
-                return ResourceManager.GetString("ModeEmulator", resourceCulture);
+                return ResourceManager.GetString("Dialog.ChooseMedia", resourceCulture);
             }
         }
         
-        public static string Preview {
+        public static string Dialog_ChooseSource {
             get {
-                return ResourceManager.GetString("Preview", resourceCulture);
+                return ResourceManager.GetString("Dialog.ChooseSource", resourceCulture);
             }
         }
         
-        public static string SettingsTitle {
+        public static string Dialog_ConfigureMetadata {
             get {
-                return ResourceManager.GetString("SettingsTitle", resourceCulture);
+                return ResourceManager.GetString("Dialog.ConfigureMetadata", resourceCulture);
             }
         }
         
-        public static string SectionEmulators {
+        public static string Dialog_EditMedia {
             get {
-                return ResourceManager.GetString("SectionEmulators", resourceCulture);
+                return ResourceManager.GetString("Dialog.EditMedia", resourceCulture);
             }
         }
         
-        public static string AddProfile {
+        public static string Dialog_EnterName_Message {
             get {
-                return ResourceManager.GetString("AddProfile", resourceCulture);
+                return ResourceManager.GetString("Dialog.EnterName.Message", resourceCulture);
             }
         }
         
-        public static string ProfileName {
+        public static string Dialog_LoadMetadata {
             get {
-                return ResourceManager.GetString("ProfileName", resourceCulture);
+                return ResourceManager.GetString("Dialog.LoadMetadata", resourceCulture);
             }
         }
         
-        public static string ExecutablePath {
+        public static string Dialog_MsgConfirmDelete {
             get {
-                return ResourceManager.GetString("ExecutablePath", resourceCulture);
+                return ResourceManager.GetString("Dialog.MsgConfirmDelete", resourceCulture);
             }
         }
         
-        public static string DefaultArguments {
+        public static string Dialog_NoResult {
             get {
-                return ResourceManager.GetString("DefaultArguments", resourceCulture);
+                return ResourceManager.GetString("Dialog.NoResult", resourceCulture);
             }
         }
         
-        public static string RemoveProfile {
+        public static string Dialog_SearchTerm {
             get {
-                return ResourceManager.GetString("RemoveProfile", resourceCulture);
+                return ResourceManager.GetString("Dialog.SearchTerm", resourceCulture);
             }
         }
         
-        public static string GlobalSettingsHint {
+        public static string Dialog_Select_Cover {
             get {
-                return ResourceManager.GetString("GlobalSettingsHint", resourceCulture);
+                return ResourceManager.GetString("Dialog.Select.Cover", resourceCulture);
             }
         }
         
-        public static string TabEmulators {
+        public static string Dialog_Select_Logo {
             get {
-                return ResourceManager.GetString("TabEmulators", resourceCulture);
+                return ResourceManager.GetString("Dialog.Select.Logo", resourceCulture);
             }
         }
         
-        public static string TabMetadata {
+        public static string Dialog_Select_Music {
             get {
-                return ResourceManager.GetString("TabMetadata", resourceCulture);
+                return ResourceManager.GetString("Dialog.Select.Music", resourceCulture);
             }
         }
         
-        public static string NewScraperDefaultName {
+        public static string Dialog_Select_Wallpaper {
             get {
-                return ResourceManager.GetString("NewScraperDefaultName", resourceCulture);
+                return ResourceManager.GetString("Dialog.Select.Wallpaper", resourceCulture);
             }
         }
         
-        public static string HintTmdbKey {
+        public static string Dialog_TitleSearch {
             get {
-                return ResourceManager.GetString("HintTmdbKey", resourceCulture);
+                return ResourceManager.GetString("Dialog.TitleSearch", resourceCulture);
             }
         }
         
-        public static string HintIgdbCredentials {
+        public static string Hint_IgdbCredentials {
             get {
-                return ResourceManager.GetString("HintIgdbCredentials", resourceCulture);
+                return ResourceManager.GetString("Hint.IgdbCredentials", resourceCulture);
             }
         }
         
-        public static string HintRequired {
+        public static string Hint_Required {
             get {
-                return ResourceManager.GetString("HintRequired", resourceCulture);
+                return ResourceManager.GetString("Hint.Required", resourceCulture);
             }
         }
         
-        public static string AutomaticMetadataSearch {
+        public static string Hint_TimePlayed {
             get {
-                return ResourceManager.GetString("AutomaticMetadataSearch", resourceCulture);
+                return ResourceManager.GetString("Hint.TimePlayed", resourceCulture);
             }
         }
         
-        public static string Source {
+        public static string Hint_TmdbKey {
             get {
-                return ResourceManager.GetString("Source", resourceCulture);
+                return ResourceManager.GetString("Hint.TmdbKey", resourceCulture);
             }
         }
         
-        public static string Launch {
+        public static string Import_Folder {
             get {
-                return ResourceManager.GetString("Launch", resourceCulture);
+                return ResourceManager.GetString("Import.Folder", resourceCulture);
             }
         }
         
-        public static string Yes {
+        public static string Import_Gog {
             get {
-                return ResourceManager.GetString("Yes", resourceCulture);
+                return ResourceManager.GetString("Import.Gog", resourceCulture);
             }
         }
         
-        public static string No {
+        public static string Import_Roms {
             get {
-                return ResourceManager.GetString("No", resourceCulture);
+                return ResourceManager.GetString("Import.Roms", resourceCulture);
             }
         }
         
-        public static string ProcessMonitor {
+        public static string Import_Steam {
             get {
-                return ResourceManager.GetString("ProcessMonitor", resourceCulture);
+                return ResourceManager.GetString("Import.Steam", resourceCulture);
             }
         }
         
-        public static string TimePlayedHint {
+        public static string Launch_Arguments {
             get {
-                return ResourceManager.GetString("TimePlayedHint", resourceCulture);
+                return ResourceManager.GetString("Launch.Arguments", resourceCulture);
             }
         }
         
-        public static string WatermarkOverrideWatchProcess {
+        public static string Launch_ArgumentsHint {
             get {
-                return ResourceManager.GetString("WatermarkOverrideWatchProcess", resourceCulture);
+                return ResourceManager.GetString("Launch.ArgumentsHint", resourceCulture);
             }
         }
         
-        public static string Profile {
+        public static string Launch_Config {
             get {
-                return ResourceManager.GetString("Profile", resourceCulture);
+                return ResourceManager.GetString("Launch.Config", resourceCulture);
             }
         }
         
-        public static string Picture {
+        public static string Launch_LauncherPath {
             get {
-                return ResourceManager.GetString("Picture", resourceCulture);
+                return ResourceManager.GetString("Launch.LauncherPath", resourceCulture);
             }
         }
         
-        public static string Logo {
+        public static string Launch_LauncherPathHint {
             get {
-                return ResourceManager.GetString("Logo", resourceCulture);
+                return ResourceManager.GetString("Launch.LauncherPathHint", resourceCulture);
             }
         }
         
-        public static string Cover {
+        public static string Launch_Mode {
             get {
-                return ResourceManager.GetString("Cover", resourceCulture);
+                return ResourceManager.GetString("Launch.Mode", resourceCulture);
             }
         }
         
-        public static string Wall {
+        public static string Media_AddMusic {
             get {
-                return ResourceManager.GetString("Wall", resourceCulture);
+                return ResourceManager.GetString("Media.AddMusic", resourceCulture);
             }
         }
         
-        public static string MusicFiles {
+        public static string Media_EmulatorSelection {
             get {
-                return ResourceManager.GetString("MusicFiles", resourceCulture);
+                return ResourceManager.GetString("Media.EmulatorSelection", resourceCulture);
             }
         }
         
-        public static string Active {
+        public static string Media_LastPlayed {
             get {
-                return ResourceManager.GetString("Active", resourceCulture);
+                return ResourceManager.GetString("Media.LastPlayed", resourceCulture);
             }
         }
         
-        public static string SetMusicActive {
+        public static string Media_Library {
             get {
-                return ResourceManager.GetString("SetMusicActive", resourceCulture);
+                return ResourceManager.GetString("Media.Library", resourceCulture);
             }
         }
         
-        public static string AddMusic {
+        public static string Media_MusicFiles {
             get {
-                return ResourceManager.GetString("AddMusic", resourceCulture);
+                return ResourceManager.GetString("Media.MusicFiles", resourceCulture);
             }
         }
         
-        public static string ToggleTheme {
+        public static string Media_PlayCount {
             get {
-                return ResourceManager.GetString("ToggleTheme", resourceCulture);
+                return ResourceManager.GetString("Media.PlayCount", resourceCulture);
             }
         }
         
-        public static string GlobalSearch {
+        public static string Media_RandomCover {
             get {
-                return ResourceManager.GetString("GlobalSearch", resourceCulture);
+                return ResourceManager.GetString("Media.RandomCover", resourceCulture);
             }
         }
         
-        public static string ImportRoms {
+        public static string Media_RandomMusic {
             get {
-                return ResourceManager.GetString("ImportRoms", resourceCulture);
+                return ResourceManager.GetString("Media.RandomMusic", resourceCulture);
             }
         }
         
-        public static string Import {
+        public static string Media_SetMusicActive {
             get {
-                return ResourceManager.GetString("Import", resourceCulture);
+                return ResourceManager.GetString("Media.SetMusicActive", resourceCulture);
             }
         }
         
-        public static string ImportSteam {
+        public static string Media_Settings {
             get {
-                return ResourceManager.GetString("ImportSteam", resourceCulture);
+                return ResourceManager.GetString("Media.Settings", resourceCulture);
             }
         }
         
-        public static string SearchMetadataAll {
+        public static string Media_StandardEmulator {
             get {
-                return ResourceManager.GetString("SearchMetadataAll", resourceCulture);
+                return ResourceManager.GetString("Media.StandardEmulator", resourceCulture);
             }
         }
         
-        public static string ImportGog {
+        public static string Media_WatermarkOverrideWatchProcess {
             get {
-                return ResourceManager.GetString("ImportGog", resourceCulture);
+                return ResourceManager.GetString("Media.WatermarkOverrideWatchProcess", resourceCulture);
             }
         }
         
-        public static string MediaSettings {
+        public static string Metadata_AccessData {
             get {
-                return ResourceManager.GetString("MediaSettings", resourceCulture);
+                return ResourceManager.GetString("Metadata.AccessData", resourceCulture);
             }
         }
         
-        public static string ChooseMedia {
+        public static string Metadata_ApiKey {
             get {
-                return ResourceManager.GetString("ChooseMedia", resourceCulture);
+                return ResourceManager.GetString("Metadata.ApiKey", resourceCulture);
             }
         }
         
-        public static string TipRandomGame {
+        public static string Metadata_AutomaticSearch {
             get {
-                return ResourceManager.GetString("TipRandomGame", resourceCulture);
+                return ResourceManager.GetString("Metadata.AutomaticSearch", resourceCulture);
             }
         }
         
-        public static string Random {
+        public static string Metadata_Client {
             get {
-                return ResourceManager.GetString("Random", resourceCulture);
+                return ResourceManager.GetString("Metadata.Client", resourceCulture);
             }
         }
         
-        public static string Search {
+        public static string Metadata_ClientSecret {
             get {
-                return ResourceManager.GetString("Search", resourceCulture);
+                return ResourceManager.GetString("Metadata.ClientSecret", resourceCulture);
             }
         }
         
-        public static string ImportFolder {
+        public static string Metadata_DataLanguage {
             get {
-                return ResourceManager.GetString("ImportFolder", resourceCulture);
+                return ResourceManager.GetString("Metadata.DataLanguage", resourceCulture);
             }
         }
         
-        public static string LoadMetadata {
+        public static string Metadata_Designation {
             get {
-                return ResourceManager.GetString("LoadMetadata", resourceCulture);
+                return ResourceManager.GetString("Metadata.Designation", resourceCulture);
             }
         }
         
-        public static string Ok {
+        public static string Metadata_NewScraper {
             get {
-                return ResourceManager.GetString("Ok", resourceCulture);
+                return ResourceManager.GetString("Metadata.NewScraper", resourceCulture);
             }
         }
         
-        public static string Name {
+        public static string Metadata_ScrapeArea {
             get {
-                return ResourceManager.GetString("Name", resourceCulture);
+                return ResourceManager.GetString("Metadata.ScrapeArea", resourceCulture);
             }
         }
         
-        public static string Options {
+        public static string Metadata_SearchMetadata {
             get {
-                return ResourceManager.GetString("Options", resourceCulture);
+                return ResourceManager.GetString("Metadata.SearchMetadata", resourceCulture);
             }
         }
         
-        public static string RandomCover {
+        public static string Metadata_SearchMetadataAll {
             get {
-                return ResourceManager.GetString("RandomCover", resourceCulture);
+                return ResourceManager.GetString("Metadata.SearchMetadataAll", resourceCulture);
             }
         }
         
-        public static string TipRandomImage {
+        public static string Metadata_Search_InProgress {
             get {
-                return ResourceManager.GetString("TipRandomImage", resourceCulture);
+                return ResourceManager.GetString("Metadata.Search.InProgress", resourceCulture);
             }
         }
         
-        public static string RandomMusic {
+        public static string Metadata_Source {
             get {
-                return ResourceManager.GetString("RandomMusic", resourceCulture);
+                return ResourceManager.GetString("Metadata.Source", resourceCulture);
             }
         }
         
-        public static string TipRandomMusic {
+        public static string Metadata_Type {
             get {
-                return ResourceManager.GetString("TipRandomMusic", resourceCulture);
+                return ResourceManager.GetString("Metadata.Type", resourceCulture);
             }
         }
         
-        public static string StandardEmulator {
+        public static string Profile_New {
             get {
-                return ResourceManager.GetString("StandardEmulator", resourceCulture);
+                return ResourceManager.GetString("Profile.New", resourceCulture);
             }
         }
         
-        public static string EmulatorSelection {
+        public static string Profile_Profile {
             get {
-                return ResourceManager.GetString("EmulatorSelection", resourceCulture);
+                return ResourceManager.GetString("Profile.Profile", resourceCulture);
             }
         }
         
-        public static string ChooseSource {
+        public static string Process_Monitor {
             get {
-                return ResourceManager.GetString("ChooseSource", resourceCulture);
+                return ResourceManager.GetString("Process.Monitor", resourceCulture);
             }
         }
         
-        public static string SearchMetadata {
+        public static string RandomMatch_Start {
             get {
-                return ResourceManager.GetString("SearchMetadata", resourceCulture);
+                return ResourceManager.GetString("RandomMatch.Start", resourceCulture);
             }
         }
         
-        public static string SearchTerm {
+        public static string Search_Global {
             get {
-                return ResourceManager.GetString("SearchTerm", resourceCulture);
+                return ResourceManager.GetString("Search.Global", resourceCulture);
             }
         }
         
-        public static string PreviewShort {
+        public static string Search_GlobalShort {
             get {
-                return ResourceManager.GetString("PreviewShort", resourceCulture);
+                return ResourceManager.GetString("Search.GlobalShort", resourceCulture);
             }
         }
         
-        public static string CoverURL {
+        public static string Search_Search {
             get {
-                return ResourceManager.GetString("CoverURL", resourceCulture);
+                return ResourceManager.GetString("Search.Search", resourceCulture);
             }
         }
         
-        public static string TitleEx {
+        public static string Settings_AddProfile {
             get {
-                return ResourceManager.GetString("TitleEx", resourceCulture);
+                return ResourceManager.GetString("Settings.AddProfile", resourceCulture);
             }
         }
         
-        public static string Description {
+        public static string Settings_DefaultArguments {
             get {
-                return ResourceManager.GetString("Description", resourceCulture);
+                return ResourceManager.GetString("Settings.DefaultArguments", resourceCulture);
             }
         }
         
-        public static string Rating {
+        public static string Settings_ExecutablePath {
             get {
-                return ResourceManager.GetString("Rating", resourceCulture);
+                return ResourceManager.GetString("Settings.ExecutablePath", resourceCulture);
             }
         }
         
-        public static string SearchProceeds {
+        public static string Settings_GlobalSettingsHint {
             get {
-                return ResourceManager.GetString("SearchProceeds", resourceCulture);
+                return ResourceManager.GetString("Settings.GlobalSettingsHint", resourceCulture);
             }
         }
         
-        public static string TakeOver {
+        public static string Settings_ProfileName {
             get {
-                return ResourceManager.GetString("TakeOver", resourceCulture);
+                return ResourceManager.GetString("Settings.ProfileName", resourceCulture);
             }
         }
         
-        public static string GlobalSearchShort {
+        public static string Settings_SectionEmulators {
             get {
-                return ResourceManager.GetString("GlobalSearchShort", resourceCulture);
+                return ResourceManager.GetString("Settings.SectionEmulators", resourceCulture);
             }
         }
         
-        public static string TitleSearch {
+        public static string Settings_TabEmulators {
             get {
-                return ResourceManager.GetString("TitleSearch", resourceCulture);
+                return ResourceManager.GetString("Settings.TabEmulators", resourceCulture);
             }
         }
         
-        public static string Year {
+        public static string Settings_TabMetadata {
             get {
-                return ResourceManager.GetString("Year", resourceCulture);
+                return ResourceManager.GetString("Settings.TabMetadata", resourceCulture);
             }
         }
         
-        public static string Area {
+        public static string Settings_Title {
             get {
-                return ResourceManager.GetString("Area", resourceCulture);
+                return ResourceManager.GetString("Settings.Title", resourceCulture);
             }
         }
         
-        public static string RandomMatch {
+        public static string Toggle_Theme {
             get {
-                return ResourceManager.GetString("RandomMatch", resourceCulture);
+                return ResourceManager.GetString("Toggle.Theme", resourceCulture);
             }
         }
         
-        public static string NoResult {
+        public static string TimePlayed_Never {
             get {
-                return ResourceManager.GetString("NoResult", resourceCulture);
+                return ResourceManager.GetString("TimePlayed.Never", resourceCulture);
             }
         }
         
-        public static string ConfigureMetadata {
+        public static string Tip_RandomGame {
             get {
-                return ResourceManager.GetString("ConfigureMetadata", resourceCulture);
+                return ResourceManager.GetString("Tip.RandomGame", resourceCulture);
             }
         }
         
-        public static string Designation {
+        public static string Tip_RandomImage {
             get {
-                return ResourceManager.GetString("Designation", resourceCulture);
+                return ResourceManager.GetString("Tip.RandomImage", resourceCulture);
             }
         }
         
-        public static string Type {
+        public static string Tip_RandomMusic {
             get {
-                return ResourceManager.GetString("Type", resourceCulture);
+                return ResourceManager.GetString("Tip.RandomMusic", resourceCulture);
             }
         }
         
-        public static string AccessData {
+        public static string Type_Command {
             get {
-                return ResourceManager.GetString("AccessData", resourceCulture);
+                return ResourceManager.GetString("Type.Command", resourceCulture);
             }
         }
         
-        public static string Client {
+        public static string Type_Emulator {
             get {
-                return ResourceManager.GetString("Client", resourceCulture);
+                return ResourceManager.GetString("Type.Emulator", resourceCulture);
             }
         }
         
-        public static string ClientSecret {
+        public static string Type_Native {
             get {
-                return ResourceManager.GetString("ClientSecret", resourceCulture);
+                return ResourceManager.GetString("Type.Native", resourceCulture);
             }
         }
         
-        public static string UserName {
+        public static string Zoom_Zoom {
             get {
-                return ResourceManager.GetString("UserName", resourceCulture);
-            }
-        }
-        
-        public static string Password {
-            get {
-                return ResourceManager.GetString("Password", resourceCulture);
-            }
-        }
-        
-        public static string ApiKey {
-            get {
-                return ResourceManager.GetString("ApiKey", resourceCulture);
-            }
-        }
-        
-        public static string DataLanguage {
-            get {
-                return ResourceManager.GetString("DataLanguage", resourceCulture);
-            }
-        }
-        
-        public static string ChooseASource {
-            get {
-                return ResourceManager.GetString("ChooseASource", resourceCulture);
-            }
-        }
-        
-        public static string ScrapeArea {
-            get {
-                return ResourceManager.GetString("ScrapeArea", resourceCulture);
-            }
-        }
-        
-        public static string MsgConfirmDelete {
-            get {
-                return ResourceManager.GetString("MsgConfirmDelete", resourceCulture);
-            }
-        }
-        
-        public static string ErrorMissingCredentials {
-            get {
-                return ResourceManager.GetString("ErrorMissingCredentials", resourceCulture);
-            }
-        }
-        
-        public static string CtxImportRoms {
-            get {
-                return ResourceManager.GetString("CtxImportRoms", resourceCulture);
-            }
-        }
-        
-        public static string TypeNative {
-            get {
-                return ResourceManager.GetString("TypeNative", resourceCulture);
-            }
-        }
-        
-        public static string TypeEmulator {
-            get {
-                return ResourceManager.GetString("TypeEmulator", resourceCulture);
-            }
-        }
-        
-        public static string TypeCommand {
-            get {
-                return ResourceManager.GetString("TypeCommand", resourceCulture);
-            }
-        }
-        
-        public static string TimePlayedNever {
-            get {
-                return ResourceManager.GetString("TimePlayedNever", resourceCulture);
-            }
-        }
-        
-        public static string NewProfile {
-            get {
-                return ResourceManager.GetString("NewProfile", resourceCulture);
-            }
-        }
-        
-        public static string NewScraper {
-            get {
-                return ResourceManager.GetString("NewScraper", resourceCulture);
+                return ResourceManager.GetString("Zoom.Zoom", resourceCulture);
             }
         }
     }

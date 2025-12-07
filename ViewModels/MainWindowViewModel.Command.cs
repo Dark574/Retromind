@@ -64,7 +64,7 @@ public partial class MainWindowViewModel
     private async void AddCategoryAsync(MediaNode? parentNode)
     {
         if (CurrentWindow is not { } owner) return;
-        var name = await PromptForName(owner, Strings.MsgEnterName);
+        var name = await PromptForName(owner, Strings.Dialog_EnterName_Message);
         if (!string.IsNullOrWhiteSpace(name))
         {
             if (parentNode == null) RootItems.Add(new MediaNode(name, NodeType.Area));
@@ -80,7 +80,7 @@ public partial class MainWindowViewModel
     private async void DeleteNodeAsync(MediaNode? nodeToDelete)
     {
         if (nodeToDelete == null || CurrentWindow is not { } owner) return;
-        if (!await ShowConfirmDialog(owner, Strings.MsgConfirmDelete)) return;
+        if (!await ShowConfirmDialog(owner, Strings.Dialog_MsgConfirmDelete)) return;
 
         if (RootItems.Contains(nodeToDelete)) RootItems.Remove(nodeToDelete);
         else RemoveNodeRecursive(RootItems, nodeToDelete);
@@ -133,7 +133,7 @@ public partial class MainWindowViewModel
     private async void DeleteMediaAsync(MediaItem? item)
     {
         if (item == null || CurrentWindow is not { } owner) return;
-        if (!await ShowConfirmDialog(owner, Strings.MsgConfirmDelete)) return;
+        if (!await ShowConfirmDialog(owner, Strings.Dialog_MsgConfirmDelete)) return;
 
         if (item == (SelectedNodeContent as MediaAreaViewModel)?.SelectedMediaItem) _audioService.StopMusic();
         var parentNode = FindParentNode(RootItems, item);

@@ -111,7 +111,7 @@ public partial class SettingsViewModel : ViewModelBase
 
     private void AddEmulator()
     {
-        var newEmu = new EmulatorConfig { Name = Strings.NewProfile };
+        var newEmu = new EmulatorConfig { Name = Strings.Profile_New };
         Emulators.Add(newEmu);
         SelectedEmulator = newEmu; // Direkt auswählen
     }

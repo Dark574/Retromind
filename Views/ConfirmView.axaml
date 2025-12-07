@@ -17,12 +17,12 @@
         <TextBlock Text="{Binding}" FontSize="16" TextWrapping="Wrap" MaxWidth="300" />
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-            <Button Content="{x:Static p:Strings.Yes}"
+            <Button Content="{x:Static p:Strings.Button_Yes}"
                     Click="OnOkClick"
                     IsDefault="True"
                     Width="80" />
 
-            <Button Content="{x:Static p:Strings.No}"
+            <Button Content="{x:Static p:Strings.Button_No}"
                     Click="OnCancelClick"
                     IsCancel="True"
                     Width="80" />

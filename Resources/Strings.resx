@@ -24,400 +24,162 @@
             PublicKeyToken=b77a5c561934e089
         </value>
     </resheader>
-    <data name="CtxAddCategory" xml:space="preserve">
-    <value>Add Category</value>
-  </data>
-    <data name="CtxAddMedia" xml:space="preserve">
-        <value>Add Media</value>
-    </data>
-    <data name="CtxDelete" xml:space="preserve">
-        <value>Delete</value>
-    </data>
-    <data name="MsgEnterName" xml:space="preserve">
-        <value>Please enter a name:</value>
-    </data>
-    <data name="NewCategory" xml:space="preserve">
-        <value>New category</value>
-    </data>
-    <data name="Library" xml:space="preserve">
-        <value>Library</value>
-    </data>
-    <data name="AppTitle" xml:space="preserve">
-        <value>Retromind</value>
-    </data>
-    <data name="Title" xml:space="preserve">
-        <value>Title</value>
-    </data>
-    <data name="Developer" xml:space="preserve">
-        <value>Developer</value>
-    </data>
-    <data name="Genre" xml:space="preserve">
-        <value>Genre</value>
-    </data>
-    <data name="ReleaseDate" xml:space="preserve">
-        <value>Release Date</value>
-    </data>
-    <data name="Status" xml:space="preserve">
-        <value>Status</value>
-    </data>
-    <data name="Summary" xml:space="preserve">
-    <value>Summary</value>
-  </data>
-    <data name="LaunchConfig" xml:space="preserve">
-    <value>Launch Configuration</value>
-  </data>
-    <data name="LauncherPath" xml:space="preserve">
-    <value>Emulator / Tool Path</value>
-  </data>
-    <data name="LauncherPathHint" xml:space="preserve">
-    <value>/usr/bin/snes9x or leave empty for native</value>
-  </data>
-    <data name="Arguments" xml:space="preserve">
-    <value>Arguments</value>
-  </data>
-    <data name="ArgumentsHint" xml:space="preserve">
-    <value>-fullscreen {file}</value>
-  </data>
-    <data name="Cancel" xml:space="preserve">
-    <value>Cancel</value>
-  </data>
-    <data name="Save" xml:space="preserve">
-    <value>Save</value>
-  </data>
-    <data name="EditMediaTitle" xml:space="preserve">
-    <value>Edit Media</value>
-  </data>
-    <data name="ConfirmDeleteNode" xml:space="preserve">
-    <value>Do you really want to delete '{0}' and all its children?</value>
-  </data>
-    <data name="ConfirmDeleteMedia" xml:space="preserve">
-    <value>Do you really want to delete '{0}'? (Files will be kept)</value>
-  </data>
-    <data name="SelectMediaFile" xml:space="preserve">
-    <value>Select Media (Executable, ROM, Video...)</value>
-  </data>
-    <data name="SelectCover" xml:space="preserve">
-    <value>Select Cover</value>
-  </data>
-    <data name="SelectLogo" xml:space="preserve">
-    <value>Select Logo</value>
-  </data>
-    <data name="SelectWallpaper" xml:space="preserve">
-    <value>Select Wallpaper</value>
-  </data>
-    <data name="SelectMusic" xml:space="preserve">
-    <value>Select Music</value>
-  </data>
-    <data name="Zoom" xml:space="preserve">
-    <value>Zoom:</value>
-  </data>
-    <data name="CtxChangeCover" xml:space="preserve">
-    <value>Change Cover...</value>
-  </data>
-    <data name="CtxChangeLogo" xml:space="preserve">
-    <value>Change Logo...</value>
-  </data>
-    <data name="CtxChangeWallpaper" xml:space="preserve">
-    <value>Change Wallpaper...</value>
-  </data>
-    <data name="CtxChangeMusic" xml:space="preserve">
-    <value>Change Music...</value>
-  </data>
-    <data name="Edit" xml:space="preserve">
-    <value>Edit</value>
-  </data>
-    <data name="PlayButton" xml:space="preserve">
-    <value>▶ START</value>
-  </data>
-    <data name="LastPlayed" xml:space="preserve">
-    <value>Last Played:</value>
-  </data>
-    <data name="PlayCount" xml:space="preserve">
-    <value>Played:</value>
-  </data>
-    <data name="LaunchMode" xml:space="preserve">
-    <value>Start Method</value>
-  </data>
-    <data name="ModeNative" xml:space="preserve">
-    <value>Direct (Run File)</value>
-  </data>
-    <data name="ModeEmulator" xml:space="preserve">
-    <value>Emulator / Custom Command</value>
-  </data>
-    <data name="Preview" xml:space="preserve">
-    <value>Command Preview:</value>
-  </data>
-    <data name="SettingsTitle" xml:space="preserve">
-    <value>Settings</value>
-  </data>
-    <data name="SectionEmulators" xml:space="preserve">
-    <value>Emulator Profiles</value>
-  </data>
-    <data name="AddProfile" xml:space="preserve">
-    <value>Add Profile</value>
-  </data>
-    <data name="ProfileName" xml:space="preserve">
-    <value>Profile Name</value>
-  </data>
-    <data name="ExecutablePath" xml:space="preserve">
-    <value>Executable Path</value>
-  </data>
-    <data name="DefaultArguments" xml:space="preserve">
-    <value>Default Arguments</value>
-  </data>
-    <data name="RemoveProfile" xml:space="preserve">
-    <value>Remove Profile</value>
-  </data>
-  <data name="GlobalSettingsHint" xml:space="preserve">
-    <value>Define emulators and metadata sources here to use them quickly in your library.</value>
-  </data>
-  <data name="TabEmulators" xml:space="preserve">
-    <value>Emulators</value>
-  </data>
-  <data name="TabMetadata" xml:space="preserve">
-    <value>Meta Data</value>
-  </data>
-  <data name="NewScraperDefaultName" xml:space="preserve">
-    <value>New Source</value>
-  </data>
-  <data name="HintTmdbKey" xml:space="preserve">
-    <value>(Optional: Leave blank for default key)</value>
-  </data>
-  <data name="HintIgdbCredentials" xml:space="preserve">
-    <value>(Optional: Leave blank for default access)</value>
-  </data>
-  <data name="HintRequired" xml:space="preserve">
-    <value>(Necessary)</value>
-  </data>
-  <data name="AutomaticMetadataSearch" xml:space="preserve">
-    <value>Automatic metadata search</value>
-  </data>
-  <data name="Source" xml:space="preserve">
-    <value>Source</value>
-  </data>
-  <data name="Launch" xml:space="preserve">
-    <value>Launch</value>
-  </data>
-  <data name="Yes" xml:space="preserve">
-    <value>Yes</value>
-  </data>
-  <data name="No" xml:space="preserve">
-    <value>No</value>
-  </data>
-  <data name="ProcessMonitor" xml:space="preserve">
-    <value>Process monitoring (Optional)</value>
-  </data>
-  <data name="TimePlayedHint" xml:space="preserve">
-    <value>Only needed for Steam/GOG/scripts.&amp;#x0a;Name of the actual game process (without .exe),&amp;#x0a;so that the time is measured correctly.</value>
-  </data>
-  <data name="WatermarkOverrideWatchProcess" xml:space="preserve">
-    <value>e.g. hl2_linux, retroarch, stardewvalley</value>
-  </data>
-  <data name="Profile" xml:space="preserve">
-    <value>Profile</value>
-  </data>
-  <data name="Picture" xml:space="preserve">
-    <value>+ Picture</value>
-  </data>
-  <data name="Logo" xml:space="preserve">
-    <value>Logo</value>
-  </data>
-  <data name="Cover" xml:space="preserve">
-    <value>Cover</value>
-  </data>
-  <data name="Wall" xml:space="preserve">
-    <value>Wall</value>
-  </data>
-  <data name="MusicFiles" xml:space="preserve">
-    <value>Music Files:</value>
-  </data>
-  <data name="Active" xml:space="preserve">
-    <value>Active</value>
-  </data>
-  <data name="SetMusicActive" xml:space="preserve">
-    <value>Set as music</value>
-  </data>
-  <data name="AddMusic" xml:space="preserve">
-    <value>+ music</value>
-  </data>
-  <data name="ToggleTheme" xml:space="preserve">
-    <value>Toggle Dark/Light Theme</value>
-  </data>
-  <data name="GlobalSearch" xml:space="preserve">
-    <value>Open global search</value>
-  </data>
-  <data name="ImportRoms" xml:space="preserve">
-    <value>Local Folder (ROMs)...</value>
-  </data>
-  <data name="Import" xml:space="preserve">
-    <value>Import</value>
-  </data>
-  <data name="ImportSteam" xml:space="preserve">
-    <value>Steam library</value>
-  </data>
-  <data name="SearchMetadataAll" xml:space="preserve">
-    <value>Search metadata (All)...</value>
-  </data>
-  <data name="ImportGog" xml:space="preserve">
-    <value>GOG (via Heroic)</value>
-  </data>
-  <data name="MediaSettings" xml:space="preserve">
-    <value>Settings / Rename...</value>
-  </data>
-  <data name="ChooseMedia" xml:space="preserve">
-    <value>Choose a medium</value>
-  </data>
-  <data name="TipRandomGame" xml:space="preserve">
-    <value>Start a random game from the current view</value>
-  </data>
-  <data name="Random" xml:space="preserve">
-    <value>Random</value>
-  </data>
-  <data name="Search" xml:space="preserve">
-    <value>Search...</value>
-  </data>
-  <data name="ImportFolder" xml:space="preserve">
-    <value>Import (folder)...</value>
-  </data>
-  <data name="LoadMetadata" xml:space="preserve">
-    <value>Load metadata...</value>
-  </data>
-  <data name="Ok" xml:space="preserve">
-    <value>OK</value>
-  </data>
-  <data name="Name" xml:space="preserve">
-    <value>Name:</value>
-  </data>
-  <data name="Options" xml:space="preserve">
-    <value>Options:</value>
-  </data>
-  <data name="RandomCover" xml:space="preserve">
-    <value>Random covers (■ = Inherited)</value>
-  </data>
-  <data name="TipRandomImage" xml:space="preserve">
-    <value>When the folder is displayed, random images are selected from the media folder.</value>
-  </data>
-  <data name="RandomMusic" xml:space="preserve">
-    <value>Random music (■ = Inherited)</value>
-  </data>
-  <data name="TipRandomMusic" xml:space="preserve">
-    <value>When the folder is displayed, random music is selected from the media folder.</value>
-  </data>
-  <data name="StandardEmulator" xml:space="preserve">
-    <value>Default emulator (for this folder):</value>
-  </data>
-  <data name="EmulatorSelection" xml:space="preserve">
-    <value>This applies to all games in this folder and subfolders that do not have their own emulator.</value>
-  </data>
-  <data name="ChooseSource" xml:space="preserve">
-    <value>Select source:</value>
-  </data>
-  <data name="SearchMetadata" xml:space="preserve">
-    <value>Search metadata</value>
-  </data>
-  <data name="SearchTerm" xml:space="preserve">
-    <value>Search term</value>
-  </data>
-  <data name="PreviewShort" xml:space="preserve">
-    <value>preview</value>
-  </data>
-  <data name="CoverURL" xml:space="preserve">
-    <value>Cover URL:</value>
-  </data>
-  <data name="TitleEx" xml:space="preserve">
-    <value>Title:</value>
-  </data>
-  <data name="Description" xml:space="preserve">
-    <value>Description:</value>
-  </data>
-  <data name="Rating" xml:space="preserve">
-    <value>Rating:</value>
-  </data>
-  <data name="SearchProceeds" xml:space="preserve">
-    <value>Search is ongoing...</value>
-  </data>
-  <data name="TakeOver" xml:space="preserve">
-    <value>Take Over</value>
-  </data>
-  <data name="GlobalSearchShort" xml:space="preserve">
-    <value>Global search</value>
-  </data>
-  <data name="TitleSearch" xml:space="preserve">
-    <value>Search title...</value>
-  </data>
-  <data name="Year" xml:space="preserve">
-    <value>Year (e.g. 1998)</value>
-  </data>
-  <data name="Area" xml:space="preserve">
-    <value>Areas:</value>
-  </data>
-  <data name="RandomMatch" xml:space="preserve">
-    <value>Start random matches</value>
-  </data>
-  <data name="NoResult" xml:space="preserve">
-    <value>No results found (or filters empty).</value>
-  </data>
-  <data name="ConfigureMetadata" xml:space="preserve">
-    <value>Configure metadata</value>
-  </data>
-  <data name="Designation" xml:space="preserve">
-    <value>Designation</value>
-  </data>
-  <data name="Type" xml:space="preserve">
-    <value>Type / Service</value>
-  </data>
-  <data name="AccessData" xml:space="preserve">
-    <value>Access data</value>
-  </data>
-  <data name="Client" xml:space="preserve">
-    <value>Client ID</value>
-  </data>
-  <data name="ClientSecret" xml:space="preserve">
-    <value>Client Secret</value>
-  </data>
-  <data name="UserName" xml:space="preserve">
-    <value>User name</value>
-  </data>
-  <data name="Password" xml:space="preserve">
-    <value>Password</value>
-  </data>
-  <data name="ApiKey" xml:space="preserve">
-    <value>API Key</value>
-  </data>
-  <data name="DataLanguage" xml:space="preserve">
-    <value>Data language</value>
-  </data>
-  <data name="ChooseASource" xml:space="preserve">
-    <value>Choose a source</value>
-  </data>
-  <data name="ScrapeArea" xml:space="preserve">
-    <value>Scraping area</value>
-  </data>
-  <data name="MsgConfirmDelete" xml:space="preserve">
-    <value>Do you really want to delete this?</value>
-  </data>
-  <data name="ErrorMissingCredentials" xml:space="preserve">
-    <value>Credentials missing. Please check settings.</value>
-  </data>
-  <data name="CtxImportRoms" xml:space="preserve">
-    <value>Import ROMs...</value>
-  </data>
-  <data name="TypeNative" xml:space="preserve">
-    <value>Native Application / Script</value>
-  </data>
-  <data name="TypeEmulator" xml:space="preserve">
-    <value>Emulator (via Profile)</value>
-  </data>
-  <data name="TypeCommand" xml:space="preserve">
-    <value>External Launcher</value>
-  </data>
-  <data name="TimePlayedNever" xml:space="preserve">
-    <value>Never played</value>
-  </data>
-  <data name="NewProfile" xml:space="preserve">
-    <value>New Profile</value>
-  </data>
-  <data name="NewScraper" xml:space="preserve">
-    <value>New Scraper</value>
-  </data>
+
+    <!-- APP -->
+    <data name="App.Title" xml:space="preserve"><value>Retromind</value></data>
+
+    <!-- BUTTONS -->
+    <data name="Button.Cancel" xml:space="preserve"><value>Cancel</value></data>
+    <data name="Button.Edit" xml:space="preserve"><value>Edit</value></data>
+    <data name="Button.Import" xml:space="preserve"><value>Import</value></data>
+    <data name="Button.Ok" xml:space="preserve"><value>OK</value></data>
+    <data name="Button.Play" xml:space="preserve"><value>▶ START</value></data>
+    <data name="Button.Random" xml:space="preserve"><value>Random</value></data>
+    <data name="Button.Save" xml:space="preserve"><value>Save</value></data>
+    <data name="Button.TakeOver" xml:space="preserve"><value>Take Over</value></data>
+    <data name="Button.No" xml:space="preserve"><value>No</value></data>
+    <data name="Button.Yes" xml:space="preserve"><value>Yes</value></data>
+    <data name="Button.Cover" xml:space="preserve"><value>Cover</value></data>
+    <data name="Button.Logo" xml:space="preserve"><value>Logo</value></data>
+    <data name="Button.Wall" xml:space="preserve"><value>Wall</value></data>
+    <data name="Button.Delete" xml:space="preserve"><value>Delete</value></data>
+    <data name="Button.Launch" xml:space="preserve"><value>Launch</value></data>
+    
+    <!-- COMMON -->
+    <data name="Common.Active" xml:space="preserve"><value>Active</value></data>
+    <data name="Common.Area" xml:space="preserve"><value>Areas:</value></data>
+    <data name="Common.Description" xml:space="preserve"><value>Description:</value></data>
+    <data name="Common.Developer" xml:space="preserve"><value>Developer</value></data>
+    <data name="Common.Genre" xml:space="preserve"><value>Genre</value></data>
+    <data name="Common.Name" xml:space="preserve"><value>Name:</value></data>
+    <data name="Common.Options" xml:space="preserve"><value>Options:</value></data>
+    <data name="Common.PreviewShort" xml:space="preserve"><value>Preview</value></data>
+    <data name="Common.Rating" xml:space="preserve"><value>Rating:</value></data>
+    <data name="Common.ReleaseDate" xml:space="preserve"><value>Release Date</value></data>
+    <data name="Common.Status" xml:space="preserve"><value>Status</value></data>
+    <data name="Common.Summary" xml:space="preserve"><value>Summary</value></data>
+    <data name="Common.Title" xml:space="preserve"><value>Title</value></data>
+    <data name="Common.Year" xml:space="preserve"><value>Year (e.g. 1998)</value></data>
+    <data name="Common.CoverURL" xml:space="preserve"><value>Cover URL:</value></data>
+    <data name="Common.TitleEx" xml:space="preserve"><value>Title:</value></data>
+    <data name="Common.UserName" xml:space="preserve"><value>User name</value></data>
+    <data name="Common.Password" xml:space="preserve"><value>Password</value></data>
+
+    <!-- CTX -->
+    <data name="Ctx.Category.Add" xml:space="preserve"><value>Add Category</value></data>
+    <data name="Ctx.ImportRoms" xml:space="preserve"><value>Import ROMs...</value></data>
+    <data name="Ctx.Media.Add" xml:space="preserve"><value>Add Media</value></data>
+    <data name="Ctx.ChangeCover" xml:space="preserve"><value>Change Cover...</value></data>
+  
+    <!-- DIALOG -->
+    <data name="Dialog.ChooseASource" xml:space="preserve"><value>Choose a source</value></data>
+    <data name="Dialog.ChooseMedia" xml:space="preserve"><value>Choose a medium</value></data>
+    <data name="Dialog.ChooseSource" xml:space="preserve"><value>Select source:</value></data>
+    <data name="Dialog.ConfigureMetadata" xml:space="preserve"><value>Configure metadata</value></data>
+    <data name="Dialog.EditMedia" xml:space="preserve"><value>Edit Media</value></data>
+    <data name="Dialog.EnterName.Message" xml:space="preserve"><value>Please enter a name:</value></data>
+    <data name="Dialog.LoadMetadata" xml:space="preserve"><value>Load metadata...</value></data>
+    <data name="Dialog.MsgConfirmDelete" xml:space="preserve"><value>Do you really want to delete this?</value></data>
+    <data name="Dialog.NoResult" xml:space="preserve"><value>No results found (or filters empty).</value></data>
+    <data name="Dialog.SearchTerm" xml:space="preserve"><value>Search term</value></data>
+    <data name="Dialog.Select.Cover" xml:space="preserve"><value>Select Cover</value></data>
+    <data name="Dialog.Select.Logo" xml:space="preserve"><value>Select Logo</value></data>
+    <data name="Dialog.Select.Music" xml:space="preserve"><value>Select Music</value></data>
+    <data name="Dialog.Select.Wallpaper" xml:space="preserve"><value>Select Wallpaper</value></data>
+    <data name="Dialog.TitleSearch" xml:space="preserve"><value>Search title...</value></data>
+  
+    <!-- HINT -->
+    <data name="Hint.IgdbCredentials" xml:space="preserve"><value>(Optional: Leave blank for default access)</value></data>
+    <data name="Hint.Required" xml:space="preserve"><value>(Necessary)</value></data>
+    <data name="Hint.TimePlayed" xml:space="preserve"><value>Only needed for Steam/GOG/scripts. Name of the actual game process (without .exe). So that the time is measured correctly.</value></data>
+    <data name="Hint.TmdbKey" xml:space="preserve"><value>(Optional: Leave blank for default key)</value></data>
+  
+    <!-- IMPORT -->
+    <data name="Import.Folder" xml:space="preserve"><value>Import (folder)...</value></data>
+    <data name="Import.Gog" xml:space="preserve"><value>GOG (via Heroic)</value></data>
+    <data name="Import.Roms" xml:space="preserve"><value>Local Folder (ROMs)...</value></data>
+    <data name="Import.Steam" xml:space="preserve"><value>Steam library</value></data>
+  
+    <!-- LAUNCH -->
+    <data name="Launch.Arguments" xml:space="preserve"><value>Arguments</value></data>
+    <data name="Launch.ArgumentsHint" xml:space="preserve"><value>-fullscreen {file}</value></data>
+    <data name="Launch.Config" xml:space="preserve"><value>Launch Configuration</value></data>
+    <data name="Launch.LauncherPath" xml:space="preserve"><value>Emulator / Tool Path</value></data>
+    <data name="Launch.LauncherPathHint" xml:space="preserve"><value>/usr/bin/snes9x or leave empty for native</value></data>
+    <data name="Launch.Mode" xml:space="preserve"><value>Start Method</value></data>
+  
+    <!-- MEDIA -->
+    <data name="Media.AddMusic" xml:space="preserve"><value>+ Music</value></data>
+    <data name="Media.EmulatorSelection" xml:space="preserve"><value>This applies to all games in this folder and subfolders that do not have their own emulator.</value></data>
+    <data name="Media.LastPlayed" xml:space="preserve"><value>Last Played:</value></data>
+    <data name="Media.Library" xml:space="preserve"><value>Library</value></data>
+    <data name="Media.MusicFiles" xml:space="preserve"><value>Music Files:</value></data>
+    <data name="Media.PlayCount" xml:space="preserve"><value>Played:</value></data>
+    <data name="Media.RandomCover" xml:space="preserve"><value>Random covers (■ = Inherited)</value></data>
+    <data name="Media.RandomMusic" xml:space="preserve"><value>Random music (■ = Inherited)</value></data>
+    <data name="Media.SetMusicActive" xml:space="preserve"><value>Set as music</value></data>
+    <data name="Media.Settings" xml:space="preserve"><value>Settings / Rename...</value></data>
+    <data name="Media.StandardEmulator" xml:space="preserve"><value>Default emulator (for this folder):</value></data>
+    <data name="Media.WatermarkOverrideWatchProcess" xml:space="preserve"><value>e.g. hl2_linux, retroarch, stardewvalley</value></data>
+  
+    <!-- METADATA -->
+    <data name="Metadata.AccessData" xml:space="preserve"><value>Access data</value></data>
+    <data name="Metadata.ApiKey" xml:space="preserve"><value>API Key</value></data>
+    <data name="Metadata.AutomaticSearch" xml:space="preserve"><value>Automatic metadata search</value></data>
+    <data name="Metadata.Client" xml:space="preserve"><value>Client ID</value></data>
+    <data name="Metadata.ClientSecret" xml:space="preserve"><value>Client Secret</value></data>
+    <data name="Metadata.DataLanguage" xml:space="preserve"><value>Data language</value></data>
+    <data name="Metadata.Designation" xml:space="preserve"><value>Designation</value></data>
+    <data name="Metadata.NewScraper" xml:space="preserve"><value>New Scraper</value></data>
+    <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping area</value></data>
+    <data name="Metadata.SearchMetadata" xml:space="preserve"><value>Search metadata</value></data>
+    <data name="Metadata.SearchMetadataAll" xml:space="preserve"><value>Search metadata (All)...</value></data>
+    <data name="Metadata.Search.InProgress" xml:space="preserve"><value>Search is ongoing...</value></data>
+    <data name="Metadata.Source" xml:space="preserve"><value>Source</value></data>
+    <data name="Metadata.Type" xml:space="preserve"><value>Type / Service</value></data>
+  
+    <!-- PROFILE -->
+    <data name="Profile.New" xml:space="preserve"><value>New Profile</value></data>
+    <data name="Profile.Profile" xml:space="preserve"><value>Profile</value></data>
+  
+    <!-- PROCESS -->
+    <data name="Process.Monitor" xml:space="preserve"><value>Process monitoring (Optional)</value></data>
+  
+    <!-- RANDOM -->
+    <data name="RandomMatch.Start" xml:space="preserve"><value>Start random matches</value></data>
+  
+    <!-- SEARCH -->
+    <data name="Search.Global" xml:space="preserve"><value>Open global search</value></data>
+    <data name="Search.GlobalShort" xml:space="preserve"><value>Global search</value></data>
+    <data name="Search.Search" xml:space="preserve"><value>Search...</value></data>
+  
+    <!-- SETTINGS -->
+    <data name="Settings.AddProfile" xml:space="preserve"><value>Add Profile</value></data>
+    <data name="Settings.DefaultArguments" xml:space="preserve"><value>Default Arguments</value></data>
+    <data name="Settings.ExecutablePath" xml:space="preserve"><value>Executable Path</value></data>
+    <data name="Settings.GlobalSettingsHint" xml:space="preserve"><value>Define emulators and metadata sources here to use them quickly in your library.</value></data>
+    <data name="Settings.ProfileName" xml:space="preserve"><value>Profile Name</value></data>
+    <data name="Settings.SectionEmulators" xml:space="preserve"><value>Emulator Profiles</value></data>
+    <data name="Settings.TabEmulators" xml:space="preserve"><value>Emulators</value></data>
+    <data name="Settings.TabMetadata" xml:space="preserve"><value>Meta Data</value></data>
+    <data name="Settings.Title" xml:space="preserve"><value>Settings</value></data>
+  
+    <!-- THEME -->
+    <data name="Toggle.Theme" xml:space="preserve"><value>Toggle Dark/Light Theme</value></data>
+  
+    <!-- TIME -->
+    <data name="TimePlayed.Never" xml:space="preserve"><value>Never played</value></data>
+  
+    <!-- TIP -->
+    <data name="Tip.RandomGame" xml:space="preserve"><value>Start a random game from the current view</value></data>
+    <data name="Tip.RandomImage" xml:space="preserve"><value>When the folder is displayed, random images are selected from the media folder.</value></data>
+    <data name="Tip.RandomMusic" xml:space="preserve"><value>When the folder is displayed, random music is selected from the media folder.</value></data>
+  
+    <!-- TYPE -->
+    <data name="Type.Command" xml:space="preserve"><value>External Launcher</value></data>
+    <data name="Type.Emulator" xml:space="preserve"><value>Emulator (via Profile)</value></data>
+    <data name="Type.Native" xml:space="preserve"><value>Native Application / Script</value></data>
+  
+    <!-- ZOOM -->
+    <data name="Zoom.Zoom" xml:space="preserve"><value>Zoom:</value></data>
 </root>
