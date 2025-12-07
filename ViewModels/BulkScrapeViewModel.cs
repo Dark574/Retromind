@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Models;
@@ -10,18 +13,37 @@ using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
+/// <summary>
+/// ViewModel handling the bulk scraping process for a collection of media items.
+/// </summary>
 public partial class BulkScrapeViewModel : ViewModelBase
 {
+    private const int MaxConcurrentRequests = 4;
+    private const int RequestDelayMs = 250;
+    
     private readonly MetadataService _metadataService;
     private readonly MediaNode _rootNode;
     private readonly AppSettings _settings;
-    private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _cancellationTokenSource;
 
-    [ObservableProperty] private ScraperConfig? _selectedScraper;
-    [ObservableProperty] private bool _isWorking;
-    [ObservableProperty] private double _progressValue;
-    [ObservableProperty] private string _statusText = "Bereit.";
-    [ObservableProperty] private string _logText = "";
+    // Buffer for logs to prevent UI flooding
+    private readonly StringBuilder _logBuffer = new();
+    private readonly Lock _logLock = new(); // .NET 9 Lock object
+
+    [ObservableProperty] 
+    private ScraperConfig? _selectedScraper;
+
+    [ObservableProperty] 
+    private bool _isBusy;
+
+    [ObservableProperty] 
+    private double _progressValue;
+
+    [ObservableProperty] 
+    private string _statusMessage = "Ready.";
+
+    [ObservableProperty] 
+    private string _logText = "";
 
     public BulkScrapeViewModel(MediaNode node, AppSettings settings, MetadataService metadataService)
     {
@@ -29,131 +51,257 @@ public partial class BulkScrapeViewModel : ViewModelBase
         _settings = settings;
         _metadataService = metadataService;
 
-        foreach (var s in _settings.Scrapers) AvailableScrapers.Add(s);
-        if (AvailableScrapers.Count > 0) SelectedScraper = AvailableScrapers[0];
+        InitializeScrapers();
 
-        StartCommand = new AsyncRelayCommand(StartScraping);
-        CancelCommand = new RelayCommand(Cancel);
+        StartCommand = new AsyncRelayCommand(StartScrapingAsync);
+        CancelCommand = new RelayCommand(CancelOperation);
     }
 
     public ObservableCollection<ScraperConfig> AvailableScrapers { get; } = new();
 
     public IAsyncRelayCommand StartCommand { get; }
     public IRelayCommand CancelCommand { get; }
-    
-    private async Task StartScraping()
+
+    // Event raised when an item has been successfully scraped/matched.
+    public Action<MediaItem, ScraperSearchResult>? OnItemScraped;
+
+    private void InitializeScrapers()
+    {
+        AvailableScrapers.Clear();
+        foreach (var scraper in _settings.Scrapers)
+        {
+            AvailableScrapers.Add(scraper);
+        }
+
+        if (AvailableScrapers.Count > 0)
+        {
+            SelectedScraper = AvailableScrapers[0];
+        }
+    }
+
+    private async Task StartScrapingAsync()
     {
         if (SelectedScraper == null) return;
 
-        IsWorking = true;
-        _cts = new CancellationTokenSource();
-        Log("Starting bulk scrape with " + SelectedScraper.Name);
+        IsBusy = true;
+        _cancellationTokenSource = new CancellationTokenSource();
+        ClearLog();
+        AppendLog($"Starting bulk scrape with {SelectedScraper.Name}...");
 
         var provider = _metadataService.GetProvider(SelectedScraper.Id);
         if (provider == null)
         {
-            Log("Error: Could not load provider.");
-            IsWorking = false;
+            AppendLog("Error: Could not load provider.");
+            IsBusy = false;
             return;
         }
 
-        // Collect all items flat
-        var allItems = new System.Collections.Generic.List<MediaItem>();
-        CollectItems(_rootNode, allItems);
+        // 1. Collect Items
+        // Using a HashSet or checking for duplicates might be useful here if one item is in multiple categories,
+        // but for now, we assume tree nodes are unique instances.
+        var allItems = new List<MediaItem>();
+        CollectItemsRecursive(_rootNode, allItems);
         
-        Log($"Found: {allItems.Count} media items.");
+        AppendLog($"Found {allItems.Count} media items in total.");
         ProgressValue = 0;
 
-        // Use atomic counter for thread-safe progress tracking
+        // 2. Prepare Processing
         int processedCount = 0;
-        double step = 100.0 / Math.Max(1, allItems.Count);
-
-        // Run in parallel but limit concurrency to be polite to APIs (e.g. 4 concurrent requests)
+        int totalItems = Math.Max(1, allItems.Count);
+        
+        // ParallelOptions to control concurrency
         var parallelOptions = new ParallelOptions
         {
-            MaxDegreeOfParallelism = 4, 
-            CancellationToken = _cts.Token
+            MaxDegreeOfParallelism = MaxConcurrentRequests, 
+            CancellationToken = _cancellationTokenSource.Token
         };
-        
+
+        // Timer to update the log UI periodically instead of constantly
+        // This prevents the UI thread from freezing when processing thousands of items.
+        using var logUpdateTimer = new Timer(_ => FlushLogBufferToUi(), null, 500, 500);
+
         try
         {
             await Parallel.ForEachAsync(allItems, parallelOptions, async (item, token) =>
             {
-                // Update Status (UI Thread)
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => 
-                {
-                    StatusText = $"Processing: {item.Title}";
-                });
-
+                // Logic: Searching
                 try 
                 {
+                    // Only update status text every X items to save UI cycles, 
+                    // or if it's really slow, update always. With 250ms delay, updating always is okayish,
+                    // but let's stick to updating progress bar always and text sometimes.
+                    if (processedCount % 5 == 0)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(() => 
+                        {
+                            StatusMessage = $"Processing: {item.Title}";
+                        });
+                    }
+
                     var results = await provider.SearchAsync(item.Title);
 
-                    // Simple heuristic: If the name matches almost exactly, take the first hit
+                    // Heuristic: Exact match (Case Insensitive)
                     var match = results.FirstOrDefault(r => 
                         string.Equals(r.Title, item.Title, StringComparison.OrdinalIgnoreCase));
 
-                    // Fallback: First hit if nothing exact
-                    if (match == null && results.Count > 0) match = results[0];
+                    // Fallback: Take first if available
+                    if (match == null && results.Count > 0) 
+                    {
+                        match = results[0];
+                    }
 
                     if (match != null)
                     {
-                        // Invoke changes on UI thread to be safe (modifies ObservableObjects/UI)
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                        // Success Case
+                        // We must invoke on UI thread because this likely modifies the MediaItem 
+                        // which is bound to UI controls (cover image, description etc.)
+                        await Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            Log($" -> Match: {match.Title}");
+                            // Important: Thread-safe log appending (buffered)
+                            AppendLogBuffer($"[MATCH] {item.Title} -> {match.Title}");
                             OnItemScraped?.Invoke(item, match);
                         });
                     }
                     else
                     {
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Log($" -> Nothing found for {item.Title}"));
+                        // Fail Case
+                        AppendLogBuffer($"[MISS] No results for: {item.Title}");
                     }
                 }
                 catch (Exception ex)
                 {
-                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Log($"Error processing {item.Title}: {ex.Message}"));
+                     AppendLogBuffer($"[ERROR] {item.Title}: {ex.Message}");
                 }
 
-                // Update Progress (Thread-safe)
+                // Update Progress
+                // Interlocked is crucial here for thread safety without locking
                 var current = Interlocked.Increment(ref processedCount);
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ProgressValue = current * step);
+                
+                // Throttle progress updates: Update UI only every 1% or at least every 10 items
+                // to avoid 30.000 Dispatcher calls.
+                if (current % 10 == 0 || current == totalItems)
+                {
+                    double newVal = (double)current * 100 / totalItems;
+                    await Dispatcher.UIThread.InvokeAsync(() => ProgressValue = newVal);
+                }
 
-                // Small dynamic delay per task to prevent burst-banning (politeness delay)
-                await Task.Delay(250, token);
+                // Politeness Delay
+                await Task.Delay(RequestDelayMs, token);
             });
         }
         catch (OperationCanceledException)
         {
-            Log("Scraping cancelled.");
+            AppendLog("Scraping operation cancelled by user.");
         }
         catch (Exception ex)
         {
-            Log("Critical Error: " + ex.Message);
+            AppendLog($"Critical Error during batch processing: {ex.Message}");
         }
         finally
         {
-            IsWorking = false;
-            StatusText = "Done.";
+            // Final Flush of logs
+            FlushLogBufferToUi();
+            
+            IsBusy = false;
+            StatusMessage = "Processing finished.";
+            _cancellationTokenSource.Dispose();
+            _cancellationTokenSource = null;
         }
     }
 
-    public Action<MediaItem, ScraperSearchResult>? OnItemScraped;
-
-    private void Cancel()
+    private void CancelOperation()
     {
-        _cts?.Cancel();
-        StatusText = "Abbruch angefordert...";
+        if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+        {
+            _cancellationTokenSource.Cancel();
+            StatusMessage = "Stopping...";
+            AppendLog("Cancellation requested...");
+        }
     }
 
-    private void CollectItems(MediaNode node, System.Collections.Generic.List<MediaItem> list)
+    /// <summary>
+    /// Recursively collects all MediaItems from the node tree.
+    /// </summary>
+    private void CollectItemsRecursive(MediaNode node, List<MediaItem> list)
     {
-        list.AddRange(node.Items);
-        foreach (var child in node.Children) CollectItems(child, list);
+        if (node.Items != null)
+        {
+            list.AddRange(node.Items);
+        }
+        
+        if (node.Children != null)
+        {
+            foreach (var child in node.Children)
+            {
+                CollectItemsRecursive(child, list);
+            }
+        }
     }
 
-    private void Log(string msg)
+    // --- High Performance Logging ---
+
+    private void ClearLog()
     {
-        LogText += $"[{DateTime.Now:HH:mm:ss}] {msg}\n";
+        lock (_logLock)
+        {
+            _logBuffer.Clear();
+        }
+        LogText = "";
+    }
+
+    /// <summary>
+    /// Direct log update (use only for low-frequency messages like Start/End)
+    /// </summary>
+    private void AppendLog(string msg)
+    {
+        var entry = $"[{DateTime.Now:HH:mm:ss}] {msg}\n";
+        
+        // Immediate update
+        LogText += entry; 
+        
+        // Also keep buffer in sync if we use it for rebuilding history (optional)
+        lock (_logLock)
+        {
+            _logBuffer.Append(entry);
+        }
+    }
+
+    /// <summary>
+    /// Buffered log update (safe to call from high-frequency loops)
+    /// </summary>
+    private void AppendLogBuffer(string msg)
+    {
+        lock (_logLock)
+        {
+            _logBuffer.AppendLine($"[{DateTime.Now:HH:mm:ss}] {msg}");
+        }
+    }
+
+    /// <summary>
+    /// Pushes the buffered logs to the UI property.
+    /// Should be called via Timer or Dispatcher.
+    /// </summary>
+    private void FlushLogBufferToUi()
+    {
+        string newLogChunk = "";
+        lock (_logLock)
+        {
+            if (_logBuffer.Length == 0) return;
+            newLogChunk = _logBuffer.ToString();
+            _logBuffer.Clear();
+        }
+
+        if (!string.IsNullOrEmpty(newLogChunk))
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Consider limiting total log size here to avoid OOM with 30k items
+                if (LogText.Length > 50000) 
+                {
+                    LogText = "..." + LogText.Substring(LogText.Length - 40000);
+                }
+                LogText += newLogChunk;
+            });
+        }
     }
 }

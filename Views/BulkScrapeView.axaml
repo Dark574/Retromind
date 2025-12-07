@@ -32,12 +32,12 @@
         
         <!-- Progress -->
         <StackPanel Grid.Row="3" Spacing="10" Margin="0,20,0,0">
-            <TextBlock Text="{Binding StatusText}" HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center"/>
             <ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="20"/>
             
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                <Button Content="{x:Static p:Strings.Button_Cancel}" Command="{Binding CancelCommand}" IsEnabled="{Binding IsWorking}"/>
-                <Button Content="{x:Static p:Strings.Button_Launch}" Command="{Binding StartCommand}" Classes="accent" IsEnabled="{Binding !IsWorking}"/>
+                <Button Content="{x:Static p:Strings.Button_Cancel}" Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}"/>
+                <Button Content="{x:Static p:Strings.Button_Launch}" Command="{Binding StartCommand}" Classes="accent" IsEnabled="{Binding !IsBusy}"/>
             </StackPanel>
         </StackPanel>
     </Grid>

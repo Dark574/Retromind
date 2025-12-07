@@ -59,7 +59,7 @@
     <data name="Common.Status" xml:space="preserve"><value>Status</value></data>
     <data name="Common.Summary" xml:space="preserve"><value>Zusammenfassung</value></data>
     <data name="Common.Title" xml:space="preserve"><value>Titel</value></data>
-    <data name="Common.Year" xml:space="preserve"><value>Jahr (z.&nbsp;B. 1998)</value></data>
+    <data name="Common.Year" xml:space="preserve"><value>Jahr (z.B. 1998)</value></data>
     <data name="Common.CoverURL" xml:space="preserve"><value>Cover-URL:</value></data>
     <data name="Common.TitleEx" xml:space="preserve"><value>Titel:</value></data>
     <data name="Common.UserName" xml:space="preserve"><value>Benutzername</value></data>

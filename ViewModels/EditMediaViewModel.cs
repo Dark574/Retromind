@@ -13,6 +13,9 @@ using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
+/// <summary>
+/// ViewModel for editing metadata, media files, and emulator configurations of a MediaItem.
+/// </summary>
 public partial class EditMediaViewModel : ViewModelBase
 {
     private readonly EmulatorConfig? _inheritedEmulator;
@@ -28,8 +31,8 @@ public partial class EditMediaViewModel : ViewModelBase
     [ObservableProperty] private string? _developer;
     [ObservableProperty] private string? _genre;
     
-    // Avalonia DatePicker nutzt DateTimeOffset?, MediaItem nutzt DateTime?
-    // Wir nutzen hier DateTimeOffset? für das Binding und konvertieren beim Speichern.
+    // Avalonia DatePicker uses DateTimeOffset?, MediaItem uses DateTime?
+    // We bind to this DateTimeOffset? and convert back on Save.
     [ObservableProperty] private DateTimeOffset? _releaseDate; 
     
     [ObservableProperty] private PlayStatus _status;
@@ -54,7 +57,7 @@ public partial class EditMediaViewModel : ViewModelBase
     
     [ObservableProperty] private string _overrideWatchProcess = string.Empty;
 
-    // --- Image Properties ---
+    // --- Image Properties (Absolute Paths for UI) ---
     [ObservableProperty] private string? _coverPath;
     [ObservableProperty] private string? _wallpaperPath;
     [ObservableProperty] private string? _logoPath;
@@ -85,6 +88,8 @@ public partial class EditMediaViewModel : ViewModelBase
     public IRelayCommand RemoveMusicCommand { get; }
 
     public IStorageProvider? StorageProvider { get; set; }
+    
+    // Event to signal the view to close (true = saved, false = cancelled)
     public event Action<bool>? RequestClose;
 
     // --- Lists for UI ---
@@ -102,53 +107,10 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         _originalItem = item;
         _fileService = fileService;
-        _nodePath = nodePath; // Store path for correct folder structure (Media/Genre/...)
+        _nodePath = nodePath; 
         _inheritedEmulator = inheritedEmulator;
 
-        // 1. Copy values
-        Title = item.Title;
-        Developer = item.Developer;
-        Genre = item.Genre;
-        
-        // Konvertierung DateTime -> DateTimeOffset für DatePicker
-        ReleaseDate = item.ReleaseDate.HasValue ? new DateTimeOffset(item.ReleaseDate.Value) : null;
-        
-        Status = item.Status;
-        Description = item.Description;
-        MediaType = item.MediaType;
-        LauncherPath = item.LauncherPath;
-        MusicPath = item.MusicPath;
-        OverrideWatchProcess = item.OverrideWatchProcess ?? string.Empty;
-        
-        // Bilder-Pfade kopieren
-        CoverPath = item.CoverPath;
-        WallpaperPath = item.WallpaperPath;
-        LogoPath = item.LogoPath;
-
-        if (string.IsNullOrWhiteSpace(item.LauncherArgs))
-            LauncherArgs = "{file}";
-        else
-            LauncherArgs = item.LauncherArgs;
-
-        // 2. Load Emulators
-        AvailableEmulators.Add(new EmulatorConfig { Name = "Custom / Manual", Id = null! });
-        foreach (var emu in settings.Emulators) AvailableEmulators.Add(emu);
-
-        // 3. Initialize Profile Logic
-        if (!string.IsNullOrEmpty(item.EmulatorId))
-        {
-            SelectedEmulatorProfile = settings.Emulators.FirstOrDefault(e => e.Id == item.EmulatorId);
-        }
-        else if (item.MediaType == MediaType.Native && inheritedEmulator != null)
-        {
-            MediaType = MediaType.Emulator;
-            SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(e => e.Id == inheritedEmulator.Id);
-        }
-
-        if (SelectedEmulatorProfile == null && MediaType == MediaType.Emulator)
-            SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(e => e.Id == null!);
-
-        // 4. Create Commands
+        // Initialize Commands
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(Cancel);
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
@@ -167,9 +129,58 @@ public partial class EditMediaViewModel : ViewModelBase
         SetAsMusicCommand = new RelayCommand(SetAsMusic, () => SelectedAudioItem != null);
         RemoveMusicCommand = new RelayCommand(RemoveMusic, () => SelectedAudioItem != null);
 
-        // 5. Load Gallery
+        // Initialization Logic
+        LoadItemData();
+        InitializeEmulators(settings);
+        
+        // Load external assets
         LoadGalleryImages();
         LoadMusicFiles();
+    }
+
+    private void LoadItemData()
+    {
+        Title = _originalItem.Title;
+        Developer = _originalItem.Developer;
+        Genre = _originalItem.Genre;
+        ReleaseDate = _originalItem.ReleaseDate.HasValue ? new DateTimeOffset(_originalItem.ReleaseDate.Value) : null;
+        Status = _originalItem.Status;
+        Description = _originalItem.Description;
+        MediaType = _originalItem.MediaType;
+        LauncherPath = _originalItem.LauncherPath;
+        MusicPath = ToAbsolutePath(_originalItem.MusicPath);
+        OverrideWatchProcess = _originalItem.OverrideWatchProcess ?? string.Empty;
+        
+        CoverPath = ToAbsolutePath(_originalItem.CoverPath);
+        WallpaperPath = ToAbsolutePath(_originalItem.WallpaperPath);
+        LogoPath = ToAbsolutePath(_originalItem.LogoPath);
+
+        LauncherArgs = string.IsNullOrWhiteSpace(_originalItem.LauncherArgs) ? "{file}" : _originalItem.LauncherArgs;
+    }
+
+    private void InitializeEmulators(AppSettings settings)
+    {
+        AvailableEmulators.Clear();
+        AvailableEmulators.Add(new EmulatorConfig { Name = "Custom / Manual", Id = null! });
+        
+        foreach (var emu in settings.Emulators) 
+            AvailableEmulators.Add(emu);
+
+        // Pre-select correct emulator
+        if (!string.IsNullOrEmpty(_originalItem.EmulatorId))
+        {
+            SelectedEmulatorProfile = settings.Emulators.FirstOrDefault(e => e.Id == _originalItem.EmulatorId);
+        }
+        else if (_originalItem.MediaType == MediaType.Native && _inheritedEmulator != null)
+        {
+            // If it was native but runs via inherited emulator, suggest that one
+            MediaType = MediaType.Emulator;
+            SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(e => e.Id == _inheritedEmulator.Id);
+        }
+
+        // Default fallback
+        if (SelectedEmulatorProfile == null && MediaType == MediaType.Emulator)
+            SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(e => e.Id == null!);
     }
 
     // --- Computed Properties ---
@@ -198,7 +209,7 @@ public partial class EditMediaViewModel : ViewModelBase
             {
                 var args = string.IsNullOrWhiteSpace(LauncherArgs)
                     ? realFile
-                    : LauncherArgs.Replace("{file}", realFile);
+                    : LauncherArgs?.Replace("{file}", realFile) ?? realFile;
                 return $"> {LauncherPath} {args}";
             }
 
@@ -217,69 +228,74 @@ public partial class EditMediaViewModel : ViewModelBase
         }
     }
 
-    // --- Galerie Logik ---
+    // --- Gallery Logic ---
 
     private void LoadGalleryImages()
     {
         GalleryImages.Clear();
-        var distinctPaths = new HashSet<string>();
+        var distinctPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Helper-Funktion zum Hinzufügen (vermeidet Code-Duplizierung)
-        void AddImage(string path)
+        // Helper to add images avoiding duplicates
+        void AddImage(string? path)
         {
             if (string.IsNullOrEmpty(path)) return;
-            var fullPath = Path.GetFullPath(path); // Absolut machen für Vergleich
+            var fullPath = ToAbsolutePath(path);
             
-            if (!distinctPaths.Contains(fullPath.ToLower()) && File.Exists(fullPath))
+            if (fullPath != null && !distinctPaths.Contains(fullPath) && File.Exists(fullPath))
             {
                 var img = new GalleryImage { FilePath = fullPath };
-                UpdateImageStatus(img);
+                // Image status is updated later in batch
                 GalleryImages.Add(img);
-                distinctPaths.Add(fullPath.ToLower());
+                distinctPaths.Add(fullPath);
             }
         }
 
-        // 1. Aktuelle Bilder zuerst hinzufügen (damit sie sicher da sind)
-        // Wir prüfen hier Pfade auf null und lösen sie auf
-        if (!string.IsNullOrEmpty(CoverPath)) 
-            AddImage(Path.IsPathRooted(CoverPath) ? CoverPath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CoverPath));
-        
-        if (!string.IsNullOrEmpty(WallpaperPath)) 
-            AddImage(Path.IsPathRooted(WallpaperPath) ? WallpaperPath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, WallpaperPath));
-        
-        if (!string.IsNullOrEmpty(LogoPath)) 
-            AddImage(Path.IsPathRooted(LogoPath) ? LogoPath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LogoPath));
+        // 1. Add currently assigned images
+        AddImage(CoverPath);
+        AddImage(WallpaperPath);
+        AddImage(LogoPath);
 
-        // 2. Suche nach weiteren Bildern über den neuen Helper
-        // Wir müssen ein temporäres Item bauen oder das Original nutzen, 
-        // aber mit den neuen Pfaden, damit der Helper die richtigen Ordner scannt.
+        // 2. Search for other images in related folders
         var tempItem = new MediaItem 
         { 
             Title = Title, 
             FilePath = _originalItem.FilePath,
-            CoverPath = CoverPath, // Damit auch Ordner von neuen Covers gescannt werden
+            CoverPath = CoverPath, 
             WallpaperPath = WallpaperPath
         };
 
         var foundImages = MediaSearchHelper.FindPotentialImages(tempItem);
-        
         foreach (var imgPath in foundImages)
         {
             AddImage(imgPath);
         }
+        
+        UpdateAllImageStatuses();
     }
 
-    private void UpdateImageStatus(GalleryImage img)
+    /// <summary>
+    /// Updates the IsCover/IsWallpaper/IsLogo flags for all gallery images.
+    /// Optimized to calculate absolute paths only once.
+    /// </summary>
+    private void UpdateAllImageStatuses()
     {
-        var absImg = Path.GetFullPath(img.FilePath);
-
         var absCover = string.IsNullOrEmpty(CoverPath) ? null : Path.GetFullPath(CoverPath);
         var absWall = string.IsNullOrEmpty(WallpaperPath) ? null : Path.GetFullPath(WallpaperPath);
         var absLogo = string.IsNullOrEmpty(LogoPath) ? null : Path.GetFullPath(LogoPath);
 
-        img.IsCover = absImg == absCover;
-        img.IsWallpaper = absImg == absWall;
-        img.IsLogo = absImg == absLogo;
+        foreach (var img in GalleryImages)
+        {
+            // GalleryImage.FilePath is already absolute
+            img.IsCover = string.Equals(img.FilePath, absCover, StringComparison.OrdinalIgnoreCase);
+            img.IsWallpaper = string.Equals(img.FilePath, absWall, StringComparison.OrdinalIgnoreCase);
+            img.IsLogo = string.Equals(img.FilePath, absLogo, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+    
+    // Updates a single image (fallback)
+    private void UpdateImageStatus(GalleryImage img)
+    {
+         UpdateAllImageStatuses(); 
     }
 
     private async Task AddImageAsync()
@@ -288,7 +304,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
         var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Bild hinzufügen",
+            Title = "Add Image",
             AllowMultiple = true,
             FileTypeFilter = new[] { FilePickerFileTypes.ImageAll }
         });
@@ -296,75 +312,56 @@ public partial class EditMediaViewModel : ViewModelBase
         if (result == null || result.Count == 0) return;
 
         // Use a safe temporary cache folder instead of "media" near the ROM.
-        // This keeps the user's ROM folder clean.
         var tempDir = Path.Combine(Path.GetTempPath(), "RetromindCache", "Gallery");
         if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
         
-        foreach (var file in result)
+        // Run I/O heavy tasks on background thread
+        await Task.Run(() => 
         {
-            var sourcePath = file.Path.LocalPath;
-            string finalPath = sourcePath;
-            bool isDuplicate = false;
-
-            // Hash-Berechnung in Task auslagern, um UI-Freeze zu verhindern
-            var newHash = await Task.Run(() => FileHelper.CalculateMd5(sourcePath));
-            
-            // Wir müssen dies threadsicher machen oder snapshotten, da wir auf IO zugreifen
-            var existingFiles = Directory.GetFiles(tempDir);
-
-            // Hash-Vergleich auch im Task (optional, aber sauberer)
-            var duplicateFound = await Task.Run(() => 
+            foreach (var file in result)
             {
-                foreach (var existingFile in existingFiles)
+                try 
                 {
-                    if (new FileInfo(existingFile).Length != new FileInfo(sourcePath).Length) continue;
-                    if (FileHelper.CalculateMd5(existingFile) == newHash)
+                    var sourcePath = file.Path.LocalPath;
+                    string finalPath = sourcePath;
+
+                    // Simple copy to cache logic
+                    var rawName = Path.GetFileNameWithoutExtension(sourcePath);
+                    var cleanName = string.Join("_", rawName.Split(Path.GetInvalidFileNameChars()));
+                    var ext = Path.GetExtension(sourcePath);
+                    var uniqueName = $"{cleanName}_{Guid.NewGuid()}{ext}";
+            
+                    var targetPath = Path.Combine(tempDir, uniqueName);
+                    File.Copy(sourcePath, targetPath, true);
+                    finalPath = targetPath;
+
+                    // Update UI on UI Thread
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => 
                     {
-                        return existingFile;
-                    }
+                         if (!GalleryImages.Any(g => g.FilePath == finalPath))
+                         {
+                             var newImg = new GalleryImage { FilePath = finalPath };
+                             GalleryImages.Add(newImg);
+                             UpdateImageStatus(newImg);
+                         }
+                    });
                 }
-                return null;
-            });
-
-            if (duplicateFound != null)
-            {
-                finalPath = duplicateFound;
-                isDuplicate = true;
+                catch (Exception ex)
+                {
+                    // Log error?
+                    System.Diagnostics.Debug.WriteLine($"Error adding image: {ex.Message}");
+                }
             }
-
-            if (!isDuplicate)
-            {
-                // Copy to temp if not exists
-                // Sanitize simple:
-                var rawName = Path.GetFileNameWithoutExtension(sourcePath);
-                var cleanName = string.Join("_", rawName.Split(Path.GetInvalidFileNameChars()));
-                    
-                var ext = Path.GetExtension(sourcePath);
-                var uniqueName = $"{cleanName}_{Guid.NewGuid()}{ext}"; // Name_GUID.ext
-        
-                var targetPath = Path.Combine(tempDir, uniqueName);
-    
-                await Task.Run(() => File.Copy(sourcePath, targetPath, true));
-                finalPath = targetPath;
-            }
-
-            if (!GalleryImages.Any(g => g.FilePath == finalPath))
-            {
-                var newImg = new GalleryImage { FilePath = finalPath };
-                UpdateImageStatus(newImg);
-                GalleryImages.Add(newImg);
-            }
-        }
+        });
     }
 
-    // Importiert Bilder direkt in den richtigen Ordner (Cover/Wallpaper) ohne sie sofort aktiv zu setzen
     private async Task ImportImagesDirectlyAsync(MediaFileType type)
     {
         if (StorageProvider == null) return;
 
         var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = $"{type} importieren",
+            Title = $"Import {type}",
             AllowMultiple = true,
             FileTypeFilter = new[] { FilePickerFileTypes.ImageAll }
         });
@@ -373,45 +370,36 @@ public partial class EditMediaViewModel : ViewModelBase
 
         foreach (var file in result)
         {
-            // Direkt via FileService importieren (benennt um und verschiebt nach Medien/...)
             var relPath = _fileService.ImportAsset(file.Path.LocalPath, _originalItem, _nodePath, type);
 
             if (!string.IsNullOrEmpty(relPath))
             {
-                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relPath);
+                var fullPath = ToAbsolutePath(relPath);
                 
-                // Zur Galerie hinzufügen, falls noch nicht da
-                if (!GalleryImages.Any(g => g.FilePath == fullPath))
+                if (fullPath != null && !GalleryImages.Any(g => g.FilePath == fullPath))
                 {
                     var newImg = new GalleryImage { FilePath = fullPath };
-                    UpdateImageStatus(newImg);
                     GalleryImages.Add(newImg);
                 }
 
-                // Wenn wir noch GAR KEIN Cover/Wallpaper haben, setzen wir das erste importierte direkt
+                // If no image is set for this type, set the first imported one
                 if (type == MediaFileType.Cover && string.IsNullOrEmpty(CoverPath)) CoverPath = fullPath;
                 if (type == MediaFileType.Wallpaper && string.IsNullOrEmpty(WallpaperPath)) WallpaperPath = fullPath;
                 if (type == MediaFileType.Logo && string.IsNullOrEmpty(LogoPath)) LogoPath = fullPath;
             }
         }
-        
-        // Status aller Bilder aktualisieren
-        foreach(var img in GalleryImages) UpdateImageStatus(img);
+        UpdateAllImageStatuses();
     }
         
     private void SetImageType(MediaFileType type)
     {
         if (SelectedGalleryImage == null) return;
         
-        // Here we use the FileManagementService to properly import the file 
-        // into the correct structure (Medien/Genre/Cover/...).
-        // This ensures clean organization.
         var newRelPath = _fileService.ImportAsset(SelectedGalleryImage.FilePath, _originalItem, _nodePath, type);
 
         if (string.IsNullOrEmpty(newRelPath)) return;
 
-        // The ImportAsset returns a relative path. We might need the absolute path for the UI refresh immediately.
-        var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, newRelPath);
+        var fullPath = ToAbsolutePath(newRelPath);
 
         switch (type)
         {
@@ -426,27 +414,25 @@ public partial class EditMediaViewModel : ViewModelBase
                 break;
         }
 
-        // Update the gallery item to point to the new, correct location
-        // so the "IsCover" check works correctly against the new path.
-        SelectedGalleryImage.FilePath = fullPath;
+        // Update the gallery item to point to the new location
+        if (fullPath != null) SelectedGalleryImage.FilePath = fullPath;
         
-        foreach(var img in GalleryImages) UpdateImageStatus(img);
+        UpdateAllImageStatuses();
     }
 
     private void RemoveImage()
     {
         if (SelectedGalleryImage == null) return;
 
-        // 1. Prüfen ob das Bild aktuell verwendet wird -> Referenz entfernen
+        // 1. Remove references
         if (CoverPath == SelectedGalleryImage.FilePath) CoverPath = null;
         if (WallpaperPath == SelectedGalleryImage.FilePath) WallpaperPath = null;
         if (LogoPath == SelectedGalleryImage.FilePath) LogoPath = null;
         
-        // 2. Versuchen die Datei physikalisch zu löschen
-        // Der FileService prüft intern, ob es sicher ist (im App-Verzeichnis)
+        // 2. Try to physically delete (service checks safety)
         _fileService.DeleteAsset(SelectedGalleryImage.FilePath);
 
-        // 3. Aus der UI-Liste entfernen
+        // 3. Remove from UI
         GalleryImages.Remove(SelectedGalleryImage);
     }
 
@@ -458,41 +444,41 @@ public partial class EditMediaViewModel : ViewModelBase
         SetAsLogoCommand.NotifyCanExecuteChanged();
     }
 
-    // --- Aktionen ---
+    // --- Actions ---
 
     private async Task BrowseLauncherAsync()
     {
         if (StorageProvider == null) return;
         var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Launcher auswählen",
+            Title = "Select Launcher Executable",
             AllowMultiple = false
         });
 
         if (result != null && result.Count > 0) LauncherPath = result[0].Path.LocalPath;
     }
 
-    // load Music
     private void LoadMusicFiles()
     {
         AvailableMusic.Clear();
-        var distinctPaths = new HashSet<string>();
+        var distinctPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        void AddAudio(string path)
+        void AddAudio(string? path)
         {
             if (string.IsNullOrEmpty(path)) return;
-            var fullPath = Path.GetFullPath(path);
-            if (distinctPaths.Contains(fullPath.ToLower()) || !File.Exists(fullPath)) return;
-
-            var isCurrent = fullPath == (string.IsNullOrEmpty(MusicPath) ? "" : Path.GetFullPath(MusicPath));
-            AvailableMusic.Add(new AudioItem { FilePath = fullPath, IsActive = isCurrent });
-            distinctPaths.Add(fullPath.ToLower());
+            var fullPath = ToAbsolutePath(path);
+            
+            if (fullPath != null && !distinctPaths.Contains(fullPath) && File.Exists(fullPath))
+            {
+                var isCurrent = string.Equals(fullPath, ToAbsolutePath(MusicPath), StringComparison.OrdinalIgnoreCase);
+                AvailableMusic.Add(new AudioItem { FilePath = fullPath, IsActive = isCurrent });
+                distinctPaths.Add(fullPath);
+            }
         }
 
-        if (!string.IsNullOrEmpty(MusicPath)) 
-            AddAudio(Path.IsPathRooted(MusicPath) ? MusicPath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, MusicPath));
+        AddAudio(MusicPath);
 
-        // Suchen
+        // Search for potential music files
         var tempItem = new MediaItem { Title = Title, FilePath = _originalItem.FilePath, MusicPath = MusicPath };
         var found = MediaSearchHelper.FindPotentialAudio(tempItem);
         foreach (var f in found) AddAudio(f);
@@ -503,32 +489,26 @@ public partial class EditMediaViewModel : ViewModelBase
         if (StorageProvider == null) return;
         var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Musik importieren",
+            Title = "Import Music",
             AllowMultiple = true,
             FileTypeFilter = new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.ogg", "*.wav", "*.flac", "*.sid" } } }
         });
 
         if (result == null) return;
         
-        // Wir nutzen direkt den FileService zum Importieren!
-        // Kein Temp-Ordner mehr nötig.
-            
         foreach (var file in result)
         {
-            // ImportAsset kümmert sich um Ordnerstruktur und Namenskonvention (Originalname behalten)
             var relPath = _fileService.ImportAsset(file.Path.LocalPath, _originalItem, _nodePath, MediaFileType.Music);
 
             if (!string.IsNullOrEmpty(relPath))
             {
-                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relPath);
+                var fullPath = ToAbsolutePath(relPath);
                     
-                // Zur Liste hinzufügen, falls noch nicht da
-                if (!AvailableMusic.Any(a => a.FilePath == fullPath))
+                if (fullPath != null && !AvailableMusic.Any(a => a.FilePath == fullPath))
                 {
                     AvailableMusic.Add(new AudioItem { FilePath = fullPath, IsActive = false });
                 }
                     
-                // Optional: Wenn noch gar keine Musik gesetzt ist, setze die erste importierte automatisch als aktiv
                 if (string.IsNullOrEmpty(MusicPath))
                 {
                     MusicPath = fullPath;
@@ -542,18 +522,13 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         if (SelectedAudioItem == null) return;
 
-        // Nicht nur Pfad setzen, sondern Importieren!
-        // Das kopiert die Datei nach Medien/Gruppe/Music/[OriginalName].ext
         var relPath = _fileService.ImportAsset(SelectedAudioItem.FilePath, _originalItem, _nodePath, MediaFileType.Music);
         
         if (!string.IsNullOrEmpty(relPath))
         {
-            // Wir müssen den Pfad absolut machen für die UI-Anzeige/Abspielen,
-            // speichern tun wir später relative.
-            var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relPath);
+            var fullPath = ToAbsolutePath(relPath);
             MusicPath = fullPath; 
 
-            // UI Update
             foreach(var a in AvailableMusic) 
                 a.IsActive = (a.FilePath == MusicPath);
         }
@@ -565,13 +540,9 @@ public partial class EditMediaViewModel : ViewModelBase
         
         var fileToDelete = SelectedAudioItem.FilePath;
         
-        // 1. Referenz entfernen
         if (MusicPath == fileToDelete) MusicPath = null;
 
-        // 2. Physikalisch löschen
         _fileService.DeleteAsset(fileToDelete);
-
-        // 3. Aus der Liste entfernen
         AvailableMusic.Remove(SelectedAudioItem);
     }
 
@@ -583,6 +554,7 @@ public partial class EditMediaViewModel : ViewModelBase
     
     private void Save()
     {
+        // Copy metadata
         _originalItem.Title = Title;
         _originalItem.Developer = Developer;
         _originalItem.Genre = Genre;
@@ -591,13 +563,11 @@ public partial class EditMediaViewModel : ViewModelBase
         _originalItem.Description = Description;
         _originalItem.MediaType = MediaType;
 
-        // MusicPath is already updated relative in SetAsMusic
-        _originalItem.MusicPath = MusicPath;
-
-        // Convert absolute paths back to relative for storage if they are inside BaseDirectory
-        _originalItem.CoverPath = CoverPath;
-        _originalItem.WallpaperPath = WallpaperPath;
-        _originalItem.LogoPath = LogoPath;
+        // Save paths as relative to project root if possible to ensure portability
+        _originalItem.MusicPath = MakeRelative(MusicPath);
+        _originalItem.CoverPath = MakeRelative(CoverPath);
+        _originalItem.WallpaperPath = MakeRelative(WallpaperPath);
+        _originalItem.LogoPath = MakeRelative(LogoPath);
 
         if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
         {
@@ -614,15 +584,19 @@ public partial class EditMediaViewModel : ViewModelBase
         RequestClose?.Invoke(true);
     }
 
-    private string? MakeRelativeIfPossible(string? path)
+    // --- Helpers ---
+
+    private string? MakeRelative(string? path)
     {
         if (string.IsNullOrEmpty(path)) return null;
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        if (path.StartsWith(baseDir))
-        {
-            return Path.GetRelativePath(baseDir, path);
-        }
-        return path;
+        return Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, path);
+    }
+
+    private string? ToAbsolutePath(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        if (Path.IsPathRooted(path)) return path;
+        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
     }
     
     private void Cancel()
