@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Resources; 
 
@@ -56,19 +57,32 @@ public partial class ScraperConfig : ObservableObject
     }
 
     // --- Credentials ---
-    // Note: Stored in plain text in settings.json. 
-    // Sufficient for local hobby usage, but not secure for enterprise environments.
+    // We mark these with [JsonIgnore] so the plain text is NEVER saved.
 
-    [ObservableProperty] private string? _apiKey;
+    [ObservableProperty] [property: JsonIgnore] private string? _apiKey;
+    [ObservableProperty] [property: JsonIgnore] private string? _password;
+    [ObservableProperty] [property: JsonIgnore] private string? _clientSecret;
+
     [ObservableProperty] private string? _username;
-    [ObservableProperty] private string? _password;
     [ObservableProperty] private string? _clientId;
-    [ObservableProperty] private string? _clientSecret;
     
     /// <summary>
     /// Preferred language for metadata (e.g. "de-DE", "en-US").
     /// </summary>
     [ObservableProperty] private string _language = "en-US";
+    
+    // --- Encrypted Storage ---
+    // These properties are what gets saved to JSON.
+    // The Service maps between these and the runtime properties above.
+
+    [JsonPropertyName("EncryptedApiKey")]
+    public string? EncryptedApiKey { get; set; }
+
+    [JsonPropertyName("EncryptedPassword")]
+    public string? EncryptedPassword { get; set; }
+
+    [JsonPropertyName("EncryptedClientSecret")]
+    public string? EncryptedClientSecret { get; set; }
 }
 
 public enum ScraperType

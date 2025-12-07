@@ -136,7 +136,11 @@ public class LauncherService
             }
             else
             {
-                BuildArgumentsList(item, templateArgs, startInfo);
+                // We construct the full argument string manually to support complex templates
+                // provided by the user (e.g., "-L core.dll \"{file}\"").
+                // Using ArgumentList is safer generally, but parsing a user-provided template string
+                // into a list correctly handles quotes is error-prone.
+                startInfo.Arguments = BuildArgumentsString(item, templateArgs);
             }
 
             return Process.Start(startInfo);
@@ -187,30 +191,38 @@ public class LauncherService
         }
     }
 
-    private void BuildArgumentsList(MediaItem item, string? templateArgs, ProcessStartInfo startInfo)
+    private string BuildArgumentsString(MediaItem item, string? templateArgs)
     {
         var fullPath = string.IsNullOrEmpty(item.FilePath) ? "" : Path.GetFullPath(item.FilePath);
 
-        if (string.IsNullOrWhiteSpace(templateArgs) || templateArgs.Trim() == "{file}")
+        // Ensure the path is quoted if it contains spaces and isn't already quoted in the template
+        // However, the safest bet is to let the USER control quotes in the template OR
+        // we force quotes around the replacement.
+        
+        // Strategy: We simply replace {file} with the path. 
+        // If the path has spaces, we wrap it in quotes UNLESS the template already has quotes around {file}.
+        
+        string pathReplacement = fullPath;
+        if (!string.IsNullOrEmpty(pathReplacement) && pathReplacement.Contains(" "))
         {
-            if (!string.IsNullOrEmpty(fullPath)) startInfo.ArgumentList.Add(fullPath);
+            pathReplacement = $"\"{pathReplacement}\"";
         }
-        else
+
+        if (string.IsNullOrWhiteSpace(templateArgs))
         {
-            var parts = templateArgs.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var part in parts)
-            {
-                if (part.Contains("{file}"))
-                {
-                    var resolved = part.Replace("{file}", fullPath);
-                    startInfo.ArgumentList.Add(resolved);
-                }
-                else
-                {
-                    startInfo.ArgumentList.Add(part);
-                }
-            }
+            // Default: just the file path (quoted if needed)
+            return pathReplacement;
         }
+
+        // Check if the user already provided quotes in the template, e.g. "-rom \"{file}\""
+        // If so, we should NOT add extra quotes, otherwise we get ""path"".
+        // Simplistic check:
+        if (templateArgs.Contains("\"{file}\""))
+        {
+            return templateArgs.Replace("{file}", fullPath);
+        }
+
+        return templateArgs.Replace("{file}", pathReplacement);
     }
 
     private async Task WatchProcessByNameAsync(string processName)

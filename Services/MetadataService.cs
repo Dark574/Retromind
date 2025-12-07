@@ -7,6 +7,10 @@ using Retromind.Services.Scrapers;
 
 namespace Retromind.Services;
 
+/// <summary>
+/// Service acting as a factory for Metadata Providers (Scrapers).
+/// Resolves the correct implementation based on user configuration.
+/// </summary>
 public class MetadataService
 {
     private readonly AppSettings _settings;
@@ -18,41 +22,38 @@ public class MetadataService
         _httpClient = httpClient;
     }
 
-    // Factory-Methode: Holt den Provider basierend auf der ID des Scraper-Profils
+    /// <summary>
+    /// Creates and returns a scraper provider instance based on the configuration ID.
+    /// </summary>
+    /// <param name="scraperConfigId">The unique ID of the scraper configuration profile.</param>
+    /// <returns>An initialized provider implementing <see cref="IMetadataProvider"/> or null if not found.</returns>
     public IMetadataProvider? GetProvider(string scraperConfigId)
     {
         var config = _settings.Scrapers.FirstOrDefault(s => s.Id == scraperConfigId);
         if (config == null) return null;
 
-        switch (config.Type)
+        // Modern switch expression for cleaner factory logic.
+        // Note: In a larger system, this could be replaced by a DI container resolving keyed services.
+        return config.Type switch
         {
-            case ScraperType.IGDB:
-                return new IgdbProvider(config, _httpClient);
-            
-            case ScraperType.EmuMovies:
-                return new EmuMoviesProvider(config, _httpClient);
-            
-            case ScraperType.OpenLibrary:
-                return new OpenLibraryProvider(config, _httpClient);
-            
-            case ScraperType.TMDB:
-                return new TmdbProvider(config, _httpClient);
-            
-            case ScraperType.GoogleBooks:
-                return new GoogleBooksProvider(config, _httpClient);
-            
-            case ScraperType.ComicVine:
-                return new ComicVineProvider(config, _httpClient);
-            
-            default:
-                return null;
-        }
+            ScraperType.IGDB        => new IgdbProvider(config, _httpClient),
+            ScraperType.EmuMovies   => new EmuMoviesProvider(config, _httpClient),
+            ScraperType.OpenLibrary => new OpenLibraryProvider(config, _httpClient),
+            ScraperType.TMDB        => new TmdbProvider(config, _httpClient),
+            ScraperType.GoogleBooks => new GoogleBooksProvider(config, _httpClient),
+            ScraperType.ComicVine   => new ComicVineProvider(config, _httpClient),
+            _                       => null
+        };
     }
 
-    // Holt alle passenden Scraper für einen bestimmten Typ (z.B. nur Game-Scraper)
-    // Das ist nützlich für Dropdowns in der UI
+    /// <summary>
+    /// Retrieves all configured scraper profiles of a specific type.
+    /// Useful for populating UI selection lists (e.g., "Select a Game Scraper").
+    /// </summary>
     public List<ScraperConfig> GetConfigsForType(ScraperType type)
     {
-        return _settings.Scrapers.Where(s => s.Type == type).ToList();
+        return _settings.Scrapers
+            .Where(s => s.Type == type)
+            .ToList();
     }
 }

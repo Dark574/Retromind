@@ -1,70 +1,97 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Retromind.Services;
 
 /// <summary>
-/// Service to handle background music playback using an external player (ffplay).
-/// Supports formats like mp3, ogg, flac, wav, and sid (C64).
+/// Service responsible for handling background music playback using an external player (ffplay).
+/// Supports a wide range of formats including mp3, ogg, flac, wav, and chiptunes (sid, nsf).
 /// </summary>
 public class AudioService
 {
+    private const string PlayerExecutable = "ffplay";
+    
+    // Default volume (0-100). ffplay accepts values > 100 for amplification, but we stick to standard range.
+    private const int DefaultVolume = 70;
+
     private Process? _currentProcess;
     
-    // Lock object to ensure thread safety when starting/stopping processes
+    // Guard to prevent concurrent playback start/stop operations
     private readonly object _processLock = new();
 
-    private const string PlayerExecutable = "ffplay";
+    // Token source to cancel pending playback requests if the user switches tracks quickly
+    private CancellationTokenSource? _playbackCts;
 
     /// <summary>
     /// Stops currently playing music and starts playback of the specified file.
+    /// Handles rapid track switching gracefully.
     /// </summary>
     /// <param name="filePath">Full path to the audio file.</param>
     public async Task PlayMusicAsync(string filePath)
     {
-        // Stop existing music immediately on the calling thread to prevent overlap
-        StopMusic(); 
+        // 1. Cancel any pending playback task that hasn't started the process yet
+        lock (_processLock)
+        {
+            _playbackCts?.Cancel();
+            _playbackCts = new CancellationTokenSource();
+            
+            // Immediately stop current music to make UI feel responsive
+            StopMusicInternal();
+        }
 
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
-        // Run the process creation in a background task to keep UI responsive
+        var token = _playbackCts.Token;
+
+        // 2. Offload process creation to background thread
         await Task.Run(() =>
         {
+            if (token.IsCancellationRequested) return;
+
             lock (_processLock)
             {
-                // Double-check if stop was called in the meantime
-                StopMusicInternal(); 
+                // Double-check cancellation after acquiring lock
+                if (token.IsCancellationRequested) return;
+
+                // Ensure clean state again (paranoid check against race conditions)
+                StopMusicInternal();
 
                 try
                 {
-                    // ffplay arguments explanation:
-                    // -nodisp:     Disable graphical display (audio only).
-                    // -autoexit:   Close player when the track finishes.
-                    // -loop 0:     Loop infinitely.
-                    // -loglevel quiet: Suppress console output to improve performance.
-                    var args = $"-nodisp -autoexit -loop 0 -loglevel quiet \"{filePath}\"";
-
                     var startInfo = new ProcessStartInfo
                     {
                         FileName = PlayerExecutable,
-                        Arguments = args,
-                        RedirectStandardOutput = false, // Prevent deadlocks by not redirecting
-                        RedirectStandardError = false,
                         UseShellExecute = false,
-                        CreateNoWindow = true
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = false,
+                        RedirectStandardError = false
                     };
+
+                    // Construct arguments using the safer ArgumentList
+                    startInfo.ArgumentList.Add("-nodisp");       // No graphical window
+                    startInfo.ArgumentList.Add("-autoexit");     // Close when done
+                    startInfo.ArgumentList.Add("-loop");         // Loop count
+                    startInfo.ArgumentList.Add("0");             // 0 = infinite
+                    startInfo.ArgumentList.Add("-loglevel");     // Log level
+                    startInfo.ArgumentList.Add("quiet");         // Suppress output
+                    startInfo.ArgumentList.Add("-volume");       // Volume control
+                    startInfo.ArgumentList.Add(DefaultVolume.ToString()); 
+                    
+                    // The file path is added last
+                    startInfo.ArgumentList.Add(filePath);
 
                     _currentProcess = Process.Start(startInfo);
                 }
                 catch (Exception ex)
                 {
-                    // Use Debug.WriteLine so it appears in the IDE output window
-                    Debug.WriteLine($"[AudioService] Failed to start playback (is ffplay installed?): {ex.Message}");
+                    Debug.WriteLine($"[AudioService] Failed to start '{PlayerExecutable}': {ex.Message}");
+                    Debug.WriteLine("[AudioService] Ensure ffmpeg/ffplay is installed and in your PATH.");
                 }
             }
-        });
+        }, token);
     }
 
     /// <summary>
@@ -74,29 +101,35 @@ public class AudioService
     {
         lock (_processLock)
         {
+            _playbackCts?.Cancel(); // Cancel pending starts
             StopMusicInternal();
         }
     }
 
-    // Internal helper to avoid recursive locking issues if needed later,
-    // and to keep the logic DRY (Don't Repeat Yourself).
+    /// <summary>
+    /// Internal helper to kill the process. Must be called within a lock.
+    /// </summary>
     private void StopMusicInternal()
     {
-        if (_currentProcess != null && !_currentProcess.HasExited)
+        if (_currentProcess == null) return;
+
+        try
         {
-            try
+            if (!_currentProcess.HasExited)
             {
-                _currentProcess.Kill(); // Forcefully kill the player
-                _currentProcess.Dispose();
+                _currentProcess.Kill();
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[AudioService] Error stopping process: {ex.Message}");
-            }
-            finally
-            {
-                _currentProcess = null;
-            }
+        }
+        catch (Exception ex)
+        {
+            // Process might have exited between check and kill, or access denied.
+            // Usually safe to ignore during cleanup.
+            Debug.WriteLine($"[AudioService] Warning during stop: {ex.Message}");
+        }
+        finally
+        {
+            _currentProcess.Dispose();
+            _currentProcess = null;
         }
     }
 }

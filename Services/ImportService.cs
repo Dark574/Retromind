@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,43 +8,63 @@ using Retromind.Models;
 
 namespace Retromind.Services;
 
+/// <summary>
+/// Service responsible for scanning directories and importing media files.
+/// </summary>
 public class ImportService
 {
     /// <summary>
-    ///     Durchsucht einen Ordner rekursiv nach Dateien mit bestimmten Endungen
-    ///     und gibt eine Liste von MediaItems zurück.
+    /// Recursively scans a directory for files matching the specified extensions.
+    /// Handles inaccessible directories gracefully and optimizes for large file counts.
     /// </summary>
+    /// <param name="sourceFolder">The root directory path to scan.</param>
+    /// <param name="extensions">List of file extensions to include (e.g., ".iso", "rom").</param>
+    /// <returns>A list of created <see cref="MediaItem"/> objects.</returns>
     public async Task<List<MediaItem>> ImportFromFolderAsync(string sourceFolder, string[] extensions)
     {
         return await Task.Run(() =>
         {
             var results = new List<MediaItem>();
 
-            // Extensions normalisieren (müssen mit . beginnen für Path.GetExtension)
+            // Normalize extensions: ensure they start with '.' and use a case-insensitive HashSet for O(1) lookups.
+            // Using StringComparer.OrdinalIgnoreCase avoids allocating new strings via .ToLower() inside the loop.
             var validExtensions = extensions
-                .Select(e => e.Trim().ToLower())
+                .Select(e => e.Trim())
                 .Select(e => e.StartsWith(".") ? e : "." + e)
-                .ToHashSet();
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Configure enumeration to skip system folders or folders without permission
+            // instead of crashing or requiring a try-catch block inside the loop.
+            var enumOptions = new EnumerationOptions
+            {
+                IgnoreInaccessible = true,
+                RecurseSubdirectories = true,
+                // Optional: Optimize buffer size if needed, but default is usually fine.
+            };
 
             try
             {
-                var files = Directory.EnumerateFiles(sourceFolder, "*.*", SearchOption.AllDirectories);
+                // EnumerateFiles is lazy; it yields files as they are found.
+                var files = Directory.EnumerateFiles(sourceFolder, "*.*", enumOptions);
 
                 foreach (var file in files)
                 {
-                    var ext = Path.GetExtension(file).ToLower();
+                    // Performance Note: Path.GetExtension is efficient (span-based in newer .NET), 
+                    // and our HashSet handles the case-insensitivity without extra allocations.
+                    var ext = Path.GetExtension(file);
+
                     if (validExtensions.Contains(ext))
                     {
                         var title = Path.GetFileNameWithoutExtension(file);
 
-                        // Optional: Bereinigen des Titels (z.B. "(USA)", "[!]" entfernen)
-                        // title = CleanTitle(title);
+                        // TODO: Integrate regex cleanup logic here if needed.
+                        // Example: title = MediaSearchHelper.CleanTitle(title);
 
                         var item = new MediaItem
                         {
                             Title = title,
                             FilePath = file,
-                            MediaType = MediaType.Native // Default, wird im VM ggf. angepasst
+                            MediaType = MediaType.Native // Logic to determine specific emulator could be added here
                         };
 
                         results.Add(item);
@@ -52,7 +73,8 @@ public class ImportService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fehler beim Importieren: {ex.Message}");
+                // Log critical errors that stop the entire enumeration (e.g., sourceFolder not found)
+                Debug.WriteLine($"[ImportService] Error importing from '{sourceFolder}': {ex.Message}");
             }
 
             return results;

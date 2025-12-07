@@ -130,7 +130,6 @@ public partial class FileManagementService
     /// </summary>
     public string? FindExistingAsset(MediaItem item, List<string> nodePath, MediaFileType fileType)
     {
-        // Nutzen wir die neue Methode, um Code-Duplizierung zu vermeiden
         var assets = GetAvailableAssets(item, nodePath, fileType);
         return assets.FirstOrDefault();
     }
