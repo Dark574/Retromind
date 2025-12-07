@@ -405,4 +405,10 @@
   <data name="TimePlayedNever" xml:space="preserve">
     <value>Noch nicht gespielt</value>
   </data>
+  <data name="NewProfile" xml:space="preserve">
+    <value>Neues Profil</value>
+  </data>
+  <data name="NewScraper" xml:space="preserve">
+    <value>Neuer Scraper</value>
+  </data>
 </root>

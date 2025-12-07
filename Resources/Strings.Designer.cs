@@ -824,5 +824,17 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("TimePlayedNever", resourceCulture);
             }
         }
+        
+        public static string NewProfile {
+            get {
+                return ResourceManager.GetString("NewProfile", resourceCulture);
+            }
+        }
+        
+        public static string NewScraper {
+            get {
+                return ResourceManager.GetString("NewScraper", resourceCulture);
+            }
+        }
     }
 }

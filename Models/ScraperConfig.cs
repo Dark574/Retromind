@@ -1,64 +1,74 @@
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Retromind.Resources; 
 
 namespace Retromind.Models;
 
+/// <summary>
+/// Configuration profile for a metadata provider (Scraper).
+/// Stores credentials and preferences for services like TMDB, IGDB, etc.
+/// </summary>
 public partial class ScraperConfig : ObservableObject
 {
-    // Konstante für den Startwert
-    public const string DefaultName = "Neuer Scraper"; 
-
+    /// <summary>
+    /// Unique identifier for this profile.
+    /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
-    // --- NAME LOGIK START ---
-    private string _name = DefaultName;
-    private bool _isNameCustomized = false; // Das ist unser "Merkzettel"
+    // --- Name Logic (UX Magic) ---
+    // We automatically update the name based on the selected Type, 
+    // UNTIL the user manually edits the name. 
 
+    private string _name = Strings.NewScraper; // Localized default
+    private bool _isNameCustomized = false;
+
+    /// <summary>
+    /// Display name of the profile. 
+    /// Auto-updates based on Type unless manually customized.
+    /// </summary>
     public string Name
     {
         get => _name;
         set
         {
-            // Wenn der Wert vom UI (TextBox) kommt...
             if (SetProperty(ref _name, value))
             {
-                // ... markieren wir ihn als "Benutzerdefiniert"
+                // User manually typed something -> stop auto-updating
                 _isNameCustomized = true;
             }
         }
     }
-    // ÄNDERUNG: Standard ist jetzt "None" (Keine Auswahl)
+
+    [ObservableProperty] 
     private ScraperType _type = ScraperType.None;
 
-    public ScraperType Type
+    // Hook into the PropertyChanged event of the Type property
+    partial void OnTypeChanged(ScraperType value)
     {
-        get => _type;
-        set
+        // If the user hasn't customized the name yet, 
+        // auto-set it to the new type (e.g. "IGDB").
+        if (!_isNameCustomized)
         {
-            if (SetProperty(ref _type, value))
-            {
-                // ROBUSTE LOGIK:
-                // Wir ändern den Namen automatisch, wenn er noch NICHT vom Benutzer angepasst wurde.
-                if (!_isNameCustomized)
-                {
-                    // Wir setzen das Feld direkt (umgehen den Setter), 
-                    // damit _isNameCustomized NICHT auf true springt.
-                    _name = value.ToString();
-                    
-                    // Aber wir sagen der UI Bescheid!
-                    OnPropertyChanged(nameof(Name));
-                }
-            }
+            // Set field directly to bypass the "IsCustomized" logic in the setter
+            _name = value.ToString();
+            OnPropertyChanged(nameof(Name));
         }
     }
 
-    // ... Rest der Properties wie gehabt ...
+    // --- Credentials ---
+    // Note: Stored in plain text in settings.json. 
+    // Sufficient for local hobby usage, but not secure for enterprise environments.
+
     [ObservableProperty] private string? _apiKey;
     [ObservableProperty] private string? _username;
     [ObservableProperty] private string? _password;
     [ObservableProperty] private string? _clientId;
     [ObservableProperty] private string? _clientSecret;
-    [ObservableProperty] private string _language = "de-DE";
+    
+    /// <summary>
+    /// Preferred language for metadata (e.g. "de-DE", "en-US").
+    /// </summary>
+    [ObservableProperty] private string _language = "en-US";
 }
 
 public enum ScraperType

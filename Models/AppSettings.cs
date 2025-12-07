@@ -2,28 +2,49 @@ using System.Collections.Generic;
 
 namespace Retromind.Models;
 
+/// <summary>
+/// Represents the persistent application settings, serialized to JSON.
+/// Contains layout preferences, theme, last state, and configurations for emulators/scrapers.
+/// </summary>
 public class AppSettings
 {
-    // Standardwerte setzen
+    /// <summary>
+    /// Schema version for migration purposes.
+    /// </summary>
+    public int Version { get; set; } = 1;
+
+    // --- UI Layout ---
+
     public double TreeColumnWidth { get; set; } = 250;
-
     public double DetailColumnWidth { get; set; } = 300;
-
-    // aktueller eingestellter Zoom-Modus
+    
+    /// <summary>
+    /// Zoom level for the media grid tiles.
+    /// </summary>
     public double ItemWidth { get; set; } = 150;
+    public bool IsDarkTheme { get; set; } = false; 
 
-    // Theme Einstellung
-    public bool IsDarkTheme { get; set; } = false; // Standard: Light
+    // --- State Persistence ---
 
-    // ID des zuletzt gewählten Knotens
+    /// <summary>
+    /// ID of the last selected tree node (to restore selection on startup).
+    /// </summary>
     public string? LastSelectedNodeId { get; set; }
 
-    // ID des zuletzt gewählten Spiels (MediaItem)
+    /// <summary>
+    /// ID of the last selected media item.
+    /// </summary>
     public string? LastSelectedMediaId { get; set; }
 
-    // Liste der definierten Emulatoren
+    // --- Configurations ---
+
+    /// <summary>
+    /// List of configured emulator profiles.
+    /// </summary>
     public List<EmulatorConfig> Emulators { get; set; } = new();
     
-    // Liste der Scraper-Profile
+    /// <summary>
+    /// List of configured metadata scrapers (API keys, credentials).
+    /// </summary>
     public List<ScraperConfig> Scrapers { get; set; } = new();
 }

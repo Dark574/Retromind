@@ -178,7 +178,7 @@
     <value>Meta Data</value>
   </data>
   <data name="NewScraperDefaultName" xml:space="preserve">
-    <value>New source</value>
+    <value>New Source</value>
   </data>
   <data name="HintTmdbKey" xml:space="preserve">
     <value>(Optional: Leave blank for default key)</value>
@@ -413,5 +413,11 @@
   </data>
   <data name="TimePlayedNever" xml:space="preserve">
     <value>Never played</value>
+  </data>
+  <data name="NewProfile" xml:space="preserve">
+    <value>New Profile</value>
+  </data>
+  <data name="NewScraper" xml:space="preserve">
+    <value>New Scraper</value>
   </data>
 </root>
