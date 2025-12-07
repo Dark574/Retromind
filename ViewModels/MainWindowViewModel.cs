@@ -11,6 +11,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
@@ -33,7 +34,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly SettingsService _settingsService;
     private readonly MetadataService _metadataService; 
 
-    // Token Source für Abbruch alter Ladevorgänge
+    // Token Source for cancelling old content loading tasks
     private CancellationTokenSource? _updateContentCts;
     
     // --- State ---
@@ -229,8 +230,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private void UpdateContent()
     {
         _audioService.StopMusic();
-        
-        // Alten Task abbrechen, falls er noch läuft
+    
+        // Cancel old task if running
         _updateContentCts?.Cancel();
         _updateContentCts = new CancellationTokenSource();
         var token = _updateContentCts.Token;
@@ -247,69 +248,72 @@ public partial class MainWindowViewModel : ViewModelBase
         // Run the heavy collection logic in a background task
         Task.Run(async () => 
         {
-            // Wenn abgebrochen wurde, sofort raus
             if (token.IsCancellationRequested) return;
-            
-            // Collect items into a generic List<T>
+        
+            // 1. Collect Items (Heavy recursion)
             var itemList = new System.Collections.Generic.List<MediaItem>();
             CollectItemsRecursive(nodeToLoad, itemList); 
-    
-            // Prepare data for UI update
-            var allItems = new ObservableCollection<MediaItem>(itemList);
-
-            if (token.IsCancellationRequested) return;
             
-            // Create the display node (still on background thread)
-            var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
-            {
-                Id = nodeToLoad.Id,
-                Items = allItems
-            };
+            if (token.IsCancellationRequested) return;
 
-            // Background Randomization Logic (Covers/Music)
+            // 2. Randomization Logic (Covers/Music)
+            // PERFORMANCE: We do this on the local list BEFORE creating ObservableCollection or binding to UI.
+            // This avoids thousands of Dispatcher.Invoke calls.
+            
             bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);
-            if (IsRandomizeActive(nodeToLoad) || randomizeMusic)
+            bool randomizeCovers = IsRandomizeActive(nodeToLoad);
+            
+            if (randomizeCovers || randomizeMusic)
             {
-                // Wir holen uns den Node-Pfad einmal
+                // Get node path once
                 var nodePath = PathHelper.GetNodePath(nodeToLoad, RootItems);
-                
-                foreach (var item in allItems)
+            
+                foreach (var item in itemList)
                 {
                     if (token.IsCancellationRequested) return;
-                    
+                
                     // Covers Randomization
-                    if (IsRandomizeActive(nodeToLoad)) 
+                    if (randomizeCovers) 
                     {
-                        // Nutze FileService um ALLE validen Assets (Cover, Cover_01, etc.) aus dem Struktur-Ordner zu holen
                         var validCovers = _fileService.GetAvailableAssets(item, nodePath, MediaFileType.Cover);
-                            
                         var rndImg = RandomHelper.PickRandom(validCovers);
+                        
+                        // It is safe to modify 'item' here because it is not yet bound to the active UI in this context
+                        // (itemList is a local list, though MediaItem instances might be shared, 
+                        // but usually they are not displayed in DetailView while switching nodes)
                         if (rndImg != null && rndImg != item.CoverPath)
                         {
-                            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => item.CoverPath = rndImg);
+                            item.CoverPath = rndImg;
                         }
                     }
 
                     // Music Randomization
                     if (randomizeMusic)
                     {
-                        // Nutze FileService für Musik aus dem Ordner
                         var validMusic = _fileService.GetAvailableAssets(item, nodePath, MediaFileType.Music);
-                            
                         var rndAudio = RandomHelper.PickRandom(validMusic);
-            
+        
                         if (rndAudio != null && rndAudio != item.MusicPath)
                         {
-                            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => item.MusicPath = rndAudio);
+                            item.MusicPath = rndAudio;
                         }
                     }
                 }
             }
-            
+        
             if (token.IsCancellationRequested) return;
 
-            // Switch back to UI Thread to update the View
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            // 3. Prepare Display Data
+            var allItems = new ObservableCollection<MediaItem>(itemList);
+            
+            var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
+            {
+                Id = nodeToLoad.Id,
+                Items = allItems
+            };
+
+            // 4. Switch to UI Thread ONE TIME to update the View
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 // Guard Clause: If the user selected a different node while we were working, abort.
                 if (SelectedNode != nodeToLoad) return;
@@ -317,7 +321,12 @@ public partial class MainWindowViewModel : ViewModelBase
                 var mediaVm = new MediaAreaViewModel(displayNode, ItemWidth);
 
                 // Wire up events
-                mediaVm.RequestPlay += item => { PlayMedia(item); };
+                mediaVm.RequestPlay += item => 
+                { 
+                     // Fire and forget is acceptable here for UI event binding
+                     _ = PlayMediaAsync(item); 
+                };
+                
                 mediaVm.PropertyChanged += (sender, args) =>
                 {
                     // Persist Zoom
@@ -333,7 +342,7 @@ public partial class MainWindowViewModel : ViewModelBase
                         var item = mediaVm.SelectedMediaItem;
                         _currentSettings.LastSelectedMediaId = item?.Id;
                         SaveSettingsOnly();
-                                
+                            
                         // Play Music on selection
                         if (item != null && !string.IsNullOrEmpty(item.MusicPath))
                         {

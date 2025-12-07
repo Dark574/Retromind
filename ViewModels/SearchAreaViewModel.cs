@@ -5,11 +5,14 @@ using System.Linq;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
 
 namespace Retromind.ViewModels;
 
-// Hilfsklasse für die Checkboxen
+/// <summary>
+/// Helper wrapper for search scopes (checkboxes in the filter UI).
+/// </summary>
 public class SearchScope : ObservableObject
 {
     public MediaNode Node { get; }
@@ -27,89 +30,112 @@ public class SearchScope : ObservableObject
     }
 }
 
+/// <summary>
+/// ViewModel for the global search functionality.
+/// Searches across selected scopes (platforms/folders).
+/// </summary>
 public partial class SearchAreaViewModel : ViewModelBase
 {
+    private const double DefaultItemWidth = 150.0;
     private readonly IEnumerable<MediaNode> _rootNodes;
 
-    [ObservableProperty] private string _searchText = string.Empty;
-    [ObservableProperty] private string _searchYear = string.Empty;
-    [ObservableProperty] private double _itemWidth = 150;
+    [ObservableProperty] 
+    private string _searchText = string.Empty;
     
-    // Das Ergebnis der Suche
-    public ObservableCollection<MediaItem> SearchResults { get; } = new();
+    [ObservableProperty] 
+    private string _searchYear = string.Empty;
+    
+    [ObservableProperty] 
+    private double _itemWidth = DefaultItemWidth;
+    
+    // Result collection optimized for bulk updates
+    public RangeObservableCollection<MediaItem> SearchResults { get; } = new();
 
-    // Damit die Detailansicht rechts funktioniert
-    [ObservableProperty] private MediaItem? _selectedMediaItem;
+    // Required for the detail view on the right
+    [ObservableProperty] 
+    private MediaItem? _selectedMediaItem;
 
-    // Bereiche (Plattformen), die durchsucht werden sollen
+    // Filter scopes (platforms)
     public ObservableCollection<SearchScope> Scopes { get; } = new();
     
-    // Events / Commands
-    public event Action<MediaItem>? RequestPlay;
+    // Commands
     public ICommand PlayRandomCommand { get; }
     public ICommand SearchCommand { get; }
     public ICommand PlayCommand { get; } 
+    
+    public event Action<MediaItem>? RequestPlay;
 
     public SearchAreaViewModel(IEnumerable<MediaNode> rootNodes)
     {
         _rootNodes = rootNodes;
 
-        // Wir sammeln alle direkten Kinder aller Root-Nodes ein.
-        foreach (var root in _rootNodes)
-        {
-            // Falls der Root selbst Items hat, fügen wir ihn hinzu
-            // (Das ist eher selten, meist ist Root nur Container)
-            if (root.Items.Count > 0)
-            {
-                Scopes.Add(new SearchScope(root));
-            }
+        InitializeScopes();
 
-            // Füge alle Kinder (Filme, Spiele, etc.) hinzu
-            foreach (var child in root.Children)
-            {
-                Scopes.Add(new SearchScope(child));
-            }
-        }
-
-        // Initial einmal leer suchen (zeigt ggf. nichts oder alles an)
+        // Initial empty search (clear results)
         ExecuteSearch();
 
         PlayRandomCommand = new RelayCommand(PlayRandom);
         
-        // Command initialisieren
         PlayCommand = new RelayCommand<MediaItem>(item => 
         {
             if (item != null) RequestPlay?.Invoke(item);
         });
         
-        // SearchCommand wird z.B. beim Drücken von Enter oder Button getriggert
+        // Triggered by Button or Enter key
         SearchCommand = new RelayCommand(ExecuteSearch);
     }
     
-    // Wenn sich Filter ändern, können wir automatisch suchen oder warten (hier warten wir auf Enter/Button für Performance)
-    // Alternativ: partial void OnSearchTextChanged(string value) => ExecuteSearch(); 
-
-    private void ExecuteSearch()
+    private void InitializeScopes()
     {
-        SearchResults.Clear();
-        
-        // Welche Bereiche sind aktiv?
-        var activeScopes = Scopes.Where(s => s.IsSelected).Select(s => s.Node).ToList();
-        
-        // Wenn keine Filter gesetzt sind, zeigen wir nichts an (oder alles? Besser nichts bei globaler Suche)
-        if (string.IsNullOrWhiteSpace(SearchText) && string.IsNullOrWhiteSpace(SearchYear))
+        // Collect all direct children of root nodes as scopes
+        foreach (var root in _rootNodes)
         {
-            return; 
-        }
+            // If the root itself has items (rare, usually just a container), add it
+            if (root.Items.Count > 0)
+            {
+                Scopes.Add(new SearchScope(root));
+            }
 
-        foreach (var scope in activeScopes)
-        {
-            SearchRecursive(scope);
+            // Add all child groups (e.g. Consoles like "SNES", "Genesis")
+            foreach (var child in root.Children)
+            {
+                Scopes.Add(new SearchScope(child));
+            }
         }
     }
 
-    private void SearchRecursive(MediaNode node)
+    private void ExecuteSearch()
     {
+        // Which scopes are active?
+        var activeScopes = Scopes.Where(s => s.IsSelected).Select(s => s.Node).ToList();
+        
+        // If query is empty, clear results and return (don't show ALL items globally, too much)
+        if (string.IsNullOrWhiteSpace(SearchText) && string.IsNullOrWhiteSpace(SearchYear))
+        {
+            SearchResults.Clear();
+            return; 
+        }
+
+        var resultsBuffer = new List<MediaItem>();
+
+        foreach (var scope in activeScopes)
+        {
+            CollectMatchesRecursive(scope, resultsBuffer);
+        }
+        
+        // Update UI in one go
+        SearchResults.ReplaceAll(resultsBuffer);
+    }
+
+    private void CollectMatchesRecursive(MediaNode node, List<MediaItem> matches)
+    {
+        // Pre-parse year to avoid parsing for every item
+        int? filterYear = null;
+        if (!string.IsNullOrWhiteSpace(SearchYear) && int.TryParse(SearchYear, out int y))
+        {
+            filterYear = y;
+        }
+
         foreach (var item in node.Items)
         {
             bool match = true;
@@ -117,31 +143,34 @@ public partial class SearchAreaViewModel : ViewModelBase
             // 1. Text Filter
             if (!string.IsNullOrWhiteSpace(SearchText))
             {
-                if (!item.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                if (item.Title == null || !item.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
                     match = false;
             }
 
-            // 2. Jahr Filter
-            if (match && !string.IsNullOrWhiteSpace(SearchYear))
+            // 2. Year Filter
+            if (match && filterYear.HasValue)
             {
-                if (!int.TryParse(SearchYear, out int year) || item.ReleaseDate?.Year != year)
+                if (item.ReleaseDate?.Year != filterYear.Value)
                     match = false;
             }
 
-            if (match) SearchResults.Add(item);
+            if (match) matches.Add(item);
         }
 
         foreach (var child in node.Children)
         {
-            SearchRecursive(child);
+            CollectMatchesRecursive(child, matches);
         }
     }
 
     private void PlayRandom()
     {
         if (SearchResults.Count == 0) return;
-        var rnd = new Random();
-        var item = SearchResults[rnd.Next(SearchResults.Count)];
+        
+        // Use Shared Random
+        var index = Random.Shared.Next(SearchResults.Count);
+        var item = SearchResults[index];
+        
         SelectedMediaItem = item;
         RequestPlay?.Invoke(item);
     }

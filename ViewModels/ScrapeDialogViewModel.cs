@@ -1,8 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
-using System.Linq;
 using System.Threading.Tasks;
-using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Models;
@@ -10,44 +8,35 @@ using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
+/// <summary>
+/// ViewModel handling the manual scraping dialog for a single item.
+/// Allows the user to select a scraper service, enter a query, and pick a result.
+/// </summary>
 public partial class ScrapeDialogViewModel : ViewModelBase
 {
     private readonly MetadataService _metadataService;
     private readonly MediaItem _targetItem;
     private readonly AppSettings _settings;
 
-    [ObservableProperty] private string _searchQuery;
-    [ObservableProperty] private ScraperConfig? _selectedScraper;
-    [ObservableProperty] private bool _isSearching;
-    [ObservableProperty] private string _statusMessage = ""; // Für Fehler/Infos
-    // WICHTIG: NotifyCanExecuteChangedFor hinzufügen!
+    [ObservableProperty] 
+    private string _searchQuery = string.Empty;
+
+    [ObservableProperty] 
+    private ScraperConfig? _selectedScraper;
+
+    [ObservableProperty] 
+    private bool _isBusy;
+
+    [ObservableProperty] 
+    private string _statusMessage = "";
+
     [ObservableProperty] 
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand))]
     private ScraperSearchResult? _selectedResult;
     
-    public ScrapeDialogViewModel(MediaItem item, AppSettings settings, MetadataService metadataService)
-    {
-        _targetItem = item;
-        _settings = settings;
-        _metadataService = metadataService;
-
-        // Standard-Suchbegriff: Bereinigter Titel
-        SearchQuery = item.Title;
-
-        // Verfügbare Scraper laden
-        // Für Spiele nehmen wir IGDB, ScreenScraper etc. (Filtern nach Typ wäre hier gut, machen wir simple erstmal alle)
-        foreach (var s in _settings.Scrapers)
-        {
-            AvailableScrapers.Add(s);
-        }
-
-        if (AvailableScrapers.Count > 0) SelectedScraper = AvailableScrapers[0];
-
-        SearchCommand = new AsyncRelayCommand(SearchAsync);
-        ApplyCommand = new RelayCommand(Apply, () => SelectedResult != null);
-    }
-
     public ObservableCollection<ScraperConfig> AvailableScrapers { get; } = new();
+    
+    // We bind results directly. Ensure ScraperSearchResult has properties that the View can display (Title, Description, ImageUrl)
     public ObservableCollection<ScraperSearchResult> SearchResults { get; } = new();
     
     public IAsyncRelayCommand SearchCommand { get; }
@@ -55,44 +44,79 @@ public partial class ScrapeDialogViewModel : ViewModelBase
 
     public event Action<ScraperSearchResult>? OnResultSelected;
 
+    public ScrapeDialogViewModel(MediaItem item, AppSettings settings, MetadataService metadataService)
+    {
+        _targetItem = item ?? throw new ArgumentNullException(nameof(item));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _metadataService = metadataService ?? throw new ArgumentNullException(nameof(metadataService));
+
+        InitializeData();
+
+        SearchCommand = new AsyncRelayCommand(SearchAsync);
+        ApplyCommand = new RelayCommand(Apply, () => SelectedResult != null);
+    }
+
+    private void InitializeData()
+    {
+        // Default query is the cleaned title
+        SearchQuery = _targetItem.Title ?? string.Empty;
+
+        // Load available scrapers
+        // Future improvement: Filter by media type (Game, Movie, etc.) if ScraperConfig supports it
+        foreach (var s in _settings.Scrapers)
+        {
+            AvailableScrapers.Add(s);
+        }
+
+        if (AvailableScrapers.Count > 0) 
+        {
+            SelectedScraper = AvailableScrapers[0];
+        }
+    }
+
     private async Task SearchAsync()
     {
         if (SelectedScraper == null || string.IsNullOrWhiteSpace(SearchQuery)) return;
 
-        IsSearching = true;
+        IsBusy = true;
         SearchResults.Clear();
         SelectedResult = null;
-        StatusMessage = ""; // Reset
+        StatusMessage = string.Empty;
 
         var provider = _metadataService.GetProvider(SelectedScraper.Id);
         if (provider == null)
         {
-            StatusMessage = "Fehler: Dieser Dienst ist noch nicht implementiert.";
-            IsSearching = false;
+            StatusMessage = "Error: Service provider not found or not implemented.";
+            IsBusy = false;
             return;
         }
         
         try
         {
             var results = await provider.SearchAsync(SearchQuery);
+            
             if (results.Count == 0)
             {
-                StatusMessage = "Keine Treffer gefunden.";
+                StatusMessage = "No results found.";
             }
             else
             {
-                foreach (var res in results) SearchResults.Add(res);
+                foreach (var res in results) 
+                {
+                    SearchResults.Add(res);
+                }
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Fehler bei der Suche: {ex.Message}";
+            StatusMessage = $"Search failed: {ex.Message}";
         }
-        
-        IsSearching = false;
+        finally 
+        {
+            IsBusy = false;
+        }
     }
     
-    // Wird aufgerufen, wenn der User "Übernehmen" klickt
     private void Apply()
     {
         if (SelectedResult != null)

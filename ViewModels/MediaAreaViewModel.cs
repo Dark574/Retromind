@@ -1,60 +1,68 @@
 using System;
-using System.Collections.Generic; // Für List<T>
-using System.Collections.ObjectModel; // Für ObservableCollection
-using System.Linq; // Für LINQ (Where, ToList)
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
 
 namespace Retromind.ViewModels;
 
-// Erbt jetzt von ViewModelBase (oder ObservableObject), damit Bindings funktionieren
+/// <summary>
+/// ViewModel representing the main content area where media items are displayed as a grid/list.
+/// Handles filtering and user interaction (selection, playback).
+/// </summary>
 public partial class MediaAreaViewModel : ViewModelBase
 {
-    // Wir halten eine private Referenz auf ALLE Items, um filtern zu können
+    private const double DefaultItemWidth = 150.0;
+
+    // We keep a private reference to ALL items to support filtering without losing data.
     private readonly List<MediaItem> _allItems;
 
-    // Slider-Wert für die Kachelgröße (Standard 150)
-    [ObservableProperty] private double _itemWidth = 150;
+    // Slider value for the tile size
+    [ObservableProperty] 
+    private double _itemWidth = DefaultItemWidth;
 
-    [ObservableProperty] private MediaNode _node;
+    [ObservableProperty] 
+    private MediaNode _node;
 
-    // Das aktuell ausgewählte Spiel/Medium in der Liste
-    [ObservableProperty] private MediaItem? _selectedMediaItem;
+    // The currently selected media item in the list
+    [ObservableProperty] 
+    private MediaItem? _selectedMediaItem;
 
-    // Suchtext für den Filter
+    // Search query for filtering
     [ObservableProperty] 
     private string _searchText = string.Empty;
 
-    // Die gefilterte Liste, die tatsächlich angezeigt wird
-    public ObservableCollection<MediaItem> FilteredItems { get; } = new();
-
-    // Dieser Konstruktor wird aufgerufen!
+    // Optimized collection bound to the view
+    // Using RangeObservableCollection prevents UI freezes during bulk updates.
+    public RangeObservableCollection<MediaItem> FilteredItems { get; } = new();
+    
     public MediaAreaViewModel(MediaNode node, double initialItemWidth)
     {
         Node = node;
         ItemWidth = initialItemWidth;
 
-        // Wir kopieren die Items in eine separate Liste für die Filter-Logik
+        // Copy items to a separate list for filtering logic
         _allItems = new List<MediaItem>(node.Items);
         
-        // Initial alle anzeigen
-        ApplyFilter();
+        // Initial population
+        PopulateItems(_allItems);
 
-        // Command initialisieren
+        // Initialize Commands
         DoubleClickCommand = new RelayCommand(OnDoubleClick);
         PlayRandomCommand = new RelayCommand(PlayRandom);
     }
 
-    // Command, das von der View (Doppelklick) aufgerufen wird
     public ICommand DoubleClickCommand { get; }
     public ICommand PlayRandomCommand { get; }
 
-    // Event, um dem Parent (MainWindowViewModel) zu sagen: "Start das Ding!"
+    // Event to request playback from the parent coordinator (MainWindowViewModel)
     public event Action<MediaItem>? RequestPlay;
 
-    // Wird automatisch aufgerufen, wenn sich SearchText ändert (Dank MVVM Toolkit)
+    // Called automatically when SearchText changes
     partial void OnSearchTextChanged(string value)
     {
         ApplyFilter();
@@ -62,49 +70,53 @@ public partial class MediaAreaViewModel : ViewModelBase
 
     private void ApplyFilter()
     {
-        FilteredItems.Clear();
-
         if (string.IsNullOrWhiteSpace(SearchText))
         {
-            // Filter leer -> Alle anzeigen
-            foreach (var item in _allItems)
-            {
-                FilteredItems.Add(item);
-            }
+            // Filter is empty -> Show all
+            if (FilteredItems.Count == _allItems.Count) return;
+            
+            PopulateItems(_allItems);
         }
         else
         {
-            // Suchen (Case Insensitive)
+            // Search (Case Insensitive)
             var matches = _allItems
                 .Where(i => i.Title != null && i.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
 
-            foreach (var item in matches)
-            {
-                FilteredItems.Add(item);
-            }
+            PopulateItems(matches);
         }
+    }
+
+    /// <summary>
+    /// Repopulates the collection efficiently using RangeObservableCollection.
+    /// This triggers only ONE notification event for the UI, regardless of item count.
+    /// </summary>
+    private void PopulateItems(IEnumerable<MediaItem> items)
+    {
+        FilteredItems.ReplaceAll(items);
     }
 
     private void PlayRandom()
     {
-        // Wir wählen nur aus den SICHTBAREN (gefilterten) Items
+        // Select only from VISIBLE (filtered) items
         if (FilteredItems.Count == 0) return;
 
-        var rnd = new Random();
-        var index = rnd.Next(FilteredItems.Count);
+        // Use Shared Random for better performance/randomness distribution
+        var index = Random.Shared.Next(FilteredItems.Count);
         var randomItem = FilteredItems[index];
 
-        // Item auswählen (optisch)
+        // Visually select the item
         SelectedMediaItem = randomItem;
 
-        // Und starten
+        // Request playback
         RequestPlay?.Invoke(randomItem);
     }
 
     private void OnDoubleClick()
     {
         if (SelectedMediaItem != null)
-            // Feuere das Event -> MainWindowViewModel fängt das und startet den Launcher
+        {
             RequestPlay?.Invoke(SelectedMediaItem);
+        }
     }
 }

@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
@@ -19,11 +20,15 @@ public partial class MainWindowViewModel
 {
     // --- Import Actions ---
 
-    private async void ImportRomsAsync(MediaNode? targetNode)
+    private async Task ImportRomsAsync(MediaNode? targetNode)
     {
+        // Resolve target node
         if (targetNode == null) targetNode = SelectedNode;
         if (targetNode == null || CurrentWindow is not { } owner) return;
-        if (SelectedNode != null && targetNode.Id == SelectedNode.Id && targetNode != SelectedNode) targetNode = SelectedNode;
+        
+        // If the context menu was opened on a node that is ALSO the selected node, use the object reference to be safe
+        if (SelectedNode != null && targetNode.Id == SelectedNode.Id && targetNode != SelectedNode) 
+            targetNode = SelectedNode;
 
         var storageProvider = StorageProvider ?? owner.StorageProvider;
         var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
@@ -40,31 +45,39 @@ public partial class MainWindowViewModel
         if (string.IsNullOrWhiteSpace(extensionsStr)) return;
 
         var extensions = extensionsStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        
+        // Run heavy import logic
         var importedItems = await _importService.ImportFromFolderAsync(sourcePath, extensions);
 
         if (importedItems.Any())
         {
             foreach (var item in importedItems)
             {
+                // Duplicate Check based on FilePath
                 if (!targetNode.Items.Any(i => i.FilePath == item.FilePath))
                 {
                     var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
                 
-                    // Auto-assign existing assets
+                    // Auto-assign existing assets found in the structure
                     var existingCover = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Cover);
                     if (existingCover != null) item.CoverPath = existingCover;
+                    
                     var existingLogo = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Logo);
                     if (existingLogo != null) item.LogoPath = existingLogo;
+                    
                     targetNode.Items.Add(item);
                 }
             }
+            
             SortMediaItems(targetNode.Items);
             await SaveData();
+            
+            // Refresh view if we imported into the currently visible node
             if (IsNodeInCurrentView(targetNode)) UpdateContent();
         }
     }
     
-    private async void ImportSteamAsync(MediaNode? targetNode)
+    private async Task ImportSteamAsync(MediaNode? targetNode)
     {
         if (targetNode == null) targetNode = SelectedNode;
         if (targetNode == null || CurrentWindow is not { } owner) return;
@@ -88,7 +101,7 @@ public partial class MainWindowViewModel
         }
     }
 
-    private async void ImportGogAsync(MediaNode? targetNode)
+    private async Task ImportGogAsync(MediaNode? targetNode)
     {
         if (targetNode == null) targetNode = SelectedNode;
         if (targetNode == null || CurrentWindow is not { } owner) return;
@@ -115,14 +128,20 @@ public partial class MainWindowViewModel
 
     // --- Media & Scraping Actions ---
 
-    private async void AddMediaAsync(MediaNode? node)
+    private async Task AddMediaAsync(MediaNode? node)
     {
         var targetNode = node ?? SelectedNode;
-        if (SelectedNode != null && targetNode != null && targetNode.Id == SelectedNode.Id && targetNode != SelectedNode) targetNode = SelectedNode;
+        if (SelectedNode != null && targetNode != null && targetNode.Id == SelectedNode.Id && targetNode != SelectedNode) 
+            targetNode = SelectedNode;
+            
         if (targetNode == null || CurrentWindow is not { } owner) return;
 
         var storageProvider = StorageProvider ?? owner.StorageProvider;
-        var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = Strings.Ctx_Media_Add, AllowMultiple = true });
+        var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions 
+        { 
+            Title = Strings.Ctx_Media_Add, 
+            AllowMultiple = true 
+        });
 
         if (result != null && result.Count > 0)
         {
@@ -134,6 +153,7 @@ public partial class MainWindowViewModel
 
                 var newItem = new MediaItem { Title = title, FilePath = file.Path.LocalPath, MediaType = MediaType.Native };
                 targetNode.Items.Add(newItem); 
+                
                 var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
                 var existingCover = _fileService.FindExistingAsset(newItem, nodePath, MediaFileType.Cover);
                 if (existingCover != null) newItem.CoverPath = existingCover;
@@ -144,29 +164,44 @@ public partial class MainWindowViewModel
         }
     }
 
-    private async void EditMediaAsync(MediaItem? item)
+    private async Task EditMediaAsync(MediaItem? item)
     {
         if (item == null || CurrentWindow is not { } owner) return;
+        
         var inherited = FindInheritedEmulator(item);
         
-        // Finde den Parent-Node, um den Pfad für den FileService zu bauen
+        // Find parent node to build the correct path for the FileService (organization)
         var parentNode = FindParentNode(RootItems, item);
         var nodePath = parentNode != null 
             ? PathHelper.GetNodePath(parentNode, RootItems) 
             : new List<string>();
 
-        // Übergebe FileService und NodePath
+        // Inject FileService and NodePath
         var editVm = new EditMediaViewModel(item, _currentSettings, _fileService, nodePath, inherited) 
         { 
             StorageProvider = StorageProvider ?? owner.StorageProvider 
         };
         
         var dialog = new EditMediaView { DataContext = editVm };
-        editVm.RequestClose += saved => { dialog.Close(saved); };
-        if (await dialog.ShowDialog<bool>(owner)) await SaveData();
+        
+        bool saved = false;
+        editVm.RequestClose += (isSaved) => 
+        { 
+            saved = isSaved; 
+            dialog.Close(isSaved); 
+        };
+        
+        await dialog.ShowDialog(owner);
+        
+        if (saved) 
+        {
+            await SaveData();
+            // Refresh content might be needed if sort order changed (title change)
+            if (parentNode != null && IsNodeInCurrentView(parentNode)) UpdateContent();
+        }
     }
 
-    private async void SetMusicAsync(MediaItem? item) 
+    private async Task SetMusicAsync(MediaItem? item) 
     {
         if (item == null || CurrentWindow is not { } owner) return;
         if (SelectedNode == null) return;
@@ -184,28 +219,32 @@ public partial class MainWindowViewModel
             _audioService.StopMusic();
             var sourceFile = result[0].Path.LocalPath;
             var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
+            
+            // Import logic (copy/move)
             var relativePath = _fileService.ImportAsset(sourceFile, item, nodePath, MediaFileType.Music);
 
             if (!string.IsNullOrEmpty(relativePath))
             {
-                item.MusicPath = null;
                 item.MusicPath = relativePath;
                 var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
+                
+                // Fire & Forget play
                 _ = _audioService.PlayMusicAsync(fullPath);
                 await SaveData();
             }
         }
     }
 
-    private async void ScrapeMediaAsync(MediaItem? item)
+    private async Task ScrapeMediaAsync(MediaItem? item)
     {
         if (item == null || CurrentWindow is not { } owner) return;
         if (SelectedNode == null) return; 
     
         var vm = new ScrapeDialogViewModel(item, _currentSettings, _metadataService);
+        
         vm.OnResultSelected += async (result) => 
         {
-            // Simple Conflict Resolution
+            // Simple Conflict Resolution with User Confirmation
             bool updateDesc = true;
             if (!string.IsNullOrWhiteSpace(item.Description) && !string.IsNullOrWhiteSpace(result.Description) && item.Description != result.Description)
             {
@@ -236,10 +275,16 @@ public partial class MainWindowViewModel
             if (string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre)) item.Genre = result.Genre;
     
             var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
-            if (!string.IsNullOrEmpty(result.CoverUrl)) await DownloadAndSetAsset(result.CoverUrl, item, nodePath, MediaFileType.Cover, true);
-            if (!string.IsNullOrEmpty(result.WallpaperUrl)) await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, MediaFileType.Wallpaper, true);
+            
+            if (!string.IsNullOrEmpty(result.CoverUrl)) 
+                await DownloadAndSetAsset(result.CoverUrl, item, nodePath, MediaFileType.Cover, true);
+                
+            if (!string.IsNullOrEmpty(result.WallpaperUrl)) 
+                await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, MediaFileType.Wallpaper, true);
 
             await SaveData();
+            
+            // Close dialog manually if needed (finding window by DataContext)
             if (owner.OwnedWindows.FirstOrDefault(w => w.DataContext == vm) is Window dlg) dlg.Close();
         };
 
@@ -247,7 +292,7 @@ public partial class MainWindowViewModel
         await dialog.ShowDialog(owner);
     }
 
-    private async void ScrapeNodeAsync(MediaNode? node)
+    private async Task ScrapeNodeAsync(MediaNode? node)
     {
         if (SelectedNode != null && node != null && node.Id == SelectedNode.Id && node != SelectedNode) node = SelectedNode;
         if (node == null) node = SelectedNode;
@@ -260,7 +305,7 @@ public partial class MainWindowViewModel
             if (parent == null) return;
             var nodePath = PathHelper.GetNodePath(parent, RootItems);
     
-            // Bulk Strategy: Only fill missing data (Safe Mode)
+            // Bulk Strategy: Only fill missing data (Safe Mode) to avoid overwriting user edits
             if (string.IsNullOrWhiteSpace(item.Description) && !string.IsNullOrWhiteSpace(result.Description)) item.Description = result.Description;
             if (string.IsNullOrWhiteSpace(item.Developer) && !string.IsNullOrWhiteSpace(result.Developer)) item.Developer = result.Developer;
             if (string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre)) item.Genre = result.Genre;
@@ -296,18 +341,25 @@ public partial class MainWindowViewModel
             File.Move(tempFile, tempPathWithExt);
 
             bool success = false;
-            if (await AsyncImageHelper.SaveCachedImageAsync(url, tempPathWithExt)) success = true;
+            if (await AsyncImageHelper.SaveCachedImageAsync(url, tempPathWithExt)) 
+            {
+                success = true;
+            }
             else
             {
                 try
                 {
                     using var client = new HttpClient();
+                    // Important: User-Agent needed for some CDNs
                     client.DefaultRequestHeaders.Add("User-Agent", "Retromind/1.0");
                     var data = await client.GetByteArrayAsync(url);
                     await File.WriteAllBytesAsync(tempPathWithExt, data);
                     success = true;
                 }
-                catch (Exception ex) { Debug.WriteLine($"Download Failed: {ex.Message}"); }
+                catch (Exception ex) 
+                { 
+                    Debug.WriteLine($"Download Failed: {ex.Message}"); 
+                }
             }
 
             if (success)
@@ -322,15 +374,21 @@ public partial class MainWindowViewModel
             }
             if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
         }
-        catch (Exception ex) { Debug.WriteLine($"Critical Download Error: {ex.Message}"); }
+        catch (Exception ex) 
+        { 
+            Debug.WriteLine($"Critical Download Error: {ex.Message}"); 
+        }
     }
 
     private void OpenIntegratedSearch()
     {
         _selectedNode = null;
+        // Force refresh of selection
         OnPropertyChanged(nameof(SelectedNode));
+        
         var searchVm = new SearchAreaViewModel(RootItems) { ItemWidth = ItemWidth };
-        searchVm.RequestPlay += item => { PlayMedia(item); };
+        searchVm.RequestPlay += item => { PlayMediaAsync(item); }; // Now using Async method
+        
         searchVm.PropertyChanged += (s, e) => 
         {
             if (e.PropertyName == nameof(SearchAreaViewModel.SelectedMediaItem))
@@ -338,16 +396,17 @@ public partial class MainWindowViewModel
                  var item = searchVm.SelectedMediaItem;
                  if (item != null && !string.IsNullOrEmpty(item.MusicPath))
                      _ = _audioService.PlayMusicAsync(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath));
-                 else _audioService.StopMusic();
+                 else 
+                     _audioService.StopMusic();
             }
         };
         SelectedNodeContent = searchVm;
     }
 
     // Wrappers for Assets
-    private async void SetCoverAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Cover, MediaFileType.Cover, (i, p) => i.CoverPath = p);
-    private async void SetLogoAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Logo, MediaFileType.Logo, (i, p) => i.LogoPath = p);
-    private async void SetWallpaperAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Wallpaper, MediaFileType.Wallpaper, (i, p) => i.WallpaperPath = p);
+    private async Task SetCoverAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Cover, MediaFileType.Cover, (i, p) => i.CoverPath = p);
+    private async Task SetLogoAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Logo, MediaFileType.Logo, (i, p) => i.LogoPath = p);
+    private async Task SetWallpaperAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Wallpaper, MediaFileType.Wallpaper, (i, p) => i.WallpaperPath = p);
 
     private EmulatorConfig? FindInheritedEmulator(MediaItem item)
     {
@@ -363,6 +422,7 @@ public partial class MainWindowViewModel
 
     private async Task RescanAllAssetsAsync()
     {
+        // Offload recursion to background thread
         await Task.Run(async () => 
         { 
             foreach (var rootNode in RootItems) 
@@ -376,12 +436,12 @@ public partial class MainWindowViewModel
     {
         var nodePath = PathHelper.GetNodePath(node, RootItems);
         
-        // Wir sammeln Änderungen, anstatt sie direkt zu setzen
+        // Collect updates locally to avoid dispatching per item property
         var updates = new List<(MediaItem Item, string Property, string Value)>();
         
         foreach (var item in node.Items)
         {
-            // Checks laufen im Hintergrund (billig)
+            // Checks happen in background (File IO)
             if (string.IsNullOrEmpty(item.CoverPath)) 
             { 
                 var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Cover); 
@@ -404,10 +464,10 @@ public partial class MainWindowViewModel
             }
         }
         
-        // Änderungen auf dem UI Thread anwenden
+        // Apply UI updates in one batch per node
         if (updates.Any())
         {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 foreach (var update in updates)
                 {
@@ -419,18 +479,34 @@ public partial class MainWindowViewModel
             });
         }
         
-        foreach (var child in node.Children) await RescanNodeRecursive(child);
+        // Recurse down
+        foreach (var child in node.Children) 
+        {
+            await RescanNodeRecursive(child);
+        }
     }
     
     private async Task SetAssetAsync(MediaItem? item, string title, MediaFileType type, Action<MediaItem, string> updateAction)
     {
         if (item == null || CurrentWindow is not { } owner) return;
         if (SelectedNode == null) return;
-        var result = await (StorageProvider ?? owner.StorageProvider).OpenFilePickerAsync(new FilePickerOpenOptions { Title = title, AllowMultiple = false, FileTypeFilter = new[] { FilePickerFileTypes.ImageAll } });
+        
+        var result = await (StorageProvider ?? owner.StorageProvider).OpenFilePickerAsync(new FilePickerOpenOptions 
+        { 
+            Title = title, 
+            AllowMultiple = false, 
+            FileTypeFilter = new[] { FilePickerFileTypes.ImageAll } 
+        });
+        
         if (result != null && result.Count == 1)
         {
             var relPath = _fileService.ImportAsset(result[0].Path.LocalPath, item, PathHelper.GetNodePath(SelectedNode, RootItems), type);
-            if (!string.IsNullOrEmpty(relPath)) { updateAction(item, null!); updateAction(item, relPath); await SaveData(); }
+            if (!string.IsNullOrEmpty(relPath)) 
+            { 
+                updateAction(item, null!); // Clear first? Sometimes helpful for notifying UI
+                updateAction(item, relPath); 
+                await SaveData(); 
+            }
         }
     }
 }

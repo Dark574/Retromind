@@ -4,65 +4,101 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Models;
+using Retromind.Resources; // Assuming Strings resource exists
 
 namespace Retromind.ViewModels;
 
+/// <summary>
+/// ViewModel for configuring a MediaNode (Folder/Group).
+/// Allows changing the name, default emulator, and display options.
+/// </summary>
 public partial class NodeSettingsViewModel : ViewModelBase
 {
     private readonly MediaNode _node;
     private readonly AppSettings _settings;
 
-    // Durch [ObservableProperty] werden automatisch die öffentlichen Properties generiert:
-    // _name -> Name
-    // _randomizeCovers -> RandomizeCovers
-    // _selectedEmulator -> SelectedEmulator
+    [ObservableProperty] 
+    private string _name = string.Empty;
+
+    [ObservableProperty] 
+    private bool? _randomizeCovers;
     
-    [ObservableProperty] private string _name;
-    [ObservableProperty] private bool? _randomizeCovers;
-    [ObservableProperty] private bool? _randomizeMusic;
-    [ObservableProperty] private EmulatorConfig? _selectedEmulator;
+    [ObservableProperty] 
+    private bool? _randomizeMusic;
+
+    [ObservableProperty] 
+    private EmulatorConfig? _selectedEmulator;
 
     public ObservableCollection<EmulatorConfig> AvailableEmulators { get; } = new();
 
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
+    
+    // Event to signal the view to close (true = saved, false = cancelled)
     public event Action<bool>? RequestClose;
 
     public NodeSettingsViewModel(MediaNode node, AppSettings settings)
     {
-        _node = node;
-        _settings = settings;
+        _node = node ?? throw new ArgumentNullException(nameof(node));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
-        // Initialwerte laden
-        _name = node.Name;
-        _randomizeCovers = node.RandomizeCovers;
-        _randomizeMusic = node.RandomizeMusic;
-
-        // Emulatoren laden
-        AvailableEmulators.Add(new EmulatorConfig { Name = "Kein Standard (Vererbt)", Id = null! });
-        foreach (var emu in _settings.Emulators) AvailableEmulators.Add(emu);
-
-        // Selektierten Emulator wiederherstellen
-        if (!string.IsNullOrEmpty(node.DefaultEmulatorId))
-            _selectedEmulator = _settings.Emulators.FirstOrDefault(e => e.Id == node.DefaultEmulatorId);
-        
-        if (_selectedEmulator == null) _selectedEmulator = AvailableEmulators[0];
+        InitializeData();
+        InitializeEmulators();
 
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
     }
 
+    private void InitializeData()
+    {
+        Name = _node.Name;
+        RandomizeCovers = _node.RandomizeCovers;
+        RandomizeMusic = _node.RandomizeMusic;
+    }
+
+    private void InitializeEmulators()
+    {
+        // Add a "None / Inherited" option
+        // Ideally, move "No Default" string to resources
+        AvailableEmulators.Add(new EmulatorConfig { Name = "No Default (Inherit)", Id = null! });
+        
+        foreach (var emu in _settings.Emulators) 
+        {
+            AvailableEmulators.Add(emu);
+        }
+
+        // Restore selection
+        if (!string.IsNullOrEmpty(_node.DefaultEmulatorId))
+        {
+            SelectedEmulator = AvailableEmulators.FirstOrDefault(e => e.Id == _node.DefaultEmulatorId);
+        }
+        
+        // Fallback to "None" if nothing selected or ID not found
+        if (SelectedEmulator == null && AvailableEmulators.Count > 0) 
+        {
+            SelectedEmulator = AvailableEmulators[0];
+        }
+    }
+
     private void Save()
     {
-        // Werte zurück in den Node schreiben
+        // Validation could go here (e.g. check if Name is empty)
+        if (string.IsNullOrWhiteSpace(Name)) return;
+
+        // Apply changes to the node
         _node.Name = Name;
         _node.RandomizeCovers = RandomizeCovers;
         _node.RandomizeMusic = RandomizeMusic;
         
+        // Emulator logic: If ID is null (our dummy item), set node property to null
         if (SelectedEmulator != null && SelectedEmulator.Id != null)
+        {
             _node.DefaultEmulatorId = SelectedEmulator.Id;
+        }
         else
+        {
             _node.DefaultEmulatorId = null;
+        }
 
         RequestClose?.Invoke(true);
     }

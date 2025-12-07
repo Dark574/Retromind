@@ -89,7 +89,7 @@
             </ScrollViewer>
 
             <!-- Loading Overlay -->
-            <Border Grid.Column="0" Grid.ColumnSpan="3" Background="#80000000" IsVisible="{Binding IsSearching}">
+            <Border Grid.Column="0" Grid.ColumnSpan="3" Background="#80000000" IsVisible="{Binding IsBusy}">
                 <TextBlock Text="{x:Static p:Strings.Metadata_Search_InProgress}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="White" FontSize="20"/>
             </Border>
         </Grid>

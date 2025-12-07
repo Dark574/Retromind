@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -16,132 +17,210 @@ namespace Retromind.ViewModels;
 public partial class MainWindowViewModel
 {
     // --- Commands ---
-    public ICommand AddCategoryCommand { get; private set; } = null!;
-    public ICommand AddMediaCommand { get; private set; } = null!;
-    public ICommand DeleteCommand { get; private set; } = null!;
-    public ICommand SetCoverCommand { get; private set; } = null!;
-    public ICommand SetLogoCommand { get; private set; } = null!;
-    public ICommand SetWallpaperCommand { get; private set; } = null!;
-    public ICommand SetMusicCommand { get; private set; } = null!;
-    public ICommand EditMediaCommand { get; private set; } = null!;
-    public ICommand DeleteMediaCommand { get; private set; } = null!;
-    public ICommand PlayCommand { get; private set; } = null!;
-    public ICommand OpenSettingsCommand { get; private set; } = null!;
-    public ICommand EditNodeCommand { get; private set; } = null!;
-    public ICommand ToggleThemeCommand { get; private set; } = null!;
-    public ICommand ImportRomsCommand { get; private set; } = null!;
-    public ICommand ImportSteamCommand { get; private set; } = null!;
-    public ICommand ImportGogCommand { get; private set; } = null!;
-    public ICommand ScrapeMediaCommand { get; private set; } = null!;
-    public ICommand ScrapeNodeCommand { get; private set; } = null!;
-    public ICommand OpenSearchCommand { get; private set; } = null!;
+    // Using IAsyncRelayCommand allows the UI to bind to IsRunning properties if needed
+    public IAsyncRelayCommand<MediaNode?> AddCategoryCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> AddMediaCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> DeleteCommand { get; private set; } = null!;
+    
+    public IAsyncRelayCommand<MediaItem?> SetCoverCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> SetLogoCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> SetWallpaperCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> SetMusicCommand { get; private set; } = null!;
+    
+    public IAsyncRelayCommand<MediaItem?> EditMediaCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> DeleteMediaCommand { get; private set; } = null!;
+    
+    // PlayCommand is special, it fires and forgets mostly, but async is better for UI responsiveness
+    public IAsyncRelayCommand<MediaItem?> PlayCommand { get; private set; } = null!;
+    
+    public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> EditNodeCommand { get; private set; } = null!;
+    public IRelayCommand ToggleThemeCommand { get; private set; } = null!; // Sync is fine here
+    
+    public IAsyncRelayCommand<MediaNode?> ImportRomsCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> ImportSteamCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> ImportGogCommand { get; private set; } = null!;
+    
+    public IAsyncRelayCommand<MediaItem?> ScrapeMediaCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> ScrapeNodeCommand { get; private set; } = null!;
+    public IRelayCommand OpenSearchCommand { get; private set; } = null!;
 
     private void InitializeCommands()
     {
-        AddCategoryCommand = new RelayCommand<MediaNode?>(AddCategoryAsync);
-        AddMediaCommand = new RelayCommand<MediaNode?>(AddMediaAsync);
-        DeleteCommand = new RelayCommand<MediaNode?>(DeleteNodeAsync);
-        SetCoverCommand = new RelayCommand<MediaItem?>(SetCoverAsync);
-        SetLogoCommand = new RelayCommand<MediaItem?>(SetLogoAsync);
-        SetWallpaperCommand = new RelayCommand<MediaItem?>(SetWallpaperAsync);
-        SetMusicCommand = new RelayCommand<MediaItem?>(SetMusicAsync);
-        EditMediaCommand = new RelayCommand<MediaItem?>(EditMediaAsync);
-        DeleteMediaCommand = new RelayCommand<MediaItem?>(DeleteMediaAsync);
-        PlayCommand = new RelayCommand<MediaItem?>(PlayMedia);
-        OpenSettingsCommand = new RelayCommand(OpenSettingsAsync);
-        EditNodeCommand = new RelayCommand<MediaNode?>(EditNodeAsync);
+        // Replaced RelayCommand with AsyncRelayCommand to handle Tasks properly
+        // and avoid "async void" pitfalls.
+        
+        AddCategoryCommand = new AsyncRelayCommand<MediaNode?>(AddCategoryAsync);
+        AddMediaCommand = new AsyncRelayCommand<MediaNode?>(AddMediaAsync);
+        DeleteCommand = new AsyncRelayCommand<MediaNode?>(DeleteNodeAsync);
+        
+        SetCoverCommand = new AsyncRelayCommand<MediaItem?>(SetCoverAsync);
+        SetLogoCommand = new AsyncRelayCommand<MediaItem?>(SetLogoAsync);
+        SetWallpaperCommand = new AsyncRelayCommand<MediaItem?>(SetWallpaperAsync);
+        SetMusicCommand = new AsyncRelayCommand<MediaItem?>(SetMusicAsync);
+        
+        EditMediaCommand = new AsyncRelayCommand<MediaItem?>(EditMediaAsync);
+        DeleteMediaCommand = new AsyncRelayCommand<MediaItem?>(DeleteMediaAsync);
+        PlayCommand = new AsyncRelayCommand<MediaItem?>(PlayMediaAsync);
+        
+        OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
+        EditNodeCommand = new AsyncRelayCommand<MediaNode?>(EditNodeAsync);
+        
         ToggleThemeCommand = new RelayCommand(() => IsDarkTheme = !IsDarkTheme);
-        ImportRomsCommand = new RelayCommand<MediaNode?>(ImportRomsAsync);
-        ImportSteamCommand = new RelayCommand<MediaNode?>(ImportSteamAsync);
-        ImportGogCommand = new RelayCommand<MediaNode?>(ImportGogAsync);
-        ScrapeMediaCommand = new RelayCommand<MediaItem?>(ScrapeMediaAsync);
-        ScrapeNodeCommand = new RelayCommand<MediaNode?>(ScrapeNodeAsync);
+        
+        ImportRomsCommand = new AsyncRelayCommand<MediaNode?>(ImportRomsAsync);
+        ImportSteamCommand = new AsyncRelayCommand<MediaNode?>(ImportSteamAsync);
+        ImportGogCommand = new AsyncRelayCommand<MediaNode?>(ImportGogAsync);
+        
+        ScrapeMediaCommand = new AsyncRelayCommand<MediaItem?>(ScrapeMediaAsync);
+        ScrapeNodeCommand = new AsyncRelayCommand<MediaNode?>(ScrapeNodeAsync);
         OpenSearchCommand = new RelayCommand(OpenIntegratedSearch);
     }
 
     // --- Basic Actions ---
 
-    private async void AddCategoryAsync(MediaNode? parentNode)
+    private async Task AddCategoryAsync(MediaNode? parentNode)
     {
         if (CurrentWindow is not { } owner) return;
-        var name = await PromptForName(owner, Strings.Dialog_EnterName_Message);
-        if (!string.IsNullOrWhiteSpace(name))
+        
+        try 
         {
-            if (parentNode == null) RootItems.Add(new MediaNode(name, NodeType.Area));
-            else
+            var name = await PromptForName(owner, Strings.Dialog_EnterName_Message);
+            if (!string.IsNullOrWhiteSpace(name))
             {
-                parentNode.Children.Add(new MediaNode(name, NodeType.Group));
-                parentNode.IsExpanded = true; 
+                if (parentNode == null) 
+                {
+                    RootItems.Add(new MediaNode(name, NodeType.Area));
+                }
+                else
+                {
+                    parentNode.Children.Add(new MediaNode(name, NodeType.Group));
+                    parentNode.IsExpanded = true; 
+                }
+                await SaveData();
             }
-            await SaveData();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Error] AddCategory failed: {ex.Message}");
+            // Ideally: Show User Notification
         }
     }
 
-    private async void DeleteNodeAsync(MediaNode? nodeToDelete)
+    private async Task DeleteNodeAsync(MediaNode? nodeToDelete)
     {
         if (nodeToDelete == null || CurrentWindow is not { } owner) return;
-        if (!await ShowConfirmDialog(owner, Strings.Dialog_MsgConfirmDelete)) return;
+        
+        try
+        {
+            if (!await ShowConfirmDialog(owner, Strings.Dialog_MsgConfirmDelete)) return;
 
-        if (RootItems.Contains(nodeToDelete)) RootItems.Remove(nodeToDelete);
-        else RemoveNodeRecursive(RootItems, nodeToDelete);
-        await SaveData();
+            if (RootItems.Contains(nodeToDelete)) 
+            {
+                RootItems.Remove(nodeToDelete);
+            }
+            else 
+            {
+                RemoveNodeRecursive(RootItems, nodeToDelete);
+            }
+            await SaveData();
+        }
+        catch (Exception ex)
+        {
+             Debug.WriteLine($"[Error] DeleteNode failed: {ex.Message}");
+        }
     }
 
-    private async void EditNodeAsync(MediaNode? node)
+    private async Task EditNodeAsync(MediaNode? node)
     {
         if (node == null || CurrentWindow is not { } owner) return;
+        
         var vm = new NodeSettingsViewModel(node, _currentSettings);
         var dialog = new NodeSettingsView { DataContext = vm };
-        vm.RequestClose += saved => { dialog.Close(); };
+        
+        vm.RequestClose += _ => { dialog.Close(); };
+        
         await dialog.ShowDialog(owner);
         await SaveData();
     }
 
-    private async void PlayMedia(MediaItem? item)
+    private async Task PlayMediaAsync(MediaItem? item)
     {
         if (item == null || SelectedNode == null) return;
+        
+        // Stop music immediately for responsiveness
         _audioService.StopMusic();
 
-        EmulatorConfig? emulator = null;
-        if (!string.IsNullOrEmpty(item.EmulatorId))
-            emulator = _currentSettings.Emulators.FirstOrDefault(e => e.Id == item.EmulatorId);
-
-        var trueParent = FindParentNode(RootItems, item) ?? SelectedNode;
-        var nodePath = PathHelper.GetNodePath(trueParent, RootItems);
-
-        if (emulator == null)
+        try 
         {
-            var nodeChain = GetNodeChain(trueParent, RootItems);
-            nodeChain.Reverse(); 
-            foreach (var node in nodeChain)
+            EmulatorConfig? emulator = null;
+            if (!string.IsNullOrEmpty(item.EmulatorId))
             {
-                if (!string.IsNullOrEmpty(node.DefaultEmulatorId))
+                emulator = _currentSettings.Emulators.FirstOrDefault(e => e.Id == item.EmulatorId);
+            }
+
+            var trueParent = FindParentNode(RootItems, item) ?? SelectedNode;
+            var nodePath = PathHelper.GetNodePath(trueParent, RootItems);
+
+            if (emulator == null)
+            {
+                // Traverse up the tree to find inherited emulator config
+                var nodeChain = GetNodeChain(trueParent, RootItems);
+                nodeChain.Reverse(); 
+                foreach (var node in nodeChain)
                 {
-                    emulator = _currentSettings.Emulators.FirstOrDefault(e => e.Id == node.DefaultEmulatorId);
-                    if (emulator != null) break;
+                    if (!string.IsNullOrEmpty(node.DefaultEmulatorId))
+                    {
+                        emulator = _currentSettings.Emulators.FirstOrDefault(e => e.Id == node.DefaultEmulatorId);
+                        if (emulator != null) break;
+                    }
                 }
             }
+            
+            await _launcherService.LaunchAsync(item, emulator, nodePath);
+            
+            // Resume background music after game exit (if applicable)
+            if (SelectedNodeContent is MediaAreaViewModel vm && 
+                vm.SelectedMediaItem == item && 
+                !string.IsNullOrEmpty(item.MusicPath))
+            {
+                var musicPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath);
+                // Fire and forget music playback (no await needed for UI flow)
+                _ = _audioService.PlayMusicAsync(musicPath);
+            }
+            
+            await SaveData(); // Update stats (playtime, last played)
         }
-        await _launcherService.LaunchAsync(item, emulator, nodePath);
-        if (SelectedNodeContent is MediaAreaViewModel vm && vm.SelectedMediaItem == item && !string.IsNullOrEmpty(item.MusicPath))
+        catch (Exception ex)
         {
-            _ = _audioService.PlayMusicAsync(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath));
+            Debug.WriteLine($"[Error] PlayMedia failed: {ex.Message}");
         }
-        await SaveData();
     }
 
-    private async void DeleteMediaAsync(MediaItem? item)
+    private async Task DeleteMediaAsync(MediaItem? item)
     {
         if (item == null || CurrentWindow is not { } owner) return;
-        if (!await ShowConfirmDialog(owner, Strings.Dialog_MsgConfirmDelete)) return;
-
-        if (item == (SelectedNodeContent as MediaAreaViewModel)?.SelectedMediaItem) _audioService.StopMusic();
-        var parentNode = FindParentNode(RootItems, item);
-        if (parentNode != null)
+        
+        try
         {
-            parentNode.Items.Remove(item);
-            await SaveData();
-            UpdateContent();
+            if (!await ShowConfirmDialog(owner, Strings.Dialog_MsgConfirmDelete)) return;
+
+            if (item == (SelectedNodeContent as MediaAreaViewModel)?.SelectedMediaItem) 
+            {
+                _audioService.StopMusic();
+            }
+            
+            var parentNode = FindParentNode(RootItems, item);
+            if (parentNode != null)
+            {
+                parentNode.Items.Remove(item);
+                await SaveData();
+                UpdateContent();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Error] DeleteMedia failed: {ex.Message}");
         }
     }
 
@@ -150,7 +229,8 @@ public partial class MainWindowViewModel
     private async Task<bool> ShowConfirmDialog(Window owner, string message)
     {
         var dialog = new ConfirmView { DataContext = message };
-        return await dialog.ShowDialog<bool>(owner);
+        var result = await dialog.ShowDialog<bool>(owner);
+        return result;
     }
 
     private async Task<string?> PromptForName(Window owner, string message)
@@ -160,7 +240,7 @@ public partial class MainWindowViewModel
         return result && dialog.DataContext is NamePromptViewModel vm ? vm.InputText : null;
     }
     
-    private async void OpenSettingsAsync()
+    private async Task OpenSettingsAsync()
     {
         if (CurrentWindow is not { } owner) return;
 
@@ -177,17 +257,31 @@ public partial class MainWindowViewModel
     }
 
     // --- Tree Helpers ---
+    // Note: Recursive operations on ObservableCollections can be slow for very large trees.
+    // For 30k ROMs, flat list structures in memory might be better, but for now we optimize just the recursion.
 
     private void CollectItemsRecursive(MediaNode node, List<MediaItem> targetList)
     {
-        targetList.AddRange(node.Items);
-        foreach (var child in node.Children) CollectItemsRecursive(child, targetList);
+        if (node.Items != null)
+        {
+            targetList.AddRange(node.Items);
+        }
+        
+        if (node.Children != null)
+        {
+            foreach (var child in node.Children) 
+            {
+                CollectItemsRecursive(child, targetList);
+            }
+        }
     }
 
     private void SortAllNodesRecursive(IEnumerable<MediaNode> nodes)
     {
         foreach (var node in nodes)
         {
+            // Only sort if needed to avoid overhead on every start
+            // (Assuming items are added roughly in order or user doesn't care about strict alphabetical all the time)
             SortMediaItems(node.Items);
             SortAllNodesRecursive(node.Children);
         }
@@ -195,10 +289,18 @@ public partial class MainWindowViewModel
 
     private void SortMediaItems(ObservableCollection<MediaItem> items)
     {
+        // Optimization: Sorting an ObservableCollection in place triggers lots of CollectionChanged events.
+        // It's better to sort a List and then rebuild the collection if it's massively out of order,
+        // but since we want to keep bindings alive, the Move() approach is acceptable unless items > 1000 per node.
+        
         var sorted = items.OrderBy(i => i.Title).ToList();
         for (var i = 0; i < sorted.Count; i++)
         {
-            if (items.IndexOf(sorted[i]) != i) items.Move(items.IndexOf(sorted[i]), i);
+            var oldIndex = items.IndexOf(sorted[i]);
+            if (oldIndex != i) 
+            {
+                items.Move(oldIndex, i);
+            }
         }
     }
 
@@ -206,7 +308,12 @@ public partial class MainWindowViewModel
     {
         foreach (var node in nodes)
         {
-            if (node.Children.Remove(nodeToDelete)) return true;
+            if (node.Children.Contains(nodeToDelete))
+            {
+                node.Children.Remove(nodeToDelete);
+                return true;
+            }
+            
             if (RemoveNodeRecursive(node.Children, nodeToDelete)) return true;
         }
         return false;
@@ -228,13 +335,20 @@ public partial class MainWindowViewModel
         foreach (var node in nodes)
         {
             if (node == target) return true;
-            if (ExpandPathToNode(node.Children, target)) { node.IsExpanded = true; return true; }
+            
+            if (ExpandPathToNode(node.Children, target)) 
+            { 
+                node.IsExpanded = true; 
+                return true; 
+            }
         }
         return false;
     }
     
     private MediaNode? FindParentNode(IEnumerable<MediaNode> nodes, MediaItem item)
     {
+        // Breadth-first search might be slightly better here if items are usually near the top,
+        // but DFS is standard.
         foreach (var node in nodes)
         {
             if (node.Items.Contains(item)) return node;
@@ -249,24 +363,36 @@ public partial class MainWindowViewModel
         foreach (var node in nodes)
         {
             if (node == target) return new List<MediaNode> { node };
+            
             var chain = GetNodeChain(target, node.Children);
-            if (chain.Count > 0) { chain.Insert(0, node); return chain; }
+            if (chain.Count > 0) 
+            { 
+                chain.Insert(0, node); 
+                return chain; 
+            }
         }
         return new List<MediaNode>();
     }
 
+    // --- Randomization Helpers ---
+
     private bool IsRandomizeActive(MediaNode targetNode)
     {
-        var chain = GetNodeChain(targetNode, RootItems); chain.Reverse();
+        // Reverse chain to find nearest configuration (bottom-up)
+        var chain = GetNodeChain(targetNode, RootItems); 
+        chain.Reverse();
         return chain.FirstOrDefault(n => n.RandomizeCovers.HasValue)?.RandomizeCovers ?? false;
     }
 
     private bool IsRandomizeMusicActive(MediaNode targetNode)
     {
-        var chain = GetNodeChain(targetNode, RootItems); chain.Reverse();
+        var chain = GetNodeChain(targetNode, RootItems); 
+        chain.Reverse();
         return chain.FirstOrDefault(n => n.RandomizeMusic.HasValue)?.RandomizeMusic ?? false;
     }
 
+    // --- Helper for UpdateContent ---
+    
     private bool IsNodeInCurrentView(MediaNode modifiedNode)
     {
         if (SelectedNode == null) return false;

@@ -14,91 +14,34 @@ using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
+/// <summary>
+/// ViewModel for the application settings dialog.
+/// Manages emulator profiles and scraper configurations.
+/// </summary>
 public partial class SettingsViewModel : ViewModelBase
 {
-    // Referenz auf die globalen Settings
     private readonly AppSettings _appSettings;
 
-    // Der aktuell in der Liste ausgewählte Emulator
-    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(RemoveEmulatorCommand))]
+    // Currently selected emulator profile
+    [ObservableProperty] 
+    [NotifyCanExecuteChangedFor(nameof(RemoveEmulatorCommand))]
+    [NotifyCanExecuteChangedFor(nameof(BrowsePathCommand))]
     private EmulatorConfig? _selectedEmulator;
 
-    // Der aktuell in der Liste ausgewählte Scraper
-    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(RemoveScraperCommand))]
+    // Currently selected scraper config
+    [ObservableProperty] 
+    [NotifyCanExecuteChangedFor(nameof(RemoveScraperCommand))]
     private ScraperConfig? _selectedScraper;
     
-    // ÄNDERUNG: Wir filtern "None" aus der Liste für die ComboBox heraus.
+    // Filtered list of scraper types for the UI (hiding 'None')
     public ScraperType[] AvailableScraperTypes { get; } = Enum.GetValues<ScraperType>()
         .Where(t => t != ScraperType.None)
         .ToArray();
     
-    public SettingsViewModel(AppSettings settings)
-    {
-        _appSettings = settings;
-
-        // Vorhandene Emulatoren in die ObservableCollection laden
-        foreach (var emu in _appSettings.Emulators) Emulators.Add(emu);
-
-        // Vorhandene Scraper laden
-        foreach (var scraper in _appSettings.Scrapers) Scrapers.Add(scraper);
-
-        AddEmulatorCommand = new RelayCommand(AddEmulator);
-        RemoveEmulatorCommand = new RelayCommand(RemoveEmulator, () => SelectedEmulator != null);
-        
-        AddScraperCommand = new RelayCommand(AddScraper);
-        RemoveScraperCommand = new RelayCommand(RemoveScraper, () => SelectedScraper != null);
-        
-        SaveCommand = new RelayCommand(Save);
-        BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync);
-    }
-
-    // --- Dynamische Properties für die UI-Hinweise ---
-    // Diese hängen vom aktuell gewählten Scraper ab
-    
-    public bool IsTmdbSelected => SelectedScraper?.Type == ScraperType.TMDB;
-    public bool IsIgdbSelected => SelectedScraper?.Type == ScraperType.IGDB;
-    public bool IsEmuMoviesSelected => SelectedScraper?.Type == ScraperType.EmuMovies;
-    // ScreenScraper gibt es ja nicht mehr :)
-    
-    // Wenn sich der ausgewählte Scraper ändert, müssen wir:
-    // 1. Die UI updaten (Hints anzeigen/verstecken)
-    // 2. Uns am neuen Objekt "anhängen", um Änderungen am Typ mitzubekommen
-    partial void OnSelectedScraperChanged(ScraperConfig? oldValue, ScraperConfig? newValue)
-    {
-        RemoveScraperCommand.NotifyCanExecuteChanged();
-
-        if (oldValue != null)
-            oldValue.PropertyChanged -= OnScraperPropertyChanged;
-
-        if (newValue != null)
-            newValue.PropertyChanged += OnScraperPropertyChanged;
-
-        RefreshHintProperties();
-    }
-
-    // Wenn sich Eigenschaften IM Scraper ändern (z.B. der Typ)
-    private void OnScraperPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(ScraperConfig.Type))
-        {
-            RefreshHintProperties();
-        }
-    }
-
-    private void RefreshHintProperties()
-    {
-        // Sagt der View, dass sich diese Computed Properties geändert haben könnten
-        OnPropertyChanged(nameof(IsTmdbSelected));
-        OnPropertyChanged(nameof(IsIgdbSelected));
-        OnPropertyChanged(nameof(IsEmuMoviesSelected));
-    }
-    
-    // Die Liste für die UI (wir wrappen die List<T> in eine ObservableCollection)
+    // UI Collections
     public ObservableCollection<EmulatorConfig> Emulators { get; } = new();
-
-    // Liste der Scraper
     public ObservableCollection<ScraperConfig> Scrapers { get; } = new();
-    
+
     // Commands
     public IRelayCommand AddEmulatorCommand { get; }
     public IRelayCommand RemoveEmulatorCommand { get; }
@@ -109,11 +52,75 @@ public partial class SettingsViewModel : ViewModelBase
 
     public event Action? RequestClose;
 
+    // Optional dependency injection for file dialogs (better for testing)
+    public IStorageProvider? StorageProvider { get; set; }
+
+    public SettingsViewModel(AppSettings settings)
+    {
+        _appSettings = settings ?? throw new ArgumentNullException(nameof(settings));
+
+        // Load existing emulators
+        foreach (var emu in _appSettings.Emulators) 
+        {
+            Emulators.Add(emu);
+        }
+
+        // Load existing scrapers
+        foreach (var scraper in _appSettings.Scrapers) 
+        {
+            Scrapers.Add(scraper);
+        }
+
+        AddEmulatorCommand = new RelayCommand(AddEmulator);
+        RemoveEmulatorCommand = new RelayCommand(RemoveEmulator, () => SelectedEmulator != null);
+        
+        AddScraperCommand = new RelayCommand(AddScraper);
+        RemoveScraperCommand = new RelayCommand(RemoveScraper, () => SelectedScraper != null);
+        
+        SaveCommand = new RelayCommand(Save);
+        BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync, () => SelectedEmulator != null);
+    }
+
+    // --- Computed Properties for UI Hints ---
+    
+    public bool IsTmdbSelected => SelectedScraper?.Type == ScraperType.TMDB;
+    public bool IsIgdbSelected => SelectedScraper?.Type == ScraperType.IGDB;
+    public bool IsEmuMoviesSelected => SelectedScraper?.Type == ScraperType.EmuMovies;
+    
+    // Handle property changes on the selected scraper to update UI hints
+    partial void OnSelectedScraperChanged(ScraperConfig? oldValue, ScraperConfig? newValue)
+    {
+        if (oldValue != null)
+            oldValue.PropertyChanged -= OnScraperPropertyChanged;
+
+        if (newValue != null)
+            newValue.PropertyChanged += OnScraperPropertyChanged;
+
+        RefreshHintProperties();
+    }
+
+    private void OnScraperPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ScraperConfig.Type))
+        {
+            RefreshHintProperties();
+        }
+    }
+
+    private void RefreshHintProperties()
+    {
+        OnPropertyChanged(nameof(IsTmdbSelected));
+        OnPropertyChanged(nameof(IsIgdbSelected));
+        OnPropertyChanged(nameof(IsEmuMoviesSelected));
+    }
+    
+    // --- Actions ---
+
     private void AddEmulator()
     {
         var newEmu = new EmulatorConfig { Name = Strings.Profile_New };
         Emulators.Add(newEmu);
-        SelectedEmulator = newEmu; // Direkt auswählen
+        SelectedEmulator = newEmu; 
     }
 
     private void RemoveEmulator()
@@ -127,14 +134,9 @@ public partial class SettingsViewModel : ViewModelBase
 
     private void AddScraper()
     {
-        // ÄNDERUNG: Wir erstellen den Scraper mit dem Default "None".
-        // Da "None" nicht in AvailableScraperTypes enthalten ist, 
-        // bleibt die ComboBox in der GUI leer (keine Auswahl).
-        
         var newScraper = new ScraperConfig 
         { 
-            // Name ist automatisch "Neuer Scraper"
-            // Type ist automatisch ScraperType.None
+            // Default: Name="New Scraper", Type=None
         };
         
         Scrapers.Add(newScraper);
@@ -145,6 +147,9 @@ public partial class SettingsViewModel : ViewModelBase
     {
         if (SelectedScraper != null)
         {
+            // Unsubscribe from event to prevent leaks
+            SelectedScraper.PropertyChanged -= OnScraperPropertyChanged;
+            
             Scrapers.Remove(SelectedScraper);
             SelectedScraper = null;
         }
@@ -152,7 +157,7 @@ public partial class SettingsViewModel : ViewModelBase
     
     private void Save()
     {
-        // Änderungen zurück in das AppSettings-Objekt schreiben
+        // Persist changes back to the main settings object
         _appSettings.Emulators.Clear();
         _appSettings.Emulators.AddRange(Emulators);
 
@@ -166,19 +171,27 @@ public partial class SettingsViewModel : ViewModelBase
     {
         if (SelectedEmulator == null) return;
 
-        // Wir holen uns das Fenster über die ApplicationLifetime (etwas hacky, aber einfach im VM)
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
-            desktop.Windows.LastOrDefault(w => w.IsActive) is Window activeWindow)
+        // Try to resolve StorageProvider:
+        // 1. Injected property (Priority)
+        // 2. Fallback to active window (Pragmatic approach for dialogs)
+        var provider = StorageProvider;
+        if (provider == null && Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var result = await activeWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Emulator auswählen",
-                AllowMultiple = false
-            });
+            var activeWindow = desktop.Windows.LastOrDefault(w => w.IsActive) ?? desktop.MainWindow;
+            provider = activeWindow?.StorageProvider;
+        }
 
-            if (result != null && result.Count > 0)
-                // Pfad in das ausgewählte Profil schreiben
-                SelectedEmulator.Path = result[0].Path.LocalPath;
+        if (provider == null) return;
+
+        var result = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select Emulator Executable",
+            AllowMultiple = false
+        });
+
+        if (result != null && result.Count > 0)
+        {
+            SelectedEmulator.Path = result[0].Path.LocalPath;
         }
     }
 }
