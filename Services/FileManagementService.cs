@@ -24,8 +24,9 @@ public partial class FileManagementService
     private static partial Regex InvalidCharsRegex();
     
     /// <summary>
-    ///     Imports an asset file (Cover, Wallpaper) into the portable structure.
+    ///     Imports an asset file (Cover, Wallpaper, Music) into the portable structure.
     ///     If the file already exists, a counter (_01, _02) is appended.
+    ///     Music files are now renamed to match the title (Title_Music_XX) to enable per-game shuffling.
     /// </summary>
     public string ImportAsset(string sourceFilePath, MediaItem item, List<string> nodePath, MediaFileType fileType)
     {
@@ -35,7 +36,7 @@ public partial class FileManagementService
         // 2. Build target folder structure: Media/Area/Group/...
         var paths = new List<string> { RootFolderName };
         paths.AddRange(nodePath);
-        paths.Add(fileType.ToString()); // Unterordner z.B. "Cover"
+        paths.Add(fileType.ToString()); // Subfolder e.g. "Cover", "Music"
 
         var relativeDirectory = Path.Combine(paths.ToArray());
         var absoluteDirectory = Path.Combine(baseDir, relativeDirectory);
@@ -45,37 +46,36 @@ public partial class FileManagementService
 
         // 3. Generate target filename
         var extension = Path.GetExtension(sourceFilePath);
+        var safeTitle = SanitizeFileName(item.Title);
         string baseFileName;
         
-        if (fileType == MediaFileType.Music)
-        {
-            // Logic for music: keep the Original name
-            var originalName = Path.GetFileNameWithoutExtension(sourceFilePath);
-            baseFileName = SanitizeFileName(originalName);
-        }
-        else
-        {
-            // Logic for graphics: Titel_Type
-            var safeTitle = SanitizeFileName(item.Title);
-            baseFileName = $"{safeTitle}_{fileType}";
-        }
+        // UNIFIED NAMING LOGIC:
+        // Before, Music kept its original name, causing conflicts and shuffle issues.
+        // Now, Music follows the same pattern: "Super_Mario_Bros_Music.mp3"
+        // This allows us to strictly associate multiple tracks with one game.
+        baseFileName = $"{safeTitle}_{fileType}";
         
-        // Standard Name: e.g. "Super_Mario_Bros_Cover.jpg"
+        // Standard Name: e.g. "Super_Mario_Bros_Music.mp3"
         var newFileName = $"{baseFileName}{extension}";
         var destinationPath = Path.Combine(absoluteDirectory, newFileName);
 
         // VERSIONING: Check if file exists and increment counter
         int counter = 1;
+        
+        // Special case for Music: If we already have a track (Music.mp3), and import another,
+        // we want the second one to be Music_01.mp3 immediately, or just stick to numbering always?
+        // Your logic for covers does: Cover.jpg -> Cover_01.jpg if duplicate.
+        // For music, it's nice to have "Music_01", "Music_02" explicitly if multiple exist.
+        
         while (File.Exists(destinationPath))
         {
             // Check Content Hash (MD5) to avoid unnecessary duplicates
-            // If the content is identical we deliver the existing file
             if (AreFilesEqual(sourceFilePath, destinationPath))
             {
                 return Path.Combine(relativeDirectory, newFileName);
             }
             
-            // Name collision but content is different -> Increment
+            // Name collision -> Increment
             newFileName = $"{baseFileName}_{counter:D2}{extension}";
             destinationPath = Path.Combine(absoluteDirectory, newFileName);
             counter++;
@@ -84,11 +84,11 @@ public partial class FileManagementService
         // 4. Copy
         try
         {
-            File.Copy(sourceFilePath, destinationPath); // No overwrite needed
+            File.Copy(sourceFilePath, destinationPath); 
         }
         catch (IOException ex)
         {
-            Console.WriteLine($"Fehler beim Kopieren: {ex.Message}");
+            Console.WriteLine($"Error copying file: {ex.Message}");
             return string.Empty;
         }
 
@@ -100,34 +100,20 @@ public partial class FileManagementService
     {
         try
         {
-            // Simple size check first
             if (new FileInfo(source).Length != new FileInfo(dest).Length) return false;
-            // Then MD5
             return FileHelper.CalculateMd5(source) == FileHelper.CalculateMd5(dest);
         }
         catch { return false; }
     }
     
-    /// <summary>
-    ///     Imports an asset file (Cover, Wallpaper) into the portable structure.
-    ///     Removes invalid characters and replaces spaces with underscores.
-    /// </summary>
     private string SanitizeFileName(string name)
     {
         if (string.IsNullOrEmpty(name)) return "Unknown";
-        
-        // Use the generated regex
         var safeName = InvalidCharsRegex().Replace(name, "_");
-
-        // Replace spaces with underscores (optional, but often nicer on Linux)
         safeName = safeName.Replace(" ", "_");
-
         return safeName;
     }
 
-    /// <summary>
-    ///     Imports an asset file (Cover, Wallpaper) into the portable structure.
-    /// </summary>
     public string? FindExistingAsset(MediaItem item, List<string> nodePath, MediaFileType fileType)
     {
         var assets = GetAvailableAssets(item, nodePath, fileType);
@@ -136,6 +122,7 @@ public partial class FileManagementService
 
     /// <summary>
     ///     Returns ALL matching assets (e.g. Cover, Cover_01, Cover_02) for Randomization.
+    ///     For Music, this now correctly returns only tracks associated with the specific game title.
     /// </summary>
     public List<string> GetAvailableAssets(MediaItem item, List<string> nodePath, MediaFileType fileType)
     {
@@ -149,26 +136,16 @@ public partial class FileManagementService
 
         if (!Directory.Exists(absoluteDirectory)) return new List<string>();
 
-        string searchPattern;
-        
-        if (fileType == MediaFileType.Music)
-        {
-            // Bei Musik ist es schwieriger, da der Name variieren kann.
-            // Wir könnten alles im Ordner nehmen oder versuchen intelligent zu matchen.
-            // Da Musikdateien oft eigene Namen haben, nehmen wir hier ALLE Audiofiles im Ordner,
-            // oder wir müssten wissen, wie die Datei heißt.
-            // VEREINFACHUNG FÜR ZUFALL: Wir nehmen alle Audio-Dateien im Musik-Ordner dieser Gruppe.
-            searchPattern = "*.*"; 
-        }
-        else
-        {
-            var safeTitle = SanitizeFileName(item.Title);
-            searchPattern = $"{safeTitle}_{fileType}*"; 
-        }
+        // Unified Search Pattern
+        var safeTitle = SanitizeFileName(item.Title);
+        var searchPattern = $"{safeTitle}_{fileType}*"; 
 
+        // Note: This pattern matches "Mario_Music.mp3", "Mario_Music_01.mp3", etc.
+        // It prevents finding "Zelda_Music.mp3".
+        
         var foundFiles = Directory.GetFiles(absoluteDirectory, searchPattern)
             .Where(f => IsValidExtension(f, fileType))
-            .OrderBy(f => f) // Deterministic order
+            .OrderBy(f => f) 
             .ToList();
 
         return foundFiles.Select(f => Path.Combine(relativeDirectory, Path.GetFileName(f))).ToList();
@@ -181,9 +158,6 @@ public partial class FileManagementService
         return ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".webp";
     }
     
-    /// <summary>
-    ///     Deletes a file if it is located within the application's base directory.
-    /// </summary>
     public bool DeleteAsset(string fullPath)
     {
         if (string.IsNullOrWhiteSpace(fullPath)) return false;
@@ -191,8 +165,6 @@ public partial class FileManagementService
         try
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                
-            // Security Check: Only delete files inside our app directory
             if (!fullPath.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase)) 
                 return false;
 

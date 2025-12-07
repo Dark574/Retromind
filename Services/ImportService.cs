@@ -56,10 +56,6 @@ public class ImportService
                     if (validExtensions.Contains(ext))
                     {
                         var title = Path.GetFileNameWithoutExtension(file);
-
-                        // TODO: Integrate regex cleanup logic here if needed.
-                        // Example: title = MediaSearchHelper.CleanTitle(title);
-
                         var item = new MediaItem
                         {
                             Title = title,

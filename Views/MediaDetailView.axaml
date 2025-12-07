@@ -55,6 +55,8 @@
                     Classes="accent"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Padding="0,2,0,0"
                     Height="40"
                     FontSize="18"
                     FontWeight="Bold"

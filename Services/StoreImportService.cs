@@ -19,7 +19,6 @@ public class StoreImportService
     // --- Configuration ---
 
     // Known default paths for Steam libraries on Linux.
-    // TODO: Add Windows/macOS paths for full cross-platform support.
     private readonly string[] _steamPaths = 
     {
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps"),
