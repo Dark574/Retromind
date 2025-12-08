@@ -34,9 +34,13 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly StoreImportService _storeService;
     private readonly SettingsService _settingsService;
     private readonly MetadataService _metadataService; 
+    private readonly GamepadService _gamepadService;
 
     // Token Source for cancelling old content loading tasks
     private CancellationTokenSource? _updateContentCts;
+    
+    // Merker für den Start-Modus
+    private bool _startInBigMode = false;
     
     // --- State ---
     private AppSettings _currentSettings;
@@ -174,10 +178,24 @@ public partial class MainWindowViewModel : ViewModelBase
         _settingsService = settingsService;
         _metadataService = metadataService;
         _currentSettings = preloadedSettings;
+        
+        // JOKER: SDL zwingen, auch Hintergrund-Events und unbekannte Geräte zu akzeptieren
+        Environment.SetEnvironmentVariable("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1");
+        Environment.SetEnvironmentVariable("SDL_LINUX_JOYSTICK_DEADZONES", "1");
+
+        // Service erstellen & starten
+        _gamepadService = new GamepadService();
+        _gamepadService.Initialize();
     
         InitializeCommands();
     }
 
+    // Neue Methode, um den Modus von außen zu setzen (bevor LoadData läuft)
+    public void SetStartMode(bool bigMode)
+    {
+        _startInBigMode = bigMode;
+    }
+    
     // --- Persistence & Lifecycle ---
 
     public async Task LoadData()
@@ -208,6 +226,16 @@ public partial class MainWindowViewModel : ViewModelBase
                 else if (RootItems.Count > 0) SelectedNode = RootItems[0];
             }
             else if (RootItems.Count > 0) SelectedNode = RootItems[0];
+            
+            // Automatischer Start in den Big Mode
+            if (_startInBigMode)
+            {
+                // Wir warten kurz, damit das UI "atmen" kann und SelectedNode gesetzt ist
+                await Dispatcher.UIThread.InvokeAsync(() => 
+                {
+                    EnterBigModeCommand.Execute(null);
+                }, DispatcherPriority.Background);
+            }
         }
         catch (Exception ex)
         {

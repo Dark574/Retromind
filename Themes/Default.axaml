@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
+             xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
              x:DataType="vm:BigModeViewModel">
     
     <Grid RowDefinitions="Auto, *, Auto" Background="#1a1a1a">
@@ -24,16 +25,27 @@
                 </ListBox.ItemTemplate>
             </ListBox>
 
-            <!-- Details Area -->
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="20">
-                <!-- Fallback text for title -->
-                <TextBlock Text="{Binding SelectedItem.Title}" 
-                           FontSize="50" FontWeight="Bold" Foreground="White"
-                           TextWrapping="Wrap" TextAlignment="Center"/>
+            <!-- Details Area (Right Side) -->
+            <Grid Grid.Column="1" RowDefinitions="*, Auto" Margin="20">
+                
+                <!-- VIDEO PLAYER -->
+                <!-- Zeigt Video, wenn MediaPlayer Daten hat -->
+                <!-- Focusable="False" verhindert, dass die Tastatur-Eingaben im Video-Player landen -->
+                <Border Grid.Row="0" CornerRadius="10" ClipToBounds="True" Background="Black"
+                        Focusable="False" IsHitTestVisible="False"> 
+                    <vlc:VideoView MediaPlayer="{Binding MediaPlayer}" />
+                </Border>
+                
+                <!-- Info Text -->
+                <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" Margin="0,20,0,0">
+                    <TextBlock Text="{Binding SelectedItem.Title}" 
+                               FontSize="40" FontWeight="Bold" Foreground="White"
+                               TextWrapping="Wrap" TextAlignment="Center"/>
                            
-                <TextBlock Text="{Binding SelectedItem.ReleaseDate}" 
-                           FontSize="20" Foreground="Gray" HorizontalAlignment="Center"/>
-            </StackPanel>
+                    <TextBlock Text="{Binding SelectedItem.ReleaseDate, StringFormat='Release: {0:d}'}" 
+                               FontSize="18" Foreground="Gray" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
         </Grid>
 
         <!-- Footer -->

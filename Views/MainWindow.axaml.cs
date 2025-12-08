@@ -81,4 +81,34 @@ public partial class MainWindow : Window
     {
         if (sender is Control control && control.Tag is WindowEdge edge) BeginResizeDrag(edge, e);
     }
+    
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        // Sind wir im Big Mode? (FullScreenContent ist gesetzt)
+        if (vm.FullScreenContent is Control { DataContext: BigModeViewModel bigVm })
+        {
+            switch (e.Key)
+            {
+                case Key.Up:
+                    bigVm.SelectPreviousCommand.Execute(null);
+                    e.Handled = true;
+                    break;
+                case Key.Down:
+                    bigVm.SelectNextCommand.Execute(null);
+                    e.Handled = true;
+                    break;
+                case Key.Enter:
+                    bigVm.PlayCurrentCommand.Execute(null);
+                    e.Handled = true;
+                    break;
+                case Key.Escape:
+                case Key.Back:
+                    bigVm.ExitBigModeCommand.Execute(null);
+                    e.Handled = true;
+                    break;
+            }
+        }
+    }
 }

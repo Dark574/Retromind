@@ -16,7 +16,9 @@
         SystemDecorations="None" 
         Background="{Binding WindowBackground}"
         ExtendClientAreaToDecorationsHint="False"
-        ExtendClientAreaTitleBarHeightHint="-1">
+        ExtendClientAreaTitleBarHeightHint="-1"
+        
+        KeyDown="OnKeyDown" >
 
     <Window.DataTemplates>
         <DataTemplate DataType="{x:Type vm:MediaAreaViewModel}">

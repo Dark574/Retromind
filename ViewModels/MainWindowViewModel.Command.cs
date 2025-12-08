@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -99,9 +100,47 @@ public partial class MainWindowViewModel
         // Create the ViewModel that acts as the interface for the theme
         // We pass the items from the currently active view
         var bigVm = new BigModeViewModel(mediaVM.FilteredItems, SelectedNode?.Name ?? "Library");
+
+        // --- CONNECT LOGIC ---
+        // Wenn der BigMode "Play" sagt, nutzen wir unseren existierenden PlayMediaAsync Befehl
+        bigVm.RequestPlay += (item) => 
+        {
+            // Fire & Forget Async
+            _ = PlayMediaAsync(item);
+        };
+        
+        // --- CONTROLLER WIRING START ---
+        // Wir abonnieren die Events des Services und leiten sie an das ViewModel weiter
+        
+        Action onUp = () => Dispatcher.UIThread.Post(() => bigVm.SelectPreviousCommand.Execute(null));
+        Action onDown = () => Dispatcher.UIThread.Post(() => bigVm.SelectNextCommand.Execute(null));
+        Action onSelect = () => Dispatcher.UIThread.Post(() => bigVm.PlayCurrentCommand.Execute(null));
+        Action onBack = () => Dispatcher.UIThread.Post(() => bigVm.ExitBigModeCommand.Execute(null));
+
+        _gamepadService.OnUp += onUp;
+        _gamepadService.OnDown += onDown;
+        _gamepadService.OnSelect += onSelect;
+        _gamepadService.OnBack += onBack;
+        // --- CONTROLLER WIRING END ---
+        
+        // Cleanup beim Schließen
+        bigVm.RequestClose += () => 
+        { 
+            // Controller Events abhängen
+            _gamepadService.OnUp -= onUp;
+            _gamepadService.OnDown -= onDown;
+            _gamepadService.OnSelect -= onSelect;
+            _gamepadService.OnBack -= onBack;
+
+            // UI ausblenden
+            FullScreenContent = null;
             
-        // Subscribe to the close event to clear the overlay when done
-        bigVm.RequestClose += () => FullScreenContent = null;
+            Task.Run(() => 
+            {
+                try { bigVm.Dispose(); }
+                catch { /* Ignorieren, falls beim Beenden was hakt */ }
+            });
+        };
             
         // Also wire up the Play command inside the Big Mode to our main Play logic
         // Note: BigModeViewModel has its own PlayCurrentCommand, but it needs to call our main logic
@@ -115,9 +154,37 @@ public partial class MainWindowViewModel
             
         // Bind the DataContext
         view.DataContext = bigVm;
+        
+        view.Focusable = true; 
 
         // Show the overlay
         FullScreenContent = view;
+        
+        // OPTIMIERUNG 2: Echter Delay für XWayland
+        // Wir geben dem Fenstersystem kurz Zeit, das Handle bereitzustellen.
+        // Dispatcher.Post allein reicht manchmal nicht aus.
+        Task.Run(async () => 
+        {
+            // 250ms warten (nicht spürbar für User, aber ewig für den Computer)
+            await Task.Delay(250); 
+                
+            await Dispatcher.UIThread.InvokeAsync(() => 
+            {
+                // Nur weitermachen, wenn wir noch im Big Mode sind
+                if (FullScreenContent == view)
+                {
+                    // 1. FOKUS ZURÜCKHOLEN!
+                    // Das ist entscheidend, falls das Video-Fenster den Fokus geklaut hat.
+                    view.Focus(); 
+
+                    // 2. Video starten (erst Item wählen)
+                    if (bigVm.Items.Count > 0)
+                    {
+                        bigVm.SelectedItem = bigVm.Items[0];
+                    }
+                }
+            });
+        });
     }
     
     private async Task AddCategoryAsync(MediaNode? parentNode)

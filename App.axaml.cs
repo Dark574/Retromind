@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Avalonia;
@@ -63,6 +64,12 @@ public partial class App : Application
                 // Resolve the MainViewModel. 
                 // // The DI container automatically injects all required services (Audio, Data, Metadata, etc.).
                 var mainViewModel = Services.GetRequiredService<MainWindowViewModel>();
+                
+                // Argumente prüfen und ViewModel konfigurieren
+                if (desktop.Args != null && desktop.Args.Contains("--bigmode"))
+                {
+                    mainViewModel.SetStartMode(true);
+                }
                 
                 desktop.MainWindow = new MainWindow
                 {
