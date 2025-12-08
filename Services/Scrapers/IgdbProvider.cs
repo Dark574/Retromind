@@ -124,20 +124,20 @@ public class IgdbProvider : IMetadataProvider
 
             if (items == null) return results;
 
-            foreach (var item in items)
+            foreach (var node in items)
             {
-                if (item == null) continue;
+                if (node == null) continue;
                 
                 var res = new ScraperSearchResult
                 {
                     Source = "IGDB",
-                    Id = item?["id"]?.ToString() ?? "",
-                    Title = item?["name"]?.ToString() ?? "Unknown",
-                    Description = item?["summary"]?.ToString() ?? "",
-                    Rating = item?["total_rating"]?.GetValue<double>()
+                    Id = node["id"]?.ToString() ?? "",
+                    Title = node["name"]?.ToString() ?? "Unknown",
+                    Description = node["summary"]?.ToString() ?? "",
+                    Rating = (double?)node["total_rating"]
                 };
 
-                var dateNode = item["first_release_date"];
+                var dateNode = node["first_release_date"];
                 
                 // Date
                 if (dateNode != null)
@@ -147,29 +147,29 @@ public class IgdbProvider : IMetadataProvider
                 }
 
                 // Genre (Flatten array: "Action, Adventure")
-                var genresArr = item?["genres"]?.AsArray();
+                var genresArr = node?["genres"]?.AsArray();
                 if (genresArr != null)
                 {
-                    var genreList = genresArr.Select(node => node?["name"]?.ToString()).Where(s => s != null);
+                    var genreList = genresArr.Select(n => n?["name"]?.ToString()).Where(s => s != null);
                     res.Genre = string.Join(", ", genreList);
                 }
 
                 // Developer (Involved Companies -> Company -> Name)
                 // We just take the first entry, IGDB usually sorts well
-                var companiesArr = item?["involved_companies"]?.AsArray();
-                if (companiesArr != null && companiesArr.Count > 0)
+                if (node?["involved_companies"] is JsonArray companiesArr && companiesArr.Count > 0)
                 {
-                    res.Developer = companiesArr[0]?["company"]?["name"]?.ToString();
+                    var firstComp = companiesArr[0];
+                    res.Developer = firstComp?["company"]?["name"]?.ToString();
                 }
 
                 // Images
-                var coverUrl = item?["cover"]?["url"]?.ToString();
+                var coverUrl = node?["cover"]?["url"]?.ToString();
                 if (!string.IsNullOrEmpty(coverUrl))
                     res.CoverUrl = FixIgdbImageUrl(coverUrl, "t_cover_big");
 
                 // Wallpaper
-                var artworkArr = item?["artworks"]?.AsArray();
-                var screenshotArr = item?["screenshots"]?.AsArray();
+                var artworkArr = node?["artworks"]?.AsArray();
+                var screenshotArr = node?["screenshots"]?.AsArray();
 
                 string? wallpaperRaw = null;
                 if (artworkArr != null && artworkArr.Count > 0)

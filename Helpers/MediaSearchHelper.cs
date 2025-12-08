@@ -8,7 +8,7 @@ namespace Retromind.Helpers;
 
 /// <summary>
 /// Helper class to search for media assets (images, audio) related to a specific media item.
-/// It scans related directories (ROM folder, "media" subfolder, etc.) for files matching the item's title.
+/// It scans related directories (ROM folder, "media" subfolder, etc.) using file system patterns.
 /// </summary>
 public static class MediaSearchHelper
 {
@@ -29,8 +29,7 @@ public static class MediaSearchHelper
     /// </summary>
     public static List<string> FindPotentialImages(MediaItem item)
     {
-        var knownPaths = new[] { item.CoverPath, item.WallpaperPath, item.LogoPath };
-        return FindFiles(item, ImageExtensions, knownPaths);
+        return FindFiles(item, ImageExtensions);
     }
 
     /// <summary>
@@ -38,37 +37,36 @@ public static class MediaSearchHelper
     /// </summary>
     public static List<string> FindPotentialAudio(MediaItem item)
     {
-        var knownPaths = new[] { item.MusicPath };
-        return FindFiles(item, AudioExtensions, knownPaths);
+        return FindFiles(item, AudioExtensions);
     }
 
     /// <summary>
-    /// Core logic to scan directories for matching files.
+    /// Scans directories efficiently using OS globbing patterns instead of iterating all files.
     /// </summary>
-    private static List<string> FindFiles(MediaItem item, HashSet<string> validExtensions, IEnumerable<string?> knownPaths)
+    private static List<string> FindFiles(MediaItem item, HashSet<string> validExtensions)
     {
         var results = new List<string>();
         var distinctResults = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // Case-insensitive deduplication
         
         // 1. Collect Search Patterns (e.g., "Super_Mario", "Super Mario World")
-        var searchPatterns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var searchPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         if (!string.IsNullOrWhiteSpace(item.Title))
         {
             // Pattern A: "Super_Mario" (Sanitized)
-            searchPatterns.Add(item.Title.Replace(" ", "_"));
+            searchPrefixes.Add(item.Title.Replace(" ", "_"));
             // Pattern B: "Super Mario" (Original - risky on some FS, but good for matching)
-            searchPatterns.Add(item.Title);
+            searchPrefixes.Add(item.Title);
         }
 
         if (!string.IsNullOrEmpty(item.FilePath))
         {
             var romName = Path.GetFileNameWithoutExtension(item.FilePath);
-            if (!string.IsNullOrWhiteSpace(romName)) searchPatterns.Add(romName);
+            if (!string.IsNullOrWhiteSpace(romName)) 
+            {
+                searchPrefixes.Add(romName);
+            }
         }
-
-        // Add names from already linked assets to find siblings (e.g. if Cover is "Img_01", maybe "Img_02" is Wallpaper)
-        foreach (var path in knownPaths) AddPatternFromPath(path, searchPatterns);
 
         // 2. Collect Folders to Scan
         var foldersToScan = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -77,54 +75,48 @@ public static class MediaSearchHelper
         {
             try 
             {
-                var romDir = Path.GetDirectoryName(Path.GetFullPath(item.FilePath));
+                // Resolve full path (important if FilePath is relative)
+                var fullRomPath = Path.GetFullPath(item.FilePath);
+                var romDir = Path.GetDirectoryName(fullRomPath);
+                
                 if (!string.IsNullOrEmpty(romDir) && Directory.Exists(romDir))
                 {
                     foldersToScan.Add(romDir);
                     
                     // Common subfolder convention
-                    var mediaDir = Path.Combine(romDir, "media");
-                    if (Directory.Exists(mediaDir)) foldersToScan.Add(mediaDir);
+                    var subfolders = new[] { "media", "images", "art", "music", "sound" };
+                    foreach (var sub in subfolders)
+                    {
+                        var subPath = Path.Combine(romDir, sub);
+                        if (Directory.Exists(subPath)) foldersToScan.Add(subPath);
+                    }
                 }
             }
             catch { /* Ignore invalid paths */ }
         }
 
-        foreach (var path in knownPaths) AddFolderFromPath(path, foldersToScan);
-
-        // 3. Execute Scan
-        // Optimization: Instead of loading ALL files, we iterate and filter efficiently.
+        // 3. Execute Scan (Performance Optimized)
+        // Optimization: Instead of loading ALL files, we iterate and filter efficiently using OS globbing.
         foreach (var dir in foldersToScan)
         {
             try
             {
-                // EnumerateFiles is lazy (better memory usage than GetFiles)
-                foreach (var file in Directory.EnumerateFiles(dir))
+                foreach (var prefix in searchPrefixes)
                 {
-                    // Fast Extension Check
-                    if (!validExtensions.Contains(Path.GetExtension(file))) continue;
+                    // OS Optimized Search: Let the file system filter by prefix
+                    // This avoids iterating 30,000 files in C#.
+                    var pattern = $"{prefix}*"; 
                     
-                    // Deduplication Check
-                    if (distinctResults.Contains(file)) continue;
-
-                    var fileName = Path.GetFileName(file);
-                    
-                    // Pattern Matching
-                    // We use "StartsWith" to allow suffixes like "_Cover", "_01", etc.
-                    bool match = false;
-                    foreach (var pattern in searchPatterns)
+                    foreach (var file in Directory.EnumerateFiles(dir, pattern))
                     {
-                        if (fileName.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                        // Fast Extension Check
+                        if (!validExtensions.Contains(Path.GetExtension(file))) continue;
+                        
+                        // Deduplication Check
+                        if (distinctResults.Add(file)) // Returns true if added (deduplication)
                         {
-                            match = true; 
-                            break;
+                            results.Add(file);
                         }
-                    }
-
-                    if (match)
-                    {
-                        results.Add(file);
-                        distinctResults.Add(file);
                     }
                 }
             }
@@ -133,30 +125,5 @@ public static class MediaSearchHelper
         }
 
         return results;
-    }
-
-    private static void AddPatternFromPath(string? path, HashSet<string> patterns)
-    {
-        if (string.IsNullOrEmpty(path)) return;
-        var name = Path.GetFileNameWithoutExtension(path);
-        // Optimization: Only add if it looks like a meaningful name (e.g. longer than 2 chars)
-        if (!string.IsNullOrEmpty(name) && name.Length > 2) patterns.Add(name);
-    }
-
-    private static void AddFolderFromPath(string? path, HashSet<string> folders)
-    {
-        if (string.IsNullOrEmpty(path)) return;
-        try
-        {
-            // Handle relative paths correctly
-            var fullPath = Path.IsPathRooted(path) 
-                ? path 
-                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
-            
-            var dir = Path.GetDirectoryName(Path.GetFullPath(fullPath));
-            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir)) 
-                folders.Add(dir);
-        }
-        catch { }
     }
 }

@@ -21,6 +21,18 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private string _name = string.Empty;
 
     [ObservableProperty] 
+    private string _description = string.Empty;
+
+    // Assets are usually handled by separate managers/dialogs, but let's expose them here or via commands.
+    // For now, simple string properties to bind to textboxes or file pickers.
+    // In a full implementation, you might want "Browse..." commands.
+    
+    [ObservableProperty] private string? _coverPath;
+    [ObservableProperty] private string? _wallpaperPath;
+    [ObservableProperty] private string? _logoPath;
+    [ObservableProperty] private string? _videoPath;
+    
+    [ObservableProperty] 
     private bool? _randomizeCovers;
     
     [ObservableProperty] 
@@ -52,6 +64,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private void InitializeData()
     {
         Name = _node.Name;
+        Description = _node.Description;
+        CoverPath = _node.CoverPath;
+        WallpaperPath = _node.WallpaperPath;
+        LogoPath = _node.LogoPath;
+        VideoPath = _node.VideoPath;
+        
         RandomizeCovers = _node.RandomizeCovers;
         RandomizeMusic = _node.RandomizeMusic;
     }
@@ -87,6 +105,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         // Apply changes to the node
         _node.Name = Name;
+        _node.Description = Description;
+        _node.CoverPath = CoverPath;
+        _node.WallpaperPath = WallpaperPath;
+        _node.LogoPath = LogoPath;
+        _node.VideoPath = VideoPath;
+        
         _node.RandomizeCovers = RandomizeCovers;
         _node.RandomizeMusic = RandomizeMusic;
         

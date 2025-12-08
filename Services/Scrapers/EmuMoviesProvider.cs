@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics; // For Debug.WriteLine
+using System.Diagnostics;
+using System.Linq; // For Debug.WriteLine
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json.Nodes;
@@ -139,7 +140,7 @@ public class EmuMoviesProvider : IMetadataProvider
 
             // wait for all task results. This reduces the waiting time from (20 * request time) to (1 * request time)
             var processedResults = await Task.WhenAll(scraperTasks);
-            results.AddRange(processedResults);
+            results.AddRange(processedResults.Where(r => r != null)!);
 
             return results;
         }

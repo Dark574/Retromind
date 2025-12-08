@@ -65,6 +65,16 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private string? _logoPath;
     [ObservableProperty] private string? _musicPath;
 
+    /// <summary>
+    /// Path to a video preview/snap/trailer.
+    /// </summary>
+    [ObservableProperty] private string? _videoPath;
+
+    /// <summary>
+    /// Path to the cabinet marquee image (header).
+    /// </summary>
+    [ObservableProperty] private string? _marqueePath;
+    
     // --- Launch Configuration ---
 
     /// <summary>

@@ -387,7 +387,7 @@ public partial class MainWindowViewModel
         OnPropertyChanged(nameof(SelectedNode));
         
         var searchVm = new SearchAreaViewModel(RootItems) { ItemWidth = ItemWidth };
-        searchVm.RequestPlay += item => { PlayMediaAsync(item); }; // Now using Async method
+        searchVm.RequestPlay += item => {_ = PlayMediaAsync(item); }; // Now using Async method
         
         searchVm.PropertyChanged += (s, e) => 
         {

@@ -60,6 +60,38 @@ public partial class MediaNode : ObservableObject
     /// </summary>
     public string? DefaultEmulatorId { get; set; }
 
+    // --- Presentation Metadata ---
+
+    /// <summary>
+    /// Optional description text for this category/platform.
+    /// </summary>
+    [ObservableProperty] 
+    private string _description = string.Empty;
+
+    /// <summary>
+    /// Path to a representative image (e.g. console hardware icon).
+    /// </summary>
+    [ObservableProperty] 
+    private string? _coverPath;
+
+    /// <summary>
+    /// Path to a background fanart/wallpaper.
+    /// </summary>
+    [ObservableProperty] 
+    private string? _wallpaperPath;
+    
+    /// <summary>
+    /// Path to a video preview (e.g. platform intro).
+    /// </summary>
+    [ObservableProperty] 
+    private string? _videoPath;
+
+    /// <summary>
+    /// Path to a logo (e.g. system logo).
+    /// </summary>
+    [ObservableProperty] 
+    private string? _logoPath;
+    
     // --- Content ---
 
     /// <summary>
