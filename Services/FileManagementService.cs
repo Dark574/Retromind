@@ -13,12 +13,15 @@ public enum MediaFileType
     Cover,
     Logo,
     Wallpaper,
-    Music
+    Music,
+    Video,
+    Marquee
 }
 
 public partial class FileManagementService
 {
     private const string RootFolderName = "Medien";
+    private const string MetadataFolderName = "_Metadata";
 
     [GeneratedRegex(@"([<>\:""/\\|?*]*\.+$)|([<>\:""/\\|?*]+)")]
     private static partial Regex InvalidCharsRegex();
@@ -96,6 +99,63 @@ public partial class FileManagementService
         return Path.Combine(relativeDirectory, newFileName);
     }
 
+    /// <summary>
+    /// Imports an asset for a MediaNode (Category/Platform).
+    /// Stores it in a "_Metadata" subfolder inside the node's path.
+    /// Naming: NodeName_FileType.ext (e.g. "SNES_Wallpaper.jpg")
+    /// </summary>
+    public string ImportNodeAsset(string sourceFilePath, MediaNode node, List<string> nodePath, MediaFileType fileType)
+    {
+        // 1. Base directory
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+        // 2. Build target structure: Media/Area/Group/_Metadata
+        var paths = new List<string> { RootFolderName };
+        paths.AddRange(nodePath);
+        paths.Add(MetadataFolderName); 
+
+        var relativeDirectory = Path.Combine(paths.ToArray());
+        var absoluteDirectory = Path.Combine(baseDir, relativeDirectory);
+
+        if (!Directory.Exists(absoluteDirectory)) Directory.CreateDirectory(absoluteDirectory);
+
+        // 3. Generate filename
+        var extension = Path.GetExtension(sourceFilePath);
+        var safeName = SanitizeFileName(node.Name);
+        
+        // Pattern: "SNES_Logo.png"
+        var baseFileName = $"{safeName}_{fileType}";
+        var newFileName = $"{baseFileName}{extension}";
+        var destinationPath = Path.Combine(absoluteDirectory, newFileName);
+
+        // VERSIONING (same logic as ImportAsset)
+        int counter = 1;
+        while (File.Exists(destinationPath))
+        {
+            if (AreFilesEqual(sourceFilePath, destinationPath))
+            {
+                return Path.Combine(relativeDirectory, newFileName);
+            }
+            
+            newFileName = $"{baseFileName}_{counter:D2}{extension}";
+            destinationPath = Path.Combine(absoluteDirectory, newFileName);
+            counter++;
+        }
+
+        // 4. Copy
+        try
+        {
+            File.Copy(sourceFilePath, destinationPath);
+        }
+        catch (IOException ex)
+        {
+            Console.WriteLine($"Error copying node asset: {ex.Message}");
+            return string.Empty;
+        }
+
+        return Path.Combine(relativeDirectory, newFileName);
+    }
+    
     private bool AreFilesEqual(string source, string dest)
     {
         try
@@ -155,6 +215,7 @@ public partial class FileManagementService
     {
         var ext = Path.GetExtension(path).ToLowerInvariant();
         if (type == MediaFileType.Music) return ext is ".mp3" or ".ogg" or ".wav" or ".flac" or ".sid";
+        if (type == MediaFileType.Video) return ext is ".mp4" or ".mkv" or ".webm" or ".avi" or ".mov";
         return ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".webp";
     }
     

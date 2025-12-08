@@ -1,10 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Models;
-using Retromind.Resources; // Assuming Strings resource exists
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
@@ -17,6 +21,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private readonly MediaNode _node;
     private readonly AppSettings _settings;
 
+    // Dependencies
+    private readonly FileManagementService _fileService;
+    private readonly List<string> _nodePath;
+    
     [ObservableProperty] 
     private string _name = string.Empty;
 
@@ -46,29 +54,96 @@ public partial class NodeSettingsViewModel : ViewModelBase
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
     
+    // Import Commands
+    public IAsyncRelayCommand<string> ImportAssetCommand { get; }
+
+    // Storage Provider Property (wird von View gesetzt oder übergeben)
+    public IStorageProvider? StorageProvider { get; set; }
+    
     // Event to signal the view to close (true = saved, false = cancelled)
     public event Action<bool>? RequestClose;
 
-    public NodeSettingsViewModel(MediaNode node, AppSettings settings)
+    public NodeSettingsViewModel(
+        MediaNode node, 
+        AppSettings settings, 
+        FileManagementService fileService, 
+        List<string> nodePath)
     {
         _node = node ?? throw new ArgumentNullException(nameof(node));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
+        _nodePath = nodePath ?? new List<string>();
 
         InitializeData();
         InitializeEmulators();
 
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
+        
+        // Generischer Import-Command (Parameter: "Cover", "Logo" etc.)
+        ImportAssetCommand = new AsyncRelayCommand<string>(ImportAssetAsync);
     }
 
+    private async Task ImportAssetAsync(string? typeStr)
+    {
+        if (StorageProvider == null || string.IsNullOrEmpty(typeStr)) return;
+
+        if (!Enum.TryParse<MediaFileType>(typeStr, out var type)) return;
+
+        var fileTypes = type == MediaFileType.Video 
+            ? new[] { new FilePickerFileType("Videos") { Patterns = new[] { "*.mp4", "*.mkv", "*.avi" } } }
+            : new[] { FilePickerFileTypes.ImageAll };
+
+        var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = $"Import {typeStr}",
+            AllowMultiple = false,
+            FileTypeFilter = fileTypes
+        });
+
+        if (result != null && result.Count > 0)
+        {
+            // Nutzt die NEUE Methode im Service
+            var relPath = _fileService.ImportNodeAsset(result[0].Path.LocalPath, _node, _nodePath, type);
+            
+            if (!string.IsNullOrEmpty(relPath))
+            {
+                var fullPath = ToAbsolutePath(relPath);
+                
+                // Property aktualisieren
+                switch (type)
+                {
+                    case MediaFileType.Cover: CoverPath = fullPath; break;
+                    case MediaFileType.Wallpaper: WallpaperPath = fullPath; break;
+                    case MediaFileType.Logo: LogoPath = fullPath; break;
+                    case MediaFileType.Video: VideoPath = fullPath; break;
+                }
+            }
+        }
+    }
+    
+    // Helpers (kopiert aus EditMediaViewModel)
+    private string? MakeRelative(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        return Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, path);
+    }
+
+    private string? ToAbsolutePath(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        if (Path.IsPathRooted(path)) return path;
+        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
+    }
+    
     private void InitializeData()
     {
         Name = _node.Name;
         Description = _node.Description;
-        CoverPath = _node.CoverPath;
-        WallpaperPath = _node.WallpaperPath;
-        LogoPath = _node.LogoPath;
-        VideoPath = _node.VideoPath;
+        CoverPath = ToAbsolutePath(_node.CoverPath);
+        WallpaperPath = ToAbsolutePath(_node.WallpaperPath);
+        LogoPath = ToAbsolutePath(_node.LogoPath);
+        VideoPath = ToAbsolutePath(_node.VideoPath);
         
         RandomizeCovers = _node.RandomizeCovers;
         RandomizeMusic = _node.RandomizeMusic;
@@ -106,10 +181,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
         // Apply changes to the node
         _node.Name = Name;
         _node.Description = Description;
-        _node.CoverPath = CoverPath;
-        _node.WallpaperPath = WallpaperPath;
-        _node.LogoPath = LogoPath;
-        _node.VideoPath = VideoPath;
+        _node.CoverPath = MakeRelative(CoverPath);
+        _node.WallpaperPath = MakeRelative(WallpaperPath);
+        _node.LogoPath = MakeRelative(LogoPath);
+        _node.VideoPath = MakeRelative(VideoPath);
         
         _node.RandomizeCovers = RandomizeCovers;
         _node.RandomizeMusic = RandomizeMusic;

@@ -45,7 +45,7 @@ public partial class EditMediaViewModel : ViewModelBase
     private MediaType _mediaType;
 
     [ObservableProperty] 
-    [NotifyPropertyChangedFor(nameof(IsManualEmulator))]
+    [NotifyPropertyChangedFor(nameof(IsManualEmulator))] // Computed Property
     [NotifyPropertyChangedFor(nameof(PreviewText))]
     private EmulatorConfig? _selectedEmulatorProfile;
 
@@ -56,6 +56,10 @@ public partial class EditMediaViewModel : ViewModelBase
     private string? _launcherArgs;
     
     [ObservableProperty] private string _overrideWatchProcess = string.Empty;
+
+    // --- New Media Assets ---
+    [ObservableProperty] private string? _videoPath;
+    [ObservableProperty] private string? _marqueePath;
 
     // --- Image Properties (Absolute Paths for UI) ---
     [ObservableProperty] private string? _coverPath;
@@ -80,6 +84,8 @@ public partial class EditMediaViewModel : ViewModelBase
     public IRelayCommand SetAsCoverCommand { get; }
     public IRelayCommand SetAsWallpaperCommand { get; }
     public IRelayCommand SetAsLogoCommand { get; }
+    public IAsyncRelayCommand ImportVideoCommand { get; }
+    public IAsyncRelayCommand ImportMarqueeCommand { get; }
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
     public IAsyncRelayCommand BrowseLauncherCommand { get; }
@@ -125,6 +131,9 @@ public partial class EditMediaViewModel : ViewModelBase
         SetAsWallpaperCommand = new RelayCommand(() => SetImageType(MediaFileType.Wallpaper), () => SelectedGalleryImage != null);
         SetAsLogoCommand = new RelayCommand(() => SetImageType(MediaFileType.Logo), () => SelectedGalleryImage != null);
         
+        ImportVideoCommand = new AsyncRelayCommand(ImportVideoAsync);
+        ImportMarqueeCommand = new AsyncRelayCommand(ImportMarqueeAsync);
+
         AddMusicCommand = new AsyncRelayCommand(ImportMusicAsync);
         SetAsMusicCommand = new RelayCommand(SetAsMusic, () => SelectedAudioItem != null);
         RemoveMusicCommand = new RelayCommand(RemoveMusic, () => SelectedAudioItem != null);
@@ -154,6 +163,8 @@ public partial class EditMediaViewModel : ViewModelBase
         CoverPath = ToAbsolutePath(_originalItem.CoverPath);
         WallpaperPath = ToAbsolutePath(_originalItem.WallpaperPath);
         LogoPath = ToAbsolutePath(_originalItem.LogoPath);
+        VideoPath = ToAbsolutePath(_originalItem.VideoPath);
+        MarqueePath = ToAbsolutePath(_originalItem.MarqueePath);
 
         LauncherArgs = string.IsNullOrWhiteSpace(_originalItem.LauncherArgs) ? "{file}" : _originalItem.LauncherArgs;
     }
@@ -390,7 +401,47 @@ public partial class EditMediaViewModel : ViewModelBase
         }
         UpdateAllImageStatuses();
     }
-        
+
+    private async Task ImportVideoAsync()
+    {
+        if (StorageProvider == null) return;
+        var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import Video",
+            AllowMultiple = false,
+            FileTypeFilter = new[] { new FilePickerFileType("Video Files") { Patterns = new[] { "*.mp4", "*.mkv", "*.webm", "*.avi", "*.mov" } } }
+        });
+
+        if (result != null && result.Count > 0)
+        {
+            var relPath = _fileService.ImportAsset(result[0].Path.LocalPath, _originalItem, _nodePath, MediaFileType.Video);
+            if (!string.IsNullOrEmpty(relPath))
+            {
+                VideoPath = ToAbsolutePath(relPath);
+            }
+        }
+    }
+
+    private async Task ImportMarqueeAsync()
+    {
+        if (StorageProvider == null) return;
+        var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import Marquee",
+            AllowMultiple = false,
+            FileTypeFilter = new[] { FilePickerFileTypes.ImageAll }
+        });
+
+        if (result != null && result.Count > 0)
+        {
+            var relPath = _fileService.ImportAsset(result[0].Path.LocalPath, _originalItem, _nodePath, MediaFileType.Marquee);
+            if (!string.IsNullOrEmpty(relPath))
+            {
+                MarqueePath = ToAbsolutePath(relPath);
+            }
+        }
+    }
+    
     private void SetImageType(MediaFileType type)
     {
         if (SelectedGalleryImage == null) return;
@@ -479,9 +530,12 @@ public partial class EditMediaViewModel : ViewModelBase
         AddAudio(MusicPath);
 
         // Search for potential music files
-        var tempItem = new MediaItem { Title = Title, FilePath = _originalItem.FilePath, MusicPath = MusicPath };
-        var found = MediaSearchHelper.FindPotentialAudio(tempItem);
-        foreach (var f in found) AddAudio(f);
+        var potentialFiles = _fileService.GetAvailableAssets(_originalItem, _nodePath, MediaFileType.Music);
+            
+        foreach (var f in potentialFiles)
+        {
+            AddAudio(ToAbsolutePath(f));
+        }
     }
 
     private async Task ImportMusicAsync()
@@ -568,6 +622,8 @@ public partial class EditMediaViewModel : ViewModelBase
         _originalItem.CoverPath = MakeRelative(CoverPath);
         _originalItem.WallpaperPath = MakeRelative(WallpaperPath);
         _originalItem.LogoPath = MakeRelative(LogoPath);
+        _originalItem.VideoPath = MakeRelative(VideoPath);
+        _originalItem.MarqueePath = MakeRelative(MarqueePath);
 
         if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
         {
