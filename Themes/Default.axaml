@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             x:DataType="vm:BigModeViewModel">
+    
+    <Grid RowDefinitions="Auto, *, Auto" Background="#1a1a1a">
+        
+        <!-- Header -->
+        <TextBlock Text="{Binding CategoryTitle}" 
+                   FontSize="40" FontWeight="Light" Foreground="White" 
+                   HorizontalAlignment="Center" Margin="20"/>
+
+        <Grid Grid.Row="1" ColumnDefinitions="400, *">
+            
+            <!-- List -->
+            <ListBox Grid.Column="0" 
+                     ItemsSource="{Binding Items}" 
+                     SelectedItem="{Binding SelectedItem}"
+                     Background="#111" Margin="20">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Title}" FontSize="20" Foreground="White" Padding="10"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- Details Area -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="20">
+                <!-- Fallback text for title -->
+                <TextBlock Text="{Binding SelectedItem.Title}" 
+                           FontSize="50" FontWeight="Bold" Foreground="White"
+                           TextWrapping="Wrap" TextAlignment="Center"/>
+                           
+                <TextBlock Text="{Binding SelectedItem.ReleaseDate}" 
+                           FontSize="20" Foreground="Gray" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="30" Spacing="20">
+            <Button Content="EXIT" Command="{Binding ExitBigModeCommand}" Padding="20,10" Background="DarkRed" Foreground="White"/>
+            <Button Content="PLAY" Command="{Binding PlayCurrentCommand}" Padding="20,10" Background="Green" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

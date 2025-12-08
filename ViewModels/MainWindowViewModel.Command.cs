@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
+using Retromind.Services;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -45,6 +46,9 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaNode?> ScrapeNodeCommand { get; private set; } = null!;
     public IRelayCommand OpenSearchCommand { get; private set; } = null!;
 
+    // Command to enter the Big Picture / Themed mode
+    public IRelayCommand EnterBigModeCommand { get; private set; } = null!;
+
     private void InitializeCommands()
     {
         // Replaced RelayCommand with AsyncRelayCommand to handle Tasks properly
@@ -75,10 +79,47 @@ public partial class MainWindowViewModel
         ScrapeMediaCommand = new AsyncRelayCommand<MediaItem?>(ScrapeMediaAsync);
         ScrapeNodeCommand = new AsyncRelayCommand<MediaNode?>(ScrapeNodeAsync);
         OpenSearchCommand = new RelayCommand(OpenIntegratedSearch);
+        
+        EnterBigModeCommand = new RelayCommand(EnterBigMode);
     }
 
     // --- Basic Actions ---
 
+    private void EnterBigMode()
+    {
+        // We need a valid selection to show something
+        // If SelectedNodeContent is not MediaAreaViewModel (e.g. Settings or Search), we might fallback to Root or show nothing
+        if (SelectedNodeContent is not MediaAreaViewModel mediaVM) 
+            return;
+
+        // Path to the external theme file. 
+        // Ensure this directory exists in your output folder!
+        string themePath = System.IO.Path.Combine(AppContext.BaseDirectory, "Themes", "Default.axaml");
+            
+        // Create the ViewModel that acts as the interface for the theme
+        // We pass the items from the currently active view
+        var bigVm = new BigModeViewModel(mediaVM.FilteredItems, SelectedNode?.Name ?? "Library");
+            
+        // Subscribe to the close event to clear the overlay when done
+        bigVm.RequestClose += () => FullScreenContent = null;
+            
+        // Also wire up the Play command inside the Big Mode to our main Play logic
+        // Note: BigModeViewModel has its own PlayCurrentCommand, but it needs to call our main logic
+        // We can achieve this by passing an Action or hooking up events. 
+        // For now, let's keep it simple in BigModeViewModel, but ideally it calls back here.
+        // Let's improve BigModeViewModel to accept a play callback or event later. 
+        // For this iteration, we just show the UI.
+
+        // Load the actual UI from the .axaml file
+        var view = ThemeLoader.LoadTheme(themePath);
+            
+        // Bind the DataContext
+        view.DataContext = bigVm;
+
+        // Show the overlay
+        FullScreenContent = view;
+    }
+    
     private async Task AddCategoryAsync(MediaNode? parentNode)
     {
         if (CurrentWindow is not { } owner) return;

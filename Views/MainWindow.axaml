@@ -93,7 +93,7 @@
 
                            <!-- Header Leiste mit Settings Button -->
                            <!-- KORRIGIERT: Eine "Auto" Spalte mehr hinzugefügt -->
-                           <Grid Grid.Row="0" ColumnDefinitions="*, Auto, Auto, Auto" Margin="10">
+                           <Grid Grid.Row="0" ColumnDefinitions="*, Auto, Auto, Auto, Auto" Margin="10">
                                <TextBlock Text="{x:Static p:Strings.Media_Library}" 
                                           FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
 
@@ -113,7 +113,15 @@
                                        FontSize="14" Cursor="Hand" Margin="0,2,5,0"
                                        Foreground="{Binding TextColor}"/>
 
-                               <Button Grid.Column="3" Content="⚙" 
+                               <!-- BIG MODE BUTTON (New) -->
+                               <Button Grid.Column="3" Content="📺" 
+                                       Command="{Binding EnterBigModeCommand}"
+                                       Background="Transparent" BorderThickness="0"
+                                       ToolTip.Tip="Big Picture Mode"
+                                       FontSize="16" Cursor="Hand" Margin="0,0,5,0"
+                                       Foreground="{Binding TextColor}"/>
+
+                               <Button Grid.Column="4" Content="⚙" 
                                        Command="{Binding OpenSettingsCommand}"
                                        Background="Transparent" BorderThickness="0"
                                        ToolTip.Tip="{x:Static p:Strings.Settings_Title}"
@@ -265,5 +273,10 @@
             <!-- Bottom Right -->
             <Rectangle Grid.Row="2" Grid.Column="2" Fill="Transparent" Cursor="BottomRightCorner" Tag="{x:Static WindowEdge.SouthEast}" PointerPressed="OnResizeDrag"/>
         </Grid>
+       <!-- LAYER 2: BIG PICTURE OVERLAY -->
+       <!-- This layer sits on top of everything. If Content is null, it should be invisible. -->
+       <ContentControl Content="{Binding FullScreenContent}" 
+                       IsVisible="{Binding FullScreenContent, Converter={x:Static ObjectConverters.IsNotNull}}"
+                       Background="Black" /> 
     </Panel>
 </Window>

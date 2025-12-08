@@ -12,6 +12,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
@@ -50,6 +51,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private MediaNode? _selectedNode;
     private object? _selectedNodeContent;
 
+    // Holds the currently loaded theme view. If null, standard desktop mode is shown.
+    [ObservableProperty]
+    private object? _fullScreenContent;
+    
     // Mockable StorageProvider for Unit Tests
     public IStorageProvider? StorageProvider { get; set; }
 

@@ -11,11 +11,15 @@
 
     <ItemGroup>
         <AvaloniaResource Include="Assets\**"/>
+        <Content Include="Themes\**">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Avalonia" Version="11.3.9"/>
         <PackageReference Include="Avalonia.Desktop" Version="11.3.9"/>
+        <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="11.3.9" />
         <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.9"/>
         <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.9"/>
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
@@ -50,5 +54,11 @@
             <AutoGen>True</AutoGen>
             <DependentUpon>Strings.de.resx</DependentUpon>
         </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+      <AvaloniaXaml Update="Themes\Default.axaml">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </AvaloniaXaml>
     </ItemGroup>
 </Project>
