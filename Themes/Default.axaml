@@ -30,10 +30,11 @@
                 
                 <!-- VIDEO PLAYER -->
                 <!-- Zeigt Video, wenn MediaPlayer Daten hat -->
-                <!-- Focusable="False" verhindert, dass die Tastatur-Eingaben im Video-Player landen -->
                 <Border Grid.Row="0" CornerRadius="10" ClipToBounds="True" Background="Black"
                         Focusable="False" IsHitTestVisible="False"> 
-                    <vlc:VideoView MediaPlayer="{Binding MediaPlayer}" />
+                    <vlc:VideoView MediaPlayer="{Binding MediaPlayer}" 
+                                   Focusable="False"
+                                   IsHitTestVisible="False" />
                 </Border>
                 
                 <!-- Info Text -->

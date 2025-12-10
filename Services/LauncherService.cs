@@ -17,6 +17,15 @@ public class LauncherService
     // Minimum session time to be counted as "played" (avoids false positives on crash/mistake)
     private const int MinPlayTimeSeconds = 5; 
 
+    // Der Root-Pfad der Bibliothek
+    private readonly string _libraryRootPath;
+    
+    // Konstruktor Injection für den Pfad
+    public LauncherService(string libraryRootPath)
+    {
+        _libraryRootPath = libraryRootPath;
+    }
+    
     /// <summary>
     /// Launches the specified media item.
     /// </summary>
@@ -157,22 +166,22 @@ public class LauncherService
         string? prefixPath = null;
         string? relativePrefixPathToSave = null;
 
-        // Priority 1: Existing saved path
+        // Priority 1: Existing saved path (Relative to Library Root)
         if (!string.IsNullOrEmpty(item.PrefixPath))
         {
-            prefixPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Medien", item.PrefixPath);
+            prefixPath = Path.Combine(_libraryRootPath, item.PrefixPath);
         }
         // Priority 2: Generate new path based on node structure
         else if (nodePath != null)
         {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            // Pfad aufbauen: Games/Windows/Prefixes/GameName
             var relPaths = new List<string>(nodePath) { "Prefixes" };
             
             var safeTitle = string.Join("_", item.Title.Split(Path.GetInvalidFileNameChars())).Replace(" ", "_");
             relPaths.Add(safeTitle);
 
             relativePrefixPathToSave = Path.Combine(relPaths.ToArray());
-            prefixPath = Path.Combine(baseDir, "Medien", relativePrefixPathToSave);
+            prefixPath = Path.Combine(_libraryRootPath, relativePrefixPathToSave);
         }
         // Priority 3: Fallback near ROM
         else if (!string.IsNullOrEmpty(item.FilePath))

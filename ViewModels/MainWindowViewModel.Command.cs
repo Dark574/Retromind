@@ -293,12 +293,17 @@ public partial class MainWindowViewModel
             
             // Resume background music after game exit (if applicable)
             if (SelectedNodeContent is MediaAreaViewModel vm && 
-                vm.SelectedMediaItem == item && 
-                !string.IsNullOrEmpty(item.MusicPath))
+                vm.SelectedMediaItem == item)
             {
-                var musicPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath);
-                // Fire and forget music playback (no await needed for UI flow)
-                _ = _audioService.PlayMusicAsync(musicPath);
+                // Musikpfad über AssetSystem holen
+                var relativeMusicPath = item.GetPrimaryAssetPath(AssetType.Music);
+                
+                if (!string.IsNullOrEmpty(relativeMusicPath))
+                {
+                    var musicPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativeMusicPath);
+                    // Fire and forget music playback
+                    _ = _audioService.PlayMusicAsync(musicPath);
+                }
             }
             
             await SaveData(); // Update stats (playtime, last played)

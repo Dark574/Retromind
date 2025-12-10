@@ -89,9 +89,6 @@
                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeMediaCommand}"
                                           CommandParameter="{Binding .}" />
                                 <Separator/>
-                                <!-- HIER WURDE ENTFERNT: Cover ändern, Logo ändern, Wallpaper ändern, Musik ändern -->
-                                <!-- Die Musik-Verwaltung könntest du analog zu den Bildern in den Edit-Dialog packen oder hier lassen, wenn es selten genutzt wird. Ich habe es hier mal mit entfernt, der Konsistenz halber -->
-                                    
                                 <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
                                           CommandParameter="{Binding .}"
@@ -108,26 +105,12 @@
                                        TextAlignment="Center"
                                        Margin="5"
                                        Foreground="Black"
-                                       IsVisible="{Binding CoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                                       IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
 
-                            <!-- OPTIMIZED IMAGE LOADING -->
-                            <!-- 
-                                     1. Wir nutzen AsyncImageHelper statt Source direkt.
-                                     2. Wir setzen DecodeWidth dynamisch auf die Slider-Größe + etwas Puffer (z.B. 1.2x für Schärfe).
-                                     Da Binding Converter für Math hier kompliziert wären, binden wir direkt an ItemWidth (Integer Cast macht Avalonia oft automatisch, 
-                                     sonst nimmt AsyncImageHelper int?).
-                                     
-                                     ACHTUNG: AsyncImageHelper erwartet int? für DecodeWidth. Der Slider liefert double.
-                                     Avalonias Binding-System ist oft schlau genug, aber um sicher zu gehen, setzen wir einen fixen Wert 
-                                     ODER binden an eine Integer-Property im ViewModel.
-                                     
-                                     Für maximale Performance und Einfachheit nehmen wir hier einfach "300" (das Maximum des Sliders).
-                                     Das reicht immer aus und spart trotzdem massiv RAM gegenüber 4K Bildern.
-                                -->
-                            <Image helpers:AsyncImageHelper.Url="{Binding CoverPath}"
+                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
                                    helpers:AsyncImageHelper.DecodeWidth="300" 
                                    Stretch="Uniform"
-                                   IsVisible="{Binding CoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                   IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                         </Grid>
                     </Border>
                 </DataTemplate>

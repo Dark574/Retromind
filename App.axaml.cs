@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -104,9 +105,21 @@ public partial class App : Application
         // --- Core Services (Singletons) ---
         services.AddSingleton<AudioService>();
         services.AddSingleton<MediaDataService>();
-        services.AddSingleton<FileManagementService>();
+        
+        // --- FileManagementService mit Pfad registrieren ---
+        // Wir bestimmen den Library-Ordner relativ zur Executable (Portable)
+        string libraryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Library");
+        
+        if (!Directory.Exists(libraryPath))
+        {
+            Directory.CreateDirectory(libraryPath);
+        }
+
+        // Factory-Methode, um den Pfad in den Konstruktor zu injizieren
+        services.AddSingleton<FileManagementService>(provider => new FileManagementService(libraryPath));
+        services.AddSingleton<LauncherService>(provider => new LauncherService(libraryPath));
+        
         services.AddSingleton<ImportService>();
-        services.AddSingleton<LauncherService>();
         services.AddSingleton<StoreImportService>();
         services.AddSingleton<SettingsService>();
         

@@ -162,6 +162,31 @@ public class AsyncImageHelper : AvaloniaObject
 
     // --- Cache Helpers ---
 
+    public static void InvalidateCache(string url)
+    {
+        lock (CacheLock)
+        {
+            // Wir müssen alle Keys finden, die mit dieser URL starten (wegen decodeWidth Suffix)
+            var keysToRemove = new List<string>();
+            foreach (var key in Cache.Keys)
+            {
+                if (key == url || key.StartsWith(url + "_"))
+                {
+                    keysToRemove.Add(key);
+                }
+            }
+
+            foreach (var key in keysToRemove)
+            {
+                if (Cache.TryGetValue(key, out var entry))
+                {
+                    LruList.Remove(entry.Node);
+                    Cache.Remove(key);
+                }
+            }
+        }
+    }
+    
     private static Bitmap? GetFromCache(string key)
     {
         lock (CacheLock)

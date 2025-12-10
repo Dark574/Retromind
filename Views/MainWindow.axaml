@@ -36,11 +36,11 @@
 
        <!-- LAYER 0: Wallpaper (legt sich drüber) -->
        <Image x:CompileBindings="False"
-              helpers:AsyncImageHelper.Url="{Binding SelectedNodeContent.SelectedMediaItem.WallpaperPath}"
+              helpers:AsyncImageHelper.Url="{Binding SelectedNodeContent.SelectedMediaItem.PrimaryWallpaperPath}"
               Stretch="UniformToFill"
               Opacity="0.4"
               IsHitTestVisible="False"
-              IsVisible="{Binding SelectedNodeContent.SelectedMediaItem.WallpaperPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              IsVisible="{Binding SelectedNodeContent.SelectedMediaItem.PrimaryWallpaperPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
        
        <!-- LAYER 1: Das UI Grid (mit teil-transparenten Hintergründen) -->
        <Grid RowDefinitions="30, *"> <!-- Neue Zeile für Custom Titlebar -->
@@ -115,12 +115,12 @@
                                        FontSize="14" Cursor="Hand" Margin="0,2,5,0"
                                        Foreground="{Binding TextColor}"/>
 
-                               <!-- BIG MODE BUTTON (New) -->
+                               <!-- BIG MODE BUTTON -->
                                <Button Grid.Column="3" Content="📺" 
                                        Command="{Binding EnterBigModeCommand}"
                                        Background="Transparent" BorderThickness="0"
                                        ToolTip.Tip="Big Picture Mode"
-                                       FontSize="16" Cursor="Hand" Margin="0,0,5,0"
+                                       FontSize="14" Cursor="Hand" Margin="0,2,5,0"
                                        Foreground="{Binding TextColor}"/>
 
                                <Button Grid.Column="4" Content="⚙" 

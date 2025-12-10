@@ -56,16 +56,12 @@ public partial class MainWindowViewModel
                 // Duplicate Check based on FilePath
                 if (!targetNode.Items.Any(i => i.FilePath == item.FilePath))
                 {
-                    var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
-                
-                    // Auto-assign existing assets found in the structure
-                    var existingCover = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Cover);
-                    if (existingCover != null) item.CoverPath = existingCover;
-                    
-                    var existingLogo = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Logo);
-                    if (existingLogo != null) item.LogoPath = existingLogo;
-                    
                     targetNode.Items.Add(item);
+
+                    // Sofort nach Assets scannen, die vielleicht schon da sind
+                    // (z.B. wenn man ROMs importiert und die Cover schon im Ordner liegen)
+                    var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
+                    _fileService.RefreshItemAssets(item, nodePath);
                 }
             }
             
@@ -154,9 +150,9 @@ public partial class MainWindowViewModel
                 var newItem = new MediaItem { Title = title, FilePath = file.Path.LocalPath, MediaType = MediaType.Native };
                 targetNode.Items.Add(newItem); 
                 
+                // Auch hier direkt scannen, falls Assets existieren
                 var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
-                var existingCover = _fileService.FindExistingAsset(newItem, nodePath, MediaFileType.Cover);
-                if (existingCover != null) newItem.CoverPath = existingCover;
+                _fileService.RefreshItemAssets(newItem, nodePath);
             }
             SortMediaItems(targetNode.Items);
             await SaveData();
@@ -220,15 +216,14 @@ public partial class MainWindowViewModel
             var sourceFile = result[0].Path.LocalPath;
             var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
             
-            // Import logic (copy/move)
-            var relativePath = _fileService.ImportAsset(sourceFile, item, nodePath, MediaFileType.Music);
+            // AssetType statt MediaFileType
+            var asset = _fileService.ImportAsset(sourceFile, item, nodePath, AssetType.Music);
 
-            if (!string.IsNullOrEmpty(relativePath))
+            if (asset != null)
             {
-                item.MusicPath = relativePath;
-                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativePath);
+                // Play logic needs full path
+                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, asset.RelativePath);
                 
-                // Fire & Forget play
                 _ = _audioService.PlayMusicAsync(fullPath);
                 await SaveData();
             }
@@ -276,11 +271,12 @@ public partial class MainWindowViewModel
     
             var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
             
+            // DownloadAndSetAsset nutzt jetzt AssetType
             if (!string.IsNullOrEmpty(result.CoverUrl)) 
-                await DownloadAndSetAsset(result.CoverUrl, item, nodePath, MediaFileType.Cover, true);
+                await DownloadAndSetAsset(result.CoverUrl, item, nodePath, AssetType.Cover);
                 
             if (!string.IsNullOrEmpty(result.WallpaperUrl)) 
-                await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, MediaFileType.Wallpaper, true);
+                await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
 
             await SaveData();
             
@@ -312,15 +308,19 @@ public partial class MainWindowViewModel
             if (!item.ReleaseDate.HasValue && result.ReleaseDate.HasValue) item.ReleaseDate = result.ReleaseDate;
             if (item.Rating == 0 && result.Rating.HasValue) item.Rating = result.Rating.Value;
     
+            // Wir laden einfach runter und fügen hinzu. Der FileService kümmert sich um Dubletten/Nummerierung.
             if (!string.IsNullOrEmpty(result.CoverUrl))
             {
-                bool shouldActivate = string.IsNullOrEmpty(item.CoverPath);
-                await DownloadAndSetAsset(result.CoverUrl, item, nodePath, MediaFileType.Cover, shouldActivate);
+                // Prüfen wir noch, ob schon ein Cover da ist?
+                // Mit dem neuen System können wir einfach hinzufügen (ergibt dann Cover_02)
+                // oder prüfen ob Assets.Any(a => a.Type == AssetType.Cover)
+                if (!item.Assets.Any(a => a.Type == AssetType.Cover))
+                    await DownloadAndSetAsset(result.CoverUrl, item, nodePath, AssetType.Cover);
             }
             if (!string.IsNullOrEmpty(result.WallpaperUrl))
             {
-                bool shouldActivate = string.IsNullOrEmpty(item.WallpaperPath);
-                await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, MediaFileType.Wallpaper, shouldActivate);
+                if (!item.Assets.Any(a => a.Type == AssetType.Wallpaper))
+                    await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
             }
         };
     
@@ -330,7 +330,7 @@ public partial class MainWindowViewModel
         if (IsNodeInCurrentView(node)) UpdateContent();
     }
 
-    private async Task DownloadAndSetAsset(string url, MediaItem item, List<string> nodePath, MediaFileType type, bool setAsActive)
+    private async Task DownloadAndSetAsset(string url, MediaItem item, List<string> nodePath, AssetType type)
     {
         try
         {
@@ -338,9 +338,14 @@ public partial class MainWindowViewModel
             var ext = Path.GetExtension(url).Split('?')[0];
             if (string.IsNullOrEmpty(ext)) ext = ".jpg";
             var tempPathWithExt = Path.ChangeExtension(tempFile, ext);
+            
+            // Move statt Copy, da TempFile erstellt wurde
+            // Achtung: Path.GetTempFileName erstellt eine 0-Byte Datei, Move wirft Fehler wenn Ziel existiert.
+            if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
             File.Move(tempFile, tempPathWithExt);
 
             bool success = false;
+            // AsyncImageHelper sollte angepasst sein oder wir nutzen ihn so:
             if (await AsyncImageHelper.SaveCachedImageAsync(url, tempPathWithExt)) 
             {
                 success = true;
@@ -350,7 +355,6 @@ public partial class MainWindowViewModel
                 try
                 {
                     using var client = new HttpClient();
-                    // Important: User-Agent needed for some CDNs
                     client.DefaultRequestHeaders.Add("User-Agent", "Retromind/1.0");
                     var data = await client.GetByteArrayAsync(url);
                     await File.WriteAllBytesAsync(tempPathWithExt, data);
@@ -364,13 +368,8 @@ public partial class MainWindowViewModel
 
             if (success)
             {
-                var relativePath = _fileService.ImportAsset(tempPathWithExt, item, nodePath, type);
-                if (setAsActive && !string.IsNullOrEmpty(relativePath))
-                {
-                    if (type == MediaFileType.Cover) item.CoverPath = relativePath;
-                    if (type == MediaFileType.Wallpaper) item.WallpaperPath = relativePath;
-                    if (type == MediaFileType.Logo) item.LogoPath = relativePath;
-                }
+                // ImportAsset übernimmt das Hinzufügen zur Liste
+                _fileService.ImportAsset(tempPathWithExt, item, nodePath, type);
             }
             if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
         }
@@ -393,20 +392,23 @@ public partial class MainWindowViewModel
         {
             if (e.PropertyName == nameof(SearchAreaViewModel.SelectedMediaItem))
             {
-                 var item = searchVm.SelectedMediaItem;
-                 if (item != null && !string.IsNullOrEmpty(item.MusicPath))
-                     _ = _audioService.PlayMusicAsync(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath));
-                 else 
-                     _audioService.StopMusic();
+                var item = searchVm.SelectedMediaItem;
+                 
+                // Musik-Logik mit Helper und Assets
+                var musicAsset = item?.GetPrimaryAssetPath(AssetType.Music);
+                if (!string.IsNullOrEmpty(musicAsset))
+                    _ = _audioService.PlayMusicAsync(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, musicAsset));
+                else 
+                    _audioService.StopMusic();
             }
         };
         SelectedNodeContent = searchVm;
     }
 
     // Wrappers for Assets
-    private async Task SetCoverAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Cover, MediaFileType.Cover, (i, p) => i.CoverPath = p);
-    private async Task SetLogoAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Logo, MediaFileType.Logo, (i, p) => i.LogoPath = p);
-    private async Task SetWallpaperAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Wallpaper, MediaFileType.Wallpaper, (i, p) => i.WallpaperPath = p);
+    private async Task SetCoverAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Cover, AssetType.Cover);
+    private async Task SetLogoAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Logo, AssetType.Logo);
+    private async Task SetWallpaperAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Wallpaper, AssetType.Wallpaper);
 
     private EmulatorConfig? FindInheritedEmulator(MediaItem item)
     {
@@ -436,57 +438,22 @@ public partial class MainWindowViewModel
     {
         var nodePath = PathHelper.GetNodePath(node, RootItems);
         
-        // Collect updates locally to avoid dispatching per item property
-        var updates = new List<(MediaItem Item, string Property, string Value)>();
-        
         foreach (var item in node.Items)
         {
-            // Checks happen in background (File IO)
-            if (string.IsNullOrEmpty(item.CoverPath)) 
-            { 
-                var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Cover); 
-                if (f != null) updates.Add((item, nameof(MediaItem.CoverPath), f)); 
-            }
-            if (string.IsNullOrEmpty(item.LogoPath)) 
-            { 
-                var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Logo); 
-                if (f != null) updates.Add((item, nameof(MediaItem.LogoPath), f)); 
-            }
-            if (string.IsNullOrEmpty(item.WallpaperPath)) 
-            { 
-                var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Wallpaper); 
-                if (f != null) updates.Add((item, nameof(MediaItem.WallpaperPath), f)); 
-            }
-            if (string.IsNullOrEmpty(item.MusicPath)) 
-            { 
-                var f = _fileService.FindExistingAsset(item, nodePath, MediaFileType.Music); 
-                if (f != null) updates.Add((item, nameof(MediaItem.MusicPath), f)); 
-            }
-        }
-        
-        // Apply UI updates in one batch per node
-        if (updates.Any())
-        {
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            // UI-Thread-Switch nur für den Schreibzugriff auf die Collection
+            await Dispatcher.UIThread.InvokeAsync(() => 
             {
-                foreach (var update in updates)
-                {
-                    if (update.Property == nameof(MediaItem.CoverPath)) update.Item.CoverPath = update.Value;
-                    else if (update.Property == nameof(MediaItem.LogoPath)) update.Item.LogoPath = update.Value;
-                    else if (update.Property == nameof(MediaItem.WallpaperPath)) update.Item.WallpaperPath = update.Value;
-                    else if (update.Property == nameof(MediaItem.MusicPath)) update.Item.MusicPath = update.Value;
-                }
+                _fileService.RefreshItemAssets(item, nodePath);
             });
         }
         
-        // Recurse down
         foreach (var child in node.Children) 
         {
             await RescanNodeRecursive(child);
         }
     }
     
-    private async Task SetAssetAsync(MediaItem? item, string title, MediaFileType type, Action<MediaItem, string> updateAction)
+    private async Task SetAssetAsync(MediaItem? item, string title, AssetType type)
     {
         if (item == null || CurrentWindow is not { } owner) return;
         if (SelectedNode == null) return;
@@ -500,11 +467,9 @@ public partial class MainWindowViewModel
         
         if (result != null && result.Count == 1)
         {
-            var relPath = _fileService.ImportAsset(result[0].Path.LocalPath, item, PathHelper.GetNodePath(SelectedNode, RootItems), type);
-            if (!string.IsNullOrEmpty(relPath)) 
+            var asset = _fileService.ImportAsset(result[0].Path.LocalPath, item, PathHelper.GetNodePath(SelectedNode, RootItems), type);
+            if (asset != null) 
             { 
-                updateAction(item, null!); // Clear first? Sometimes helpful for notifying UI
-                updateAction(item, relPath); 
                 await SaveData(); 
             }
         }

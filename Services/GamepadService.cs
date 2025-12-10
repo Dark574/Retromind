@@ -211,6 +211,6 @@ public static class Windowing
     public static IInputContext CreateInput()
     {
         Silk.NET.Windowing.Window.PrioritizeSdl();
-        return Silk.NET.Input.InputWindowExtensions.CreateInput(null); 
+        return Silk.NET.Input.InputWindowExtensions.CreateInput(null!); 
     }
 }

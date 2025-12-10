@@ -1,4 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Linq;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Retromind.Models;
@@ -58,23 +63,83 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     [ObservableProperty] private PlayStatus _status = PlayStatus.Incomplete;
 
-    // --- Assets (Relative or Absolute Paths) ---
+    private ObservableCollection<MediaAsset> _assets = new();
 
-    [ObservableProperty] private string? _coverPath;
-    [ObservableProperty] private string? _wallpaperPath;
-    [ObservableProperty] private string? _logoPath;
-    [ObservableProperty] private string? _musicPath;
+    public ObservableCollection<MediaAsset> Assets 
+    { 
+        get => _assets;
+        set
+        {
+            if (_assets == value) return;
 
-    /// <summary>
-    /// Path to a video preview/snap/trailer.
-    /// </summary>
-    [ObservableProperty] private string? _videoPath;
+            // 1. Altes Abo kündigen (falls vorhanden)
+            if (_assets != null)
+            {
+                _assets.CollectionChanged -= OnAssetsChanged;
+            }
 
-    /// <summary>
-    /// Path to the cabinet marquee image (header).
-    /// </summary>
-    [ObservableProperty] private string? _marqueePath;
+            _assets = value;
+
+            // 2. Neues Abo abschließen (falls neue Liste nicht null ist)
+            if (_assets != null)
+            {
+                _assets.CollectionChanged += OnAssetsChanged;
+            }
+
+            // Optional: PropertyChanged feuern, falls jemand direkt an die Liste gebunden hat
+            OnPropertyChanged();
+        }
+    }
     
+    // Temporärer Speicher für Randomisierung (nicht persistiert)
+    private readonly Dictionary<AssetType, string> _activeAssets = new();
+    
+    // Helper für interne Logik (gibt RELATIVEN Pfad zurück)
+    public string? GetPrimaryAssetPath(AssetType type)
+    {
+        // 1. Prüfen ob ein Override gesetzt ist (Randomisierung)
+        if (_activeAssets.TryGetValue(type, out var path))
+        {
+            return path;
+        }
+        
+        // 2. Fallback: Erstes Asset in der Liste
+        return Assets.FirstOrDefault(a => a.Type == type)?.RelativePath;
+    }
+    
+    // Helper für UI-Binding (gibt ABSOLUTEN Pfad zurück)
+    public string? GetPrimaryAssetAbsolutePath(AssetType type)
+    {
+        var relPath = GetPrimaryAssetPath(type);
+        if (string.IsNullOrEmpty(relPath)) return null;
+        
+        // Kombiniert BaseDirectory mit relativem Pfad
+        return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relPath);
+    }
+    
+    /// <summary>
+    /// Setzt explizit ein Asset als "aktiv" für die Anzeige (für Randomisierung).
+    /// </summary>
+    public void SetActiveAsset(AssetType type, string relativePath)
+    {
+        _activeAssets[type] = relativePath;
+        
+        switch (type)
+        {
+            case AssetType.Cover: OnPropertyChanged(nameof(PrimaryCoverPath)); break;
+            case AssetType.Wallpaper: OnPropertyChanged(nameof(PrimaryWallpaperPath)); break;
+            case AssetType.Logo: OnPropertyChanged(nameof(PrimaryLogoPath)); break;
+            case AssetType.Video: OnPropertyChanged(nameof(PrimaryVideoPath)); break;
+        }
+    }
+    
+    // --- UI Properties (Binding Sources) ---
+    // Nutzen jetzt Absolute Path Helper
+    public string? PrimaryCoverPath => GetPrimaryAssetAbsolutePath(AssetType.Cover);
+    public string? PrimaryWallpaperPath => GetPrimaryAssetAbsolutePath(AssetType.Wallpaper);
+    public string? PrimaryLogoPath => GetPrimaryAssetAbsolutePath(AssetType.Logo);
+    public string? PrimaryVideoPath => GetPrimaryAssetAbsolutePath(AssetType.Video);
+
     // --- Launch Configuration ---
 
     /// <summary>
@@ -112,11 +177,53 @@ public partial class MediaItem : ObservableObject
 
     // --- Constructors ---
 
-    public MediaItem() { } // For JSON Deserializer
-
     public MediaItem(string title)
     {
         Title = title;
+        // Abonniere Änderungen an der Assets-Liste
+        Assets.CollectionChanged += OnAssetsChanged;
+    }
+    
+    // Default-Konstruktor (für JSON) muss das Event auch abonnieren
+    public MediaItem() 
+    { 
+        Assets.CollectionChanged += OnAssetsChanged;
+    }
+    
+    private void OnAssetsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // Sicherstellen, dass die UI-Updates auf dem UI-Thread passieren
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.InvokeAsync(() => OnAssetsChanged(sender, e));
+            return;
+        }
+        
+        // 1. Clean up active assets cache
+        // If an asset was removed that was currently "active" (randomized winner),
+        // we must remove it from the dictionary so the fallback (First) works again.
+        
+        var keysToRemove = new List<AssetType>();
+        foreach (var kvp in _activeAssets)
+        {
+            // Check if the path stored in active assets still exists in the collection
+            bool stillExists = Assets.Any(a => a.RelativePath == kvp.Value && a.Type == kvp.Key);
+            if (!stillExists)
+            {
+                keysToRemove.Add(kvp.Key);
+            }
+        }
+
+        foreach (var key in keysToRemove)
+        {
+            _activeAssets.Remove(key);
+        }
+
+        // 2. Notify UI
+        OnPropertyChanged(nameof(PrimaryCoverPath));
+        OnPropertyChanged(nameof(PrimaryWallpaperPath));
+        OnPropertyChanged(nameof(PrimaryLogoPath));
+        OnPropertyChanged(nameof(PrimaryVideoPath));
     }
 }
 

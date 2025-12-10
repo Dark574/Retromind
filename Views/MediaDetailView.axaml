@@ -25,15 +25,15 @@
                                FontSize="28" FontWeight="Bold" TextWrapping="Wrap"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                TextAlignment="Center"
-                               IsVisible="{Binding LogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
 
                     <!-- Primär: Logo Grafik -->
                     <!-- DecodeWidth="400" spart RAM, falls das Logo riesig ist -->
-                    <Image helpers:AsyncImageHelper.Url="{Binding LogoPath}"
+                    <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
                            helpers:AsyncImageHelper.DecodeWidth="400"
                            Stretch="Uniform" MaxHeight="150"
                            HorizontalAlignment="Center"
-                           IsVisible="{Binding LogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                           IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 </Panel>
 
                 <!-- Der Button oben rechts: Kleines Stift-Symbol -->

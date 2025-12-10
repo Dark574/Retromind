@@ -290,45 +290,46 @@ public partial class MainWindowViewModel : ViewModelBase
             if (token.IsCancellationRequested) return;
 
             // 2. Randomization Logic (Covers/Music)
-            // PERFORMANCE: We do this on the local list BEFORE creating ObservableCollection or binding to UI.
-            // This avoids thousands of Dispatcher.Invoke calls.
             
             bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);
             bool randomizeCovers = IsRandomizeActive(nodeToLoad);
             
             if (randomizeCovers || randomizeMusic)
             {
-                // Get node path once
-                var nodePath = PathHelper.GetNodePath(nodeToLoad, RootItems);
-            
                 foreach (var item in itemList)
                 {
                     if (token.IsCancellationRequested) return;
                 
-                    // Covers Randomization
                     if (randomizeCovers) 
                     {
-                        var validCovers = _fileService.GetAvailableAssets(item, nodePath, MediaFileType.Cover);
-                        var rndImg = RandomHelper.PickRandom(validCovers);
+                        // Filtern
+                        var covers = item.Assets.Where(a => a.Type == AssetType.Cover).ToList();
                         
-                        // It is safe to modify 'item' here because it is not yet bound to the active UI in this context
-                        // (itemList is a local list, though MediaItem instances might be shared, 
-                        // but usually they are not displayed in DetailView while switching nodes)
-                        if (rndImg != null && rndImg != item.CoverPath)
+                        // Nur randomisieren wenn Auswahl da ist (> 1)
+                        if (covers.Count > 1)
                         {
-                            item.CoverPath = rndImg;
+                            var winner = RandomHelper.PickRandom(covers);
+                            if (winner != null)
+                            {
+                                // Override setzen. Da dies ein einfaches Dictionary ist, 
+                                // ist es thread-safe genug für diesen Kontext, 
+                                // solange niemand parallel liest (was bei UpdateContent unwahrscheinlich ist, 
+                                // da itemList lokal ist).
+                                item.SetActiveAsset(AssetType.Cover, winner.RelativePath);
+                            }
                         }
                     }
 
-                    // Music Randomization
                     if (randomizeMusic)
                     {
-                        var validMusic = _fileService.GetAvailableAssets(item, nodePath, MediaFileType.Music);
-                        var rndAudio = RandomHelper.PickRandom(validMusic);
-        
-                        if (rndAudio != null && rndAudio != item.MusicPath)
+                        var musicFiles = item.Assets.Where(a => a.Type == AssetType.Music).ToList();
+                        if (musicFiles.Count > 1)
                         {
-                            item.MusicPath = rndAudio;
+                            var winner = RandomHelper.PickRandom(musicFiles);
+                            if (winner != null)
+                            {
+                                item.SetActiveAsset(AssetType.Music, winner.RelativePath);
+                            }
                         }
                     }
                 }
@@ -376,10 +377,11 @@ public partial class MainWindowViewModel : ViewModelBase
                         _currentSettings.LastSelectedMediaId = item?.Id;
                         SaveSettingsOnly();
                             
-                        // Play Music on selection
-                        if (item != null && !string.IsNullOrEmpty(item.MusicPath))
+                        // Play Music on selection - NEU via AssetSystem
+                        var musicPath = item?.GetPrimaryAssetPath(AssetType.Music);
+                        if (!string.IsNullOrEmpty(musicPath))
                         {
-                            var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, item.MusicPath);
+                            var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, musicPath);
                             _ = _audioService.PlayMusicAsync(fullPath);
                         }
                         else

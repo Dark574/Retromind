@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Linq;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Retromind.Models;
@@ -68,29 +72,33 @@ public partial class MediaNode : ObservableObject
     [ObservableProperty] 
     private string _description = string.Empty;
 
-    /// <summary>
-    /// Path to a representative image (e.g. console hardware icon).
-    /// </summary>
-    [ObservableProperty] 
-    private string? _coverPath;
-
-    /// <summary>
-    /// Path to a background fanart/wallpaper.
-    /// </summary>
-    [ObservableProperty] 
-    private string? _wallpaperPath;
+    public ObservableCollection<MediaAsset> Assets { get; set; } = new();
     
-    /// <summary>
-    /// Path to a video preview (e.g. platform intro).
-    /// </summary>
-    [ObservableProperty] 
-    private string? _videoPath;
+    private readonly Dictionary<AssetType, string> _activeAssets = new();
+    
+    public string? GetPrimaryAssetPath(AssetType type)
+    {
+        if (_activeAssets.TryGetValue(type, out var path))
+        {
+            return path;
+        }
+        return Assets.FirstOrDefault(a => a.Type == type)?.RelativePath;
+    }
 
-    /// <summary>
-    /// Path to a logo (e.g. system logo).
-    /// </summary>
-    [ObservableProperty] 
-    private string? _logoPath;
+    public void SetActiveAsset(AssetType type, string relativePath)
+    {
+        _activeAssets[type] = relativePath;
+        
+        if (type == AssetType.Cover) OnPropertyChanged(nameof(PrimaryCoverPath));
+        if (type == AssetType.Wallpaper) OnPropertyChanged(nameof(PrimaryWallpaperPath));
+        if (type == AssetType.Logo) OnPropertyChanged(nameof(PrimaryLogoPath));
+        if (type == AssetType.Video) OnPropertyChanged(nameof(PrimaryVideoPath));
+    }
+    
+    public string? PrimaryCoverPath => GetPrimaryAssetPath(AssetType.Cover);
+    public string? PrimaryWallpaperPath => GetPrimaryAssetPath(AssetType.Wallpaper);
+    public string? PrimaryLogoPath => GetPrimaryAssetPath(AssetType.Logo);
+    public string? PrimaryVideoPath => GetPrimaryAssetPath(AssetType.Video);
     
     // --- Content ---
 
@@ -106,13 +114,41 @@ public partial class MediaNode : ObservableObject
 
     // --- Constructors ---
 
-    public MediaNode() { } // For JSON Deserializer
+    public MediaNode()
+    {
+        Assets.CollectionChanged += OnAssetsChanged;
+    } // For JSON Deserializer
 
     public MediaNode(string name, NodeType type)
     {
         Name = name;
         Type = type;
         IsExpanded = true; // Expand new nodes by default for better UX
+        Assets.CollectionChanged += OnAssetsChanged;
+    }
+    
+    private void OnAssetsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // Sicherstellen, dass die UI-Updates auf dem UI-Thread passieren
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.InvokeAsync(() => OnAssetsChanged(sender, e));
+            return;
+        }
+        
+        var keysToRemove = new List<AssetType>();
+        foreach (var kvp in _activeAssets)
+        {
+            bool stillExists = Assets.Any(a => a.RelativePath == kvp.Value && a.Type == kvp.Key);
+            if (!stillExists) keysToRemove.Add(kvp.Key);
+        }
+
+        foreach (var key in keysToRemove) _activeAssets.Remove(key);
+
+        OnPropertyChanged(nameof(PrimaryCoverPath));
+        OnPropertyChanged(nameof(PrimaryWallpaperPath));
+        OnPropertyChanged(nameof(PrimaryLogoPath));
+        OnPropertyChanged(nameof(PrimaryVideoPath));
     }
 }
 

@@ -19,6 +19,9 @@ public partial class BigModeViewModel : ViewModelBase
     // VLC Objekte
     private readonly LibVLC _libVlc;
     
+    // Flag to prevent inputs while launching
+    private bool _isLaunching;
+    
     // Das ist das Objekt, an das die View bindet!
     [ObservableProperty]
     private MediaPlayer? _mediaPlayer;
@@ -65,6 +68,9 @@ public partial class BigModeViewModel : ViewModelBase
     // Wird aufgerufen, wenn sich SelectedItem ändert (dank ObservableProperty Magic)
     partial void OnSelectedItemChanged(MediaItem? value)
     {
+        // Wenn wir gerade ein Spiel starten, ignorieren wir jegliche Auswahländerung für die Vorschau
+        if (_isLaunching) return;
+        
         // 1. Laufendes Video sofort stoppen (fühlt sich schneller an)
         // Aber Vorsicht: Zu viele Stops können auch blockieren. 
         // Wir lassen es hier mal weg und stoppen erst, wenn das neue wirklich startet.
@@ -92,7 +98,7 @@ public partial class BigModeViewModel : ViewModelBase
             // Zurück auf den UI Thread um VLC anzusprechen
             await Dispatcher.UIThread.InvokeAsync(() => 
             {
-                if (!token.IsCancellationRequested)
+                if (!token.IsCancellationRequested && !_isLaunching)
                 {
                     PlayPreview(value);
                 }
@@ -102,20 +108,20 @@ public partial class BigModeViewModel : ViewModelBase
 
     private void PlayPreview(MediaItem? item)
     {
-        if (MediaPlayer == null) return;
+        if (MediaPlayer == null || _isLaunching) return;
         MediaPlayer.Stop();
 
         if (item != null)
         {
             string? videoToPlay = null;
 
-            // 1. Priorität: Explizit gesetzter Pfad im Item
-            if (!string.IsNullOrEmpty(item.VideoPath))
+            // Nutzung des Asset-Systems statt starrer Property
+            var relativeVideoPath = item.GetPrimaryAssetPath(AssetType.Video);
+
+            if (!string.IsNullOrEmpty(relativeVideoPath))
             {
-                // Prüfen ob relativer Pfad (im App-Ordner) oder absoluter Pfad
-                videoToPlay = System.IO.Path.IsPathRooted(item.VideoPath)
-                    ? item.VideoPath
-                    : System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, item.VideoPath);
+                // Pfad auflösen (relativ zu absolut)
+                videoToPlay = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, relativeVideoPath);
             }
 
             // 2. Priorität: Auto-Discovery (Falls kein Video gesetzt ist)
@@ -163,8 +169,19 @@ public partial class BigModeViewModel : ViewModelBase
     [RelayCommand]
     private void PlayCurrent()
     {
+        if (_isLaunching) return; // Doppelte Starts verhindern
+        _isLaunching = true;
+        
         StopVideo(); // Video Stop beim Spielstart
-        if (SelectedItem == null) return;
+        
+        // Ab jetzt auch Vorschau-Starts blockieren (passiert durch _isLaunching = true oben)
+        _previewCts?.Cancel(); // Laufende Delays abbrechen
+
+        if (SelectedItem == null) 
+        {
+            _isLaunching = false;
+            return;
+        }
 
         // Logic to launch the game/movie will go here.
         // For now, we just log or placeholders.
@@ -172,12 +189,24 @@ public partial class BigModeViewModel : ViewModelBase
         
         // Wir delegieren das Starten nach "oben"
         RequestPlay?.Invoke(SelectedItem);
+        
+        // Hinweis: Wir setzen _isLaunching hier NICHT auf false zurück.
+        // Das ViewModel wird vermutlich eh bald zerstört oder wir verlassen den Screen.
+        // Falls wir zurückkommen, wird das ViewModel neu erstellt oder wir müssten es resetten.
+        // Da BigModeViewModel oft neu erstellt wird beim Öffnen, ist das okay.
+        // Falls es langlebig ist, müsste der Aufrufer Bescheid geben, wenn das Spiel beendet ist.
+            
+        // Fallback für den Fall, dass der Start fehlschlägt oder sehr schnell geht:
+        // Nach 5 Sekunden wieder freigeben, falls die UI noch offen ist.
+        Task.Delay(10000).ContinueWith(_ => _isLaunching = false);
     }
     
     // Navigation helper commands (useful for controller mapping later)
     [RelayCommand]
     private void SelectNext()
     {
+        if (_isLaunching) return; // Block input during launch
+        
         if (Items.Count == 0 || SelectedItem == null) return;
         var index = Items.IndexOf(SelectedItem);
         if (index < Items.Count - 1)
@@ -187,6 +216,8 @@ public partial class BigModeViewModel : ViewModelBase
     [RelayCommand]
     private void SelectPrevious()
     {
+        if (_isLaunching) return; // Block input during launch
+        
         if (Items.Count == 0 || SelectedItem == null) return;
         var index = Items.IndexOf(SelectedItem);
         if (index > 0)
@@ -195,12 +226,34 @@ public partial class BigModeViewModel : ViewModelBase
     
     private void StopVideo()
     {
-        MediaPlayer?.Stop();
+        // Thread-sicherer Stop
+        if (MediaPlayer != null && MediaPlayer.IsPlaying)
+        {
+            MediaPlayer.Stop();
+        }
     }
 
     public void Dispose()
     {
-        MediaPlayer?.Dispose();
-        _libVlc?.Dispose();
+        // Aufräumen im Hintergrund, damit die UI nicht blockiert
+        // Wir kopieren die Referenzen, um sie im Task zu nutzen
+        var player = MediaPlayer;
+        var vlc = _libVlc;
+
+        MediaPlayer = null; // UI-Bindung sofort lösen
+            
+        Task.Run(() => 
+        {
+            try 
+            {
+                player?.Stop();
+                player?.Dispose();
+                vlc?.Dispose();
+            }
+            catch 
+            { 
+                // Ignore dispose errors
+            }
+        });
     }
 }

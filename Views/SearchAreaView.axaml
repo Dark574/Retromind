@@ -87,7 +87,7 @@
                         <!-- Kontextmenü (optional, aber praktisch) -->
                         <Border.ContextMenu>
                             <ContextMenu>
-                                <!-- KORRIGIERT: Binding auf PlayCommand statt RequestPlay -->
+                                <!-- Binding auf PlayCommand statt RequestPlay -->
                                 <MenuItem Header="{x:Static p:Strings.Button_Launch}" 
                                           Command="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).PlayCommand}"
                                           CommandParameter="{Binding .}"/>
@@ -98,11 +98,11 @@
                             <TextBlock Text="{Binding Title}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        TextWrapping="Wrap" TextAlignment="Center" Margin="5" Foreground="Black"
-                                       IsVisible="{Binding CoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                                       IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
 
-                            <Image Source="{Binding CoverPath, Converter={StaticResource PathToBitmapConverter}}"
+                            <Image Source="{Binding PrimaryCoverPath, Converter={StaticResource PathToBitmapConverter}}"
                                    Stretch="Uniform"
-                                   IsVisible="{Binding CoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                   IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                         </Grid>
                     </Border>
                 </DataTemplate>

@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Retromind.ViewModels"
+        xmlns:m="clr-namespace:Retromind.Models;assembly=Retromind"
         xmlns:p="clr-namespace:Retromind.Resources"
         x:Class="Retromind.Views.NodeSettingsView"
         x:DataType="vm:NodeSettingsViewModel"
@@ -31,45 +32,45 @@
                             <Grid ColumnDefinitions="*, 10, Auto">
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="{x:Static p:Strings.Button_Cover}" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBox Text="{Binding CoverPath}" Watermark="Relativer Pfad..." IsReadOnly="False"/> 
+                                    <TextBlock Text="Nutze den Button zum Importieren..." FontStyle="Italic" Foreground="Gray"/>
                                 </StackPanel>
                                 <Button Grid.Column="2" Content="..." VerticalAlignment="Bottom" 
                                         ToolTip.Tip="Datei auswählen und importieren"
                                         Command="{Binding ImportAssetCommand}"
-                                        CommandParameter="Cover"/>
+                                        CommandParameter="{x:Static m:AssetType.Cover}"/>
                             </Grid>
 
                             <!-- Wallpaper -->
                             <Grid ColumnDefinitions="*, 10, Auto">
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="{x:Static p:Strings.Button_Wall}" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBox Text="{Binding WallpaperPath}" Watermark="Relativer Pfad..." IsReadOnly="False"/>
+                                    <TextBlock Text="..." FontStyle="Italic" Foreground="Gray"/>
                                 </StackPanel>
                                 <Button Grid.Column="2" Content="..." VerticalAlignment="Bottom"
                                         Command="{Binding ImportAssetCommand}"
-                                        CommandParameter="Wallpaper"/>
+                                        CommandParameter="{x:Static m:AssetType.Wallpaper}"/>
                             </Grid>
                             
                              <!-- Logo -->
                             <Grid ColumnDefinitions="*, 10, Auto">
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="{x:Static p:Strings.Button_Logo}" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBox Text="{Binding LogoPath}" Watermark="Relativer Pfad..." IsReadOnly="False"/>
+                                    <TextBlock Text="..." FontStyle="Italic" Foreground="Gray"/>
                                 </StackPanel>
                                 <Button Grid.Column="2" Content="..." VerticalAlignment="Bottom"
                                         Command="{Binding ImportAssetCommand}"
-                                        CommandParameter="Logo"/>
+                                        CommandParameter="{x:Static m:AssetType.Logo}"/>
                             </Grid>
 
                             <!-- Video -->
                             <Grid ColumnDefinitions="*, 10, Auto">
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="Video" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBox Text="{Binding VideoPath}" Watermark="Relativer Pfad..." IsReadOnly="False"/>
+                                    <TextBlock Text="..." FontStyle="Italic" Foreground="Gray"/>
                                 </StackPanel>
                                 <Button Grid.Column="2" Content="..." VerticalAlignment="Bottom"
                                         Command="{Binding ImportAssetCommand}"
-                                        CommandParameter="Video"/>
+                                        CommandParameter="{x:Static m:AssetType.Video}"/>
                             </Grid>
                         </StackPanel>
                     </Expander>
