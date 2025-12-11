@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -34,6 +35,13 @@ public partial class NodeSettingsViewModel : ViewModelBase
     // Keine festen Pfade mehr, wir schauen in die Assets Liste
     public ObservableCollection<MediaAsset> Assets => _node.Assets;
     
+    // --- VORSCHAU ---
+    [ObservableProperty] private Bitmap? _coverPreview;
+    [ObservableProperty] private Bitmap? _logoPreview;
+    [ObservableProperty] private Bitmap? _wallpaperPreview;
+    [ObservableProperty] private string _videoName = "Kein Video";
+
+    
     [ObservableProperty] 
     private bool? _randomizeCovers;
     
@@ -50,6 +58,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
     
     // Import Commands
     public IAsyncRelayCommand<AssetType> ImportAssetCommand { get; }
+    public IAsyncRelayCommand<AssetType> DeleteAssetCommand { get; }
 
     // Storage Provider Property (wird von View gesetzt oder übergeben)
     public IStorageProvider? StorageProvider { get; set; }
@@ -71,13 +80,50 @@ public partial class NodeSettingsViewModel : ViewModelBase
         InitializeData();
         InitializeEmulators();
 
+        // Initial einmal die Bilder laden
+        LoadPreviews();
+        
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
         
         // Generischer Import-Command (Parameter: "Cover", "Logo" etc.)
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
+        DeleteAssetCommand = new AsyncRelayCommand<AssetType>(DeleteAssetAsync);
     }
 
+    // --- ASSET LOGIC ---
+
+    private void LoadPreviews()
+    {
+        // Wir suchen im Assets-Array des Nodes nach dem passenden Typ
+        CoverPreview = LoadBitmapForType(AssetType.Cover);
+        LogoPreview = LoadBitmapForType(AssetType.Logo);
+        WallpaperPreview = LoadBitmapForType(AssetType.Wallpaper);
+
+        var vidAsset = _node.Assets.FirstOrDefault(a => a.Type == AssetType.Video);
+        VideoName = vidAsset != null ? Path.GetFileName(vidAsset.RelativePath) : "Kein Video";
+    }
+    
+    private Bitmap? LoadBitmapForType(AssetType type)
+    {
+        var asset = _node.Assets.FirstOrDefault(a => a.Type == type);
+        if (asset == null || string.IsNullOrEmpty(asset.RelativePath)) return null;
+
+        var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, asset.RelativePath);
+        if (!File.Exists(fullPath)) return null;
+
+        try
+        {
+            // Performant laden (max 200px Breite reicht für Vorschau)
+            using var stream = File.OpenRead(fullPath);
+            return Bitmap.DecodeToWidth(stream, 200);
+        }
+        catch 
+        { 
+            return null; 
+        }
+    }
+    
     private async Task ImportAssetAsync(AssetType type)
     {
         if (StorageProvider == null) return;
@@ -95,11 +141,46 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         if (result != null && result.Count > 0)
         {
-            // Achtung: Wir müssen ImportNodeAsset im Service ergänzen oder eine generische Methode nutzen.
-            // Da wir ImportAsset für MediaItem haben, nutzen wir eine Überladung für MediaNode.
-            // Siehe FileService Ergänzung unten.
-            _fileService.ImportNodeAsset(result[0].Path.LocalPath, _node, _nodePath, type);
+            var sourcePath = result[0].Path.LocalPath;
+
+            // 1. Clean Slate: Altes Asset dieses Typs entfernen (Single Slot Prinzip)
+            await DeleteAssetAsync(type);
+
+            // 2. Importieren via Service
+            // Der Service fügt das neue Asset in _node.Assets ein
+            _fileService.ImportNodeAsset(sourcePath, _node, _nodePath, type);
+            
+            // 3. Vorschau aktualisieren
+            LoadPreviews();
         }
+    }
+
+    private async Task DeleteAssetAsync(AssetType type)
+    {
+        var assetsToRemove = _node.Assets.Where(a => a.Type == type).ToList();
+        
+        foreach (var asset in assetsToRemove)
+        {
+            // Aus Liste entfernen
+            _node.Assets.Remove(asset);
+
+            // Physisch löschen
+            if (!string.IsNullOrEmpty(asset.RelativePath))
+            {
+                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, asset.RelativePath);
+                if (File.Exists(fullPath))
+                {
+                    try 
+                    { 
+                        // Fire & Forget delete, falls Datei gelockt ist, ist es halt so (wird beim nächsten Cleanup bereinigt)
+                        await Task.Run(() => File.Delete(fullPath)); 
+                    } 
+                    catch { /* Ignore */ }
+                }
+            }
+        }
+        
+        LoadPreviews();
     }
     
     // Helpers (kopiert aus EditMediaViewModel)
@@ -150,7 +231,6 @@ public partial class NodeSettingsViewModel : ViewModelBase
         // Apply changes to the node
         _node.Name = Name;
         _node.Description = Description;
-        
         _node.RandomizeCovers = RandomizeCovers;
         _node.RandomizeMusic = RandomizeMusic;
         

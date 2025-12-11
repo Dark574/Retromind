@@ -140,6 +140,9 @@ public partial class MainWindowViewModel
     
         Action onUp = () => Dispatcher.UIThread.Post(() => bigVm.SelectPreviousCommand.Execute(null));
         Action onDown = () => Dispatcher.UIThread.Post(() => bigVm.SelectNextCommand.Execute(null));
+        Action onLeft = () => Dispatcher.UIThread.Post(() => bigVm.SelectPreviousCommand.Execute(null));
+        Action onRight = () => Dispatcher.UIThread.Post(() => bigVm.SelectNextCommand.Execute(null));
+        
         Action onSelect = () => Dispatcher.UIThread.Post(() => bigVm.PlayCurrentCommand.Execute(null));
         Action onBack = () => Dispatcher.UIThread.Post(() => bigVm.ExitBigModeCommand.Execute(null));
         
@@ -149,8 +152,12 @@ public partial class MainWindowViewModel
 
         _gamepadService.OnUp += onUp;
         _gamepadService.OnDown += onDown;
+        _gamepadService.OnLeft += onLeft;
+        _gamepadService.OnRight += onRight;
+        
         _gamepadService.OnSelect += onSelect;
         _gamepadService.OnBack += onBack;
+        
         // --- CONTROLLER WIRING END ---
     
         // Cleanup beim Schließen
@@ -159,6 +166,8 @@ public partial class MainWindowViewModel
             // Controller Events abhängen
             _gamepadService.OnUp -= onUp;
             _gamepadService.OnDown -= onDown;
+            _gamepadService.OnLeft -= onLeft;
+            _gamepadService.OnRight -= onRight;
             _gamepadService.OnSelect -= onSelect;
             _gamepadService.OnBack -= onBack;
 
@@ -177,26 +186,28 @@ public partial class MainWindowViewModel
         
         // Initial View laden (Standard oder Default)
         var view = ThemeLoader.LoadTheme(themePath);
-        view.DataContext = bigVm;
-        view.Focusable = true; 
-
-        // Show the overlay
-        FullScreenContent = view;
-    
-        // OPTIMIERUNG 2: Echter Delay für XWayland
-        Task.Run(async () => 
+        if (view != null)
         {
-            await Task.Delay(250); 
-            
-            await Dispatcher.UIThread.InvokeAsync(() => 
+            view.DataContext = bigVm;
+            view.Focusable = true; 
+            FullScreenContent = view;
+
+            // XWayland / Fokus Hack: Kurz warten, damit das Fenster den Fokus sicher bekommt
+            Task.Run(async () => 
             {
-                if (FullScreenContent == view)
+                await Task.Delay(250); 
+                await Dispatcher.UIThread.InvokeAsync(() => 
                 {
-                    view.Focus(); 
-                    if (bigVm.Items.Count > 0) bigVm.SelectedItem = bigVm.Items[0];
-                }
+                    if (FullScreenContent == view)
+                    {
+                        view.Focus(); 
+                        // Optional: Erstes Item vor-selektieren, falls nicht passiert
+                        // if (bigVm.Items.Count > 0 && bigVm.SelectedItem == null) 
+                        //    bigVm.SelectedItem = bigVm.Items[0];
+                    }
+                });
             });
-        });
+        }
     }
     
     private async Task AddCategoryAsync(MediaNode? parentNode)

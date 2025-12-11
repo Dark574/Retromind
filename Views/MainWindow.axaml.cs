@@ -1,5 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
+using Retromind.Services;
 using Retromind.ViewModels;
 
 namespace Retromind;
@@ -44,8 +46,12 @@ public partial class MainWindow : Window
         // Jetzt setzen wir das Flag auf wahr
         _canClose = true;
         
-        // Und schließen das Fenster nochmal manuell (diesmal greift das if oben)
-        Close();
+        // ÄNDERUNG: Wir schließen nicht sofort, sondern geben dem UI Thread
+        // kurz Luft, um alle Events abzuarbeiten. Das hilft oft gegen DBus Fehler.
+        Dispatcher.UIThread.Post(() => 
+        {
+            Close();
+        }, DispatcherPriority.Background);
     }
 
     // Event Handler für das Draggen
@@ -86,8 +92,24 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel vm) return;
 
-        // Sind wir im Big Mode? (FullScreenContent ist gesetzt)
-        if (vm.FullScreenContent is Control { DataContext: BigModeViewModel bigVm })
+        // Wir suchen das BigModeViewModel.
+        // Es kann entweder direkt der Content sein (ViewModel-First) 
+        // ODER im DataContext eines Controls stecken (View-First).
+        BigModeViewModel? bigVm = null;
+
+        if (vm.FullScreenContent is BigModeViewModel directVm)
+        {
+            // Fall 1: Der Content IST das ViewModel
+            bigVm = directVm;
+        }
+        else if (vm.FullScreenContent is Control { DataContext: BigModeViewModel contextVm })
+        {
+            // Fall 2: Der Content ist ein Control, das das ViewModel hält
+            bigVm = contextVm;
+        }
+
+        // Wenn wir das ViewModel gefunden haben, führen wir die Befehle aus
+        if (bigVm != null)
         {
             switch (e.Key)
             {

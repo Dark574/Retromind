@@ -1,118 +1,170 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:Retromind.ViewModels"
-        xmlns:m="clr-namespace:Retromind.Models;assembly=Retromind"
-        xmlns:p="clr-namespace:Retromind.Resources"
+        xmlns:models="using:Retromind.Models"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
         x:Class="Retromind.Views.NodeSettingsView"
         x:DataType="vm:NodeSettingsViewModel"
-        Title="Einstellungen"
-        Width="500" Height="450"
-        WindowStartupLocation="CenterOwner">
+        Title="Kategorie Einstellungen"
+        Width="550" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
 
-    <!-- Grid nimmt den gesamten Platz ein -->
-    <Grid RowDefinitions="*, Auto" Margin="20">
-        
-        <!-- Zeile 0: Inhalt mit Scrollbar -->
-        <ScrollViewer Grid.Row="0" Padding="0,0,10,0">
-                <StackPanel Spacing="20" Margin="0,0,0,40">
-                    <!-- Name & Beschreibung -->
-                    <StackPanel>
-                        <TextBlock Text="{x:Static p:Strings.Common_Name}" FontWeight="Bold" Margin="0,0,0,5"/>
-                        <TextBox Text="{Binding Name}" Margin="0,0,0,10"/>
-                        
-                        <TextBlock Text="{x:Static p:Strings.Common_Description}" FontWeight="Bold" Margin="0,0,0,5"/>
-                        <TextBox Text="{Binding Description}" AcceptsReturn="True" Height="80"/>
-                    </StackPanel>
-                    
-                    <!-- Assets (Cover, Wallpaper, Video, Logo) -->
-                    <!-- Wir nutzen Expander oder GroupBoxen für Übersichtlichkeit -->
-                    <Expander Header="Darstellung &amp; Assets" IsExpanded="True" HorizontalAlignment="Stretch">
-                        <StackPanel Spacing="10" Margin="0,10,0,0">
-                            <!-- Cover -->
-                            <Grid ColumnDefinitions="*, 10, Auto">
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="{x:Static p:Strings.Button_Cover}" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBlock Text="Nutze den Button zum Importieren..." FontStyle="Italic" Foreground="Gray"/>
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="..." VerticalAlignment="Bottom" 
-                                        ToolTip.Tip="Datei auswählen und importieren"
-                                        Command="{Binding ImportAssetCommand}"
-                                        CommandParameter="{x:Static m:AssetType.Cover}"/>
-                            </Grid>
-
-                            <!-- Wallpaper -->
-                            <Grid ColumnDefinitions="*, 10, Auto">
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="{x:Static p:Strings.Button_Wall}" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBlock Text="..." FontStyle="Italic" Foreground="Gray"/>
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="..." VerticalAlignment="Bottom"
-                                        Command="{Binding ImportAssetCommand}"
-                                        CommandParameter="{x:Static m:AssetType.Wallpaper}"/>
-                            </Grid>
-                            
-                             <!-- Logo -->
-                            <Grid ColumnDefinitions="*, 10, Auto">
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="{x:Static p:Strings.Button_Logo}" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBlock Text="..." FontStyle="Italic" Foreground="Gray"/>
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="..." VerticalAlignment="Bottom"
-                                        Command="{Binding ImportAssetCommand}"
-                                        CommandParameter="{x:Static m:AssetType.Logo}"/>
-                            </Grid>
-
-                            <!-- Video -->
-                            <Grid ColumnDefinitions="*, 10, Auto">
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Video" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBlock Text="..." FontStyle="Italic" Foreground="Gray"/>
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="..." VerticalAlignment="Bottom"
-                                        Command="{Binding ImportAssetCommand}"
-                                        CommandParameter="{x:Static m:AssetType.Video}"/>
-                            </Grid>
-                        </StackPanel>
-                    </Expander>
-
-                    <!-- Zufalls-Optionen -->
-                    <StackPanel>
-                    <TextBlock Text="{x:Static p:Strings.Common_Options}" FontWeight="Bold" Margin="0,0,0,5"/>
-                    <StackPanel Spacing="10">
-                        <CheckBox IsChecked="{Binding RandomizeCovers}" 
-                                  IsThreeState="True" 
-                                  Content="{x:Static p:Strings.Media_RandomCover}"
-                                  ToolTip.Tip="{x:Static p:Strings.Tip_RandomImage}"/>
-                        
-                        <CheckBox IsChecked="{Binding RandomizeMusic}" 
-                                  IsThreeState="True" 
-                                  Content="{x:Static p:Strings.Media_RandomMusic}"
-                                  ToolTip.Tip="{x:Static p:Strings.Tip_RandomMusic}"/>
-                    </StackPanel>
+    <Border Padding="20">
+        <StackPanel Spacing="20">
+            
+            <!-- NAME & BESCHREIBUNG -->
+            <StackPanel Spacing="10">
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Name"/>
+                    <TextBox Text="{Binding Name}"/>
                 </StackPanel>
-
-                <!-- Emulator Auswahl -->
-                <StackPanel>
-                    <TextBlock Text="{x:Static p:Strings.Media_StandardEmulator}" FontWeight="Bold" Margin="0,0,0,5"/>
-                    <ComboBox ItemsSource="{Binding AvailableEmulators}" 
-                              SelectedItem="{Binding SelectedEmulator}"
-                              HorizontalAlignment="Stretch">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Name}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <TextBlock Text="{x:Static p:Strings.Media_EmulatorSelection}" 
-                               FontSize="10" Foreground="Gray" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Beschreibung (für BigMode)"/>
+                    <TextBox Text="{Binding Description}" AcceptsReturn="True" Height="60" TextWrapping="Wrap"/>
                 </StackPanel>
             </StackPanel>
-        </ScrollViewer>
 
-        <!-- Zeile 1: Buttons (Fixiert am Boden) -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
-            <Button Content="{x:Static p:Strings.Button_Cancel}" Command="{Binding CancelCommand}" Width="100" HorizontalContentAlignment="Center"/>
-            <Button Content="{x:Static p:Strings.Button_Save}" Command="{Binding SaveCommand}" Classes="accent" Width="100" HorizontalContentAlignment="Center" IsDefault="True"/>
+            <!-- EMULATOR -->
+            <StackPanel Spacing="5">
+                <TextBlock Text="Standard Emulator (für diesen Ordner)"/>
+                <ComboBox ItemsSource="{Binding AvailableEmulators}" 
+                          SelectedItem="{Binding SelectedEmulator}"
+                          HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+
+            <!-- ASSETS BEREICH (Standardmäßig zugeklappt) -->
+            <Expander Header="Darstellung &amp; Assets" 
+                      IsExpanded="False" 
+                      HorizontalAlignment="Stretch">
+                <StackPanel Spacing="15">
+                    
+                    <!-- 1. COVER -->
+                    <Grid ColumnDefinitions="80, *, Auto">
+                        <Border Grid.Column="0" Width="60" Height="80" Background="#22000000" CornerRadius="4" ClipToBounds="True">
+                            <Panel>
+                                <PathIcon Data="M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z" 
+                                          Opacity="0.3" 
+                                          IsVisible="{Binding CoverPreview, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                <Image Source="{Binding CoverPreview}" Stretch="UniformToFill"/>
+                            </Panel>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0">
+                            <TextBlock Text="Cover / Boxart" FontWeight="Bold"/>
+                            <TextBlock Text="Für Listenansicht" FontSize="11" Opacity="0.6"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
+                            <Button Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static models:AssetType.Cover}" ToolTip.Tip="Datei wählen">
+                                <PathIcon Data="M19,20H5V8H19M10,2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V6A2,2 0 0,0 19,4H12L10,2Z"/>
+                            </Button>
+                            <Button Command="{Binding DeleteAssetCommand}" CommandParameter="{x:Static models:AssetType.Cover}"
+                                    IsEnabled="{Binding CoverPreview, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                    ToolTip.Tip="Löschen">
+                                <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Foreground="Red"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <Separator Opacity="0.1"/>
+
+                    <!-- 2. LOGO -->
+                    <Grid ColumnDefinitions="80, *, Auto">
+                        <Border Grid.Column="0" Width="80" Height="40" Background="#22000000" CornerRadius="4" ClipToBounds="True">
+                            <Panel>
+                                <PathIcon Data="M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z"
+                                          Opacity="0.3" 
+                                          IsVisible="{Binding LogoPreview, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                <Image Source="{Binding LogoPreview}" Stretch="Uniform"/>
+                            </Panel>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0">
+                            <TextBlock Text="Logo / Clearart" FontWeight="Bold"/>
+                            <TextBlock Text="Für BigMode Header" FontSize="11" Opacity="0.6"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
+                            <Button Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static models:AssetType.Logo}">
+                                <PathIcon Data="M19,20H5V8H19M10,2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V6A2,2 0 0,0 19,4H12L10,2Z"/>
+                            </Button>
+                            <Button Command="{Binding DeleteAssetCommand}" CommandParameter="{x:Static models:AssetType.Logo}"
+                                    IsEnabled="{Binding LogoPreview, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Foreground="Red"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <Separator Opacity="0.1"/>
+
+                    <!-- 3. WALLPAPER -->
+                    <Grid ColumnDefinitions="80, *, Auto">
+                        <Border Grid.Column="0" Width="80" Height="45" Background="#22000000" CornerRadius="4" ClipToBounds="True">
+                            <Panel>
+                                <PathIcon Data="M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z"
+                                          Opacity="0.3" 
+                                          IsVisible="{Binding WallpaperPreview, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                <Image Source="{Binding WallpaperPreview}" Stretch="UniformToFill"/>
+                            </Panel>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0">
+                            <TextBlock Text="Hintergrund" FontWeight="Bold"/>
+                            <TextBlock Text="Für BigMode Wallpaper" FontSize="11" Opacity="0.6"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
+                            <Button Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static models:AssetType.Wallpaper}">
+                                <PathIcon Data="M19,20H5V8H19M10,2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V6A2,2 0 0,0 19,4H12L10,2Z"/>
+                            </Button>
+                            <Button Command="{Binding DeleteAssetCommand}" CommandParameter="{x:Static models:AssetType.Wallpaper}"
+                                    IsEnabled="{Binding WallpaperPreview, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Foreground="Red"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <Separator Opacity="0.1"/>
+
+                    <!-- 4. VIDEO -->
+                    <Grid ColumnDefinitions="80, *, Auto">
+                        <Border Grid.Column="0" Width="80" Height="45" Background="#22000000" CornerRadius="4">
+                            <!-- Icon: Video -->
+                            <PathIcon Data="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z" Opacity="0.5"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0">
+                            <TextBlock Text="Video Snap" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding VideoName}" FontSize="11" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
+                            <Button Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static models:AssetType.Video}">
+                                <PathIcon Data="M19,20H5V8H19M10,2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V6A2,2 0 0,0 19,4H12L10,2Z"/>
+                            </Button>
+                            <Button Command="{Binding DeleteAssetCommand}" CommandParameter="{x:Static models:AssetType.Video}"
+                                    IsEnabled="{Binding VideoName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Foreground="Red"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                </StackPanel>
+            </Expander>
+
+            <!-- OPTIONEN -->
+            <StackPanel Spacing="10">
+                <CheckBox Content="Zufällige Cover in diesem Ordner anzeigen" IsChecked="{Binding RandomizeCovers}"/>
+                <CheckBox Content="Zufällige Musik aus diesem Ordner abspielen" IsChecked="{Binding RandomizeMusic}"/>
+            </StackPanel>
+
+            <!-- BUTTONS -->
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,10,0,0">
+                <Button Content="Abbrechen" Command="{Binding CancelCommand}"/>
+                <Button Content="Speichern" Classes="accent" Command="{Binding SaveCommand}"/>
+            </StackPanel>
         </StackPanel>
-    </Grid>
+    </Border>
 </Window>
