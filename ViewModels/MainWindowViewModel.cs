@@ -185,7 +185,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Service erstellen & starten
         _gamepadService = new GamepadService();
-        _gamepadService.Initialize();
+        _gamepadService.StartMonitoring();
     
         InitializeCommands();
     }

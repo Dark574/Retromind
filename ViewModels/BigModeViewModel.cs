@@ -48,6 +48,8 @@ public partial class BigModeViewModel : ViewModelBase
     // Der aktuell ausgewählte ORDNER
     [ObservableProperty] 
     private MediaNode? _selectedCategory;
+    
+    [ObservableProperty] private bool _isVideoVisible = false;
 
     // -------------------
 
@@ -62,23 +64,28 @@ public partial class BigModeViewModel : ViewModelBase
     [ObservableProperty] private string _categoryTitle = "Main Menu";
 
     public event Action? RequestClose;
-    public event Action<MediaItem>? RequestPlay;
+    public event Func<MediaItem, Task>? RequestPlay;
     public event Action<string>? RequestThemeChange;
 
     public BigModeViewModel(ObservableCollection<MediaNode> rootNodes, MediaNode? startNode = null)
     {
         _rootNodes = rootNodes;
-        _currentCategories = _rootNodes; // Start: Zeige Root Nodes
+        CurrentCategories = _rootNodes; // Start: Zeige Root Nodes
 
-        string[] vlcOptions = { "--no-xlib", "--vout=x11" };
+        // FIX: Robustere VLC-Optionen für Linux (Wayland & X11 kompatibel)
+        // --no-osd: Verhindert Texteinblendungen (Dateiname, Lautstärke) über dem Video
+        // --avcodec-hw=none: Erzwingt Software-Decoding. Behebt "vdpau_avcodec"-Fehler und Xlib-Abhängigkeiten.
+        // --quiet: Reduziert Konsolen-Ausgaben
+        string[] vlcOptions = { "--no-osd", "--avcodec-hw=none", "--quiet" };
+
         _libVlc = new LibVLC(enableDebugLogs: false, vlcOptions); 
         MediaPlayer = new MediaPlayer(_libVlc);
         MediaPlayer.Volume = 100;
         
         // Initiale Auswahl
-        if (_currentCategories.Count > 0)
+        if (CurrentCategories.Count > 0)
         {
-            SelectedCategory = _currentCategories[0];
+            SelectedCategory = CurrentCategories[0];
             UpdateThemeForNode(SelectedCategory);
             // NEU: Sofort Vorschau für die erste Kategorie starten
             PlayCategoryPreview(SelectedCategory); 
@@ -109,7 +116,7 @@ public partial class BigModeViewModel : ViewModelBase
             else SelectedCategory = CurrentCategories.Last();
             
             UpdateThemeForNode(SelectedCategory);
-            // NEU: Vorschau für Kategorie starten
+            // Vorschau für Kategorie starten
             PlayCategoryPreview(SelectedCategory);
         }
     }
@@ -145,7 +152,7 @@ public partial class BigModeViewModel : ViewModelBase
 
     // ENTER
     [RelayCommand]
-    private void PlayCurrent()
+    private async Task PlayCurrent()
     {
         if (_isLaunching) return; 
 
@@ -170,6 +177,8 @@ public partial class BigModeViewModel : ViewModelBase
                 // Auswahl resetten auf erstes Element
                 SelectedCategory = CurrentCategories.FirstOrDefault();
                 UpdateThemeForNode(SelectedCategory);
+                
+                PlayCategoryPreview(SelectedCategory);
             }
             // Hat er KEINE Kinder, aber ITEMS (Spiele)? -> Dann wechseln wir zur Spiele-Ansicht
             else if (node.Items != null && node.Items.Count > 0)
@@ -196,25 +205,38 @@ public partial class BigModeViewModel : ViewModelBase
         }
 
         // FALL B: Wir sind in der Spiele-Ansicht -> Spiel starten
-        _isLaunching = true;
-        StopVideo(); 
-        _previewCts?.Cancel(); 
-
         if (SelectedItem != null)
         {
-            RequestPlay?.Invoke(SelectedItem);
+            _isLaunching = true;
+            StopVideo(); 
+            _previewCts?.Cancel(); 
+
+            // FIX: Wir warten hier ECHT, bis das Spiel vorbei ist (oder der Launcher zurückkehrt).
+            // Das verhindert, dass man im Menü rumklickt, während Wine noch rödelt.
+            if (RequestPlay != null)
+            {
+                await RequestPlay(SelectedItem);
+            }
+                
+            // Erst wenn das Spiel zu ist (Task fertig), geben wir die UI wieder frei.
+            _isLaunching = false; 
+                
+            // Optional: Video wieder starten, wenn man zurückkommt
+            PlayPreview(SelectedItem);
         }
-        
-        Task.Delay(5000).ContinueWith(_ => _isLaunching = false);
     }
 
     private void PlayCategoryPreview(MediaNode? node)
     {
-        if (MediaPlayer == null || _isLaunching || node == null) return;
+        if (MediaPlayer == null || _isLaunching) return;
         
         // Stoppe aktuelles Video (egal ob Spiel oder andere Kategorie)
+        IsVideoVisible = false;
         MediaPlayer.Stop();
 
+        // Wenn node null ist, brechen wir ab
+        if (node == null) return;
+        
         // 1. Video Pfad ermitteln
         // Annahme: Dein MediaNode hat ähnliche Asset-Methoden wie MediaItem, 
         // oder du speicherst Pfade in Properties wie "VideoPath".
@@ -222,19 +244,13 @@ public partial class BigModeViewModel : ViewModelBase
         
         string? videoToPlay = null;
         
-        // BEISPIEL: Wir prüfen, ob der Node eine Methode/Property für das Video hat.
-        // Falls nicht vorhanden, musst du das in MediaNode ergänzen oder hier improvisieren.
-        // Ich nehme an, du hast sowas wie 'node.VideoPath' oder nutzt das AssetSystem.
+        // FIX: Wir suchen das Video-Asset direkt im Node (analog zu NodeSettingsViewModel)
+        var videoAsset = node.Assets.FirstOrDefault(a => a.Type == AssetType.Video);
+        if (videoAsset != null && !string.IsNullOrEmpty(videoAsset.RelativePath))
+        {
+            videoToPlay = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, videoAsset.RelativePath);
+        }
         
-        // Da ich MediaNode Code nicht sehe, rate ich mal basierend auf MediaItem:
-        // var relativeVideoPath = node.GetAssetPath(AssetType.Video); 
-        
-        // Fallback: Wenn du noch keine Videos an Nodes hast, lassen wir es leer.
-        // Wenn du sie hast, füge hier die Logik ein:
-        
-        // if (!string.IsNullOrEmpty(relativeVideoPath)) 
-        //    videoToPlay = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativeVideoPath);
-
         // Falls wir ein Video haben, spielen wir es ab
         if (!string.IsNullOrEmpty(videoToPlay) && System.IO.File.Exists(videoToPlay))
         {
@@ -247,18 +263,35 @@ public partial class BigModeViewModel : ViewModelBase
 
             Task.Run(async () => 
             {
-                try { await Task.Delay(400, token); } catch { return; }
+                try { await Task.Delay(150, token); } catch { return; }
                 if (token.IsCancellationRequested) return;
 
                 await Dispatcher.UIThread.InvokeAsync(() => 
                 {
                     if (!token.IsCancellationRequested && !_isLaunching && SelectedCategory == node)
                     {
+                        IsVideoVisible = true;
                         using var media = new Media(_libVlc, new Uri(videoToPlay));
                         MediaPlayer.Play(media);
                     }
                 });
             });
+        }
+        else
+        {
+            // FIX: Kein Video? Dann Player stoppen UND sicherstellen, dass kein Standbild bleibt.
+            // Leider behält VLC oft den letzten Frame.
+            // Ein Workaround ist, kurz ein "leeres" Medium zu laden oder einfach sicherzustellen,
+            // dass Stop() wirklich durch ist.
+                
+            // Da wir in der UI (Default.axaml) keine Eigenschaft haben, um den Player auszublenden,
+            // bleibt er schwarz (oder zeigt den letzten Frame).
+                
+            // Option A: Wir könnten eine Property 'IsVideoVisible' einführen.
+            // Option B: Wir leben damit, dass es schwarz wird (MediaPlayer.Stop macht meistens schwarz).
+                
+            // Wenn Stop() allein das Standbild lässt, hilft manchmal das:
+            // MediaPlayer.Media = null; 
         }
     }
     
@@ -271,6 +304,15 @@ public partial class BigModeViewModel : ViewModelBase
         {
             IsGameListActive = false;
             StopVideo();
+            PlayCategoryPreview(SelectedCategory);
+            return;
+        }
+
+        // SAFETY: Wenn wir visuell bereits wieder im Root (Startbildschirm) sind, beenden.
+        // Das fängt Fälle ab, wo der User "Bibliothek" sieht und erwartet, dass ESC die App schließt.
+        if (CurrentCategories == _rootNodes)
+        {
+            RequestClose?.Invoke();
             return;
         }
 
@@ -283,13 +325,16 @@ public partial class BigModeViewModel : ViewModelBase
             CategoryTitle = previousTitle;
             CurrentCategories = previousList;
             
-            // Auswahl auf das erste Element setzen (oder besser: das was vorher gewählt war merken?)
+            // Auswahl auf das erste Element setzen
             SelectedCategory = CurrentCategories.FirstOrDefault();
             UpdateThemeForNode(SelectedCategory);
+                
+            // NEU: Auch beim Zurückgehen die Vorschau für den Ordner starten
+            PlayCategoryPreview(SelectedCategory);
             return;
         }
 
-        // 3. Wir sind ganz oben -> App schließen
+        // 3. Fallback: Stack leer -> App schließen
         RequestClose?.Invoke();
     }
     
@@ -330,11 +375,6 @@ public partial class BigModeViewModel : ViewModelBase
         }
     }
 
-    // ... PlayPreview, OnSelectedItemChanged, StopVideo, Dispose bleiben gleich ...
-    
-    // Kopiere hier deine PlayPreview, OnSelectedItemChanged, StopVideo und Dispose Methoden hin.
-    // Achte darauf, dass OnSelectedItemChanged StopVideo() aufruft.
-    
     partial void OnSelectedItemChanged(MediaItem? value)
     {
         if (_isLaunching) return;
@@ -347,7 +387,7 @@ public partial class BigModeViewModel : ViewModelBase
 
         Task.Run(async () => 
         {
-            try { await Task.Delay(400, token); } catch (TaskCanceledException) { return; }
+            try { await Task.Delay(150, token); } catch (TaskCanceledException) { return; }
             if (token.IsCancellationRequested) return;
 
             await Dispatcher.UIThread.InvokeAsync(() => 
@@ -363,6 +403,9 @@ public partial class BigModeViewModel : ViewModelBase
     private void PlayPreview(MediaItem? item)
     {
         if (MediaPlayer == null || _isLaunching) return;
+        
+        // Reset
+        IsVideoVisible = false;
         MediaPlayer.Stop();
 
         if (item != null)
@@ -387,6 +430,7 @@ public partial class BigModeViewModel : ViewModelBase
 
             if (!string.IsNullOrEmpty(videoToPlay) && System.IO.File.Exists(videoToPlay))
             {
+                IsVideoVisible = true; 
                 using var media = new Media(_libVlc, new Uri(videoToPlay));
                 MediaPlayer.Play(media);
             }
@@ -395,6 +439,7 @@ public partial class BigModeViewModel : ViewModelBase
     
     private void StopVideo()
     {
+        IsVideoVisible = false;
         if (MediaPlayer != null && MediaPlayer.IsPlaying) MediaPlayer.Stop();
     }
 

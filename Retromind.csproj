@@ -5,6 +5,7 @@
         <UseAvalonia>true</UseAvalonia>
         <UseAvaloniaXaml>true</UseAvaloniaXaml>
         <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     </PropertyGroup>
@@ -31,7 +32,7 @@
         <PackageReference Include="LibVLCSharp.Avalonia" Version="3.9.5" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
         <PackageReference Include="ReactiveUI" Version="22.2.1"/>
-        <PackageReference Include="Silk.NET.Input" Version="2.22.0" />
+        <PackageReference Include="Silk.NET.SDL" Version="2.22.0" />
     </ItemGroup>
 
     <ItemGroup>

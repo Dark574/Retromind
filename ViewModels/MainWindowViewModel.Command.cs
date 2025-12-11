@@ -129,10 +129,10 @@ public partial class MainWindowViewModel
 
         // --- CONNECT LOGIC ---
         // Wenn der BigMode "Play" sagt, nutzen wir unseren existierenden PlayMediaAsync Befehl
-        bigVm.RequestPlay += (item) => 
+        // ÄNDERUNG: Wir geben den Task von PlayMediaAsync zurück an das ViewModel
+        bigVm.RequestPlay += async (item) => 
         {
-            // Fire & Forget Async
-            _ = PlayMediaAsync(item);
+            await PlayMediaAsync(item);
         };
     
         // --- CONTROLLER WIRING START ---
@@ -146,6 +146,9 @@ public partial class MainWindowViewModel
         Action onSelect = () => Dispatcher.UIThread.Post(() => bigVm.PlayCurrentCommand.Execute(null));
         Action onBack = () => Dispatcher.UIThread.Post(() => bigVm.ExitBigModeCommand.Execute(null));
         
+        Action onPrevTab = () => Dispatcher.UIThread.Post(() => bigVm.SelectPreviousCommand.Execute(null));
+        Action onNextTab = () => Dispatcher.UIThread.Post(() => bigVm.SelectNextCommand.Execute(null));
+        
         // Navigation durch Kategorien (L/R Schultertasten Mapping später hier ergänzen)
         // Action onNextCat = ...
         // Action onPrevCat = ...
@@ -158,8 +161,14 @@ public partial class MainWindowViewModel
         _gamepadService.OnSelect += onSelect;
         _gamepadService.OnBack += onBack;
         
+        _gamepadService.OnPrevTab += onPrevTab;
+        _gamepadService.OnNextTab += onNextTab;
+        
         // --- CONTROLLER WIRING END ---
     
+        // NEU: Überwachung starten (Hot-Plug Support via SDL)
+        _gamepadService.StartMonitoring();
+        
         // Cleanup beim Schließen
         bigVm.RequestClose += () => 
         { 
@@ -170,18 +179,22 @@ public partial class MainWindowViewModel
             _gamepadService.OnRight -= onRight;
             _gamepadService.OnSelect -= onSelect;
             _gamepadService.OnBack -= onBack;
-
-            // UI ausblenden
+            _gamepadService.OnPrevTab -= onPrevTab;
+            _gamepadService.OnNextTab -= onNextTab;
+            
+            // 2. UI sofort schließen/ausblenden
             FullScreenContent = null;
-        
+            
+            // 3. Heavy Cleanup im Hintergrund (SDL, VLC)
             Task.Run(() => 
             {
-                try { bigVm.Dispose(); }
-                catch { /* Ignorieren, falls beim Beenden was hakt */ }
+                try 
+                { 
+                    _gamepadService.StopMonitoring();
+                    bigVm.Dispose(); 
+                }
+                catch { /* Ignorieren */ }
             });
-            
-            // Optional: Musik wieder an?
-            // _audioService.ResumeMusic(); 
         };
         
         // Initial View laden (Standard oder Default)

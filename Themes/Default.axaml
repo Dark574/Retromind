@@ -7,121 +7,138 @@
 
     <UserControl.Resources>
         <converters:PathToBitmapConverter x:Key="PathToBitmapConverter"/>
+        <!-- Converter für Sichtbarkeit basierend auf String (Logo) -->
+        <!-- (Annahme: Du hast diese Converter, sonst nutzen wir Standard Avalonia Converter) -->
     </UserControl.Resources>
-    
-    <Grid>
-        <!-- HINTERGRUND -->
-        <!-- Wir binden an CurrentNode (das ist entweder die Kategorie oder das Spiel-Elternteil) -->
-        <!-- ODER wir machen es dynamisch: Wenn GameListActive -> Spiel Wallpaper, sonst Kategorie Wallpaper -->
-        <Image Source="{Binding SelectedItem.PrimaryWallpaperPath, Converter={StaticResource PathToBitmapConverter}}" 
-               Stretch="UniformToFill"
-               IsVisible="{Binding IsGameListActive}"/>
-               
-        <!-- Fallback für Kategorie-Hintergrund -->
-        <Image Source="{Binding SelectedCategory.PrimaryWallpaperPath, Converter={StaticResource PathToBitmapConverter}}" 
-               Stretch="UniformToFill"
-               IsVisible="{Binding !IsGameListActive}"/>
 
+    <Grid>
+        <!-- HINTERGRUND (Bleibt wie er ist) -->
+        <Image Source="{Binding SelectedItem.PrimaryWallpaperPath, Converter={StaticResource PathToBitmapConverter}}" 
+               Stretch="UniformToFill" IsVisible="{Binding IsGameListActive}"/>
+        <Image Source="{Binding SelectedCategory.PrimaryWallpaperPath, Converter={StaticResource PathToBitmapConverter}}" 
+               Stretch="UniformToFill" IsVisible="{Binding !IsGameListActive}"/>
         <Rectangle Fill="Black" Opacity="0.85" />
 
-        <!-- BEREICH 1: KATEGORIEN (Drill Down Menu) -->
-        <Grid x:Name="CategoryView" 
-              IsVisible="{Binding IsCategorySelectionActive}" 
-              RowDefinitions="Auto, *, Auto" Margin="30">
-        
-            <TextBlock Text="{Binding CategoryTitle}" FontSize="30" FontWeight="Light" Foreground="#88FFFFFF" Margin="0,0,0,20"/>
-        
-            <Grid Grid.Row="1" ColumnDefinitions="400, 30, *">
+        <!-- HAUPT LAYOUT: 2 Spalten (Links: Listen, Rechts: Details) -->
+        <Grid ColumnDefinitions="450, 30, *" Margin="30">
+
+            <!-- LINKS: HEADER & LISTEN -->
+            <Grid Grid.Column="0" RowDefinitions="Auto, *">
                 
-                <!-- Spalte 1: Liste der Unterordner/Kategorien -->
-                <Border Grid.Column="0" Background="#33000000" CornerRadius="8" Padding="10">
+                <!-- Header (Titel) -->
+                <TextBlock Text="{Binding CategoryTitle}" 
+                           FontSize="30" FontWeight="Light" Foreground="#88FFFFFF" Margin="0,0,0,20"
+                           IsVisible="{Binding !IsGameListActive}"/>
+                           
+                <!-- Header (Spiel Titel, falls gewünscht, oder leer lassen) -->
+                <TextBlock Text="{Binding SelectedCategory.Name}" 
+                           FontSize="30" FontWeight="Light" Foreground="#88FFFFFF" Margin="0,0,0,20"
+                           IsVisible="{Binding IsGameListActive}"/>
+
+                <!-- LISTE: KATEGORIEN -->
+                <Border Grid.Row="1" Background="#33000000" CornerRadius="8" Padding="10"
+                        IsVisible="{Binding IsCategorySelectionActive}">
                     <ListBox ItemsSource="{Binding CurrentCategories}" 
                              SelectedItem="{Binding SelectedCategory}"
                              Background="Transparent"
                              AutoScrollToSelectedItem="True">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Grid ColumnDefinitions="Auto, *">
-                                    <TextBlock Grid.Column="1" 
-                                               Text="{Binding Name}" 
-                                               FontSize="24" 
-                                               Padding="10,5" 
-                                               Foreground="White"/>
+                                <Grid Height="60">
+                                    <!-- LOGO -->
+                                    <Image Source="{Binding PrimaryLogoPath, Converter={StaticResource PathToBitmapConverter}}"
+                                           Stretch="Uniform" HorizontalAlignment="Left"
+                                           IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                    <!-- TEXT Fallback -->
+                                    <TextBlock Text="{Binding Name}" FontSize="24" VerticalAlignment="Center" Padding="10,5" Foreground="White"
+                                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </Border>
 
-                <!-- Spalte 2: KATEGORIE DETAILS (NEU!) -->
-                <!-- Zeigt Logo/Video des ausgewählten Ordners an -->
-                <Grid Grid.Column="2" RowDefinitions="Auto, Auto, *"
-                      IsVisible="{Binding SelectedCategory, Converter={x:Static ObjectConverters.IsNotNull}}">
-            
-                    <!-- LOGO der Kategorie -->
-                    <!-- Annahme: MediaNode hat eine 'LogoPath' Property -->
-                    <Panel Grid.Row="0" Height="150" Margin="0,0,0,20">
-                        <Image Source="{Binding SelectedCategory.PrimaryLogoPath, Converter={StaticResource PathToBitmapConverter}}"
-                               Stretch="Uniform" HorizontalAlignment="Left"
-                               IsVisible="{Binding SelectedCategory.PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                <!-- LISTE: SPIELE (FIX FÜR PUNKT 2) -->
+                <Border Grid.Row="1" Background="#33000000" CornerRadius="8" Padding="10"
+                        IsVisible="{Binding IsGameListActive}">
+                    <ListBox ItemsSource="{Binding Items}" 
+                             SelectedItem="{Binding SelectedItem}"
+                             Background="Transparent"
+                             AutoScrollToSelectedItem="True">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Height="90" ColumnDefinitions="Auto, *"> <!-- 2 Spalten: Bild + Text -->
+                                        
+                                    <!-- COVER / ICON (Spalte 0) -->
+                                    <!-- Zeige Cover wenn vorhanden -->
+                                    <Image Grid.Column="0" 
+                                           Source="{Binding PrimaryCoverPath, Converter={StaticResource PathToBitmapConverter}}"
+                                           Width="70" Margin="0,5,15,5" Stretch="Uniform"
+                                           IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-                        <!-- Fallback Titel -->
-                        <TextBlock Text="{Binding SelectedCategory.Name}"
-                                   FontSize="48" FontWeight="Bold" Foreground="White"
-                                   VerticalAlignment="Center" TextWrapping="Wrap"
-                                   IsVisible="{Binding SelectedCategory.PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
-                    </Panel>
-
-                    <!-- VIDEO PLAYER (Geteilt mit Spiele-Ansicht oder eigen?) -->
-                    <!-- Wir nutzen denselben VlcPlayer, aber binden ihn hier ein. 
-                         Da VLC nur in EINEM View gleichzeitig sein kann, müssen wir aufpassen!
-                         Avalonia mag es nicht, wenn das gleiche Control (VideoView) zweimal im Tree ist. 
-                         
-                         LÖSUNG: Wir nutzen EINEN VideoView für den ganzen Screen und legen die UI darüber?
-                         Oder wir akzeptieren, dass der Player beim Umschalten kurz flackert.
-                         
-                         Hier nutzen wir der Einfachheit halber eine zweite VideoView Instanz, 
-                         das geht, solange wir den MediaPlayer korrekt zuweisen. -->
-                         
-                    <Border Grid.Row="1" 
-                            CornerRadius="12" ClipToBounds="True" Background="Black"
-                            Height="350" HorizontalAlignment="Left" Width="622"
-                            Margin="0,0,0,20"
-                            Focusable="False" IsHitTestVisible="False">
-                        <vlc:VideoView MediaPlayer="{Binding MediaPlayer}" Focusable="False" />
-                    </Border>
-
-                    <!-- BESCHREIBUNG der Kategorie -->
-                    <ScrollViewer Grid.Row="2">
-                        <TextBlock Text="{Binding SelectedCategory.Description}" 
-                                   FontSize="16" Foreground="#DDFFFFFF" 
-                                   TextWrapping="Wrap" LineHeight="24"
-                                   MaxWidth="800" HorizontalAlignment="Left"/>
-                    </ScrollViewer>
-                </Grid>
+                                    <!-- TITEL (Spalte 1) -->
+                                    <!-- Zeige Titel immer (als Hauptinfo in der Liste) -->
+                                    <TextBlock Grid.Column="1" 
+                                               Text="{Binding Title}" 
+                                               FontSize="22" 
+                                               VerticalAlignment="Center" 
+                                               Foreground="White"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
             </Grid>
-            
-            <!-- Footer -->
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="20" Opacity="0.6">
-                <TextBlock Text="[ESC] Back" Foreground="White"/>
-                <TextBlock Text="[ENTER] Open" Foreground="White"/>
-            </StackPanel>
-        </Grid>
 
-        <!-- BEREICH 2: SPIELE LISTE (Bleibt wie es war) -->
-        <Grid x:Name="GameListView" 
-              IsVisible="{Binding IsGameListActive}"
-              RowDefinitions="Auto, *, Auto" Margin="30">
-              
-              <!-- ... (Hier dein bestehender Code für GameListView) ... -->
-              <!-- Achte darauf, dass du im GameListView Bereich KEIN VideoView hast, 
-                   wenn wir es oben schon definiert haben?
-                   
-                   NEIN: Da IsVisible umschaltet, sind nie beide gleichzeitig sichtbar. 
-                   LibVLCSharp kann damit umgehen, wenn der MediaPlayer an eine neue View gebunden wird.
-                   Also einfach Copy & Paste des VideoView Blocks hierhin. -->
-                   
-              <!-- ... -->
+            <!-- RECHTS: DETAILS (Geteilt für beide Ansichten -> Löst Video Problem!) -->
+            <Grid Grid.Column="2" RowDefinitions="Auto, Auto, *">
+                
+                <!-- 1. LOGO BEREICH -->
+                <Panel Grid.Row="0" Height="150" Margin="0,0,0,20">
+                    <!-- Logo für Kategorie -->
+                    <Image Source="{Binding SelectedCategory.PrimaryLogoPath, Converter={StaticResource PathToBitmapConverter}}"
+                           Stretch="Uniform" HorizontalAlignment="Left"
+                           IsVisible="{Binding !IsGameListActive}"/>
+                           
+                    <!-- Logo für Spiel (Falls vorhanden, MediaItem braucht PrimaryLogoPath Property!) -->
+                    <Image Source="{Binding SelectedItem.PrimaryLogoPath, Converter={StaticResource PathToBitmapConverter}}"
+                           Stretch="Uniform" HorizontalAlignment="Left"
+                           IsVisible="{Binding IsGameListActive}"/>
+                </Panel>
+
+                <!-- 2. VIDEO PLAYER (Nur EINMAL definiert -> Stabil!) -->
+                <Border Grid.Row="1" 
+                        CornerRadius="12" ClipToBounds="True" Background="Black"
+                        Height="350" HorizontalAlignment="Left" Width="622"
+                        Margin="0,0,0,20"
+                        IsVisible="{Binding IsVideoVisible}">
+                    <vlc:VideoView MediaPlayer="{Binding MediaPlayer}" Focusable="False" />
+                </Border>
+
+                <!-- 3. BESCHREIBUNG -->
+                <ScrollViewer Grid.Row="2">
+                    <StackPanel>
+                        <!-- Beschreibung Kategorie -->
+                        <TextBlock Text="{Binding SelectedCategory.Description}" 
+                                   FontSize="16" Foreground="#DDFFFFFF" TextWrapping="Wrap" LineHeight="24"
+                                   IsVisible="{Binding !IsGameListActive}"/>
+                                   
+                        <!-- Beschreibung Spiel -->
+                        <TextBlock Text="{Binding SelectedItem.Description}" 
+                                   FontSize="16" Foreground="#DDFFFFFF" TextWrapping="Wrap" LineHeight="24"
+                                   IsVisible="{Binding IsGameListActive}"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+            </Grid>
+
         </Grid>
+        
+        <!-- Footer Overlay -->
+        <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="20" Margin="30" Opacity="0.6">
+             <TextBlock Text="[ESC] Back" Foreground="White"/>
+             <TextBlock Text="[ENTER] Open" Foreground="White"/>
+        </StackPanel>
     </Grid>
 </UserControl>

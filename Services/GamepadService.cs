@@ -1,171 +1,234 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Silk.NET.SDL;
 
 namespace Retromind.Services;
 
+/// <summary>
+/// Handles Gamepad Input using SDL2 via Silk.NET.
+/// Provides robust hot-plugging and automatic button mapping.
+/// </summary>
 public class GamepadService : IDisposable
 {
-    private CancellationTokenSource? _cancellationTokenSource;
-    private readonly List<Task> _readTasks = new();
-
     // Events
     public event Action? OnUp;
     public event Action? OnDown;
     public event Action? OnLeft;
     public event Action? OnRight;
-    public event Action? OnSelect; // A / Start
-    public event Action? OnBack;   // B / Select
+    public event Action? OnSelect; // A / Cross
+    public event Action? OnBack;   // B / Circle
+    public event Action? OnPrevTab; // L1 / LB
+    public event Action? OnNextTab; // R1 / RB
 
-    public void Initialize()
+    private readonly Sdl _sdl;
+    private CancellationTokenSource? _monitoringCts;
+    
+    // Wir speichern offene Controller Pointer. Key ist die InstanceID (von SDL vergeben).
+    private readonly Dictionary<int, IntPtr> _activeControllers = new();
+
+    private const int DeadZone = 15000; // SDL Range ist -32768 bis 32767
+
+    public GamepadService()
     {
-        Stop(); 
+        // Hole die SDL Instanz
+        _sdl = Sdl.GetApi();
+    }
 
-        _cancellationTokenSource = new CancellationTokenSource();
-        var token = _cancellationTokenSource.Token;
-
-        // Suche ALLE Joysticks und starte für JEDEN einen Listener
-        var devices = Directory.GetFiles("/dev/input/", "js*");
+    public void StartMonitoring()
+    {
+        StopMonitoring();
+        _monitoringCts = new CancellationTokenSource();
         
-        if (devices.Length == 0)
+        // SDL Init muss passieren. Wir nutzen nur das GameController Subsystem.
+        // INIT_GAMECONTROLLER impliziert auch INIT_JOYSTICK.
+        if (_sdl.Init(Sdl.InitGamecontroller) < 0)
         {
-            Console.WriteLine("[Gamepad] ⚠️ KEIN Joystick unter /dev/input/js* gefunden!");
+            // Fehler beim Init (z.B. SDL nicht installiert)
+            Console.WriteLine($"[SDL] Init failed: {_sdl.GetErrorS()}");
             return;
         }
 
-        foreach (var device in devices)
-        {
-            Console.WriteLine($"[Gamepad] Starte Listener für: {device}");
-            var task = Task.Run(() => ReadJoystickLoop(device, token), token);
-            _readTasks.Add(task);
-        }
+        Task.Run(() => GameLoop(_monitoringCts.Token));
     }
 
-    private void ReadJoystickLoop(string devicePath, CancellationToken token)
+    public void StopMonitoring()
     {
-        try
+        _monitoringCts?.Cancel();
+        
+        unsafe 
         {
-            using (var fs = new FileStream(devicePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            foreach (var ptr in _activeControllers.Values)
             {
-                byte[] buffer = new byte[8];
-
-                while (!token.IsCancellationRequested)
-                {
-                    int bytesRead = fs.Read(buffer, 0, 8);
-                    if (bytesRead < 8) break; 
-
-                    short value = BitConverter.ToInt16(buffer, 4);
-                    byte type = buffer[6];
-                    byte number = buffer[7];
-
-                    byte realType = (byte)(type & ~0x80);
-
-                    if (realType == 0x01) // BUTTON
-                    {
-                        HandleButton(number, value > 0);
-                    }
-                    else if (realType == 0x02) // AXIS
-                    {
-                        HandleAxis(number, value);
-                    }
-                }
+                _sdl.GameControllerClose((GameController*)ptr);
             }
         }
-        catch (Exception ex)
+        _activeControllers.Clear();
+        
+        // SDL herunterfahren
+        _sdl.Quit();
+    }
+
+    private async Task GameLoop(CancellationToken token)
+    {
+        Event sdlEvent;
+        
+        while (!token.IsCancellationRequested)
         {
-            // Ein Fehler bei EINEM Device (z.B. Maus abgezogen) soll die anderen nicht stören
-            Console.WriteLine($"[Gamepad] Fehler bei {devicePath}: {ex.Message}");
+            // FIX: Wir nutzen eine synchrone Hilfsmethode für den Pointer-Zugriff.
+            // Das eliminiert die CS9123 Warnung und macht den Code sauberer.
+            while (PollNextEvent(out sdlEvent))
+            {
+                ProcessEvent(sdlEvent);
+            }
+
+            try { await Task.Delay(10, token); } catch { break; }
         }
     }
 
-    // --- MAPPING (Standard Xbox 360 / 8BitDo XInput) ---
-
-    // Wir brauchen separate Achsen-States pro Aufruf, aber da wir hier
-    // aus verschiedenen Threads feuern KÖNNTEN, ist ein einfacher statischer State riskant.
-    // Aber für Single-User Szenario ist es okay, wenn wir einfach globale States nutzen,
-    // solange nicht zwei Controller gleichzeitig gedrückt werden.
+    // Diese Methode kapselt den unsafe Pointer Zugriff isoliert vom async State-Machine Code
+    private unsafe bool PollNextEvent(out Event e)
+    {
+        Event tempEvent = default;
+        int result = _sdl.PollEvent(&tempEvent);
+            
+        e = tempEvent;
+        return result == 1;
+    }
     
-    private int _lastAxisX = 0;
-    private int _lastAxisY = 0;
-
-    private void HandleAxis(byte axis, short value)
+    private void ProcessEvent(Event sdlEvent)
     {
-        // Debugging einkommentieren, falls nötig
-        // if (Math.Abs(value) > 1000) Console.WriteLine($"[AXIS] {axis}: {value}");
-
-        const short Deadzone = 15000; 
-
-        // X-Achse (Links/Rechts)
-        if (axis == 0 || axis == 6) 
+        switch ((EventType)sdlEvent.Type)
         {
-            int direction = 0;
-            if (value < -Deadzone) direction = -1; 
-            else if (value > Deadzone) direction = 1; 
-
-            if (direction != _lastAxisX)
-            {
-                // Um Thread-Safety bei Events zu garantieren, locken wir kurz (optional)
-                if (direction == -1) OnLeft?.Invoke(); 
-                if (direction == 1)  OnRight?.Invoke(); 
-                _lastAxisX = direction;
-            }
+            case EventType.Controllerdeviceadded:
+                HandleDeviceAdded(sdlEvent.Cdevice);
+                break;
+            
+            case EventType.Controllerdeviceremoved:
+                HandleDeviceRemoved(sdlEvent.Cdevice);
+                break;
+            
+            case EventType.Controllerbuttondown:
+                HandleButton(sdlEvent.Cbutton);
+                break;
+            
+            case EventType.Controlleraxismotion:
+                HandleAxis(sdlEvent.Caxis);
+                break;
         }
-        // Y-Achse (Oben/Unten)
-        else if (axis == 1 || axis == 7)
+    }
+    
+    private unsafe void HandleDeviceAdded(ControllerDeviceEvent e)
+    {
+        // 'which' ist hier der Index des Geräts im System
+        int index = e.Which;
+        
+        if (_sdl.IsGameController(index) == SdlBool.True)
         {
-            int direction = 0;
-            if (value < -Deadzone) direction = -1; 
-            else if (value > Deadzone) direction = 1; 
-
-            if (direction != _lastAxisY)
+            GameController* controller = _sdl.GameControllerOpen(index);
+            if (controller != null)
             {
-                if (direction == -1) OnUp?.Invoke(); 
-                if (direction == 1)  OnDown?.Invoke(); 
-                _lastAxisY = direction;
+                Joystick* joy = _sdl.GameControllerGetJoystick(controller);
+                int instanceId = _sdl.JoystickInstanceID(joy);
+            
+                _activeControllers[instanceId] = (IntPtr)controller;
+                Console.WriteLine($"[SDL] Connected: {_sdl.GameControllerNameS(controller)} (ID: {instanceId})");
             }
         }
     }
 
-    private void HandleButton(byte button, bool pressed)
+    private unsafe void HandleDeviceRemoved(ControllerDeviceEvent e)
     {
-        if (!pressed) return; 
-
-        Console.WriteLine($"[Gamepad] Button {button} pressed");
-
-        // Standard Xbox Mapping unter Linux
-        switch (button)
+        // 'which' ist hier die InstanceID
+        int instanceId = e.Which;
+        
+        if (_activeControllers.TryGetValue(instanceId, out IntPtr ptr))
         {
-            case 0: // A
+            _sdl.GameControllerClose((GameController*)ptr);
+            _activeControllers.Remove(instanceId);
+            Console.WriteLine($"[SDL] Disconnected (ID: {instanceId})");
+        }
+    }
+
+    private void HandleButton(ControllerButtonEvent e)
+    {
+        // SDL mappt automatisch Buttons (Xbox Layout Standard)
+        var btn = (GameControllerButton)e.Button;
+        
+        switch (btn)
+        {
+            case GameControllerButton.A:
                 OnSelect?.Invoke();
                 break;
-            case 1: // B
+            case GameControllerButton.B:
                 OnBack?.Invoke();
                 break;
-            case 3: // X
-            case 4: // Y
-                 // Optional
+            case GameControllerButton.DpadUp:
+                OnUp?.Invoke();
                 break;
-            case 6: // Back / Select
-                OnBack?.Invoke();
+            case GameControllerButton.DpadDown:
+                OnDown?.Invoke();
                 break;
-            case 7: // Start
-                OnSelect?.Invoke();
+            case GameControllerButton.DpadLeft:
+                OnLeft?.Invoke();
+                break;
+            case GameControllerButton.DpadRight:
+                OnRight?.Invoke();
+                break;
+            case GameControllerButton.Leftshoulder:
+                OnPrevTab?.Invoke();
+                break;
+            case GameControllerButton.Rightshoulder:
+                OnNextTab?.Invoke();
                 break;
         }
     }
 
-    private void Stop()
+    // Merker für den letzten Achsen-Status, um Mehrfach-Events zu vermeiden (einfaches Debouncing)
+    // 0 = Center, 1 = Positive, -1 = Negative
+    private int _lastAxisXState = 0;
+    private int _lastAxisYState = 0;
+
+    private void HandleAxis(ControllerAxisEvent e)
     {
-        _cancellationTokenSource?.Cancel();
-        // Wir warten nicht auf die Tasks, da Read() blockiert und sich schwer canceln lässt
-        _readTasks.Clear();
+        var axis = (GameControllerAxis)e.Axis;
+        short value = e.Value;
+
+        // X-Achse (Left Stick)
+        if (axis == GameControllerAxis.Leftx)
+        {
+            int newState = 0;
+            if (value < -DeadZone) newState = -1;      // Links
+            else if (value > DeadZone) newState = 1;   // Rechts
+            
+            // Nur feuern, wenn sich der Status ändert (z.B. von Center nach Rechts)
+            // Das verhindert Spamming, erlaubt aber präzise Menüsteuerung
+            if (newState != _lastAxisXState)
+            {
+                if (newState == -1) OnLeft?.Invoke();
+                if (newState == 1) OnRight?.Invoke();
+                _lastAxisXState = newState;
+            }
+        }
+        // Y-Achse (Left Stick)
+        else if (axis == GameControllerAxis.Lefty)
+        {
+            int newState = 0;
+            if (value < -DeadZone) newState = -1;      // Oben
+            else if (value > DeadZone) newState = 1;   // Unten
+
+            if (newState != _lastAxisYState)
+            {
+                if (newState == -1) OnUp?.Invoke();
+                if (newState == 1) OnDown?.Invoke();
+                _lastAxisYState = newState;
+            }
+        }
     }
 
     public void Dispose()
     {
-        Stop();
+        StopMonitoring();
     }
 }
