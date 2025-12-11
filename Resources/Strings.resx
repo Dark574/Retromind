@@ -182,4 +182,7 @@
   
     <!-- ZOOM -->
     <data name="Zoom.Zoom" xml:space="preserve"><value>Zoom:</value></data>
+    <data name="Media.PlayTime" xml:space="preserve">
+        <value>Time played:</value>
+    </data>
 </root>

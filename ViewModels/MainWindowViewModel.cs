@@ -294,42 +294,52 @@ public partial class MainWindowViewModel : ViewModelBase
             bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);
             bool randomizeCovers = IsRandomizeActive(nodeToLoad);
             
-            if (randomizeCovers || randomizeMusic)
+            foreach (var item in itemList)
             {
-                foreach (var item in itemList)
+                if (token.IsCancellationRequested) return;
+
+                // Erst mal alles zurücksetzen (Standard-Bild)
+                // Da wir das im Background machen und ResetActiveAssets jetzt Dispatcher nutzt,
+                // feuert es UI Events korrekt asynchron.
+                item.ResetActiveAssets(); 
+
+                if (randomizeCovers) 
                 {
-                    if (token.IsCancellationRequested) return;
-                
-                    if (randomizeCovers) 
+                    // --- COVERS ---
+                    var covers = item.Assets.Where(a => a.Type == AssetType.Cover).ToList();
+                    
+                    // Nur randomisieren wenn Auswahl da ist (> 1)
+                    if (covers.Count > 1)
                     {
-                        // Filtern
-                        var covers = item.Assets.Where(a => a.Type == AssetType.Cover).ToList();
-                        
-                        // Nur randomisieren wenn Auswahl da ist (> 1)
-                        if (covers.Count > 1)
+                        var winner = RandomHelper.PickRandom(covers);
+                        if (winner != null)
                         {
-                            var winner = RandomHelper.PickRandom(covers);
-                            if (winner != null)
-                            {
-                                // Override setzen. Da dies ein einfaches Dictionary ist, 
-                                // ist es thread-safe genug für diesen Kontext, 
-                                // solange niemand parallel liest (was bei UpdateContent unwahrscheinlich ist, 
-                                // da itemList lokal ist).
-                                item.SetActiveAsset(AssetType.Cover, winner.RelativePath);
-                            }
+                            item.SetActiveAsset(AssetType.Cover, winner.RelativePath);
                         }
                     }
 
-                    if (randomizeMusic)
+                    // --- WALLPAPERS (NEU) ---
+                    var wallpapers = item.Assets.Where(a => a.Type == AssetType.Wallpaper).ToList();
+                    
+                    if (wallpapers.Count > 1)
                     {
-                        var musicFiles = item.Assets.Where(a => a.Type == AssetType.Music).ToList();
-                        if (musicFiles.Count > 1)
+                        var winner = RandomHelper.PickRandom(wallpapers);
+                        if (winner != null)
                         {
-                            var winner = RandomHelper.PickRandom(musicFiles);
-                            if (winner != null)
-                            {
-                                item.SetActiveAsset(AssetType.Music, winner.RelativePath);
-                            }
+                            item.SetActiveAsset(AssetType.Wallpaper, winner.RelativePath);
+                        }
+                    }
+                }
+
+                if (randomizeMusic)
+                {
+                    var musicFiles = item.Assets.Where(a => a.Type == AssetType.Music).ToList();
+                    if (musicFiles.Count > 1)
+                    {
+                        var winner = RandomHelper.PickRandom(musicFiles);
+                        if (winner != null)
+                        {
+                            item.SetActiveAsset(AssetType.Music, winner.RelativePath);
                         }
                     }
                 }

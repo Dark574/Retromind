@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -19,8 +20,23 @@ public partial class BigModeViewModel : ViewModelBase
     // VLC Objekte
     private readonly LibVLC _libVlc;
     
+    // Navigation State
+    private readonly ObservableCollection<MediaNode> _rootNodes;
+    private int _currentCategoryIndex;
+    
     // Flag to prevent inputs while launching
     private bool _isLaunching;
+    
+    // Merken, welches Theme gerade aktiv ist, um unnötiges Neuladen zu verhindern
+    private string _currentThemePath = string.Empty;
+    
+    // Zugriff für das Theme auf den aktuellen Node (z.B. für Titel, Node-spezifische Assets)
+    [ObservableProperty]
+    private MediaNode? _currentNode;
+
+    // Zugriff für das Theme auf sein eigenes Verzeichnis (für lokale Assets wie background.png)
+    [ObservableProperty]
+    private string _currentThemeDirectory = string.Empty;
     
     // Das ist das Objekt, an das die View bindet!
     [ObservableProperty]
@@ -28,7 +44,7 @@ public partial class BigModeViewModel : ViewModelBase
     
     // Collection of media items to display in the theme
     [ObservableProperty]
-    private ObservableCollection<MediaItem> _items;
+    private ObservableCollection<MediaItem> _items = new();
 
     // The currently selected item (for navigation and details)
     [ObservableProperty]
@@ -49,31 +65,132 @@ public partial class BigModeViewModel : ViewModelBase
     /// </summary>
     public event Action<MediaItem>? RequestPlay;
     
+    // Signalisiert dem Hauptfenster: Bitte lade dieses .axaml File!
+    public event Action<string>? RequestThemeChange;
+    
     // Token um alte Video-Start-Versuche abzubrechen
     private CancellationTokenSource? _previewCts;
 
-    public BigModeViewModel(ObservableCollection<MediaItem> items, string title)
+    public BigModeViewModel(ObservableCollection<MediaNode> rootNodes, MediaNode? startNode = null)
     {
-        Items = items;
-        CategoryTitle = title;
+        _rootNodes = rootNodes;
         
         // X11 erzwingen (da App jetzt im X11 Modus läuft)
         string[] vlcOptions = { "--no-xlib", "--vout=x11" };
-
         _libVlc = new LibVLC(enableDebugLogs: true, vlcOptions); 
         MediaPlayer = new MediaPlayer(_libVlc);
         MediaPlayer.Volume = 100;
+        
+        // Start-Kategorie setzen
+        if (startNode != null && _rootNodes.Contains(startNode))
+        {
+            _currentCategoryIndex = _rootNodes.IndexOf(startNode);
+            SwitchToCategory(startNode);
+        }
+        else if (_rootNodes.Count > 0)
+        {
+            _currentCategoryIndex = 0;
+            SwitchToCategory(_rootNodes[0]);
+        }
     }
 
+    // Neue Navigation-Commands
+    [RelayCommand]
+    private void NextCategory()
+    {
+        if (_isLaunching || _rootNodes.Count <= 1) return;
+
+        _currentCategoryIndex++;
+        if (_currentCategoryIndex >= _rootNodes.Count) _currentCategoryIndex = 0; // Wrap around
+
+        SwitchToCategory(_rootNodes[_currentCategoryIndex]);
+    }
+
+    [RelayCommand]
+    private void PreviousCategory()
+    {
+        if (_isLaunching || _rootNodes.Count <= 1) return;
+
+        _currentCategoryIndex--;
+        if (_currentCategoryIndex < 0) _currentCategoryIndex = _rootNodes.Count - 1; // Wrap around
+
+        SwitchToCategory(_rootNodes[_currentCategoryIndex]);
+    }
+
+    private void SwitchToCategory(MediaNode node)
+    {
+        CurrentNode = node;
+        CategoryTitle = node.Name;
+            
+        // Items laden (alle Items aus diesem Node und evtl. Unterordnern?)
+        // Fürs erste nehmen wir nur die direkten Items, oder man müsste rekursiv sammeln.
+        // Wenn deine Nodes flach sind (nur Areas), reicht Items.
+        // Wenn du "Alle Spiele" unter einer Area willst, brauchst du eine Helper-Methode.
+            
+        // Simpelste Variante:
+        Items = node.Items; 
+
+        // Video stoppen beim Kategoriewechsel
+        StopVideo();
+
+        // Erstes Item selektieren
+        if (Items.Count > 0) SelectedItem = Items[0];
+        else SelectedItem = null;
+        
+        // --- THEME AUTO-DISCOVERY ---
+            
+        string themesBaseDir = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Themes");
+        string themeToLoad = System.IO.Path.Combine(themesBaseDir, "Default.axaml"); // Fallback
+
+        // 1. Manuelles Override am Node?
+        if (!string.IsNullOrEmpty(node.ThemePath))
+        {
+            // Check ob absoluter Pfad oder relativ zu Themes
+            if (System.IO.File.Exists(node.ThemePath)) 
+                themeToLoad = node.ThemePath;
+            else
+            {
+                var combined = System.IO.Path.Combine(themesBaseDir, node.ThemePath);
+                if (System.IO.File.Exists(combined)) themeToLoad = combined;
+            }
+        }
+        // 2. Convention: Gibt es einen Ordner mit dem Namen des Nodes?
+        else 
+        {
+            // Sicherstellen, dass der Name valide für Ordner ist
+            var safeName = string.Join("_", node.Name.Split(System.IO.Path.GetInvalidFileNameChars()));
+            var magicThemePath = System.IO.Path.Combine(themesBaseDir, safeName, "theme.axaml");
+                
+            if (System.IO.File.Exists(magicThemePath))
+            {
+                themeToLoad = magicThemePath;
+            }
+        }
+
+        // --- THEME LOAD ---
+            
+        // Nur laden, wenn sich die Datei wirklich geändert hat!
+        if (!string.Equals(_currentThemePath, themeToLoad, StringComparison.OrdinalIgnoreCase))
+        {
+            _currentThemePath = themeToLoad;
+                
+            // Wir setzen das Verzeichnis, damit das Theme seine Bilder findet
+            CurrentThemeDirectory = System.IO.Path.GetDirectoryName(themeToLoad) ?? string.Empty;
+                
+            // Feuern!
+            RequestThemeChange?.Invoke(themeToLoad);
+        }
+    }
+    
     // Wird aufgerufen, wenn sich SelectedItem ändert (dank ObservableProperty Magic)
     partial void OnSelectedItemChanged(MediaItem? value)
     {
         // Wenn wir gerade ein Spiel starten, ignorieren wir jegliche Auswahländerung für die Vorschau
         if (_isLaunching) return;
         
-        // 1. Laufendes Video sofort stoppen (fühlt sich schneller an)
-        // Aber Vorsicht: Zu viele Stops können auch blockieren. 
-        // Wir lassen es hier mal weg und stoppen erst, wenn das neue wirklich startet.
+        // 1. Laufendes Video SOFORT stoppen beim Navigieren!
+        // Das verhindert, dass der Ton vom vorherigen Spiel noch läuft, während man schon weiter ist.
+        StopVideo();
             
         // 2. Alten Start-Vorgang abbrechen
         _previewCts?.Cancel();
@@ -98,7 +215,9 @@ public partial class BigModeViewModel : ViewModelBase
             // Zurück auf den UI Thread um VLC anzusprechen
             await Dispatcher.UIThread.InvokeAsync(() => 
             {
-                if (!token.IsCancellationRequested && !_isLaunching)
+                // WICHTIG: Prüfen ob wir immer noch auf dem gleichen Item sind!
+                // Wenn der User sehr schnell scrollt, könnte das Event hier ankommen, obwohl SelectedItem schon woanders ist.
+                if (!token.IsCancellationRequested && !_isLaunching && SelectedItem == value)
                 {
                     PlayPreview(value);
                 }

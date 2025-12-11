@@ -122,6 +122,12 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     public void SetActiveAsset(AssetType type, string relativePath)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.InvokeAsync(() => SetActiveAsset(type, relativePath));
+            return;
+        }
+        
         _activeAssets[type] = relativePath;
         
         switch (type)
@@ -130,6 +136,27 @@ public partial class MediaItem : ObservableObject
             case AssetType.Wallpaper: OnPropertyChanged(nameof(PrimaryWallpaperPath)); break;
             case AssetType.Logo: OnPropertyChanged(nameof(PrimaryLogoPath)); break;
             case AssetType.Video: OnPropertyChanged(nameof(PrimaryVideoPath)); break;
+        }
+    }
+
+    /// <summary>
+    /// Entfernt alle erzwungenen Overrides (Zufallsbilder) und kehrt zum Standard zurück.
+    /// </summary>
+    public void ResetActiveAssets()
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.InvokeAsync(ResetActiveAssets);
+            return;
+        }
+
+        if (_activeAssets.Count > 0)
+        {
+            _activeAssets.Clear();
+            OnPropertyChanged(nameof(PrimaryCoverPath));
+            OnPropertyChanged(nameof(PrimaryWallpaperPath));
+            OnPropertyChanged(nameof(PrimaryLogoPath));
+            OnPropertyChanged(nameof(PrimaryVideoPath));
         }
     }
     

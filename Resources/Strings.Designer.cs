@@ -752,5 +752,11 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Zoom.Zoom", resourceCulture);
             }
         }
+        
+        public static string Media_PlayTime {
+            get {
+                return ResourceManager.GetString("Media.PlayTime", resourceCulture);
+            }
+        }
     }
 }

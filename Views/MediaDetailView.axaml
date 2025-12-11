@@ -104,7 +104,7 @@
                 <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding PlayCount}" Classes="Value" />
 
                 <!-- Spielzeit -->
-                <TextBlock Grid.Row="5" Grid.Column="0" Text="Gespielt:" FontWeight="Bold" Classes="Label" />
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="{x:Static p:Strings.Media_PlayTime}" Classes="Label" />
                 <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding TotalPlayTime, Converter={StaticResource TimeConverter}}" Classes="Value" />
 
                 <!-- Status -->

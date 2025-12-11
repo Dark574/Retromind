@@ -64,6 +64,11 @@ public partial class MediaNode : ObservableObject
     /// </summary>
     public string? DefaultEmulatorId { get; set; }
 
+    /// <summary>
+    /// Optional: Pfad zu einer Theme-Datei (.axaml), die für diesen Bereich genutzt werden soll.
+    /// </summary>
+    public string? ThemePath { get; set; }
+    
     // --- Presentation Metadata ---
 
     /// <summary>

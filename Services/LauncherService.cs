@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Retromind.Models;
 
@@ -108,7 +109,33 @@ public class LauncherService
             {
                 // Inherited Emulator Config
                 fileName = inheritedConfig.Path;
-                templateArgs = inheritedConfig.Arguments;
+                    
+                var baseArgs = inheritedConfig.Arguments ?? ""; // z.B. "umu-run {file}"
+                var itemArgs = item.LauncherArgs ?? "";         // z.B. "PROTON_VER=123 {file}"
+
+                if (!string.IsNullOrWhiteSpace(itemArgs))
+                {
+                    // FALL 1: Der Emulator erwartet ein File ({file} im Template) 
+                    // UND der User hat auch {file} in seinen Args genutzt (um die Position zu bestimmen).
+                    if (baseArgs.Contains("{file}") && itemArgs.Contains("{file}"))
+                    {
+                        // Wir injizieren die User-Args an die Stelle von {file} im Emulator-Template.
+                        // Dadurch kann der User entscheiden, ob seine Args vor oder hinter dem Pfad stehen (relativ gesehen),
+                        // indem er {file} in seinen Args verschiebt.
+                        templateArgs = baseArgs.Replace("{file}", itemArgs);
+                    }
+                    // FALL 2: Emulator hat {file}, aber User hat es weggelassen (nur Flags definiert).
+                    // Wir hängen die User-Args einfach hinten an.
+                    else 
+                    {
+                        templateArgs = $"{baseArgs} {itemArgs}".Trim();
+                    }
+                }
+                else
+                {
+                    // Keine User Args -> Standard Emu Args
+                    templateArgs = baseArgs;
+                }
             }
             else
             {
@@ -118,12 +145,22 @@ public class LauncherService
                 templateArgs = item.LauncherArgs;
             }
 
-            var isNative = string.IsNullOrEmpty(item.LauncherPath) && inheritedConfig == null;
+            // Wir merken uns, ob es logisch ein natives Spiel ist (unabhängig von ShellExecute Hacks)
+            var isNativeGame = string.IsNullOrEmpty(item.LauncherPath) && inheritedConfig == null;
+            var useShellExecute = isNativeGame;
 
+            // SPECIAL HACK FOR LINUX SHELL SCRIPTS
+            // Wenn wir ein .sh Skript starten, ist es oft besser, es direkt zu starten ohne Shell-Magie,
+            // damit das Working Directory strikt eingehalten wird.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && fileName.EndsWith(".sh"))
+            {
+                useShellExecute = false; // Force direct execution
+            }
+            
             var startInfo = new ProcessStartInfo
             {
                 FileName = fileName,
-                UseShellExecute = isNative
+                UseShellExecute = useShellExecute
             };
 
             // Set Working Directory
@@ -133,15 +170,30 @@ public class LauncherService
                 startInfo.WorkingDirectory = Path.GetDirectoryName(item.FilePath) ?? string.Empty;
 
             // Setup Wine Prefix if needed (Linux specific)
-            if (!isNative)
+            // Wir nutzen hier isNativeGame, damit native Linux Skripte (RenPy) kein unnötiges Wine-Prefix bekommen.
+            if (!isNativeGame)
             {
                 ConfigureWinePrefix(item, nodePath, startInfo);
             }
 
             // Build Arguments
-            if (isNative)
+            // Auch hier nutzen wir isNativeGame: Wenn es ein natives Spiel ist (auch .sh),
+            // wollen wir NICHT, dass der Pfad als Argument übergeben wird (außer User will es explizit).
+            if (isNativeGame)
             {
-                startInfo.Arguments = templateArgs ?? "";
+                // FIX 2: Ren'Py und andere native Linux Apps crashen, wenn man ihnen ihren eigenen Pfad als Argument übergibt.
+                // Wenn in den LauncherArgs "{file}" steht (Standardwert?), ignorieren wir es für native Apps komplett.
+                if (!string.IsNullOrEmpty(templateArgs) && templateArgs.Contains("{file}"))
+                {
+                    // User hat "{file}" in den Args stehen gelassen -> Wir ignorieren es.
+                    // Native Apps wissen selbst, wer sie sind.
+                    startInfo.Arguments = "";
+                }
+                else
+                {
+                    // Echte Argumente (z.B. "-fullscreen"), behalten wir bei.
+                    startInfo.Arguments = templateArgs ?? "";
+                }
             }
             else
             {

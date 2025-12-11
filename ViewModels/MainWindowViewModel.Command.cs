@@ -93,13 +93,39 @@ public partial class MainWindowViewModel
         if (SelectedNodeContent is not MediaAreaViewModel mediaVM) 
             return;
 
+        // 1. MUSIK STOPPEN!
+        _audioService.StopMusic();
+
         // Path to the external theme file. 
         // Ensure this directory exists in your output folder!
         string themePath = System.IO.Path.Combine(AppContext.BaseDirectory, "Themes", "Default.axaml");
-            
+        
         // Create the ViewModel that acts as the interface for the theme
-        // We pass the items from the currently active view
-        var bigVm = new BigModeViewModel(mediaVM.FilteredItems, SelectedNode?.Name ?? "Library");
+        
+        // ÄNDERUNG: Wir übergeben jetzt 'RootItems' (die Liste aller Kategorien)
+        // und 'SelectedNode' (die aktuell ausgewählte Kategorie).
+        var bigVm = new BigModeViewModel(RootItems, SelectedNode);
+
+        // --- THEME SWITCHING LOGIC (NEU) ---
+        bigVm.RequestThemeChange += (newThemePath) => 
+        {
+            // UI-Thread sicherstellen
+            Dispatcher.UIThread.Post(() => 
+            {
+                var newView = ThemeLoader.LoadTheme(newThemePath);
+                if (newView != null)
+                {
+                    newView.DataContext = bigVm;
+                    newView.Focusable = true; // Wichtig für Keyboard
+
+                    // View austauschen
+                    FullScreenContent = newView;
+                    
+                    // Fokus zurückgeben (gegen VLC Klau)
+                    newView.Focus();
+                }
+            });
+        };
 
         // --- CONNECT LOGIC ---
         // Wenn der BigMode "Play" sagt, nutzen wir unseren existierenden PlayMediaAsync Befehl
@@ -108,21 +134,25 @@ public partial class MainWindowViewModel
             // Fire & Forget Async
             _ = PlayMediaAsync(item);
         };
-        
+    
         // --- CONTROLLER WIRING START ---
         // Wir abonnieren die Events des Services und leiten sie an das ViewModel weiter
-        
+    
         Action onUp = () => Dispatcher.UIThread.Post(() => bigVm.SelectPreviousCommand.Execute(null));
         Action onDown = () => Dispatcher.UIThread.Post(() => bigVm.SelectNextCommand.Execute(null));
         Action onSelect = () => Dispatcher.UIThread.Post(() => bigVm.PlayCurrentCommand.Execute(null));
         Action onBack = () => Dispatcher.UIThread.Post(() => bigVm.ExitBigModeCommand.Execute(null));
+        
+        // Navigation durch Kategorien (L/R Schultertasten Mapping später hier ergänzen)
+        // Action onNextCat = ...
+        // Action onPrevCat = ...
 
         _gamepadService.OnUp += onUp;
         _gamepadService.OnDown += onDown;
         _gamepadService.OnSelect += onSelect;
         _gamepadService.OnBack += onBack;
         // --- CONTROLLER WIRING END ---
-        
+    
         // Cleanup beim Schließen
         bigVm.RequestClose += () => 
         { 
@@ -134,54 +164,36 @@ public partial class MainWindowViewModel
 
             // UI ausblenden
             FullScreenContent = null;
-            
+        
             Task.Run(() => 
             {
                 try { bigVm.Dispose(); }
                 catch { /* Ignorieren, falls beim Beenden was hakt */ }
             });
+            
+            // Optional: Musik wieder an?
+            // _audioService.ResumeMusic(); 
         };
-            
-        // Also wire up the Play command inside the Big Mode to our main Play logic
-        // Note: BigModeViewModel has its own PlayCurrentCommand, but it needs to call our main logic
-        // We can achieve this by passing an Action or hooking up events. 
-        // For now, let's keep it simple in BigModeViewModel, but ideally it calls back here.
-        // Let's improve BigModeViewModel to accept a play callback or event later. 
-        // For this iteration, we just show the UI.
-
-        // Load the actual UI from the .axaml file
-        var view = ThemeLoader.LoadTheme(themePath);
-            
-        // Bind the DataContext
-        view.DataContext = bigVm;
         
+        // Initial View laden (Standard oder Default)
+        var view = ThemeLoader.LoadTheme(themePath);
+        view.DataContext = bigVm;
         view.Focusable = true; 
 
         // Show the overlay
         FullScreenContent = view;
-        
+    
         // OPTIMIERUNG 2: Echter Delay für XWayland
-        // Wir geben dem Fenstersystem kurz Zeit, das Handle bereitzustellen.
-        // Dispatcher.Post allein reicht manchmal nicht aus.
         Task.Run(async () => 
         {
-            // 250ms warten (nicht spürbar für User, aber ewig für den Computer)
             await Task.Delay(250); 
-                
+            
             await Dispatcher.UIThread.InvokeAsync(() => 
             {
-                // Nur weitermachen, wenn wir noch im Big Mode sind
                 if (FullScreenContent == view)
                 {
-                    // 1. FOKUS ZURÜCKHOLEN!
-                    // Das ist entscheidend, falls das Video-Fenster den Fokus geklaut hat.
                     view.Focus(); 
-
-                    // 2. Video starten (erst Item wählen)
-                    if (bigVm.Items.Count > 0)
-                    {
-                        bigVm.SelectedItem = bigVm.Items[0];
-                    }
+                    if (bigVm.Items.Count > 0) bigVm.SelectedItem = bigVm.Items[0];
                 }
             });
         });

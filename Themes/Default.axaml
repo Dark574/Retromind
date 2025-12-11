@@ -2,57 +2,118 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+             xmlns:converters="clr-namespace:Retromind.Helpers;assembly=Retromind" 
              x:DataType="vm:BigModeViewModel">
+
+    <!-- RESSOURCEN LOKAL DEFINIEREN -->
+    <UserControl.Resources>
+        <!-- Wir holen uns den Converter aus deiner Assembly -->
+        <converters:PathToBitmapConverter x:Key="PathToBitmapConverter"/>
+    </UserControl.Resources>
     
-    <Grid RowDefinitions="Auto, *, Auto" Background="#1a1a1a">
-        
-        <!-- Header -->
-        <TextBlock Text="{Binding CategoryTitle}" 
-                   FontSize="40" FontWeight="Light" Foreground="White" 
-                   HorizontalAlignment="Center" Margin="20"/>
+    <!-- Haupt-Container -->
+    <Grid>
+        <!-- EBENE 1: Hintergrundbild (Wallpaper) -->
+        <!-- Stretch="UniformToFill" sorgt dafür, dass das Bild immer den ganzen Screen füllt -->
+        <Image Source="{Binding SelectedItem.PrimaryWallpaperPath, Converter={StaticResource PathToBitmapConverter}}" 
+               Stretch="UniformToFill"
+               IsVisible="{Binding SelectedItem.PrimaryWallpaperPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-        <Grid Grid.Row="1" ColumnDefinitions="400, *">
-            
-            <!-- List -->
-            <ListBox Grid.Column="0" 
-                     ItemsSource="{Binding Items}" 
-                     SelectedItem="{Binding SelectedItem}"
-                     Background="#111" Margin="20">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Title}" FontSize="20" Foreground="White" Padding="10"/>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+        <!-- Abdunklung (Dimmer), damit der Text lesbar bleibt -->
+        <Rectangle Fill="Black" Opacity="0.85" />
 
-            <!-- Details Area (Right Side) -->
-            <Grid Grid.Column="1" RowDefinitions="*, Auto" Margin="20">
+        <!-- EBENE 2: Inhalt -->
+        <Grid RowDefinitions="Auto, *, Auto" Margin="30">
+
+            <!-- Header: Kategorie Titel -->
+            <TextBlock Grid.Row="0" 
+                       Text="{Binding CategoryTitle}" 
+                       FontSize="30" FontWeight="Light" Foreground="#88FFFFFF" 
+                       HorizontalAlignment="Left" Margin="0,0,0,20"/>
+
+            <Grid Grid.Row="1" ColumnDefinitions="400, 30, *">
                 
-                <!-- VIDEO PLAYER -->
-                <!-- Zeigt Video, wenn MediaPlayer Daten hat -->
-                <Border Grid.Row="0" CornerRadius="10" ClipToBounds="True" Background="Black"
-                        Focusable="False" IsHitTestVisible="False"> 
-                    <vlc:VideoView MediaPlayer="{Binding MediaPlayer}" 
-                                   Focusable="False"
-                                   IsHitTestVisible="False" />
+                <!-- Spalte 1: Spiele-Liste -->
+                <Border Grid.Column="0" Background="#33000000" CornerRadius="8" Padding="10">
+                    <ListBox ItemsSource="{Binding Items}" 
+                             SelectedItem="{Binding SelectedItem}"
+                             Background="Transparent"
+                             AutoScrollToSelectedItem="True">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="Auto, *">
+                                    <!-- Kleines Icon/Cover könnte hier hin, vorerst nur Text -->
+                                    <TextBlock Grid.Column="1" 
+                                               Text="{Binding Title}" 
+                                               FontSize="18" 
+                                               Padding="10,5" 
+                                               Foreground="White"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Border>
-                
-                <!-- Info Text -->
-                <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" Margin="0,20,0,0">
-                    <TextBlock Text="{Binding SelectedItem.Title}" 
-                               FontSize="40" FontWeight="Bold" Foreground="White"
-                               TextWrapping="Wrap" TextAlignment="Center"/>
-                           
-                    <TextBlock Text="{Binding SelectedItem.ReleaseDate, StringFormat='Release: {0:d}'}" 
-                               FontSize="18" Foreground="Gray" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Grid>
-        </Grid>
 
-        <!-- Footer -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="30" Spacing="20">
-            <Button Content="EXIT" Command="{Binding ExitBigModeCommand}" Padding="20,10" Background="DarkRed" Foreground="White"/>
-            <Button Content="PLAY" Command="{Binding PlayCurrentCommand}" Padding="20,10" Background="Green" Foreground="White"/>
-        </StackPanel>
+                <!-- Spalte 2: Details & Media (Rechts) -->
+                <Grid Grid.Column="2" RowDefinitions="Auto, Auto, *">
+                    
+                    <!-- LOGO BEREICH -->
+                    <Panel Grid.Row="0" Height="150" Margin="0,0,0,20">
+                        <!-- Variante A: Bild Logo (wenn vorhanden) -->
+                        <Image Source="{Binding SelectedItem.PrimaryLogoPath, Converter={StaticResource PathToBitmapConverter}}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Left"
+                               IsVisible="{Binding SelectedItem.PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                        <!-- Variante B: Text Titel (Fallback, wenn kein Logo) -->
+                        <TextBlock Text="{Binding SelectedItem.Title}"
+                                   FontSize="48" FontWeight="Bold" Foreground="White"
+                                   VerticalAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding SelectedItem.PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                    </Panel>
+
+                    <!-- VIDEO PLAYER -->
+                    <!-- Mit Focusable=False, damit Navigation nicht klemmt -->
+                    <Border Grid.Row="1" 
+                            CornerRadius="12" ClipToBounds="True" Background="Black"
+                            Height="350" HorizontalAlignment="Left" Width="622"
+                            Margin="0,0,0,20"
+                            Focusable="False" IsHitTestVisible="False">
+                        <vlc:VideoView MediaPlayer="{Binding MediaPlayer}" Focusable="False" />
+                    </Border>
+
+                    <!-- METADATEN & BESCHREIBUNG -->
+                    <ScrollViewer Grid.Row="2">
+                        <StackPanel Spacing="10">
+                            <!-- Metadaten Zeile -->
+                            <StackPanel Orientation="Horizontal" Spacing="20" Opacity="0.7">
+                                <TextBlock Text="{Binding SelectedItem.ReleaseDate, StringFormat='Year: {0:yyyy}'}" Foreground="White" FontSize="16"/>
+                                <TextBlock Text="|" Foreground="White"/>
+                                <TextBlock Text="{Binding SelectedItem.Developer}" Foreground="White" FontSize="16"/>
+                                <TextBlock Text="|" Foreground="White"/>
+                                <TextBlock Text="{Binding SelectedItem.Genre}" Foreground="White" FontSize="16"/>
+                            </StackPanel>
+
+                            <Separator Background="White" Opacity="0.2" Margin="0,10"/>
+
+                            <!-- Beschreibungstext -->
+                            <TextBlock Text="{Binding SelectedItem.Description}" 
+                                       FontSize="16" Foreground="#DDFFFFFF" 
+                                       TextWrapping="Wrap" LineHeight="24"
+                                       MaxWidth="800" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                </Grid>
+            </Grid>
+
+            <!-- Footer: Controls Hinweis -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="20" Opacity="0.6">
+                <TextBlock Text="[ESC] Back" Foreground="White"/>
+                <TextBlock Text="[ENTER] Play" Foreground="White"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>

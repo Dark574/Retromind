@@ -199,10 +199,46 @@ public partial class EditMediaViewModel : ViewModelBase
 
             if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
             {
-                var args = string.IsNullOrWhiteSpace(SelectedEmulatorProfile.Arguments)
-                    ? realFile
-                    : SelectedEmulatorProfile.Arguments.Replace("{file}", realFile);
-                return $"> {SelectedEmulatorProfile.Path} {args}";
+                // FIX: Logik analog zu LauncherService (Smart Injection)
+                
+                var baseArgs = SelectedEmulatorProfile.Arguments ?? "";
+                var itemArgs = LauncherArgs ?? "";
+                
+                string combinedArgs;
+
+                if (!string.IsNullOrWhiteSpace(itemArgs))
+                {
+                    if (baseArgs.Contains("{file}") && itemArgs.Contains("{file}"))
+                    {
+                        // Injection
+                        combinedArgs = baseArgs.Replace("{file}", itemArgs);
+                    }
+                    else
+                    {
+                        // Append
+                        combinedArgs = $"{baseArgs} {itemArgs}".Trim();
+                    }
+                }
+                else
+                {
+                    combinedArgs = baseArgs;
+                }
+
+                // Finales Ersetzen des Pfades (falls {file} noch irgendwo übrig ist)
+                if (string.IsNullOrWhiteSpace(combinedArgs))
+                {
+                    return $"> {SelectedEmulatorProfile.Path} {realFile}";
+                }
+                
+                if (combinedArgs.Contains("{file}"))
+                {
+                    return $"> {SelectedEmulatorProfile.Path} {combinedArgs.Replace("{file}", realFile)}";
+                }
+                else
+                {
+                    // Fallback: Pfad anhängen, falls {file} nirgends mehr steht
+                    return $"> {SelectedEmulatorProfile.Path} {combinedArgs} {realFile}";
+                }
             }
 
             if (MediaType == MediaType.Emulator && IsManualEmulator)
