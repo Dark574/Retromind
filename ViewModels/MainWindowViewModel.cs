@@ -42,9 +42,6 @@ public partial class MainWindowViewModel : ViewModelBase
     // --- State ---
     private AppSettings _currentSettings;
 
-    // Die Property hinzufügen (war in deinem Original, aber fehlt jetzt)
-    public bool ShouldStartInBigMode { get; set; } = false;
-    
     // UI Layout State (Persisted)
     private GridLength _treePaneWidth = new(250);
     private GridLength _detailPaneWidth = new(300);
@@ -62,6 +59,11 @@ public partial class MainWindowViewModel : ViewModelBase
     // Mockable StorageProvider for Unit Tests
     public IStorageProvider? StorageProvider { get; set; }
 
+    private DateTime _lastGuideHandledUtc = DateTime.MinValue;
+
+    public bool ShouldIgnoreBackKeyTemporarily()
+        => (DateTime.UtcNow - _lastGuideHandledUtc) < TimeSpan.FromMilliseconds(600);
+    
     // Helper to access the current window for dialogs
     private Window? CurrentWindow => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
@@ -160,6 +162,8 @@ public partial class MainWindowViewModel : ViewModelBase
     public IBrush TextColor => IsDarkTheme ? Brushes.White : Brushes.Black;
     public IBrush WindowBackground => IsDarkTheme ? new SolidColorBrush(Color.Parse("#252526")) : Brushes.WhiteSmoke;
 
+    private readonly Action _onGuidePressed;
+    
     // --- Constructor (Dependency Injection) ---
     public MainWindowViewModel(
         AudioService audioService,
@@ -190,8 +194,31 @@ public partial class MainWindowViewModel : ViewModelBase
         _gamepadService = new GamepadService();
         _gamepadService.StartMonitoring();
     
+        // Route Guide/Home globally: only act if BigMode is actually active.
+        _onGuidePressed = () =>
+        {
+            // SDL callback thread -> always marshal to UI thread
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                _lastGuideHandledUtc = DateTime.UtcNow;
+                
+                if (FullScreenContent == null) return;
+
+                // If BigMode is active, request closing it.
+                if (FullScreenContent is BigModeViewModel directVm)
+                {
+                    directVm.ForceExitCommand.Execute(null);
+                }
+                else if (FullScreenContent is Avalonia.Controls.Control { DataContext: BigModeViewModel vm })
+                {
+                    vm.ForceExitCommand.Execute(null);
+                }
+            });
+        };
+        _gamepadService.OnGuide += _onGuidePressed;
+        
         InitializeCommands();
-        Debug.WriteLine("[DEBUG] Konstruktor finished. ShouldStartInBigMode = " + ShouldStartInBigMode);
+        Debug.WriteLine("[DEBUG] Konstruktor finished. BigModeOnly = " + (App.Current?.IsBigModeOnly == true));
     }
 
     // --- Persistence & Lifecycle ---
@@ -266,6 +293,10 @@ public partial class MainWindowViewModel : ViewModelBase
     public void Cleanup()
     {
         _audioService.StopMusic();
+        
+        // Avoid leaking handlers / duplicate routing when the app is reloaded.
+        _gamepadService.OnGuide -= _onGuidePressed;
+        _gamepadService.StopMonitoring();
     }
 
     // --- Content Logic (The heart of the UI) ---

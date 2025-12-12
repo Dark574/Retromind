@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
@@ -15,22 +14,33 @@ public partial class BigModeViewModel
         if (IsGameListActive)
         {
             if (Items.Count == 0) return;
-            if (SelectedItem == null) { SelectedItem = Items.Last(); return; }
 
-            var index = Items.IndexOf(SelectedItem);
-            if (index > 0) SelectedItem = Items[index - 1];
+            if (_selectedItemIndex < 0)
+                _selectedItemIndex = SelectedItem != null ? Items.IndexOf(SelectedItem) : Items.Count - 1;
+
+            if (_selectedItemIndex < 0)
+                _selectedItemIndex = Items.Count - 1;
+
+            if (_selectedItemIndex > 0)
+                _selectedItemIndex--;
+
+            SelectedItem = Items[_selectedItemIndex];
+            return;
         }
-        else
-        {
-            if (CurrentCategories.Count == 0) return;
-            if (SelectedCategory == null) { SelectedCategory = CurrentCategories.Last(); return; }
 
-            var index = CurrentCategories.IndexOf(SelectedCategory);
-            SelectedCategory = index > 0 ? CurrentCategories[index - 1] : CurrentCategories.Last();
+        if (CurrentCategories.Count == 0) return;
 
-            UpdateThemeForNode(SelectedCategory);
-            PlayCategoryPreview(SelectedCategory);
-        }
+        if (_selectedCategoryIndex < 0)
+            _selectedCategoryIndex = SelectedCategory != null ? CurrentCategories.IndexOf(SelectedCategory) : CurrentCategories.Count - 1;
+
+        if (_selectedCategoryIndex < 0)
+            _selectedCategoryIndex = CurrentCategories.Count - 1;
+
+        _selectedCategoryIndex = _selectedCategoryIndex > 0 ? _selectedCategoryIndex - 1 : CurrentCategories.Count - 1;
+
+        SelectedCategory = CurrentCategories[_selectedCategoryIndex];
+        UpdateThemeForNode(SelectedCategory);
+        PlayCategoryPreview(SelectedCategory);
     }
 
     [RelayCommand]
@@ -41,22 +51,33 @@ public partial class BigModeViewModel
         if (IsGameListActive)
         {
             if (Items.Count == 0) return;
-            if (SelectedItem == null) { SelectedItem = Items.First(); return; }
 
-            var index = Items.IndexOf(SelectedItem);
-            if (index < Items.Count - 1) SelectedItem = Items[index + 1];
+            if (_selectedItemIndex < 0)
+                _selectedItemIndex = SelectedItem != null ? Items.IndexOf(SelectedItem) : 0;
+
+            if (_selectedItemIndex < 0)
+                _selectedItemIndex = 0;
+
+            if (_selectedItemIndex < Items.Count - 1)
+                _selectedItemIndex++;
+
+            SelectedItem = Items[_selectedItemIndex];
+            return;
         }
-        else
-        {
-            if (CurrentCategories.Count == 0) return;
-            if (SelectedCategory == null) { SelectedCategory = CurrentCategories.First(); return; }
 
-            var index = CurrentCategories.IndexOf(SelectedCategory);
-            SelectedCategory = index < CurrentCategories.Count - 1 ? CurrentCategories[index + 1] : CurrentCategories.First();
+        if (CurrentCategories.Count == 0) return;
 
-            UpdateThemeForNode(SelectedCategory);
-            PlayCategoryPreview(SelectedCategory);
-        }
+        if (_selectedCategoryIndex < 0)
+            _selectedCategoryIndex = SelectedCategory != null ? CurrentCategories.IndexOf(SelectedCategory) : 0;
+
+        if (_selectedCategoryIndex < 0)
+            _selectedCategoryIndex = 0;
+
+        _selectedCategoryIndex = _selectedCategoryIndex < CurrentCategories.Count - 1 ? _selectedCategoryIndex + 1 : 0;
+
+        SelectedCategory = CurrentCategories[_selectedCategoryIndex];
+        UpdateThemeForNode(SelectedCategory);
+        PlayCategoryPreview(SelectedCategory);
     }
 
     [RelayCommand]
@@ -64,7 +85,7 @@ public partial class BigModeViewModel
     {
         if (_isLaunching) return;
 
-        // Category view
+        // Category view: Enter folder (children) OR switch into game list (items).
         if (!IsGameListActive)
         {
             if (SelectedCategory == null) return;
@@ -73,6 +94,7 @@ public partial class BigModeViewModel
 
             if (node.Children is { Count: > 0 })
             {
+                // Push current state so ExitBigMode can navigate back.
                 _navigationStack.Push(_currentCategories);
                 _titleStack.Push(CategoryTitle);
                 _navigationPath.Push(node);
@@ -88,6 +110,7 @@ public partial class BigModeViewModel
 
             if (node.Items is { Count: > 0 })
             {
+                // Ensure the leaf node is part of the navigation path for persistence/restore.
                 if (_navigationPath.Count == 0 || _navigationPath.Peek() != node)
                     _navigationPath.Push(node);
 
@@ -107,7 +130,7 @@ public partial class BigModeViewModel
             return;
         }
 
-        // Game view
+        // Game view: Launch the selected game.
         if (SelectedItem == null) return;
 
         _isLaunching = true;
@@ -115,22 +138,27 @@ public partial class BigModeViewModel
         _previewCts?.Cancel();
 
         if (RequestPlay != null)
+        {
             await RequestPlay(SelectedItem);
+        }
 
         _isLaunching = false;
 
+        // Resume preview once the game returns.
         PlayPreview(SelectedItem);
     }
 
     [RelayCommand]
     private void ExitBigMode()
     {
-        // If in game list -> go back to categories
+        // If we are currently in the game list, go back to category view first.
         if (IsGameListActive)
         {
             IsGameListActive = false;
             StopVideo();
 
+            // After restore, CurrentCategories may point to a leaf's Children (empty).
+            // Using the navigation stack ensures we return to the correct category level.
             var previousList = _navigationStack.Count > 0 ? _navigationStack.Peek() : _rootNodes;
             var previousTitle = _titleStack.Count > 0 ? _titleStack.Peek() : "Main Menu";
 
@@ -144,18 +172,19 @@ public partial class BigModeViewModel
 
             PlayCategoryPreview(SelectedCategory);
 
+            // Clear item selection persistence when leaving the game list explicitly.
             _settings.LastBigModeSelectedNodeId = null;
             return;
         }
 
-        // If already at root, exit
+        // If we are already at root, exit BigMode completely.
         if (CurrentCategories == _rootNodes)
         {
             RequestClose?.Invoke();
             return;
         }
 
-        // Pop one navigation level
+        // Pop one navigation level.
         if (_navigationStack.Count > 0)
         {
             var previousList = _navigationStack.Pop();
@@ -171,6 +200,7 @@ public partial class BigModeViewModel
             return;
         }
 
+        // Safety fallback: if stacks are empty but we are not at root, still exit.
         RequestClose?.Invoke();
     }
 }

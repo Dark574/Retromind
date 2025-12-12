@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -158,7 +157,6 @@ public partial class MainWindowViewModel
         
         Action onSelect = () => Dispatcher.UIThread.Post(() => bigVm.PlayCurrentCommand.Execute(null));
         Action onBack = () => Dispatcher.UIThread.Post(() => bigVm.ExitBigModeCommand.Execute(null));
-        Action onGuide = () => Dispatcher.UIThread.Post(() => bigVm.ForceExitCommand.Execute(null));
         
         Action onPrevTab = () => Dispatcher.UIThread.Post(() => bigVm.SelectPreviousCommand.Execute(null));
         Action onNextTab = () => Dispatcher.UIThread.Post(() => bigVm.SelectNextCommand.Execute(null));
@@ -174,7 +172,6 @@ public partial class MainWindowViewModel
         
         _gamepadService.OnSelect += onSelect;
         _gamepadService.OnBack += onBack;
-        _gamepadService.OnGuide += onGuide;
         
         _gamepadService.OnPrevTab += onPrevTab;
         _gamepadService.OnNextTab += onNextTab;
@@ -198,14 +195,15 @@ public partial class MainWindowViewModel
             _gamepadService.OnRight -= onRight;
             _gamepadService.OnSelect -= onSelect;
             _gamepadService.OnBack -= onBack;
-            _gamepadService.OnGuide -= onGuide;
             _gamepadService.OnPrevTab -= onPrevTab;
             _gamepadService.OnNextTab -= onNextTab;
             
             // 2. UI sofort schließen/ausblenden
             FullScreenContent = null;
             
-            if (ShouldStartInBigMode)
+            var isBigModeOnly = App.Current?.IsBigModeOnly == true;
+
+            if (isBigModeOnly)
             {
                 // Fall 1: BigMode-only -> Gesamte App beenden
                 Task.Run(async () => 
@@ -256,6 +254,10 @@ public partial class MainWindowViewModel
             view.Focusable = true; 
             FullScreenContent = view;
 
+            // Clear cached preview paths on entry, so BigMode always reflects
+            // any asset changes done in the CoreApp before entering BigMode.
+            bigVm.InvalidatePreviewCaches(stopCurrentPreview: false);
+            
             // View gilt als "ready", sobald Avalonia sie wirklich geladen/layoutet hat
             Dispatcher.UIThread.Post(
                 () => bigVm.NotifyViewReady(),

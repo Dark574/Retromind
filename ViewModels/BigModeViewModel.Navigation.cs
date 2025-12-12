@@ -10,8 +10,9 @@ namespace Retromind.ViewModels;
 public partial class BigModeViewModel
 {
     /// <summary>
-    /// Restores BigMode state. Includes sanity checks and fallback to CoreApp selection.
-    /// This method is intentionally defensive: users can delete/move nodes or edit settings manually.
+    /// Restores BigMode state from <see cref="AppSettings"/>.
+    /// This is intentionally defensive because the library structure can change (deleted/moved nodes),
+    /// and settings may come from older versions or manual edits.
     /// </summary>
     private void RestoreLastState()
     {
@@ -19,7 +20,7 @@ public partial class BigModeViewModel
 
         try
         {
-            // 1) Validate persisted BigMode path
+            // 1) Validate persisted BigMode navigation path. If it no longer matches the current tree, discard it.
             if (_settings.LastBigModeNavigationPath is { Count: > 0 } path &&
                 !IsNavigationPathValid(path))
             {
@@ -28,7 +29,7 @@ public partial class BigModeViewModel
                 _settings.LastBigModeWasItemView = false;
             }
 
-            // 2) Fallback: derive BigMode state from CoreApp selection
+            // 2) If BigMode state is missing, derive a sensible start state from the CoreApp selection.
             if ((_settings.LastBigModeNavigationPath == null || _settings.LastBigModeNavigationPath.Count == 0) &&
                 !string.IsNullOrWhiteSpace(_settings.LastSelectedNodeId))
             {
@@ -49,7 +50,7 @@ public partial class BigModeViewModel
                 }
                 else
                 {
-                    // Both BigMode and CoreApp selection are invalid -> reset to a consistent root state.
+                    // Neither BigMode state nor CoreApp selection can be resolved -> reset to a consistent root state.
                     _settings.LastSelectedNodeId = null;
                     _settings.LastSelectedMediaId = null;
                     _settings.LastBigModeNavigationPath = null;
@@ -61,7 +62,7 @@ public partial class BigModeViewModel
                 }
             }
 
-            // 3) Rebuild navigation stacks
+            // 3) Rebuild navigation stacks from the persisted path.
             var currentLevel = _rootNodes;
 
             if (_settings.LastBigModeNavigationPath != null)
@@ -69,7 +70,8 @@ public partial class BigModeViewModel
                 foreach (var nodeId in _settings.LastBigModeNavigationPath)
                 {
                     var nodeToEnter = currentLevel.FirstOrDefault(n => n.Id == nodeId);
-                    if (nodeToEnter == null) throw new Exception($"Node '{nodeId}' not found in path.");
+                    if (nodeToEnter == null)
+                        throw new Exception($"Node '{nodeId}' not found in navigation path.");
 
                     _navigationStack.Push(currentLevel);
                     _titleStack.Push(CategoryTitle);
@@ -82,7 +84,7 @@ public partial class BigModeViewModel
 
             CurrentCategories = currentLevel;
 
-            // 4) Restore mode and selection
+            // 4) Restore view mode (categories vs. games) and selection.
             if (_settings.LastBigModeWasItemView)
             {
                 var parentNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
@@ -103,21 +105,24 @@ public partial class BigModeViewModel
             else
             {
                 var category = CurrentCategories.FirstOrDefault(c => c.Id == _settings.LastBigModeSelectedNodeId);
-                if (category != null) SelectedCategory = category;
+                if (category != null)
+                    SelectedCategory = category;
             }
         }
         catch (Exception ex)
         {
+            // Restore must never break BigMode startup. If anything goes wrong, we fall back to a safe root state.
             System.Diagnostics.Debug.WriteLine($"[BigMode] Restore state failed: {ex.Message}");
             ResetToRootState();
             return;
         }
 
+        // Ensure theme/background matches the current selection.
         UpdateThemeForNode(SelectedCategory);
     }
 
     /// <summary>
-    /// Resets the entire BigMode UI state to a consistent root state.
+    /// Resets the whole BigMode navigation/view state to a consistent root menu.
     /// </summary>
     private void ResetToRootState()
     {
@@ -127,6 +132,10 @@ public partial class BigModeViewModel
 
         _previewCts?.Cancel();
         StopVideo();
+        
+        // Cache reset (safe + avoids stale paths if the library changes)
+        _itemVideoPathCache.Clear();
+        _nodeVideoPathCache.Clear();
 
         IsGameListActive = false;
         Items = new ObservableCollection<MediaItem>();
@@ -140,6 +149,9 @@ public partial class BigModeViewModel
         UpdateThemeForNode(SelectedCategory);
     }
 
+    /// <summary>
+    /// Validates that the given path can be traversed in the current tree structure.
+    /// </summary>
     private bool IsNavigationPathValid(IReadOnlyList<string> pathIds)
     {
         IEnumerable<MediaNode> currentLevel = _rootNodes;
@@ -155,6 +167,23 @@ public partial class BigModeViewModel
         return true;
     }
 
+    partial void OnCurrentCategoriesChanged(ObservableCollection<MediaNode> value)
+    {
+        _selectedCategoryIndex = -1;
+    }
+
+    partial void OnItemsChanged(ObservableCollection<MediaItem> value)
+    {
+        _selectedItemIndex = -1;
+
+        // Items list changed -> any cached item video paths may not be relevant anymore.
+        // (Keeping node cache is fine; it is keyed by node id.)
+        _itemVideoPathCache.Clear();
+    }
+    
+    /// <summary>
+    /// Builds a root-to-node path for a target node id (used for CoreApp -> BigMode fallback).
+    /// </summary>
     private bool TryBuildNavigationPathFromNodeId(string nodeId, out List<string> path)
     {
         path = new List<string>();
@@ -179,6 +208,10 @@ public partial class BigModeViewModel
         return false;
     }
 
+    /// <summary>
+    /// Persists BigMode navigation state and mirrors the most relevant selection into CoreApp settings.
+    /// The method is idempotent on purpose (it may be called from multiple shutdown paths).
+    /// </summary>
     public void SaveState()
     {
         if (_stateSaved) return;
@@ -224,7 +257,7 @@ public partial class BigModeViewModel
             }
             catch
             {
-                // Best-effort cleanup; we don't want shutdown crashes here.
+                // Best-effort cleanup; shutdown should not crash because VLC cleanup failed.
             }
         });
     }

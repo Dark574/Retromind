@@ -12,32 +12,48 @@ using Retromind.Models;
 namespace Retromind.ViewModels;
 
 /// <summary>
-/// ViewModel used as DataContext for BigMode themes.
-/// Theme authors bind to the properties exposed by this type.
+/// Root ViewModel for BigMode.
+/// Theme authors bind to properties exposed by this type.
 /// </summary>
 public partial class BigModeViewModel : ViewModelBase
 {
     private readonly LibVLC _libVlc;
     private readonly AppSettings _settings;
 
-    // Navigation history used for "Back" behavior.
+    // Navigation history used to implement "Back" behavior.
     private readonly Stack<ObservableCollection<MediaNode>> _navigationStack = new();
     private readonly Stack<string> _titleStack = new();
     private readonly Stack<MediaNode> _navigationPath = new();
 
-    // Root categories (top-level nodes).
+    // Top-level categories (e.g. "Games", "Movies", ...).
     private readonly ObservableCollection<MediaNode> _rootNodes;
 
+    // Prevents input while a game is being launched.
     private bool _isLaunching;
+
+    // Currently active theme file to avoid redundant reloads.
     private string _currentThemePath = string.Empty;
+
+    // Helps avoiding unnecessary VLC Stop/Play cycles (prevents flicker and saves CPU).
+    private string? _currentPreviewVideoPath;
+    
+    // Debounce/cancellation for category/game preview playback.
     private CancellationTokenSource? _previewCts;
 
-    // Prevents LibVLC from creating its own output window during startup:
-    // previews must start only after the theme view is fully loaded.
+    // LibVLC may open its own output window if playback starts before the VideoView is attached.
+    // The host must call NotifyViewReady() after the theme view is loaded.
     private bool _isViewReady;
 
     // Makes state saving idempotent (RequestClose + Dispose can both call SaveState).
     private bool _stateSaved;
+    
+    // Performance: Avoid O(n) IndexOf() on every navigation step for very large lists.
+    private int _selectedItemIndex = -1;
+    private int _selectedCategoryIndex = -1;
+    
+    // Performance: avoid repeated filesystem I/O (File.Exists) while scrolling large lists.
+    private readonly Dictionary<string, string?> _itemVideoPathCache = new();
+    private readonly Dictionary<string, string?> _nodeVideoPathCache = new();
 
     // --- View state ---
 
@@ -88,13 +104,13 @@ public partial class BigModeViewModel : ViewModelBase
         _rootNodes = rootNodes;
         _settings = settings;
 
-        // Start at root categories
+        // Start at root categories.
         CurrentCategories = _rootNodes;
 
         // Linux-friendly VLC options:
-        // --no-osd: no text overlays
-        // --avcodec-hw=none: software decode to avoid driver/X11 quirks
-        // --quiet: reduce console noise
+        // --no-osd: disables overlays (file name, volume, etc.)
+        // --avcodec-hw=none: forces software decoding for better compatibility
+        // --quiet: reduces console noise
         string[] vlcOptions = { "--no-osd", "--avcodec-hw=none", "--quiet" };
 
         _libVlc = new LibVLC(enableDebugLogs: false, vlcOptions);

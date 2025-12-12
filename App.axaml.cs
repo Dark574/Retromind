@@ -72,7 +72,6 @@ public partial class App : Application
                 // Argumente prüfen und ViewModel konfigurieren
                 if (desktop.Args != null && desktop.Args.Contains("--bigmode"))
                 {
-                    mainViewModel.ShouldStartInBigMode = true;
                     IsBigModeOnly = true;
                     Debug.WriteLine("[DEBUG] --bigmode detected. ShouldStartInBigMode set to true.");
                 }

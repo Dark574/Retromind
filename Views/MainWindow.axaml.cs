@@ -1,9 +1,6 @@
-using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Threading;
-using Retromind.Services;
 using Retromind.ViewModels;
 
 namespace Retromind;
@@ -94,6 +91,13 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel vm) return;
 
+        // If a controller sends Guide + a synthetic Escape/Back, ignore the key for a short time window.
+        if ((e.Key == Key.Escape || e.Key == Key.Back) && vm.ShouldIgnoreBackKeyTemporarily())
+        {
+            e.Handled = true;
+            return;
+        }
+        
         // Wir suchen das BigModeViewModel.
         // Es kann entweder direkt der Content sein (ViewModel-First) 
         // ODER im DataContext eines Controls stecken (View-First).
