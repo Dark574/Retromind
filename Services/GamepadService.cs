@@ -19,6 +19,7 @@ public class GamepadService : IDisposable
     public event Action? OnRight;
     public event Action? OnSelect; // A / Cross
     public event Action? OnBack;   // B / Circle
+    public event Action? OnGuide;  // Xbox / PS Home button
     public event Action? OnPrevTab; // L1 / LB
     public event Action? OnNextTab; // R1 / RB
 
@@ -163,6 +164,9 @@ public class GamepadService : IDisposable
                 break;
             case GameControllerButton.B:
                 OnBack?.Invoke();
+                break;
+            case GameControllerButton.Guide:
+                OnGuide?.Invoke();
                 break;
             case GameControllerButton.DpadUp:
                 OnUp?.Invoke();

@@ -5,10 +5,33 @@
              xmlns:converters="clr-namespace:Retromind.Helpers;assembly=Retromind" 
              x:DataType="vm:BigModeViewModel">
 
+    <UserControl.Styles>
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0, 3"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0.1"/>
+                    <BrushTransition Property="BorderBrush" Duration="0.1"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBoxItem:selected">
+            <Setter Property="Background" Value="#CCFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#FFD700"/> <!-- Gold Border -->
+        </Style>
+        <Style Selector="ListBoxItem:selected TextBlock">
+            <Setter Property="Foreground" Value="Black" />
+        </Style>
+    </UserControl.Styles>
+    
     <UserControl.Resources>
         <converters:PathToBitmapConverter x:Key="PathToBitmapConverter"/>
         <!-- Converter für Sichtbarkeit basierend auf String (Logo) -->
-        <!-- (Annahme: Du hast diese Converter, sonst nutzen wir Standard Avalonia Converter) -->
     </UserControl.Resources>
 
     <Grid>
@@ -124,10 +147,28 @@
                                    FontSize="16" Foreground="#DDFFFFFF" TextWrapping="Wrap" LineHeight="24"
                                    IsVisible="{Binding !IsGameListActive}"/>
                                    
-                        <!-- Beschreibung Spiel -->
-                        <TextBlock Text="{Binding SelectedItem.Description}" 
-                                   FontSize="16" Foreground="#DDFFFFFF" TextWrapping="Wrap" LineHeight="24"
-                                   IsVisible="{Binding IsGameListActive}"/>
+                        <!-- Details für Spiel -->
+                            <StackPanel Spacing="15" IsVisible="{Binding IsGameListActive}">
+                                <!-- Beschreibung -->
+                                <TextBlock Text="{Binding SelectedItem.Description}" 
+                                           FontSize="16" Foreground="#DDFFFFFF" TextWrapping="Wrap" LineHeight="24"/>
+                                
+                                <!-- Metadaten Sektion -->
+                                <WrapPanel HorizontalAlignment="Left" ItemWidth="200">
+                                    <StackPanel Margin="0,0,20,0" IsVisible="{Binding SelectedItem.ReleaseDate, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <TextBlock Text="Release" Opacity="0.7" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                                        <TextBlock Text="{Binding SelectedItem.ReleaseDate, StringFormat=d}" FontSize="14" Foreground="#CCFFFFFF"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,20,0" IsVisible="{Binding SelectedItem.Developer, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <TextBlock Text="Developer" Opacity="0.7" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                                        <TextBlock Text="{Binding SelectedItem.Developer}" TextTrimming="CharacterEllipsis" FontSize="14" Foreground="#CCFFFFFF"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,20,0" IsVisible="{Binding SelectedItem.Genre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <TextBlock Text="Genre" Opacity="0.7" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                                        <TextBlock Text="{Binding SelectedItem.Genre}" TextTrimming="CharacterEllipsis" FontSize="14" Foreground="#CCFFFFFF"/>
+                                    </StackPanel>
+                                </WrapPanel>
+                            </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
 

@@ -26,6 +26,9 @@ public partial class App : Application
     /// </summary>
     public IServiceProvider? Services { get; private set; }
     
+    // Property für die BigMode-Flag (app-weit zugänglich)
+    public bool IsBigModeOnly { get; set; } = false;
+    
     public override void Initialize()
     {
         // for tests in a specific language, change culture info here
@@ -69,17 +72,39 @@ public partial class App : Application
                 // Argumente prüfen und ViewModel konfigurieren
                 if (desktop.Args != null && desktop.Args.Contains("--bigmode"))
                 {
-                    mainViewModel.SetStartMode(true);
+                    mainViewModel.ShouldStartInBigMode = true;
+                    IsBigModeOnly = true;
+                    Debug.WriteLine("[DEBUG] --bigmode detected. ShouldStartInBigMode set to true.");
+                }
+                else
+                {
+                    Debug.WriteLine("[DEBUG] No --bigmode arg. ShouldStartInBigMode remains false.");  // NEU
                 }
                 
-                desktop.MainWindow = new MainWindow
+                var mainWindow = new MainWindow
                 {
                     DataContext = mainViewModel
                 };
+                desktop.MainWindow = mainWindow;
 
-                // Fire-and-forget data loading to keep the UI responsive during startup
-                _ = mainViewModel.LoadData();
+                // Wir starten das Laden der Daten sofort, um die UI nicht zu blockieren.
+                var dataLoadingTask = mainViewModel.LoadData();
                 
+                // Wenn wir im BigMode starten, führen wir den Befehl aus, SOBALD das Fenster geladen ist.
+                if (IsBigModeOnly)
+                {
+                    mainWindow.Loaded += async (sender, args) =>
+                    {
+                        // Asynchron auf den Abschluss des Lade-Tasks warten.
+                        await dataLoadingTask;
+                        
+                        if (mainViewModel.EnterBigModeCommand.CanExecute(null))
+                        {
+                            mainViewModel.EnterBigModeCommand.Execute(null);
+                        }
+                    };
+                }
+
                 // Ensure resources (like music playback) are cleaned up on exit
                 desktop.Exit += (sender, args) => { mainViewModel.Cleanup(); };
             }

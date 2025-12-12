@@ -39,12 +39,12 @@ public partial class MainWindowViewModel : ViewModelBase
     // Token Source for cancelling old content loading tasks
     private CancellationTokenSource? _updateContentCts;
     
-    // Merker für den Start-Modus
-    private bool _startInBigMode = false;
-    
     // --- State ---
     private AppSettings _currentSettings;
 
+    // Die Property hinzufügen (war in deinem Original, aber fehlt jetzt)
+    public bool ShouldStartInBigMode { get; set; } = false;
+    
     // UI Layout State (Persisted)
     private GridLength _treePaneWidth = new(250);
     private GridLength _detailPaneWidth = new(300);
@@ -85,6 +85,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 {
                     _currentSettings.LastSelectedNodeId = value.Id;
                     SaveSettingsOnly();
+                    
+                    // BigMode-State spiegeln (CoreApp -> BigMode)
+                    UpdateBigModeStateFromCoreSelection(value, null);
                 }
             }
         }
@@ -188,14 +191,9 @@ public partial class MainWindowViewModel : ViewModelBase
         _gamepadService.StartMonitoring();
     
         InitializeCommands();
+        Debug.WriteLine("[DEBUG] Konstruktor finished. ShouldStartInBigMode = " + ShouldStartInBigMode);
     }
 
-    // Neue Methode, um den Modus von außen zu setzen (bevor LoadData läuft)
-    public void SetStartMode(bool bigMode)
-    {
-        _startInBigMode = bigMode;
-    }
-    
     // --- Persistence & Lifecycle ---
 
     public async Task LoadData()
@@ -203,6 +201,7 @@ public partial class MainWindowViewModel : ViewModelBase
         try 
         {
             RootItems = await _dataService.LoadAsync();
+            Debug.WriteLine("[DEBUG] LoadData: RootItems loaded. Count = " + RootItems.Count);
         
             OnPropertyChanged(nameof(IsDarkTheme));
             OnPropertyChanged(nameof(PanelBackground));
@@ -226,16 +225,6 @@ public partial class MainWindowViewModel : ViewModelBase
                 else if (RootItems.Count > 0) SelectedNode = RootItems[0];
             }
             else if (RootItems.Count > 0) SelectedNode = RootItems[0];
-            
-            // Automatischer Start in den Big Mode
-            if (_startInBigMode)
-            {
-                // Wir warten kurz, damit das UI "atmen" kann und SelectedNode gesetzt ist
-                await Dispatcher.UIThread.InvokeAsync(() => 
-                {
-                    EnterBigModeCommand.Execute(null);
-                }, DispatcherPriority.Background);
-            }
         }
         catch (Exception ex)
         {
@@ -243,6 +232,26 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    // Helper, um UpdateContent awaitable zu machen (wandelt den Background-Task in awaitable Task um)
+    private async Task UpdateContentAsync()
+    {
+        UpdateContent();  // Starte den bestehenden Background-Task
+    
+        // Warte, bis SelectedNodeContent gesetzt ist (einfaches Polling mit Timeout)
+        int timeout = 5000;  // 5 Sekunden Max-Wartezeit
+        int delay = 100;
+        while (SelectedNodeContent == null && timeout > 0)
+        {
+            await Task.Delay(delay);
+            timeout -= delay;
+        }
+    
+        if (SelectedNodeContent == null)
+        {
+            Debug.WriteLine("[DEBUG] UpdateContentAsync: Timeout - SelectedNodeContent not set.");
+        }
+    }
+    
     public async Task SaveData()
     {
         await _dataService.SaveAsync(RootItems);
@@ -386,7 +395,13 @@ public partial class MainWindowViewModel : ViewModelBase
                         var item = mediaVm.SelectedMediaItem;
                         _currentSettings.LastSelectedMediaId = item?.Id;
                         SaveSettingsOnly();
-                            
+
+                        // BigMode-State spiegeln (CoreApp -> BigMode)
+                        if (SelectedNode != null)
+                        {
+                            UpdateBigModeStateFromCoreSelection(SelectedNode, item);
+                        }
+                        
                         // Play Music on selection - NEU via AssetSystem
                         var musicPath = item?.GetPrimaryAssetPath(AssetType.Music);
                         if (!string.IsNullOrEmpty(musicPath))

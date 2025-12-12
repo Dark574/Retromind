@@ -12,6 +12,8 @@ internal sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        bool isBigModeOnly = args.Contains("--bigmode");
+        
         // 1. FIX FÜR WAYLAND:
         // Wir zwingen Avalonia, X11 (via XWayland) zu nutzen.
         // Das ermöglicht es VLC, das Video korrekt in das Fenster einzubetten.
@@ -29,16 +31,24 @@ internal sealed class Program
             // App läuft trotzdem weiter, nur ohne Video
         }
         
-        BuildAvaloniaApp()
+        BuildAvaloniaApp(isBigModeOnly)
             .StartWithClassicDesktopLifetime(args);
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.
-    public static AppBuilder BuildAvaloniaApp()
+    public static AppBuilder BuildAvaloniaApp(bool isBigModeOnly)
     {
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
-            .LogToTrace();
+            .LogToTrace()
+            .AfterSetup(builder => 
+            {
+                // NEU: Flag in App speichern
+                if (App.Current is App app)
+                {
+                    app.IsBigModeOnly = isBigModeOnly;
+                }
+            });
     }
 }

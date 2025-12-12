@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Retromind.Services;
 using Retromind.ViewModels;

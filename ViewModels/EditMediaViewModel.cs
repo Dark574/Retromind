@@ -169,7 +169,7 @@ public partial class EditMediaViewModel : ViewModelBase
         foreach (var file in result)
         {
             // Der Service übernimmt das Kopieren, Umbenennen und Hinzufügen zur Liste
-            _fileService.ImportAsset(file.Path.LocalPath, _originalItem, _nodePath, type);
+            await _fileService.ImportAssetAsync(file.Path.LocalPath, _originalItem, _nodePath, type);
         }
     }
 

@@ -21,7 +21,8 @@ public class AsyncImageHelper : AvaloniaObject
     // --- Configuration ---
 
     // Maximum number of images to keep in RAM.
-    private const int MaxCacheSize = 200; 
+    private const int MaxCacheSize = 500; // Increased for large libraries (e.g., 30k+ items);
+    private const int TokenExpiryBufferSeconds = 60; // Buffer to avoid token expiration during requests
 
     // Shared HttpClient to prevent socket exhaustion
     private static readonly HttpClient HttpClient = new();
@@ -33,7 +34,7 @@ public class AsyncImageHelper : AvaloniaObject
 
     static AsyncImageHelper()
     {
-        // Set a proper User-Agent
+        // Set a proper User-Agent to comply with API requirements
         HttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Retromind/1.0 (OpenSource Media Manager)");
 
         // Handle URL changes
@@ -65,27 +66,30 @@ public class AsyncImageHelper : AvaloniaObject
 
     // --- Core Logic ---
 
-    private static async void LoadImageAsync(Image image, string? url, int? decodeWidth)
+    /// <summary>
+    /// Resets the image source and cancels any ongoing load operation.
+    /// </summary>
+    private static void ResetImage(Image image)
     {
-        // 1. Cancel previous operation if running
         var oldCts = image.GetValue(CurrentLoadCtsProperty);
         oldCts?.Cancel();
         oldCts?.Dispose();
-
-        // 2. Reset Source
         image.Source = null;
+        image.SetValue(CurrentLoadCtsProperty, null);
+    }
+    
+    private static async void LoadImageAsync(Image image, string? url, int? decodeWidth)
+    {
+        // 1. Reset previous state
+        ResetImage(image);
+        
+        if (string.IsNullOrEmpty(url)) return;
 
-        if (string.IsNullOrEmpty(url)) 
-        {
-            image.SetValue(CurrentLoadCtsProperty, null);
-            return;
-        }
-
-        // 3. Create new Cancellation Token
+        // 2. Create new Cancellation Token
         var cts = new CancellationTokenSource();
         image.SetValue(CurrentLoadCtsProperty, cts);
 
-        // 4. Cache Check (Fast Path)
+        // 3. Cache Check (Fast Path)
         var cacheKey = decodeWidth.HasValue ? $"{url}_{decodeWidth}" : url;
         Bitmap? cachedBitmap = GetFromCache(cacheKey);
         
@@ -99,50 +103,48 @@ public class AsyncImageHelper : AvaloniaObject
         {
             var token = cts.Token;
 
-            // 5. Load & Decode (Heavy work on ThreadPool)
+            // 4. Load & Decode (Heavy work on ThreadPool)
             var loadedBitmap = await Task.Run(async () => 
             {
                 if (token.IsCancellationRequested) return null;
 
                 try 
                 {
+                    byte[]? data = null;
                     if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                     {
-                        var data = await HttpClient.GetByteArrayAsync(url, token);
-                        using var stream = new MemoryStream(data);
-                        return DecodeBitmap(stream, decodeWidth);
+                        data = await HttpClient.GetByteArrayAsync(url, token);
                     }
                     else
                     {
                         if (!File.Exists(url)) return null;
-                        // File.OpenRead ensures we don't lock the file exclusively
-                        using var stream = File.OpenRead(url); 
-                        return DecodeBitmap(stream, decodeWidth);
+                        data = await File.ReadAllBytesAsync(url, token); // Switched to ReadAllBytes for simplicity and async support
                     }
+                    
+                    if (data == null) return null;
+                    using var stream = new MemoryStream(data);
+                    return DecodeBitmap(stream, decodeWidth);
                 }
                 catch (OperationCanceledException)
                 {
-                    // Normal behavior during fast scrolling
+                    // Normal behavior during fast scrolling; silently ignore
                     return null;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     // IO errors (file locked, 404, etc)
+                    Debug.WriteLine($"[AsyncImageHelper] Load error: {ex.Message}");
                     return null;
                 }
             }, token);
 
             if (token.IsCancellationRequested || loadedBitmap == null) return;
 
-            // 6. Add to Cache
+            // 5. Add to Cache
             AddToCache(cacheKey, loadedBitmap);
 
-            // 7. Update UI
-            // Verify again that we are still the requested URL (redundant but safe)
-            if (GetUrl(image) == url)
-            {
-                image.Source = loadedBitmap;
-            }
+            // 6. Update UI
+            image.Source = loadedBitmap;
         }
         catch (Exception ex)
         {
@@ -215,8 +217,8 @@ public class AsyncImageHelper : AvaloniaObject
                 {
                     if (Cache.TryGetValue(lruKey, out var entry))
                     {
-                         // Optional: explicitly dispose to free unmanaged memory immediately
-                         // entry.Bitmap.Dispose(); 
+                        // Explicitly dispose to free unmanaged resources immediately (performance boost for large caches)
+                        entry.Bitmap.Dispose();
                     }
                     Cache.Remove(lruKey);
                     LruList.RemoveFirst();

@@ -3,127 +3,102 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Retromind.Models;
 
 namespace Retromind.Services;
 
 /// <summary>
-/// Zentraler Service für Datei-Operationen.
-/// Setzt die Namenskonvention (Name_Typ_Nummer) durch und verwaltet die physischen Dateien.
+/// Central service for file operations.
+/// Enforces naming convention (Name_Type_Number) and manages physical files.
 /// </summary>
 public class FileManagementService
 {
-    // Regex für: Name_Typ_Nummer.Endung
-    // Gruppe 1: Name (z.B. "Super_Mario")
-    // Gruppe 2: Typ (z.B. "Wallpaper")
-    // Gruppe 3: Nummer (z.B. "01")
-    private static readonly Regex AssetRegex = new Regex(@"^(.+)_(Wallpaper|Cover|Logo|Video|Marquee|Music)_(\d+)\..*$", RegexOptions.IgnoreCase);
+    // Regex for: Name_Type_Number.Extension
+    // Group 1: Name (e.g., "Super_Mario")
+    // Group 2: Type (e.g., "Wallpaper")
+    // Group 3: Number (e.g., "01")
+    private static readonly Regex AssetRegex = new Regex(@"^(.+)_(Wallpaper|Cover|Logo|Video|Marquee|Music)_(\d+)\..*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private readonly string _libraryRootPath;
+    private readonly string libraryRootPath; // Readonly for immutability
 
     public FileManagementService(string libraryRootPath)
     {
-        _libraryRootPath = libraryRootPath;
+        this.libraryRootPath = libraryRootPath;
     }
 
     /// <summary>
-    /// Importiert eine Datei, benennt sie um (Konvention) und kopiert sie in den richtigen Ordner.
-    /// Fügt sie auch direkt der Asset-Liste des Items hinzu.
+    /// Imports a file, renames it according to convention, and copies it to the correct folder.
+    /// Adds it directly to the asset list of the item or node.
     /// </summary>
-    public MediaAsset? ImportAsset(string sourceFilePath, MediaItem item, List<string> nodePathStack, AssetType type)
+    /// <param name="sourceFilePath">Source file path.</param>
+    /// <param name="entity">MediaItem or MediaNode to add asset to.</param>
+    /// <param name="nodePathStack">Path stack for folder.</param>
+    /// <param name="type">Asset type.</param>
+    /// <returns>The new MediaAsset or null on failure.</returns>
+    public async Task<MediaAsset?> ImportAssetAsync(string sourceFilePath, object entity, List<string> nodePathStack, AssetType type)
     {
         if (!File.Exists(sourceFilePath)) return null;
 
-        // 1. Ziel-Basisordner bestimmen
-        string nodeFolder = Path.Combine(_libraryRootPath, Path.Combine(nodePathStack.ToArray()));
-        
-        // 2. Namen generieren (z.B. "Stardew_Valley_Wallpaper_03.jpg")
+        string entityName = entity is MediaItem item ? item.Title : (entity as MediaNode)?.Name ?? "Unknown";
+        string nodeFolder = Path.Combine(libraryRootPath, Path.Combine(nodePathStack.ToArray()));
+
         string extension = Path.GetExtension(sourceFilePath);
-        string fullDestPath = GetNextAssetFileName(nodeFolder, item.Title, type, extension);
+        string fullDestPath = GetNextAssetFileName(nodeFolder, entityName, type, extension);
         
         try
         {
-            // Verzeichnis erstellen falls nicht existent (eigentlich schon in GetNextAssetFileName erledigt)
             string? dir = Path.GetDirectoryName(fullDestPath);
-            if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            if (dir != null && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
 
-            File.Copy(sourceFilePath, fullDestPath, overwrite: true); // Overwrite true ist sicherer, falls Logikfehler, aber Name sollte unique sein
+            await Task.Run(() => File.Copy(sourceFilePath, fullDestPath, overwrite: true)); // Async offload for IO
 
-            // 4. Asset Objekt erstellen
             var newAsset = new MediaAsset
             {
                 Type = type,
                 RelativePath = Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, fullDestPath)
             };
-            
-            // Zur Liste hinzufügen
-            item.Assets.Add(newAsset);
+
+            if (entity is MediaItem mediaItem)
+            {
+                mediaItem.Assets.Add(newAsset);
+            }
+            else if (entity is MediaNode mediaNode)
+            {
+                mediaNode.Assets.Add(newAsset);
+            }
+
             return newAsset;
         }
         catch (Exception ex)
         {
-            // Fehlerbehandlung / Logging (in einer echten App via Logger)
             Console.WriteLine($"Error importing asset: {ex.Message}");
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Spezielle Import-Methode für MediaNodes (Kategorien), da diese auch Assets haben.
-    /// </summary>
-    public MediaAsset? ImportNodeAsset(string sourceFilePath, MediaNode node, List<string> nodePathStack, AssetType type)
-    {
-        if (!File.Exists(sourceFilePath)) return null;
-
-        // Ordner: Library -> Games -> SNES
-        string nodeFolder = Path.Combine(_libraryRootPath, Path.Combine(nodePathStack.ToArray()));
-        
-        // Dateiname basierend auf Node-Name (z.B. "SNES_Logo_01.png")
-        string extension = Path.GetExtension(sourceFilePath);
-        string fullDestPath = GetNextAssetFileName(nodeFolder, node.Name, type, extension);
-
-        try
-        {
-            string? dir = Path.GetDirectoryName(fullDestPath);
-            if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-            File.Copy(sourceFilePath, fullDestPath, overwrite: true);
-
-            var newAsset = new MediaAsset
-            {
-                Type = type,
-                RelativePath = Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, fullDestPath)
-            };
-            
-            node.Assets.Add(newAsset);
-            return newAsset;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error importing node asset: {ex.Message}");
             return null;
         }
     }
     
     /// <summary>
-    /// Löscht ein Asset physisch von der Festplatte und entfernt es aus der Liste des Items.
+    /// Deletes an asset physically from disk and removes it from the item's list.
     /// </summary>
+    /// <param name="item">MediaItem containing the asset.</param>
+    /// <param name="asset">Asset to delete.</param>
     public void DeleteAsset(MediaItem item, MediaAsset asset)
     {
         if (asset == null) return;
 
         try
         {
-            // Liste bereinigen
+            // Remove from list first (transaction-like)
             item.Assets.Remove(asset);
 
-            // Datei löschen
             if (!string.IsNullOrEmpty(asset.RelativePath))
             {
                 string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, asset.RelativePath);
-                
-                // Cache leeren!
-                Retromind.Helpers.AsyncImageHelper.InvalidateCache(fullPath); 
+
+                Helpers.AsyncImageHelper.InvalidateCache(fullPath);
 
                 if (File.Exists(fullPath))
                 {
@@ -133,25 +108,26 @@ public class FileManagementService
         }
         catch (Exception ex)
         {
+            // Rollback: Re-add to list on failure
+            item.Assets.Add(asset);
             Console.WriteLine($"Error deleting asset: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Scannt das Verzeichnis einer Node nach Assets für ein Item und aktualisiert dessen Asset-Liste.
-    /// Dies ist wichtig beim Programmstart oder Refresh, um manuell kopierte Dateien zu finden.
+    /// Scans the node's directory for assets and updates the item's asset list.
+    /// Clears and rebuilds the list to sync with filesystem.
     /// </summary>
+    /// <param name="item">MediaItem to refresh.</param>
+    /// <param name="nodePathStack">Path stack for folder.</param>
     public void RefreshItemAssets(MediaItem item, List<string> nodePathStack)
     {
-        string nodeFolder = Path.Combine(_libraryRootPath, Path.Combine(nodePathStack.ToArray()));
+        string nodeFolder = Path.Combine(libraryRootPath, Path.Combine(nodePathStack.ToArray()));
         if (!Directory.Exists(nodeFolder)) return;
 
-        // Strategie: Wir löschen die Liste und bauen sie neu auf, um absolut synchron zum Filesystem zu sein.
         item.Assets.Clear();
-
         var sanitizedTitle = SanitizeForFilename(item.Title);
 
-        // Durch alle Asset-Typen (Ordner) iterieren
         foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
         {
             if (type == AssetType.Unknown) continue;
@@ -159,28 +135,21 @@ public class FileManagementService
             string typeFolder = Path.Combine(nodeFolder, type.ToString());
             if (!Directory.Exists(typeFolder)) continue;
 
-            var files = Directory.GetFiles(typeFolder);
+            // Enumerate with filter for performance (avoid loading all files)
+            var files = Directory.EnumerateFiles(typeFolder)
+                .Where(file => AssetRegex.IsMatch(Path.GetFileName(file)) && Path.GetFileName(file).StartsWith(sanitizedTitle + "_", StringComparison.OrdinalIgnoreCase));
 
             foreach (var file in files)
             {
-                var fileName = Path.GetFileName(file);
-                var match = AssetRegex.Match(fileName);
-
-                if (match.Success)
+                var match = AssetRegex.Match(Path.GetFileName(file));
+                if (match.Success && match.Groups[1].Value.Equals(sanitizedTitle, StringComparison.OrdinalIgnoreCase) &&
+                    match.Groups[2].Value.Equals(type.ToString(), StringComparison.OrdinalIgnoreCase))
                 {
-                    string fileTitle = match.Groups[1].Value; // "Super_Mario"
-                    string fileTypeStr = match.Groups[2].Value; // "Wallpaper"
-                    
-                    // Prüfen ob Typ und Name exakt übereinstimmen (Case Insensitive für Filesystem-Sicherheit)
-                    if (fileTitle.Equals(sanitizedTitle, StringComparison.OrdinalIgnoreCase) &&
-                        fileTypeStr.Equals(type.ToString(), StringComparison.OrdinalIgnoreCase))
+                    item.Assets.Add(new MediaAsset
                     {
-                        item.Assets.Add(new MediaAsset
-                        {
-                            Type = type,
-                            RelativePath = Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, file)
-                        });
-                    }
+                        Type = type,
+                        RelativePath = Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, file)
+                    });
                 }
             }
         }
@@ -189,11 +158,10 @@ public class FileManagementService
     // --- Private Helpers ---
 
     /// <summary>
-    /// Ermittelt den nächsten freien Dateinamen gemäß Konvention: Titel_Typ_XX.ext
+    /// Determines the next available filename according to convention: Title_Type_XX.ext
     /// </summary>
     private string GetNextAssetFileName(string nodeBaseFolder, string mediaTitle, AssetType type, string extension)
     {
-        // Ziel: .../SNES/Wallpaper/
         string typeFolder = Path.Combine(nodeBaseFolder, type.ToString());
     
         if (!Directory.Exists(typeFolder))
@@ -202,37 +170,35 @@ public class FileManagementService
         string cleanTitle = SanitizeForFilename(mediaTitle); 
         string suffix = type.ToString(); 
 
-        int counter = 1;
-        string fullPath;
+        // Collect existing counters for efficiency (instead of loop checks)
+        var existingFiles = Directory.EnumerateFiles(typeFolder)
+            .Select(Path.GetFileName)
+            .Where(name => name?.StartsWith($"{cleanTitle}_{suffix}_", StringComparison.OrdinalIgnoreCase) == true)
+            .Select(name => int.TryParse(Regex.Match(name ?? "", @"_(\d+)\.").Groups[1].Value, out int num) ? num : 0);
 
-        // Schleife sucht die nächste freie Nummer (01, 02, 03...)
-        do
-        {
-            string number = counter.ToString("D2"); // Führende Null: 01
-            string fileName = $"{cleanTitle}_{suffix}_{number}{extension}";
-            fullPath = Path.Combine(typeFolder, fileName);
-            counter++;
-        } 
-        while (File.Exists(fullPath));
+        int maxCounter = existingFiles.Any() ? existingFiles.Max() : 0;
+        int nextCounter = maxCounter + 1;
+        string number = nextCounter.ToString("D2");
+        string fileName = $"{cleanTitle}_{suffix}_{number}{extension}";
 
-        return fullPath;
+        return Path.Combine(typeFolder, fileName);
     }
 
-    private string SanitizeForFilename(string input)
+    /// <summary>
+    /// Sanitizes a string for use in filenames (replaces spaces with underscores, removes invalid chars).
+    /// </summary>
+    private static string SanitizeForFilename(string input)
     {
         if (string.IsNullOrEmpty(input)) return "Unknown";
 
-        // Leerzeichen zu Underscore
         string sanitized = input.Replace(" ", "_");
-    
-        // Illegale Zeichen entfernen
+
         foreach (var c in Path.GetInvalidFileNameChars())
         {
             sanitized = sanitized.Replace(c.ToString(), "");
         }
-    
-        // Doppelte Underscores vermeiden (Kosmetik)
-        while(sanitized.Contains("__")) 
+
+        while (sanitized.Contains("__"))
             sanitized = sanitized.Replace("__", "_");
 
         return sanitized;

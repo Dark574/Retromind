@@ -36,6 +36,22 @@ public class AppSettings
     /// </summary>
     public string? LastSelectedMediaId { get; set; }
 
+    // --- Big Mode State ---
+    /// <summary>
+    /// The navigation path of nodes that were ENTERED.
+    /// </summary>
+    public List<string>? LastBigModeNavigationPath { get; set; }
+        
+    /// <summary>
+    /// The ID of the last SELECTED node (can be a category or an item).
+    /// </summary>
+    public string? LastBigModeSelectedNodeId { get; set; }
+    
+    /// <summary>
+    /// Flag to remember if the last view was a list of items (true) or categories (false).
+    /// </summary>
+    public bool LastBigModeWasItemView { get; set; }
+    
     // --- Configurations ---
 
     /// <summary>

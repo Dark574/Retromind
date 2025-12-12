@@ -148,7 +148,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
             // 2. Importieren via Service
             // Der Service fügt das neue Asset in _node.Assets ein
-            _fileService.ImportNodeAsset(sourcePath, _node, _nodePath, type);
+            await _fileService.ImportAssetAsync(sourcePath, _node, _nodePath, type);
             
             // 3. Vorschau aktualisieren
             LoadPreviews();

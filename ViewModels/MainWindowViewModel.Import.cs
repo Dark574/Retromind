@@ -217,7 +217,7 @@ public partial class MainWindowViewModel
             var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
             
             // AssetType statt MediaFileType
-            var asset = _fileService.ImportAsset(sourceFile, item, nodePath, AssetType.Music);
+            var asset = await _fileService.ImportAssetAsync(sourceFile, item, nodePath, AssetType.Music);
 
             if (asset != null)
             {
@@ -271,14 +271,29 @@ public partial class MainWindowViewModel
     
             var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
             
-            // DownloadAndSetAsset nutzt jetzt AssetType
-            if (!string.IsNullOrEmpty(result.CoverUrl)) 
-                await DownloadAndSetAsset(result.CoverUrl, item, nodePath, AssetType.Cover);
+            // Downloads, Imports und Save in Background-Task verschieben (fire-and-forget)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    // DownloadAndSetAsset nutzt jetzt AssetType
+                    if (!string.IsNullOrEmpty(result.CoverUrl)) 
+                        await DownloadAndSetAsset(result.CoverUrl, item, nodePath, AssetType.Cover);
                 
-            if (!string.IsNullOrEmpty(result.WallpaperUrl)) 
-                await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
+                    if (!string.IsNullOrEmpty(result.WallpaperUrl)) 
+                        await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
 
-            await SaveData();
+                    // Weitere Assets, falls vorhanden (z. B. Logo)...
+
+                    await SaveData(); // Speichern im Background
+                }
+                catch (Exception ex)
+                {
+                    // Logge den Error (z. B. zeige später eine Notification oder Console)
+                    Console.WriteLine($"Background scraping error: {ex.Message}");
+                    // Optional: Invoke auf UI für eine MessageBox, falls kritisch
+                }
+            });
             
             // Close dialog manually if needed (finding window by DataContext)
             if (owner.OwnedWindows.FirstOrDefault(w => w.DataContext == vm) is Window dlg) dlg.Close();
@@ -369,7 +384,7 @@ public partial class MainWindowViewModel
             if (success)
             {
                 // ImportAsset übernimmt das Hinzufügen zur Liste
-                _fileService.ImportAsset(tempPathWithExt, item, nodePath, type);
+                await _fileService.ImportAssetAsync(tempPathWithExt, item, nodePath, type);
             }
             if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
         }
@@ -467,7 +482,7 @@ public partial class MainWindowViewModel
         
         if (result != null && result.Count == 1)
         {
-            var asset = _fileService.ImportAsset(result[0].Path.LocalPath, item, PathHelper.GetNodePath(SelectedNode, RootItems), type);
+            var asset = await _fileService.ImportAssetAsync(result[0].Path.LocalPath, item, PathHelper.GetNodePath(SelectedNode, RootItems), type);
             if (asset != null) 
             { 
                 await SaveData(); 

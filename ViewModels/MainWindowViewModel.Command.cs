@@ -5,7 +5,9 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
@@ -88,10 +90,17 @@ public partial class MainWindowViewModel
 
     private void EnterBigMode()
     {
+        Debug.WriteLine("[DEBUG] EnterBigMode called.");
+        
         // We need a valid selection to show something
         // If SelectedNodeContent is not MediaAreaViewModel (e.g. Settings or Search), we might fallback to Root or show nothing
         if (SelectedNodeContent is not MediaAreaViewModel mediaVM) 
-            return;
+        {
+            Debug.WriteLine("[DEBUG] EnterBigMode: No valid MediaAreaViewModel - fallback to default.");
+            // Optional: Setze einen Default-Content, falls nötig
+            // z.B. SelectedNodeContent = new MediaAreaViewModel(new MediaNode("Default", NodeType.Group), ItemWidth);
+            // Aber für jetzt fahre fort, da der Rest der Logik unabhängig ist
+        }
 
         // 1. MUSIK STOPPEN!
         _audioService.StopMusic();
@@ -102,11 +111,10 @@ public partial class MainWindowViewModel
         
         // Create the ViewModel that acts as the interface for the theme
         
-        // ÄNDERUNG: Wir übergeben jetzt 'RootItems' (die Liste aller Kategorien)
-        // und 'SelectedNode' (die aktuell ausgewählte Kategorie).
-        var bigVm = new BigModeViewModel(RootItems, SelectedNode);
+        // Wir übergeben jetzt die AppSettings, damit der BigMode seinen Zustand laden kann
+        var bigVm = new BigModeViewModel(RootItems, _currentSettings);
 
-        // --- THEME SWITCHING LOGIC (NEU) ---
+        // --- THEME SWITCHING LOGIC ---
         bigVm.RequestThemeChange += (newThemePath) => 
         {
             // UI-Thread sicherstellen
@@ -123,6 +131,11 @@ public partial class MainWindowViewModel
                     
                     // Fokus zurückgeben (gegen VLC Klau)
                     newView.Focus();
+                    
+                    // View gilt als "ready", sobald Avalonia sie wirklich geladen/layoutet hat
+                    Dispatcher.UIThread.Post(
+                        () => bigVm.NotifyViewReady(),
+                        DispatcherPriority.Loaded);
                 }
             });
         };
@@ -145,6 +158,7 @@ public partial class MainWindowViewModel
         
         Action onSelect = () => Dispatcher.UIThread.Post(() => bigVm.PlayCurrentCommand.Execute(null));
         Action onBack = () => Dispatcher.UIThread.Post(() => bigVm.ExitBigModeCommand.Execute(null));
+        Action onGuide = () => Dispatcher.UIThread.Post(() => bigVm.ForceExitCommand.Execute(null));
         
         Action onPrevTab = () => Dispatcher.UIThread.Post(() => bigVm.SelectPreviousCommand.Execute(null));
         Action onNextTab = () => Dispatcher.UIThread.Post(() => bigVm.SelectNextCommand.Execute(null));
@@ -160,18 +174,23 @@ public partial class MainWindowViewModel
         
         _gamepadService.OnSelect += onSelect;
         _gamepadService.OnBack += onBack;
+        _gamepadService.OnGuide += onGuide;
         
         _gamepadService.OnPrevTab += onPrevTab;
         _gamepadService.OnNextTab += onNextTab;
         
         // --- CONTROLLER WIRING END ---
     
-        // NEU: Überwachung starten (Hot-Plug Support via SDL)
+        // Überwachung starten (Hot-Plug Support via SDL)
         _gamepadService.StartMonitoring();
         
         // Cleanup beim Schließen
-        bigVm.RequestClose += () => 
-        { 
+        bigVm.RequestClose += async () => 
+        {
+            // Zustand speichern, bevor wir schließen
+            bigVm.SaveState();
+            SaveSettingsOnly();
+            
             // Controller Events abhängen
             _gamepadService.OnUp -= onUp;
             _gamepadService.OnDown -= onDown;
@@ -179,22 +198,54 @@ public partial class MainWindowViewModel
             _gamepadService.OnRight -= onRight;
             _gamepadService.OnSelect -= onSelect;
             _gamepadService.OnBack -= onBack;
+            _gamepadService.OnGuide -= onGuide;
             _gamepadService.OnPrevTab -= onPrevTab;
             _gamepadService.OnNextTab -= onNextTab;
             
             // 2. UI sofort schließen/ausblenden
             FullScreenContent = null;
             
-            // 3. Heavy Cleanup im Hintergrund (SDL, VLC)
-            Task.Run(() => 
+            if (ShouldStartInBigMode)
             {
-                try 
-                { 
-                    _gamepadService.StopMonitoring();
-                    bigVm.Dispose(); 
-                }
-                catch { /* Ignorieren */ }
-            });
+                // Fall 1: BigMode-only -> Gesamte App beenden
+                Task.Run(async () => 
+                {
+                    await Task.Delay(100);  // Zeit für Saves
+                    try 
+                    { 
+                        _gamepadService.StopMonitoring();
+                        bigVm.Dispose(); 
+                    }
+                    catch { /* Ignorieren */ }
+            
+                    // App schließen
+                    Dispatcher.UIThread.Post(() => 
+                    {
+                        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+                        {
+                            lifetime.MainWindow?.Close();
+                        }
+                    });
+                });
+            }
+            else
+            {
+                // Fall 2: Aus CoreApp -> Auswahl synchronisieren (fire-and-forget, aber UI-sicher)
+                Dispatcher.UIThread.Post(() =>
+                {
+                    _ = SyncSelectionFromBigModeAsync();
+                });
+                
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        _gamepadService.StopMonitoring();
+                        bigVm.Dispose();
+                    }
+                    catch { /* Ignorieren */ }
+                });
+            }
         };
         
         // Initial View laden (Standard oder Default)
@@ -205,6 +256,11 @@ public partial class MainWindowViewModel
             view.Focusable = true; 
             FullScreenContent = view;
 
+            // View gilt als "ready", sobald Avalonia sie wirklich geladen/layoutet hat
+            Dispatcher.UIThread.Post(
+                () => bigVm.NotifyViewReady(),
+                DispatcherPriority.Loaded);
+            
             // XWayland / Fokus Hack: Kurz warten, damit das Fenster den Fokus sicher bekommt
             Task.Run(async () => 
             {
@@ -220,6 +276,88 @@ public partial class MainWindowViewModel
                     }
                 });
             });
+        }
+    }
+    
+    private void UpdateBigModeStateFromCoreSelection(MediaNode node, MediaItem? selectedItem)
+    {
+        // Pfad Root -> node bestimmen
+        var chain = GetNodeChain(node, RootItems); // existiert bereits bei dir
+        var pathIds = chain.Select(n => n.Id).ToList();
+
+        _currentSettings.LastBigModeNavigationPath = pathIds;
+
+        if (selectedItem != null)
+        {
+            _currentSettings.LastBigModeWasItemView = true;
+            _currentSettings.LastBigModeSelectedNodeId = selectedItem.Id;
+        }
+        else
+        {
+            // Wenn der Node ein "Leaf" mit Spielen ist, soll BigMode direkt die Spieleliste öffnen.
+            var isLeaf = node.Children == null || node.Children.Count == 0;
+            var hasItems = node.Items != null && node.Items.Count > 0;
+
+            if (isLeaf && hasItems)
+            {
+                _currentSettings.LastBigModeWasItemView = true;
+
+                // Kein konkretes Item ausgewählt -> BigMode nimmt dann beim Restore das erste Item als Fallback.
+                _currentSettings.LastBigModeSelectedNodeId = null;
+            }
+            else
+            {
+                _currentSettings.LastBigModeWasItemView = false;
+                _currentSettings.LastBigModeSelectedNodeId = node.Id;
+            }
+        }
+
+        SaveSettingsOnly();
+    }
+    
+    public async Task SyncSelectionFromBigModeAsync()
+    {
+        try
+        {
+            if (RootItems.Count == 0) return;
+
+            // 1) Ziel-Node bestimmen: letzter Eintrag im BigMode-Navigationspfad
+            var targetNodeId = _currentSettings.LastBigModeNavigationPath?.LastOrDefault();
+            if (string.IsNullOrWhiteSpace(targetNodeId))
+                return;
+
+            var node = FindNodeById(RootItems, targetNodeId);
+            if (node == null) return;
+
+            // 2) Tree selektieren + expandieren (UI Thread)
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                ExpandPathToNode(RootItems, node);
+                SelectedNode = node;
+            });
+
+            // 3) Warten bis das Grid (SelectedNodeContent) wirklich da ist
+            await UpdateContentAsync();
+
+            // 4) Falls BigMode in Item-Ansicht war: Item im Grid selektieren
+            if (_currentSettings.LastBigModeWasItemView &&
+                !string.IsNullOrWhiteSpace(_currentSettings.LastBigModeSelectedNodeId))
+            {
+                var itemId = _currentSettings.LastBigModeSelectedNodeId;
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (SelectedNodeContent is not MediaAreaViewModel mediaVm) return;
+
+                    var item = mediaVm.Node?.Items?.FirstOrDefault(i => i.Id == itemId);
+                    if (item != null)
+                        mediaVm.SelectedMediaItem = item;
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CoreApp] SyncSelectionFromBigModeAsync failed: {ex}");
         }
     }
     

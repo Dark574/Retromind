@@ -11,6 +11,10 @@ using Retromind.Helpers;
 
 namespace Retromind.Services.Scrapers;
 
+/// <summary>
+/// IGDB metadata provider implementing IMetadataProvider.
+/// Handles authentication and search for game metadata.
+/// </summary>
 public class IgdbProvider : IMetadataProvider
 {
     private readonly ScraperConfig _config;
@@ -19,13 +23,21 @@ public class IgdbProvider : IMetadataProvider
     private string? _accessToken;
     private DateTime _tokenExpiry;
 
+    private const string TwitchTokenUrl = "https://id.twitch.tv/oauth2/token";
+    private const string IgdbApiUrl = "https://api.igdb.com/v4/games";
+    private const int TokenExpiryBufferSeconds = 60; // Buffer to avoid edge-case expirations
+    private const int MaxRetries = 3;
+    
     public IgdbProvider(ScraperConfig config, HttpClient httpClient)
     {
         _config = config;
         _httpClient = httpClient;
     }
 
-    // Helper to get effective credentials
+    /// <summary>
+    /// Retrieves effective credentials, preferring config over secrets.
+    /// Throws if credentials are invalid or missing.
+    /// </summary>
     private (string ClientId, string ClientSecret) GetCredentials()
     {
         var clientId = !string.IsNullOrWhiteSpace(_config.ClientId) ? _config.ClientId : ApiSecrets.IgdbClientId;
@@ -33,12 +45,16 @@ public class IgdbProvider : IMetadataProvider
 
         if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret) || clientId == "INSERT_KEY_HERE")
         {
-            throw new Exception("IGDB benötigt Client ID und Client Secret. Bitte in Settings eintragen.");
+            throw new Exception("IGDB requires Client ID and Client Secret. Please enter in Settings.");
         }
 
         return (clientId, clientSecret);
     }
     
+    /// <summary>
+    /// Authenticates with IGDB via Twitch API if not already connected.
+    /// Returns true if connected successfully.
+    /// </summary>
     public async Task<bool> ConnectAsync()
     {
         // If we still have a valid token, we are good
@@ -47,11 +63,10 @@ public class IgdbProvider : IMetadataProvider
 
         try
         {
-            var creds = GetCredentials(); // Holt User-Daten ODER Secrets
+            var creds = GetCredentials();
             
-            // 1. Get Token from Twitch
-            // POST https://id.twitch.tv/oauth2/token
-            var url = $"https://id.twitch.tv/oauth2/token?client_id={creds.ClientId}&client_secret={creds.ClientSecret}&grant_type=client_credentials";
+            // Build token request URL
+            var url = $"{TwitchTokenUrl}?client_id={creds.ClientId}&client_secret={creds.ClientSecret}&grant_type=client_credentials";
             var response = await _httpClient.PostAsync(url, null);
             response.EnsureSuccessStatusCode();
 
@@ -60,16 +75,20 @@ public class IgdbProvider : IMetadataProvider
 
             _accessToken = doc?["access_token"]?.ToString() ?? "";
             var seconds = doc?["expires_in"]?.GetValue<int>() ?? 3600;
-            _tokenExpiry = DateTime.Now.AddSeconds(seconds - 60); // 1 minute buffer
+            _tokenExpiry = DateTime.Now.AddSeconds(seconds - TokenExpiryBufferSeconds);
 
             return !string.IsNullOrEmpty(_accessToken);
         }
         catch (Exception ex)
         {
-            throw new Exception($"IGDB Login fehlgeschlagen: {ex.Message}");
+            throw new Exception($"IGDB login failed: {ex.Message}");
         }
     }
-
+    
+    /// <summary>
+    /// Searches IGDB for games matching the query.
+    /// Returns up to 20 results with metadata.
+    /// </summary>
     public async Task<List<ScraperSearchResult>> SearchAsync(string query)
     {
         // Ensure we are logged in
@@ -78,47 +97,25 @@ public class IgdbProvider : IMetadataProvider
 
         try
         {
-            // Query extended by: involved_companies (Developer) and genres
+            // Query string with fields for metadata
             var igdbQuery =
                 $"search \"{query}\"; fields name, summary, first_release_date, total_rating, cover.url, artworks.url, screenshots.url, genres.name, involved_companies.company.name; limit 20;";
 
-            // --- RETRY LOGIC START ---
-            int maxRetries = 3;
-            int currentRetry = 0;
-            HttpResponseMessage? response = null;
-            
-            while (currentRetry <= maxRetries)
+            // Send request with retry logic
+            var response = await SendWithRetryAsync(async () =>
             {
-                // Important: HttpRequestMessage cannot be used again, 
-                // it needs to be redone in the loop
-                var request = new HttpRequestMessage(HttpMethod.Post, "https://api.igdb.com/v4/games");
+                var request = new HttpRequestMessage(HttpMethod.Post, IgdbApiUrl);
                 request.Headers.Add("Client-ID", creds.ClientId);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
                 request.Content = new StringContent(igdbQuery, Encoding.UTF8, "text/plain");
+                return await _httpClient.SendAsync(request);
+            });
 
-                response = await _httpClient.SendAsync(request);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                {
-                    // Backoff: on the first try wait 1 second, on the second 2 seconds...
-                    currentRetry++;
-                    if (currentRetry > maxRetries) break; // give up
-
-                    await Task.Delay(1000 * currentRetry);
-                    continue; // next try
-                }
-
-                // if there are other errors or success: get out of the loop
-                break;
-            }
-            // --- RETRY LOGIC END ---
-            
-            // if the response is null or if it still fails -> Exception werfen
             if (response == null) throw new Exception("No response from IGDB.");
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
-            var items = JsonNode.Parse(json)?.AsArray(); // JsonNode is often more flexibel than JsonSerializer
+            var items = JsonNode.Parse(json)?.AsArray();
 
             var results = new List<ScraperSearchResult>();
 
@@ -127,7 +124,7 @@ public class IgdbProvider : IMetadataProvider
             foreach (var node in items)
             {
                 if (node == null) continue;
-                
+
                 var res = new ScraperSearchResult
                 {
                     Source = "IGDB",
@@ -137,65 +134,84 @@ public class IgdbProvider : IMetadataProvider
                     Rating = (double?)node["total_rating"]
                 };
 
-                var dateNode = node["first_release_date"];
-                
-                // Date
-                if (dateNode != null)
+                // Parse release date
+                if (node["first_release_date"] is JsonNode dateNode && dateNode.GetValue<long>() is long unixTime)
                 {
-                    long unixTime = dateNode.GetValue<long>();
                     res.ReleaseDate = DateTimeOffset.FromUnixTimeSeconds(unixTime).DateTime;
                 }
 
-                // Genre (Flatten array: "Action, Adventure")
-                var genresArr = node?["genres"]?.AsArray();
-                if (genresArr != null)
+                // Flatten genres
+                if (node["genres"] is JsonArray genresArr)
                 {
-                    var genreList = genresArr.Select(n => n?["name"]?.ToString()).Where(s => s != null);
-                    res.Genre = string.Join(", ", genreList);
+                    res.Genre = string.Join(", ", genresArr.Select(n => n?["name"]?.ToString()).Where(s => !string.IsNullOrEmpty(s)));
                 }
 
-                // Developer (Involved Companies -> Company -> Name)
-                // We just take the first entry, IGDB usually sorts well
-                if (node?["involved_companies"] is JsonArray companiesArr && companiesArr.Count > 0)
+                // Get first developer
+                if (node["involved_companies"] is JsonArray companiesArr && companiesArr.Count > 0)
                 {
-                    var firstComp = companiesArr[0];
-                    res.Developer = firstComp?["company"]?["name"]?.ToString();
+                    res.Developer = companiesArr[0]?["company"]?["name"]?.ToString();
                 }
 
-                // Images
-                var coverUrl = node?["cover"]?["url"]?.ToString();
-                if (!string.IsNullOrEmpty(coverUrl))
+                // Cover image
+                if (node["cover"]?["url"]?.ToString() is string coverUrl && !string.IsNullOrEmpty(coverUrl))
+                {
                     res.CoverUrl = FixIgdbImageUrl(coverUrl, "t_cover_big");
+                }
 
-                // Wallpaper
-                var artworkArr = node?["artworks"]?.AsArray();
-                var screenshotArr = node?["screenshots"]?.AsArray();
-
+                // Wallpaper (prefer artwork, fallback to screenshot)
                 string? wallpaperRaw = null;
-                if (artworkArr != null && artworkArr.Count > 0)
+                if (node["artworks"] is JsonArray artworkArr && artworkArr.Count > 0)
+                {
                     wallpaperRaw = artworkArr[0]?["url"]?.ToString();
-                else if (screenshotArr != null && screenshotArr.Count > 0)
+                }
+                else if (node["screenshots"] is JsonArray screenshotArr && screenshotArr.Count > 0)
+                {
                     wallpaperRaw = screenshotArr[0]?["url"]?.ToString();
+                }
 
                 if (!string.IsNullOrEmpty(wallpaperRaw))
+                {
                     res.WallpaperUrl = FixIgdbImageUrl(wallpaperRaw, "t_1080p");
+                }
 
                 results.Add(res);
             }
-
+            
             return results;
         }
         catch (Exception ex)
         {
-            // Rethrow exception so ViewModel can display it
-            throw new Exception($"IGDB Fehler: {ex.Message}");
+            throw new Exception($"IGDB search error: {ex.Message}");
         }
     }
 
-    // Helper: IGDB URLs are often "//images..." and "t_thumb". We want "https://" and HighRes.
+    /// <summary>
+    /// Helper for fixing IGDB image URLs to high-res with protocol.
+    /// </summary>
     private string FixIgdbImageUrl(string url, string size)
     {
         if (url.StartsWith("//")) url = "https:" + url;
         return url.Replace("t_thumb", size);
+    }
+    
+    /// <summary>
+    /// Sends an HTTP request with retry logic for rate limits.
+    /// </summary>
+    private async Task<HttpResponseMessage?> SendWithRetryAsync(Func<Task<HttpResponseMessage>> sendAction)
+    {
+        HttpResponseMessage? response = null;
+        for (int retry = 0; retry <= MaxRetries; retry++)
+        {
+            response = await sendAction();
+
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                await Task.Delay(1000 * (retry + 1)); // Exponential backoff
+                continue;
+            }
+
+            break;
+        }
+        return response;
     }
 }
