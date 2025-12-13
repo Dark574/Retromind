@@ -65,14 +65,11 @@ public partial class BigModeViewModel
         {
             if (Items.Count == 0) return;
 
-            if (_selectedItemIndex < 0)
-                _selectedItemIndex = SelectedItem != null ? Items.IndexOf(SelectedItem) : Items.Count - 1;
-
-            if (_selectedItemIndex < 0)
-                _selectedItemIndex = Items.Count - 1;
-
-            if (_selectedItemIndex > 0)
-                _selectedItemIndex--;
+            // Wenn nichts ausgewählt ist, starte beim letzten Element.
+            if (_selectedItemIndex < 0) _selectedItemIndex = 0;
+            
+            // Kompakte Logik für "zurück mit Umbruch"
+            _selectedItemIndex = (_selectedItemIndex - 1 + Items.Count) % Items.Count;
 
             SelectedItem = Items[_selectedItemIndex];
         }
@@ -80,13 +77,11 @@ public partial class BigModeViewModel
         {
             if (CurrentCategories.Count == 0) return;
 
-            if (_selectedCategoryIndex < 0)
-                _selectedCategoryIndex = SelectedCategory != null ? CurrentCategories.IndexOf(SelectedCategory) : CurrentCategories.Count - 1;
+            // Wenn nichts ausgewählt ist, starte beim letzten Element.
+            if (_selectedCategoryIndex < 0) _selectedCategoryIndex = 0;
 
-            if (_selectedCategoryIndex < 0)
-                _selectedCategoryIndex = CurrentCategories.Count - 1;
-
-            _selectedCategoryIndex = _selectedCategoryIndex > 0 ? _selectedCategoryIndex - 1 : CurrentCategories.Count - 1;
+            // Kompakte Logik für "zurück mit Umbruch"
+            _selectedCategoryIndex = (_selectedCategoryIndex - 1 + CurrentCategories.Count) % CurrentCategories.Count;
 
             SelectedCategory = CurrentCategories[_selectedCategoryIndex];
         }
@@ -106,14 +101,11 @@ public partial class BigModeViewModel
         {
             if (Items.Count == 0) return;
 
-            if (_selectedItemIndex < 0)
-                _selectedItemIndex = SelectedItem != null ? Items.IndexOf(SelectedItem) : 0;
-
-            if (_selectedItemIndex < 0)
-                _selectedItemIndex = 0;
-
-            if (_selectedItemIndex < Items.Count - 1)
-                _selectedItemIndex++;
+            // Wenn nichts ausgewählt ist, starte beim ersten Element.
+            if (_selectedItemIndex < 0) _selectedItemIndex = 0;
+            
+            // Kompakte Logik für "vorwärts mit Umbruch"
+            _selectedItemIndex = (_selectedItemIndex + 1) % Items.Count;
 
             SelectedItem = Items[_selectedItemIndex];
         }
@@ -121,13 +113,11 @@ public partial class BigModeViewModel
         {
             if (CurrentCategories.Count == 0) return;
 
-            if (_selectedCategoryIndex < 0)
-                _selectedCategoryIndex = SelectedCategory != null ? CurrentCategories.IndexOf(SelectedCategory) : 0;
+            // Wenn nichts ausgewählt ist, starte beim ersten Element.
+            if (_selectedCategoryIndex < 0) _selectedCategoryIndex = 0;
 
-            if (_selectedCategoryIndex < 0)
-                _selectedCategoryIndex = 0;
-
-            _selectedCategoryIndex = _selectedCategoryIndex < CurrentCategories.Count - 1 ? _selectedCategoryIndex + 1 : 0;
+            // Kompakte Logik für "vorwärts mit Umbruch"
+            _selectedCategoryIndex = (_selectedCategoryIndex + 1) % CurrentCategories.Count;
 
             SelectedCategory = CurrentCategories[_selectedCategoryIndex];
         }

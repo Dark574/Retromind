@@ -29,16 +29,11 @@
         </Style>
     </UserControl.Styles>
     
-    <UserControl.Resources>
-        <converters:PathToBitmapConverter x:Key="PathToBitmapConverter"/>
-        <!-- Converter für Sichtbarkeit basierend auf String (Logo) -->
-    </UserControl.Resources>
-
     <Grid>
-        <!-- HINTERGRUND (Bleibt wie er ist) -->
-        <Image Source="{Binding SelectedItem.PrimaryWallpaperPath, Converter={StaticResource PathToBitmapConverter}}" 
+        <!-- HINTERGRUND -->
+        <Image converters:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}" 
                Stretch="UniformToFill" IsVisible="{Binding IsGameListActive}"/>
-        <Image Source="{Binding SelectedCategory.PrimaryWallpaperPath, Converter={StaticResource PathToBitmapConverter}}" 
+        <Image converters:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}" 
                Stretch="UniformToFill" IsVisible="{Binding !IsGameListActive}"/>
         <Rectangle Fill="Black" Opacity="0.85" />
 
@@ -69,7 +64,7 @@
                             <DataTemplate>
                                 <Grid Height="60">
                                     <!-- LOGO -->
-                                    <Image Source="{Binding PrimaryLogoPath, Converter={StaticResource PathToBitmapConverter}}"
+                                    <Image converters:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
                                            Stretch="Uniform" HorizontalAlignment="Left"
                                            IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                     <!-- TEXT Fallback -->
@@ -95,7 +90,7 @@
                                     <!-- COVER / ICON (Spalte 0) -->
                                     <!-- Zeige Cover wenn vorhanden -->
                                     <Image Grid.Column="0" 
-                                           Source="{Binding PrimaryCoverPath, Converter={StaticResource PathToBitmapConverter}}"
+                                           converters:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
                                            Width="70" Margin="0,5,15,5" Stretch="Uniform"
                                            IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
@@ -120,12 +115,12 @@
                 <!-- 1. LOGO BEREICH -->
                 <Panel Grid.Row="0" Height="150" Margin="0,0,0,20">
                     <!-- Logo für Kategorie -->
-                    <Image Source="{Binding SelectedCategory.PrimaryLogoPath, Converter={StaticResource PathToBitmapConverter}}"
+                    <Image converters:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoPath}"
                            Stretch="Uniform" HorizontalAlignment="Left"
                            IsVisible="{Binding !IsGameListActive}"/>
                            
                     <!-- Logo für Spiel (Falls vorhanden, MediaItem braucht PrimaryLogoPath Property!) -->
-                    <Image Source="{Binding SelectedItem.PrimaryLogoPath, Converter={StaticResource PathToBitmapConverter}}"
+                    <Image converters:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
                            Stretch="Uniform" HorizontalAlignment="Left"
                            IsVisible="{Binding IsGameListActive}"/>
                 </Panel>

@@ -13,7 +13,8 @@ public enum AssetType
     Logo,
     Video,
     Marquee,
-    Music
+    Music,
+    Banner
 }
 
 /// <summary>

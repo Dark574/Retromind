@@ -47,6 +47,8 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private string _description = string.Empty;
     [ObservableProperty] private string? _developer;
     [ObservableProperty] private string? _genre;
+    [ObservableProperty] private string? _series;
+    [ObservableProperty] private string? _players;
     
     /// <summary>
     /// Original release date of the media.
@@ -63,6 +65,14 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     [ObservableProperty] private PlayStatus _status = PlayStatus.Incomplete;
 
+    /// <summary>
+    /// Gets or sets a value indicating whether this item is marked as a favorite.
+    /// </summary>
+    [ObservableProperty] private bool _isFavorite;
+    
+    [ObservableProperty] 
+    private ObservableCollection<string> _tags = new();
+    
     private ObservableCollection<MediaAsset> _assets = new();
 
     public ObservableCollection<MediaAsset> Assets 
@@ -136,6 +146,8 @@ public partial class MediaItem : ObservableObject
             case AssetType.Wallpaper: OnPropertyChanged(nameof(PrimaryWallpaperPath)); break;
             case AssetType.Logo: OnPropertyChanged(nameof(PrimaryLogoPath)); break;
             case AssetType.Video: OnPropertyChanged(nameof(PrimaryVideoPath)); break;
+            case AssetType.Marquee: OnPropertyChanged(nameof(PrimaryMarqueePath)); break;
+            case AssetType.Banner: OnPropertyChanged(nameof(PrimaryBannerPath)); break;
         }
     }
 
@@ -157,6 +169,8 @@ public partial class MediaItem : ObservableObject
             OnPropertyChanged(nameof(PrimaryWallpaperPath));
             OnPropertyChanged(nameof(PrimaryLogoPath));
             OnPropertyChanged(nameof(PrimaryVideoPath));
+            OnPropertyChanged(nameof(PrimaryMarqueePath));
+            OnPropertyChanged(nameof(PrimaryBannerPath));
         }
     }
     
@@ -166,6 +180,8 @@ public partial class MediaItem : ObservableObject
     public string? PrimaryWallpaperPath => GetPrimaryAssetAbsolutePath(AssetType.Wallpaper);
     public string? PrimaryLogoPath => GetPrimaryAssetAbsolutePath(AssetType.Logo);
     public string? PrimaryVideoPath => GetPrimaryAssetAbsolutePath(AssetType.Video);
+    public string? PrimaryMarqueePath => GetPrimaryAssetAbsolutePath(AssetType.Marquee);
+    public string? PrimaryBannerPath => GetPrimaryAssetAbsolutePath(AssetType.Banner);
 
     // --- Launch Configuration ---
 
@@ -251,6 +267,8 @@ public partial class MediaItem : ObservableObject
         OnPropertyChanged(nameof(PrimaryWallpaperPath));
         OnPropertyChanged(nameof(PrimaryLogoPath));
         OnPropertyChanged(nameof(PrimaryVideoPath));
+        OnPropertyChanged(nameof(PrimaryMarqueePath));
+        OnPropertyChanged(nameof(PrimaryBannerPath));
     }
 }
 
