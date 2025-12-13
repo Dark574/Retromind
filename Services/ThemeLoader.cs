@@ -5,6 +5,8 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Layout;
 using Avalonia.Data;
+using Retromind.Extensions;
+using Retromind.Models;
 
 namespace Retromind.Services;
 
@@ -19,28 +21,35 @@ public static class ThemeLoader
     /// </summary>
     /// <param name="filePath">Absolute path to the .axaml file.</param>
     /// <returns>The loaded Control or an error message view.</returns>
-    public static Control LoadTheme(string filePath)
+    public static Theme LoadTheme(string filePath)
     {
-        if (!File.Exists(filePath))
+        var themeDir = Path.GetDirectoryName(filePath);
+
+        if (string.IsNullOrEmpty(themeDir) || !File.Exists(filePath))
         {
-            return CreateErrorView($"Theme file not found: {filePath}");
+            var errorView = CreateErrorView($"Theme file not found: {filePath}");
+            return new Theme(errorView, new ThemeSounds(), AppDomain.CurrentDomain.BaseDirectory);
         }
 
         try
         {
-            // Read the XAML content from the file
             string xamlContent = File.ReadAllText(filePath);
+            var view = AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent) 
+                       ?? CreateErrorView("Loaded theme was null or invalid.");
+
+            var sounds = new ThemeSounds
+            {
+                Navigate = ThemeProperties.GetNavigateSound(view),
+                Confirm = ThemeProperties.GetConfirmSound(view),
+                Cancel = ThemeProperties.GetCancelSound(view)
+            };
             
-            // Parse the string into an actual Avalonia object
-            // This requires the external XAML to be valid
-            var loadedObj = AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent);
-            
-            return loadedObj ?? CreateErrorView("Loaded theme was null.");
+            return new Theme(view, sounds, themeDir);
         }
         catch (Exception ex)
         {
-            // Fallback view in case of syntax errors in the user theme
-            return CreateErrorView($"Error loading theme:\n{ex.Message}");
+            var errorView = CreateErrorView($"Error loading theme:\n{ex.Message}");
+            return new Theme(errorView, new ThemeSounds(), AppDomain.CurrentDomain.BaseDirectory);
         }
     }
 

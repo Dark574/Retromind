@@ -22,6 +22,74 @@ public partial class BigModeViewModel
         if (_isViewReady) return;
         _isViewReady = true;
 
+        // Nach dem Ready-Signal die Wiedergabe für die aktuelle Auswahl anstoßen
+        TriggerPreviewPlayback();
+    }
+
+    partial void OnSelectedItemChanged(MediaItem? value)
+    {
+        // Dieser Handler aktualisiert nur noch den Index für externe Änderungen.
+        // Er löst KEINE Wiedergabe mehr aus. Das verhindert doppelte Aufrufe.
+        if (value == null)
+        {
+            _selectedItemIndex = -1;
+        }
+        else
+        {
+            // O(n) nur für Mausklicks etc.
+            var idx = Items.IndexOf(value);
+            if (idx >= 0) _selectedItemIndex = idx;
+        }
+        
+        // Wiedergabe wird durch den Aufrufer (z.B. SelectNext/Previous) gesteuert
+        // oder durch den Debounce-Mechanismus für externe Änderungen.
+        TriggerPreviewPlaybackWithDebounce();
+    }
+
+    partial void OnSelectedCategoryChanged(MediaNode? value)
+    {
+        if (value == null)
+        {
+            _selectedCategoryIndex = -1;
+        }
+        else
+        {
+            // This is O(n), but it only runs when the selection changes externally.
+            // Navigation via controller will be O(1).
+            _selectedCategoryIndex = CurrentCategories.IndexOf(value);
+        }
+        
+        TriggerPreviewPlaybackWithDebounce();
+    }
+    
+    /// <summary>
+    /// Kapselt die Debounce-Logik. Kann von überall sicher aufgerufen werden.
+    /// </summary>
+    private void TriggerPreviewPlaybackWithDebounce()
+    {
+        if (!_isViewReady || _isLaunching) return;
+
+        _previewCts?.Cancel();
+        _previewCts = new CancellationTokenSource();
+        var token = _previewCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try { await Task.Delay(PreviewDebounceMs, token); }
+            catch { return; }
+
+            if (token.IsCancellationRequested) return;
+
+            // Die eigentliche Wiedergabe wird sicher über den Dispatcher aufgerufen
+            await Dispatcher.UIThread.InvokeAsync(TriggerPreviewPlayback, DispatcherPriority.Background);
+        });
+    }
+    
+    /// <summary>
+    /// Löst die Wiedergabe für die aktuelle Auswahl aus. Muss auf dem UI-Thread aufgerufen werden.
+    /// </summary>
+    private void TriggerPreviewPlayback()
+    {
         if (IsGameListActive)
         {
             PlayPreview(SelectedItem);
@@ -30,72 +98,6 @@ public partial class BigModeViewModel
         {
             PlayCategoryPreview(SelectedCategory);
         }
-    }
-
-    partial void OnSelectedItemChanged(MediaItem? value)
-    {
-        if (value == null)
-        {
-            _selectedItemIndex = -1;
-        }
-        else
-        {
-            // O(n) only if selection changes externally; controller navigation will keep this in sync.
-            var idx = Items.IndexOf(value);
-            if (idx >= 0) _selectedItemIndex = idx;
-        }
-        
-        if (!_isViewReady) return;
-        if (_isLaunching) return;
-
-        // Only show previews for game selection changes.
-        if (!IsGameListActive)
-        {
-            StopVideo();
-            return;
-        }
-
-        StopVideo();
-
-        _previewCts?.Cancel();
-        _previewCts = new CancellationTokenSource();
-        var token = _previewCts.Token;
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(PreviewDebounceMs, token);
-            }
-            catch (TaskCanceledException)
-            {
-                return;
-            }
-
-            if (token.IsCancellationRequested) return;
-
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                if (!token.IsCancellationRequested && !_isLaunching && SelectedItem == value)
-                {
-                    PlayPreview(value);
-                }
-            });
-        });
-    }
-
-    partial void OnSelectedCategoryChanged(MediaNode? value)
-    {
-        // Keep index in sync when selection changes through UI binding or restore logic.
-        if (value == null)
-        {
-            _selectedCategoryIndex = -1;
-            return;
-        }
-
-        // This is O(n), but it only runs when the selection changes externally.
-        // Navigation via controller will be O(1).
-        _selectedCategoryIndex = CurrentCategories.IndexOf(value);
     }
     
     private string? ResolveItemVideoPath(MediaItem item)
@@ -158,11 +160,8 @@ public partial class BigModeViewModel
     
     private void PlayPreview(MediaItem? item)
     {
-        if (!_isViewReady) return;
-        if (_isLaunching) return;
-        if (MediaPlayer == null) return;
-
-        if (item == null)
+        // Die Logik hier ist jetzt sicher, da sie immer vom UI-Thread aufgerufen wird.
+        if (_isLaunching || MediaPlayer == null || item == null)
         {
             StopVideo();
             return;
@@ -175,15 +174,9 @@ public partial class BigModeViewModel
             return;
         }
 
-        // If the same preview is already active, do nothing (prevents VLC flicker).
-        if (string.Equals(_currentPreviewVideoPath, videoToPlay, StringComparison.OrdinalIgnoreCase) && MediaPlayer.IsPlaying)
-        {
-            IsVideoVisible = true;
-            return;
-        }
-        
+        if (string.Equals(_currentPreviewVideoPath, videoToPlay, StringComparison.OrdinalIgnoreCase) && MediaPlayer.IsPlaying) return;
+
         _currentPreviewVideoPath = videoToPlay;
-        
         IsVideoVisible = true;
         using var media = new Media(_libVlc, new Uri(videoToPlay));
         MediaPlayer.Play(media);
@@ -191,11 +184,8 @@ public partial class BigModeViewModel
 
     private void PlayCategoryPreview(MediaNode? node)
     {
-        if (!_isViewReady) return;
-        if (_isLaunching) return;
-        if (MediaPlayer == null) return;
-
-        if (node == null)
+        // Diese Methode ist jetzt ebenfalls sicher.
+        if (_isLaunching || MediaPlayer == null || node == null)
         {
             StopVideo();
             return;
@@ -208,44 +198,12 @@ public partial class BigModeViewModel
             return;
         }
 
-        _previewCts?.Cancel();
-        _previewCts = new CancellationTokenSource();
-        var token = _previewCts.Token;
+        if (string.Equals(_currentPreviewVideoPath, videoToPlay, StringComparison.OrdinalIgnoreCase) && MediaPlayer.IsPlaying) return;
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(PreviewDebounceMs, token);
-            }
-            catch
-            {
-                return;
-            }
-
-            if (token.IsCancellationRequested) return;
-
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                if (token.IsCancellationRequested || _isLaunching || SelectedCategory != node) return;
-
-                // If the same preview is already active, do nothing (prevents VLC flicker).
-                if (string.Equals(_currentPreviewVideoPath, videoToPlay, StringComparison.OrdinalIgnoreCase) && MediaPlayer.IsPlaying)
-                {
-                    IsVideoVisible = true;
-                    return;
-                }
-
-                _currentPreviewVideoPath = videoToPlay;
-
-                IsVideoVisible = false;
-                MediaPlayer.Stop();
-
-                IsVideoVisible = true;
-                using var media = new Media(_libVlc, new Uri(videoToPlay));
-                MediaPlayer.Play(media);
-            });
-        });
+        _currentPreviewVideoPath = videoToPlay;
+        IsVideoVisible = true;
+        using var media = new Media(_libVlc, new Uri(videoToPlay));
+        MediaPlayer.Play(media);
     }
 
     private void StopVideo()

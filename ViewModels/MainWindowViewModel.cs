@@ -35,6 +35,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly SettingsService _settingsService;
     private readonly MetadataService _metadataService; 
     private readonly GamepadService _gamepadService;
+    private readonly SoundEffectService _soundEffectService;
 
     // Token Source for cancelling old content loading tasks
     private CancellationTokenSource? _updateContentCts;
@@ -174,6 +175,7 @@ public partial class MainWindowViewModel : ViewModelBase
         StoreImportService storeService,
         SettingsService settingsService,
         MetadataService metadataService,
+        SoundEffectService soundEffectService,
         AppSettings preloadedSettings) 
     {
         _audioService = audioService;
@@ -184,6 +186,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _storeService = storeService;
         _settingsService = settingsService;
         _metadataService = metadataService;
+        _soundEffectService = soundEffectService;
         _currentSettings = preloadedSettings;
         
         // JOKER: SDL zwingen, auch Hintergrund-Events und unbekannte Geräte zu akzeptieren

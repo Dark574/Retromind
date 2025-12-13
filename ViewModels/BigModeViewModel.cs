@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibVLCSharp.Shared;
 using Retromind.Models;
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
@@ -15,11 +16,16 @@ namespace Retromind.ViewModels;
 /// Root ViewModel for BigMode.
 /// Theme authors bind to properties exposed by this type.
 /// </summary>
-public partial class BigModeViewModel : ViewModelBase
+public partial class BigModeViewModel : ViewModelBase, IDisposable
 {
     private readonly LibVLC _libVlc;
     private readonly AppSettings _settings;
 
+    // Felder für die injizierten Services
+    private Theme _theme;
+    private readonly SoundEffectService _soundEffectService;
+    private readonly GamepadService _gamepadService;
+    
     // Navigation history used to implement "Back" behavior.
     private readonly Stack<ObservableCollection<MediaNode>> _navigationStack = new();
     private readonly Stack<string> _titleStack = new();
@@ -99,10 +105,18 @@ public partial class BigModeViewModel : ViewModelBase
     public event Func<MediaItem, Task>? RequestPlay;
     public event Action<string>? RequestThemeChange;
 
-    public BigModeViewModel(ObservableCollection<MediaNode> rootNodes, AppSettings settings)
+    public BigModeViewModel(
+        ObservableCollection<MediaNode> rootNodes,
+        AppSettings settings,
+        Theme theme,
+        SoundEffectService soundEffectService,
+        GamepadService gamepadService)
     {
         _rootNodes = rootNodes;
         _settings = settings;
+        _theme = theme;
+        _soundEffectService = soundEffectService;
+        _gamepadService = gamepadService;
 
         // Start at root categories.
         CurrentCategories = _rootNodes;
@@ -118,9 +132,29 @@ public partial class BigModeViewModel : ViewModelBase
 
         ForceExitCommand = new RelayCommand(() => RequestClose?.Invoke());
 
+        // Gamepad-Events direkt hier abonnieren
+        _gamepadService.OnUp += OnGamepadUp;
+        _gamepadService.OnDown += OnGamepadDown;
+        _gamepadService.OnLeft += OnGamepadLeft;
+        _gamepadService.OnRight += OnGamepadRight;
+        _gamepadService.OnSelect += OnGamepadSelect;
+        _gamepadService.OnBack += OnGamepadBack;
+
         if (CurrentCategories.Count > 0)
         {
             RestoreLastState();
         }
+    }
+
+    // Methode zum Aktualisieren des Themes zur Laufzeit
+    public void UpdateTheme(Theme newTheme)
+    {
+        _theme = newTheme;
+        
+        // Wenn ein neues Theme geladen wird, ist die View ungültig.
+        // Wir müssen auf die nächste `NotifyViewReady` warten.
+        _isViewReady = false;
+        
+        // Optional: Hier könnten UI-Elemente aktualisiert werden, die vom Theme abhängen
     }
 }

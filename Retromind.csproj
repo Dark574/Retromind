@@ -60,8 +60,15 @@
     </ItemGroup>
 
     <ItemGroup>
-      <AvaloniaXaml Update="Themes\Default.axaml">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </AvaloniaXaml>
+        <AvaloniaXaml Update="Themes\Default\theme.axaml">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </AvaloniaXaml>
+        <AvaloniaXaml Update="Themes\Wheel\theme.axaml">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </AvaloniaXaml>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Themes\Wheel\sounds\" />
     </ItemGroup>
 </Project>

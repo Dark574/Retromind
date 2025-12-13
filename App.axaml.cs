@@ -128,6 +128,7 @@ public partial class App : Application
         
         // --- Core Services (Singletons) ---
         services.AddSingleton<AudioService>();
+        services.AddSingleton<SoundEffectService>();
         services.AddSingleton<MediaDataService>();
         
         // --- FileManagementService mit Pfad registrieren ---

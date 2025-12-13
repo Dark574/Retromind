@@ -55,6 +55,8 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
+    // Theme clear command for UI
+    public IRelayCommand ClearThemeCommand { get; }
     
     // Import Commands
     public IAsyncRelayCommand<AssetType> ImportAssetCommand { get; }
@@ -66,6 +68,26 @@ public partial class NodeSettingsViewModel : ViewModelBase
     // Event to signal the view to close (true = saved, false = cancelled)
     public event Action<bool>? RequestClose;
 
+    // =========================
+    // THEME (BigMode per Node)
+    // ThemePath is treated as THEME FOLDER NAME under "<AppBase>/Themes/<ThemeId>/theme.axaml"
+    // null/empty means: use convention "<SafeNodeName>/theme.axaml" or fallback to Default
+    // =========================
+
+    public ObservableCollection<string> AvailableThemes { get; } = new();
+
+    [ObservableProperty]
+    private string? _selectedTheme;
+    
+    // true, wenn explizit ein Theme gewählt ist (auch "Default")
+    public bool IsThemeExplicitlySelected => !string.IsNullOrWhiteSpace(SelectedTheme);
+
+    // Wird vom MVVM Toolkit automatisch aufgerufen, wenn SelectedTheme sich ändert
+    partial void OnSelectedThemeChanged(string? value)
+    {
+        OnPropertyChanged(nameof(IsThemeExplicitlySelected));
+    }
+    
     public NodeSettingsViewModel(
         MediaNode node, 
         AppSettings settings, 
@@ -80,6 +102,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
         InitializeData();
         InitializeEmulators();
 
+        // Theme list (folder scan)
+        LoadAvailableThemes();
+        SelectedTheme = string.IsNullOrWhiteSpace(_node.ThemePath) ? null : _node.ThemePath;
+        
         // Initial einmal die Bilder laden
         LoadPreviews();
         
@@ -89,8 +115,47 @@ public partial class NodeSettingsViewModel : ViewModelBase
         // Generischer Import-Command (Parameter: "Cover", "Logo" etc.)
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
         DeleteAssetCommand = new AsyncRelayCommand<AssetType>(DeleteAssetAsync);
+        ClearThemeCommand = new RelayCommand(() => SelectedTheme = null);
     }
 
+    private void LoadAvailableThemes()
+    {
+        AvailableThemes.Clear();
+
+        var themesRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Themes");
+        if (!Directory.Exists(themesRoot)) return;
+
+        try
+        {
+            var themes = new List<string>();
+
+            foreach (var dir in Directory.EnumerateDirectories(themesRoot))
+            {
+                var folderName = Path.GetFileName(dir);
+                if (string.IsNullOrWhiteSpace(folderName)) continue;
+
+                var themeFile = Path.Combine(dir, "theme.axaml");
+                if (!File.Exists(themeFile)) continue;
+
+                themes.Add(folderName);
+            }
+
+            // Sort: "Default" first, then alphabetical
+            themes = themes
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => !string.Equals(n, "Default", StringComparison.OrdinalIgnoreCase)) // false (=Default) first
+                .ThenBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var name in themes)
+                AvailableThemes.Add(name);
+        }
+        catch
+        {
+            // Best-effort: if directory scan fails, keep list empty
+        }
+    }
+    
     // --- ASSET LOGIC ---
 
     private void LoadPreviews()
@@ -233,6 +298,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
         _node.Description = Description;
         _node.RandomizeCovers = RandomizeCovers;
         _node.RandomizeMusic = RandomizeMusic;
+        
+        // NEU: Theme speichern (als Ordnername oder null)
+        _node.ThemePath = string.IsNullOrWhiteSpace(SelectedTheme) ? null : SelectedTheme;
         
         // Emulator logic: If ID is null (our dummy item), set node property to null
         if (SelectedEmulator != null && SelectedEmulator.Id != null)

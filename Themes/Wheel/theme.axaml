@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Retromind.ViewModels"
+             xmlns:helpers="clr-namespace:Retromind.Helpers"
+             xmlns:extensions="clr-namespace:Retromind.Extensions"
+             x:DataType="vm:BigModeViewModel"
+             extensions:ThemeProperties.NavigateSound="sounds/navigate.wav"
+             extensions:ThemeProperties.ConfirmSound="sounds/confirm.wav"
+             extensions:ThemeProperties.CancelSound="sounds/cancel.wav">
+
+    <!-- Der Converter in den Ressourcen wird nicht mehr benötigt -->
+
+    <Grid>
+        <!-- Dynamischer Hintergrund: Umgestellt auf AsyncImageHelper -->
+        <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}"
+               Stretch="UniformToFill" 
+               Opacity="0.7" />
+
+        <!-- Overlay für Kontrast (typisch in Pulse) -->
+        <Rectangle Fill="Black" Opacity="0.3" />
+
+        <!-- Wheel: Horizontale Liste mit Kategorien (Logos/Titel) – entkernt zu deiner CurrentCategories -->
+        <ListBox ItemsSource="{Binding CurrentCategories}" 
+                 SelectedItem="{Binding SelectedCategory}"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Background="Transparent" 
+                 AutoScrollToSelectedItem="True">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="30" />  <!-- Wheel-ähnlich horizontal -->
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderThickness="2" BorderBrush="White" CornerRadius="10" Padding="10"
+                            Background="Transparent">  <!-- Pulse-ähnlicher Rahmen -->
+                        <StackPanel>
+                            <!-- Logo: Umgestellt auf AsyncImageHelper -->
+                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
+                                   Width="150" Height="150" Stretch="Uniform" />
+                            <!-- Fallback-Titel -->
+                            <TextBlock Text="{Binding Name}" FontSize="20" HorizontalAlignment="Center"
+                                       IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+            <!-- Einfache Animation für Wheel-Bewegung (Avalonia-Äquivalent zu Pulse-Storyboards) -->
+            <ListBox.Transitions>
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" />  <!-- Slide-Effekt -->
+                </Transitions>
+            </ListBox.Transitions>
+        </ListBox>
+
+    </Grid>
+</UserControl>

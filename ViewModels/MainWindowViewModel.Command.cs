@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -9,6 +10,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Extensions;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
@@ -104,38 +106,52 @@ public partial class MainWindowViewModel
         // 1. MUSIK STOPPEN!
         _audioService.StopMusic();
 
-        // Path to the external theme file. 
-        // Ensure this directory exists in your output folder!
-        string themePath = System.IO.Path.Combine(AppContext.BaseDirectory, "Themes", "Default.axaml");
+        // Logik, um das korrekte Theme zu bestimmen
+        string themePath = GetEffectiveThemePath(SelectedNode);
+
+        // Lade das Theme-Objekt, das sowohl die View als auch die Sound-Pfade enthält
+        var theme = ThemeLoader.LoadTheme(themePath);
         
-        // Create the ViewModel that acts as the interface for the theme
-        
-        // Wir übergeben jetzt die AppSettings, damit der BigMode seinen Zustand laden kann
-        var bigVm = new BigModeViewModel(RootItems, _currentSettings);
+        // Erstelle das BigModeViewModel und übergebe alle benötigten Abhängigkeiten
+        var bigVm = new BigModeViewModel(
+            RootItems, 
+            _currentSettings, 
+            theme,               // Das geladene Theme-Objekt
+            _soundEffectService, // Der Service für Sound-Effekte
+            _gamepadService);    // Der Gamepad-Service
 
         // --- THEME SWITCHING LOGIC ---
-        bigVm.RequestThemeChange += (newThemePath) => 
+        bigVm.RequestThemeChange += (newNodeThemePath) => 
         {
             // UI-Thread sicherstellen
             Dispatcher.UIThread.Post(() => 
             {
-                var newView = ThemeLoader.LoadTheme(newThemePath);
-                if (newView != null)
-                {
-                    newView.DataContext = bigVm;
-                    newView.Focusable = true; // Wichtig für Keyboard
+                // Finde den Node, der zum neuen Theme-Pfad gehört (oder den aktuell ausgewählten, wenn der Pfad leer ist)
+                var targetNode = bigVm.SelectedCategory ?? SelectedNode; 
+            
+                // Rufe unsere zuverlässige Logik auf, um den korrekten Pfad zu finden (mit Vererbung und Fallback)
+                string newThemeToLoadPath = GetEffectiveThemePath(targetNode);
 
-                    // View austauschen
-                    FullScreenContent = newView;
+                Dispatcher.UIThread.Post(() => 
+                {
+                    var newTheme = ThemeLoader.LoadTheme(newThemeToLoadPath);
+                
+                    bigVm.UpdateTheme(newTheme);
+
+                    var newView = newTheme.View;
+                    if (newView != null)
+                    {
+                        newView.DataContext = bigVm;
+                        newView.Focusable = true;
+
+                        FullScreenContent = newView;
+                        newView.Focus();
                     
-                    // Fokus zurückgeben (gegen VLC Klau)
-                    newView.Focus();
-                    
-                    // View gilt als "ready", sobald Avalonia sie wirklich geladen/layoutet hat
-                    Dispatcher.UIThread.Post(
-                        () => bigVm.NotifyViewReady(),
-                        DispatcherPriority.Loaded);
-                }
+                        Dispatcher.UIThread.Post(
+                            () => bigVm.NotifyViewReady(),
+                            DispatcherPriority.Loaded);
+                    }
+                });
             });
         };
 
@@ -147,37 +163,6 @@ public partial class MainWindowViewModel
             await PlayMediaAsync(item);
         };
     
-        // --- CONTROLLER WIRING START ---
-        // Wir abonnieren die Events des Services und leiten sie an das ViewModel weiter
-    
-        Action onUp = () => Dispatcher.UIThread.Post(() => bigVm.SelectPreviousCommand.Execute(null));
-        Action onDown = () => Dispatcher.UIThread.Post(() => bigVm.SelectNextCommand.Execute(null));
-        Action onLeft = () => Dispatcher.UIThread.Post(() => bigVm.SelectPreviousCommand.Execute(null));
-        Action onRight = () => Dispatcher.UIThread.Post(() => bigVm.SelectNextCommand.Execute(null));
-        
-        Action onSelect = () => Dispatcher.UIThread.Post(() => bigVm.PlayCurrentCommand.Execute(null));
-        Action onBack = () => Dispatcher.UIThread.Post(() => bigVm.ExitBigModeCommand.Execute(null));
-        
-        Action onPrevTab = () => Dispatcher.UIThread.Post(() => bigVm.SelectPreviousCommand.Execute(null));
-        Action onNextTab = () => Dispatcher.UIThread.Post(() => bigVm.SelectNextCommand.Execute(null));
-        
-        // Navigation durch Kategorien (L/R Schultertasten Mapping später hier ergänzen)
-        // Action onNextCat = ...
-        // Action onPrevCat = ...
-
-        _gamepadService.OnUp += onUp;
-        _gamepadService.OnDown += onDown;
-        _gamepadService.OnLeft += onLeft;
-        _gamepadService.OnRight += onRight;
-        
-        _gamepadService.OnSelect += onSelect;
-        _gamepadService.OnBack += onBack;
-        
-        _gamepadService.OnPrevTab += onPrevTab;
-        _gamepadService.OnNextTab += onNextTab;
-        
-        // --- CONTROLLER WIRING END ---
-    
         // Überwachung starten (Hot-Plug Support via SDL)
         _gamepadService.StartMonitoring();
         
@@ -187,16 +172,6 @@ public partial class MainWindowViewModel
             // Zustand speichern, bevor wir schließen
             bigVm.SaveState();
             SaveSettingsOnly();
-            
-            // Controller Events abhängen
-            _gamepadService.OnUp -= onUp;
-            _gamepadService.OnDown -= onDown;
-            _gamepadService.OnLeft -= onLeft;
-            _gamepadService.OnRight -= onRight;
-            _gamepadService.OnSelect -= onSelect;
-            _gamepadService.OnBack -= onBack;
-            _gamepadService.OnPrevTab -= onPrevTab;
-            _gamepadService.OnNextTab -= onNextTab;
             
             // 2. UI sofort schließen/ausblenden
             FullScreenContent = null;
@@ -247,7 +222,7 @@ public partial class MainWindowViewModel
         };
         
         // Initial View laden (Standard oder Default)
-        var view = ThemeLoader.LoadTheme(themePath);
+        var view = theme.View;
         if (view != null)
         {
             view.DataContext = bigVm;
@@ -278,6 +253,12 @@ public partial class MainWindowViewModel
                     }
                 });
             });
+        }
+        
+        // Expliziter Initial-Select für erstes Item in Root-Kategorien
+        if (bigVm.CurrentCategories.Any() && bigVm.SelectedCategory == null)
+        {
+            bigVm.SelectedCategory = bigVm.CurrentCategories.First();
         }
     }
     
@@ -430,6 +411,38 @@ public partial class MainWindowViewModel
         
         await dialog.ShowDialog(owner);
         await SaveData();
+    }
+
+    // Helfer-Methode, um das Theme für einen Node zu finden
+    private string GetEffectiveThemePath(MediaNode? startNode)
+    {
+        if (startNode != null)
+        {
+            // Finde die Kette von Nodes von der Wurzel bis zum aktuellen Node
+            var nodeChain = GetNodeChain(startNode, RootItems);
+            nodeChain.Reverse(); // Von unten nach oben durchsuchen
+
+            // Suche den ersten Node in der Kette (vom aktuellen aufwärts), der einen ThemePath hat
+            foreach (var node in nodeChain)
+            {
+                if (!string.IsNullOrWhiteSpace(node.ThemePath))
+                {
+                    var themeFileName = "theme.axaml";
+                    var fullPath = Path.Combine(AppContext.BaseDirectory, "Themes", node.ThemePath, themeFileName);
+                    Debug.WriteLine($"[Theme] Found assigned theme for node '{node.Name}': {fullPath}");
+                    if (File.Exists(fullPath))
+                    {
+                        return fullPath;
+                    }
+                    Debug.WriteLine($"[Theme] WARNING: Assigned theme file does not exist at '{fullPath}'");
+                }
+            }
+        }
+
+        // Fallback: Wenn kein Theme gefunden wurde, nimm das Default-Theme
+        var fallbackThemePath = Path.Combine(AppContext.BaseDirectory, "Themes", "Default", "theme.axaml");
+        Debug.WriteLine($"[Theme] No assigned theme found, using fallback: {fallbackThemePath}"); // DEBUG
+        return fallbackThemePath;
     }
 
     private async Task PlayMediaAsync(MediaItem? item)

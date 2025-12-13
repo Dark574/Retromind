@@ -90,8 +90,6 @@ public partial class BigModeViewModel
                 var parentNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
                 if (parentNode != null)
                 {
-                    UpdateThemeForNode(parentNode);
-
                     IsGameListActive = true;
                     Items = parentNode.Items;
                     SelectedCategory = parentNode;
@@ -116,9 +114,6 @@ public partial class BigModeViewModel
             ResetToRootState();
             return;
         }
-
-        // Ensure theme/background matches the current selection.
-        UpdateThemeForNode(SelectedCategory);
     }
 
     /// <summary>
@@ -145,8 +140,6 @@ public partial class BigModeViewModel
         SelectedCategory = _rootNodes.FirstOrDefault();
         SelectedItem = null;
         CurrentNode = SelectedCategory;
-
-        UpdateThemeForNode(SelectedCategory);
     }
 
     /// <summary>
@@ -240,6 +233,13 @@ public partial class BigModeViewModel
 
     public void Dispose()
     {
+        _gamepadService.OnUp -= OnGamepadUp;
+        _gamepadService.OnDown -= OnGamepadDown;
+        _gamepadService.OnLeft -= OnGamepadLeft;
+        _gamepadService.OnRight -= OnGamepadRight;
+        _gamepadService.OnSelect -= OnGamepadSelect;
+        _gamepadService.OnBack -= OnGamepadBack;
+        
         var player = MediaPlayer;
         var vlc = _libVlc;
 

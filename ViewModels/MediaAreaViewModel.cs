@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -21,6 +22,10 @@ public partial class MediaAreaViewModel : ViewModelBase
     // We keep a private reference to ALL items to support filtering without losing data.
     private readonly List<MediaItem> _allItems;
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(PlayRandomCommand))]
+    private bool _isPlayRandomEnabled = true;
+    
     // Slider value for the tile size
     [ObservableProperty] 
     private double _itemWidth = DefaultItemWidth;
@@ -50,14 +55,13 @@ public partial class MediaAreaViewModel : ViewModelBase
         
         // Initial population
         PopulateItems(_allItems);
+        FilteredItems.CollectionChanged += (_, _) => PlayRandomCommand.NotifyCanExecuteChanged();
 
         // Initialize Commands
         DoubleClickCommand = new RelayCommand(OnDoubleClick);
-        PlayRandomCommand = new RelayCommand(PlayRandom);
     }
 
     public ICommand DoubleClickCommand { get; }
-    public ICommand PlayRandomCommand { get; }
 
     // Event to request playback from the parent coordinator (MainWindowViewModel)
     public event Action<MediaItem>? RequestPlay;
@@ -96,20 +100,36 @@ public partial class MediaAreaViewModel : ViewModelBase
         FilteredItems.ReplaceAll(items);
     }
 
-    private void PlayRandom()
+    private bool CanPlayRandom() => IsPlayRandomEnabled && FilteredItems.Any();
+    
+    [RelayCommand(CanExecute = nameof(CanPlayRandom))]
+    private async Task PlayRandom()
     {
-        // Select only from VISIBLE (filtered) items
-        if (FilteredItems.Count == 0) return;
+        // Der Button wird sofort deaktiviert
+        IsPlayRandomEnabled = false;
 
-        // Use Shared Random for better performance/randomness distribution
-        var index = Random.Shared.Next(FilteredItems.Count);
-        var randomItem = FilteredItems[index];
+        try
+        {
+            // Select only from VISIBLE (filtered) items
+            if (FilteredItems.Count == 0) return;
 
-        // Visually select the item
-        SelectedMediaItem = randomItem;
+            // Use Shared Random for better performance/randomness distribution
+            var index = Random.Shared.Next(FilteredItems.Count);
+            var randomItem = FilteredItems[index];
 
-        // Request playback
-        RequestPlay?.Invoke(randomItem);
+            // Visually select the item
+            SelectedMediaItem = randomItem;
+
+            // Request playback
+            RequestPlay?.Invoke(randomItem);
+        }
+        finally
+        {
+            // Eine kurze Pause, um Mehrfachklicks zu verhindern
+            await Task.Delay(1000); 
+            // Button wieder aktivieren
+            IsPlayRandomEnabled = true;
+        }
     }
 
     private void OnDoubleClick()
