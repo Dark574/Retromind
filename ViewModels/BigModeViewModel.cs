@@ -40,6 +40,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     // Currently active theme file to avoid redundant reloads.
     private string _currentThemePath = string.Empty;
 
+    // Currently active theme file to avoid redundant reloads.
+    private string? _currentThemeFile;
+    
     // Helps avoiding unnecessary VLC Stop/Play cycles (prevents flicker and saves CPU).
     private string? _currentPreviewVideoPath;
     
@@ -54,8 +57,12 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private bool _stateSaved;
     
     // Performance: Avoid O(n) IndexOf() on every navigation step for very large lists.
+    [ObservableProperty]
     private int _selectedItemIndex = -1;
     private int _selectedCategoryIndex = -1;
+    
+    [ObservableProperty]
+    private MediaNode? _themeContextNode;
     
     // Performance: avoid repeated filesystem I/O (File.Exists) while scrolling large lists.
     private readonly Dictionary<string, string?> _itemVideoPathCache = new();
@@ -80,7 +87,16 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private bool _isVideoVisible;
+    
+    // Overlay existiert im VisualTree nur, wenn dieses Flag true ist.
+    // IsVideoVisible bleibt für Fade (Opacity) zuständig.
+    [ObservableProperty]
+    private bool _isVideoOverlayVisible;
 
+    // Theme capability – true nur wenn das Theme einen VideoSlot bereitstellt.
+    [ObservableProperty]
+    private bool _canShowVideo = true;
+    
     [ObservableProperty]
     private MediaNode? _currentNode;
 
@@ -120,6 +136,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         // Start at root categories.
         CurrentCategories = _rootNodes;
+        
+        // Root = kein Node-Kontext -> Default Theme (oder Root Theme)
+        ThemeContextNode = null;
 
         // Linux-friendly VLC options:
         // --no-osd: disables overlays (file name, volume, etc.)
@@ -128,7 +147,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         string[] vlcOptions = { "--no-osd", "--avcodec-hw=none", "--quiet" };
 
         _libVlc = new LibVLC(enableDebugLogs: false, vlcOptions);
-        MediaPlayer = new MediaPlayer(_libVlc) { Volume = 100 };
+        MediaPlayer = new MediaPlayer(_libVlc)
+        {
+            Volume = 100,
+            Scale = 0f // 0 = Skalieren, um Fenster zu füllen
+        };
 
         ForceExitCommand = new RelayCommand(() => RequestClose?.Invoke());
 
@@ -155,6 +178,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Wir müssen auf die nächste `NotifyViewReady` warten.
         _isViewReady = false;
         
-        // Optional: Hier könnten UI-Elemente aktualisiert werden, die vom Theme abhängen
+        // WICHTIG: Beim View-Austausch darf VLC NICHT weiterlaufen, sonst "fällt" LibVLC gern
+        // in ein eigenes Output-Fenster, sobald die alte VideoView detached wird.
+        _previewCts?.Cancel();
+        _previewCts = null;
+        
+        StopVideo();
     }
 }

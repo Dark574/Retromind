@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:helpers="using:Retromind.Helpers"
+             x:Class="Retromind.Views.BigModeHostView"
+             x:DataType="vm:BigModeViewModel">
+
+    <UserControl.Resources>
+        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1" FalseOpacity="0" />
+    </UserControl.Resources>
+
+    <Grid>
+        <!-- Theme wird hier reingeladen/ausgetauscht -->
+        <ContentPresenter x:Name="ThemePresenter"/>
+
+        <!-- Stabiles Overlay: VideoView bleibt IMMER im VisualTree -->
+        <Canvas x:Name="Overlay" IsHitTestVisible="False">
+            <Border x:Name="VideoBorder"
+                    Background="Black"
+                    CornerRadius="12"
+                    ClipToBounds="True"
+                    IsVisible="{Binding IsVideoOverlayVisible}"
+                    Opacity="{Binding IsVideoVisible, Converter={StaticResource BoolToOpacity}}">
+                
+                <Border.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+                    </Transitions>
+                </Border.Transitions>
+                
+                <vlc:VideoView x:Name="StableVideoView"
+                               MediaPlayer="{Binding MediaPlayer}"
+                               Focusable="False" />
+            </Border>
+        </Canvas>
+    </Grid>
+</UserControl>

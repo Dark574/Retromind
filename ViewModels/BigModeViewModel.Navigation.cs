@@ -140,6 +140,9 @@ public partial class BigModeViewModel
         SelectedCategory = _rootNodes.FirstOrDefault();
         SelectedItem = null;
         CurrentNode = SelectedCategory;
+        
+        // Root-Kontext
+        ThemeContextNode = null;
     }
 
     /// <summary>
@@ -167,7 +170,7 @@ public partial class BigModeViewModel
 
     partial void OnItemsChanged(ObservableCollection<MediaItem> value)
     {
-        _selectedItemIndex = -1;
+        SelectedItemIndex = -1;
 
         // Items list changed -> any cached item video paths may not be relevant anymore.
         // (Keeping node cache is fine; it is keyed by node id.)

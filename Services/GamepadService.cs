@@ -31,6 +31,11 @@ public class GamepadService : IDisposable
 
     private const int DeadZone = 15000; // SDL Range ist -32768 bis 32767
 
+    // --- Fallback: manche Controller liefern keinen GUIDE-Button zuverlässig ---
+    private DateTime _lastBackPressedUtc = DateTime.MinValue;
+    private DateTime _lastStartPressedUtc = DateTime.MinValue;
+    private static readonly TimeSpan GuideComboWindow = TimeSpan.FromMilliseconds(350);
+
     public GamepadService()
     {
         // Hole die SDL Instanz
@@ -50,6 +55,9 @@ public class GamepadService : IDisposable
             Console.WriteLine($"[SDL] Init failed: {_sdl.GetErrorS()}");
             return;
         }
+        
+        // Ensure controller events are enabled
+        _sdl.GameControllerEventState(Sdl.Enable);
 
         Task.Run(() => GameLoop(_monitoringCts.Token));
     }
@@ -164,6 +172,18 @@ public class GamepadService : IDisposable
                 break;
             case GameControllerButton.B:
                 OnBack?.Invoke();
+                _lastBackPressedUtc = DateTime.UtcNow;
+
+                // Fallback: Start+Back => Guide (Exit)
+                if (DateTime.UtcNow - _lastStartPressedUtc <= GuideComboWindow)
+                    OnGuide?.Invoke();
+                break;
+            case GameControllerButton.Start:
+                _lastStartPressedUtc = DateTime.UtcNow;
+
+                // Fallback: Start+Back => Guide (Exit)
+                if (DateTime.UtcNow - _lastBackPressedUtc <= GuideComboWindow)
+                    OnGuide?.Invoke();
                 break;
             case GameControllerButton.Guide:
                 OnGuide?.Invoke();

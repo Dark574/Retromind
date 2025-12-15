@@ -22,7 +22,6 @@ public class AsyncImageHelper : AvaloniaObject
 
     // Maximum number of images to keep in RAM.
     private const int MaxCacheSize = 500; // Increased for large libraries (e.g., 30k+ items);
-    private const int TokenExpiryBufferSeconds = 60; // Buffer to avoid token expiration during requests
 
     // Shared HttpClient to prevent socket exhaustion
     private static readonly HttpClient HttpClient = new();
@@ -42,7 +41,7 @@ public class AsyncImageHelper : AvaloniaObject
         {
             var url = args.NewValue as string;
             var width = GetDecodeWidth(image);
-            LoadImageAsync(image, url, width);
+            _ = LoadImageAsync(image, url, width);
         });
     }
 
@@ -78,7 +77,7 @@ public class AsyncImageHelper : AvaloniaObject
         image.SetValue(CurrentLoadCtsProperty, null);
     }
     
-    private static async void LoadImageAsync(Image image, string? url, int? decodeWidth)
+    private static async Task LoadImageAsync(Image image, string? url, int? decodeWidth)
     {
         // 1. Reset previous state
         ResetImage(image);
@@ -95,7 +94,7 @@ public class AsyncImageHelper : AvaloniaObject
         
         if (cachedBitmap != null)
         {
-            image.Source = cachedBitmap;
+            Dispatcher.UIThread.Post(() => image.Source = cachedBitmap);
             return;
         }
 
@@ -121,7 +120,6 @@ public class AsyncImageHelper : AvaloniaObject
                         data = await File.ReadAllBytesAsync(url, token); // Switched to ReadAllBytes for simplicity and async support
                     }
                     
-                    if (data == null) return null;
                     using var stream = new MemoryStream(data);
                     return DecodeBitmap(stream, decodeWidth);
                 }
@@ -144,7 +142,7 @@ public class AsyncImageHelper : AvaloniaObject
             AddToCache(cacheKey, loadedBitmap);
 
             // 6. Update UI
-            image.Source = loadedBitmap;
+            Dispatcher.UIThread.Post(() => image.Source = loadedBitmap);
         }
         catch (Exception ex)
         {
@@ -155,7 +153,7 @@ public class AsyncImageHelper : AvaloniaObject
     private static Bitmap DecodeBitmap(Stream stream, int? decodeWidth)
     {
         stream.Position = 0;
-        if (decodeWidth.HasValue && decodeWidth.Value > 0)
+        if (decodeWidth is > 0)
         {
             return Bitmap.DecodeToWidth(stream, decodeWidth.Value);
         }
@@ -172,7 +170,7 @@ public class AsyncImageHelper : AvaloniaObject
             var keysToRemove = new List<string>();
             foreach (var key in Cache.Keys)
             {
-                if (key == url || key.StartsWith(url + "_"))
+                if (key == url || key.StartsWith(url + "_", StringComparison.Ordinal))
                 {
                     keysToRemove.Add(key);
                 }
@@ -203,6 +201,24 @@ public class AsyncImageHelper : AvaloniaObject
         return null;
     }
 
+    private static Bitmap? GetAnyFromCacheByUrl(string url)
+    {
+        lock (CacheLock)
+        {
+            // Nimm die zuletzt genutzte Variante (MRU), die zur URL passt.
+            for (var node = LruList.Last; node != null; node = node.Previous)
+            {
+                var key = node.Value;
+                if (key == url || key.StartsWith(url + "_", StringComparison.Ordinal))
+                {
+                    return Cache.TryGetValue(key, out var entry) ? entry.Bitmap : null;
+                }
+            }
+
+            return null;
+        }
+    }
+    
     private static void AddToCache(string key, Bitmap bitmap)
     {
         lock (CacheLock)
@@ -235,7 +251,7 @@ public class AsyncImageHelper : AvaloniaObject
     /// </summary>
     public static async Task<bool> SaveCachedImageAsync(string url, string destinationPath)
     {
-        Bitmap? bitmap = GetFromCache(url);
+        var bitmap = GetAnyFromCacheByUrl(url);
         if (bitmap == null) return false;
 
         return await Task.Run(() =>

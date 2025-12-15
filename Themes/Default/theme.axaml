@@ -34,7 +34,7 @@
         <Image converters:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}" 
                Stretch="UniformToFill" IsVisible="{Binding IsGameListActive}"/>
         <Image converters:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}" 
-               Stretch="UniformToFill" IsVisible="{Binding !IsGameListActive}"/>
+               Stretch="UniformToFill" IsVisible="{Binding IsCategorySelectionActive}"/>
         <Rectangle Fill="Black" Opacity="0.85" />
 
         <!-- HAUPT LAYOUT: 2 Spalten (Links: Listen, Rechts: Details) -->
@@ -46,7 +46,7 @@
                 <!-- Header (Titel) -->
                 <TextBlock Text="{Binding CategoryTitle}" 
                            FontSize="30" FontWeight="Light" Foreground="#88FFFFFF" Margin="0,0,0,20"
-                           IsVisible="{Binding !IsGameListActive}"/>
+                           IsVisible="{Binding IsCategorySelectionActive}"/>
                            
                 <!-- Header (Spiel Titel, falls gewünscht, oder leer lassen) -->
                 <TextBlock Text="{Binding SelectedCategory.Name}" 
@@ -117,7 +117,7 @@
                     <!-- Logo für Kategorie -->
                     <Image converters:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoPath}"
                            Stretch="Uniform" HorizontalAlignment="Left"
-                           IsVisible="{Binding !IsGameListActive}"/>
+                           IsVisible="{Binding IsCategorySelectionActive}"/>
                            
                     <!-- Logo für Spiel (Falls vorhanden, MediaItem braucht PrimaryLogoPath Property!) -->
                     <Image converters:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
@@ -125,14 +125,13 @@
                            IsVisible="{Binding IsGameListActive}"/>
                 </Panel>
 
-                <!-- 2. VIDEO PLAYER (Nur EINMAL definiert -> Stabil!) -->
-                <Border Grid.Row="1" 
-                        CornerRadius="12" ClipToBounds="True" Background="Black"
+                <!-- 2. VIDEO SLOT (nur Platzhalter, echte VideoView kommt aus dem Host) -->
+                <Border x:Name="VideoSlot"
+                        Grid.Row="1"
+                        CornerRadius="12" ClipToBounds="True"
+                        Background="Transparent"
                         Height="350" HorizontalAlignment="Left" Width="622"
-                        Margin="0,0,0,20"
-                        IsVisible="{Binding IsVideoVisible}">
-                    <vlc:VideoView MediaPlayer="{Binding MediaPlayer}" Focusable="False" />
-                </Border>
+                        Margin="0,0,0,20" />
 
                 <!-- 3. BESCHREIBUNG -->
                 <ScrollViewer Grid.Row="2">
@@ -140,7 +139,7 @@
                         <!-- Beschreibung Kategorie -->
                         <TextBlock Text="{Binding SelectedCategory.Description}" 
                                    FontSize="16" Foreground="#DDFFFFFF" TextWrapping="Wrap" LineHeight="24"
-                                   IsVisible="{Binding !IsGameListActive}"/>
+                                   IsVisible="{Binding IsCategorySelectionActive}"/>
                                    
                         <!-- Details für Spiel -->
                             <StackPanel Spacing="15" IsVisible="{Binding IsGameListActive}">

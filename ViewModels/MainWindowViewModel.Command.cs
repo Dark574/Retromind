@@ -92,16 +92,6 @@ public partial class MainWindowViewModel
     private void EnterBigMode()
     {
         Debug.WriteLine("[DEBUG] EnterBigMode called.");
-        
-        // We need a valid selection to show something
-        // If SelectedNodeContent is not MediaAreaViewModel (e.g. Settings or Search), we might fallback to Root or show nothing
-        if (SelectedNodeContent is not MediaAreaViewModel mediaVM) 
-        {
-            Debug.WriteLine("[DEBUG] EnterBigMode: No valid MediaAreaViewModel - fallback to default.");
-            // Optional: Setze einen Default-Content, falls nötig
-            // z.B. SelectedNodeContent = new MediaAreaViewModel(new MediaNode("Default", NodeType.Group), ItemWidth);
-            // Aber für jetzt fahre fort, da der Rest der Logik unabhängig ist
-        }
 
         // 1. MUSIK STOPPEN!
         _audioService.StopMusic();
@@ -111,155 +101,98 @@ public partial class MainWindowViewModel
 
         // Lade das Theme-Objekt, das sowohl die View als auch die Sound-Pfade enthält
         var theme = ThemeLoader.LoadTheme(themePath);
-        
+
+        // Merken, welches Theme gerade aktiv ist
+        string currentThemePath = themePath;
+
         // Erstelle das BigModeViewModel und übergebe alle benötigten Abhängigkeiten
         var bigVm = new BigModeViewModel(
-            RootItems, 
-            _currentSettings, 
+            RootItems,
+            _currentSettings,
             theme,               // Das geladene Theme-Objekt
             _soundEffectService, // Der Service für Sound-Effekte
             _gamepadService);    // Der Gamepad-Service
 
-        // --- THEME SWITCHING LOGIC ---
-        bigVm.RequestThemeChange += (newNodeThemePath) => 
+        // STABILER HOST: bleibt konstant, Themes werden nur in ContentPresenter getauscht
+        var host = new BigModeHostView
         {
-            // UI-Thread sicherstellen
-            Dispatcher.UIThread.Post(() => 
+            DataContext = bigVm,
+            Focusable = true
+        };
+
+        // Wichtig: erst Host als FullScreenContent setzen, dann Theme content setzen (attach/layout ist stabiler)
+        FullScreenContent = host;
+
+        host.SetThemeContent(theme.View);
+        host.Focus();
+
+        // schützt vor out-of-order async Theme-Swaps (hoch/runter spammen)
+        var themeSwapGeneration = 0;
+
+        // Keep reference so we can unhook it on close
+        System.ComponentModel.PropertyChangedEventHandler? themeChangedHandler = null;
+
+        themeChangedHandler = (sender, args) =>
+        {
+            if (args.PropertyName != nameof(BigModeViewModel.ThemeContextNode))
+                return;
+
+            var newThemePath = GetEffectiveThemePath(bigVm.ThemeContextNode);
+            if (newThemePath == currentThemePath)
+                return;
+
+            currentThemePath = newThemePath;
+
+            var myGeneration = ++themeSwapGeneration;
+
+            _ = Dispatcher.UIThread.InvokeAsync(async () =>
             {
-                // Finde den Node, der zum neuen Theme-Pfad gehört (oder den aktuell ausgewählten, wenn der Pfad leer ist)
-                var targetNode = bigVm.SelectedCategory ?? SelectedNode; 
-            
-                // Rufe unsere zuverlässige Logik auf, um den korrekten Pfad zu finden (mit Vererbung und Fallback)
-                string newThemeToLoadPath = GetEffectiveThemePath(targetNode);
+                if (myGeneration != themeSwapGeneration)
+                    return;
 
-                Dispatcher.UIThread.Post(() => 
+                await bigVm.PrepareForThemeSwapAsync();
+
+                if (myGeneration != themeSwapGeneration)
+                    return;
+
+                var newTheme = ThemeLoader.LoadTheme(newThemePath);
+                bigVm.UpdateTheme(newTheme);
+
+                // Host handles DataContext + ViewReady timing
+                host.SetThemeContent(newTheme.View);
+                host.Focus();
+            });
+        };
+        
+        bigVm.PropertyChanged += themeChangedHandler;
+
+        // Close wiring: exit BigMode deterministically + cleanup handlers + sync selection back
+        bigVm.RequestClose += async () =>
+        {
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                try
                 {
-                    var newTheme = ThemeLoader.LoadTheme(newThemeToLoadPath);
-                
-                    bigVm.UpdateTheme(newTheme);
+                    if (themeChangedHandler != null)
+                        bigVm.PropertyChanged -= themeChangedHandler;
 
-                    var newView = newTheme.View;
-                    if (newView != null)
-                    {
-                        newView.DataContext = bigVm;
-                        newView.Focusable = true;
+                    FullScreenContent = null;
 
-                        FullScreenContent = newView;
-                        newView.Focus();
-                    
-                        Dispatcher.UIThread.Post(
-                            () => bigVm.NotifyViewReady(),
-                            DispatcherPriority.Loaded);
-                    }
-                });
+                    bigVm.Dispose();
+
+                    await SyncSelectionFromBigModeAsync();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[CoreApp] BigMode close handling failed: {ex}");
+                }
             });
         };
 
-        // --- CONNECT LOGIC ---
-        // Wenn der BigMode "Play" sagt, nutzen wir unseren existierenden PlayMediaAsync Befehl
-        // ÄNDERUNG: Wir geben den Task von PlayMediaAsync zurück an das ViewModel
-        bigVm.RequestPlay += async (item) => 
-        {
-            await PlayMediaAsync(item);
-        };
-    
-        // Überwachung starten (Hot-Plug Support via SDL)
-        _gamepadService.StartMonitoring();
-        
-        // Cleanup beim Schließen
-        bigVm.RequestClose += async () => 
-        {
-            // Zustand speichern, bevor wir schließen
-            bigVm.SaveState();
-            SaveSettingsOnly();
-            
-            // 2. UI sofort schließen/ausblenden
-            FullScreenContent = null;
-            
-            var isBigModeOnly = App.Current?.IsBigModeOnly == true;
+        bigVm.InvalidatePreviewCaches(stopCurrentPreview: false);
 
-            if (isBigModeOnly)
-            {
-                // Fall 1: BigMode-only -> Gesamte App beenden
-                Task.Run(async () => 
-                {
-                    await Task.Delay(100);  // Zeit für Saves
-                    try 
-                    { 
-                        _gamepadService.StopMonitoring();
-                        bigVm.Dispose(); 
-                    }
-                    catch { /* Ignorieren */ }
-            
-                    // App schließen
-                    Dispatcher.UIThread.Post(() => 
-                    {
-                        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
-                        {
-                            lifetime.MainWindow?.Close();
-                        }
-                    });
-                });
-            }
-            else
-            {
-                // Fall 2: Aus CoreApp -> Auswahl synchronisieren (fire-and-forget, aber UI-sicher)
-                Dispatcher.UIThread.Post(() =>
-                {
-                    _ = SyncSelectionFromBigModeAsync();
-                });
-                
-                Task.Run(() =>
-                {
-                    try
-                    {
-                        _gamepadService.StopMonitoring();
-                        bigVm.Dispose();
-                    }
-                    catch { /* Ignorieren */ }
-                });
-            }
-        };
-        
-        // Initial View laden (Standard oder Default)
-        var view = theme.View;
-        if (view != null)
-        {
-            view.DataContext = bigVm;
-            view.Focusable = true; 
-            FullScreenContent = view;
-
-            // Clear cached preview paths on entry, so BigMode always reflects
-            // any asset changes done in the CoreApp before entering BigMode.
-            bigVm.InvalidatePreviewCaches(stopCurrentPreview: false);
-            
-            // View gilt als "ready", sobald Avalonia sie wirklich geladen/layoutet hat
-            Dispatcher.UIThread.Post(
-                () => bigVm.NotifyViewReady(),
-                DispatcherPriority.Loaded);
-            
-            // XWayland / Fokus Hack: Kurz warten, damit das Fenster den Fokus sicher bekommt
-            Task.Run(async () => 
-            {
-                await Task.Delay(250); 
-                await Dispatcher.UIThread.InvokeAsync(() => 
-                {
-                    if (FullScreenContent == view)
-                    {
-                        view.Focus(); 
-                        // Optional: Erstes Item vor-selektieren, falls nicht passiert
-                        // if (bigVm.Items.Count > 0 && bigVm.SelectedItem == null) 
-                        //    bigVm.SelectedItem = bigVm.Items[0];
-                    }
-                });
-            });
-        }
-        
-        // Expliziter Initial-Select für erstes Item in Root-Kategorien
         if (bigVm.CurrentCategories.Any() && bigVm.SelectedCategory == null)
-        {
             bigVm.SelectedCategory = bigVm.CurrentCategories.First();
-        }
     }
     
     private void UpdateBigModeStateFromCoreSelection(MediaNode node, MediaItem? selectedItem)

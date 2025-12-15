@@ -1,12 +1,18 @@
 using System;
 using System.IO;
+using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Layout;
 using Avalonia.Data;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using LibVLCSharp.Avalonia;
 using Retromind.Extensions;
 using Retromind.Models;
+using Retromind.ViewModels;
 
 namespace Retromind.Services;
 
@@ -81,7 +87,7 @@ public static class ThemeLoader
         };
         
         // Wir binden den Button an das 'ExitBigModeCommand' vom ViewModel
-        btn.Bind(Button.CommandProperty, new Binding("ExitBigModeCommand"));
+        btn.Bind(Button.CommandProperty, new Binding("ForceExitCommand"));
 
         stackPanel.Children.Add(btn);
 
