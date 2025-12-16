@@ -13,10 +13,17 @@ public class Theme
     public ThemeSounds Sounds { get; }
     public string BasePath { get; }
 
-    public Theme(Control view, ThemeSounds sounds, string basePath)
+    /// <summary>
+    /// If false, the host should disable any video overlay/preview even if the theme contains a video slot.
+    /// Defaults to true when not specified by the theme.
+    /// </summary>
+    public bool VideoEnabled { get; }
+    
+    public Theme(Control view, ThemeSounds sounds, string basePath, bool videoEnabled = true)
     {
         View = view;
         Sounds = sounds;
         BasePath = basePath;
+        VideoEnabled = videoEnabled;
     }
 }

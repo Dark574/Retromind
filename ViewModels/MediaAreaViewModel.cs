@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -12,122 +11,158 @@ using Retromind.Models;
 namespace Retromind.ViewModels;
 
 /// <summary>
-/// ViewModel representing the main content area where media items are displayed as a grid/list.
-/// Handles filtering and user interaction (selection, playback).
+/// ViewModel for the main content area (grid/list of items).
+/// Focuses on fast filtering and lightweight user interactions.
 /// </summary>
 public partial class MediaAreaViewModel : ViewModelBase
 {
     private const double DefaultItemWidth = 150.0;
 
-    // We keep a private reference to ALL items to support filtering without losing data.
+    // Debounce to avoid re-filtering 30k items on every key stroke.
+    private static readonly TimeSpan SearchDebounceDelay = TimeSpan.FromMilliseconds(200);
+
+    // Prevents rapid re-triggering of Play Random.
+    private static readonly TimeSpan PlayRandomCooldown = TimeSpan.FromMilliseconds(1000);
+
     private readonly List<MediaItem> _allItems;
+
+    private CancellationTokenSource? _searchDebounceCts;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(PlayRandomCommand))]
     private bool _isPlayRandomEnabled = true;
-    
-    // Slider value for the tile size
-    [ObservableProperty] 
+
+    [ObservableProperty]
     private double _itemWidth = DefaultItemWidth;
 
-    [ObservableProperty] 
+    [ObservableProperty]
     private MediaNode _node;
 
-    // The currently selected media item in the list
-    [ObservableProperty] 
+    [ObservableProperty]
     private MediaItem? _selectedMediaItem;
 
-    // Search query for filtering
-    [ObservableProperty] 
+    [ObservableProperty]
     private string _searchText = string.Empty;
 
-    // Optimized collection bound to the view
-    // Using RangeObservableCollection prevents UI freezes during bulk updates.
+    /// <summary>
+    /// Collection bound to the view. Range updates minimize UI stalls.
+    /// </summary>
     public RangeObservableCollection<MediaItem> FilteredItems { get; } = new();
-    
+
     public MediaAreaViewModel(MediaNode node, double initialItemWidth)
     {
-        Node = node;
+        Node = node ?? throw new ArgumentNullException(nameof(node));
         ItemWidth = initialItemWidth;
 
-        // Copy items to a separate list for filtering logic
+        // Snapshot items for filtering. (If you later support live updates, we can sync this list.)
         _allItems = new List<MediaItem>(node.Items);
-        
-        // Initial population
-        PopulateItems(_allItems);
-        FilteredItems.CollectionChanged += (_, _) => PlayRandomCommand.NotifyCanExecuteChanged();
 
-        // Initialize Commands
+        PopulateItems(_allItems);
+
         DoubleClickCommand = new RelayCommand(OnDoubleClick);
     }
 
     public ICommand DoubleClickCommand { get; }
 
-    // Event to request playback from the parent coordinator (MainWindowViewModel)
+    /// <summary>
+    /// Raised when the user requests playback (double click or random).
+    /// Handled by the parent coordinator (MainWindowViewModel).
+    /// </summary>
     public event Action<MediaItem>? RequestPlay;
 
-    // Called automatically when SearchText changes
     partial void OnSearchTextChanged(string value)
     {
-        ApplyFilter();
+        DebouncedApplyFilter();
+    }
+
+    private void DebouncedApplyFilter()
+    {
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+        _searchDebounceCts = new CancellationTokenSource();
+
+        var token = _searchDebounceCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(SearchDebounceDelay, token).ConfigureAwait(false);
+                if (token.IsCancellationRequested) return;
+
+                ApplyFilter();
+            }
+            catch (OperationCanceledException)
+            {
+                // expected during debounce
+            }
+        }, token);
     }
 
     private void ApplyFilter()
     {
-        if (string.IsNullOrWhiteSpace(SearchText))
-        {
-            // Filter is empty -> Show all
-            if (FilteredItems.Count == _allItems.Count) return;
-            
-            PopulateItems(_allItems);
-        }
-        else
-        {
-            // Search (Case Insensitive)
-            var matches = _allItems
-                .Where(i => i.Title != null && i.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+        var query = SearchText?.Trim();
 
-            PopulateItems(matches);
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            // Avoid unnecessary resets if we already show all items.
+            if (FilteredItems.Count == _allItems.Count)
+                return;
+
+            PopulateItems(_allItems);
+            return;
         }
+
+        // Allocation-light filtering: one pass, no LINQ iterator chain.
+        var matches = new List<MediaItem>(capacity: Math.Min(_allItems.Count, 256));
+
+        for (int i = 0; i < _allItems.Count; i++)
+        {
+            var item = _allItems[i];
+            var title = item.Title;
+
+            if (!string.IsNullOrEmpty(title) &&
+                title.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                matches.Add(item);
+            }
+        }
+
+        PopulateItems(matches);
     }
 
     /// <summary>
-    /// Repopulates the collection efficiently using RangeObservableCollection.
-    /// This triggers only ONE notification event for the UI, regardless of item count.
+    /// Repopulates the list efficiently (single Reset notification).
+    /// Also updates command availability without relying on CollectionChanged events.
     /// </summary>
     private void PopulateItems(IEnumerable<MediaItem> items)
     {
         FilteredItems.ReplaceAll(items);
+        PlayRandomCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanPlayRandom() => IsPlayRandomEnabled && FilteredItems.Any();
-    
+    private bool CanPlayRandom() => IsPlayRandomEnabled && FilteredItems.Count > 0;
+
     [RelayCommand(CanExecute = nameof(CanPlayRandom))]
     private async Task PlayRandom()
     {
-        // Der Button wird sofort deaktiviert
+        // Disable immediately to prevent rapid re-triggering.
         IsPlayRandomEnabled = false;
 
         try
         {
-            // Select only from VISIBLE (filtered) items
             if (FilteredItems.Count == 0) return;
 
-            // Use Shared Random for better performance/randomness distribution
             var index = Random.Shared.Next(FilteredItems.Count);
             var randomItem = FilteredItems[index];
 
-            // Visually select the item
             SelectedMediaItem = randomItem;
-
-            // Request playback
             RequestPlay?.Invoke(randomItem);
         }
         finally
         {
-            // Eine kurze Pause, um Mehrfachklicks zu verhindern
-            await Task.Delay(1000); 
-            // Button wieder aktivieren
+            // Small cooldown to avoid accidental double-activation.
+            await Task.Delay(PlayRandomCooldown).ConfigureAwait(false);
             IsPlayRandomEnabled = true;
         }
     }
@@ -135,8 +170,6 @@ public partial class MediaAreaViewModel : ViewModelBase
     private void OnDoubleClick()
     {
         if (SelectedMediaItem != null)
-        {
             RequestPlay?.Invoke(SelectedMediaItem);
-        }
     }
 }

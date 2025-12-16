@@ -403,6 +403,37 @@ public partial class MainWindowViewModel : ViewModelBase
         }, token);
     }
 
+    /// <summary>
+    /// Flushes pending saves (best effort) and then performs cleanup.
+    /// Must be awaited from the UI during window closing to avoid deadlocks.
+    /// </summary>
+    public async Task FlushAndCleanupAsync()
+    {
+        // Stop playback immediately; saving can take a moment.
+        _audioService.StopMusic();
+
+        // Cancel pending debounces so we don't race with our final flush.
+        _saveSettingsCts?.Cancel();
+        _saveLibraryCts?.Cancel();
+
+        try
+        {
+            await SaveLibraryIfDirtyAsync(force: true).ConfigureAwait(false);
+            await _settingsService.SaveAsync(_currentSettings).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Shutdown] Final save failed: {ex.Message}");
+            // best effort: still continue cleanup so the app can exit
+        }
+
+        Cleanup();
+    }
+    
+    /// <summary>
+    /// Fast, non-blocking cleanup. No IO here (no saving).
+    /// Safe to call from Exit handlers too.
+    /// </summary>
     public void Cleanup()
     {
         _audioService.StopMusic();
@@ -416,17 +447,6 @@ public partial class MainWindowViewModel : ViewModelBase
         _saveLibraryCts?.Cancel();
         _saveLibraryCts?.Dispose();
         _saveLibraryCts = null;
-        
-        // Final flush (best effort): verhindert „Exit bevor Autosave feuert“.
-        try
-        {
-            SaveLibraryIfDirtyAsync(force: true).GetAwaiter().GetResult();
-            _settingsService.SaveAsync(_currentSettings).GetAwaiter().GetResult();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Cleanup] Final save failed: {ex.Message}");
-        }
         
         // Avoid leaking handlers / duplicate routing when the app is reloaded.
         _gamepadService.OnGuide -= _onGuidePressed;

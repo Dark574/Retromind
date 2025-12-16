@@ -9,113 +9,128 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Models;
+using Retromind.Resources;
 using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
 /// <summary>
-/// ViewModel for configuring a MediaNode (Folder/Group).
-/// Allows changing the name, default emulator, and display options.
+/// ViewModel for configuring a <see cref="MediaNode"/>.
+/// Supports editing metadata, default emulator selection, theme binding, and node-level assets (cover/logo/wallpaper/video).
 /// </summary>
 public partial class NodeSettingsViewModel : ViewModelBase
 {
+    private const int PreviewDecodeWidth = 200;
+
+    // Sentinel: "inherit / no default emulator".
+    // We avoid null-suppression on Id by using an empty string.
+    private const string InheritEmulatorId = "";
+
     private readonly MediaNode _node;
     private readonly AppSettings _settings;
-
-    // Dependencies
     private readonly FileManagementService _fileService;
     private readonly List<string> _nodePath;
-    
-    [ObservableProperty] 
-    private string _name = string.Empty;
 
-    [ObservableProperty] 
-    private string _description = string.Empty;
-
-    // Keine festen Pfade mehr, wir schauen in die Assets Liste
     public ObservableCollection<MediaAsset> Assets => _node.Assets;
-    
-    // --- VORSCHAU ---
+
+    public ObservableCollection<EmulatorConfig> AvailableEmulators { get; } = new();
+    public ObservableCollection<string> AvailableThemes { get; } = new();
+
+    [ObservableProperty] private string _name = string.Empty;
+    [ObservableProperty] private string _description = string.Empty;
+
+    [ObservableProperty] private bool? _randomizeCovers;
+    [ObservableProperty] private bool? _randomizeMusic;
+
+    [ObservableProperty] private EmulatorConfig? _selectedEmulator;
+
     [ObservableProperty] private Bitmap? _coverPreview;
     [ObservableProperty] private Bitmap? _logoPreview;
     [ObservableProperty] private Bitmap? _wallpaperPreview;
-    [ObservableProperty] private string _videoName = "Kein Video";
 
+    [ObservableProperty] private string _videoName = "";
+
+    [ObservableProperty] private string? _selectedTheme;
+
+    public bool IsThemeExplicitlySelected => !string.IsNullOrWhiteSpace(SelectedTheme);
     
-    [ObservableProperty] 
-    private bool? _randomizeCovers;
-    
-    [ObservableProperty] 
-    private bool? _randomizeMusic;
+    public bool HasVideoAsset => _node.Assets.Any(a => a.Type == AssetType.Video);
 
-    [ObservableProperty] 
-    private EmulatorConfig? _selectedEmulator;
-
-    public ObservableCollection<EmulatorConfig> AvailableEmulators { get; } = new();
+    partial void OnSelectedThemeChanged(string? value)
+        => OnPropertyChanged(nameof(IsThemeExplicitlySelected));
 
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
-    // Theme clear command for UI
     public IRelayCommand ClearThemeCommand { get; }
-    
-    // Import Commands
+
     public IAsyncRelayCommand<AssetType> ImportAssetCommand { get; }
     public IAsyncRelayCommand<AssetType> DeleteAssetCommand { get; }
 
-    // Storage Provider Property (wird von View gesetzt oder übergeben)
+    /// <summary>
+    /// Set by the view (Window injects it on open).
+    /// </summary>
     public IStorageProvider? StorageProvider { get; set; }
-    
-    // Event to signal the view to close (true = saved, false = cancelled)
+
+    /// <summary>
+    /// Signals the view to close (true = saved, false = cancelled).
+    /// </summary>
     public event Action<bool>? RequestClose;
 
-    // =========================
-    // THEME (BigMode per Node)
-    // ThemePath is treated as THEME FOLDER NAME under "<AppBase>/Themes/<ThemeId>/theme.axaml"
-    // null/empty means: use convention "<SafeNodeName>/theme.axaml" or fallback to Default
-    // =========================
-
-    public ObservableCollection<string> AvailableThemes { get; } = new();
-
-    [ObservableProperty]
-    private string? _selectedTheme;
-    
-    // true, wenn explizit ein Theme gewählt ist (auch "Default")
-    public bool IsThemeExplicitlySelected => !string.IsNullOrWhiteSpace(SelectedTheme);
-
-    // Wird vom MVVM Toolkit automatisch aufgerufen, wenn SelectedTheme sich ändert
-    partial void OnSelectedThemeChanged(string? value)
-    {
-        OnPropertyChanged(nameof(IsThemeExplicitlySelected));
-    }
-    
     public NodeSettingsViewModel(
-        MediaNode node, 
-        AppSettings settings, 
-        FileManagementService fileService, 
+        MediaNode node,
+        AppSettings settings,
+        FileManagementService fileService,
         List<string> nodePath)
     {
         _node = node ?? throw new ArgumentNullException(nameof(node));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
-        _nodePath = nodePath ?? new List<string>();
+        _nodePath = nodePath ?? [];
 
-        InitializeData();
+        InitializeFromNode();
         InitializeEmulators();
-
-        // Theme list (folder scan)
         LoadAvailableThemes();
+
         SelectedTheme = string.IsNullOrWhiteSpace(_node.ThemePath) ? null : _node.ThemePath;
-        
-        // Initial einmal die Bilder laden
-        LoadPreviews();
-        
+
+        RefreshPreviews();
+
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
-        
-        // Generischer Import-Command (Parameter: "Cover", "Logo" etc.)
-        ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
-        DeleteAssetCommand = new AsyncRelayCommand<AssetType>(DeleteAssetAsync);
         ClearThemeCommand = new RelayCommand(() => SelectedTheme = null);
+
+        ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
+        DeleteAssetCommand = new AsyncRelayCommand<AssetType>(DeleteAssetsByTypeAsync);
+    }
+
+    private void InitializeFromNode()
+    {
+        Name = _node.Name;
+        Description = _node.Description;
+
+        RandomizeCovers = _node.RandomizeCovers;
+        RandomizeMusic = _node.RandomizeMusic;
+    }
+
+    private void InitializeEmulators()
+    {
+        AvailableEmulators.Clear();
+
+        AvailableEmulators.Add(new EmulatorConfig
+        {
+            Id = InheritEmulatorId,
+            Name = Strings.Profile_NoDefaultInherit
+        });
+
+        foreach (var emu in _settings.Emulators)
+            AvailableEmulators.Add(emu);
+
+        if (!string.IsNullOrWhiteSpace(_node.DefaultEmulatorId))
+        {
+            SelectedEmulator = AvailableEmulators.FirstOrDefault(e => e.Id == _node.DefaultEmulatorId);
+        }
+
+        SelectedEmulator ??= AvailableEmulators.FirstOrDefault();
     }
 
     private void LoadAvailableThemes()
@@ -123,187 +138,158 @@ public partial class NodeSettingsViewModel : ViewModelBase
         AvailableThemes.Clear();
 
         var themesRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Themes");
-        if (!Directory.Exists(themesRoot)) return;
+        if (!Directory.Exists(themesRoot))
+            return;
 
         try
         {
-            var themes = new List<string>();
-
-            foreach (var dir in Directory.EnumerateDirectories(themesRoot))
-            {
-                var folderName = Path.GetFileName(dir);
-                if (string.IsNullOrWhiteSpace(folderName)) continue;
-
-                var themeFile = Path.Combine(dir, "theme.axaml");
-                if (!File.Exists(themeFile)) continue;
-
-                themes.Add(folderName);
-            }
-
-            // Sort: "Default" first, then alphabetical
-            themes = themes
+            // Best-effort directory scan:
+            // - Only folders containing "theme.axaml" are considered valid themes.
+            // - "Default" is pinned to the top for convenience.
+            var themes = Directory.EnumerateDirectories(themesRoot)
+                .Select(dir => new
+                {
+                    FolderName = Path.GetFileName(dir),
+                    ThemeFile = Path.Combine(dir, "theme.axaml")
+                })
+                .Where(x => !string.IsNullOrWhiteSpace(x.FolderName) && File.Exists(x.ThemeFile))
+                .Select(x => x.FolderName!)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(n => !string.Equals(n, "Default", StringComparison.OrdinalIgnoreCase)) // false (=Default) first
-                .ThenBy(n => n, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+                .OrderBy(name => !string.Equals(name, "Default", StringComparison.OrdinalIgnoreCase))
+                .ThenBy(name => name, StringComparer.OrdinalIgnoreCase);
 
             foreach (var name in themes)
                 AvailableThemes.Add(name);
         }
         catch
         {
-            // Best-effort: if directory scan fails, keep list empty
+            // Best-effort: if scanning fails (permissions, IO errors), keep the list empty.
         }
     }
-    
-    // --- ASSET LOGIC ---
 
-    private void LoadPreviews()
+    // --- Asset logic ---
+
+    private void RefreshPreviews()
     {
-        // Wir suchen im Assets-Array des Nodes nach dem passenden Typ
-        CoverPreview = LoadBitmapForType(AssetType.Cover);
-        LogoPreview = LoadBitmapForType(AssetType.Logo);
-        WallpaperPreview = LoadBitmapForType(AssetType.Wallpaper);
+        CoverPreview = LoadBitmapPreview(AssetType.Cover);
+        LogoPreview = LoadBitmapPreview(AssetType.Logo);
+        WallpaperPreview = LoadBitmapPreview(AssetType.Wallpaper);
 
         var vidAsset = _node.Assets.FirstOrDefault(a => a.Type == AssetType.Video);
-        VideoName = vidAsset != null ? Path.GetFileName(vidAsset.RelativePath) : "Kein Video";
+        VideoName = vidAsset != null
+            ? Path.GetFileName(vidAsset.RelativePath)
+            : Strings.Common_NoVideo;
+        
+        OnPropertyChanged(nameof(HasVideoAsset));
     }
-    
-    private Bitmap? LoadBitmapForType(AssetType type)
+
+    private Bitmap? LoadBitmapPreview(AssetType type)
     {
         var asset = _node.Assets.FirstOrDefault(a => a.Type == type);
-        if (asset == null || string.IsNullOrEmpty(asset.RelativePath)) return null;
+        if (asset?.RelativePath is not { Length: > 0 } relPath)
+            return null;
 
-        var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, asset.RelativePath);
-        if (!File.Exists(fullPath)) return null;
+        var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relPath);
+        if (!File.Exists(fullPath))
+            return null;
 
         try
         {
-            // Performant laden (max 200px Breite reicht für Vorschau)
+            // Decode down to a small width to keep memory and CPU usage low.
             using var stream = File.OpenRead(fullPath);
-            return Bitmap.DecodeToWidth(stream, 200);
+            return Bitmap.DecodeToWidth(stream, PreviewDecodeWidth);
         }
-        catch 
-        { 
-            return null; 
+        catch
+        {
+            return null;
         }
     }
-    
+
     private async Task ImportAssetAsync(AssetType type)
     {
-        if (StorageProvider == null) return;
+        if (StorageProvider == null)
+            return;
 
-        var fileTypes = type == AssetType.Video 
-            ? new[] { new FilePickerFileType("Videos") { Patterns = new[] { "*.mp4", "*.mkv", "*.avi" } } }
+        var fileTypes = type == AssetType.Video
+            ? new[] { new FilePickerFileType(Strings.FileType_Videos) { Patterns = new[] { "*.mp4", "*.mkv", "*.avi" } } }
             : new[] { FilePickerFileTypes.ImageAll };
 
         var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = $"Import {type}",
+            Title = string.Format(Strings.Dialog_ImportAssetTitle, type),
             AllowMultiple = false,
             FileTypeFilter = fileTypes
         });
 
-        if (result != null && result.Count > 0)
-        {
-            var sourcePath = result[0].Path.LocalPath;
+        if (result == null || result.Count == 0)
+            return;
 
-            // 1. Clean Slate: Altes Asset dieses Typs entfernen (Single Slot Prinzip)
-            await DeleteAssetAsync(type);
+        var sourcePath = result[0].Path.LocalPath;
 
-            // 2. Importieren via Service
-            // Der Service fügt das neue Asset in _node.Assets ein
-            await _fileService.ImportAssetAsync(sourcePath, _node, _nodePath, type);
-            
-            // 3. Vorschau aktualisieren
-            LoadPreviews();
-        }
+        // Single-slot behavior for node assets:
+        // A node can have multiple assets in the filesystem, but for UI simplicity
+        // we keep only one active asset per type here (delete old -> import new).
+        await DeleteAssetsByTypeAsync(type);
+
+        await _fileService.ImportAssetAsync(sourcePath, _node, _nodePath, type);
+
+        RefreshPreviews();
     }
 
-    private async Task DeleteAssetAsync(AssetType type)
+    private async Task DeleteAssetsByTypeAsync(AssetType type)
     {
-        var assetsToRemove = _node.Assets.Where(a => a.Type == type).ToList();
-        
-        foreach (var asset in assetsToRemove)
+        var toRemove = _node.Assets.Where(a => a.Type == type).ToList();
+        if (toRemove.Count == 0)
         {
-            // Aus Liste entfernen
+            RefreshPreviews();
+            return;
+        }
+
+        // Remove from the model first (UI updates immediately).
+        foreach (var asset in toRemove)
             _node.Assets.Remove(asset);
 
-            // Physisch löschen
-            if (!string.IsNullOrEmpty(asset.RelativePath))
+        // Delete files on a background thread to avoid UI stalls on slow disks.
+        await Task.Run(() =>
+        {
+            foreach (var asset in toRemove)
             {
+                if (string.IsNullOrWhiteSpace(asset.RelativePath))
+                    continue;
+
                 var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, asset.RelativePath);
-                if (File.Exists(fullPath))
+
+                try
                 {
-                    try 
-                    { 
-                        // Fire & Forget delete, falls Datei gelockt ist, ist es halt so (wird beim nächsten Cleanup bereinigt)
-                        await Task.Run(() => File.Delete(fullPath)); 
-                    } 
-                    catch { /* Ignore */ }
+                    Helpers.AsyncImageHelper.InvalidateCache(fullPath);
+
+                    if (File.Exists(fullPath))
+                        File.Delete(fullPath);
+                }
+                catch
+                {
+                    // Best-effort: if a file is locked or deletion fails, we ignore it.
+                    // The next cleanup/rescan can reconcile the state.
                 }
             }
-        }
-        
-        LoadPreviews();
-    }
-    
-    // Helpers (kopiert aus EditMediaViewModel)
-    private string? MakeRelative(string? path)
-    {
-        if (string.IsNullOrEmpty(path)) return null;
-        return Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, path);
-    }
+        });
 
-    private void InitializeData()
-    {
-        Name = _node.Name;
-        Description = _node.Description;
-        
-        RandomizeCovers = _node.RandomizeCovers;
-        RandomizeMusic = _node.RandomizeMusic;
-    }
-
-    private void InitializeEmulators()
-    {
-        // Add a "None / Inherited" option
-        // Ideally, move "No Default" string to resources
-        AvailableEmulators.Add(new EmulatorConfig { Name = "No Default (Inherit)", Id = null! });
-        
-        foreach (var emu in _settings.Emulators) 
-        {
-            AvailableEmulators.Add(emu);
-        }
-
-        // Restore selection
-        if (!string.IsNullOrEmpty(_node.DefaultEmulatorId))
-        {
-            SelectedEmulator = AvailableEmulators.FirstOrDefault(e => e.Id == _node.DefaultEmulatorId);
-        }
-        
-        // Fallback to "None" if nothing selected or ID not found
-        if (SelectedEmulator == null && AvailableEmulators.Count > 0) 
-        {
-            SelectedEmulator = AvailableEmulators[0];
-        }
+        RefreshPreviews();
     }
 
     private void Save()
     {
-        // Validation could go here (e.g. check if Name is empty)
-        if (string.IsNullOrWhiteSpace(Name)) return;
+        if (string.IsNullOrWhiteSpace(Name))
+            return;
 
-        // Apply changes to the node
         _node.Name = Name;
         _node.Description = Description;
         _node.RandomizeCovers = RandomizeCovers;
         _node.RandomizeMusic = RandomizeMusic;
-        
-        // NEU: Theme speichern (als Ordnername oder null)
+
         _node.ThemePath = string.IsNullOrWhiteSpace(SelectedTheme) ? null : SelectedTheme;
-        
-        // Emulator logic: If ID is null (our dummy item), set node property to null
-        if (SelectedEmulator != null && SelectedEmulator.Id != null)
+
+        if (SelectedEmulator != null && !string.IsNullOrWhiteSpace(SelectedEmulator.Id) && SelectedEmulator.Id != InheritEmulatorId)
         {
             _node.DefaultEmulatorId = SelectedEmulator.Id;
         }

@@ -2,57 +2,89 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:Retromind.ViewModels"
              xmlns:models="clr-namespace:Retromind.Models"
-             xmlns:helpers="clr-namespace:Retromind.Helpers"
              xmlns:p="clr-namespace:Retromind.Resources"
+             xmlns:helpers="clr-namespace:Retromind.Helpers"
              x:Class="Retromind.Views.SearchAreaView"
-             x:DataType="vm:SearchAreaViewModel">
+             x:DataType="vm:SearchAreaViewModel"
+             x:Name="Root">
 
     <Grid RowDefinitions="Auto, *">
-        
-        <!-- HEADER: Filter & Controls -->
-        <Border Grid.Row="0" Padding="10" Background="#10FFFFFF" Margin="0,0,0,10" CornerRadius="0,0,5,5">
+
+        <!-- Header: Filters & controls -->
+        <Border Grid.Row="0"
+                Padding="10"
+                Background="#10FFFFFF"
+                Margin="0,0,0,10"
+                CornerRadius="0,0,5,5">
+
             <StackPanel Spacing="10">
-                
-                <!-- Zeile 1: Titel & Hauptfilter -->
+
+                <!-- Row 1: Search inputs -->
                 <Grid ColumnDefinitions="Auto, 20, Auto, 10, Auto, 10, Auto, *, Auto">
-                    <TextBlock Grid.Column="0" Text="{x:Static p:Strings.Search_GlobalShort}" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
-                    
-                    <!-- Text -->
-                    <TextBox Grid.Column="2" Text="{Binding SearchText}" Watermark="{x:Static p:Strings.Dialog_TitleSearch}" Width="200"/>
-                    
-                    <!-- Jahr -->
-                    <TextBox Grid.Column="4" Text="{Binding SearchYear}" Watermark="{x:Static p:Strings.Common_Year}" Width="120"/>
-                    
-                    <!-- Button -->
-                    <Button Grid.Column="6" Command="{Binding SearchCommand}" Classes="accent" Content="🔍 Suchen"/>
-                    
-                    <!-- Zoom (ganz rechts) -->
-                    <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                         <TextBlock Text="{x:Static p:Strings.Zoom_Zoom}" VerticalAlignment="Center" FontSize="10"/>
-                         <Slider Value="{Binding ItemWidth}" Minimum="50" Maximum="300" Width="100"/>
+                    <TextBlock Grid.Column="0"
+                               Text="{x:Static p:Strings.Search_GlobalShort}"
+                               FontSize="20"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+
+                    <TextBox Grid.Column="2"
+                             Text="{Binding SearchText}"
+                             Watermark="{x:Static p:Strings.Dialog_TitleSearch}"
+                             Width="200"/>
+
+                    <TextBox Grid.Column="4"
+                             Text="{Binding SearchYear}"
+                             Watermark="{x:Static p:Strings.Common_Year}"
+                             Width="120"/>
+
+                    <Button Grid.Column="6"
+                            Command="{Binding SearchCommand}"
+                            Classes="accent"
+                            Content="{x:Static p:Strings.Button_Search}"/>
+
+                    <!-- Zoom (tile size) -->
+                    <StackPanel Grid.Column="8"
+                                Orientation="Horizontal"
+                                Spacing="5"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="{x:Static p:Strings.Zoom_Zoom}"
+                                   VerticalAlignment="Center"
+                                   FontSize="10"/>
+                        <Slider Value="{Binding ItemWidth}"
+                                Minimum="50"
+                                Maximum="300"
+                                Width="100"/>
                     </StackPanel>
                 </Grid>
 
-                <!-- Zeile 2: Bereiche (Expander oder einfache Liste horizontal) -->
-                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Static p:Strings.Common_Area}" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,5,0"/>
+                <!-- Row 2: Scopes -->
+                <StackPanel Orientation="Horizontal"
+                            Spacing="5"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="{x:Static p:Strings.Common_Area}"
+                               VerticalAlignment="Center"
+                               FontWeight="Bold"
+                               Margin="0,0,5,0"/>
+
                     <ItemsControl ItemsSource="{Binding Scopes}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <StackPanel Orientation="Horizontal" Spacing="10"/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
+
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <CheckBox Content="{Binding Node.Name}" IsChecked="{Binding IsSelected}"/>
+                                <CheckBox Content="{Binding Node.Name}"
+                                          IsChecked="{Binding IsSelected}"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
-                
-                <!-- Zeile 3: Zufall aus Ergebnis -->
-                <Button Command="{Binding PlayRandomCommand}" 
-                        IsVisible="{Binding SearchResults.Count}"
+
+                <!-- Row 3: Random item from results -->
+                <Button Command="{Binding PlayRandomCommand}"
+                        IsVisible="{Binding HasResults}"
                         HorizontalAlignment="Left">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <TextBlock Text="🎲"/>
@@ -62,12 +94,13 @@
             </StackPanel>
         </Border>
 
-        <!-- RESULT LIST (Gleiches Template wie MediaAreaView) -->
+        <!-- Results -->
         <ListBox Grid.Row="1"
                  ItemsSource="{Binding SearchResults}"
                  SelectedItem="{Binding SelectedMediaItem}"
-                 Background="Transparent">
-            
+                 Background="Transparent"
+                 IsVisible="{Binding HasResults}">
+
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
                     <WrapPanel />
@@ -76,43 +109,49 @@
 
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="models:MediaItem">
-                    <Border Width="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).ItemWidth}"
-                            Height="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).ItemWidth}"
+                    <Border Width="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).ItemWidth, ElementName=Root}"
+                            Height="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).ItemWidth, ElementName=Root}"
                             Margin="5"
                             CornerRadius="5"
                             ClipToBounds="True"
                             Background="Transparent"
-                            DoubleTapped="OnItemDoubleTapped"> <!-- KORRIGIERT: Verweist jetzt auf Code-Behind -->
-                        
-                        <!-- Kontextmenü (optional, aber praktisch) -->
+                            DoubleTapped="OnItemDoubleTapped">
+
                         <Border.ContextMenu>
                             <ContextMenu>
-                                <!-- Binding auf PlayCommand statt RequestPlay -->
-                                <MenuItem Header="{x:Static p:Strings.Button_Launch}" 
-                                          Command="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).PlayCommand}"
+                                <MenuItem Header="{x:Static p:Strings.Button_Launch}"
+                                          Command="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).PlayCommand, ElementName=Root}"
                                           CommandParameter="{Binding .}"/>
                             </ContextMenu>
                         </Border.ContextMenu>
 
                         <Grid>
+                            <!-- Fallback title if no cover is available -->
                             <TextBlock Text="{Binding Title}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       TextWrapping="Wrap" TextAlignment="Center" Margin="5" Foreground="Black"
-                                       IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       Margin="5"
+                                       IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
 
-                            <Image Source="{Binding PrimaryCoverPath, Converter={StaticResource PathToBitmapConverter}}"
+                            <!-- Async image loading for smoother scrolling with large result sets -->
+                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
                                    Stretch="Uniform"
-                                   IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                   IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         </Grid>
                     </Border>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        
-        <!-- Info wenn leer -->
-        <TextBlock Grid.Row="1" Text="{x:Static p:Strings.Dialog_NoResult}" 
-                   HorizontalAlignment="Center" VerticalAlignment="Center" 
-                   IsVisible="{Binding !SearchResults.Count}"
-                   Opacity="0.5" FontSize="16"/>
+
+        <!-- Empty-state message -->
+        <TextBlock Grid.Row="1"
+                   Text="{x:Static p:Strings.Dialog_NoResult}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   IsVisible="{Binding HasNoResults}"
+                   Opacity="0.5"
+                   FontSize="16"/>
     </Grid>
 </UserControl>

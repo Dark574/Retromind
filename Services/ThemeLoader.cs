@@ -1,47 +1,50 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
-using Avalonia.Layout;
-using Avalonia.Data;
-using Avalonia.Threading;
-using Avalonia.VisualTree;
-using LibVLCSharp.Avalonia;
 using Retromind.Extensions;
 using Retromind.Models;
-using Retromind.ViewModels;
+using Retromind.Resources;
 
 namespace Retromind.Services;
 
 /// <summary>
-/// Service responsible for loading external .axaml theme files at runtime.
-/// This allows users to create custom skins without recompiling the application.
+/// Loads external .axaml theme files at runtime.
+/// This enables user-created skins without recompiling the application.
 /// </summary>
 public static class ThemeLoader
 {
-    /// <summary>
-    /// Loads an .axaml file from disk and parses it into an Avalonia Control.
-    /// </summary>
-    /// <param name="filePath">Absolute path to the .axaml file.</param>
-    /// <returns>The loaded Control or an error message view.</returns>
+    private sealed record CachedXaml(string Content, DateTime LastWriteTimeUtc);
+
+    private static readonly Dictionary<string, CachedXaml> XamlCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public static Theme LoadTheme(string filePath)
     {
-        var themeDir = Path.GetDirectoryName(filePath);
-
-        if (string.IsNullOrEmpty(themeDir) || !File.Exists(filePath))
+        if (string.IsNullOrWhiteSpace(filePath))
         {
-            var errorView = CreateErrorView($"Theme file not found: {filePath}");
-            return new Theme(errorView, new ThemeSounds(), AppDomain.CurrentDomain.BaseDirectory);
+            var errorView = CreateErrorView(Strings.Theme_Error_InvalidPath);
+            return new Theme(errorView, new ThemeSounds(), AppDomain.CurrentDomain.BaseDirectory, videoEnabled: false);
+        }
+
+        var themeDir = Path.GetDirectoryName(filePath);
+        if (string.IsNullOrWhiteSpace(themeDir) || !File.Exists(filePath))
+        {
+            var errorView = CreateErrorView(string.Format(Strings.Theme_Error_FileNotFoundFormat, filePath));
+            return new Theme(errorView, new ThemeSounds(), AppDomain.CurrentDomain.BaseDirectory, videoEnabled: false);
         }
 
         try
         {
-            string xamlContent = File.ReadAllText(filePath);
-            var view = AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent) 
-                       ?? CreateErrorView("Loaded theme was null or invalid.");
+            var xamlContent = ReadXamlWithCache(filePath);
+
+            // Parse a fresh Control instance each time.
+            // Reusing the same Control can cause issues when swapping visual trees (attach/detach, state, bindings).
+            var view = AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent)
+                       ?? CreateErrorView(Strings.Theme_Error_LoadedNullOrInvalid);
 
             var sounds = new ThemeSounds
             {
@@ -49,47 +52,64 @@ public static class ThemeLoader
                 Confirm = ThemeProperties.GetConfirmSound(view),
                 Cancel = ThemeProperties.GetCancelSound(view)
             };
+
+            var videoEnabled = ThemeProperties.GetVideoEnabled(view);
             
-            return new Theme(view, sounds, themeDir);
+            return new Theme(view, sounds, themeDir, videoEnabled);
         }
         catch (Exception ex)
         {
-            var errorView = CreateErrorView($"Error loading theme:\n{ex.Message}");
-            return new Theme(errorView, new ThemeSounds(), AppDomain.CurrentDomain.BaseDirectory);
+            var errorView = CreateErrorView(string.Format(Strings.Theme_Error_LoadFailedFormat, ex.Message));
+            return new Theme(errorView, new ThemeSounds(), AppDomain.CurrentDomain.BaseDirectory, videoEnabled: false);
         }
+    }
+
+    private static string ReadXamlWithCache(string filePath)
+    {
+        var lastWriteUtc = File.GetLastWriteTimeUtc(filePath);
+
+        if (XamlCache.TryGetValue(filePath, out var cached) &&
+            cached.LastWriteTimeUtc == lastWriteUtc)
+        {
+            return cached.Content;
+        }
+
+        var content = File.ReadAllText(filePath);
+        XamlCache[filePath] = new CachedXaml(content, lastWriteUtc);
+        return content;
     }
 
     private static Control CreateErrorView(string message)
     {
         var stackPanel = new StackPanel
         {
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             Spacing = 20
         };
 
-        stackPanel.Children.Add(new TextBlock 
-        { 
-            Text = message, 
-            FontSize = 20, 
+        stackPanel.Children.Add(new TextBlock
+        {
+            Text = message,
+            FontSize = 20,
             Foreground = Brushes.Red,
             TextWrapping = TextWrapping.Wrap,
-            HorizontalAlignment = HorizontalAlignment.Center,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             MaxWidth = 800
         });
 
-        var btn = new Button
+        var closeButton = new Button
         {
-            Content = "Close / Schließen",
-            HorizontalAlignment = HorizontalAlignment.Center,
+            Content = Strings.Button_Close,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             FontSize = 20,
             Padding = new Avalonia.Thickness(20, 10)
         };
-        
-        // Wir binden den Button an das 'ExitBigModeCommand' vom ViewModel
-        btn.Bind(Button.CommandProperty, new Binding("ForceExitCommand"));
 
-        stackPanel.Children.Add(btn);
+        // This is used in BigMode: the host VM provides ForceExitCommand.
+        closeButton.Bind(Button.CommandProperty, new Binding("ForceExitCommand"));
+
+        stackPanel.Children.Add(closeButton);
 
         return stackPanel;
     }

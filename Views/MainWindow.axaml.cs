@@ -26,14 +26,25 @@ public partial class MainWindow : Window
         // 1. Durchlauf: Wir brechen das Schließen ab!
         e.Cancel = true;
 
+        // Hide ASAP to avoid the "window pops back up" effect while the close is cancelled.
+        // Minimize is usually less glitchy than IsVisible=false on some compositors.
+        try
+        {
+            IsEnabled = false;
+            WindowState = WindowState.Minimized;
+            ShowInTaskbar = false;
+        }
+        catch
+        {
+            // best-effort; never block closing because of UI state
+        }
+        
         // Wir holen uns das ViewModel
         if (DataContext is MainWindowViewModel vm)
         {
             try
             {
-                // WICHTIG: Wir warten, bis das Speichern wirklich fertig ist (File Handle geschlossen)
-                await vm.SaveData();
-                vm.Cleanup(); // Musik stoppen etc.
+                await vm.FlushAndCleanupAsync();
             }
             catch
             {
@@ -45,12 +56,9 @@ public partial class MainWindow : Window
         // Jetzt setzen wir das Flag auf wahr
         _canClose = true;
         
-        // ÄNDERUNG: Wir schließen nicht sofort, sondern geben dem UI Thread
-        // kurz Luft, um alle Events abzuarbeiten. Das hilft oft gegen DBus Fehler.
-        Dispatcher.UIThread.Post(() => 
-        {
-            Close();
-        }, DispatcherPriority.Background);
+        // Close immediately on UI thread (we are on it after await).
+        // If you ever reintroduce a platform-specific issue, we can switch this back to Post().
+        Close();
     }
 
     // Event Handler für das Draggen

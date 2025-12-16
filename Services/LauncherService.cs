@@ -3,70 +3,60 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Models;
 
 namespace Retromind.Services;
 
 /// <summary>
-/// Handles the execution of games and applications.
-/// Supports native executables, emulators, and external launchers (Steam, GOG).
-/// Also manages playtime tracking and Wine prefix creation for Linux compatibility.
+/// Executes media items (native, emulator-based, or command/url).
+/// Also tracks playtime and can configure Wine prefixes for non-native launches on Linux.
 /// </summary>
-public class LauncherService
+public sealed class LauncherService
 {
-    // Minimum session time to be counted as "played" (avoids false positives on crash/mistake)
-    private const int MinPlayTimeSeconds = 5; 
+    private const int MinPlayTimeSeconds = 5;
 
-    // Der Root-Pfad der Bibliothek
     private readonly string _libraryRootPath;
-    
-    // Konstruktor Injection für den Pfad
+
     public LauncherService(string libraryRootPath)
     {
-        _libraryRootPath = libraryRootPath;
+        _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
     }
-    
-    /// <summary>
-    /// Launches the specified media item.
-    /// </summary>
-    /// <param name="item">The media item to launch.</param>
-    /// <param name="inheritedConfig">Optional emulator configuration inherited from parent nodes.</param>
-    /// <param name="nodePath">The hierarchical path to the item (used for generating Wine prefix paths).</param>
-    public async Task LaunchAsync(MediaItem item, EmulatorConfig? inheritedConfig = null, List<string>? nodePath = null)
+
+    public async Task LaunchAsync(
+        MediaItem item,
+        EmulatorConfig? inheritedConfig = null,
+        List<string>? nodePath = null,
+        CancellationToken cancellationToken = default)
     {
         if (item == null) return;
-        
+
         Process? process = null;
         var stopwatch = Stopwatch.StartNew();
 
         try
         {
-            // --- 1. START PROCESS ---
-            
-            if (item.MediaType == MediaType.Command)
-            {
-                process = LaunchCommand(item);
-            }
-            else
-            {
-                process = LaunchNativeOrEmulator(item, inheritedConfig, nodePath);
-            }
+            process = item.MediaType == MediaType.Command
+                ? LaunchCommand(item)
+                : LaunchNativeOrEmulator(item, inheritedConfig, nodePath);
 
-            // --- 2. WATCH & TRACK ---
-
-            // CASE A: Explicit process monitoring requested (e.g. for Steam games or wrapper scripts)
+            // Tracking strategy:
+            // A) If OverrideWatchProcess is set, we track by process name (for launchers like Steam).
+            // B) Otherwise, if we have a process handle, wait for it.
+            // C) If neither is available (typical for URL commands), we cannot track duration reliably.
             if (!string.IsNullOrWhiteSpace(item.OverrideWatchProcess))
             {
-                await WatchProcessByNameAsync(item.OverrideWatchProcess);
+                await WatchProcessByNameAsync(item.OverrideWatchProcess, cancellationToken).ConfigureAwait(false);
             }
-            // CASE B: Standard process handle available (Emulator / Native)
-            else if (process != null && !process.HasExited)
+            else if (process is { HasExited: false })
             {
-                await process.WaitForExitAsync();
+                await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
             }
-            // CASE C: Command launched (e.g. Steam URL), but no process handle and no watch target.
-            // We cannot track time here (Time ~0).
+        }
+        catch (OperationCanceledException)
+        {
+            // App shutdown or caller cancellation: treat as "no/partial session".
         }
         catch (Exception ex)
         {
@@ -79,13 +69,16 @@ public class LauncherService
         }
     }
 
-    private Process? LaunchCommand(MediaItem item)
+    private static Process? LaunchCommand(MediaItem item)
     {
-        if (string.IsNullOrEmpty(item.LauncherArgs)) return null;
+        // For Command media we expect FilePath to be a URL/protocol or an executable,
+        // and LauncherArgs to hold the argument string.
+        if (string.IsNullOrWhiteSpace(item.LauncherArgs))
+            return null;
 
         return Process.Start(new ProcessStartInfo
         {
-            FileName = item.FilePath ?? "xdg-open", // Fallback for Linux URLs
+            FileName = item.FilePath ?? "xdg-open",
             Arguments = item.LauncherArgs,
             UseShellExecute = true
         });
@@ -95,122 +88,117 @@ public class LauncherService
     {
         try
         {
-            // Determine executable and arguments
-            string fileName;
-            string? templateArgs;
+            var (fileName, templateArgs, isNativeExecution) = ResolveLaunchPlan(item, inheritedConfig);
 
-            if (!string.IsNullOrEmpty(item.LauncherPath))
-            {
-                // Custom Config on Item level
-                fileName = item.LauncherPath;
-                templateArgs = string.IsNullOrWhiteSpace(item.LauncherArgs) ? "{file}" : item.LauncherArgs;
-            }
-            else if (inheritedConfig != null)
-            {
-                // Inherited Emulator Config
-                fileName = inheritedConfig.Path;
-                    
-                var baseArgs = inheritedConfig.Arguments ?? ""; // z.B. "umu-run {file}"
-                var itemArgs = item.LauncherArgs ?? "";         // z.B. "PROTON_VER=123 {file}"
+            var useShellExecute = isNativeExecution;
 
-                if (!string.IsNullOrWhiteSpace(itemArgs))
-                {
-                    // FALL 1: Der Emulator erwartet ein File ({file} im Template) 
-                    // UND der User hat auch {file} in seinen Args genutzt (um die Position zu bestimmen).
-                    if (baseArgs.Contains("{file}") && itemArgs.Contains("{file}"))
-                    {
-                        // Wir injizieren die User-Args an die Stelle von {file} im Emulator-Template.
-                        // Dadurch kann der User entscheiden, ob seine Args vor oder hinter dem Pfad stehen (relativ gesehen),
-                        // indem er {file} in seinen Args verschiebt.
-                        templateArgs = baseArgs.Replace("{file}", itemArgs);
-                    }
-                    // FALL 2: Emulator hat {file}, aber User hat es weggelassen (nur Flags definiert).
-                    // Wir hängen die User-Args einfach hinten an.
-                    else 
-                    {
-                        templateArgs = $"{baseArgs} {itemArgs}".Trim();
-                    }
-                }
-                else
-                {
-                    // Keine User Args -> Standard Emu Args
-                    templateArgs = baseArgs;
-                }
-            }
-            else
+            // Linux special case:
+            // For shell scripts, direct execution with a working directory is often more reliable.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
+                fileName.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
             {
-                // Native Execution
-                if (string.IsNullOrEmpty(item.FilePath)) return null;
-                fileName = item.FilePath;
-                templateArgs = item.LauncherArgs;
+                useShellExecute = false;
             }
 
-            // Wir merken uns, ob es logisch ein natives Spiel ist (unabhängig von ShellExecute Hacks)
-            var isNativeGame = string.IsNullOrEmpty(item.LauncherPath) && inheritedConfig == null;
-            var useShellExecute = isNativeGame;
-
-            // SPECIAL HACK FOR LINUX SHELL SCRIPTS
-            // Wenn wir ein .sh Skript starten, ist es oft besser, es direkt zu starten ohne Shell-Magie,
-            // damit das Working Directory strikt eingehalten wird.
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && fileName.EndsWith(".sh"))
-            {
-                useShellExecute = false; // Force direct execution
-            }
-            
             var startInfo = new ProcessStartInfo
             {
                 FileName = fileName,
                 UseShellExecute = useShellExecute
             };
 
-            // Set Working Directory
-            if (File.Exists(fileName))
-                startInfo.WorkingDirectory = Path.GetDirectoryName(fileName) ?? string.Empty;
-            else if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
-                startInfo.WorkingDirectory = Path.GetDirectoryName(item.FilePath) ?? string.Empty;
+            startInfo.WorkingDirectory = ResolveWorkingDirectory(fileName, item.FilePath);
 
-            // Setup Wine Prefix if needed (Linux specific)
-            // Wir nutzen hier isNativeGame, damit native Linux Skripte (RenPy) kein unnötiges Wine-Prefix bekommen.
-            if (!isNativeGame)
+            // Configure Wine prefix for non-native launches (emulator/custom launcher).
+            if (!isNativeExecution)
             {
                 ConfigureWinePrefix(item, nodePath, startInfo);
             }
 
-            // Build Arguments
-            // Auch hier nutzen wir isNativeGame: Wenn es ein natives Spiel ist (auch .sh),
-            // wollen wir NICHT, dass der Pfad als Argument übergeben wird (außer User will es explizit).
-            if (isNativeGame)
-            {
-                // FIX 2: Ren'Py und andere native Linux Apps crashen, wenn man ihnen ihren eigenen Pfad als Argument übergibt.
-                // Wenn in den LauncherArgs "{file}" steht (Standardwert?), ignorieren wir es für native Apps komplett.
-                if (!string.IsNullOrEmpty(templateArgs) && templateArgs.Contains("{file}"))
-                {
-                    // User hat "{file}" in den Args stehen gelassen -> Wir ignorieren es.
-                    // Native Apps wissen selbst, wer sie sind.
-                    startInfo.Arguments = "";
-                }
-                else
-                {
-                    // Echte Argumente (z.B. "-fullscreen"), behalten wir bei.
-                    startInfo.Arguments = templateArgs ?? "";
-                }
-            }
-            else
-            {
-                // We construct the full argument string manually to support complex templates
-                // provided by the user (e.g., "-L core.dll \"{file}\"").
-                // Using ArgumentList is safer generally, but parsing a user-provided template string
-                // into a list correctly handles quotes is error-prone.
-                startInfo.Arguments = BuildArgumentsString(item, templateArgs);
-            }
+            startInfo.Arguments = isNativeExecution
+                ? BuildNativeArguments(templateArgs)
+                : BuildArgumentsString(item, templateArgs);
 
             return Process.Start(startInfo);
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Launcher] Failed to launch native/emulator: {ex.Message}");
+            Debug.WriteLine($"[Launcher] Failed to launch: {ex.Message}");
             return null;
         }
+    }
+
+    private static (string FileName, string? TemplateArgs, bool IsNativeExecution) ResolveLaunchPlan(
+        MediaItem item,
+        EmulatorConfig? inheritedConfig)
+    {
+        // Priority:
+        // 1) Item-level custom launcher
+        // 2) Inherited emulator profile
+        // 3) Native execution (FilePath)
+        if (!string.IsNullOrWhiteSpace(item.LauncherPath))
+        {
+            var args = string.IsNullOrWhiteSpace(item.LauncherArgs) ? "{file}" : item.LauncherArgs;
+            return (item.LauncherPath, args, IsNativeExecution: false);
+        }
+
+        if (inheritedConfig != null)
+        {
+            var args = CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
+            return (inheritedConfig.Path, args, IsNativeExecution: false);
+        }
+
+        if (string.IsNullOrWhiteSpace(item.FilePath))
+            throw new InvalidOperationException("MediaItem.FilePath is required for native execution.");
+
+        return (item.FilePath, item.LauncherArgs, IsNativeExecution: true);
+    }
+
+    private static string? ResolveWorkingDirectory(string fileName, string? itemFilePath)
+    {
+        // Prefer the launcher/executable directory.
+        if (File.Exists(fileName))
+            return Path.GetDirectoryName(fileName) ?? string.Empty;
+
+        // Fallback to ROM/file directory.
+        if (!string.IsNullOrWhiteSpace(itemFilePath) && File.Exists(itemFilePath))
+            return Path.GetDirectoryName(itemFilePath) ?? string.Empty;
+
+        return string.Empty;
+    }
+
+    private static string CombineTemplateArguments(string? baseArgs, string? itemArgs)
+    {
+        baseArgs ??= string.Empty;
+        itemArgs ??= string.Empty;
+
+        if (string.IsNullOrWhiteSpace(itemArgs))
+            return baseArgs;
+
+        // Smart injection:
+        // If both base and item arguments contain "{file}",
+        // we inject the item argument string into the base template at "{file}" position.
+        // This allows users to control the relative position of {file} inside their custom args.
+        if (baseArgs.Contains("{file}", StringComparison.Ordinal) &&
+            itemArgs.Contains("{file}", StringComparison.Ordinal))
+        {
+            return baseArgs.Replace("{file}", itemArgs, StringComparison.Ordinal);
+        }
+
+        // Otherwise, append item args to the base args.
+        return $"{baseArgs} {itemArgs}".Trim();
+    }
+
+    private static string BuildNativeArguments(string? templateArgs)
+    {
+        // Native apps typically should NOT receive their own path as "{file}" argument.
+        // If the user left "{file}" in args (common default), we ignore it for native execution.
+        if (!string.IsNullOrWhiteSpace(templateArgs) &&
+            templateArgs.Contains("{file}", StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        return templateArgs ?? string.Empty;
     }
 
     private void ConfigureWinePrefix(MediaItem item, List<string>? nodePath, ProcessStartInfo startInfo)
@@ -218,136 +206,131 @@ public class LauncherService
         string? prefixPath = null;
         string? relativePrefixPathToSave = null;
 
-        // Priority 1: Existing saved path (Relative to Library Root)
-        if (!string.IsNullOrEmpty(item.PrefixPath))
+        // Priority 1: Existing saved path (relative to library root).
+        if (!string.IsNullOrWhiteSpace(item.PrefixPath))
         {
             prefixPath = Path.Combine(_libraryRootPath, item.PrefixPath);
         }
-        // Priority 2: Generate new path based on node structure
-        else if (nodePath != null)
+        // Priority 2: Generate a stable path based on the node structure.
+        else if (nodePath is { Count: > 0 })
         {
-            // Pfad aufbauen: Games/Windows/Prefixes/GameName
-            var relPaths = new List<string>(nodePath) { "Prefixes" };
-            
-            var safeTitle = string.Join("_", item.Title.Split(Path.GetInvalidFileNameChars())).Replace(" ", "_");
-            relPaths.Add(safeTitle);
+            // Library/<nodePath>/Prefixes/<safeTitle>
+            var relParts = new List<string>(nodePath) { "Prefixes", SanitizeForPathSegment(item.Title) };
 
-            relativePrefixPathToSave = Path.Combine(relPaths.ToArray());
+            relativePrefixPathToSave = Path.Combine(relParts.ToArray());
             prefixPath = Path.Combine(_libraryRootPath, relativePrefixPathToSave);
         }
-        // Priority 3: Fallback near ROM
-        else if (!string.IsNullOrEmpty(item.FilePath))
+        // Priority 3: Fallback near the ROM/file (portable but less organized).
+        else if (!string.IsNullOrWhiteSpace(item.FilePath))
         {
-            var gameDir = Path.GetDirectoryName(item.FilePath);
-            if (!string.IsNullOrEmpty(gameDir)) prefixPath = Path.Combine(gameDir, "pfx");
+            var dir = Path.GetDirectoryName(item.FilePath);
+            if (!string.IsNullOrWhiteSpace(dir))
+                prefixPath = Path.Combine(dir, "pfx");
         }
 
-        if (!string.IsNullOrEmpty(prefixPath))
-        {
-            if (!Directory.Exists(prefixPath)) Directory.CreateDirectory(prefixPath);
-            startInfo.EnvironmentVariables["WINEPREFIX"] = prefixPath;
+        if (string.IsNullOrWhiteSpace(prefixPath))
+            return;
 
-            // Persist the generated path to the item
-            if (relativePrefixPathToSave != null) item.PrefixPath = relativePrefixPathToSave;
-        }
+        Directory.CreateDirectory(prefixPath);
+        startInfo.EnvironmentVariables["WINEPREFIX"] = prefixPath;
+
+        // Persist generated relative path.
+        if (relativePrefixPathToSave != null)
+            item.PrefixPath = relativePrefixPathToSave;
     }
 
-    private string BuildArgumentsString(MediaItem item, string? templateArgs)
+    private static string SanitizeForPathSegment(string input)
     {
-        var fullPath = string.IsNullOrEmpty(item.FilePath) ? "" : Path.GetFullPath(item.FilePath);
+        if (string.IsNullOrWhiteSpace(input))
+            return "Unknown";
 
-        // Ensure the path is quoted if it contains spaces and isn't already quoted in the template
-        // However, the safest bet is to let the USER control quotes in the template OR
-        // we force quotes around the replacement.
-        
-        // Strategy: We simply replace {file} with the path. 
-        // If the path has spaces, we wrap it in quotes UNLESS the template already has quotes around {file}.
-        
-        string pathReplacement = fullPath;
-        if (!string.IsNullOrEmpty(pathReplacement) && pathReplacement.Contains(" "))
-        {
-            pathReplacement = $"\"{pathReplacement}\"";
-        }
+        var safe = input.Replace(' ', '_');
+
+        foreach (var c in Path.GetInvalidFileNameChars())
+            safe = safe.Replace(c.ToString(), string.Empty);
+
+        while (safe.Contains("__", StringComparison.Ordinal))
+            safe = safe.Replace("__", "_", StringComparison.Ordinal);
+
+        return safe;
+    }
+
+    private static string BuildArgumentsString(MediaItem item, string? templateArgs)
+    {
+        var fullPath = string.IsNullOrWhiteSpace(item.FilePath) ? string.Empty : Path.GetFullPath(item.FilePath);
+
+        // If the path contains spaces, quote it unless the template already provides quotes around "{file}".
+        var quotedPath = (!string.IsNullOrEmpty(fullPath) && fullPath.Contains(' ', StringComparison.Ordinal))
+            ? $"\"{fullPath}\""
+            : fullPath;
 
         if (string.IsNullOrWhiteSpace(templateArgs))
         {
-            // Default: just the file path (quoted if needed)
-            return pathReplacement;
+            // Default: just the file path (quoted if needed).
+            return quotedPath;
         }
 
-        // Check if the user already provided quotes in the template, e.g. "-rom \"{file}\""
-        // If so, we should NOT add extra quotes, otherwise we get ""path"".
-        // Simplistic check:
-        if (templateArgs.Contains("\"{file}\""))
+        // If the user provided explicit quotes like "\"{file}\"", preserve exact quoting behavior.
+        if (templateArgs.Contains("\"{file}\"", StringComparison.Ordinal))
         {
-            return templateArgs.Replace("{file}", fullPath);
+            return templateArgs.Replace("{file}", fullPath, StringComparison.Ordinal);
         }
 
-        return templateArgs.Replace("{file}", pathReplacement);
+        return templateArgs.Replace("{file}", quotedPath, StringComparison.Ordinal);
     }
 
-    private async Task WatchProcessByNameAsync(string processName)
+    private static async Task WatchProcessByNameAsync(string processName, CancellationToken cancellationToken)
     {
         var cleanName = Path.GetFileNameWithoutExtension(processName);
-        Debug.WriteLine($"[Launcher] Watching for process: {cleanName}...");
 
         var startupTimeout = TimeSpan.FromMinutes(3);
         var startWatch = Stopwatch.StartNew();
-        bool found = false;
 
-        // Phase 1: Wait for process to APPEAR
+        // Phase 1: wait for process to appear.
         while (startWatch.Elapsed < startupTimeout)
         {
-            var processes = Process.GetProcessesByName(cleanName);
-            if (processes.Length > 0)
-            {
-                found = true;
-                Debug.WriteLine("[Launcher] Process found! Tracking...");
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (Process.GetProcessesByName(cleanName).Length > 0)
                 break;
-            }
-            await Task.Delay(1000);
+
+            await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
         }
 
-        if (!found)
-        {
-            Debug.WriteLine("[Launcher] Process not found (Timeout).");
+        // If not found in time, we cannot track.
+        if (Process.GetProcessesByName(cleanName).Length == 0)
             return;
-        }
 
-        // Phase 2: Wait for process to DISAPPEAR
+        // Phase 2: wait for process to disappear.
         while (true)
         {
-            await Task.Delay(2000);
-            var processes = Process.GetProcessesByName(cleanName);
-            if (processes.Length == 0)
-            {
-                Debug.WriteLine("[Launcher] Process exited.");
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
+
+            if (Process.GetProcessesByName(cleanName).Length == 0)
                 break;
-            }
         }
     }
 
-    private void EvaluateSession(MediaItem item, TimeSpan elapsed)
+    private static void EvaluateSession(MediaItem item, TimeSpan elapsed)
     {
         var seconds = elapsed.TotalSeconds;
-        Debug.WriteLine($"[Launcher] Session ended. Duration: {seconds:F2}s");
 
         if (seconds > MinPlayTimeSeconds)
         {
             UpdateStats(item, elapsed);
+            return;
         }
-        else if (item.MediaType == MediaType.Command && string.IsNullOrEmpty(item.OverrideWatchProcess))
+
+        // For untracked commands (e.g. steam://) we at least count an "attempt".
+        if (item.MediaType == MediaType.Command && string.IsNullOrWhiteSpace(item.OverrideWatchProcess))
         {
-            // For untracked commands (Steam without explicit watch process), we count at least the start.
             UpdateStats(item, TimeSpan.Zero);
         }
-        else
-        {
-            Debug.WriteLine("[Launcher] Session too short (ignored).");
-        }
     }
-    
-    private void UpdateStats(MediaItem item, TimeSpan sessionTime)
+
+    private static void UpdateStats(MediaItem item, TimeSpan sessionTime)
     {
         item.LastPlayed = DateTime.Now;
         item.PlayCount++;

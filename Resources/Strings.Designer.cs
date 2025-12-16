@@ -141,6 +141,18 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Button_Search {
+            get {
+                return ResourceManager.GetString("Button_Search", resourceCulture);
+            }
+        }
+        
+        public static string Button_Close {
+            get {
+                return ResourceManager.GetString("Button_Close", resourceCulture);
+            }
+        }
+        
         public static string Common_Active {
             get {
                 return ResourceManager.GetString("Common.Active", resourceCulture);
@@ -246,6 +258,24 @@ namespace Retromind.Resources {
         public static string Common_Password {
             get {
                 return ResourceManager.GetString("Common.Password", resourceCulture);
+            }
+        }
+        
+        public static string Common_NoVideo {
+            get {
+                return ResourceManager.GetString("Common_NoVideo", resourceCulture);
+            }
+        }
+        
+        public static string Common_SelectFile {
+            get {
+                return ResourceManager.GetString("Common_SelectFile", resourceCulture);
+            }
+        }
+        
+        public static string Common_Delete {
+            get {
+                return ResourceManager.GetString("Common_Delete", resourceCulture);
             }
         }
         
@@ -360,6 +390,18 @@ namespace Retromind.Resources {
         public static string Dialog_TitleSearch {
             get {
                 return ResourceManager.GetString("Dialog.TitleSearch", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_ImportAssetTitle {
+            get {
+                return ResourceManager.GetString("Dialog_ImportAssetTitle", resourceCulture);
+            }
+        }
+        
+        public static string FileType_Videos {
+            get {
+                return ResourceManager.GetString("FileType_Videos", resourceCulture);
             }
         }
         
@@ -603,6 +645,96 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string NodeSettings_Title {
+            get {
+                return ResourceManager.GetString("NodeSettings_Title", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_DescriptionForBigMode {
+            get {
+                return ResourceManager.GetString("NodeSettings_DescriptionForBigMode", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_DefaultEmulatorForFolder {
+            get {
+                return ResourceManager.GetString("NodeSettings_DefaultEmulatorForFolder", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_BigModeThemeHint {
+            get {
+                return ResourceManager.GetString("NodeSettings_BigModeThemeHint", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_ThemeAuto {
+            get {
+                return ResourceManager.GetString("NodeSettings_ThemeAuto", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_PresentationAndAssets {
+            get {
+                return ResourceManager.GetString("NodeSettings_PresentationAndAssets", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_CoverBoxart {
+            get {
+                return ResourceManager.GetString("NodeSettings_CoverBoxart", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_CoverBoxartHint {
+            get {
+                return ResourceManager.GetString("NodeSettings_CoverBoxartHint", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_LogoClearart {
+            get {
+                return ResourceManager.GetString("NodeSettings_LogoClearart", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_LogoClearartHint {
+            get {
+                return ResourceManager.GetString("NodeSettings_LogoClearartHint", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_Background {
+            get {
+                return ResourceManager.GetString("NodeSettings_Background", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_BackgroundHint {
+            get {
+                return ResourceManager.GetString("NodeSettings_BackgroundHint", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_VideoSnap {
+            get {
+                return ResourceManager.GetString("NodeSettings_VideoSnap", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_RandomizeCovers {
+            get {
+                return ResourceManager.GetString("NodeSettings_RandomizeCovers", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_RandomizeMusic {
+            get {
+                return ResourceManager.GetString("NodeSettings_RandomizeMusic", resourceCulture);
+            }
+        }
+        
         public static string Profile_New {
             get {
                 return ResourceManager.GetString("Profile.New", resourceCulture);
@@ -612,6 +744,12 @@ namespace Retromind.Resources {
         public static string Profile_Profile {
             get {
                 return ResourceManager.GetString("Profile.Profile", resourceCulture);
+            }
+        }
+        
+        public static string Profile_NoDefaultInherit {
+            get {
+                return ResourceManager.GetString("Profile_NoDefaultInherit", resourceCulture);
             }
         }
         
@@ -702,6 +840,30 @@ namespace Retromind.Resources {
         public static string Toggle_Theme {
             get {
                 return ResourceManager.GetString("Toggle.Theme", resourceCulture);
+            }
+        }
+        
+        public static string Theme_Error_InvalidPath {
+            get {
+                return ResourceManager.GetString("Theme_Error_InvalidPath", resourceCulture);
+            }
+        }
+        
+        public static string Theme_Error_FileNotFoundFormat {
+            get {
+                return ResourceManager.GetString("Theme_Error_FileNotFoundFormat", resourceCulture);
+            }
+        }
+        
+        public static string Theme_Error_LoadedNullOrInvalid {
+            get {
+                return ResourceManager.GetString("Theme_Error_LoadedNullOrInvalid", resourceCulture);
+            }
+        }
+        
+        public static string Theme_Error_LoadFailedFormat {
+            get {
+                return ResourceManager.GetString("Theme_Error_LoadFailedFormat", resourceCulture);
             }
         }
         

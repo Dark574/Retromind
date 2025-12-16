@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Retromind.Services;
 
 namespace Retromind.Views;
 
@@ -31,27 +32,25 @@ public partial class BigModeHostView : UserControl
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 
-    public void SetThemeContent(Control themeRoot)
+    public void SetThemeContent(Control themeRoot, Theme theme)
     {
         // Ensure bindings in the theme root resolve to the BigModeViewModel
         themeRoot.DataContext = DataContext;
         
         _themePresenter.Content = themeRoot;
 
-        // Konvention: Theme definiert EIN Element mit x:Name="VideoSlot"
+        // Convention: the theme defines one element named "VideoSlot"
         _videoSlot = themeRoot.FindControl<Control>("VideoSlot");
 
-        // Determine capability: theme says video enabled AND a slot exists
-        var themeAllowsVideo = Retromind.Extensions.ThemeProperties.GetVideoEnabled(themeRoot);
-        var hasSlot = _videoSlot != null;
+        // Capability: theme allows video AND a slot exists
+        var canShowVideo = theme.VideoEnabled && _videoSlot != null;
 
-        // Bei Theme-Wechsel lieber einmal “zurücksetzen”, damit nichts “hängen bleibt”
+        // Reset first so old placements/state never leaks across theme swaps
         ResetVideoBorder();
         
-        // Theme capability -> VM informieren
         if (DataContext is Retromind.ViewModels.BigModeViewModel vm)
         {
-            vm.CanShowVideo = _videoSlot != null;
+            vm.CanShowVideo = canShowVideo;
 
             if (!vm.CanShowVideo)
             {
@@ -96,7 +95,7 @@ public partial class BigModeHostView : UserControl
             return;
         }
         
-        // Slot muss im VisualTree sein, sonst keine Koordinaten
+        // The slot must be attached to the visual tree to resolve coordinates.
         var topLeft = _videoSlot.TranslatePoint(new Point(0, 0), this);
         if (topLeft == null)
         {
@@ -106,7 +105,8 @@ public partial class BigModeHostView : UserControl
         
         var bounds = _videoSlot.Bounds;
 
-        // Wenn Slot noch keine sinnvollen Bounds hat: Overlay aus (sonst full-screen/komisch)
+        // If the slot has no meaningful size yet, keep the overlay disabled
+        // to avoid full-screen or glitchy placement.
         if (bounds.Width < 1 || bounds.Height < 1)
         {
             ResetVideoBorder();
@@ -122,11 +122,10 @@ public partial class BigModeHostView : UserControl
 
     public async void NotifyViewReadyAfterRender(object viewModel)
     {
-        // 2 Render-Ticks als „settle time“ für XWayland/VLC-Embedding
+        // Two render ticks as settle time for XWayland/VLC embedding.
         await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
         await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
 
-        // VM-Typ nicht hart referenzieren müssen wir nicht; aber hier ist es ok:
         if (viewModel is Retromind.ViewModels.BigModeViewModel vm)
             vm.NotifyViewReady();
     }

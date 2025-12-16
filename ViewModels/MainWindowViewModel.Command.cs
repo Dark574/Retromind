@@ -123,7 +123,7 @@ public partial class MainWindowViewModel
         // Wichtig: erst Host als FullScreenContent setzen, dann Theme content setzen (attach/layout ist stabiler)
         FullScreenContent = host;
 
-        host.SetThemeContent(theme.View);
+        host.SetThemeContent(theme.View, theme);
         host.Focus();
 
         // schützt vor out-of-order async Theme-Swaps (hoch/runter spammen)
@@ -159,7 +159,7 @@ public partial class MainWindowViewModel
                 bigVm.UpdateTheme(newTheme);
 
                 // Host handles DataContext + ViewReady timing
-                host.SetThemeContent(newTheme.View);
+                host.SetThemeContent(newTheme.View, newTheme);
                 host.Focus();
             });
         };

@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
@@ -16,7 +19,7 @@ namespace Retromind.ViewModels;
 public class SearchScope : ObservableObject
 {
     public MediaNode Node { get; }
-    
+
     private bool _isSelected = true;
     public bool IsSelected
     {
@@ -26,157 +29,245 @@ public class SearchScope : ObservableObject
 
     public SearchScope(MediaNode node)
     {
-        Node = node;
+        Node = node ?? throw new ArgumentNullException(nameof(node));
     }
 }
 
 /// <summary>
 /// ViewModel for the global search functionality.
-/// Searches across selected scopes (platforms/folders).
+/// Optimized for large libraries (30k+ items):
+/// - debounced search input
+/// - background evaluation
+/// - single UI update (ReplaceAll)
 /// </summary>
 public partial class SearchAreaViewModel : ViewModelBase
 {
     private const double DefaultItemWidth = 150.0;
-    private readonly IEnumerable<MediaNode> _rootNodes;
 
-    [ObservableProperty] 
+    // Debounce typing/checkbox toggles to avoid re-scanning the entire library per keystroke.
+    private static readonly TimeSpan SearchDebounceDelay = TimeSpan.FromMilliseconds(250);
+
+    private readonly IReadOnlyList<MediaNode> _rootNodes;
+
+    private CancellationTokenSource? _searchCts;
+
+    [ObservableProperty]
     private string _searchText = string.Empty;
-    
-    [ObservableProperty] 
+
+    [ObservableProperty]
     private string _searchYear = string.Empty;
-    
-    [ObservableProperty] 
+
+    [ObservableProperty]
     private double _itemWidth = DefaultItemWidth;
-    
-    // Result collection optimized for bulk updates
+
+    /// <summary>
+    /// Result collection optimized for bulk updates.
+    /// </summary>
     public RangeObservableCollection<MediaItem> SearchResults { get; } = new();
 
-    // Required for the detail view on the right
-    [ObservableProperty] 
+    [ObservableProperty]
     private MediaItem? _selectedMediaItem;
 
-    // Filter scopes (platforms)
     public ObservableCollection<SearchScope> Scopes { get; } = new();
-    
-    // Commands
+
     public ICommand PlayRandomCommand { get; }
     public ICommand SearchCommand { get; }
-    public ICommand PlayCommand { get; } 
-    
+    public ICommand PlayCommand { get; }
+
     public event Action<MediaItem>? RequestPlay;
+    
+    public bool HasResults => SearchResults.Count > 0;
+    public bool HasNoResults => SearchResults.Count == 0;
 
     public SearchAreaViewModel(IEnumerable<MediaNode> rootNodes)
     {
-        _rootNodes = rootNodes;
+        _rootNodes = (rootNodes ?? throw new ArgumentNullException(nameof(rootNodes))).ToList();
 
         InitializeScopes();
 
-        // Initial empty search (clear results)
-        ExecuteSearch();
+        // Keep the initial state consistent (empty results until user enters criteria).
+        SearchResults.Clear();
 
-        PlayRandomCommand = new RelayCommand(PlayRandom);
-        
-        PlayCommand = new RelayCommand<MediaItem>(item => 
+        PlayRandomCommand = new RelayCommand(PlayRandom, () => SearchResults.Count > 0);
+        SearchCommand = new RelayCommand(RequestSearch);
+
+        PlayCommand = new RelayCommand<MediaItem>(item =>
         {
             if (item != null) RequestPlay?.Invoke(item);
         });
-        
-        // Triggered by Button or Enter key
-        SearchCommand = new RelayCommand(ExecuteSearch);
     }
-    
+
+    partial void OnSearchTextChanged(string value) => RequestSearch();
+    partial void OnSearchYearChanged(string value) => RequestSearch();
+
     private void InitializeScopes()
     {
-        // Collect all direct children of root nodes as scopes
+        Scopes.Clear();
+
+        // We keep the scope list shallow (root + direct children) for UI simplicity.
+        // The actual item search is still recursive within each selected scope.
         foreach (var root in _rootNodes)
         {
-            // If the root itself has items (rare, usually just a container), add it
             if (root.Items.Count > 0)
-            {
-                Scopes.Add(new SearchScope(root));
-            }
+                AddScope(root);
 
-            // Add all child groups (e.g. Consoles like "SNES", "Genesis")
             foreach (var child in root.Children)
+                AddScope(child);
+        }
+
+        void AddScope(MediaNode node)
+        {
+            var scope = new SearchScope(node);
+            scope.PropertyChanged += (_, args) =>
             {
-                Scopes.Add(new SearchScope(child));
+                if (args.PropertyName == nameof(SearchScope.IsSelected))
+                    RequestSearch();
+            };
+            Scopes.Add(scope);
+        }
+    }
+
+    private void RequestSearch()
+    {
+        // Cancel previous pending search (debounce + background evaluation).
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+
+        var token = _searchCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(SearchDebounceDelay, token).ConfigureAwait(false);
+                if (token.IsCancellationRequested) return;
+
+                await ExecuteSearchAsync(token).ConfigureAwait(false);
             }
-        }
+            catch (OperationCanceledException)
+            {
+                // Expected when the user keeps typing or changes scopes quickly.
+            }
+        }, token);
     }
 
-    private void ExecuteSearch()
+    private async Task ExecuteSearchAsync(CancellationToken token)
     {
-        // Which scopes are active?
-        var activeScopes = Scopes.Where(s => s.IsSelected).Select(s => s.Node).ToList();
-        
-        // If query is empty, clear results and return (don't show ALL items globally, too much)
-        if (string.IsNullOrWhiteSpace(SearchText) && string.IsNullOrWhiteSpace(SearchYear))
+        var query = SearchText?.Trim();
+        var yearText = SearchYear?.Trim();
+
+        // If both filters are empty, do not show the entire library (too expensive/noisy).
+        if (string.IsNullOrWhiteSpace(query) && string.IsNullOrWhiteSpace(yearText))
         {
-            SearchResults.Clear();
-            return; 
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                SearchResults.Clear();
+                OnPropertyChanged(nameof(HasResults));
+                OnPropertyChanged(nameof(HasNoResults));
+                (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
+            });
+            return;
         }
 
-        var resultsBuffer = new List<MediaItem>();
-
-        foreach (var scope in activeScopes)
-        {
-            CollectMatchesRecursive(scope, resultsBuffer);
-        }
-        
-        // Update UI in one go
-        SearchResults.ReplaceAll(resultsBuffer);
-    }
-
-    private void CollectMatchesRecursive(MediaNode node, List<MediaItem> matches)
-    {
-        // Pre-parse year to avoid parsing for every item
         int? filterYear = null;
-        if (!string.IsNullOrWhiteSpace(SearchYear) && int.TryParse(SearchYear, out int y))
+        if (!string.IsNullOrWhiteSpace(yearText) && int.TryParse(yearText, out var parsedYear))
+            filterYear = parsedYear;
+
+        // Snapshot active scopes (avoid enumerating ObservableCollection from background threads).
+        var activeScopes = new List<MediaNode>(capacity: Scopes.Count);
+        for (int i = 0; i < Scopes.Count; i++)
         {
-            filterYear = y;
+            if (Scopes[i].IsSelected)
+                activeScopes.Add(Scopes[i].Node);
         }
 
-        foreach (var item in node.Items)
+        var results = new List<MediaItem>(capacity: 256);
+
+        // Evaluate in background; only UI assignment is marshaled.
+        for (int i = 0; i < activeScopes.Count; i++)
         {
-            bool match = true;
-
-            // 1. Text Filter
-            if (!string.IsNullOrWhiteSpace(SearchText))
-            {
-                if (item.Title == null || !item.Title.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
-                    match = false;
-            }
-
-            // 2. Year Filter
-            if (match && filterYear.HasValue)
-            {
-                if (item.ReleaseDate?.Year != filterYear.Value)
-                    match = false;
-            }
-
-            if (match) matches.Add(item);
+            token.ThrowIfCancellationRequested();
+            CollectMatchesRecursive(activeScopes[i], results, query, filterYear, token);
         }
 
-        foreach (var child in node.Children)
+        await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            CollectMatchesRecursive(child, matches);
+            SearchResults.ReplaceAll(results);
+
+            OnPropertyChanged(nameof(HasResults));
+            OnPropertyChanged(nameof(HasNoResults));
+            
+            // Keep "Play random" enabled state accurate.
+            (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        });
+    }
+
+    private static void CollectMatchesRecursive(
+        MediaNode node,
+        List<MediaItem> matches,
+        string? query,
+        int? filterYear,
+        CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+
+        // Scan items in this node.
+        var items = node.Items;
+        for (int i = 0; i < items.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+
+            var item = items[i];
+
+            if (!Matches(item, query, filterYear))
+                continue;
+
+            matches.Add(item);
         }
+
+        // Recurse into child nodes.
+        var children = node.Children;
+        for (int i = 0; i < children.Count; i++)
+        {
+            CollectMatchesRecursive(children[i], matches, query, filterYear, token);
+        }
+    }
+
+    private static bool Matches(MediaItem item, string? query, int? filterYear)
+    {
+        // 1) Text filter
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var title = item.Title;
+            if (string.IsNullOrEmpty(title) || !title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        // 2) Year filter
+        if (filterYear.HasValue)
+        {
+            if (item.ReleaseDate?.Year != filterYear.Value)
+                return false;
+        }
+
+        return true;
     }
 
     private void PlayRandom()
     {
         if (SearchResults.Count == 0) return;
-        
-        // Use Shared Random
+
         var index = Random.Shared.Next(SearchResults.Count);
         var item = SearchResults[index];
-        
+
         SelectedMediaItem = item;
         RequestPlay?.Invoke(item);
     }
 
     public void OnDoubleClick()
     {
-        if (SelectedMediaItem != null) RequestPlay?.Invoke(SelectedMediaItem);
+        if (SelectedMediaItem != null)
+            RequestPlay?.Invoke(SelectedMediaItem);
     }
 }

@@ -44,6 +44,8 @@
     <data name="Button.Wall" xml:space="preserve"><value>Wall</value></data>
     <data name="Button.Delete" xml:space="preserve"><value>Delete</value></data>
     <data name="Button.Launch" xml:space="preserve"><value>Launch</value></data>
+    <data name="Button_Search" xml:space="preserve"><value>Search</value></data>
+    <data name="Button_Close" xml:space="preserve"><value>Close</value></data>
     
     <!-- COMMON -->
     <data name="Common.Active" xml:space="preserve"><value>Active</value></data>
@@ -64,6 +66,9 @@
     <data name="Common.TitleEx" xml:space="preserve"><value>Title:</value></data>
     <data name="Common.UserName" xml:space="preserve"><value>User name</value></data>
     <data name="Common.Password" xml:space="preserve"><value>Password</value></data>
+    <data name="Common_NoVideo" xml:space="preserve"><value>No video</value></data>
+    <data name="Common_SelectFile" xml:space="preserve"><value>Select file</value></data>
+    <data name="Common_Delete" xml:space="preserve"><value>Delete</value></data>
 
     <!-- CTX -->
     <data name="Ctx.Category.Add" xml:space="preserve"><value>Add Category</value></data>
@@ -87,7 +92,11 @@
     <data name="Dialog.Select.Music" xml:space="preserve"><value>Select Music</value></data>
     <data name="Dialog.Select.Wallpaper" xml:space="preserve"><value>Select Wallpaper</value></data>
     <data name="Dialog.TitleSearch" xml:space="preserve"><value>Search title...</value></data>
-  
+    <data name="Dialog_ImportAssetTitle" xml:space="preserve"><value>Import {0}</value></data>
+
+    <!-- FILETYPE -->
+    <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>
+    
     <!-- HINT -->
     <data name="Hint.IgdbCredentials" xml:space="preserve"><value>(Optional: Leave blank for default access)</value></data>
     <data name="Hint.Required" xml:space="preserve"><value>(Necessary)</value></data>
@@ -137,10 +146,28 @@
     <data name="Metadata.Search.InProgress" xml:space="preserve"><value>Search is ongoing...</value></data>
     <data name="Metadata.Source" xml:space="preserve"><value>Source</value></data>
     <data name="Metadata.Type" xml:space="preserve"><value>Type / Service</value></data>
-  
+
+    <!-- NODESETTINGS -->
+    <data name="NodeSettings_Title" xml:space="preserve"><value>Category settings</value></data>
+    <data name="NodeSettings_DescriptionForBigMode" xml:space="preserve"><value>Description (for BigMode)</value></data>
+    <data name="NodeSettings_DefaultEmulatorForFolder" xml:space="preserve"><value>Default emulator (for this folder)</value></data>
+    <data name="NodeSettings_BigModeThemeHint" xml:space="preserve"><value>BigMode theme (Themes/&lt;Theme&gt;/theme.axaml)</value></data>
+    <data name="NodeSettings_ThemeAuto" xml:space="preserve"><value>Auto (convention/default)</value></data>
+    <data name="NodeSettings_PresentationAndAssets" xml:space="preserve"><value>Presentation &amp; assets</value></data>
+    <data name="NodeSettings_CoverBoxart" xml:space="preserve"><value>Cover / boxart</value></data>
+    <data name="NodeSettings_CoverBoxartHint" xml:space="preserve"><value>For list view</value></data>
+    <data name="NodeSettings_LogoClearart" xml:space="preserve"><value>Logo / clearart</value></data>
+    <data name="NodeSettings_LogoClearartHint" xml:space="preserve"><value>For the BigMode header</value></data>
+    <data name="NodeSettings_Background" xml:space="preserve"><value>Background</value></data>
+    <data name="NodeSettings_BackgroundHint" xml:space="preserve"><value>For BigMode wallpaper</value></data>
+    <data name="NodeSettings_VideoSnap" xml:space="preserve"><value>Video snap</value></data>
+    <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Show random covers in this folder</value></data>
+    <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Play random music from this folder</value></data>
+    
     <!-- PROFILE -->
     <data name="Profile.New" xml:space="preserve"><value>New Profile</value></data>
     <data name="Profile.Profile" xml:space="preserve"><value>Profile</value></data>
+    <data name="Profile_NoDefaultInherit" xml:space="preserve"><value>No default (inherit)</value></data>
   
     <!-- PROCESS -->
     <data name="Process.Monitor" xml:space="preserve"><value>Process monitoring (Optional)</value></data>
@@ -166,6 +193,10 @@
   
     <!-- THEME -->
     <data name="Toggle.Theme" xml:space="preserve"><value>Toggle Dark/Light Theme</value></data>
+    <data name="Theme_Error_InvalidPath" xml:space="preserve"><value>Theme path is invalid.</value></data>
+    <data name="Theme_Error_FileNotFoundFormat" xml:space="preserve"><value>Theme file not found: {0}</value></data>
+    <data name="Theme_Error_LoadedNullOrInvalid" xml:space="preserve"><value>Loaded theme was null or invalid.</value></data>
+    <data name="Theme_Error_LoadFailedFormat" xml:space="preserve"><value>Error loading theme: {0}</value></data>
   
     <!-- TIME -->
     <data name="TimePlayed.Never" xml:space="preserve"><value>Never played</value></data>
