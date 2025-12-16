@@ -40,7 +40,7 @@ public partial class MainWindowViewModel
         var sourcePath = folders[0].Path.LocalPath;
 
         var defaultExt = "iso,bin,cue,rom,smc,sfc,nes,gb,gba,nds,md,n64,z64,v64,exe,sh";
-        var extensionsStr = await PromptForName(owner, "File extensions (comma separated):") ?? defaultExt;
+        var extensionsStr = await PromptForName(owner, Strings.Dialog_FileExtensionsPrompt) ?? defaultExt;
         if (string.IsNullOrWhiteSpace(extensionsStr)) return;
 
         var extensions = extensionsStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
@@ -60,8 +60,7 @@ public partial class MainWindowViewModel
                     targetNode.Items.Add(item);
                     anyAdded = true;
 
-                    // Sofort nach Assets scannen, die vielleicht schon da sind
-                    // (z.B. wenn man ROMs importiert und die Cover schon im Ordner liegen)
+                    // Scan existing assets for newly imported items.
                     var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
                     _fileService.RefreshItemAssets(item, nodePath);
                 }
@@ -86,11 +85,12 @@ public partial class MainWindowViewModel
         var items = await _storeService.ImportSteamGamesAsync();
         if (items.Count == 0)
         {
-            await ShowConfirmDialog(owner, "No Steam games found.");
+            await ShowConfirmDialog(owner, Strings.Dialog_NoSteamGamesFound);
             return;
         }
 
-        if (await ShowConfirmDialog(owner, $"Found {items.Count} Steam games. Import to '{targetNode.Name}'?"))
+        var message = string.Format(Strings.Dialog_ConfirmImportSteamFormat, items.Count, targetNode.Name);
+        if (await ShowConfirmDialog(owner, message))
         {
             var anyAdded = false;
             
@@ -121,11 +121,12 @@ public partial class MainWindowViewModel
         var items = await _storeService.ImportHeroicGogAsync();
         if (items.Count == 0)
         {
-            await ShowConfirmDialog(owner, "No Heroic/GOG installations found.");
+            await ShowConfirmDialog(owner, Strings.Dialog_NoGogInstallationsFound);
             return;
         }
 
-        if (await ShowConfirmDialog(owner, $"Found {items.Count} GOG games. Import?"))
+        var message = string.Format(Strings.Dialog_ConfirmImportGogFormat, items.Count);
+        if (await ShowConfirmDialog(owner, message))
         {
             var anyAdded = false;
             
@@ -513,7 +514,7 @@ public partial class MainWindowViewModel
 
     private async Task RescanAllAssetsAsync()
     {
-        // Offload recursion to background thread
+        // Offload recursion and filesystem scanning to a background thread.
         await Task.Run(async () => 
         { 
             foreach (var rootNode in RootItems) 
@@ -527,16 +528,45 @@ public partial class MainWindowViewModel
     {
         var nodePath = PathHelper.GetNodePath(node, RootItems);
         
-        foreach (var item in node.Items)
+        // 1) Scan assets off the UI thread (filesystem only).
+        var scanned = await Task.Run(() =>
         {
-            // UI-Thread-Switch nur für den Schreibzugriff auf die Collection
-            await Dispatcher.UIThread.InvokeAsync(() => 
+            var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(node.Items.Count);
+
+            foreach (var item in node.Items)
             {
-                _fileService.RefreshItemAssets(item, nodePath);
+                var assets = _fileService.ScanItemAssets(item, nodePath);
+                list.Add((item, assets));
+            }
+
+            return list;
+        });
+
+        // 2) Apply results on UI thread in batches to keep the UI responsive for very large nodes.
+        const int batchSize = 500;
+        for (int i = 0; i < scanned.Count; i += batchSize)
+        {
+            var start = i;
+            var count = Math.Min(batchSize, scanned.Count - start);
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                for (int j = start; j < start + count; j++)
+                {
+                    var (item, assets) = scanned[j];
+
+                    item.Assets.Clear();
+                    foreach (var asset in assets)
+                        item.Assets.Add(asset);
+                }
             });
+
+            // Yield between batches so the UI can process input/layout/render.
+            await Task.Yield();
         }
-        
-        foreach (var child in node.Children) 
+
+        // 3) Recurse children
+        foreach (var child in node.Children)
         {
             await RescanNodeRecursive(child);
         }

@@ -11,19 +11,26 @@ namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
-    private const int PreviewDebounceMs = 150;
+    private static readonly TimeSpan PreviewDebounceDelay = TimeSpan.FromMilliseconds(150);
+    private static readonly TimeSpan VideoFadeOutDelay = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan VideoStartSettleDelay = TimeSpan.FromMilliseconds(75);
+    private static readonly TimeSpan StopWaitTimeout = TimeSpan.FromMilliseconds(750);
     
-    // verhindert, dass alte "Play nach Render"-Tasks später doch noch loslaufen
+    // Cache limits (soft caps) to avoid unbounded growth in very large libraries.
+    private const int MaxItemVideoCacheEntries = 10_000;
+    private const int MaxNodeVideoCacheEntries = 2_000;
+
+    // Prevent old "play after render" tasks from starting late.
     private int _previewPlayGeneration;
 
-    // IMPORTANT: keep Media alive while VLC is playing it, otherwise you'll get freezes/standbilder
+    // IMPORTANT: Keep Media alive while VLC is using it, otherwise playback can freeze.
     private Media? _currentPreviewMedia;
-    
-    // verhindert, dass ein alter Fade-Task später das Overlay „wegschaltet“, obwohl wieder Video läuft
+
+    // Prevent old fade tasks from hiding the overlay after a new playback started.
     private int _overlayFadeGeneration;
-    
-    private const int VideoFadeOutMs = 250;
-    
+
+    private CancellationTokenSource? _previewDebounceCts;
+
     /// <summary>
     /// Must be called by the host once the theme view is fully loaded/layouted.
     /// If LibVLC starts playback too early, it may create its own output window (platform-dependent).
@@ -33,74 +40,63 @@ public partial class BigModeViewModel
         if (_isViewReady) return;
         _isViewReady = true;
 
-        // Nach dem Ready-Signal die Wiedergabe für die aktuelle Auswahl anstoßen
+        // After the view is ready, start preview for the current selection.
         TriggerPreviewPlayback();
     }
 
     /// <summary>
-    /// Muss vor einem Theme/View-Swap aufgerufen werden, damit LibVLC nicht in ein externes Fenster fällt,
-    /// während die alte VideoView aus dem VisualTree entfernt wird.
+    /// Must be called before swapping the theme view, otherwise LibVLC may detach and spawn its own output window.
     /// </summary>
     public async Task PrepareForThemeSwapAsync()
     {
         _isViewReady = false;
 
-        // Kill pending debounce/play tasks
-        _previewCts?.Cancel();
-        _previewCts = null;
+        // Cancel any pending debounce/play tasks.
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts = null;
 
-        // Stop + invalidate delayed play tasks
         StopVideo();
 
-        // WICHTIG: StopVideo() ist nicht zwingend "sofort fertig" auf LibVLC-Seite.
-        // Wir warten defensiv kurz, bis VLC wirklich nicht mehr spielt.
+        // StopVideo() may not be fully "settled" in LibVLC immediately.
+        // Wait defensively for a short time until playback is confirmed stopped.
         var mp = MediaPlayer;
         if (mp != null)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < 750)
+            while (sw.Elapsed < StopWaitTimeout)
             {
-                if (!(mp.IsPlaying))
+                if (!mp.IsPlaying)
                     break;
 
-                await Task.Delay(25);
+                await Task.Delay(25).ConfigureAwait(false);
             }
         }
 
-        // Zusätzlich 1 Render-Tick, damit Avalonia das "Detach/Dispose" sauber durcharbeitet,
-        // bevor wir die Root-View austauschen.
+        // One render tick to let Avalonia process detach/layout before the root view swap.
         await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
     }
-    
-    // Theme-Kontext-Wechsel bedeutet: Die Host-View wird gleich neu gebaut.
-    // Deshalb darf VLC bis zum nächsten NotifyViewReady() NICHT starten.
+
     partial void OnThemeContextNodeChanged(MediaNode? value)
     {
-        // laufende / geplante Preview sofort killen
-        _previewCts?.Cancel();
-        _previewCts = null;
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts = null;
 
-        // Preview für die aktuelle Auswahl neu anstoßen
         TriggerPreviewPlaybackWithDebounce();
     }
-    
+
     partial void OnSelectedItemChanged(MediaItem? value)
     {
-        // Dieser Handler aktualisiert nur noch den Index für externe Änderungen.
-        // Er löst KEINE Wiedergabe mehr aus. Das verhindert doppelte Aufrufe.
         if (value == null)
         {
             SelectedItemIndex = -1;
         }
         else
         {
-            // O(n) nur für Mausklicks etc.
+            // O(n) only for external selection changes (mouse/touch).
             var idx = Items.IndexOf(value);
             if (idx >= 0) SelectedItemIndex = idx;
         }
-        
-        // Wiedergabe wird durch den Aufrufer (z.B. SelectNext/Previous) gesteuert
-        // oder durch den Debounce-Mechanismus für externe Änderungen.
+
         TriggerPreviewPlaybackWithDebounce();
     }
 
@@ -112,64 +108,93 @@ public partial class BigModeViewModel
         }
         else
         {
-            // This is O(n), but it only runs when the selection changes externally.
-            // Navigation via controller will be O(1).
+            // O(n) only for external selection changes (mouse/touch).
             _selectedCategoryIndex = CurrentCategories.IndexOf(value);
         }
-        
+
         TriggerPreviewPlaybackWithDebounce();
     }
-    
+
+    partial void OnIsGameListActiveChanged(bool value)
+    {
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts = null;
+
+        StopVideo();
+        TriggerPreviewPlaybackWithDebounce();
+    }
+
     /// <summary>
-    /// Kapselt die Debounce-Logik. Kann von überall sicher aufgerufen werden.
+    /// Debounced entry point. Safe to call frequently (scrolling / key repeat).
+    /// Schedules the work on the UI thread without allocating extra thread-pool tasks.
     /// </summary>
     private void TriggerPreviewPlaybackWithDebounce()
     {
-        if (!_isViewReady || _isLaunching) return;
+        if (!_isViewReady || _isLaunching)
+            return;
 
-        // Theme hat keinen VideoSlot -> Video sicher aus
+        // Theme capability: if video is not allowed, ensure preview is stopped.
         if (!CanShowVideo)
         {
             StopVideo();
             return;
         }
-        
-        _previewCts?.Cancel();
-        _previewCts = new CancellationTokenSource();
-        var token = _previewCts.Token;
 
-        _ = Task.Run(async () =>
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts = new CancellationTokenSource();
+        var token = _previewDebounceCts.Token;
+
+        Dispatcher.UIThread.Post(async () =>
         {
-            try { await Task.Delay(PreviewDebounceMs, token); }
-            catch { return; }
+            try
+            {
+                await Task.Delay(PreviewDebounceDelay, token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
 
-            if (token.IsCancellationRequested) return;
+            if (token.IsCancellationRequested)
+                return;
 
-            // Die eigentliche Wiedergabe wird sicher über den Dispatcher aufgerufen
-            await Dispatcher.UIThread.InvokeAsync(TriggerPreviewPlayback, DispatcherPriority.Background);
-        });
+            TriggerPreviewPlayback();
+        }, DispatcherPriority.Background);
     }
-    
+
     /// <summary>
-    /// Löst die Wiedergabe für die aktuelle Auswahl aus. Muss auf dem UI-Thread aufgerufen werden.
+    /// Starts preview playback for the current selection. Must run on the UI thread.
     /// </summary>
     private void TriggerPreviewPlayback()
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(TriggerPreviewPlayback, DispatcherPriority.Background);
+            return;
+        }
+
         if (IsGameListActive)
         {
-            PlayPreview(SelectedItem);
+            var videoPath = ResolveItemVideoPath(SelectedItem);
+            PlayPreviewForPath(videoPath);
         }
         else
         {
-            PlayCategoryPreview(SelectedCategory);
+            var videoPath = ResolveNodeVideoPath(SelectedCategory);
+            PlayPreviewForPath(videoPath);
         }
     }
-    
-    private string? ResolveItemVideoPath(MediaItem item)
+
+    private string? ResolveItemVideoPath(MediaItem? item)
     {
+        if (item == null) return null;
+
         if (_itemVideoPathCache.TryGetValue(item.Id, out var cached))
             return cached;
 
+        if (_itemVideoPathCache.Count > MaxItemVideoCacheEntries)
+            _itemVideoPathCache.Clear();
+        
         string? videoPath = null;
 
         var relativeVideoPath = item.GetPrimaryAssetPath(AssetType.Video);
@@ -180,7 +205,7 @@ public partial class BigModeViewModel
                 videoPath = candidate;
         }
 
-        // Fallback: "<romname>.mp4" next to the ROM file
+        // Fallback: "<romname>.mp4" next to the ROM file.
         if (videoPath == null && !string.IsNullOrEmpty(item.FilePath))
         {
             try
@@ -196,7 +221,7 @@ public partial class BigModeViewModel
             }
             catch
             {
-                // Best-effort only
+                // best-effort only
             }
         }
 
@@ -204,15 +229,20 @@ public partial class BigModeViewModel
         return videoPath;
     }
 
-    private string? ResolveNodeVideoPath(MediaNode node)
+    private string? ResolveNodeVideoPath(MediaNode? node)
     {
+        if (node == null) return null;
+
         if (_nodeVideoPathCache.TryGetValue(node.Id, out var cached))
             return cached;
 
+        if (_nodeVideoPathCache.Count > MaxNodeVideoCacheEntries)
+            _nodeVideoPathCache.Clear();
+        
         string? videoPath = null;
 
         var videoAsset = node.Assets.FirstOrDefault(a => a.Type == AssetType.Video);
-        if (videoAsset != null && !string.IsNullOrEmpty(videoAsset.RelativePath))
+        if (!string.IsNullOrEmpty(videoAsset?.RelativePath))
         {
             var candidate = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, videoAsset.RelativePath);
             if (File.Exists(candidate))
@@ -222,85 +252,34 @@ public partial class BigModeViewModel
         _nodeVideoPathCache[node.Id] = videoPath;
         return videoPath;
     }
-    
-    private void PlayPreview(MediaItem? item)
+
+    private void PlayPreviewForPath(string? videoPath)
     {
-        if (!CanShowVideo)
-        {
-            StopVideo();
-            return;
-        }
-        
-        // Die Logik hier ist jetzt sicher, da sie immer vom UI-Thread aufgerufen wird.
-        if (!_isViewReady || _isLaunching || MediaPlayer == null || item == null)
+        if (!CanShowVideo || !_isViewReady || _isLaunching || MediaPlayer == null)
         {
             StopVideo();
             return;
         }
 
-        var videoToPlay = ResolveItemVideoPath(item);
-        if (string.IsNullOrEmpty(videoToPlay))
+        if (string.IsNullOrEmpty(videoPath))
         {
             StopVideo();
             return;
         }
 
-        if (string.Equals(_currentPreviewVideoPath, videoToPlay, StringComparison.OrdinalIgnoreCase) && MediaPlayer.IsPlaying)
+        if (string.Equals(_currentPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase) && MediaPlayer.IsPlaying)
             return;
 
-        _currentPreviewVideoPath = videoToPlay;
-        
-        // Overlay muss existieren, bevor wir sichtbar werden (für sauberes Fade-In)
-        IsVideoOverlayVisible = true;
-        
-        // Start at 0 opacity, then fade in on next render tick (prevents 1-frame flashes)
-        IsVideoVisible = false;
+        _currentPreviewVideoPath = videoPath;
 
-        var gen = Interlocked.Increment(ref _previewPlayGeneration);
-        _ = StartPlaybackAfterRenderAsync(videoToPlay, gen);
-
-        // Trigger the fade-in asynchronously (UI thread)
-        Dispatcher.UIThread.Post(() =>
-        {
-            // Only fade in if this playback is still the current one
-            if (gen == Volatile.Read(ref _previewPlayGeneration) && IsVideoOverlayVisible)
-                IsVideoVisible = true;
-        }, DispatcherPriority.Render);
-    }
-
-    private void PlayCategoryPreview(MediaNode? node)
-    {
-        if (!CanShowVideo)
-        {
-            StopVideo();
-            return;
-        }
-        
-        // Diese Methode ist jetzt ebenfalls sicher.
-        if (!_isViewReady || _isLaunching || MediaPlayer == null || node == null)
-        {
-            StopVideo();
-            return;
-        }
-        
-        var videoToPlay = ResolveNodeVideoPath(node);
-        if (string.IsNullOrEmpty(videoToPlay))
-        {
-            StopVideo();
-            return;
-        }
-
-        if (string.Equals(_currentPreviewVideoPath, videoToPlay, StringComparison.OrdinalIgnoreCase) && MediaPlayer.IsPlaying) return;
-
-        _currentPreviewVideoPath = videoToPlay;
-        
-        // Overlay muss existieren, bevor wir sichtbar werden (für sauberes Fade-In)
+        // Ensure the overlay exists before fading in.
         IsVideoOverlayVisible = true;
         IsVideoVisible = false;
 
         var gen = Interlocked.Increment(ref _previewPlayGeneration);
-        _ = StartPlaybackAfterRenderAsync(videoToPlay, gen);
+        _ = StartPlaybackAfterRenderAsync(videoPath, gen);
 
+        // Fade in after the next render tick to avoid one-frame flashes.
         Dispatcher.UIThread.Post(() =>
         {
             if (gen == Volatile.Read(ref _previewPlayGeneration) && IsVideoOverlayVisible)
@@ -308,75 +287,53 @@ public partial class BigModeViewModel
         }, DispatcherPriority.Render);
     }
 
-    /// <summary>
-    /// If the view mode changes (categories <-> games), we reset preview deterministically.
-    /// This avoids "old media in new mode" edge cases.
-    /// </summary>
-    partial void OnIsGameListActiveChanged(bool value)
-    {
-        // Any pending debounced plays are no longer relevant
-        _previewCts?.Cancel();
-        _previewCts = null;
-
-        StopVideo();
-
-        // If the view is ready, start the correct preview for the new mode
-        TriggerPreviewPlaybackWithDebounce();
-    }
-    
     private async Task StartPlaybackAfterRenderAsync(string videoPath, int generation)
     {
-        // 1) Ein Render-Tick, damit VideoView sicher im Visual Tree hängt.
-        await Dispatcher.UIThread.InvokeAsync(
-            static () => { },
-            DispatcherPriority.Render);
+        await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
 
-        // 2) Extra Delay: Wayland/XWayland + VLC Embedding braucht oft "settle time"
-        await Task.Delay(75);
-        
-        // 3) Falls inzwischen was anderes selektiert wurde: abbrechen
+        await Task.Delay(VideoStartSettleDelay).ConfigureAwait(false);
+
         if (generation != Volatile.Read(ref _previewPlayGeneration))
             return;
 
         if (!_isViewReady || _isLaunching || MediaPlayer == null)
             return;
 
-        // Wenn inzwischen "kein Video" aktiv ist, abbrechen
         if (!string.Equals(_currentPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase))
             return;
 
         try
         {
-            // Dispose previous media deterministically
             _currentPreviewMedia?.Dispose();
             _currentPreviewMedia = null;
 
             var media = new Media(_libVlc, new Uri(videoPath));
             _currentPreviewMedia = media;
 
-            // Prefer setting MediaPlayer.Media so VLC holds a stable reference
             MediaPlayer.Media = media;
             MediaPlayer.Play();
         }
         catch
         {
-            // Best-effort: Preview darf nie crashen
+            // Best-effort: preview must never crash the UI.
         }
     }
-    
+
     private void StopVideo()
     {
-        // Invalidate pending "play after render" tasks
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(StopVideo, DispatcherPriority.Background);
+            return;
+        }
+
         Interlocked.Increment(ref _previewPlayGeneration);
 
-        // Cancel pending debounces first so we don't restart immediately
-        _previewCts?.Cancel();
-        _previewCts = null;
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts = null;
 
-        // 1) Fade out (Opacity -> 0)
         IsVideoVisible = false;
 
-        // 2) Schedule hard hide after fade-out
         var fadeGen = Interlocked.Increment(ref _overlayFadeGeneration);
         _ = HideOverlayAfterFadeAsync(fadeGen);
 
@@ -387,16 +344,14 @@ public partial class BigModeViewModel
                 if (MediaPlayer.IsPlaying)
                     MediaPlayer.Stop();
 
-                // Clear VLC-side media reference
                 MediaPlayer.Media = null;
             }
         }
         catch
         {
-            // Best-effort only
+            // best-effort only
         }
 
-        // Now dispose the managed Media instance we created
         try
         {
             _currentPreviewMedia?.Dispose();
@@ -412,19 +367,18 @@ public partial class BigModeViewModel
 
         _currentPreviewVideoPath = null;
     }
-    
+
     private async Task HideOverlayAfterFadeAsync(int generation)
     {
         try
         {
-            await Task.Delay(VideoFadeOutMs);
+            await Task.Delay(VideoFadeOutDelay).ConfigureAwait(false);
         }
         catch
         {
             return;
         }
 
-        // Wenn inzwischen wieder Video läuft oder ein neuer Fade gestartet wurde -> nicht verstecken
         if (generation != Volatile.Read(ref _overlayFadeGeneration))
             return;
 
@@ -433,7 +387,6 @@ public partial class BigModeViewModel
 
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            // Doppelt absichern: wirklich nur ausblenden, wenn weiterhin unsichtbar
             if (!IsVideoVisible)
                 IsVideoOverlayVisible = false;
         }, DispatcherPriority.Background);

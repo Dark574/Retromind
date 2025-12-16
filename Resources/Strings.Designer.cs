@@ -51,6 +51,12 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string BigMode_MainMenu {
+            get {
+                return ResourceManager.GetString("BigMode_MainMenu", resourceCulture);
+            }
+        }
+        
         public static string Button_Cancel {
             get {
                 return ResourceManager.GetString("Button.Cancel", resourceCulture);
@@ -396,6 +402,36 @@ namespace Retromind.Resources {
         public static string Dialog_ImportAssetTitle {
             get {
                 return ResourceManager.GetString("Dialog_ImportAssetTitle", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_FileExtensionsPrompt {
+            get {
+                return ResourceManager.GetString("Dialog_FileExtensionsPrompt", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_NoSteamGamesFound {
+            get {
+                return ResourceManager.GetString("Dialog_NoSteamGamesFound", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_ConfirmImportSteamFormat {
+            get {
+                return ResourceManager.GetString("Dialog_ConfirmImportSteamFormat", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_NoGogInstallationsFound {
+            get {
+                return ResourceManager.GetString("Dialog_NoGogInstallationsFound", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_ConfirmImportGogFormat {
+            get {
+                return ResourceManager.GetString("Dialog_ConfirmImportGogFormat", resourceCulture);
             }
         }
         

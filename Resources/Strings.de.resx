@@ -28,6 +28,9 @@
     <!-- APP -->
     <data name="App.Title" xml:space="preserve"><value>Retromind</value></data>
 
+    <!-- BIGMODE -->
+    <data name="BigMode_MainMenu" xml:space="preserve"><value>Hauptmenü</value></data>
+    
     <!-- BUTTONS -->
     <data name="Button.Cancel" xml:space="preserve"><value>Abbrechen</value></data>
     <data name="Button.Edit" xml:space="preserve"><value>Bearbeiten</value></data>
@@ -93,6 +96,11 @@
     <data name="Dialog.Select.Wallpaper" xml:space="preserve"><value>Wallpaper auswählen</value></data>
     <data name="Dialog.TitleSearch" xml:space="preserve"><value>Titel suchen...</value></data>
     <data name="Dialog_ImportAssetTitle" xml:space="preserve"><value>Importiere {0}</value></data>
+    <data name="Dialog_FileExtensionsPrompt" xml:space="preserve"><value>Dateiendungen (kommagetrennt):</value></data>
+    <data name="Dialog_NoSteamGamesFound" xml:space="preserve"><value>Keine Steam-Spiele gefunden.</value></data>
+    <data name="Dialog_ConfirmImportSteamFormat" xml:space="preserve"><value>{0} Steam-Spiele gefunden. In '{1}' importieren?</value></data>
+    <data name="Dialog_NoGogInstallationsFound" xml:space="preserve"><value>Keine Heroic/GOG-Installationen gefunden.</value></data>
+    <data name="Dialog_ConfirmImportGogFormat" xml:space="preserve"><value>{0} GOG-Spiele gefunden. Importieren?</value></data>
 
     <!-- FILETYPE -->
     <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>

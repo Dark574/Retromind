@@ -7,10 +7,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
-using Retromind.Extensions;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
@@ -91,61 +89,47 @@ public partial class MainWindowViewModel
 
     private void EnterBigMode()
     {
-        Debug.WriteLine("[DEBUG] EnterBigMode called.");
+        Debug.WriteLine("[CoreApp] EnterBigMode requested.");
 
-        // 1. MUSIK STOPPEN!
+        // Stop music immediately to avoid overlap and to keep the UI responsive.
         _audioService.StopMusic();
 
-        // Logik, um das korrekte Theme zu bestimmen
-        string themePath = GetEffectiveThemePath(SelectedNode);
+        var initialThemePath = GetEffectiveThemePath(SelectedNode);
+        var initialTheme = ThemeLoader.LoadTheme(initialThemePath);
 
-        // Lade das Theme-Objekt, das sowohl die View als auch die Sound-Pfade enthält
-        var theme = ThemeLoader.LoadTheme(themePath);
-
-        // Merken, welches Theme gerade aktiv ist
-        string currentThemePath = themePath;
-
-        // Erstelle das BigModeViewModel und übergebe alle benötigten Abhängigkeiten
         var bigVm = new BigModeViewModel(
             RootItems,
             _currentSettings,
-            theme,               // Das geladene Theme-Objekt
-            _soundEffectService, // Der Service für Sound-Effekte
-            _gamepadService);    // Der Gamepad-Service
+            initialTheme,
+            _soundEffectService,
+            _gamepadService);
 
-        // STABILER HOST: bleibt konstant, Themes werden nur in ContentPresenter getauscht
         var host = new BigModeHostView
         {
             DataContext = bigVm,
             Focusable = true
         };
 
-        // Wichtig: erst Host als FullScreenContent setzen, dann Theme content setzen (attach/layout ist stabiler)
+        // Show the host first, then inject the theme view (more stable attach/layout behavior).
         FullScreenContent = host;
-
-        host.SetThemeContent(theme.View, theme);
+        host.SetThemeContent(initialTheme.View, initialTheme);
         host.Focus();
 
-        // schützt vor out-of-order async Theme-Swaps (hoch/runter spammen)
+        // Prevent out-of-order theme swaps when the user navigates quickly.
         var themeSwapGeneration = 0;
+        var currentThemePath = initialThemePath;
 
-        // Keep reference so we can unhook it on close
-        System.ComponentModel.PropertyChangedEventHandler? themeChangedHandler = null;
-
-        themeChangedHandler = (sender, args) =>
+        async Task SwapThemeIfNeededAsync()
         {
-            if (args.PropertyName != nameof(BigModeViewModel.ThemeContextNode))
-                return;
-
             var newThemePath = GetEffectiveThemePath(bigVm.ThemeContextNode);
             if (newThemePath == currentThemePath)
                 return;
 
             currentThemePath = newThemePath;
-
             var myGeneration = ++themeSwapGeneration;
 
-            _ = Dispatcher.UIThread.InvokeAsync(async () =>
+            // Marshal to UI thread (theme swap touches visual tree / VM state).
+            await Dispatcher.UIThread.InvokeAsync(async () =>
             {
                 if (myGeneration != themeSwapGeneration)
                     return;
@@ -158,15 +142,22 @@ public partial class MainWindowViewModel
                 var newTheme = ThemeLoader.LoadTheme(newThemePath);
                 bigVm.UpdateTheme(newTheme);
 
-                // Host handles DataContext + ViewReady timing
                 host.SetThemeContent(newTheme.View, newTheme);
                 host.Focus();
             });
+        }
+
+        System.ComponentModel.PropertyChangedEventHandler? themeChangedHandler = null;
+        themeChangedHandler = (_, args) =>
+        {
+            if (args.PropertyName != nameof(BigModeViewModel.ThemeContextNode))
+                return;
+
+            _ = SwapThemeIfNeededAsync();
         };
-        
         bigVm.PropertyChanged += themeChangedHandler;
 
-        // Close wiring: exit BigMode deterministically + cleanup handlers + sync selection back
+        // Close wiring: exit BigMode deterministically + cleanup handlers + sync selection back.
         bigVm.RequestClose += async () =>
         {
             await Dispatcher.UIThread.InvokeAsync(async () =>
@@ -179,7 +170,6 @@ public partial class MainWindowViewModel
                     FullScreenContent = null;
 
                     bigVm.Dispose();
-
                     await SyncSelectionFromBigModeAsync();
                 }
                 catch (Exception ex)
@@ -189,6 +179,7 @@ public partial class MainWindowViewModel
             });
         };
 
+        // Cache refresh hook (optional, safe).
         bigVm.InvalidatePreviewCaches(stopCurrentPreview: false);
 
         if (bigVm.CurrentCategories.Any() && bigVm.SelectedCategory == null)
@@ -197,11 +188,9 @@ public partial class MainWindowViewModel
     
     private void UpdateBigModeStateFromCoreSelection(MediaNode node, MediaItem? selectedItem)
     {
-        // Pfad Root -> node bestimmen
-        var chain = GetNodeChain(node, RootItems); // existiert bereits bei dir
-        var pathIds = chain.Select(n => n.Id).ToList();
-
-        _currentSettings.LastBigModeNavigationPath = pathIds;
+        // Build the root-to-node chain and persist it for BigMode restore.
+        var chain = GetNodeChain(node, RootItems);
+        _currentSettings.LastBigModeNavigationPath = chain.Select(n => n.Id).ToList();
 
         if (selectedItem != null)
         {
@@ -210,15 +199,13 @@ public partial class MainWindowViewModel
         }
         else
         {
-            // Wenn der Node ein "Leaf" mit Spielen ist, soll BigMode direkt die Spieleliste öffnen.
-            var isLeaf = node.Children == null || node.Children.Count == 0;
-            var hasItems = node.Items != null && node.Items.Count > 0;
+            // If the node is a leaf with items, BigMode should directly open the item list.
+            var isLeaf = node.Children.Count == 0;
+            var hasItems = node.Items.Count > 0;
 
             if (isLeaf && hasItems)
             {
                 _currentSettings.LastBigModeWasItemView = true;
-
-                // Kein konkretes Item ausgewählt -> BigMode nimmt dann beim Restore das erste Item als Fallback.
                 _currentSettings.LastBigModeSelectedNodeId = null;
             }
             else
@@ -353,35 +340,40 @@ public partial class MainWindowViewModel
         await SaveData();
     }
 
-    // Helfer-Methode, um das Theme für einen Node zu finden
+    private const string ThemesFolderName = "Themes";
+    private const string DefaultThemeFolderName = "Default";
+    private const string ThemeFileName = "theme.axaml";
+
+    /// <summary>
+    /// Resolves the effective theme file path for a given node:
+    /// searches upwards (node -> parents) for the first ThemePath assignment,
+    /// otherwise returns the default theme.
+    /// </summary>
     private string GetEffectiveThemePath(MediaNode? startNode)
     {
         if (startNode != null)
         {
-            // Finde die Kette von Nodes von der Wurzel bis zum aktuellen Node
+            // Find the chain from root to the node and search bottom-up for an assigned theme.
             var nodeChain = GetNodeChain(startNode, RootItems);
-            nodeChain.Reverse(); // Von unten nach oben durchsuchen
+            nodeChain.Reverse();
 
-            // Suche den ersten Node in der Kette (vom aktuellen aufwärts), der einen ThemePath hat
             foreach (var node in nodeChain)
             {
-                if (!string.IsNullOrWhiteSpace(node.ThemePath))
-                {
-                    var themeFileName = "theme.axaml";
-                    var fullPath = Path.Combine(AppContext.BaseDirectory, "Themes", node.ThemePath, themeFileName);
-                    Debug.WriteLine($"[Theme] Found assigned theme for node '{node.Name}': {fullPath}");
-                    if (File.Exists(fullPath))
-                    {
-                        return fullPath;
-                    }
-                    Debug.WriteLine($"[Theme] WARNING: Assigned theme file does not exist at '{fullPath}'");
-                }
+                if (string.IsNullOrWhiteSpace(node.ThemePath))
+                    continue;
+
+                var fullPath = Path.Combine(AppContext.BaseDirectory, ThemesFolderName, node.ThemePath, ThemeFileName);
+
+                if (File.Exists(fullPath))
+                    return fullPath;
+
+                Debug.WriteLine($"[Theme] Assigned theme file not found: '{fullPath}'.");
             }
         }
 
-        // Fallback: Wenn kein Theme gefunden wurde, nimm das Default-Theme
-        var fallbackThemePath = Path.Combine(AppContext.BaseDirectory, "Themes", "Default", "theme.axaml");
-        Debug.WriteLine($"[Theme] No assigned theme found, using fallback: {fallbackThemePath}"); // DEBUG
+        // Fallback: default theme.
+        var fallbackThemePath = Path.Combine(AppContext.BaseDirectory, ThemesFolderName, DefaultThemeFolderName, ThemeFileName);
+        Debug.WriteLine($"[Theme] No assigned theme found, using fallback: {fallbackThemePath}");
         return fallbackThemePath;
     }
 

@@ -1,63 +1,79 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Linq;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Models;
+using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
     private void OnGamepadUp()
-    {
-        PlaySound(_theme.Sounds.Navigate);
-        SelectPrevious();
-    }
-    
+        => DispatchGamepadAction(() =>
+        {
+            PlaySound(_theme.Sounds.Navigate);
+            SelectPrevious();
+        });
+
     private void OnGamepadDown()
-    {
-        PlaySound(_theme.Sounds.Navigate);
-        SelectNext();
-    }
+        => DispatchGamepadAction(() =>
+        {
+            PlaySound(_theme.Sounds.Navigate);
+            SelectNext();
+        });
 
     private void OnGamepadLeft()
-    {
-        PlaySound(_theme.Sounds.Navigate);
-        SelectPrevious(); // Standardmäßig wie "Hoch"
-    }
+        => DispatchGamepadAction(() =>
+        {
+            PlaySound(_theme.Sounds.Navigate);
+            // Default mapping: left behaves like "previous".
+            SelectPrevious();
+        });
 
     private void OnGamepadRight()
-    {
-        PlaySound(_theme.Sounds.Navigate);
-        SelectNext(); // Standardmäßig wie "Runter"
-    }
+        => DispatchGamepadAction(() =>
+        {
+            PlaySound(_theme.Sounds.Navigate);
+            // Default mapping: right behaves like "next".
+            SelectNext();
+        });
 
-    private async void OnGamepadSelect()
-    {
-        PlaySound(_theme.Sounds.Confirm);
-        await PlayCurrent();
-    }
+    private void OnGamepadSelect()
+        => DispatchGamepadAction(() =>
+        {
+            PlaySound(_theme.Sounds.Confirm);
+            _ = PlayCurrent();
+        });
 
     private void OnGamepadBack()
+        => DispatchGamepadAction(() =>
+        {
+            PlaySound(_theme.Sounds.Cancel);
+            ExitBigMode();
+        });
+
+    /// <summary>
+    /// Gamepad callbacks arrive on the SDL thread.
+    /// All UI-bound state changes must be marshaled to the UI thread.
+    /// </summary>
+    private static void DispatchGamepadAction(System.Action action)
     {
-        PlaySound(_theme.Sounds.Cancel);
-        ExitBigMode();
+        Dispatcher.UIThread.Post(action, DispatcherPriority.Input);
     }
-    
-    // --- Sound-Helfermethode ---
-    
+
     private void PlaySound(string? relativeSoundPath)
     {
-        if (string.IsNullOrEmpty(relativeSoundPath)) return;
-    
-        // _theme.BasePath wird vom ThemeLoader gesetzt und ist der Pfad zum Theme-Verzeichnis
+        if (string.IsNullOrWhiteSpace(relativeSoundPath))
+            return;
+
+        // Theme.BasePath is the theme directory as provided by ThemeLoader.
         var fullPath = Path.Combine(_theme.BasePath, relativeSoundPath);
         _soundEffectService.PlaySound(fullPath);
     }
-    
+
     [RelayCommand]
     private void SelectPrevious()
     {
@@ -67,31 +83,28 @@ public partial class BigModeViewModel
         {
             if (Items.Count == 0) return;
 
-            // Wenn nichts ausgewählt ist, starte beim letzten Element.
-            if (SelectedItemIndex < 0) SelectedItemIndex = 0;
-            
-            // Kompakte Logik für "zurück mit Umbruch"
-            SelectedItemIndex = (SelectedItemIndex - 1 + Items.Count) % Items.Count;
+            if (SelectedItemIndex < 0)
+                SelectedItemIndex = 0;
 
+            // Wrap-around navigation.
+            SelectedItemIndex = (SelectedItemIndex - 1 + Items.Count) % Items.Count;
             SelectedItem = Items[SelectedItemIndex];
         }
         else
         {
             if (CurrentCategories.Count == 0) return;
 
-            // Wenn nichts ausgewählt ist, starte beim letzten Element.
-            if (_selectedCategoryIndex < 0) _selectedCategoryIndex = 0;
+            if (_selectedCategoryIndex < 0)
+                _selectedCategoryIndex = 0;
 
-            // Kompakte Logik für "zurück mit Umbruch"
+            // Wrap-around navigation.
             _selectedCategoryIndex = (_selectedCategoryIndex - 1 + CurrentCategories.Count) % CurrentCategories.Count;
-
             SelectedCategory = CurrentCategories[_selectedCategoryIndex];
         }
 
+        // Defensive fallback (should rarely be needed).
         if (SelectedCategory == null && CurrentCategories.Any())
-        {
             SelectedCategory = CurrentCategories.First();
-        }
     }
 
     [RelayCommand]
@@ -103,32 +116,28 @@ public partial class BigModeViewModel
         {
             if (Items.Count == 0) return;
 
-            // Wenn nichts ausgewählt ist, starte beim ersten Element.
-            if (SelectedItemIndex < 0) SelectedItemIndex = 0;
-            
-            // Kompakte Logik für "vorwärts mit Umbruch"
-            SelectedItemIndex = (SelectedItemIndex + 1) % Items.Count;
+            if (SelectedItemIndex < 0)
+                SelectedItemIndex = 0;
 
+            // Wrap-around navigation.
+            SelectedItemIndex = (SelectedItemIndex + 1) % Items.Count;
             SelectedItem = Items[SelectedItemIndex];
         }
         else
         {
             if (CurrentCategories.Count == 0) return;
 
-            // Wenn nichts ausgewählt ist, starte beim ersten Element.
-            if (_selectedCategoryIndex < 0) _selectedCategoryIndex = 0;
+            if (_selectedCategoryIndex < 0)
+                _selectedCategoryIndex = 0;
 
-            // Kompakte Logik für "vorwärts mit Umbruch"
+            // Wrap-around navigation.
             _selectedCategoryIndex = (_selectedCategoryIndex + 1) % CurrentCategories.Count;
-
             SelectedCategory = CurrentCategories[_selectedCategoryIndex];
         }
-        
-        // Nach Wechsel sicherstellen, dass erstes Item initial selected wird
+
+        // Defensive fallback (should rarely be needed).
         if (SelectedCategory == null && CurrentCategories.Any())
-        {
             SelectedCategory = CurrentCategories.First();
-        }
     }
 
     [RelayCommand]
@@ -136,7 +145,7 @@ public partial class BigModeViewModel
     {
         if (_isLaunching) return;
 
-        // Category view: Enter folder (children) OR switch into game list (items).
+        // Category view: enter folder (children) or switch into game list (items).
         if (!IsGameListActive)
         {
             if (SelectedCategory == null) return;
@@ -145,32 +154,28 @@ public partial class BigModeViewModel
 
             if (node.Children is { Count: > 0 })
             {
-                // Push current state so ExitBigMode can navigate back.
                 _navigationStack.Push(CurrentCategories);
                 _titleStack.Push(CategoryTitle);
                 _navigationPath.Push(node);
 
                 CategoryTitle = node.Name;
                 CurrentCategories = node.Children;
-                
-                // Theme-Kontext ist jetzt dieser Ordner
+
+                // Theme context becomes the current node.
                 ThemeContextNode = node;
 
-                // Selection synchron setzen (kein fire-and-forget)
                 SelectedCategory = CurrentCategories.FirstOrDefault();
 
-                // Preview einheitlich über Debounce/Dispatcher
                 TriggerPreviewPlaybackWithDebounce();
                 return;
             }
 
             if (node.Items is { Count: > 0 })
             {
-                // Push current state auch für GameList-Wechsel, um Ebene zu merken
                 _navigationStack.Push(CurrentCategories);
                 _titleStack.Push(CategoryTitle);
-                
-                // Ensure the leaf node is part of the navigation path for persistence/restore.
+
+                // Ensure leaf is part of the navigation path for persistence/restore.
                 if (_navigationPath.Count == 0 || _navigationPath.Peek() != node)
                     _navigationPath.Push(node);
 
@@ -180,12 +185,11 @@ public partial class BigModeViewModel
                 Items = node.Items;
                 IsGameListActive = true;
 
-                // WICHTIG: Auch bei Leaf/Items ist der Theme-Kontext dieser Node!
+                // Theme context is also the leaf node.
                 ThemeContextNode = node;
-                
+
                 SelectedItem = Items.FirstOrDefault();
 
-                // Preview einheitlich
                 TriggerPreviewPlaybackWithDebounce();
                 return;
             }
@@ -193,17 +197,16 @@ public partial class BigModeViewModel
             return;
         }
 
-        // Game view: Launch the selected game.
+        // Game view: launch the selected item.
         if (SelectedItem == null) return;
 
         _isLaunching = true;
+
         StopVideo();
-        _previewCts?.Cancel();
+        _previewDebounceCts?.Cancel();
 
         if (RequestPlay != null)
-        {
             await RequestPlay(SelectedItem);
-        }
 
         _isLaunching = false;
 
@@ -218,31 +221,28 @@ public partial class BigModeViewModel
         if (IsGameListActive)
         {
             IsGameListActive = false;
-            
-            // Wheel-Theme zeigt Items immer an -> in Category-View leeren
+
+            // Clear item list in category view.
             Items = new ObservableCollection<MediaItem>();
             SelectedItem = null;
 
-            // Pop statt Peek, um Stack korrekt zu managen
             var previousList = _navigationStack.Count > 0 ? _navigationStack.Pop() : _rootNodes;
-            var previousTitle = _titleStack.Count > 0 ? _titleStack.Pop() : "Main Menu";
+            var previousTitle = _titleStack.Count > 0 ? _titleStack.Pop() : Strings.BigMode_MainMenu;
 
             CurrentCategories = previousList;
             CategoryTitle = previousTitle;
 
-            // NavigationPath poppen, falls vorhanden
             if (_navigationPath.Count > 0) _navigationPath.Pop();
-            
-            // Theme-Kontext = aktueller Ordner (Peek) oder Root
+
+            // Theme context = current folder (peek) or root.
             ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
-            
-            // Selection synchron setzen
+
+            // Restore selection to the leaf node if it exists in the current level.
             var leafNode = CurrentNode ?? (_navigationPath.Count > 0 ? _navigationPath.Peek() : null);
             SelectedCategory = leafNode != null && CurrentCategories.Contains(leafNode)
                 ? leafNode
                 : CurrentCategories.FirstOrDefault();
 
-            // Preview einheitlich (vermeidet "Standbild" durch falsches Timing)
             TriggerPreviewPlaybackWithDebounce();
 
             _settings.LastBigModeSelectedNodeId = null;
@@ -261,15 +261,14 @@ public partial class BigModeViewModel
         if (_navigationStack.Count > 0)
         {
             var previousList = _navigationStack.Pop();
-            var previousTitle = _titleStack.Count > 0 ? _titleStack.Pop() : "Main Menu";
+            var previousTitle = _titleStack.Count > 0 ? _titleStack.Pop() : Strings.BigMode_MainMenu;
+
             if (_navigationPath.Count > 0) _navigationPath.Pop();
 
             CategoryTitle = previousTitle;
             CurrentCategories = previousList;
 
-            // Theme-Kontext = aktueller Ordner (Peek) oder Root
             ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
-            
             SelectedCategory = CurrentCategories.FirstOrDefault();
 
             TriggerPreviewPlaybackWithDebounce();

@@ -131,6 +131,50 @@ public class FileManagementService
     }
 
     /// <summary>
+    /// Scans the filesystem for assets of a given item and returns the current list.
+    /// This method does NOT modify any ObservableCollections (safe to run off the UI thread).
+    /// </summary>
+    public List<MediaAsset> ScanItemAssets(MediaItem item, List<string> nodePathStack)
+    {
+        var results = new List<MediaAsset>();
+        if (item == null) return results;
+
+        string nodeFolder = Path.Combine(libraryRootPath, Path.Combine(nodePathStack.ToArray()));
+        if (!Directory.Exists(nodeFolder)) return results;
+
+        var sanitizedTitle = SanitizeForFilename(item.Title);
+
+        foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
+        {
+            if (type == AssetType.Unknown) continue;
+
+            string typeFolder = Path.Combine(nodeFolder, type.ToString());
+            if (!Directory.Exists(typeFolder)) continue;
+
+            var files = Directory.EnumerateFiles(typeFolder)
+                .Where(file => AssetRegex.IsMatch(Path.GetFileName(file)) &&
+                               Path.GetFileName(file).StartsWith(sanitizedTitle + "_", StringComparison.OrdinalIgnoreCase));
+
+            foreach (var file in files)
+            {
+                var match = AssetRegex.Match(Path.GetFileName(file));
+                if (match.Success &&
+                    match.Groups[1].Value.Equals(sanitizedTitle, StringComparison.OrdinalIgnoreCase) &&
+                    match.Groups[2].Value.Equals(type.ToString(), StringComparison.OrdinalIgnoreCase))
+                {
+                    results.Add(new MediaAsset
+                    {
+                        Type = type,
+                        RelativePath = Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, file)
+                    });
+                }
+            }
+        }
+
+        return results;
+    }
+    
+    /// <summary>
     /// Scans the node's directory for assets and updates the item's asset list.
     /// Clears and rebuilds the list to sync with filesystem.
     /// </summary>

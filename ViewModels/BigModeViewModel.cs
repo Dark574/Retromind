@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibVLCSharp.Shared;
 using Retromind.Models;
+using Retromind.Resources;
 using Retromind.Services;
 
 namespace Retromind.ViewModels;
@@ -21,11 +22,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private readonly LibVLC _libVlc;
     private readonly AppSettings _settings;
 
-    // Felder für die injizierten Services
+    // Injected dependencies
     private Theme _theme;
     private readonly SoundEffectService _soundEffectService;
     private readonly GamepadService _gamepadService;
-    
+
     // Navigation history used to implement "Back" behavior.
     private readonly Stack<ObservableCollection<MediaNode>> _navigationStack = new();
     private readonly Stack<string> _titleStack = new();
@@ -37,11 +38,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     // Prevents input while a game is being launched.
     private bool _isLaunching;
 
-    // Helps avoiding unnecessary VLC Stop/Play cycles (prevents flicker and saves CPU).
+    // Avoids unnecessary VLC stop/play cycles (reduces flicker and CPU usage).
     private string? _currentPreviewVideoPath;
-    
-    // Debounce/cancellation for category/game preview playback.
-    private CancellationTokenSource? _previewCts;
 
     // LibVLC may open its own output window if playback starts before the VideoView is attached.
     // The host must call NotifyViewReady() after the theme view is loaded.
@@ -49,16 +47,15 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     // Makes state saving idempotent (RequestClose + Dispose can both call SaveState).
     private bool _stateSaved;
-    
-    // Performance: Avoid O(n) IndexOf() on every navigation step for very large lists.
+
     [ObservableProperty]
     private int _selectedItemIndex = -1;
     private int _selectedCategoryIndex = -1;
-    
+
     [ObservableProperty]
     private MediaNode? _themeContextNode;
-    
-    // Performance: avoid repeated filesystem I/O (File.Exists) while scrolling large lists.
+
+    // Avoid repeated filesystem I/O while scrolling large lists.
     private readonly Dictionary<string, string?> _itemVideoPathCache = new();
     private readonly Dictionary<string, string?> _nodeVideoPathCache = new();
 
@@ -81,16 +78,16 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private bool _isVideoVisible;
-    
-    // Overlay existiert im VisualTree nur, wenn dieses Flag true ist.
-    // IsVideoVisible bleibt für Fade (Opacity) zuständig.
+
+    // The overlay exists in the visual tree only if this flag is true.
+    // IsVideoVisible is used for opacity/fade.
     [ObservableProperty]
     private bool _isVideoOverlayVisible;
 
-    // Theme capability – true nur wenn das Theme einen VideoSlot bereitstellt.
+    // Theme capability: the host should only enable video if the theme allows it AND provides a slot.
     [ObservableProperty]
     private bool _canShowVideo = true;
-    
+
     [ObservableProperty]
     private MediaNode? _currentNode;
 
@@ -107,7 +104,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private MediaItem? _selectedItem;
 
     [ObservableProperty]
-    private string _categoryTitle = "Main Menu";
+    private string _categoryTitle = "";
 
     public ICommand ForceExitCommand { get; }
 
@@ -121,34 +118,42 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         SoundEffectService soundEffectService,
         GamepadService gamepadService)
     {
-        _rootNodes = rootNodes;
-        _settings = settings;
-        _theme = theme;
-        _soundEffectService = soundEffectService;
-        _gamepadService = gamepadService;
+        _rootNodes = rootNodes ?? throw new ArgumentNullException(nameof(rootNodes));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _theme = theme ?? throw new ArgumentNullException(nameof(theme));
+        _soundEffectService = soundEffectService ?? throw new ArgumentNullException(nameof(soundEffectService));
+        _gamepadService = gamepadService ?? throw new ArgumentNullException(nameof(gamepadService));
 
         // Start at root categories.
         CurrentCategories = _rootNodes;
-        
-        // Root = kein Node-Kontext -> Default Theme (oder Root Theme)
+
+        // Root = no node context -> default/root theme selection logic.
         ThemeContextNode = null;
 
+        // Keep some theme metadata available for bindings/debug overlays.
+        CurrentThemeDirectory = _theme.BasePath;
+
+        // Default capability based on the loaded theme (the host may further restrict this based on VideoSlot existence).
+        CanShowVideo = _theme.VideoEnabled;
+
+        CategoryTitle = Strings.BigMode_MainMenu;
+
         // Linux-friendly VLC options:
-        // --no-osd: disables overlays (file name, volume, etc.)
-        // --avcodec-hw=none: forces software decoding for better compatibility
-        // --quiet: reduces console noise
+        // --no-osd: disable VLC overlays (file name, volume, etc.)
+        // --avcodec-hw=none: force software decoding for better compatibility
+        // --quiet: reduce console noise
         string[] vlcOptions = { "--no-osd", "--avcodec-hw=none", "--quiet" };
 
         _libVlc = new LibVLC(enableDebugLogs: false, vlcOptions);
         MediaPlayer = new MediaPlayer(_libVlc)
         {
             Volume = 100,
-            Scale = 0f // 0 = Skalieren, um Fenster zu füllen
+            Scale = 0f // 0 = scale to fill the control
         };
 
         ForceExitCommand = new RelayCommand(() => RequestClose?.Invoke());
 
-        // Gamepad-Events direkt hier abonnieren
+        // Subscribe to gamepad events (raised on SDL thread; handler methods must marshal if they touch UI state).
         _gamepadService.OnUp += OnGamepadUp;
         _gamepadService.OnDown += OnGamepadDown;
         _gamepadService.OnLeft += OnGamepadLeft;
@@ -162,20 +167,27 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         }
     }
 
-    // Methode zum Aktualisieren des Themes zur Laufzeit
+    /// <summary>
+    /// Updates the active theme at runtime.
+    /// The host is responsible for swapping the view and calling NotifyViewReady() afterwards.
+    /// </summary>
     public void UpdateTheme(Theme newTheme)
     {
-        _theme = newTheme;
-        
-        // Wenn ein neues Theme geladen wird, ist die View ungültig.
-        // Wir müssen auf die nächste `NotifyViewReady` warten.
+        _theme = newTheme ?? throw new ArgumentNullException(nameof(newTheme));
+
+        CurrentThemeDirectory = _theme.BasePath;
+
+        // When a new theme view is loaded, the VideoView attachment state becomes invalid.
+        // Wait for the next NotifyViewReady() call before starting preview playback.
         _isViewReady = false;
-        
-        // WICHTIG: Beim View-Austausch darf VLC NICHT weiterlaufen, sonst "fällt" LibVLC gern
-        // in ein eigenes Output-Fenster, sobald die alte VideoView detached wird.
-        _previewCts?.Cancel();
-        _previewCts = null;
-        
+
+        // Ensure VLC is stopped before the old view detaches to avoid LibVLC spawning its own output window.
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts = null;
+
         StopVideo();
+
+        // Update default capability (host may still disable based on missing slot).
+        CanShowVideo = _theme.VideoEnabled;
     }
 }

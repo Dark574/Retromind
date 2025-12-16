@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Retromind.Models;
+using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
@@ -20,7 +21,7 @@ public partial class BigModeViewModel
 
         try
         {
-            // 1) Validate persisted BigMode navigation path. If it no longer matches the current tree, discard it.
+            // 1) Validate the persisted navigation path. If it no longer matches the current tree, discard it.
             if (_settings.LastBigModeNavigationPath is { Count: > 0 } path &&
                 !IsNavigationPathValid(path))
             {
@@ -109,10 +110,9 @@ public partial class BigModeViewModel
         }
         catch (Exception ex)
         {
-            // Restore must never break BigMode startup. If anything goes wrong, we fall back to a safe root state.
+            // Restore must never break BigMode startup.
             System.Diagnostics.Debug.WriteLine($"[BigMode] Restore state failed: {ex.Message}");
             ResetToRootState();
-            return;
         }
     }
 
@@ -125,23 +125,25 @@ public partial class BigModeViewModel
         _titleStack.Clear();
         _navigationPath.Clear();
 
-        _previewCts?.Cancel();
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts = null;
+
         StopVideo();
-        
-        // Cache reset (safe + avoids stale paths if the library changes)
+
+        // Reset caches (safe + avoids stale paths if the library changes)
         _itemVideoPathCache.Clear();
         _nodeVideoPathCache.Clear();
 
         IsGameListActive = false;
         Items = new ObservableCollection<MediaItem>();
 
-        CategoryTitle = "Main Menu";
+        CategoryTitle = Strings.BigMode_MainMenu;
         CurrentCategories = _rootNodes;
         SelectedCategory = _rootNodes.FirstOrDefault();
         SelectedItem = null;
         CurrentNode = SelectedCategory;
-        
-        // Root-Kontext
+
+        // Root context: no node-specific theme context.
         ThemeContextNode = null;
     }
 
@@ -172,11 +174,10 @@ public partial class BigModeViewModel
     {
         SelectedItemIndex = -1;
 
-        // Items list changed -> any cached item video paths may not be relevant anymore.
-        // (Keeping node cache is fine; it is keyed by node id.)
+        // Items list changed -> cached item video paths may no longer be relevant.
         _itemVideoPathCache.Clear();
     }
-    
+
     /// <summary>
     /// Builds a root-to-node path for a target node id (used for CoreApp -> BigMode fallback).
     /// </summary>
@@ -186,7 +187,7 @@ public partial class BigModeViewModel
         return TryFindPathRecursive(_rootNodes, nodeId, path);
     }
 
-    private bool TryFindPathRecursive(IEnumerable<MediaNode> level, string nodeId, List<string> path)
+    private static bool TryFindPathRecursive(IEnumerable<MediaNode> level, string nodeId, List<string> path)
     {
         foreach (var node in level)
         {
@@ -206,7 +207,7 @@ public partial class BigModeViewModel
 
     /// <summary>
     /// Persists BigMode navigation state and mirrors the most relevant selection into CoreApp settings.
-    /// The method is idempotent on purpose (it may be called from multiple shutdown paths).
+    /// The method is intentionally idempotent (it may be called from multiple shutdown paths).
     /// </summary>
     public void SaveState()
     {
@@ -242,7 +243,7 @@ public partial class BigModeViewModel
         _gamepadService.OnRight -= OnGamepadRight;
         _gamepadService.OnSelect -= OnGamepadSelect;
         _gamepadService.OnBack -= OnGamepadBack;
-        
+
         var player = MediaPlayer;
         var vlc = _libVlc;
 

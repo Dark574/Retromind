@@ -57,6 +57,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private object? _fullScreenContent;
     
+    // Keeps the currently active content VM so we can detach event handlers (prevents leaks).
+    private MediaAreaViewModel? _currentMediaAreaVm;
+    
     // Mockable StorageProvider for Unit Tests
     public IStorageProvider? StorageProvider { get; set; }
 
@@ -201,11 +204,11 @@ public partial class MainWindowViewModel : ViewModelBase
         _currentSettings = preloadedSettings;
         _fileService.LibraryChanged += MarkLibraryDirty;
         
-        // JOKER: SDL zwingen, auch Hintergrund-Events und unbekannte Geräte zu akzeptieren
+        // Ensure SDL also reports background events and applies deadzone handling.
         Environment.SetEnvironmentVariable("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1");
         Environment.SetEnvironmentVariable("SDL_LINUX_JOYSTICK_DEADZONES", "1");
 
-        // Service erstellen & starten
+        // Gamepad service (hot-plug + guide routing)
         _gamepadService = new GamepadService();
         _gamepadService.StartMonitoring();
     
@@ -440,6 +443,9 @@ public partial class MainWindowViewModel : ViewModelBase
         
         _fileService.LibraryChanged -= MarkLibraryDirty;
         
+        // Detach content VM handlers to avoid leaks.
+        DetachMediaAreaHandlers();
+        
         _saveSettingsCts?.Cancel();
         _saveSettingsCts?.Dispose();
         _saveSettingsCts = null;
@@ -448,11 +454,61 @@ public partial class MainWindowViewModel : ViewModelBase
         _saveLibraryCts?.Dispose();
         _saveLibraryCts = null;
         
-        // Avoid leaking handlers / duplicate routing when the app is reloaded.
         _gamepadService.OnGuide -= _onGuidePressed;
         _gamepadService.StopMonitoring();
     }
 
+    private void DetachMediaAreaHandlers()
+    {
+        if (_currentMediaAreaVm == null)
+            return;
+
+        // Unwire events to avoid repeated invocations after content switches.
+        _currentMediaAreaVm.RequestPlay -= OnMediaAreaRequestPlay;
+        _currentMediaAreaVm.PropertyChanged -= OnMediaAreaPropertyChanged;
+
+        _currentMediaAreaVm = null;
+    }
+
+    private void OnMediaAreaRequestPlay(MediaItem item)
+    {
+        _ = PlayMediaAsync(item);
+    }
+
+    private void OnMediaAreaPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (sender is not MediaAreaViewModel mediaVm)
+            return;
+
+        if (args.PropertyName == nameof(MediaAreaViewModel.ItemWidth))
+        {
+            ItemWidth = mediaVm.ItemWidth;
+            SaveSettingsOnly();
+            return;
+        }
+
+        if (args.PropertyName == nameof(MediaAreaViewModel.SelectedMediaItem))
+        {
+            var item = mediaVm.SelectedMediaItem;
+            _currentSettings.LastSelectedMediaId = item?.Id;
+            SaveSettingsOnly();
+
+            if (SelectedNode != null)
+                UpdateBigModeStateFromCoreSelection(SelectedNode, item);
+
+            var musicPath = item?.GetPrimaryAssetPath(AssetType.Music);
+            if (!string.IsNullOrEmpty(musicPath))
+            {
+                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, musicPath);
+                _ = _audioService.PlayMusicAsync(fullPath);
+            }
+            else
+            {
+                _audioService.StopMusic();
+            }
+        }
+    }
+    
     // --- Content Logic (The heart of the UI) ---
     private void UpdateContent()
     {
@@ -463,6 +519,9 @@ public partial class MainWindowViewModel : ViewModelBase
         _updateContentCts = new CancellationTokenSource();
         var token = _updateContentCts.Token;
 
+        // Any time we rebuild content, detach handlers from the previous VM.
+        DetachMediaAreaHandlers();
+        
         if (SelectedNode is null || SelectedNode.Type == NodeType.Area)
         {
             SelectedNodeContent = null;
@@ -477,14 +536,13 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             if (token.IsCancellationRequested) return;
         
-            // 1. Collect Items (Heavy recursion)
+            // 1. Collect items (recursive)
             var itemList = new System.Collections.Generic.List<MediaItem>();
             CollectItemsRecursive(nodeToLoad, itemList); 
             
             if (token.IsCancellationRequested) return;
 
-            // 2. Randomization Logic (Covers/Music)
-            
+            // 2. Randomization Logic (covers/wallpapers/music)
             bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);
             bool randomizeCovers = IsRandomizeActive(nodeToLoad);
             
@@ -492,56 +550,58 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 if (token.IsCancellationRequested) return;
 
-                // Erst mal alles zurücksetzen (Standard-Bild)
-                // Da wir das im Background machen und ResetActiveAssets jetzt Dispatcher nutzt,
-                // feuert es UI Events korrekt asynchron.
                 item.ResetActiveAssets(); 
 
-                if (randomizeCovers) 
+                if (!randomizeCovers && !randomizeMusic)
+                    continue;
+
+                System.Collections.Generic.List<MediaAsset>? covers = null;
+                System.Collections.Generic.List<MediaAsset>? wallpapers = null;
+                System.Collections.Generic.List<MediaAsset>? music = null;
+
+                // Single pass over assets (avoids multiple LINQ allocations per item).
+                foreach (var asset in item.Assets)
                 {
-                    // --- COVERS ---
-                    var covers = item.Assets.Where(a => a.Type == AssetType.Cover).ToList();
-                    
-                    // Nur randomisieren wenn Auswahl da ist (> 1)
-                    if (covers.Count > 1)
+                    if (randomizeCovers)
+                    {
+                        if (asset.Type == AssetType.Cover)
+                            (covers ??= new()).Add(asset);
+                        else if (asset.Type == AssetType.Wallpaper)
+                            (wallpapers ??= new()).Add(asset);
+                    }
+
+                    if (randomizeMusic && asset.Type == AssetType.Music)
+                        (music ??= new()).Add(asset);
+                }
+                
+                if (randomizeCovers)
+                {
+                    if (covers is { Count: > 1 })
                     {
                         var winner = RandomHelper.PickRandom(covers);
                         if (winner != null)
-                        {
                             item.SetActiveAsset(AssetType.Cover, winner.RelativePath);
-                        }
                     }
 
-                    // --- WALLPAPERS (NEU) ---
-                    var wallpapers = item.Assets.Where(a => a.Type == AssetType.Wallpaper).ToList();
-                    
-                    if (wallpapers.Count > 1)
+                    if (wallpapers is { Count: > 1 })
                     {
                         var winner = RandomHelper.PickRandom(wallpapers);
                         if (winner != null)
-                        {
                             item.SetActiveAsset(AssetType.Wallpaper, winner.RelativePath);
-                        }
                     }
                 }
 
-                if (randomizeMusic)
+                if (randomizeMusic && music is { Count: > 1 })
                 {
-                    var musicFiles = item.Assets.Where(a => a.Type == AssetType.Music).ToList();
-                    if (musicFiles.Count > 1)
-                    {
-                        var winner = RandomHelper.PickRandom(musicFiles);
-                        if (winner != null)
-                        {
-                            item.SetActiveAsset(AssetType.Music, winner.RelativePath);
-                        }
-                    }
+                    var winner = RandomHelper.PickRandom(music);
+                    if (winner != null)
+                        item.SetActiveAsset(AssetType.Music, winner.RelativePath);
                 }
             }
         
             if (token.IsCancellationRequested) return;
 
-            // 3. Prepare Display Data
+            // 3. Prepare display node
             var allItems = new ObservableCollection<MediaItem>(itemList);
             
             var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
@@ -550,58 +610,17 @@ public partial class MainWindowViewModel : ViewModelBase
                 Items = allItems
             };
 
-            // 4. Switch to UI Thread ONE TIME to update the View
+            // 4. Switch to UI thread once
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                // Guard Clause: If the user selected a different node while we were working, abort.
                 if (SelectedNode != nodeToLoad) return;
 
                 var mediaVm = new MediaAreaViewModel(displayNode, ItemWidth);
 
-                // Wire up events
-                mediaVm.RequestPlay += item => 
-                { 
-                     // Fire and forget is acceptable here for UI event binding
-                     _ = PlayMediaAsync(item); 
-                };
+                _currentMediaAreaVm = mediaVm;
+                mediaVm.RequestPlay += OnMediaAreaRequestPlay;
+                mediaVm.PropertyChanged += OnMediaAreaPropertyChanged;
                 
-                mediaVm.PropertyChanged += (sender, args) =>
-                {
-                    // Persist Zoom
-                    if (args.PropertyName == nameof(MediaAreaViewModel.ItemWidth))
-                    {
-                        ItemWidth = mediaVm.ItemWidth;
-                        SaveSettingsOnly();
-                    }
-
-                    // Handle Selection Change in the Grid
-                    if (args.PropertyName == nameof(MediaAreaViewModel.SelectedMediaItem))
-                    {
-                        var item = mediaVm.SelectedMediaItem;
-                        _currentSettings.LastSelectedMediaId = item?.Id;
-                        SaveSettingsOnly();
-
-                        // BigMode-State spiegeln (CoreApp -> BigMode)
-                        if (SelectedNode != null)
-                        {
-                            UpdateBigModeStateFromCoreSelection(SelectedNode, item);
-                        }
-                        
-                        // Play Music on selection - NEU via AssetSystem
-                        var musicPath = item?.GetPrimaryAssetPath(AssetType.Music);
-                        if (!string.IsNullOrEmpty(musicPath))
-                        {
-                            var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, musicPath);
-                            _ = _audioService.PlayMusicAsync(fullPath);
-                        }
-                        else
-                        {
-                            _audioService.StopMusic();
-                        }
-                    }
-                };
-
-                // Restore last selected media item
                 if (!string.IsNullOrEmpty(_currentSettings.LastSelectedMediaId))
                 {
                     var itemToSelect = allItems.FirstOrDefault(i => i.Id == _currentSettings.LastSelectedMediaId);
