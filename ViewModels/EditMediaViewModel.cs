@@ -69,6 +69,8 @@ public partial class EditMediaViewModel : ViewModelBase
     
     // Event to signal the view to close (true = saved, false = cancelled)
     public event Action<bool>? RequestClose;
+    
+    public bool HasAssetChanges { get; private set; }
 
     // --- UI Lists ---
     public ObservableCollection<EmulatorConfig> AvailableEmulators { get; } = new();
@@ -169,7 +171,11 @@ public partial class EditMediaViewModel : ViewModelBase
         foreach (var file in result)
         {
             // Der Service übernimmt das Kopieren, Umbenennen und Hinzufügen zur Liste
-            await _fileService.ImportAssetAsync(file.Path.LocalPath, _originalItem, _nodePath, type);
+            var imported = await _fileService.ImportAssetAsync(file.Path.LocalPath, _originalItem, _nodePath, type);
+            if (imported != null)
+            {
+                HasAssetChanges = true;
+            }
         }
     }
 
@@ -179,6 +185,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
         // Der Service löscht die Datei physisch und entfernt sie aus der Liste
         _fileService.DeleteAsset(_originalItem, SelectedAsset);
+        HasAssetChanges = true;
         SelectedAsset = null;
     }
 

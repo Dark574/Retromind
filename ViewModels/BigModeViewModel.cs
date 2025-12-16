@@ -37,12 +37,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     // Prevents input while a game is being launched.
     private bool _isLaunching;
 
-    // Currently active theme file to avoid redundant reloads.
-    private string _currentThemePath = string.Empty;
-
-    // Currently active theme file to avoid redundant reloads.
-    private string? _currentThemeFile;
-    
     // Helps avoiding unnecessary VLC Stop/Play cycles (prevents flicker and saves CPU).
     private string? _currentPreviewVideoPath;
     
@@ -119,7 +113,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     public event Action? RequestClose;
     public event Func<MediaItem, Task>? RequestPlay;
-    public event Action<string>? RequestThemeChange;
 
     public BigModeViewModel(
         ObservableCollection<MediaNode> rootNodes,

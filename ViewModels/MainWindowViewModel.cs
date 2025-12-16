@@ -62,6 +62,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private DateTime _lastGuideHandledUtc = DateTime.MinValue;
 
+    // Debounced Settings Save
+    private CancellationTokenSource? _saveSettingsCts;
+    private readonly TimeSpan _saveSettingsDebounce = TimeSpan.FromMilliseconds(500);
+
+    // --- Library Dirty Tracking + Debounced Library Save (NEW) ---
+    private bool _isLibraryDirty;
+    private int _libraryDirtyVersion;
+
+    private CancellationTokenSource? _saveLibraryCts;
+    private readonly TimeSpan _saveLibraryDebounce = TimeSpan.FromMilliseconds(800);
+    
     public bool ShouldIgnoreBackKeyTemporarily()
         => (DateTime.UtcNow - _lastGuideHandledUtc) < TimeSpan.FromMilliseconds(600);
     
@@ -188,6 +199,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _metadataService = metadataService;
         _soundEffectService = soundEffectService;
         _currentSettings = preloadedSettings;
+        _fileService.LibraryChanged += MarkLibraryDirty;
         
         // JOKER: SDL zwingen, auch Hintergrund-Events und unbekannte Geräte zu akzeptieren
         Environment.SetEnvironmentVariable("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1");
@@ -233,6 +245,9 @@ public partial class MainWindowViewModel : ViewModelBase
             RootItems = await _dataService.LoadAsync();
             Debug.WriteLine("[DEBUG] LoadData: RootItems loaded. Count = " + RootItems.Count);
         
+            _isLibraryDirty = false;
+            _libraryDirtyVersion = 0;
+            
             OnPropertyChanged(nameof(IsDarkTheme));
             OnPropertyChanged(nameof(PanelBackground));
             OnPropertyChanged(nameof(TextColor));
@@ -284,18 +299,134 @@ public partial class MainWindowViewModel : ViewModelBase
     
     public async Task SaveData()
     {
-        await _dataService.SaveAsync(RootItems);
-        await _settingsService.SaveAsync(_currentSettings);
+        // SaveData ist „stark“: wenn jemand es explizit aufruft,
+        // speichern wir die Library (nur wenn dirty) + Settings (sofort).
+        await SaveLibraryIfDirtyAsync(force: false).ConfigureAwait(false);
+        await _settingsService.SaveAsync(_currentSettings).ConfigureAwait(false);
     }
 
+    private void MarkLibraryDirty()
+    {
+        _isLibraryDirty = true;
+        _libraryDirtyVersion++;
+
+        DebouncedSaveLibrary();
+    }
+
+    private void DebouncedSaveLibrary()
+    {
+        _saveLibraryCts?.Cancel();
+        _saveLibraryCts?.Dispose();
+        _saveLibraryCts = new CancellationTokenSource();
+
+        var token = _saveLibraryCts.Token;
+        var myVersion = _libraryDirtyVersion;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(_saveLibraryDebounce, token).ConfigureAwait(false);
+                if (token.IsCancellationRequested) return;
+
+                await SaveLibraryIfDirtyAsync(force: false, expectedVersion: myVersion).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // expected during debounce
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Library] Debounced save failed: {ex.Message}");
+            }
+        }, token);
+    }
+
+    private async Task SaveLibraryIfDirtyAsync(bool force, int? expectedVersion = null)
+    {
+        if (!force && !_isLibraryDirty) return;
+
+        // Wenn wir aus einem Debounce-Run kommen, aber inzwischen neue Änderungen passiert sind,
+        // sparen wir uns den Save (der nächste Debounce-Lauf übernimmt).
+        if (expectedVersion.HasValue && expectedVersion.Value != _libraryDirtyVersion)
+            return;
+
+        try
+        {
+            await _dataService.SaveAsync(RootItems).ConfigureAwait(false);
+
+            // Nur „clean“ setzen, wenn seit dem Start dieses Saves nichts Neues passiert ist.
+            if (expectedVersion.HasValue)
+            {
+                if (expectedVersion.Value == _libraryDirtyVersion)
+                    _isLibraryDirty = false;
+            }
+            else
+            {
+                // Force/normal path: nach Save ist clean.
+                _isLibraryDirty = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Library] Save failed: {ex.Message}");
+            // Dirty bleibt true, damit wir später nochmal versuchen können.
+            _isLibraryDirty = true;
+        }
+    }
+    
     private async void SaveSettingsOnly()
     {
-        await _settingsService.SaveAsync(_currentSettings);
+        _saveSettingsCts?.Cancel();
+        _saveSettingsCts?.Dispose();
+        _saveSettingsCts = new CancellationTokenSource();
+
+        var token = _saveSettingsCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(_saveSettingsDebounce, token);
+                if (token.IsCancellationRequested) return;
+
+                await _settingsService.SaveAsync(_currentSettings);
+            }
+            catch (OperationCanceledException)
+            {
+                // Debounce cancellation: expected.
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Settings] Debounced save failed: {ex.Message}");
+            }
+        }, token);
     }
 
     public void Cleanup()
     {
         _audioService.StopMusic();
+        
+        _fileService.LibraryChanged -= MarkLibraryDirty;
+        
+        _saveSettingsCts?.Cancel();
+        _saveSettingsCts?.Dispose();
+        _saveSettingsCts = null;
+        
+        _saveLibraryCts?.Cancel();
+        _saveLibraryCts?.Dispose();
+        _saveLibraryCts = null;
+        
+        // Final flush (best effort): verhindert „Exit bevor Autosave feuert“.
+        try
+        {
+            SaveLibraryIfDirtyAsync(force: true).GetAwaiter().GetResult();
+            _settingsService.SaveAsync(_currentSettings).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Cleanup] Final save failed: {ex.Message}");
+        }
         
         // Avoid leaking handlers / duplicate routing when the app is reloaded.
         _gamepadService.OnGuide -= _onGuidePressed;

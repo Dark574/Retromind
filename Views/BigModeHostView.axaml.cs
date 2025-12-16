@@ -33,17 +33,17 @@ public partial class BigModeHostView : UserControl
 
     public void SetThemeContent(Control themeRoot)
     {
-        System.Diagnostics.Debug.WriteLine($"[Host] SetThemeContent: themeRoot={themeRoot.GetType().Name}");
-        
         // Ensure bindings in the theme root resolve to the BigModeViewModel
         themeRoot.DataContext = DataContext;
         
         _themePresenter.Content = themeRoot;
-        System.Diagnostics.Debug.WriteLine($"[Host] ThemePresenter.Content set: {_themePresenter.Content?.GetType().Name}");
 
         // Konvention: Theme definiert EIN Element mit x:Name="VideoSlot"
         _videoSlot = themeRoot.FindControl<Control>("VideoSlot");
-        System.Diagnostics.Debug.WriteLine($"[Host] VideoSlot found: {_videoSlot != null}");
+
+        // Determine capability: theme says video enabled AND a slot exists
+        var themeAllowsVideo = Retromind.Extensions.ThemeProperties.GetVideoEnabled(themeRoot);
+        var hasSlot = _videoSlot != null;
 
         // Bei Theme-Wechsel lieber einmal “zurücksetzen”, damit nichts “hängen bleibt”
         ResetVideoBorder();

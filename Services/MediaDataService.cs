@@ -31,11 +31,12 @@ public class MediaDataService
     {
         try
         {
-            // Für Debugging super, aber für 30k Items pure Verschwendung.
-            // Mach es konfigurierbar oder schalte es ab.
-            // Bei Release: var options = new JsonSerializerOptions { WriteIndented = false }; 
+            #if DEBUG
             var options = new JsonSerializerOptions { WriteIndented = true };
-
+            #else
+            var options = new JsonSerializerOptions { WriteIndented = false };
+            #endif
+            
             // 1. Write to a temporary file first
             using (var stream = File.Create(TempPath))
             {

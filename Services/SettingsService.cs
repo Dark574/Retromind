@@ -33,7 +33,12 @@ public class SettingsService
         try
         {
             var tempFile = FilePath + ".tmp";
-            var options = new JsonSerializerOptions { WriteIndented = true };
+            
+            #if DEBUG
+                var options = new JsonSerializerOptions { WriteIndented = true };
+            #else
+                var options = new JsonSerializerOptions { WriteIndented = false };
+            #endif
 
             // 1. Write to temp file first
             using (var stream = File.Create(tempFile))

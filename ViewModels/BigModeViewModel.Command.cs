@@ -47,16 +47,6 @@ public partial class BigModeViewModel
         ExitBigMode();
     }
     
-    private void OnGamepadGuide()
-    {
-        // SDL Thread -> UI Thread
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (ForceExitCommand.CanExecute(null))
-                ForceExitCommand.Execute(null);
-        });
-    }
-    
     // --- Sound-Helfermethode ---
     
     private void PlaySound(string? relativeSoundPath)

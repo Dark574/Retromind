@@ -295,6 +295,8 @@ public partial class MainWindowViewModel
                     parentNode.Children.Add(new MediaNode(name, NodeType.Group));
                     parentNode.IsExpanded = true; 
                 }
+                
+                MarkLibraryDirty();
                 await SaveData();
             }
         }
@@ -321,6 +323,8 @@ public partial class MainWindowViewModel
             {
                 RemoveNodeRecursive(RootItems, nodeToDelete);
             }
+            
+            MarkLibraryDirty();
             await SaveData();
         }
         catch (Exception ex)
@@ -343,6 +347,9 @@ public partial class MainWindowViewModel
         vm.RequestClose += _ => { dialog.Close(); };
         
         await dialog.ShowDialog(owner);
+        
+        // NodeSettings kann Eigenschaften/Assets ändern -> als dirty markieren.
+        MarkLibraryDirty();
         await SaveData();
     }
 
@@ -428,6 +435,8 @@ public partial class MainWindowViewModel
                 }
             }
             
+            // Stats wurden evtl. aktualisiert -> Library ist dirty
+            MarkLibraryDirty();
             await SaveData(); // Update stats (playtime, last played)
         }
         catch (Exception ex)
@@ -453,7 +462,10 @@ public partial class MainWindowViewModel
             if (parentNode != null)
             {
                 parentNode.Items.Remove(item);
+                
+                MarkLibraryDirty();
                 await SaveData();
+                
                 UpdateContent();
             }
         }

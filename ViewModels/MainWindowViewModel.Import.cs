@@ -11,7 +11,6 @@ using Avalonia.Threading;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
-using Retromind.Services;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -51,12 +50,15 @@ public partial class MainWindowViewModel
 
         if (importedItems.Any())
         {
+            var anyAdded = false;
+            
             foreach (var item in importedItems)
             {
                 // Duplicate Check based on FilePath
                 if (!targetNode.Items.Any(i => i.FilePath == item.FilePath))
                 {
                     targetNode.Items.Add(item);
+                    anyAdded = true;
 
                     // Sofort nach Assets scannen, die vielleicht schon da sind
                     // (z.B. wenn man ROMs importiert und die Cover schon im Ordner liegen)
@@ -65,11 +67,14 @@ public partial class MainWindowViewModel
                 }
             }
             
-            SortMediaItems(targetNode.Items);
-            await SaveData();
-            
-            // Refresh view if we imported into the currently visible node
-            if (IsNodeInCurrentView(targetNode)) UpdateContent();
+            if (anyAdded)
+            {
+                MarkLibraryDirty();
+                SortMediaItems(targetNode.Items);
+                await SaveData();
+
+                if (IsNodeInCurrentView(targetNode)) UpdateContent();
+            }
         }
     }
     
@@ -87,13 +92,24 @@ public partial class MainWindowViewModel
 
         if (await ShowConfirmDialog(owner, $"Found {items.Count} Steam games. Import to '{targetNode.Name}'?"))
         {
+            var anyAdded = false;
+            
             foreach (var item in items)
             {
-                if (!targetNode.Items.Any(x => x.Title == item.Title)) targetNode.Items.Add(item);
+                if (!targetNode.Items.Any(x => x.Title == item.Title))
+                {
+                    targetNode.Items.Add(item);
+                    anyAdded = true;
+                }
             }
-            SortMediaItems(targetNode.Items);
-            await SaveData();
-            if (IsNodeInCurrentView(targetNode)) UpdateContent();
+            
+            if (anyAdded)
+            {
+                MarkLibraryDirty();
+                SortMediaItems(targetNode.Items);
+                await SaveData();
+                if (IsNodeInCurrentView(targetNode)) UpdateContent();
+            }
         }
     }
 
@@ -111,14 +127,24 @@ public partial class MainWindowViewModel
 
         if (await ShowConfirmDialog(owner, $"Found {items.Count} GOG games. Import?"))
         {
+            var anyAdded = false;
+            
             foreach (var item in items)
             {
-                if (!targetNode.Items.Any(x => x.Title == item.Title)) targetNode.Items.Add(item);
+                if (!targetNode.Items.Any(x => x.Title == item.Title))
+                {
+                    targetNode.Items.Add(item);
+                    anyAdded = true;
+                }
             }
 
-            SortMediaItems(targetNode.Items);
-            await SaveData();
-            if (IsNodeInCurrentView(targetNode)) UpdateContent();
+            if (anyAdded)
+            {
+                MarkLibraryDirty();
+                SortMediaItems(targetNode.Items);
+                await SaveData();
+                if (IsNodeInCurrentView(targetNode)) UpdateContent();
+            }
         }
     }
 
@@ -141,6 +167,8 @@ public partial class MainWindowViewModel
 
         if (result != null && result.Count > 0)
         {
+            var anyAdded = false;
+            
             foreach (var file in result)
             {
                 var rawTitle = Path.GetFileNameWithoutExtension(file.Name);
@@ -149,14 +177,20 @@ public partial class MainWindowViewModel
 
                 var newItem = new MediaItem { Title = title, FilePath = file.Path.LocalPath, MediaType = MediaType.Native };
                 targetNode.Items.Add(newItem); 
+                anyAdded = true;
                 
                 // Auch hier direkt scannen, falls Assets existieren
                 var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
                 _fileService.RefreshItemAssets(newItem, nodePath);
             }
-            SortMediaItems(targetNode.Items);
-            await SaveData();
-            if (IsNodeInCurrentView(targetNode)) UpdateContent();
+            
+            if (anyAdded)
+            {
+                MarkLibraryDirty();
+                SortMediaItems(targetNode.Items);
+                await SaveData();
+                if (IsNodeInCurrentView(targetNode)) UpdateContent();
+            }
         }
     }
 
@@ -191,6 +225,7 @@ public partial class MainWindowViewModel
         
         if (saved) 
         {
+            MarkLibraryDirty();
             await SaveData();
             // Refresh content might be needed if sort order changed (title change)
             if (parentNode != null && IsNodeInCurrentView(parentNode)) UpdateContent();
@@ -221,6 +256,8 @@ public partial class MainWindowViewModel
 
             if (asset != null)
             {
+                MarkLibraryDirty();
+                
                 // Play logic needs full path
                 var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, asset.RelativePath);
                 
@@ -268,7 +305,10 @@ public partial class MainWindowViewModel
 
             if (result.Rating.HasValue) item.Rating = result.Rating.Value;
             if (string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre)) item.Genre = result.Genre;
-    
+
+            // Änderungen am Item -> dirty
+            MarkLibraryDirty();
+            
             var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
             
             // Downloads, Imports und Save in Background-Task verschieben (fire-and-forget)
@@ -316,12 +356,37 @@ public partial class MainWindowViewModel
             if (parent == null) return;
             var nodePath = PathHelper.GetNodePath(parent, RootItems);
     
-            // Bulk Strategy: Only fill missing data (Safe Mode) to avoid overwriting user edits
-            if (string.IsNullOrWhiteSpace(item.Description) && !string.IsNullOrWhiteSpace(result.Description)) item.Description = result.Description;
-            if (string.IsNullOrWhiteSpace(item.Developer) && !string.IsNullOrWhiteSpace(result.Developer)) item.Developer = result.Developer;
-            if (string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre)) item.Genre = result.Genre;
-            if (!item.ReleaseDate.HasValue && result.ReleaseDate.HasValue) item.ReleaseDate = result.ReleaseDate;
-            if (item.Rating == 0 && result.Rating.HasValue) item.Rating = result.Rating.Value;
+            var changed = false;
+            
+            if (string.IsNullOrWhiteSpace(item.Description) && !string.IsNullOrWhiteSpace(result.Description))
+            {
+                item.Description = result.Description;
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Developer) && !string.IsNullOrWhiteSpace(result.Developer))
+            {
+                item.Developer = result.Developer;
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre))
+            {
+                item.Genre = result.Genre;
+                changed = true;
+            }
+
+            if (!item.ReleaseDate.HasValue && result.ReleaseDate.HasValue)
+            {
+                item.ReleaseDate = result.ReleaseDate;
+                changed = true;
+            }
+
+            if (item.Rating == 0 && result.Rating.HasValue)
+            {
+                item.Rating = result.Rating.Value;
+                changed = true;
+            }
     
             // Wir laden einfach runter und fügen hinzu. Der FileService kümmert sich um Dubletten/Nummerierung.
             if (!string.IsNullOrEmpty(result.CoverUrl))
@@ -330,13 +395,22 @@ public partial class MainWindowViewModel
                 // Mit dem neuen System können wir einfach hinzufügen (ergibt dann Cover_02)
                 // oder prüfen ob Assets.Any(a => a.Type == AssetType.Cover)
                 if (!item.Assets.Any(a => a.Type == AssetType.Cover))
+                {
                     await DownloadAndSetAsset(result.CoverUrl, item, nodePath, AssetType.Cover);
+                    changed = true;
+                }
             }
             if (!string.IsNullOrEmpty(result.WallpaperUrl))
             {
                 if (!item.Assets.Any(a => a.Type == AssetType.Wallpaper))
+                {
                     await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
+                    changed = true;
+                }
             }
+            
+            if (changed)
+                MarkLibraryDirty();
         };
     
         var dialog = new BulkScrapeView { DataContext = vm };
@@ -383,8 +457,8 @@ public partial class MainWindowViewModel
 
             if (success)
             {
-                // ImportAsset übernimmt das Hinzufügen zur Liste
                 await _fileService.ImportAssetAsync(tempPathWithExt, item, nodePath, type);
+                MarkLibraryDirty();
             }
             if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
         }
@@ -482,10 +556,16 @@ public partial class MainWindowViewModel
         
         if (result != null && result.Count == 1)
         {
-            var asset = await _fileService.ImportAssetAsync(result[0].Path.LocalPath, item, PathHelper.GetNodePath(SelectedNode, RootItems), type);
-            if (asset != null) 
-            { 
-                await SaveData(); 
+            var asset = await _fileService.ImportAssetAsync(
+                result[0].Path.LocalPath,
+                item,
+                PathHelper.GetNodePath(SelectedNode, RootItems),
+                type);
+
+            if (asset != null)
+            {
+                MarkLibraryDirty();
+                await SaveData();
             }
         }
     }

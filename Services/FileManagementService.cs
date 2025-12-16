@@ -27,6 +27,19 @@ public class FileManagementService
         this.libraryRootPath = libraryRootPath;
     }
 
+    public event Action? LibraryChanged;
+
+    private void RaiseLibraryChanged()
+    {
+        try
+        {
+            LibraryChanged?.Invoke();
+        }
+        catch
+        {
+            // Event-Handler sollen File-Operationen niemals crashen lassen.
+        }
+    }
     /// <summary>
     /// Imports a file, renames it according to convention, and copies it to the correct folder.
     /// Adds it directly to the asset list of the item or node.
@@ -71,6 +84,7 @@ public class FileManagementService
                 mediaNode.Assets.Add(newAsset);
             }
 
+            RaiseLibraryChanged();
             return newAsset;
         }
         catch (Exception ex)
@@ -105,6 +119,8 @@ public class FileManagementService
                     File.Delete(fullPath);
                 }
             }
+            
+            RaiseLibraryChanged();
         }
         catch (Exception ex)
         {

@@ -24,4 +24,12 @@ public class ThemeProperties : AvaloniaObject
     
     public static string? GetCancelSound(AvaloniaObject element) => element.GetValue(CancelSoundProperty);
     public static void SetCancelSound(AvaloniaObject element, string? value) => element.SetValue(CancelSoundProperty, value);
+    
+    // --- Video capability toggle ---
+    // If false, the host will disable the video overlay even if a VideoSlot exists.
+    public static readonly AttachedProperty<bool> VideoEnabledProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>("VideoEnabled", defaultValue: true);
+
+    public static bool GetVideoEnabled(AvaloniaObject element) => element.GetValue(VideoEnabledProperty);
+    public static void SetVideoEnabled(AvaloniaObject element, bool value) => element.SetValue(VideoEnabledProperty, value);
 }
