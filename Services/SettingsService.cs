@@ -101,45 +101,119 @@ public class SettingsService
     /// </summary>
     public async Task<AppSettings> LoadAsync()
     {
-        if (!File.Exists(FilePath)) return new AppSettings();
+        // 0) Nothing there -> defaults
+        if (!File.Exists(FilePath))
+        {
+            // If only backup exists (rare), try to restore it.
+            if (File.Exists(BackupPath))
+            {
+                try
+                {
+                    File.Copy(BackupPath, FilePath, overwrite: true);
+                    return await LoadFromFileAsync(FilePath).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // fall through to defaults
+                }
+            }
 
+            return new AppSettings();
+        }
+
+        // 1) Try main file
         try
         {
-            using var stream = File.OpenRead(FilePath);
-            var settings = await JsonSerializer.DeserializeAsync<AppSettings>(stream) ?? new AppSettings();
+            var settings = await LoadFromFileAsync(FilePath).ConfigureAwait(false);
+            if (settings != null) return settings;
 
-            // 2. Decrypt sensitive data after loading
-            UnprotectSensitiveData(settings);
-            
-            return settings;
+            return new AppSettings();
         }
         catch (JsonException jsonEx)
         {
             Debug.WriteLine($"[SettingsService] Settings file corrupted: {jsonEx.Message}");
-            BackupCorruptedFile();
-            return new AppSettings(); // Return defaults
+
+            // Quarantine corrupt file for inspection
+            try
+            {
+                var corruptPath = FilePath + $".corrupt_{DateTime.Now:yyyyMMdd_HHmmss}";
+                File.Move(FilePath, corruptPath, overwrite: true);
+                Debug.WriteLine($"[SettingsService] Corrupted settings moved to: {corruptPath}");
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // 2) Try backup
+            if (File.Exists(BackupPath))
+            {
+                Debug.WriteLine("[SettingsService] Attempting to restore settings from .bak ...");
+                var restored = await LoadFromFileAsync(BackupPath).ConfigureAwait(false);
+                if (restored != null)
+                {
+                    // Best effort: restore backup to main file so next start is clean
+                    try
+                    {
+                        File.Copy(BackupPath, FilePath, overwrite: true);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    return restored;
+                }
+            }
+
+            return new AppSettings();
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[SettingsService] Error loading settings: {ex.Message}");
+
+            // As a last resort, try backup
+            if (File.Exists(BackupPath))
+            {
+                var restored = await LoadFromFileAsync(BackupPath).ConfigureAwait(false);
+                if (restored != null) return restored;
+            }
+
             return new AppSettings();
+        }
+        finally
+        {
+            // Cleanup stale temp file (best effort)
+            try
+            {
+                if (File.Exists(TempPath))
+                    File.Delete(TempPath);
+            }
+            catch
+            {
+                // ignore
+            }
         }
     }
 
-    private void BackupCorruptedFile()
+    private async Task<AppSettings?> LoadFromFileAsync(string path)
     {
         try
         {
-            var backupPath = FilePath + $".bak_{DateTime.Now:yyyyMMdd_HHmmss}";
-            if (File.Exists(FilePath))
-            {
-                File.Copy(FilePath, backupPath, overwrite: true);
-                Debug.WriteLine($"[SettingsService] Corrupted settings backed up to: {backupPath}");
-            }
+            using var stream = File.OpenRead(path);
+            var settings = await JsonSerializer.DeserializeAsync<AppSettings>(stream).ConfigureAwait(false);
+            settings ??= new AppSettings();
+
+            UnprotectSensitiveData(settings);
+            return settings;
         }
-        catch (Exception ex)
+        catch (JsonException)
         {
-            Debug.WriteLine($"[SettingsService] Failed to backup corrupted settings: {ex.Message}");
+            return null;
+        }
+        catch
+        {
+            return null;
         }
     }
     
