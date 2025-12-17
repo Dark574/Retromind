@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
@@ -444,9 +443,8 @@ public partial class MainWindowViewModel
             {
                 try
                 {
-                    using var client = new HttpClient();
-                    client.DefaultRequestHeaders.Add("User-Agent", "Retromind/1.0");
-                    var data = await client.GetByteArrayAsync(url);
+                    // Use DI-managed HttpClient (configured in App: timeout + user-agent)
+                    var data = await _httpClient.GetByteArrayAsync(url);
                     await File.WriteAllBytesAsync(tempPathWithExt, data);
                     success = true;
                 }

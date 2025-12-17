@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -37,6 +38,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly GamepadService _gamepadService;
     private readonly SoundEffectService _soundEffectService;
 
+    // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
+    private readonly HttpClient _httpClient;
+    
     // Token Source for cancelling old content loading tasks
     private CancellationTokenSource? _updateContentCts;
     
@@ -193,6 +197,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SettingsService settingsService,
         MetadataService metadataService,
         SoundEffectService soundEffectService,
+        HttpClient httpClient,
         AppSettings preloadedSettings) 
     {
         _audioService = audioService;
@@ -204,6 +209,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _settingsService = settingsService;
         _metadataService = metadataService;
         _soundEffectService = soundEffectService;
+        _httpClient = httpClient;
         _currentSettings = preloadedSettings;
         _fileService.LibraryChanged += MarkLibraryDirty;
         
