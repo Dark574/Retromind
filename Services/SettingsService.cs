@@ -20,6 +20,10 @@ public class SettingsService
     private string SettingsFolder => AppPaths.DataRoot;
     private string FilePath => Path.Combine(SettingsFolder, FileName);
 
+    // keep a stable backup of the last known-good settings
+    private string BackupPath => FilePath + ".bak";
+    private string TempPath => FilePath + ".tmp";
+    
     /// <summary>
     /// Saves the settings asynchronously.
     /// Uses a temporary file strategy to prevent data corruption during crashes.
@@ -31,26 +35,33 @@ public class SettingsService
         
         try
         {
-            var tempFile = FilePath + ".tmp";
-            
             #if DEBUG
                 var options = new JsonSerializerOptions { WriteIndented = true };
             #else
                 var options = new JsonSerializerOptions { WriteIndented = false };
             #endif
 
-            // 1. Write to temp file first
-            using (var stream = File.Create(tempFile))
+            // 1) Write to temp first
+            using (var stream = File.Create(TempPath))
             {
                 await JsonSerializer.SerializeAsync(stream, settings, options);
             }
 
-            // 2. Atomic move (replace original with temp)
+            // 2) Backup current file (best effort)
             if (File.Exists(FilePath))
             {
-                File.Delete(FilePath);
+                try
+                {
+                    File.Copy(FilePath, BackupPath, overwrite: true);
+                }
+                catch
+                {
+                    // best effort: backup must not block saving
+                }
             }
-            File.Move(tempFile, FilePath);
+
+            // 3) Atomic replace (no "delete then move" gap)
+            File.Move(TempPath, FilePath, overwrite: true);
         }
         catch (UnauthorizedAccessException)
         {
@@ -59,6 +70,28 @@ public class SettingsService
         catch (Exception ex)
         {
             Debug.WriteLine($"[SettingsService] Critical error saving settings: {ex.Message}");
+            
+            // Best effort cleanup of temp
+            try
+            {
+                if (File.Exists(TempPath))
+                    File.Delete(TempPath);
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // Optional: if the main file is missing but we have a backup, restore it
+            try
+            {
+                if (!File.Exists(FilePath) && File.Exists(BackupPath))
+                    File.Copy(BackupPath, FilePath, overwrite: true);
+            }
+            catch
+            {
+                // ignore
+            }
         }
     }
 
