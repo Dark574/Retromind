@@ -20,19 +20,27 @@ Work in progress. Expect breaking changes while features and data formats evolve
 - .NET SDK 10.0
 - Optional: VLC (LibVLCSharp) for video playback
 
+
 ## Build & Run
 ### Rider
+
 Open `Retromind.sln` and run the default configuration.
 
 ### CLI
-    dotnet restore dotnet run --project Retromind.csproj
+```bash
+dotnet restore
+dotnet run --project Retromind.csproj
+```
 
-# Start directly in BigMode:
+Start directly in BigMode:
+```markdown
+dotnet run --project Retromind.csproj -- --bigmode
+```
 
-    dotnet run --project Retromind.csproj -- --bigmode
-
-# or (if you run the built app directly)
-    ./Retromind --bigmode
+Or (if you run the built app directly):
+```bash
+./Retromind --bigmode
+```
 
 ## Getting started (first run)
 1. Build and run once (see “Build & Run”). Retromind will create `app_settings.json` in the app directory (portable).
@@ -69,5 +77,8 @@ To configure locally:
 On some Wayland setups, embedded video playback can be problematic. Retromind may force X11/XWayland
 depending on configuration/platform behavior.
 
+## Architecture
+See [`docs/architecture.md`](docs/architecture.md).
+
 ## License
-GPL-3.0 (see `COPYING`).
+GPL-3.0-only (see `COPYING`).
