@@ -214,21 +214,16 @@ public partial class MainWindowViewModel
         
         var dialog = new EditMediaView { DataContext = editVm };
         
-        bool saved = false;
-        editVm.RequestClose += (isSaved) => 
-        { 
-            saved = isSaved; 
-            dialog.Close(isSaved); 
-        };
+        // bool? damit "X" (kein Ergebnis) eindeutig erkennbar bleibt
+        var result = await dialog.ShowDialog<bool?>(owner);
         
-        await dialog.ShowDialog(owner);
-        
-        if (saved) 
+        if (result == true)
         {
             MarkLibraryDirty();
             await SaveData();
-            // Refresh content might be needed if sort order changed (title change)
-            if (parentNode != null && IsNodeInCurrentView(parentNode)) UpdateContent();
+
+            if (parentNode != null && IsNodeInCurrentView(parentNode))
+                UpdateContent();
         }
     }
 

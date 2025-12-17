@@ -8,7 +8,9 @@
         x:DataType="vm:EditMediaViewModel"
         Title="{x:Static p:Strings.Dialog_EditMedia}"
         Width="800" Height="800"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        CanResize="False">
 
     <Window.Resources>
         <helpers:MediaTypeToLocalizedNameConverter x:Key="MediaTypeConverter" />
@@ -207,7 +209,7 @@
                                        IsVisible="{Binding SelectedAsset, Converter={x:Static ObjectConverters.IsNull}}"/>
                             
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" IsVisible="{Binding SelectedAsset, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                <TextBlock Text="{Binding SelectedAsset.RelativePath, StringFormat='Lösche: {0}'}" VerticalAlignment="Center" Foreground="Red"/>
+                                <TextBlock Text="{Binding SelectedAsset.RelativePath, StringFormat='Lösche: {0}', TargetNullValue=''}" VerticalAlignment="Center" Foreground="Red"/>
                                 <Button Content="{x:Static p:Strings.Button_Delete}" Command="{Binding DeleteAssetCommand}" 
                                         Foreground="White" Background="Red"/>
                             </StackPanel>
@@ -219,8 +221,19 @@
 
         <!-- HAUPT BUTTONS (Unten rechts) -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,10,0,0">
-            <Button Content="{x:Static p:Strings.Button_Cancel}" Command="{Binding CancelCommand}" Width="100" HorizontalContentAlignment="Center"/>
-            <Button Content="{x:Static p:Strings.Button_Save}" Command="{Binding SaveCommand}" Classes="accent" Width="100" HorizontalContentAlignment="Center" IsDefault="True" />
+            <Button Content="{x:Static p:Strings.Button_Cancel}"
+                    Command="{Binding CancelAndCloseCommand}"
+                    CommandParameter="{Binding $parent[Window]}"
+                    Width="100"
+                    HorizontalContentAlignment="Center"
+                    IsCancel="True" />
+            <Button Content="{x:Static p:Strings.Button_Save}"
+                    Command="{Binding SaveAndCloseCommand}"
+                    CommandParameter="{Binding $parent[Window]}"
+                    Classes="accent"
+                    Width="100"
+                    HorizontalContentAlignment="Center"
+                    IsDefault="True" />
         </StackPanel>
     </Grid>
 </Window>

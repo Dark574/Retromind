@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.IO;
 using System.Threading.Tasks;
+using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -62,13 +63,11 @@ public partial class EditMediaViewModel : ViewModelBase
     public IRelayCommand DeleteAssetCommand { get; }
     
     public IAsyncRelayCommand BrowseLauncherCommand { get; }
-    public IRelayCommand SaveCommand { get; }
-    public IRelayCommand CancelCommand { get; }
+    public IRelayCommand<Window?> SaveAndCloseCommand { get; }
+    public IRelayCommand<Window?> CancelAndCloseCommand { get; }
+
 
     public IStorageProvider? StorageProvider { get; set; }
-    
-    // Event to signal the view to close (true = saved, false = cancelled)
-    public event Action<bool>? RequestClose;
     
     public bool HasAssetChanges { get; private set; }
 
@@ -90,14 +89,24 @@ public partial class EditMediaViewModel : ViewModelBase
         _inheritedEmulator = inheritedEmulator;
 
         // Commands initialisieren
-        SaveCommand = new RelayCommand(Save);
-        CancelCommand = new RelayCommand(Cancel);
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
         
         // Generische Asset-Commands
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
         DeleteAssetCommand = new RelayCommand(DeleteSelectedAsset, () => SelectedAsset != null);
 
+        // Dialog schließt sich selbst (reduziert WM/Modal "pop")
+        SaveAndCloseCommand = new RelayCommand<Window?>(win =>
+        {
+            Save();
+            win?.Close(true);
+        });
+
+        CancelAndCloseCommand = new RelayCommand<Window?>(win =>
+        {
+            win?.Close(false);
+        });
+        
         LoadItemData();
         InitializeEmulators(settings);
     }
@@ -306,16 +315,5 @@ public partial class EditMediaViewModel : ViewModelBase
             _originalItem.LauncherArgs = LauncherArgs;
             _originalItem.OverrideWatchProcess = OverrideWatchProcess;
         }
-
-        // Hinweis: Assets müssen nicht gespeichert werden, 
-        // da sie bereits "live" via FileService im _originalItem.Assets gelandet sind.
-        
-        RequestClose?.Invoke(true);
-    }
-
-    private void Cancel()
-    {
-        // Änderungen an Metadaten verwerfen
-        RequestClose?.Invoke(false);
     }
 }
