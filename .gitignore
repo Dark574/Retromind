@@ -22,3 +22,10 @@ app_settings.json
 
 # Secrets (NICHT HOCHLADEN!)
 **/ApiSecrets.cs
+
+# Local build artifacts for AppImage packaging
+.build-work/
+dist/
+build-appimage.log
+build-appimage.debug.log
+docker-build.log

@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources; 
 
@@ -18,10 +19,10 @@ public class MediaDataService
     private const string BackupFileName = "retromind_tree.bak";
     private const string TempFileName = "retromind_tree.tmp";
 
-    // Path to the data file in the application directory
-    private string FilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FileName);
-    private string BackupPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, BackupFileName);
-    private string TempPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, TempFileName);
+    // Store in writable DataRoot (AppImage-safe)
+    private string FilePath => Path.Combine(AppPaths.DataRoot, FileName);
+    private string BackupPath => Path.Combine(AppPaths.DataRoot, BackupFileName);
+    private string TempPath => Path.Combine(AppPaths.DataRoot, TempFileName);
 
     /// <summary>
     /// Saves the current state of the library to disk asynchronously.

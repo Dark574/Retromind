@@ -1,0 +1,21 @@
+FROM debian:stable-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       ca-certificates \
+       vlc \
+       libvlc-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Export folder inside the container (we will copy it out to the host)
+RUN mkdir -p /out/vlc
+
+# Copy VLC plugins and the libvlc libraries to /out
+# Note: Debian paths can vary slightly; these are the common ones.
+RUN set -eux; \
+    cp -a /usr/lib/x86_64-linux-gnu/vlc /out/vlc/; \
+    mkdir -p /out/vlc/lib; \
+    cp -a /usr/lib/x86_64-linux-gnu/libvlc.so* /out/vlc/lib/; \
+    cp -a /usr/lib/x86_64-linux-gnu/libvlccore.so* /out/vlc/lib/
+
+CMD ["bash", "-lc", "ls -la /out/vlc && echo 'VLC export ready.'"]

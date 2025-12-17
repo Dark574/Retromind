@@ -18,7 +18,7 @@ public class SettingsService
 
     // Portable Mode: Use BaseDirectory.
     // Ensure the application has write permissions to its own folder!
-    private string SettingsFolder => AppDomain.CurrentDomain.BaseDirectory;
+    private string SettingsFolder => AppPaths.DataRoot;
     private string FilePath => Path.Combine(SettingsFolder, FileName);
 
     /// <summary>

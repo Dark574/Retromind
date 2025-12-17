@@ -8,6 +8,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
 using Retromind.ViewModels;
@@ -141,9 +142,8 @@ public partial class App : Application
         services.AddSingleton<SoundEffectService>();
         services.AddSingleton<MediaDataService>();
         
-        // --- FileManagementService mit Pfad registrieren ---
-        // Wir bestimmen den Library-Ordner relativ zur Executable (Portable)
-        string libraryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Library");
+        // --- Portable data root (AppImage-safe) ---
+        string libraryPath = AppPaths.LibraryRoot;
         
         if (!Directory.Exists(libraryPath))
         {

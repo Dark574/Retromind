@@ -20,6 +20,23 @@ Work in progress. Expect breaking changes while features and data formats evolve
 - .NET SDK 10.0
 - Optional: VLC (LibVLCSharp) for video playback
 
+## Build AppImage (portable release, includes VLC)
+This project ships a build script that creates a portable **AppImage** containing:
+- a self-contained .NET build (no system .NET required)
+- bundled **LibVLC + plugins** (video playback required)
+
+### Requirements (host)
+- Docker (for reproducible LibVLC export)
+- `curl` (to download `appimagetool` if missing)
+
+### Build
+```
+chmod +x build/AppRun build/build-appimage.sh 
+./build/build-appimage.sh
+```
+
+The resulting AppImage will be created at:
+- `dist/Retromind-x86_64.AppImage`
 
 ## Build & Run
 ### Rider
@@ -33,7 +50,7 @@ dotnet run --project Retromind.csproj
 ```
 
 Start directly in BigMode:
-```markdown
+```
 dotnet run --project Retromind.csproj -- --bigmode
 ```
 

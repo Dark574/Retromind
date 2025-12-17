@@ -20,7 +20,7 @@ internal sealed class Program
         // Das MUSS vor "BuildAvaloniaApp" passieren!
         Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", "x11");
 
-        // Initialisiere die VLC Core Engine VOR Avalonia
+        // VLC is REQUIRED for this build.
         try
         {
             Core.Initialize(); 
@@ -28,7 +28,7 @@ internal sealed class Program
         catch (Exception ex)
         {
             Console.WriteLine($"VLC Init Failed: {ex.Message}");
-            // App läuft trotzdem weiter, nur ohne Video
+            Environment.Exit(1);
         }
         
         BuildAvaloniaApp(isBigModeOnly)
