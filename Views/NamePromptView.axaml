@@ -23,10 +23,12 @@
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
             <Button Command="{Binding OkCommand}" 
                     CommandParameter="{Binding $parent[Window]}" 
-                    Content="OK" />
-            <Button Command="{Binding CancelCommand}" 
-                    CommandParameter="{Binding $parent[Window]}" 
-                    Content="Cancel" />
+                    Content="OK"
+                    IsDefault="True" />
+            <Button Command="{Binding CancelCommand}"
+                    CommandParameter="{Binding $parent[Window]}"
+                    Content="Cancel"
+                    IsCancel="True" />
         </StackPanel>
     </StackPanel>
 </Window>
