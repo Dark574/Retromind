@@ -1,0 +1,42 @@
+{
+  "Version": 1,
+
+  "TreeColumnWidth": 250,
+  "DetailColumnWidth": 300,
+  "ItemWidth": 150,
+  "IsDarkTheme": false,
+
+  "LastSelectedNodeId": null,
+  "LastSelectedMediaId": null,
+
+  "LastBigModeNavigationPath": [],
+  "LastBigModeSelectedNodeId": null,
+  "LastBigModeWasItemView": false,
+
+  "Emulators": [],
+
+  "Scrapers": [
+    {
+      "Id": "tmdb-default",
+      "Name": "TMDB",
+      "Type": "TMDB",
+      "Username": null,
+      "ClientId": null,
+      "Language": "en-US",
+      "EncryptedApiKey": "<TMDB_API_KEY_ENCRYPTED_OR_PLACEHOLDER>",
+      "EncryptedPassword": null,
+      "EncryptedClientSecret": null
+    },
+    {
+      "Id": "igdb-default",
+      "Name": "IGDB",
+      "Type": "IGDB",
+      "Username": null,
+      "ClientId": "<IGDB_CLIENT_ID>",
+      "Language": "en-US",
+      "EncryptedApiKey": null,
+      "EncryptedPassword": null,
+      "EncryptedClientSecret": "<IGDB_CLIENT_SECRET_ENCRYPTED_OR_PLACEHOLDER>"
+    }
+  ]
+}
