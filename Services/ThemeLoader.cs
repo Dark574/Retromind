@@ -6,6 +6,7 @@ using Avalonia.Data;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Retromind.Extensions;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 
@@ -24,25 +25,29 @@ public static class ThemeLoader
 
     public static Theme LoadTheme(string filePath)
     {
+        // Allow passing "Wheel/theme.axaml" etc. (relative to portable ThemesRoot).
+        if (!string.IsNullOrWhiteSpace(filePath) && !Path.IsPathRooted(filePath))
+            filePath = Path.Combine(AppPaths.ThemesRoot, filePath);
+
+        filePath = AppPaths.ResolveDataPath(filePath);
+
         if (string.IsNullOrWhiteSpace(filePath))
         {
             var errorView = CreateErrorView(Strings.Theme_Error_InvalidPath);
-            return new Theme(errorView, new ThemeSounds(), AppDomain.CurrentDomain.BaseDirectory, videoEnabled: false);
+            return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, videoEnabled: false);
         }
 
         var themeDir = Path.GetDirectoryName(filePath);
         if (string.IsNullOrWhiteSpace(themeDir) || !File.Exists(filePath))
         {
             var errorView = CreateErrorView(string.Format(Strings.Theme_Error_FileNotFoundFormat, filePath));
-            return new Theme(errorView, new ThemeSounds(), AppDomain.CurrentDomain.BaseDirectory, videoEnabled: false);
+            return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, videoEnabled: false);
         }
 
         try
         {
             var xamlContent = ReadXamlWithCache(filePath);
 
-            // Parse a fresh Control instance each time.
-            // Reusing the same Control can cause issues when swapping visual trees (attach/detach, state, bindings).
             var view = AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent)
                        ?? CreateErrorView(Strings.Theme_Error_LoadedNullOrInvalid);
 
@@ -54,13 +59,13 @@ public static class ThemeLoader
             };
 
             var videoEnabled = ThemeProperties.GetVideoEnabled(view);
-            
+
             return new Theme(view, sounds, themeDir, videoEnabled);
         }
         catch (Exception ex)
         {
             var errorView = CreateErrorView(string.Format(Strings.Theme_Error_LoadFailedFormat, ex.Message));
-            return new Theme(errorView, new ThemeSounds(), AppDomain.CurrentDomain.BaseDirectory, videoEnabled: false);
+            return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, videoEnabled: false);
         }
     }
 

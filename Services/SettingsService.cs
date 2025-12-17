@@ -16,7 +16,6 @@ public class SettingsService
 {
     private const string FileName = "app_settings.json";
 
-    // Portable Mode: Use BaseDirectory.
     // Ensure the application has write permissions to its own folder!
     private string SettingsFolder => AppPaths.DataRoot;
     private string FilePath => Path.Combine(SettingsFolder, FileName);

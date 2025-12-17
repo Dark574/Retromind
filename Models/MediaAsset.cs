@@ -1,4 +1,5 @@
 using System;
+using Retromind.Helpers;
 
 namespace Retromind.Models;
 
@@ -45,7 +46,7 @@ public class MediaAsset
         {
             if (_absolutePath == null)
             {
-                _absolutePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, RelativePath);
+                _absolutePath = AppPaths.ResolveDataPath(RelativePath);
             }
             return _absolutePath;
         }

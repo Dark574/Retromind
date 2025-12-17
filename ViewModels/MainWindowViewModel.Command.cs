@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
@@ -340,7 +339,6 @@ public partial class MainWindowViewModel
         await SaveData();
     }
 
-    private const string ThemesFolderName = "Themes";
     private const string DefaultThemeFolderName = "Default";
     private const string ThemeFileName = "theme.axaml";
 
@@ -362,7 +360,7 @@ public partial class MainWindowViewModel
                 if (string.IsNullOrWhiteSpace(node.ThemePath))
                     continue;
 
-                var fullPath = Path.Combine(AppContext.BaseDirectory, ThemesFolderName, node.ThemePath, ThemeFileName);
+                var fullPath = Path.Combine(AppPaths.ThemesRoot, node.ThemePath);
 
                 if (File.Exists(fullPath))
                     return fullPath;
@@ -372,7 +370,7 @@ public partial class MainWindowViewModel
         }
 
         // Fallback: default theme.
-        var fallbackThemePath = Path.Combine(AppContext.BaseDirectory, ThemesFolderName, DefaultThemeFolderName, ThemeFileName);
+        var fallbackThemePath = Path.Combine(AppPaths.ThemesRoot, DefaultThemeFolderName, ThemeFileName);
         Debug.WriteLine($"[Theme] No assigned theme found, using fallback: {fallbackThemePath}");
         return fallbackThemePath;
     }
@@ -421,7 +419,7 @@ public partial class MainWindowViewModel
                 
                 if (!string.IsNullOrEmpty(relativeMusicPath))
                 {
-                    var musicPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativeMusicPath);
+                    var musicPath = AppPaths.ResolveDataPath(relativeMusicPath);
                     // Fire and forget music playback
                     _ = _audioService.PlayMusicAsync(musicPath);
                 }

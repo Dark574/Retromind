@@ -5,6 +5,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Retromind.Helpers;
 
 namespace Retromind.Models;
 
@@ -123,8 +124,8 @@ public partial class MediaItem : ObservableObject
         var relPath = GetPrimaryAssetPath(type);
         if (string.IsNullOrEmpty(relPath)) return null;
         
-        // Kombiniert BaseDirectory mit relativem Pfad
-        return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relPath);
+        // Kombiniert DataRoot mit relativem Pfad
+        return AppPaths.ResolveDataPath(relPath);
     }
     
     /// <summary>

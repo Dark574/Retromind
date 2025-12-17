@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using LibVLCSharp.Shared;
+using Retromind.Helpers;
 using Retromind.Models;
 
 namespace Retromind.ViewModels;
@@ -200,7 +201,7 @@ public partial class BigModeViewModel
         var relativeVideoPath = item.GetPrimaryAssetPath(AssetType.Video);
         if (!string.IsNullOrEmpty(relativeVideoPath))
         {
-            var candidate = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relativeVideoPath);
+            var candidate = AppPaths.ResolveDataPath(relativeVideoPath);
             if (File.Exists(candidate))
                 videoPath = candidate;
         }
@@ -244,7 +245,7 @@ public partial class BigModeViewModel
         var videoAsset = node.Assets.FirstOrDefault(a => a.Type == AssetType.Video);
         if (!string.IsNullOrEmpty(videoAsset?.RelativePath))
         {
-            var candidate = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, videoAsset.RelativePath);
+            var candidate = AppPaths.ResolveDataPath(videoAsset.RelativePath);
             if (File.Exists(candidate))
                 videoPath = candidate;
         }

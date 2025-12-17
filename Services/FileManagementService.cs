@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 using Retromind.Models;
 
 namespace Retromind.Services;
@@ -72,7 +73,7 @@ public class FileManagementService
             var newAsset = new MediaAsset
             {
                 Type = type,
-                RelativePath = Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, fullDestPath)
+                RelativePath = Path.GetRelativePath(AppPaths.DataRoot, fullDestPath)
             };
 
             if (entity is MediaItem mediaItem)
@@ -110,7 +111,7 @@ public class FileManagementService
 
             if (!string.IsNullOrEmpty(asset.RelativePath))
             {
-                string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, asset.RelativePath);
+                string fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
 
                 Helpers.AsyncImageHelper.InvalidateCache(fullPath);
 
@@ -165,7 +166,7 @@ public class FileManagementService
                     results.Add(new MediaAsset
                     {
                         Type = type,
-                        RelativePath = Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, file)
+                        RelativePath = Path.GetRelativePath(AppPaths.DataRoot, file)
                     });
                 }
             }
@@ -208,7 +209,7 @@ public class FileManagementService
                     item.Assets.Add(new MediaAsset
                     {
                         Type = type,
-                        RelativePath = Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, file)
+                        RelativePath = Path.GetRelativePath(AppPaths.DataRoot, file)
                     });
                 }
             }

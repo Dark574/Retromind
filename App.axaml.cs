@@ -41,6 +41,9 @@ public partial class App : Application
     {
         try
         {
+            // Make sure portable Themes exist (copy defaults on first run).
+            AppPaths.EnsurePortableThemes();
+            
             // 1. Load Settings safely
             // We use Task.Run to offload the async loading to a ThreadPool thread,
             // avoiding a deadlock with the UI thread during the synchronous startup phase.

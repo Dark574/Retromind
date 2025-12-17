@@ -506,7 +506,7 @@ public partial class MainWindowViewModel : ViewModelBase
             var musicPath = item?.GetPrimaryAssetPath(AssetType.Music);
             if (!string.IsNullOrEmpty(musicPath))
             {
-                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, musicPath);
+                var fullPath = AppPaths.ResolveDataPath(musicPath);
                 _ = _audioService.PlayMusicAsync(fullPath);
             }
             else

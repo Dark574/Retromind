@@ -8,6 +8,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
@@ -137,29 +138,23 @@ public partial class NodeSettingsViewModel : ViewModelBase
     {
         AvailableThemes.Clear();
 
-        var themesRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Themes");
-        if (!Directory.Exists(themesRoot))
-            return;
-
         try
         {
-            // Best-effort directory scan:
-            // - Only folders containing "theme.axaml" are considered valid themes.
-            // - "Default" is pinned to the top for convenience.
-            var themes = Directory.EnumerateDirectories(themesRoot)
-                .Select(dir => new
-                {
-                    FolderName = Path.GetFileName(dir),
-                    ThemeFile = Path.Combine(dir, "theme.axaml")
-                })
-                .Where(x => !string.IsNullOrWhiteSpace(x.FolderName) && File.Exists(x.ThemeFile))
-                .Select(x => x.FolderName!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(name => !string.Equals(name, "Default", StringComparison.OrdinalIgnoreCase))
-                .ThenBy(name => name, StringComparer.OrdinalIgnoreCase);
+            var themesRoot = AppPaths.ThemesRoot;
+            if (!Directory.Exists(themesRoot))
+                return;
 
-            foreach (var name in themes)
-                AvailableThemes.Add(name);
+            // Example layout: Themes/Wheel/theme.axaml, Themes/Default/theme.axaml
+            foreach (var dir in Directory.EnumerateDirectories(themesRoot))
+            {
+                var name = Path.GetFileName(dir);
+                var themeFile = Path.Combine(dir, "theme.axaml");
+                if (File.Exists(themeFile))
+                {
+                    // Store as relative path under ThemesRoot (portable, stable when moved)
+                    AvailableThemes.Add($"{name}/theme.axaml");
+                }
+            }
         }
         catch
         {
@@ -189,7 +184,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         if (asset?.RelativePath is not { Length: > 0 } relPath)
             return null;
 
-        var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relPath);
+        var fullPath = AppPaths.ResolveDataPath(relPath);
         if (!File.Exists(fullPath))
             return null;
 
@@ -257,7 +252,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
                 if (string.IsNullOrWhiteSpace(asset.RelativePath))
                     continue;
 
-                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, asset.RelativePath);
+                var fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
 
                 try
                 {

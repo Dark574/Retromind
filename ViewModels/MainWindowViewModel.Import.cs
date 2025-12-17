@@ -260,7 +260,7 @@ public partial class MainWindowViewModel
                 MarkLibraryDirty();
                 
                 // Play logic needs full path
-                var fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, asset.RelativePath);
+                var fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
                 
                 _ = _audioService.PlayMusicAsync(fullPath);
                 await SaveData();
@@ -487,7 +487,7 @@ public partial class MainWindowViewModel
                 // Musik-Logik mit Helper und Assets
                 var musicAsset = item?.GetPrimaryAssetPath(AssetType.Music);
                 if (!string.IsNullOrEmpty(musicAsset))
-                    _ = _audioService.PlayMusicAsync(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, musicAsset));
+                    _ = _audioService.PlayMusicAsync(AppPaths.ResolveDataPath(musicAsset));
                 else 
                     _audioService.StopMusic();
             }
