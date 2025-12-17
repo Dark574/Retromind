@@ -92,6 +92,12 @@ public partial class MediaNode : ObservableObject
 
     public void SetActiveAsset(AssetType type, string relativePath)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.InvokeAsync(() => SetActiveAsset(type, relativePath));
+            return;
+        }
+        
         _activeAssets[type] = relativePath;
         
         if (type == AssetType.Cover) OnPropertyChanged(nameof(PrimaryCoverPath));

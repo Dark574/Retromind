@@ -516,6 +516,7 @@ public partial class MainWindowViewModel : ViewModelBase
     
         // Cancel old task if running
         _updateContentCts?.Cancel();
+        _updateContentCts?.Dispose();
         _updateContentCts = new CancellationTokenSource();
         var token = _updateContentCts.Token;
 
@@ -532,25 +533,25 @@ public partial class MainWindowViewModel : ViewModelBase
         var nodeToLoad = SelectedNode;
 
         // Run the heavy collection logic in a background task
-        Task.Run(async () => 
+        var updateTask = Task.Run(async () =>
         {
             if (token.IsCancellationRequested) return;
-        
+
             // 1. Collect items (recursive)
             var itemList = new System.Collections.Generic.List<MediaItem>();
-            CollectItemsRecursive(nodeToLoad, itemList); 
-            
+            CollectItemsRecursive(nodeToLoad, itemList);
+
             if (token.IsCancellationRequested) return;
 
             // 2. Randomization Logic (covers/wallpapers/music)
             bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);
             bool randomizeCovers = IsRandomizeActive(nodeToLoad);
-            
+
             foreach (var item in itemList)
             {
                 if (token.IsCancellationRequested) return;
 
-                item.ResetActiveAssets(); 
+                item.ResetActiveAssets();
 
                 if (!randomizeCovers && !randomizeMusic)
                     continue;
@@ -559,7 +560,6 @@ public partial class MainWindowViewModel : ViewModelBase
                 System.Collections.Generic.List<MediaAsset>? wallpapers = null;
                 System.Collections.Generic.List<MediaAsset>? music = null;
 
-                // Single pass over assets (avoids multiple LINQ allocations per item).
                 foreach (var asset in item.Assets)
                 {
                     if (randomizeCovers)
@@ -573,7 +573,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     if (randomizeMusic && asset.Type == AssetType.Music)
                         (music ??= new()).Add(asset);
                 }
-                
+
                 if (randomizeCovers)
                 {
                     if (covers is { Count: > 1 })
@@ -598,12 +598,12 @@ public partial class MainWindowViewModel : ViewModelBase
                         item.SetActiveAsset(AssetType.Music, winner.RelativePath);
                 }
             }
-        
+
             if (token.IsCancellationRequested) return;
 
             // 3. Prepare display node
             var allItems = new ObservableCollection<MediaItem>(itemList);
-            
+
             var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
             {
                 Id = nodeToLoad.Id,
@@ -620,7 +620,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 _currentMediaAreaVm = mediaVm;
                 mediaVm.RequestPlay += OnMediaAreaRequestPlay;
                 mediaVm.PropertyChanged += OnMediaAreaPropertyChanged;
-                
+
                 if (!string.IsNullOrEmpty(_currentSettings.LastSelectedMediaId))
                 {
                     var itemToSelect = allItems.FirstOrDefault(i => i.Id == _currentSettings.LastSelectedMediaId);
@@ -629,6 +629,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
                 SelectedNodeContent = mediaVm;
             });
-        });
+        }, token);
+        
+        updateTask.ContinueWith(t =>
+        {
+            if (t.IsCanceled) return;
+            if (t.Exception == null) return;
+
+            Debug.WriteLine($"[UpdateContent] Background task failed: {t.Exception}");
+        }, TaskContinuationOptions.ExecuteSynchronously);
     }
 }

@@ -7,16 +7,18 @@
 .vs/
 *.user
 *.suo
+*.DotSettings.user
 
 # OS generated files
 .DS_Store
 Thumbs.db
 
 # User Data & Prefixes (WICHTIG!)
-Medien/
+Library/
 retromind_tree.json
 retromind_tree.bak
+retromind_tree.tmp
 app_settings.json
 
 # Secrets (NICHT HOCHLADEN!)
-ApiSecrets.cs
+**/ApiSecrets.cs

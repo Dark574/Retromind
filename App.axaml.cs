@@ -123,8 +123,18 @@ public partial class App : Application
     private void ConfigureServices(IServiceCollection services)
     {
         // --- Infrastructure ---
-        // // Register HttpClient as Singleton to prevent socket exhaustion (replaces static instances)
-        services.AddSingleton<HttpClient>();
+        services.AddSingleton<HttpClient>(_ =>
+        {
+            var client = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(25)
+            };
+
+            // singular User-Agent for all HTTP-Calls (Scraper + graphics)
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Retromind/1.0 (Linux Portable Media Manager)");
+
+            return client;
+        });
         
         // --- Core Services (Singletons) ---
         services.AddSingleton<AudioService>();
