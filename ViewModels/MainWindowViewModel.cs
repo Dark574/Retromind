@@ -72,6 +72,9 @@ public partial class MainWindowViewModel : ViewModelBase
     // --- Library Dirty Tracking + Debounced Library Save (NEW) ---
     private bool _isLibraryDirty;
     private int _libraryDirtyVersion;
+    
+    // ensure Cleanup() is executed at most once (Exit + Closing can both fire)
+    private int _cleanupOnce;
 
     private CancellationTokenSource? _saveLibraryCts;
     private readonly TimeSpan _saveLibraryDebounce = TimeSpan.FromMilliseconds(800);
@@ -439,6 +442,10 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     public void Cleanup()
     {
+        // Guard against double-cleanup (can happen when Closing triggers Close(), then desktop.Exit runs)
+        if (Interlocked.Exchange(ref _cleanupOnce, 1) == 1)
+            return;
+        
         _audioService.StopMusic();
         
         _fileService.LibraryChanged -= MarkLibraryDirty;

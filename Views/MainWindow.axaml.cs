@@ -7,24 +7,37 @@ namespace Retromind;
 
 public partial class MainWindow : Window
 {
-    // Flag um zu prüfen, ob wir schon gespeichert haben
+    // Flag to check if we have already safed
     private bool _canClose = false;
+    
+    // prevents Re-Entry (e.g. duplicate Close/Alt+F4 while Flush is running)
+    private bool _closeInProgress = false;
     
     public MainWindow()
     {
         InitializeComponent();
     }
 
-    // Wir überschreiben die Methode, die beim Schließen aufgerufen wird
+    // we override the method which is called on closing
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
-        base.OnClosing(e);
-
         // Wenn wir schon gespeichert haben (2. Durchlauf), lassen wir das Fenster zugehen.
-        if (_canClose) return;
+        if (_canClose)
+        {
+            base.OnClosing(e);
+            return;
+        }
+
+        // Wenn bereits ein Close-Flush läuft: Schließen weiterhin verhindern.
+        if (_closeInProgress)
+        {
+            e.Cancel = true;
+            return;
+        }
 
         // 1. Durchlauf: Wir brechen das Schließen ab!
         e.Cancel = true;
+        _closeInProgress = true;
 
         // Hide ASAP to avoid the "window pops back up" effect while the close is cancelled.
         // Minimize is usually less glitchy than IsVisible=false on some compositors.
@@ -38,7 +51,7 @@ public partial class MainWindow : Window
         {
             // best-effort; never block closing because of UI state
         }
-        
+
         // Wir holen uns das ViewModel
         if (DataContext is MainWindowViewModel vm)
         {
@@ -48,17 +61,26 @@ public partial class MainWindow : Window
             }
             catch
             {
-                // Falls das Speichern crasht, ignorieren wir es hier, damit die App trotzdem schließt
-                // und nicht "hängen bleibt".
+                // Best effort: Wenn das Speichern crasht, trotzdem schließen.
             }
         }
 
-        // Jetzt setzen wir das Flag auf wahr
+        // Jetzt setzen wir das Flag auf wahr (2. Durchlauf darf schließen)
         _canClose = true;
-        
-        // Close immediately on UI thread (we are on it after await).
-        // If you ever reintroduce a platform-specific issue, we can switch this back to Post().
-        Close();
+
+        // Wichtig gegen "pop back up":
+        // Close nicht inline ausführen, sondern in den UI-Queue posten.
+        Dispatcher.UIThread.Post(() =>
+        {
+            try
+            {
+                Close();
+            }
+            catch
+            {
+                // Ignorieren: wir sind beim Shutdown
+            }
+        }, DispatcherPriority.Background);
     }
 
     // Event Handler für das Draggen
