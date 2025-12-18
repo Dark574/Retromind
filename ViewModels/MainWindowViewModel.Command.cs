@@ -408,7 +408,46 @@ public partial class MainWindowViewModel
                 }
             }
             
-            await _launcherService.LaunchAsync(item, emulator, nodePath);
+            // C) Native wrapper resolution (global -> node -> item)
+            string? wrapperPath = null;
+            string? wrapperArgs = null;
+
+            IReadOnlyList<LaunchWrapper>? effectiveWrappers = null;
+
+            if (item.MediaType == MediaType.Native)
+            {
+                // Item override wins (null=inherits, empty=explicit none)
+                if (item.NativeWrappersOverride != null)
+                {
+                    effectiveWrappers = item.NativeWrappersOverride;
+                }
+                else
+                {
+                    // Start with global defaults
+                    List<LaunchWrapper>? wrappers = _currentSettings.DefaultNativeWrappers;
+
+                    // Node override (nearest wins)
+                    var chain = GetNodeChain(trueParent, RootItems);
+                    chain.Reverse();
+
+                    foreach (var node in chain)
+                    {
+                        if (node.NativeWrappersOverride != null)
+                        {
+                            wrappers = node.NativeWrappersOverride;
+                            break;
+                        }
+                    }
+
+                    effectiveWrappers = wrappers;
+                }
+            }
+
+            await _launcherService.LaunchAsync(
+                item,
+                emulator,
+                nodePath,
+                nativeWrappers: effectiveWrappers);
             
             // Resume background music after game exit (if applicable)
             if (SelectedNodeContent is MediaAreaViewModel vm && 

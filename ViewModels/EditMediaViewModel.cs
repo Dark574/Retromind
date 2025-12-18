@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
@@ -20,7 +19,186 @@ public partial class EditMediaViewModel : ViewModelBase
     private readonly MediaItem _originalItem;
     private readonly FileManagementService _fileService;
     private readonly List<string> _nodePath;
+    
+    private readonly ObservableCollection<MediaNode> _rootNodes;
+    private readonly MediaNode? _parentNode;
 
+    // --- Native wrapper chain (Tri-state; item-level) ---
+
+    public enum WrapperMode
+    {
+        Inherit,
+        None,
+        Override
+    }
+
+    public sealed partial class LaunchWrapperRow : ObservableObject
+    {
+        [ObservableProperty] private string _path = string.Empty;
+        [ObservableProperty] private string _args = string.Empty;
+
+        public LaunchWrapperRow()
+        {
+        }
+
+        public LaunchWrapperRow(LaunchWrapper wrapper)
+        {
+            Path = wrapper.Path ?? string.Empty;
+            Args = wrapper.Args ?? string.Empty;
+        }
+
+        public LaunchWrapper ToModel()
+            => new LaunchWrapper
+            {
+                Path = Path?.Trim() ?? string.Empty,
+                Args = string.IsNullOrWhiteSpace(Args) ? null : Args
+            };
+    }
+
+    [ObservableProperty]
+    private WrapperMode _nativeWrapperMode = WrapperMode.Inherit;
+
+    public ObservableCollection<LaunchWrapperRow> NativeWrappers { get; } = new();
+
+    public IRelayCommand AddNativeWrapperCommand { get; }
+    public IRelayCommand<LaunchWrapperRow?> RemoveNativeWrapperCommand { get; }
+    public IRelayCommand<LaunchWrapperRow?> MoveNativeWrapperUpCommand { get; }
+    public IRelayCommand<LaunchWrapperRow?> MoveNativeWrapperDownCommand { get; }
+
+    public bool IsNativeWrapperInherit
+    {
+        get => NativeWrapperMode == WrapperMode.Inherit;
+        set
+        {
+            if (!value) return;
+            NativeWrapperMode = WrapperMode.Inherit;
+        }
+    }
+
+    public bool IsNativeWrapperNone
+    {
+        get => NativeWrapperMode == WrapperMode.None;
+        set
+        {
+            if (!value) return;
+            NativeWrapperMode = WrapperMode.None;
+        }
+    }
+
+    public bool IsNativeWrapperOverride
+    {
+        get => NativeWrapperMode == WrapperMode.Override;
+        set
+        {
+            if (!value) return;
+            NativeWrapperMode = WrapperMode.Override;
+        }
+    }
+
+    private void InitializeNativeWrapperUiFromItem()
+    {
+        // Wichtig: alte Rows abhängen (falls die VM wiederverwendet wird)
+        foreach (var row in NativeWrappers)
+            UnwireWrapperRow(row);
+        
+        NativeWrappers.Clear();
+
+        if (_originalItem.NativeWrappersOverride == null)
+        {
+            NativeWrapperMode = WrapperMode.Inherit;
+            return;
+        }
+
+        if (_originalItem.NativeWrappersOverride.Count == 0)
+        {
+            NativeWrapperMode = WrapperMode.None;
+            return;
+        }
+
+        NativeWrapperMode = WrapperMode.Override;
+        foreach (var w in _originalItem.NativeWrappersOverride)
+        {
+            var row = new LaunchWrapperRow(w);
+            WireWrapperRow(row);
+            NativeWrappers.Add(row);
+        }
+    }
+
+    private void WireWrapperRow(LaunchWrapperRow row)
+    {
+        row.PropertyChanged += OnWrapperRowPropertyChanged;
+    }
+
+    private void UnwireWrapperRow(LaunchWrapperRow row)
+    {
+        row.PropertyChanged -= OnWrapperRowPropertyChanged;
+    }
+
+    private void OnWrapperRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Sobald Path/Args geändert werden: Preview aktualisieren (DAU erwartet "live")
+        if (e.PropertyName == nameof(LaunchWrapperRow.Path) ||
+            e.PropertyName == nameof(LaunchWrapperRow.Args))
+        {
+            OnPropertyChanged(nameof(PreviewText));
+            CopyPreviewCommand.NotifyCanExecuteChanged();
+        }
+    }
+    
+    partial void OnNativeWrapperModeChanged(WrapperMode value)
+    {
+        OnPropertyChanged(nameof(IsNativeWrapperInherit));
+        OnPropertyChanged(nameof(IsNativeWrapperNone));
+        OnPropertyChanged(nameof(IsNativeWrapperOverride));
+        OnPropertyChanged(nameof(PreviewText));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    private void AddNativeWrapper()
+    {
+        var row = new LaunchWrapperRow();
+        WireWrapperRow(row);
+        NativeWrappers.Add(row);
+
+        MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(PreviewText));
+    }
+
+    private void RemoveNativeWrapper(LaunchWrapperRow? row)
+    {
+        if (row == null) return;
+
+        UnwireWrapperRow(row);
+        NativeWrappers.Remove(row);
+
+        MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(PreviewText));
+    }
+
+    private void MoveNativeWrapperUp(LaunchWrapperRow? row)
+    {
+        if (row == null) return;
+        var idx = NativeWrappers.IndexOf(row);
+        if (idx <= 0) return;
+        NativeWrappers.Move(idx, idx - 1);
+        MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(PreviewText));
+    }
+
+    private void MoveNativeWrapperDown(LaunchWrapperRow? row)
+    {
+        if (row == null) return;
+        var idx = NativeWrappers.IndexOf(row);
+        if (idx < 0 || idx >= NativeWrappers.Count - 1) return;
+        NativeWrappers.Move(idx, idx + 1);
+        MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(PreviewText));
+    }
+    
     // --- Metadata Properties (Temporary Buffer) ---
     [ObservableProperty] private string _title = "";
     [ObservableProperty] private string _description = "";
@@ -33,22 +211,46 @@ public partial class EditMediaViewModel : ViewModelBase
     [ObservableProperty] 
     [NotifyPropertyChangedFor(nameof(IsEmulatorMode))]
     [NotifyPropertyChangedFor(nameof(IsManualEmulator))]
+    [NotifyPropertyChangedFor(nameof(IsCustomLauncherVisible))]
+    [NotifyPropertyChangedFor(nameof(IsNativeMode))]
     [NotifyPropertyChangedFor(nameof(PreviewText))]
     private MediaType _mediaType;
 
     [ObservableProperty] 
-    [NotifyPropertyChangedFor(nameof(IsManualEmulator))] 
+    [NotifyPropertyChangedFor(nameof(IsManualEmulator))]
+    [NotifyPropertyChangedFor(nameof(IsCustomLauncherVisible))]
     [NotifyPropertyChangedFor(nameof(PreviewText))]
     private EmulatorConfig? _selectedEmulatorProfile;
 
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(PreviewText))]
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCustomLauncherVisible))]
+    [NotifyPropertyChangedFor(nameof(PreviewText))]
     private string? _launcherPath;
 
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(PreviewText))]
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewText))]
     private string? _launcherArgs;
+    
+    // hard guarantee that PreviewText updates when LauncherArgs changes
+    partial void OnLauncherArgsChanged(string? value)
+    {
+        OnPropertyChanged(nameof(PreviewText));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
+    
+    // if typing LauncherPath should also update preview immediately
+    partial void OnLauncherPathChanged(string? value)
+    {
+        OnPropertyChanged(nameof(PreviewText));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
     
     [ObservableProperty] private string _overrideWatchProcess = string.Empty;
 
+    public bool IsCustomLauncherVisible => IsManualEmulator;
+    
+    public bool IsNativeMode => MediaType == MediaType.Native;
+    
     // --- Asset Management ---
     
     // Wir binden direkt an die Collection des Items. 
@@ -77,17 +279,24 @@ public partial class EditMediaViewModel : ViewModelBase
     public List<MediaType> MediaTypeOptions { get; } = new() { MediaType.Native, MediaType.Emulator };
     public List<PlayStatus> StatusOptions { get; } = Enum.GetValues<PlayStatus>().ToList();
 
+    public IAsyncRelayCommand<Window?> CopyPreviewCommand { get; }
+    
     public EditMediaViewModel(
-        MediaItem item, 
-        AppSettings settings, 
-        FileManagementService fileService, 
-        List<string> nodePath, 
-        EmulatorConfig? inheritedEmulator = null)
+        MediaItem item,
+        AppSettings settings,
+        FileManagementService fileService,
+        List<string> nodePath,
+        EmulatorConfig? inheritedEmulator = null,
+        ObservableCollection<MediaNode>? rootNodes = null,
+        MediaNode? parentNode = null)
     {
         _originalItem = item;
         _fileService = fileService;
         _nodePath = nodePath; 
         _inheritedEmulator = inheritedEmulator;
+        
+        _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
+        _parentNode = parentNode;
 
         // Commands initialisieren
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
@@ -96,6 +305,35 @@ public partial class EditMediaViewModel : ViewModelBase
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
         DeleteAssetCommand = new RelayCommand(DeleteSelectedAsset, () => SelectedAsset != null);
 
+        // Native wrapper editor commands
+        AddNativeWrapperCommand = new RelayCommand(AddNativeWrapper);
+        RemoveNativeWrapperCommand = new RelayCommand<LaunchWrapperRow?>(RemoveNativeWrapper);
+        MoveNativeWrapperUpCommand = new RelayCommand<LaunchWrapperRow?>(
+            MoveNativeWrapperUp,
+            row => row != null && NativeWrappers.IndexOf(row) > 0);
+
+        MoveNativeWrapperDownCommand = new RelayCommand<LaunchWrapperRow?>(
+            MoveNativeWrapperDown,
+            row => row != null && NativeWrappers.IndexOf(row) >= 0 && NativeWrappers.IndexOf(row) < NativeWrappers.Count - 1);
+
+        CopyPreviewCommand = new AsyncRelayCommand<Window?>(CopyPreviewAsync, CanCopyPreview);
+        
+        NativeWrappers.CollectionChanged += (_, e) =>
+        {
+            // Rows wiring/unwiring (Add/Remove) – sonst updated Preview nur beim "+ Wrapper"
+            if (e.OldItems != null)
+                foreach (var oldItem in e.OldItems.OfType<LaunchWrapperRow>())
+                    UnwireWrapperRow(oldItem);
+
+            if (e.NewItems != null)
+                foreach (var newItem in e.NewItems.OfType<LaunchWrapperRow>())
+                    WireWrapperRow(newItem);
+
+            MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+            MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(PreviewText));
+        };
+        
         // Dialog schließt sich selbst (reduziert WM/Modal "pop")
         SaveAndCloseCommand = new RelayCommand<Window?>(win =>
         {
@@ -110,8 +348,38 @@ public partial class EditMediaViewModel : ViewModelBase
         
         LoadItemData();
         InitializeEmulators(settings);
+        
+        InitializeNativeWrapperUiFromItem();
+
+        // nach Initialisierung auch einmal aktualisieren
+        MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
     }
 
+    private bool CanCopyPreview(Window? _)
+        => !string.IsNullOrWhiteSpace(PreviewText);
+    
+    private async Task CopyPreviewAsync(Window? win)
+    {
+        try
+        {
+            // Window is a TopLevel, so Clipboard is available here.
+            var text = PreviewText ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+
+            // Optional: trim to keep copy clean (no trailing whitespace)
+            text = text.Trim();
+
+            if (win?.Clipboard != null)
+                await win.Clipboard.SetTextAsync(text);
+        }
+        catch
+        {
+            // best-effort: clipboard should never break the dialog
+        }
+    }
+    
     private void LoadItemData()
     {
         // Metadaten laden (Puffer)
@@ -126,13 +394,44 @@ public partial class EditMediaViewModel : ViewModelBase
         // Launch Config laden
         LauncherPath = _originalItem.LauncherPath;
         OverrideWatchProcess = _originalItem.OverrideWatchProcess ?? string.Empty;
-        LauncherArgs = string.IsNullOrWhiteSpace(_originalItem.LauncherArgs) ? "{file}" : _originalItem.LauncherArgs;
+        
+        // Native: no {file} placeholder needed anymore
+        if (MediaType == MediaType.Native)
+        {
+            LauncherArgs = _originalItem.LauncherArgs ?? string.Empty;
+        }
+        else
+        {
+            LauncherArgs = string.IsNullOrWhiteSpace(_originalItem.LauncherArgs) ? "{file}" : _originalItem.LauncherArgs;
+        }
         
         // Assets müssen nicht geladen werden, da wir direkt auf _originalItem.Assets zugreifen
         // Der FileService sollte idealerweise vor dem Öffnen dieses Dialogs sicherstellen,
         // dass die Assets-Liste aktuell ist (via RefreshItemAssets).
     }
 
+    partial void OnMediaTypeChanged(MediaType value)
+    {
+        // Wenn der User zu Native wechselt: {file} entfernen (DAU-freundlich)
+        if (value == MediaType.Native)
+        {
+            if (string.Equals(LauncherArgs?.Trim(), "{file}", StringComparison.Ordinal) ||
+                string.Equals(LauncherArgs?.Trim(), "\"{file}\"", StringComparison.Ordinal))
+            {
+                LauncherArgs = string.Empty;
+            }
+
+            return;
+        }
+
+        // Wenn der User zu Emulator wechselt und Args leer sind: {file} setzen
+        if (value == MediaType.Emulator)
+        {
+            if (string.IsNullOrWhiteSpace(LauncherArgs))
+                LauncherArgs = "{file}";
+        }
+    }
+    
     private void InitializeEmulators(AppSettings settings)
     {
         AvailableEmulators.Clear();
@@ -230,23 +529,20 @@ public partial class EditMediaViewModel : ViewModelBase
 
             if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
             {
-                // FIX: Logik analog zu LauncherService (Smart Injection)
-                
+                // ... existing code (Emulator Profile preview bleibt) ...
                 var baseArgs = SelectedEmulatorProfile.Arguments ?? "";
                 var itemArgs = LauncherArgs ?? "";
-                
+
                 string combinedArgs;
 
                 if (!string.IsNullOrWhiteSpace(itemArgs))
                 {
                     if (baseArgs.Contains("{file}") && itemArgs.Contains("{file}"))
                     {
-                        // Injection
                         combinedArgs = baseArgs.Replace("{file}", itemArgs);
                     }
                     else
                     {
-                        // Append
                         combinedArgs = $"{baseArgs} {itemArgs}".Trim();
                     }
                 }
@@ -255,21 +551,13 @@ public partial class EditMediaViewModel : ViewModelBase
                     combinedArgs = baseArgs;
                 }
 
-                // Finales Ersetzen des Pfades (falls {file} noch irgendwo übrig ist)
                 if (string.IsNullOrWhiteSpace(combinedArgs))
-                {
                     return $"> {SelectedEmulatorProfile.Path} {realFile}";
-                }
-                
+
                 if (combinedArgs.Contains("{file}"))
-                {
                     return $"> {SelectedEmulatorProfile.Path} {combinedArgs.Replace("{file}", realFile)}";
-                }
-                else
-                {
-                    // Fallback: Pfad anhängen, falls {file} nirgends mehr steht
-                    return $"> {SelectedEmulatorProfile.Path} {combinedArgs} {realFile}";
-                }
+
+                return $"> {SelectedEmulatorProfile.Path} {combinedArgs} {realFile}";
             }
 
             if (MediaType == MediaType.Emulator && IsManualEmulator)
@@ -277,24 +565,189 @@ public partial class EditMediaViewModel : ViewModelBase
                 var args = string.IsNullOrWhiteSpace(LauncherArgs)
                     ? realFile
                     : LauncherArgs?.Replace("{file}", realFile) ?? realFile;
-                return $"> {LauncherPath} {args}";
+
+                return $"> {LauncherPath} {args}".Trim();
             }
 
             if (MediaType == MediaType.Native)
             {
-                if (_inheritedEmulator != null)
-                {
-                    var args = string.IsNullOrWhiteSpace(_inheritedEmulator.Arguments)
-                        ? realFile
-                        : _inheritedEmulator.Arguments.Replace("{file}", realFile);
-                    return $"(Inherited)\n> {_inheritedEmulator.Path} {args}";
-                }
-                return $"> {realFile}";
+                var wrappers = ResolveEffectiveNativeWrappersForPreview();
+                var nativeArgs = BuildNativeArgumentsForPreview(LauncherArgs);
+
+                // Inner command = the real executable + native args
+                var inner = string.IsNullOrWhiteSpace(nativeArgs)
+                    ? realFile
+                    : $"{realFile} {nativeArgs}";
+
+                var final = BuildWrappedCommandLine(inner, wrappers);
+                return $"> {final}".Trim();
             }
+
             return "";
         }
     }
 
+    private List<LaunchWrapper> ResolveEffectiveNativeWrappersForPreview()
+    {
+        // 1) Item-level tri-state (based on current UI state)
+        switch (NativeWrapperMode)
+        {
+            case WrapperMode.None:
+                return new List<LaunchWrapper>(); // explicit "no wrappers"
+
+            case WrapperMode.Override:
+                return NativeWrappers
+                    .Select(x => x.ToModel())
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Path))
+                    .ToList();
+
+            case WrapperMode.Inherit:
+            default:
+                break;
+        }
+
+        // 2) Node-level inheritance (nearest override wins)
+        if (_parentNode == null || _rootNodes.Count == 0)
+            return new List<LaunchWrapper>();
+
+        var chain = GetNodeChain(_parentNode, _rootNodes);
+
+        // nearest wins => walk from leaf to root
+        for (int i = chain.Count - 1; i >= 0; i--)
+        {
+            var node = chain[i];
+            if (node.NativeWrappersOverride == null)
+                continue; // inherit
+
+            // empty => none; non-empty => override
+            return node.NativeWrappersOverride.ToList();
+        }
+
+        // 3) Global defaults (noch nicht im Edit-Dialog verfügbar) => none for now
+        return new List<LaunchWrapper>();
+    }
+
+    private static string BuildWrappedCommandLine(string innerCommand, IReadOnlyList<LaunchWrapper> wrappers)
+    {
+        var current = innerCommand;
+
+        foreach (var wrapper in wrappers)
+        {
+            if (string.IsNullOrWhiteSpace(wrapper.Path))
+                continue;
+
+            var templateArgs = string.IsNullOrWhiteSpace(wrapper.Args) ? "{file}" : wrapper.Args;
+
+            var expandedArgs = templateArgs.Contains("{file}", StringComparison.Ordinal)
+                ? templateArgs.Replace("{file}", current, StringComparison.Ordinal)
+                : $"{templateArgs} {current}";
+
+            current = $"{wrapper.Path} {expandedArgs}".Trim();
+        }
+
+        return NormalizeWhitespace(current);
+    }
+
+    private static List<MediaNode> GetNodeChain(MediaNode target, ObservableCollection<MediaNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (node == target) return new List<MediaNode> { node };
+
+            var chain = GetNodeChain(target, node.Children);
+            if (chain.Count > 0)
+            {
+                chain.Insert(0, node);
+                return chain;
+            }
+        }
+        return new List<MediaNode>();
+    }
+    
+    private static string CombineTemplateArguments(string? baseArgs, string? itemArgs)
+    {
+        baseArgs ??= string.Empty;
+        itemArgs ??= string.Empty;
+
+        if (string.IsNullOrWhiteSpace(itemArgs))
+            return baseArgs;
+
+        // Matches LauncherService.CombineTemplateArguments(...)
+        if (baseArgs.Contains("{file}", StringComparison.Ordinal) &&
+            itemArgs.Contains("{file}", StringComparison.Ordinal))
+        {
+            return baseArgs.Replace("{file}", itemArgs, StringComparison.Ordinal);
+        }
+
+        return $"{baseArgs} {itemArgs}".Trim();
+    }
+
+    private static string BuildNativeArgumentsForPreview(string? templateArgs)
+    {
+        if (string.IsNullOrWhiteSpace(templateArgs))
+            return string.Empty;
+
+        var args = templateArgs;
+
+        // DAU-Rule:
+        // If user types "{file}" in native args, treat it as a leftover from emulator templates.
+        // Keep only what comes AFTER {file} (so "prefix {file} --arg" does NOT show "prefix").
+        var idxQuoted = args.IndexOf("\"{file}\"", StringComparison.Ordinal);
+        if (idxQuoted >= 0)
+        {
+            args = args[(idxQuoted + "\"{file}\"".Length)..];
+        }
+        else
+        {
+            var idx = args.IndexOf("{file}", StringComparison.Ordinal);
+            if (idx >= 0)
+                args = args[(idx + "{file}".Length)..];
+        }
+
+        return NormalizeWhitespace(args);
+    }
+    
+    private static string NormalizeWhitespace(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        Span<char> buffer = stackalloc char[value.Length];
+        int w = 0;
+        bool lastWasSpace = false;
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (char.IsWhiteSpace(c))
+            {
+                if (lastWasSpace) continue;
+                buffer[w++] = ' ';
+                lastWasSpace = true;
+            }
+            else
+            {
+                buffer[w++] = c;
+                lastWasSpace = false;
+            }
+        }
+
+        int start = 0;
+        int length = w;
+
+        if (length > 0 && buffer[0] == ' ')
+        {
+            start++;
+            length--;
+        }
+        if (length > 0 && buffer[start + length - 1] == ' ')
+        {
+            length--;
+        }
+
+        return length <= 0 ? string.Empty : new string(buffer.Slice(start, length));
+    }
+    
     private async Task BrowseLauncherAsync()
     {
         if (StorageProvider == null) return;
@@ -326,9 +779,40 @@ public partial class EditMediaViewModel : ViewModelBase
         else
         {
             _originalItem.EmulatorId = null;
-            _originalItem.LauncherPath = LauncherPath;
-            _originalItem.LauncherArgs = LauncherArgs;
+
+            // Manual emulator only: LauncherPath is the tool/emulator path.
+            if (MediaType == MediaType.Emulator)
+            {
+                _originalItem.LauncherPath = LauncherPath;
+                _originalItem.LauncherArgs = LauncherArgs;
+            }
+            else
+            {
+                // Native: LauncherPath is deprecated (wrapper chain handles launching).
+                _originalItem.LauncherPath = null;
+                _originalItem.LauncherArgs = LauncherArgs;
+            }
+
             _originalItem.OverrideWatchProcess = OverrideWatchProcess;
+        }
+        
+        // 3. Native wrapper override (tri-state, item-level)
+        switch (NativeWrapperMode)
+        {
+            case WrapperMode.Inherit:
+                _originalItem.NativeWrappersOverride = null;
+                break;
+
+            case WrapperMode.None:
+                _originalItem.NativeWrappersOverride = new List<LaunchWrapper>();
+                break;
+
+            case WrapperMode.Override:
+                _originalItem.NativeWrappersOverride = NativeWrappers
+                    .Select(x => x.ToModel())
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Path))
+                    .ToList();
+                break;
         }
     }
 }

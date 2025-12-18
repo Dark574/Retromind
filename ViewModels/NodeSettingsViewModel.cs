@@ -77,6 +77,42 @@ public partial class NodeSettingsViewModel : ViewModelBase
     /// </summary>
     public event Action<bool>? RequestClose;
 
+    public enum WrapperMode
+    {
+        Inherit,
+        None,
+        Override
+    }
+
+    public sealed partial class LaunchWrapperRow : ObservableObject
+    {
+        [ObservableProperty] private string _path = string.Empty;
+        [ObservableProperty] private string _args = string.Empty;
+
+        public LaunchWrapperRow()
+        {
+        }
+
+        public LaunchWrapperRow(LaunchWrapper wrapper)
+        {
+            Path = wrapper.Path ?? string.Empty;
+            Args = wrapper.Args ?? string.Empty;
+        }
+
+        public LaunchWrapper ToModel()
+            => new LaunchWrapper { Path = Path?.Trim() ?? string.Empty, Args = string.IsNullOrWhiteSpace(Args) ? null : Args };
+    }
+
+    [ObservableProperty]
+    private WrapperMode _nativeWrapperMode = WrapperMode.Inherit;
+
+    public ObservableCollection<LaunchWrapperRow> NativeWrappers { get; } = new();
+
+    public IRelayCommand AddNativeWrapperCommand { get; }
+    public IRelayCommand<LaunchWrapperRow?> RemoveNativeWrapperCommand { get; }
+    public IRelayCommand<LaunchWrapperRow?> MoveNativeWrapperUpCommand { get; }
+    public IRelayCommand<LaunchWrapperRow?> MoveNativeWrapperDownCommand { get; }
+
     public NodeSettingsViewModel(
         MediaNode node,
         AppSettings settings,
@@ -102,8 +138,124 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
         DeleteAssetCommand = new AsyncRelayCommand<AssetType>(DeleteAssetsByTypeAsync);
+        
+        AddNativeWrapperCommand = new RelayCommand(AddNativeWrapper);
+        RemoveNativeWrapperCommand = new RelayCommand<LaunchWrapperRow?>(RemoveNativeWrapper);
+        MoveNativeWrapperUpCommand = new RelayCommand<LaunchWrapperRow?>(
+            MoveNativeWrapperUp,
+            row => row != null && NativeWrappers.IndexOf(row) > 0);
+
+        MoveNativeWrapperDownCommand = new RelayCommand<LaunchWrapperRow?>(
+            MoveNativeWrapperDown,
+            row => row != null && NativeWrappers.IndexOf(row) >= 0 && NativeWrappers.IndexOf(row) < NativeWrappers.Count - 1);
+
+        NativeWrappers.CollectionChanged += (_, __) =>
+        {
+            MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+            MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+        };
+
+        InitializeNativeWrapperUiFromNode();
+        
+        // nach Initialisierung auch einmal aktualisieren
+        MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
     }
 
+    public bool IsNativeWrapperInherit
+    {
+        get => NativeWrapperMode == WrapperMode.Inherit;
+        set
+        {
+            if (!value) return;
+            NativeWrapperMode = WrapperMode.Inherit;
+        }
+    }
+
+    public bool IsNativeWrapperNone
+    {
+        get => NativeWrapperMode == WrapperMode.None;
+        set
+        {
+            if (!value) return;
+            NativeWrapperMode = WrapperMode.None;
+        }
+    }
+
+    public bool IsNativeWrapperOverride
+    {
+        get => NativeWrapperMode == WrapperMode.Override;
+        set
+        {
+            if (!value) return;
+            NativeWrapperMode = WrapperMode.Override;
+        }
+    }
+    
+    private void InitializeNativeWrapperUiFromNode()
+    {
+        NativeWrappers.Clear();
+
+        if (_node.NativeWrappersOverride == null)
+        {
+            NativeWrapperMode = WrapperMode.Inherit;
+            return;
+        }
+
+        if (_node.NativeWrappersOverride.Count == 0)
+        {
+            NativeWrapperMode = WrapperMode.None;
+            return;
+        }
+
+        NativeWrapperMode = WrapperMode.Override;
+        foreach (var w in _node.NativeWrappersOverride)
+            NativeWrappers.Add(new LaunchWrapperRow(w));
+    }
+
+    // Keep RadioButtons and IsVisible in sync if NativeWrapperMode changes in code (e.g. InitializeNativeWrapperUiFromNode)
+    partial void OnNativeWrapperModeChanged(WrapperMode value)
+    {
+        OnPropertyChanged(nameof(IsNativeWrapperInherit));
+        OnPropertyChanged(nameof(IsNativeWrapperNone));
+        OnPropertyChanged(nameof(IsNativeWrapperOverride));
+    }
+    
+    private void AddNativeWrapper()
+    {
+        NativeWrappers.Add(new LaunchWrapperRow());
+        MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+    }
+
+    private void RemoveNativeWrapper(LaunchWrapperRow? row)
+    {
+        if (row == null) return;
+        NativeWrappers.Remove(row);
+        MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+    }
+
+    private void MoveNativeWrapperUp(LaunchWrapperRow? row)
+    {
+        if (row == null) return;
+        var idx = NativeWrappers.IndexOf(row);
+        if (idx <= 0) return;
+        NativeWrappers.Move(idx, idx - 1);
+        MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+    }
+
+    private void MoveNativeWrapperDown(LaunchWrapperRow? row)
+    {
+        if (row == null) return;
+        var idx = NativeWrappers.IndexOf(row);
+        if (idx < 0 || idx >= NativeWrappers.Count - 1) return;
+        NativeWrappers.Move(idx, idx + 1);
+        MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+    }
+    
     private void InitializeFromNode()
     {
         Name = _node.Name;
@@ -297,7 +449,28 @@ public partial class NodeSettingsViewModel : ViewModelBase
         {
             _node.DefaultEmulatorId = null;
         }
+        
+        // persist wrapper override with tri-state semantics
+        switch (NativeWrapperMode)
+        {
+            case WrapperMode.Inherit:
+                _node.NativeWrappersOverride = null;
+                break;
+
+            case WrapperMode.None:
+                _node.NativeWrappersOverride = new List<LaunchWrapper>();
+                break;
+
+            case WrapperMode.Override:
+                _node.NativeWrappersOverride = NativeWrappers
+                    .Select(x => x.ToModel())
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Path))
+                    .ToList();
+                break;
+        }
 
         RequestClose?.Invoke(true);
     }
+    
+    
 }

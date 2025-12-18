@@ -12,23 +12,27 @@
 
     <UserControl.Resources>
         <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
+        
+        <!-- Pencil icon geometry (vector) -->
+        <Geometry x:Key="IconPencilGeometry">
+            M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.83H5v-.92l8.06-8.06.92.92L5.92 20.08zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z
+        </Geometry>
     </UserControl.Resources>
 
     <ScrollViewer>
         <StackPanel Margin="15" Spacing="15">
 
             <Grid>
-                <!-- 1. Header Bereich (Logo oder Text-Titel) -->
+                <!-- 1) Header area (logo or title fallback) -->
                 <Panel MinHeight="80" Margin="0,0,40,0">
-                    <!-- Fallback: Text Titel -->
+                    <!-- Fallback: title as text -->
                     <TextBlock Text="{Binding Title}"
                                FontSize="28" FontWeight="Bold" TextWrapping="Wrap"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                TextAlignment="Center"
                                IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
 
-                    <!-- Primär: Logo Grafik -->
-                    <!-- DecodeWidth="400" spart RAM, falls das Logo riesig ist -->
+                    <!-- Primary: logo image (downsample to reduce memory usage) -->
                     <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
                            helpers:AsyncImageHelper.DecodeWidth="400"
                            Stretch="Uniform" MaxHeight="150"
@@ -36,10 +40,8 @@
                            IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 </Panel>
 
-                <!-- Der Button oben rechts: Kleines Stift-Symbol -->
-                <Button Content="✎"
-                        ToolTip.Tip="{x:Static p:Strings.Button_Edit}"
-                        FontSize="18"
+                <!-- Edit button (top-right) -->
+                <Button ToolTip.Tip="{x:Static p:Strings.Button_Edit}"
                         Width="30" Height="30"
                         Padding="0"
                         Background="Transparent"
@@ -47,10 +49,13 @@
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
                         Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditMediaCommand}"
-                        CommandParameter="{Binding .}" />
+                        CommandParameter="{Binding .}">
+                    <PathIcon Data="{StaticResource IconPencilGeometry}"
+                            Width="18" Height="18" />
+                </Button>
             </Grid>
 
-            <!-- Play Button -->
+            <!-- Play button -->
             <Button Content="{x:Static p:Strings.Button_Play}"
                     Classes="accent"
                     HorizontalAlignment="Stretch"
@@ -66,7 +71,7 @@
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 
-            <!-- 2. Metadaten Grid -->
+            <!-- 2) Metadata grid -->
             <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,5">
                 <Grid.Styles>
                     <Style Selector="TextBlock.Label">
@@ -81,12 +86,13 @@
                     </Style>
                 </Grid.Styles>
 
-                <!-- Veröffentlichung -->
+                <!-- Release date -->
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static p:Strings.Common_ReleaseDate}" Classes="Label" />
-                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ReleaseDate, StringFormat='{}{0:dd.MM.yyyy}'}"
+                <TextBlock Grid.Row="0" Grid.Column="1"
+                           Text="{Binding ReleaseDate, StringFormat='{}{0:yyyy-MM-dd}'}"
                            Classes="Value" />
 
-                <!-- Publisher -->
+                <!-- Developer -->
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static p:Strings.Common_Developer}" Classes="Label" />
                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Developer}" Classes="Value" />
 
@@ -94,16 +100,16 @@
                 <TextBlock Grid.Row="2" Grid.Column="0" Text="{x:Static p:Strings.Common_Genre}" Classes="Label" />
                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Genre}" Classes="Value" />
 
-                <!-- Last Played -->
+                <!-- Last played -->
                 <TextBlock Grid.Row="3" Grid.Column="0" Text="{x:Static p:Strings.Media_LastPlayed}" Classes="Label" />
                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LastPlayed, StringFormat='{}{0:g}'}"
                            Classes="Value" />
 
-                <!-- Play Count -->
+                <!-- Play count -->
                 <TextBlock Grid.Row="4" Grid.Column="0" Text="{x:Static p:Strings.Media_PlayCount}" Classes="Label" />
                 <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding PlayCount}" Classes="Value" />
 
-                <!-- Spielzeit -->
+                <!-- Total play time -->
                 <TextBlock Grid.Row="5" Grid.Column="0" Text="{x:Static p:Strings.Media_PlayTime}" Classes="Label" />
                 <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding TotalPlayTime, Converter={StaticResource TimeConverter}}" Classes="Value" />
 
@@ -114,7 +120,7 @@
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 
-            <!-- 3. Zusammenfassung -->
+            <!-- 3) Summary -->
             <StackPanel Spacing="5">
                 <TextBlock Text="{x:Static p:Strings.Common_Summary}" FontWeight="SemiBold" FontSize="16" />
                 <TextBlock Text="{Binding Description}"

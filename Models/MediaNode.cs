@@ -16,6 +16,26 @@ public partial class MediaNode : ObservableObject
     // --- Core Identity ---
 
     /// <summary>
+    /// Native wrapper override for this node (inherits to children).
+    /// null = inherit, empty list = explicit "no wrappers", non-empty list = override.
+    /// </summary>
+    public List<LaunchWrapper>? NativeWrappersOverride { get; set; }
+    
+    /// <summary>
+    /// Optional wrapper path for native launches in this node (inherits to children).
+    /// If set, overrides the global default.
+    /// Examples: "gamemoderun", "mangohud", "prime-run", "env".
+    /// </summary>
+    public string? DefaultNativeWrapperPath { get; set; }
+
+    /// <summary>
+    /// Optional wrapper args template for native launches in this node (inherits to children).
+    /// Use "{file}" as placeholder for the native executable path.
+    /// If empty/null and a wrapper is set, "{file}" is assumed.
+    /// </summary>
+    public string? DefaultNativeWrapperArgs { get; set; }
+    
+    /// <summary>
     /// Unique identifier for state persistence (e.g., remembering selection).
     /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();

@@ -143,7 +143,11 @@ public partial class App : Application
         }
 
         services.AddSingleton<FileManagementService>(provider => new FileManagementService(libraryPath));
-        services.AddSingleton<LauncherService>(provider => new LauncherService(libraryPath));
+        services.AddSingleton<LauncherService>(provider =>
+        {
+            var settings = provider.GetRequiredService<AppSettings>();
+            return new LauncherService(libraryPath, settings);
+        });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();
         services.AddSingleton<SettingsService>();

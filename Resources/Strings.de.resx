@@ -122,7 +122,8 @@
 
     <!-- LAUNCH -->
     <data name="Launch.Arguments" xml:space="preserve"><value>Argumente</value></data>
-    <data name="Launch.ArgumentsHint" xml:space="preserve"><value>-fullscreen {file}</value></data>
+    <data name="Launch.ArgumentsHintShort" xml:space="preserve"><value>-fullscreen</value></data>
+    <data name="Launch.ArgumentsHintLong" xml:space="preserve"><value>-fullscreen {file}</value></data>
     <data name="Launch.Config" xml:space="preserve"><value>Startkonfiguration</value></data>
     <data name="Launch.LauncherPath" xml:space="preserve"><value>Emulator- / Tool-Pfad</value></data>
     <data name="Launch.LauncherPathHint" xml:space="preserve"><value>/usr/bin/snes9x oder leer lassen für nativen Start</value></data>
@@ -157,6 +158,9 @@
     <data name="Metadata.Search.InProgress" xml:space="preserve"><value>Suche läuft...</value></data>
     <data name="Metadata.Source" xml:space="preserve"><value>Quelle</value></data>
     <data name="Metadata.Type" xml:space="preserve"><value>Typ / Dienst</value></data>
+    <data name="Metadata.Error.ProviderNotAvailable" xml:space="preserve"><value>Fehler: Der Dienstanbieter wurde nicht gefunden oder ist nicht verfügbar.</value></data>
+    <data name="Metadata.Search.NoResults" xml:space="preserve"><value>Keine Ergebnisse gefunden.</value></data>
+    <data name="Metadata.Search.FailedFormat" xml:space="preserve"><value>Suche fehlgeschlagen: {0}</value></data>
 
     <!-- NODESETTINGS -->
     <data name="NodeSettings_Title" xml:space="preserve"><value>Kategorie Einstellungen</value></data>

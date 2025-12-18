@@ -13,6 +13,26 @@ public class AppSettings
     /// </summary>
     public int Version { get; set; } = 1;
 
+    // --- Native wrapper defaults (C: global -> node -> item) ---
+
+    /// <summary>
+    /// Global default wrapper chain for native launches (Linux).
+    /// If empty, native apps launch directly.
+    /// </summary>
+    public List<LaunchWrapper> DefaultNativeWrappers { get; set; } = new();
+    
+    /// <summary>
+    /// Optional global wrapper for native launches (Linux examples: gamemoderun, mangohud, prime-run, env).
+    /// If set, native items will be launched via this wrapper unless overridden by node/item settings.
+    /// </summary>
+    public string? DefaultNativeWrapperPath { get; set; }
+
+    /// <summary>
+    /// Optional wrapper arguments template. Use "{file}" as placeholder for the native executable path.
+    /// If empty/null and a wrapper is set, "{file}" is assumed.
+    /// </summary>
+    public string? DefaultNativeWrapperArgs { get; set; }
+    
     // --- UI Layout ---
 
     public double TreeColumnWidth { get; set; } = 250;

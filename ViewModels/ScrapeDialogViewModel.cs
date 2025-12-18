@@ -1,9 +1,13 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Resources;
 using Retromind.Services;
 
 namespace Retromind.ViewModels;
@@ -14,31 +18,35 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class ScrapeDialogViewModel : ViewModelBase
 {
+    private const int MaxResults = 200;
+
     private readonly MetadataService _metadataService;
     private readonly MediaItem _targetItem;
     private readonly AppSettings _settings;
 
-    [ObservableProperty] 
+    private CancellationTokenSource? _searchCts;
+
+    [ObservableProperty]
     private string _searchQuery = string.Empty;
 
-    [ObservableProperty] 
+    [ObservableProperty]
     private ScraperConfig? _selectedScraper;
 
-    [ObservableProperty] 
+    [ObservableProperty]
     private bool _isBusy;
 
-    [ObservableProperty] 
-    private string _statusMessage = "";
+    [ObservableProperty]
+    private string _statusMessage = string.Empty;
 
-    [ObservableProperty] 
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand))]
     private ScraperSearchResult? _selectedResult;
-    
+
     public ObservableCollection<ScraperConfig> AvailableScrapers { get; } = new();
-    
-    // We bind results directly. Ensure ScraperSearchResult has properties that the View can display (Title, Description, ImageUrl)
-    public ObservableCollection<ScraperSearchResult> SearchResults { get; } = new();
-    
+
+    // Bulk-update friendly collection (prevents UI stalls when a provider returns many results).
+    public RangeObservableCollection<ScraperSearchResult> SearchResults { get; } = new();
+
     public IAsyncRelayCommand SearchCommand { get; }
     public IRelayCommand ApplyCommand { get; }
 
@@ -58,70 +66,69 @@ public partial class ScrapeDialogViewModel : ViewModelBase
 
     private void InitializeData()
     {
-        // Default query is the cleaned title
         SearchQuery = _targetItem.Title ?? string.Empty;
 
-        // Load available scrapers
-        // Future improvement: Filter by media type (Game, Movie, etc.) if ScraperConfig supports it
+        AvailableScrapers.Clear();
         foreach (var s in _settings.Scrapers)
-        {
             AvailableScrapers.Add(s);
-        }
 
-        if (AvailableScrapers.Count > 0) 
-        {
-            SelectedScraper = AvailableScrapers[0];
-        }
+        SelectedScraper = AvailableScrapers.Count > 0 ? AvailableScrapers[0] : null;
     }
 
     private async Task SearchAsync()
     {
-        if (SelectedScraper == null || string.IsNullOrWhiteSpace(SearchQuery)) return;
+        if (SelectedScraper == null || string.IsNullOrWhiteSpace(SearchQuery))
+            return;
+
+        // Cancel previous search (avoid out-of-order results + unnecessary traffic).
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
 
         IsBusy = true;
         SearchResults.Clear();
         SelectedResult = null;
         StatusMessage = string.Empty;
 
-        var provider = _metadataService.GetProvider(SelectedScraper.Id);
-        if (provider == null)
-        {
-            StatusMessage = "Error: Service provider not found or not implemented.";
-            IsBusy = false;
-            return;
-        }
-        
         try
         {
-            var results = await provider.SearchAsync(SearchQuery);
-            
+            var provider = _metadataService.GetProvider(SelectedScraper.Id);
+            if (provider == null)
+            {
+                StatusMessage = Strings.Metadata_Error_ProviderNotAvailable;
+                return;
+            }
+
+            var results = await provider.SearchAsync(SearchQuery).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+
             if (results.Count == 0)
             {
-                StatusMessage = "No results found.";
+                StatusMessage = Strings.Metadata_Search_NoResults;
+                return;
             }
-            else
-            {
-                foreach (var res in results) 
-                {
-                    SearchResults.Add(res);
-                }
-            }
+
+            var limited = results.Take(MaxResults);
+            await UiThreadHelper.InvokeAsync(() => SearchResults.ReplaceAll(limited));
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when the user searches again quickly; keep UI quiet.
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Search failed: {ex.Message}";
+            StatusMessage = string.Format(Strings.Metadata_Search_FailedFormat, ex.Message);
         }
-        finally 
+        finally
         {
             IsBusy = false;
         }
     }
-    
+
     private void Apply()
     {
         if (SelectedResult != null)
-        {
             OnResultSelected?.Invoke(SelectedResult);
-        }
     }
 }

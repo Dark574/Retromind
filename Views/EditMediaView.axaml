@@ -116,27 +116,107 @@
                             </ComboBox>
                         </StackPanel>
 
-                        <!-- Manuelle Pfade: Launcher Path (Executable) -->
-                        <!-- Bleibt versteckt, wenn ein Emulator-Profil aktiv ist (weil der Emu den Pfad vorgibt) -->
+                        <!-- Custom launcher / tool path -->
+                        <!-- Only visible for manual emulator (custom tool path).
+                             Native uses wrapper chain now, so LauncherPath would be confusing. -->
                         <StackPanel IsVisible="{Binding IsManualEmulator}" Margin="0,10,0,0">
                             <TextBlock Text="{x:Static p:Strings.Launch_LauncherPath}" Margin="0,0,0,5" />
                             <Grid ColumnDefinitions="*, 10, Auto">
-                                <TextBox Grid.Column="0" Text="{Binding LauncherPath}"
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding LauncherPath}"
                                          Watermark="{x:Static p:Strings.Launch_LauncherPathHint}" />
                                 <Button Grid.Column="2" Content="..." Command="{Binding BrowseLauncherCommand}" />
                             </Grid>
                         </StackPanel>
 
-                        <!-- Argumente: IMMER sichtbar -->
-                        <!-- Damit können wir Flags an Emulatoren (UMU) übergeben oder native Args nutzen -->
+                        <!-- Arguments: always visible -->
+                        <!-- Allows flags for emulators (UMU) or native args -->
                         <StackPanel Margin="0,15,0,0">
                             <TextBlock Text="{x:Static p:Strings.Launch_Arguments}" Margin="0,0,0,5" />
-                            <TextBox Text="{Binding LauncherArgs}" Watermark="{x:Static p:Strings.Launch_ArgumentsHint}" />
+
+                            <!-- Native: no {file} -->
+                            <TextBox IsVisible="{Binding IsNativeMode}"
+                                     Text="{Binding LauncherArgs, Mode=TwoWay}"
+                                     Watermark="{x:Static p:Strings.Launch_ArgumentsHintShort}" />
+
+                            <!-- Emulator: {file} makes sense -->
+                            <TextBox IsVisible="{Binding !IsNativeMode}"
+                                     Text="{Binding LauncherArgs, Mode=TwoWay}"
+                                     Watermark="{x:Static p:Strings.Launch_ArgumentsHintLong}" />
+                        </StackPanel>
+
+                        <!-- Native wrapper chain (Linux) - Item-level -->
+                        <StackPanel Spacing="8"
+                                    Margin="0,15,0,0"
+                                    IsVisible="{Binding IsNativeMode}">
+                            <TextBlock Text="Native Wrapper (Linux)" FontWeight="Bold" />
+
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <RadioButton Content="Inherit"
+                                             IsChecked="{Binding IsNativeWrapperInherit, Mode=TwoWay}" />
+                                <RadioButton Content="None"
+                                             IsChecked="{Binding IsNativeWrapperNone, Mode=TwoWay}" />
+                                <RadioButton Content="Override"
+                                             IsChecked="{Binding IsNativeWrapperOverride, Mode=TwoWay}" />
+                            </StackPanel>
+
+                            <StackPanel IsVisible="{Binding IsNativeWrapperOverride}">
+                                <Button Content="+ Add wrapper"
+                                        Command="{Binding AddNativeWrapperCommand}"
+                                        HorizontalAlignment="Left" />
+
+                                <ItemsControl ItemsSource="{Binding NativeWrappers}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#10000000" CornerRadius="4" Padding="8" Margin="0,5,0,0">
+                                                <Grid ColumnDefinitions="*, 10, *, 10, Auto" RowDefinitions="Auto, Auto">
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Path" />
+                                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Args" />
+
+                                                    <TextBox Grid.Row="1" Grid.Column="0"
+                                                             Text="{Binding Path, Mode=TwoWay}"
+                                                             Watermark="gamemoderun / mangohud / env" />
+
+                                                    <TextBox Grid.Row="1" Grid.Column="2"
+                                                             Text="{Binding Args, Mode=TwoWay}" />
+
+                                                    <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="5">
+                                                        <Button Content="↑"
+                                                                ToolTip.Tip="Move up"
+                                                                Command="{Binding $parent[Window].((vm:EditMediaViewModel)DataContext).MoveNativeWrapperUpCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Content="↓"
+                                                                ToolTip.Tip="Move down"
+                                                                Command="{Binding $parent[Window].((vm:EditMediaViewModel)DataContext).MoveNativeWrapperDownCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Content="✕"
+                                                                Command="{Binding $parent[Window].((vm:EditMediaViewModel)DataContext).RemoveNativeWrapperCommand}"
+                                                                CommandParameter="{Binding .}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </StackPanel>
                         
                          <!-- Vorschau -->
                         <StackPanel>
-                            <TextBlock Text="{x:Static p:Strings.Common_PreviewShort}" FontWeight="Bold" Margin="0,10,0,5" />
+                            <Grid ColumnDefinitions="*, Auto" Margin="0,10,0,5">
+                                <TextBlock Grid.Column="0"
+                                           Text="{x:Static p:Strings.Common_PreviewShort}"
+                                           FontWeight="Bold" />
+
+                                <Button Grid.Column="1"
+                                        Content="Copy"
+                                        Command="{Binding CopyPreviewCommand}"
+                                        CommandParameter="{Binding $parent[Window]}"
+                                        ToolTip.Tip="Copy preview command"
+                                        Padding="10,2"
+                                        HorizontalAlignment="Right" />
+                            </Grid>
+
                             <Border Background="#333333" CornerRadius="5" Padding="10">
                                 <TextBlock Text="{Binding PreviewText}"
                                            FontFamily="Consolas, Monospace"

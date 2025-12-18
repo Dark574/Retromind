@@ -17,6 +17,12 @@ public partial class MediaItem : ObservableObject
     // --- Identification ---
 
     /// <summary>
+    /// Native wrapper override for this item.
+    /// null = inherit, empty list = explicit "no wrappers", non-empty list = override.
+    /// </summary>
+    public List<LaunchWrapper>? NativeWrappersOverride { get; set; }
+
+    /// <summary>
     /// Unique identifier for this item.
     /// </summary>
     [ObservableProperty] 

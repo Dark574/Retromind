@@ -18,16 +18,19 @@ public sealed class LauncherService
     private const int MinPlayTimeSeconds = 5;
 
     private readonly string _libraryRootPath;
+    private readonly AppSettings _settings;
 
-    public LauncherService(string libraryRootPath)
+    public LauncherService(string libraryRootPath, AppSettings settings)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
     public async Task LaunchAsync(
         MediaItem item,
         EmulatorConfig? inheritedConfig = null,
         List<string>? nodePath = null,
+        IReadOnlyList<LaunchWrapper>? nativeWrappers = null,
         CancellationToken cancellationToken = default)
     {
         if (item == null) return;
@@ -39,7 +42,7 @@ public sealed class LauncherService
         {
             process = item.MediaType == MediaType.Command
                 ? LaunchCommand(item)
-                : LaunchNativeOrEmulator(item, inheritedConfig, nodePath);
+                : LaunchNativeOrEmulator(item, inheritedConfig, nodePath, nativeWrappers);
 
             // Tracking strategy:
             // A) If OverrideWatchProcess is set, we track by process name (for launchers like Steam).
@@ -84,21 +87,16 @@ public sealed class LauncherService
         });
     }
 
-    private Process? LaunchNativeOrEmulator(MediaItem item, EmulatorConfig? inheritedConfig, List<string>? nodePath)
+    private Process? LaunchNativeOrEmulator(
+        MediaItem item,
+        EmulatorConfig? inheritedConfig,
+        List<string>? nodePath,
+        IReadOnlyList<LaunchWrapper>? nativeWrappers)
     {
         try
         {
-            var (fileName, templateArgs, isNativeExecution) = ResolveLaunchPlan(item, inheritedConfig);
-
-            var useShellExecute = isNativeExecution;
-
-            // Linux special case:
-            // For shell scripts, direct execution with a working directory is often more reliable.
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
-                fileName.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
-            {
-                useShellExecute = false;
-            }
+            var (fileName, args, useWinePrefix, useShellExecute) =
+                ResolveLaunchPlan(item, inheritedConfig, nativeWrappers);
 
             var startInfo = new ProcessStartInfo
             {
@@ -108,15 +106,10 @@ public sealed class LauncherService
 
             startInfo.WorkingDirectory = ResolveWorkingDirectory(fileName, item.FilePath);
 
-            // Configure Wine prefix for non-native launches (emulator/custom launcher).
-            if (!isNativeExecution)
-            {
+            if (useWinePrefix)
                 ConfigureWinePrefix(item, nodePath, startInfo);
-            }
 
-            startInfo.Arguments = isNativeExecution
-                ? BuildNativeArguments(templateArgs)
-                : BuildArgumentsString(item, templateArgs);
+            startInfo.Arguments = args ?? string.Empty;
 
             return Process.Start(startInfo);
         }
@@ -127,30 +120,53 @@ public sealed class LauncherService
         }
     }
 
-    private static (string FileName, string? TemplateArgs, bool IsNativeExecution) ResolveLaunchPlan(
+    private static (string FileName, string? Args, bool UseWinePrefix, bool UseShellExecute) ResolveLaunchPlan(
         MediaItem item,
-        EmulatorConfig? inheritedConfig)
+        EmulatorConfig? inheritedConfig,
+        IReadOnlyList<LaunchWrapper>? nativeWrappers)
     {
-        // Priority:
-        // 1) Item-level custom launcher
-        // 2) Inherited emulator profile
-        // 3) Native execution (FilePath)
+        // 1) Item-level custom launcher (wrapper/emulator/etc.) always wins
         if (!string.IsNullOrWhiteSpace(item.LauncherPath))
         {
-            var args = string.IsNullOrWhiteSpace(item.LauncherArgs) ? "{file}" : item.LauncherArgs;
-            return (item.LauncherPath, args, IsNativeExecution: false);
+            var templateArgs = string.IsNullOrWhiteSpace(item.LauncherArgs) ? "{file}" : item.LauncherArgs;
+            var args = BuildArgumentsString(item, templateArgs);
+
+            return (item.LauncherPath, args, UseWinePrefix: true, UseShellExecute: false);
         }
 
+        // 2) Inherited emulator profile
         if (inheritedConfig != null)
         {
-            var args = CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
-            return (inheritedConfig.Path, args, IsNativeExecution: false);
+            var templateArgs = CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
+            var args = BuildArgumentsString(item, templateArgs);
+
+            return (inheritedConfig.Path, args, UseWinePrefix: true, UseShellExecute: false);
         }
 
+        // 3) Native execution (direct or via wrappers)
         if (string.IsNullOrWhiteSpace(item.FilePath))
             throw new InvalidOperationException("MediaItem.FilePath is required for native execution.");
 
-        return (item.FilePath, item.LauncherArgs, IsNativeExecution: true);
+        var nativeArgs = BuildNativeArguments(item.LauncherArgs);
+
+        // Apply wrapper chain if provided and non-empty
+        if (nativeWrappers is { Count: > 0 })
+        {
+            var folded = FoldWrappers(item.FilePath, nativeArgs, nativeWrappers);
+            return (folded.FileName, folded.Args, UseWinePrefix: false, UseShellExecute: folded.UseShellExecute);
+        }
+
+        // Direct native
+        var useShellExecute = true;
+
+        // For shell scripts, direct execution with a working directory is often more reliable.
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
+            item.FilePath.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
+        {
+            useShellExecute = false;
+        }
+
+        return (item.FilePath, nativeArgs, UseWinePrefix: false, UseShellExecute: useShellExecute);
     }
 
     private static string? ResolveWorkingDirectory(string fileName, string? itemFilePath)
@@ -166,6 +182,56 @@ public sealed class LauncherService
         return string.Empty;
     }
 
+    private static (string FileName, string Args, bool UseShellExecute) FoldWrappers(
+        string executablePath,
+        string nativeArgs,
+        IReadOnlyList<LaunchWrapper> wrappers)
+    {
+        // We interpret wrapper order as "outer -> inner".
+        // Example: [gamemoderun, mangohud] -> gamemoderun mangohud <exe> <args>
+        var currentFile = executablePath;
+        var currentArgs = nativeArgs;
+
+        for (int i = wrappers.Count - 1; i >= 0; i--)
+        {
+            var w = wrappers[i];
+            if (string.IsNullOrWhiteSpace(w.Path))
+                continue;
+
+            var template = string.IsNullOrWhiteSpace(w.Args) ? "{file}" : w.Args!;
+            var child = QuoteIfNeeded(currentFile);
+
+            var argsWithChild = template.Contains("{file}", StringComparison.Ordinal)
+                ? template.Replace("{file}", child, StringComparison.Ordinal)
+                : $"{template} {child}";
+
+            if (!string.IsNullOrWhiteSpace(currentArgs))
+                argsWithChild = $"{argsWithChild} {currentArgs}";
+
+            currentFile = w.Path;
+            currentArgs = NormalizeWhitespace(argsWithChild);
+        }
+
+        // Wrappers are almost always "native-like"; UseShellExecute true is fine in many cases.
+        // For safety on Linux, disable shell execute for .sh wrappers.
+        var useShellExecute = true;
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
+            currentFile.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
+        {
+            useShellExecute = false;
+        }
+
+        return (currentFile, currentArgs, useShellExecute);
+    }
+
+    private static string QuoteIfNeeded(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return string.Empty;
+
+        return path.Contains(' ', StringComparison.Ordinal) ? $"\"{path}\"" : path;
+    }
+    
     private static string CombineTemplateArguments(string? baseArgs, string? itemArgs)
     {
         baseArgs ??= string.Empty;
@@ -190,17 +256,60 @@ public sealed class LauncherService
 
     private static string BuildNativeArguments(string? templateArgs)
     {
-        // Native apps typically should NOT receive their own path as "{file}" argument.
-        // If the user left "{file}" in args (common default), we ignore it for native execution.
-        if (!string.IsNullOrWhiteSpace(templateArgs) &&
-            templateArgs.Contains("{file}", StringComparison.Ordinal))
-        {
+        if (string.IsNullOrWhiteSpace(templateArgs))
             return string.Empty;
-        }
 
-        return templateArgs ?? string.Empty;
+        // For direct native execution the executable is already FileName, so "{file}" is a marker and removed.
+        var args = templateArgs;
+        args = args.Replace("\"{file}\"", string.Empty, StringComparison.Ordinal);
+        args = args.Replace("{file}", string.Empty, StringComparison.Ordinal);
+        return NormalizeWhitespace(args);
     }
 
+    private static string NormalizeWhitespace(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        // Simple, allocation-light normalization.
+        // (Avoid Regex here; this can run often during preview/launch.)
+        Span<char> buffer = stackalloc char[value.Length];
+        int w = 0;
+        bool lastWasSpace = false;
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (char.IsWhiteSpace(c))
+            {
+                if (lastWasSpace) continue;
+                buffer[w++] = ' ';
+                lastWasSpace = true;
+            }
+            else
+            {
+                buffer[w++] = c;
+                lastWasSpace = false;
+            }
+        }
+
+        // Trim one leading/trailing space if present
+        int start = 0;
+        int length = w;
+
+        if (length > 0 && buffer[0] == ' ')
+        {
+            start++;
+            length--;
+        }
+        if (length > 0 && buffer[start + length - 1] == ' ')
+        {
+            length--;
+        }
+
+        return length <= 0 ? string.Empty : new string(buffer.Slice(start, length));
+    }
+    
     private void ConfigureWinePrefix(MediaItem item, List<string>? nodePath, ProcessStartInfo startInfo)
     {
         string? prefixPath = null;

@@ -10,12 +10,12 @@
         WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="Auto, *, Auto" Margin="20">
-        
-        <!-- Header / Suche -->
+
+        <!-- Header / Search -->
         <Grid Grid.Row="0" RowDefinitions="Auto, Auto" ColumnDefinitions="*, 10, Auto" Margin="0,0,0,20">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static p:Strings.Dialog_ChooseSource}" Margin="0,0,0,5"/>
-            <ComboBox Grid.Row="1" Grid.Column="0" 
-                      ItemsSource="{Binding AvailableScrapers}" 
+            <ComboBox Grid.Row="1" Grid.Column="0"
+                      ItemsSource="{Binding AvailableScrapers}"
                       SelectedItem="{Binding SelectedScraper}"
                       HorizontalAlignment="Stretch">
                 <ComboBox.ItemTemplate>
@@ -32,69 +32,88 @@
             </StackPanel>
         </Grid>
 
-        <!-- Ergebnisse -->
+        <!-- Results -->
         <Grid Grid.Row="1" ColumnDefinitions="*, 10, 300">
-            
-            <!-- Liste -->
+
+            <!-- List -->
             <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" CornerRadius="5">
-                <ListBox ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedResult}" Background="Transparent">
+                <ListBox ItemsSource="{Binding SearchResults}"
+                         SelectedItem="{Binding SelectedResult}"
+                         Background="Transparent">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid ColumnDefinitions="60, *">
-                                <!-- ASYNC IMAGE LOADER -->
+                                <!-- Async thumbnail (downsampled) -->
                                 <Border Grid.Column="0" Width="50" Height="70" Background="#EEE" Margin="0,5,10,5">
-                                    <!-- Hier nutzen wir unseren Helper -->
-                                    <Image helpers:AsyncImageHelper.Url="{Binding CoverUrl}" 
+                                    <Image helpers:AsyncImageHelper.Url="{Binding CoverUrl}"
+                                           helpers:AsyncImageHelper.DecodeWidth="100"
                                            Stretch="Uniform"/>
                                 </Border>
-                                
+
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Title}" FontWeight="Bold"/>
-                                    <TextBlock Text="{Binding ReleaseDate, StringFormat={}{0:yyyy}}" FontSize="12" Foreground="Gray"/>
+                                    <TextBlock Text="{Binding ReleaseDate, StringFormat={}{0:yyyy}}"
+                                               FontSize="12"
+                                               Foreground="Gray"/>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
             </Border>
-           
-            <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" 
-                       Text="{Binding StatusMessage}" Foreground="Red" 
-                       HorizontalAlignment="Center" VerticalAlignment="Center" 
-                       IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                       Background="#CCFFFFFF" Padding="10"/>
 
-            <!-- Detailvorschau (Rechts) -->
+            <!-- Status message overlay (no Grid.Row to avoid undefined row issues) -->
+            <TextBlock Grid.Column="0" Grid.ColumnSpan="3"
+                       Text="{Binding StatusMessage}"
+                       Foreground="Red"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Background="#CCFFFFFF"
+                       Padding="10"/>
+
+            <!-- Preview (right) -->
             <ScrollViewer Grid.Column="2">
                 <StackPanel Spacing="10">
                     <TextBlock Text="{x:Static p:Strings.Common_PreviewShort}" FontWeight="Bold" FontSize="16"/>
-                    
-                    <!-- AUCH HIER: Async Loader statt ViewModel-Property -->
-                    <!-- Das spart uns den Code im ViewModel! -->
-                    <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.CoverUrl}" 
-                           Width="200" Height="300" Stretch="Uniform"
+
+                    <!-- Async preview image (downsampled) -->
+                    <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.CoverUrl}"
+                           helpers:AsyncImageHelper.DecodeWidth="400"
+                           Width="200" Height="300"
+                           Stretch="Uniform"
                            IsVisible="{Binding SelectedResult.CoverUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
                     <TextBlock Text="{x:Static p:Strings.Common_CoverURL}" FontWeight="Bold"/>
                     <TextBlock Text="{Binding SelectedResult.CoverUrl}" TextWrapping="Wrap" FontSize="10"/>
-                    
+
                     <TextBlock Text="{x:Static p:Strings.Common_TitleEx}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Title}" TextWrapping="Wrap"/>
-                    
+
                     <TextBlock Text="{x:Static p:Strings.Common_Description}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Description}" TextWrapping="Wrap" FontSize="12"/>
-                    
+
                     <TextBlock Text="{x:Static p:Strings.Common_Rating}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Rating}" />
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- Loading Overlay -->
+            <!-- Loading overlay -->
             <Border Grid.Column="0" Grid.ColumnSpan="3" Background="#80000000" IsVisible="{Binding IsBusy}">
-                <TextBlock Text="{x:Static p:Strings.Metadata_Search_InProgress}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="White" FontSize="20"/>
+                <TextBlock Text="{x:Static p:Strings.Metadata_Search_InProgress}"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center"
+                           Foreground="White"
+                           FontSize="20"/>
             </Border>
         </Grid>
 
-        <!-- Footer Buttons -->
+        <!-- Footer buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
             <Button Content="{x:Static p:Strings.Button_Cancel}" Click="CloseWindow"/>
             <Button Content="{x:Static p:Strings.Button_TakeOver}" Command="{Binding ApplyCommand}" Classes="accent"/>

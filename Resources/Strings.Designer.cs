@@ -513,9 +513,15 @@ namespace Retromind.Resources {
             }
         }
         
-        public static string Launch_ArgumentsHint {
+        public static string Launch_ArgumentsHintShort {
             get {
-                return ResourceManager.GetString("Launch.ArgumentsHint", resourceCulture);
+                return ResourceManager.GetString("Launch.ArgumentsHintShort", resourceCulture);
+            }
+        }
+        
+        public static string Launch_ArgumentsHintLong {
+            get {
+                return ResourceManager.GetString("Launch.ArgumentsHintLong", resourceCulture);
             }
         }
         
@@ -696,6 +702,24 @@ namespace Retromind.Resources {
         public static string Metadata_Type {
             get {
                 return ResourceManager.GetString("Metadata.Type", resourceCulture);
+            }
+        }
+        
+        public static string Metadata_Error_ProviderNotAvailable {
+            get {
+                return ResourceManager.GetString("Metadata.Error.ProviderNotAvailable", resourceCulture);
+            }
+        }
+        
+        public static string Metadata_Search_NoResults {
+            get {
+                return ResourceManager.GetString("Metadata.Search.NoResults", resourceCulture);
+            }
+        }
+        
+        public static string Metadata_Search_FailedFormat {
+            get {
+                return ResourceManager.GetString("Metadata.Search.FailedFormat", resourceCulture);
             }
         }
         
