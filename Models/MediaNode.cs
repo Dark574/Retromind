@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Retromind.Models;
@@ -92,14 +91,10 @@ public partial class MediaNode : ObservableObject
 
     public void SetActiveAsset(AssetType type, string relativePath)
     {
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.InvokeAsync(() => SetActiveAsset(type, relativePath));
-            return;
-        }
-        
+        // Model layer must be UI-agnostic:
+        // UI thread marshalling (if needed) must be handled by the caller (ViewModel/Service).
         _activeAssets[type] = relativePath;
-        
+
         if (type == AssetType.Cover) OnPropertyChanged(nameof(PrimaryCoverPath));
         if (type == AssetType.Wallpaper) OnPropertyChanged(nameof(PrimaryWallpaperPath));
         if (type == AssetType.Logo) OnPropertyChanged(nameof(PrimaryLogoPath));
@@ -140,13 +135,9 @@ public partial class MediaNode : ObservableObject
     
     private void OnAssetsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        // Sicherstellen, dass die UI-Updates auf dem UI-Thread passieren
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.InvokeAsync(() => OnAssetsChanged(sender, e));
-            return;
-        }
-        
+        // Model layer must be UI-agnostic:
+        // Ensure the caller modifies Assets on the UI thread if the UI is bound to this collection.
+
         var keysToRemove = new List<AssetType>();
         foreach (var kvp in _activeAssets)
         {

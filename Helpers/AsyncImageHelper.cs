@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
-using Avalonia.Threading;
 
 namespace Retromind.Helpers;
 
@@ -102,7 +101,7 @@ public class AsyncImageHelper : AvaloniaObject
 
         if (cachedBitmap != null)
         {
-            Dispatcher.UIThread.Post(() =>
+            UiThreadHelper.Post(() =>
             {
                 if (image.GetValue(CurrentLoadCtsProperty) != cts) return;
                 image.Source = cachedBitmap;
@@ -146,15 +145,19 @@ public class AsyncImageHelper : AvaloniaObject
                 }
             }, token);
 
-            if (token.IsCancellationRequested || loadedBitmap == null) return;
+            if (loadedBitmap == null) return;
 
             AddToCache(cacheKey, loadedBitmap);
 
-            Dispatcher.UIThread.Post(() =>
+            UiThreadHelper.Post(() =>
             {
                 if (image.GetValue(CurrentLoadCtsProperty) != cts) return;
                 image.Source = loadedBitmap;
             });
+        }
+        catch (OperationCanceledException)
+        {
+            // expected
         }
         catch (Exception ex)
         {

@@ -6,7 +6,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
@@ -47,33 +46,53 @@ public partial class MainWindowViewModel
         // Run heavy import logic
         var importedItems = await _importService.ImportFromFolderAsync(sourcePath, extensions);
 
-        if (importedItems.Any())
+        if (!importedItems.Any()) return;
+        
+        // Snapshot node path once (stable, avoids repeated computation)
+        var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
+
+        // 1) Decide what to add (no UI mutations)
+        var itemsToAdd = importedItems
+            .Where(item => !targetNode.Items.Any(i => i.FilePath == item.FilePath))
+            .ToList();
+
+        if (itemsToAdd.Count == 0) return;
+
+        // 2) Scan assets off the UI thread (filesystem only)
+        var scanned = await Task.Run(() =>
         {
-            var anyAdded = false;
-            
-            foreach (var item in importedItems)
-            {
-                // Duplicate Check based on FilePath
-                if (!targetNode.Items.Any(i => i.FilePath == item.FilePath))
-                {
-                    targetNode.Items.Add(item);
-                    anyAdded = true;
+            var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(itemsToAdd.Count);
 
-                    // Scan existing assets for newly imported items.
-                    var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
-                    _fileService.RefreshItemAssets(item, nodePath);
-                }
-            }
-            
-            if (anyAdded)
+            foreach (var item in itemsToAdd)
             {
-                MarkLibraryDirty();
-                SortMediaItems(targetNode.Items);
-                await SaveData();
-
-                if (IsNodeInCurrentView(targetNode)) UpdateContent();
+                var assets = _fileService.ScanItemAssets(item, nodePath);
+                list.Add((item, assets));
             }
-        }
+
+            return list;
+        });
+
+        // 3) Apply everything on UI thread (Items/Assets/Sort)
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            foreach (var (item, assets) in scanned)
+            {
+                targetNode.Items.Add(item);
+
+                item.Assets.Clear();
+                foreach (var asset in assets)
+                    item.Assets.Add(asset);
+            }
+
+            MarkLibraryDirty();
+            SortMediaItems(targetNode.Items);
+
+            if (IsNodeInCurrentView(targetNode))
+                UpdateContent();
+        });
+
+        // 4) Persist (IO; ok to await from here)
+        await SaveData();
     }
     
     private async Task ImportSteamAsync(MediaNode? targetNode)
@@ -89,27 +108,29 @@ public partial class MainWindowViewModel
         }
 
         var message = string.Format(Strings.Dialog_ConfirmImportSteamFormat, items.Count, targetNode.Name);
-        if (await ShowConfirmDialog(owner, message))
+        if (!await ShowConfirmDialog(owner, message))
+            return;
+
+        // Determine adds off-thread-safe (pure checks)
+        var itemsToAdd = items
+            .Where(item => !targetNode.Items.Any(x => x.Title == item.Title))
+            .ToList();
+
+        if (itemsToAdd.Count == 0) return;
+
+        await UiThreadHelper.InvokeAsync(() =>
         {
-            var anyAdded = false;
-            
-            foreach (var item in items)
-            {
-                if (!targetNode.Items.Any(x => x.Title == item.Title))
-                {
-                    targetNode.Items.Add(item);
-                    anyAdded = true;
-                }
-            }
-            
-            if (anyAdded)
-            {
-                MarkLibraryDirty();
-                SortMediaItems(targetNode.Items);
-                await SaveData();
-                if (IsNodeInCurrentView(targetNode)) UpdateContent();
-            }
-        }
+            foreach (var item in itemsToAdd)
+                targetNode.Items.Add(item);
+
+            MarkLibraryDirty();
+            SortMediaItems(targetNode.Items);
+
+            if (IsNodeInCurrentView(targetNode))
+                UpdateContent();
+        });
+
+        await SaveData();
     }
 
     private async Task ImportGogAsync(MediaNode? targetNode)
@@ -125,27 +146,28 @@ public partial class MainWindowViewModel
         }
 
         var message = string.Format(Strings.Dialog_ConfirmImportGogFormat, items.Count);
-        if (await ShowConfirmDialog(owner, message))
-        {
-            var anyAdded = false;
-            
-            foreach (var item in items)
-            {
-                if (!targetNode.Items.Any(x => x.Title == item.Title))
-                {
-                    targetNode.Items.Add(item);
-                    anyAdded = true;
-                }
-            }
+        if (!await ShowConfirmDialog(owner, message))
+            return;
 
-            if (anyAdded)
-            {
-                MarkLibraryDirty();
-                SortMediaItems(targetNode.Items);
-                await SaveData();
-                if (IsNodeInCurrentView(targetNode)) UpdateContent();
-            }
-        }
+        var itemsToAdd = items
+            .Where(item => !targetNode.Items.Any(x => x.Title == item.Title))
+            .ToList();
+
+        if (itemsToAdd.Count == 0) return;
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            foreach (var item in itemsToAdd)
+                targetNode.Items.Add(item);
+
+            MarkLibraryDirty();
+            SortMediaItems(targetNode.Items);
+
+            if (IsNodeInCurrentView(targetNode))
+                UpdateContent();
+        });
+
+        await SaveData();
     }
 
     // --- Media & Scraping Actions ---
@@ -165,33 +187,60 @@ public partial class MainWindowViewModel
             AllowMultiple = true 
         });
 
-        if (result != null && result.Count > 0)
-        {
-            var anyAdded = false;
-            
-            foreach (var file in result)
-            {
-                var rawTitle = Path.GetFileNameWithoutExtension(file.Name);
-                var title = await PromptForName(owner, $"{Strings.Common_Title} '{file.Name}':") ?? rawTitle;
-                if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
+        if (result == null || result.Count == 0) return;
 
-                var newItem = new MediaItem { Title = title, FilePath = file.Path.LocalPath, MediaType = MediaType.Native };
-                targetNode.Items.Add(newItem); 
-                anyAdded = true;
-                
-                // Auch hier direkt scannen, falls Assets existieren
-                var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
-                _fileService.RefreshItemAssets(newItem, nodePath);
-            }
-            
-            if (anyAdded)
+        var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
+
+        // 1) Build new items (UI-free)
+        var itemsToAdd = new List<MediaItem>(result.Count);
+        foreach (var file in result)
+        {
+            var rawTitle = Path.GetFileNameWithoutExtension(file.Name);
+            var title = await PromptForName(owner, $"{Strings.Common_Title} '{file.Name}':") ?? rawTitle;
+            if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
+
+            itemsToAdd.Add(new MediaItem
             {
-                MarkLibraryDirty();
-                SortMediaItems(targetNode.Items);
-                await SaveData();
-                if (IsNodeInCurrentView(targetNode)) UpdateContent();
-            }
+                Title = title,
+                FilePath = file.Path.LocalPath,
+                MediaType = MediaType.Native
+            });
         }
+
+        // 2) Scan assets off-thread (filesystem only)
+        var scanned = await Task.Run(() =>
+        {
+            var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(itemsToAdd.Count);
+
+            foreach (var item in itemsToAdd)
+            {
+                var assets = _fileService.ScanItemAssets(item, nodePath);
+                list.Add((item, assets));
+            }
+
+            return list;
+        });
+
+        // 3) Apply on UI thread
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            foreach (var (item, assets) in scanned)
+            {
+                targetNode.Items.Add(item);
+
+                item.Assets.Clear();
+                foreach (var asset in assets)
+                    item.Assets.Add(asset);
+            }
+
+            MarkLibraryDirty();
+            SortMediaItems(targetNode.Items);
+
+            if (IsNodeInCurrentView(targetNode))
+                UpdateContent();
+        });
+
+        await SaveData();
     }
 
     private async Task EditMediaAsync(MediaItem? item)
@@ -237,7 +286,7 @@ public partial class MainWindowViewModel
         {
             Title = Strings.Dialog_Select_Music,
             AllowMultiple = false,
-            FileTypeFilter = new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.wav", "*.ogg", "*.flac" } } }
+            FileTypeFilter = new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.wav", "*.ogg", "*.flac", "*.sid" } } }
         });
 
         if (result != null && result.Count == 1)
@@ -251,12 +300,13 @@ public partial class MainWindowViewModel
 
             if (asset != null)
             {
+                await UiThreadHelper.InvokeAsync(() => item.Assets.Add(asset));
+
                 MarkLibraryDirty();
-                
-                // Play logic needs full path
+
                 var fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
-                
                 _ = _audioService.PlayMusicAsync(fullPath);
+
                 await SaveData();
             }
         }
@@ -423,13 +473,11 @@ public partial class MainWindowViewModel
             if (string.IsNullOrEmpty(ext)) ext = ".jpg";
             var tempPathWithExt = Path.ChangeExtension(tempFile, ext);
             
-            // Move statt Copy, da TempFile erstellt wurde
-            // Achtung: Path.GetTempFileName erstellt eine 0-Byte Datei, Move wirft Fehler wenn Ziel existiert.
             if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
             File.Move(tempFile, tempPathWithExt);
 
             bool success = false;
-            // AsyncImageHelper sollte angepasst sein oder wir nutzen ihn so:
+
             if (await AsyncImageHelper.SaveCachedImageAsync(url, tempPathWithExt)) 
             {
                 success = true;
@@ -451,8 +499,12 @@ public partial class MainWindowViewModel
 
             if (success)
             {
-                await _fileService.ImportAssetAsync(tempPathWithExt, item, nodePath, type);
-                MarkLibraryDirty();
+                var imported = await _fileService.ImportAssetAsync(tempPathWithExt, item, nodePath, type);
+                if (imported != null)
+                {
+                    await UiThreadHelper.InvokeAsync(() => item.Assets.Add(imported));
+                    MarkLibraryDirty();
+                }
             }
             if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
         }
@@ -542,7 +594,7 @@ public partial class MainWindowViewModel
             var start = i;
             var count = Math.Min(batchSize, scanned.Count - start);
 
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await UiThreadHelper.InvokeAsync(() =>
             {
                 for (int j = start; j < start + count; j++)
                 {
@@ -587,6 +639,7 @@ public partial class MainWindowViewModel
 
             if (asset != null)
             {
+                await UiThreadHelper.InvokeAsync(() => item.Assets.Add(asset));
                 MarkLibraryDirty();
                 await SaveData();
             }

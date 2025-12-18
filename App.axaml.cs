@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Avalonia;
@@ -27,13 +26,15 @@ public partial class App : Application
     /// </summary>
     public IServiceProvider? Services { get; private set; }
     
-    // Property für die BigMode-Flag (app-weit zugänglich)
+    /// <summary>
+    /// Global flag indicating if the application should run in BigMode (UI optimized for controllers/TV).
+    /// </summary>
     public bool IsBigModeOnly { get; set; } = false;
     
     public override void Initialize()
     {
-        // for tests in a specific language, change culture info here
-        // Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
+        // For testing specific cultures, uncomment the following:
+        // System.Threading.Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo("en-US");
         AvaloniaXamlLoader.Load(this);
     }
 
@@ -41,12 +42,11 @@ public partial class App : Application
     {
         try
         {
-            // Make sure portable Themes exist (copy defaults on first run).
+            // Ensure portable themes are present in the user directory.
             AppPaths.EnsurePortableThemes();
             
-            // 1. Load Settings safely
-            // We use Task.Run to offload the async loading to a ThreadPool thread,
-            // avoiding a deadlock with the UI thread during the synchronous startup phase.
+            // 1. Load Application Settings
+            // Offload async loading to prevent UI deadlocks during synchronous startup.
             AppSettings settings;
             try
             {
@@ -60,28 +60,23 @@ public partial class App : Application
 
             // 2. Setup Dependency Injection
             var serviceCollection = new ServiceCollection();
-
-            serviceCollection.AddSingleton(settings); // Register the pre-loaded settings
+            serviceCollection.AddSingleton(settings);
             ConfigureServices(serviceCollection);
 
             Services = serviceCollection.BuildServiceProvider();
 
-            // 3. Start the UI
+            // 3. UI Initialization
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 // Resolve the MainViewModel. 
-                // // The DI container automatically injects all required services (Audio, Data, Metadata, etc.).
+                // The DI container automatically injects all required services (Audio, Data, Metadata, etc.).
                 var mainViewModel = Services.GetRequiredService<MainWindowViewModel>();
                 
-                // Argumente prüfen und ViewModel konfigurieren
-                if (desktop.Args != null && desktop.Args.Contains("--bigmode"))
+                // Check CLI arguments for BigMode override
+                if (desktop.Args?.Contains("--bigmode") == true)
                 {
                     IsBigModeOnly = true;
-                    Debug.WriteLine("[DEBUG] --bigmode detected. ShouldStartInBigMode set to true.");
-                }
-                else
-                {
-                    Debug.WriteLine("[DEBUG] No --bigmode arg. ShouldStartInBigMode remains false.");  // NEU
+                    Debug.WriteLine("[App] CLI: --bigmode detected.");
                 }
                 
                 var mainWindow = new MainWindow
@@ -90,15 +85,15 @@ public partial class App : Application
                 };
                 desktop.MainWindow = mainWindow;
 
-                // Wir starten das Laden der Daten sofort, um die UI nicht zu blockieren.
+                // Fire-and-forget data loading to keep the UI responsive.
+                // For 30,000+ items, this is crucial.
                 var dataLoadingTask = mainViewModel.LoadData();
                 
-                // Wenn wir im BigMode starten, führen wir den Befehl aus, SOBALD das Fenster geladen ist.
                 if (IsBigModeOnly)
                 {
                     mainWindow.Loaded += async (sender, args) =>
                     {
-                        // Asynchron auf den Abschluss des Lade-Tasks warten.
+                        // Wait for the initial data scan to finish before switching view
                         await dataLoadingTask;
                         
                         if (mainViewModel.EnterBigModeCommand.CanExecute(null))
@@ -122,30 +117,24 @@ public partial class App : Application
     }
     
     /// <summary>
-    /// Configures the DI container services.
+    /// Configures the application's dependency injection container.
     /// </summary>
     private void ConfigureServices(IServiceCollection services)
     {
         // --- Infrastructure ---
         services.AddSingleton<HttpClient>(_ =>
         {
-            var client = new HttpClient
-            {
-                Timeout = TimeSpan.FromSeconds(25)
-            };
-
-            // singular User-Agent for all HTTP-Calls (Scraper + graphics)
+            var client = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Retromind/1.0 (Linux Portable Media Manager)");
-
             return client;
         });
         
-        // --- Core Services (Singletons) ---
+        // --- Core Services ---
         services.AddSingleton<AudioService>();
         services.AddSingleton<SoundEffectService>();
         services.AddSingleton<MediaDataService>();
         
-        // --- Portable data root (AppImage-safe) ---
+        // --- Path-based Services (AppImage/Portable Support) ---
         string libraryPath = AppPaths.LibraryRoot;
         
         if (!Directory.Exists(libraryPath))
@@ -153,15 +142,11 @@ public partial class App : Application
             Directory.CreateDirectory(libraryPath);
         }
 
-        // Factory-Methode, um den Pfad in den Konstruktor zu injizieren
         services.AddSingleton<FileManagementService>(provider => new FileManagementService(libraryPath));
         services.AddSingleton<LauncherService>(provider => new LauncherService(libraryPath));
-        
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();
         services.AddSingleton<SettingsService>();
-        
-        // MetadataService (automatically receives HttpClient and AppSettings via DI)
         services.AddSingleton<MetadataService>();
 
         // --- ViewModels ---

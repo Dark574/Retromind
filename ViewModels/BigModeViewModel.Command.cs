@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 
@@ -61,7 +62,11 @@ public partial class BigModeViewModel
     /// </summary>
     private static void DispatchGamepadAction(System.Action action)
     {
-        Dispatcher.UIThread.Post(action, DispatcherPriority.Input);
+        if (action == null) return;
+
+        // Gamepad callbacks arrive on the SDL thread.
+        // All UI-bound state changes must be marshaled to the UI thread.
+        UiThreadHelper.Post(action, DispatcherPriority.Input);
     }
 
     private void PlaySound(string? relativeSoundPath)

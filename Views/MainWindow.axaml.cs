@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Retromind.Helpers;
 using Retromind.ViewModels;
 
 namespace Retromind;
@@ -70,7 +71,7 @@ public partial class MainWindow : Window
 
         // Wichtig gegen "pop back up":
         // Close nicht inline ausführen, sondern in den UI-Queue posten.
-        Dispatcher.UIThread.Post(() =>
+        UiThreadHelper.Post(() =>
         {
             try
             {

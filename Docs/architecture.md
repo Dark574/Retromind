@@ -71,3 +71,4 @@ Retromind uses a classic three-pane layout:
 - Keep view code-behind minimal (UI-only). Put logic into ViewModels/Services.
 - Avoid committing runtime data (`Library/`, `app_settings.json`, `retromind_tree.json`, secrets).
 - Prefer small PRs: one behavior/change per PR with a short explanation and screenshots for UI changes.
+- UI thread: do not call `Dispatcher.UIThread.*` directly; use `Helpers/UiThreadHelper` to keep UI-thread marshalling centralized and Models UI-agnostic.

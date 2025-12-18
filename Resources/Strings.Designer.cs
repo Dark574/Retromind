@@ -159,6 +159,24 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Button_Add {
+            get {
+                return ResourceManager.GetString("Button_Add", resourceCulture);
+            }
+        }
+        
+        public static string Button_Remove {
+            get {
+                return ResourceManager.GetString("Button_Remove", resourceCulture);
+            }
+        }
+        
+        public static string Button_Browse {
+            get {
+                return ResourceManager.GetString("Button_Browse", resourceCulture);
+            }
+        }
+        
         public static string Common_Active {
             get {
                 return ResourceManager.GetString("Common.Active", resourceCulture);

@@ -74,7 +74,7 @@ public partial class BigModeViewModel
         }
 
         // One render tick to let Avalonia process detach/layout before the root view swap.
-        await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
     }
 
     partial void OnThemeContextNodeChanged(MediaNode? value)
@@ -145,11 +145,12 @@ public partial class BigModeViewModel
         _previewDebounceCts = new CancellationTokenSource();
         var token = _previewDebounceCts.Token;
 
-        Dispatcher.UIThread.Post(async () =>
+        // Debounce OFF the UI thread, then marshal the actual work back to the UI thread.
+        _ = Task.Run(async () =>
         {
             try
             {
-                await Task.Delay(PreviewDebounceDelay, token);
+                await Task.Delay(PreviewDebounceDelay, token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -159,8 +160,8 @@ public partial class BigModeViewModel
             if (token.IsCancellationRequested)
                 return;
 
-            TriggerPreviewPlayback();
-        }, DispatcherPriority.Background);
+            UiThreadHelper.Post(TriggerPreviewPlayback, DispatcherPriority.Background);
+        }, token);
     }
 
     /// <summary>
@@ -168,12 +169,6 @@ public partial class BigModeViewModel
     /// </summary>
     private void TriggerPreviewPlayback()
     {
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.Post(TriggerPreviewPlayback, DispatcherPriority.Background);
-            return;
-        }
-
         if (IsGameListActive)
         {
             var videoPath = ResolveItemVideoPath(SelectedItem);
@@ -281,7 +276,7 @@ public partial class BigModeViewModel
         _ = StartPlaybackAfterRenderAsync(videoPath, gen);
 
         // Fade in after the next render tick to avoid one-frame flashes.
-        Dispatcher.UIThread.Post(() =>
+        UiThreadHelper.Post(() =>
         {
             if (gen == Volatile.Read(ref _previewPlayGeneration) && IsVideoOverlayVisible)
                 IsVideoVisible = true;
@@ -290,7 +285,7 @@ public partial class BigModeViewModel
 
     private async Task StartPlaybackAfterRenderAsync(string videoPath, int generation)
     {
-        await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
 
         await Task.Delay(VideoStartSettleDelay).ConfigureAwait(false);
 
@@ -322,9 +317,9 @@ public partial class BigModeViewModel
 
     private void StopVideo()
     {
-        if (!Dispatcher.UIThread.CheckAccess())
+        if (!UiThreadHelper.CheckAccess())
         {
-            Dispatcher.UIThread.Post(StopVideo, DispatcherPriority.Background);
+            UiThreadHelper.Post(StopVideo, DispatcherPriority.Background);
             return;
         }
 
@@ -386,7 +381,7 @@ public partial class BigModeViewModel
         if (IsVideoVisible)
             return;
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await UiThreadHelper.InvokeAsync(() =>
         {
             if (!IsVideoVisible)
                 IsVideoOverlayVisible = false;

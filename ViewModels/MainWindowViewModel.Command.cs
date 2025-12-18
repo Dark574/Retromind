@@ -128,7 +128,7 @@ public partial class MainWindowViewModel
             var myGeneration = ++themeSwapGeneration;
 
             // Marshal to UI thread (theme swap touches visual tree / VM state).
-            await Dispatcher.UIThread.InvokeAsync(async () =>
+            await UiThreadHelper.InvokeAsync(async () =>
             {
                 if (myGeneration != themeSwapGeneration)
                     return;
@@ -159,7 +159,7 @@ public partial class MainWindowViewModel
         // Close wiring: exit BigMode deterministically + cleanup handlers + sync selection back.
         bigVm.RequestClose += async () =>
         {
-            await Dispatcher.UIThread.InvokeAsync(async () =>
+            await UiThreadHelper.InvokeAsync(async () =>
             {
                 try
                 {
@@ -232,7 +232,7 @@ public partial class MainWindowViewModel
             if (node == null) return;
 
             // 2) Tree selektieren + expandieren (UI Thread)
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await UiThreadHelper.InvokeAsync(() =>
             {
                 ExpandPathToNode(RootItems, node);
                 SelectedNode = node;
@@ -247,7 +247,7 @@ public partial class MainWindowViewModel
             {
                 var itemId = _currentSettings.LastBigModeSelectedNodeId;
 
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                await UiThreadHelper.InvokeAsync(() =>
                 {
                     if (SelectedNodeContent is not MediaAreaViewModel mediaVm) return;
 

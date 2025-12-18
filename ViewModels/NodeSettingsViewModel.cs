@@ -226,7 +226,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
         // we keep only one active asset per type here (delete old -> import new).
         await DeleteAssetsByTypeAsync(type);
 
-        await _fileService.ImportAssetAsync(sourcePath, _node, _nodePath, type);
+        var imported = await _fileService.ImportAssetAsync(sourcePath, _node, _nodePath, type);
+        if (imported != null)
+        {
+            // Ensure collection mutation is on UI thread
+            await UiThreadHelper.InvokeAsync(() => _node.Assets.Add(imported));
+        }
 
         RefreshPreviews();
     }

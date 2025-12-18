@@ -72,10 +72,10 @@ public partial class MediaAreaViewModel : ViewModelBase
 
     partial void OnSearchTextChanged(string value)
     {
-        DebouncedApplyFilter();
+        DebouncedApplyFilter(value);
     }
 
-    private void DebouncedApplyFilter()
+    private void DebouncedApplyFilter(string querySnapshot)
     {
         _searchDebounceCts?.Cancel();
         _searchDebounceCts?.Dispose();
@@ -90,7 +90,19 @@ public partial class MediaAreaViewModel : ViewModelBase
                 await Task.Delay(SearchDebounceDelay, token).ConfigureAwait(false);
                 if (token.IsCancellationRequested) return;
 
-                ApplyFilter();
+                // 1) Compute matches off the UI thread
+                var matches = BuildMatches(querySnapshot, token);
+
+                if (token.IsCancellationRequested) return;
+
+                // 2) Apply on UI thread (ReplaceAll triggers CollectionChanged!)
+                UiThreadHelper.Post(() =>
+                {
+                    // If a newer search has started, ignore this result
+                    if (_searchDebounceCts == null || _searchDebounceCts.IsCancellationRequested) return;
+
+                    ApplyMatchesToUi(querySnapshot, matches);
+                });
             }
             catch (OperationCanceledException)
             {
@@ -99,6 +111,50 @@ public partial class MediaAreaViewModel : ViewModelBase
         }, token);
     }
 
+    private List<MediaItem> BuildMatches(string querySnapshot, CancellationToken token)
+    {
+        var query = querySnapshot?.Trim();
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            // Return a copy to keep the API consistent (List<MediaItem>),
+            // while avoiding enumerating UI-bound collections in the background.
+            return new List<MediaItem>(_allItems);
+        }
+
+        var matches = new List<MediaItem>(capacity: Math.Min(_allItems.Count, 256));
+
+        for (int i = 0; i < _allItems.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+
+            var item = _allItems[i];
+            var title = item.Title;
+
+            if (!string.IsNullOrEmpty(title) &&
+                title.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                matches.Add(item);
+            }
+        }
+
+        return matches;
+    }
+
+    private void ApplyMatchesToUi(string querySnapshot, List<MediaItem> matches)
+    {
+        var query = querySnapshot?.Trim();
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            // Avoid unnecessary resets if we already show all items.
+            if (FilteredItems.Count == _allItems.Count)
+                return;
+        }
+
+        PopulateItems(matches);
+    }
+    
     private void ApplyFilter()
     {
         var query = SearchText?.Trim();

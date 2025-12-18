@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
 
@@ -163,7 +164,7 @@ public partial class EditMediaViewModel : ViewModelBase
         // Filter basierend auf AssetType erstellen
         var fileTypes = type switch
         {
-            AssetType.Music => new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.ogg", "*.wav", "*.flac" } } },
+            AssetType.Music => new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.ogg", "*.wav", "*.flac", "*.sid" } } },
             AssetType.Video => new[] { new FilePickerFileType("Video") { Patterns = new[] { "*.mp4", "*.mkv", "*.avi", "*.webm" } } },
             _ => new[] { FilePickerFileTypes.ImageAll } // Default für Cover, Logo, Wallpaper, Marquee
         };
@@ -183,19 +184,33 @@ public partial class EditMediaViewModel : ViewModelBase
             var imported = await _fileService.ImportAssetAsync(file.Path.LocalPath, _originalItem, _nodePath, type);
             if (imported != null)
             {
+                await UiThreadHelper.InvokeAsync(() => _originalItem.Assets.Add(imported));
                 HasAssetChanges = true;
             }
         }
     }
 
-    private void DeleteSelectedAsset()
+    private async void DeleteSelectedAsset()
     {
         if (SelectedAsset == null) return;
 
-        // Der Service löscht die Datei physisch und entfernt sie aus der Liste
-        _fileService.DeleteAsset(_originalItem, SelectedAsset);
-        HasAssetChanges = true;
-        SelectedAsset = null;
+        var asset = SelectedAsset;
+
+        // 1) Remove from collection on UI thread (immediate UI feedback)
+        await UiThreadHelper.InvokeAsync(() => _originalItem.Assets.Remove(asset));
+
+        try
+        {
+            // 2) Delete file (IO)
+            _fileService.DeleteAssetFile(asset);
+            HasAssetChanges = true;
+            SelectedAsset = null;
+        }
+        catch
+        {
+            // 3) Rollback in collection if delete failed
+            await UiThreadHelper.InvokeAsync(() => _originalItem.Assets.Add(asset));
+        }
     }
 
     // --- Computed Properties & Helpers ---

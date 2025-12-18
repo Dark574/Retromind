@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -12,7 +11,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -225,10 +223,10 @@ public partial class MainWindowViewModel : ViewModelBase
         _onGuidePressed = () =>
         {
             // SDL callback thread -> always marshal to UI thread
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            UiThreadHelper.Post(() =>
             {
                 _lastGuideHandledUtc = DateTime.UtcNow;
-                
+
                 if (FullScreenContent == null) return;
 
                 // If BigMode is active, request closing it.
@@ -560,55 +558,53 @@ public partial class MainWindowViewModel : ViewModelBase
             bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);
             bool randomizeCovers = IsRandomizeActive(nodeToLoad);
 
-            foreach (var item in itemList)
+            // We only compute the winners in the background.
+            // Applying Reset/SetActiveAsset is done on UI thread to avoid cross-thread PropertyChanged/Bindings issues.
+            var randomizationPlan =
+                new System.Collections.Generic.List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)>(
+                    capacity: itemList.Count);
+
+            if (randomizeCovers || randomizeMusic)
             {
-                if (token.IsCancellationRequested) return;
-
-                item.ResetActiveAssets();
-
-                if (!randomizeCovers && !randomizeMusic)
-                    continue;
-
-                System.Collections.Generic.List<MediaAsset>? covers = null;
-                System.Collections.Generic.List<MediaAsset>? wallpapers = null;
-                System.Collections.Generic.List<MediaAsset>? music = null;
-
-                foreach (var asset in item.Assets)
+                foreach (var item in itemList)
                 {
+                    if (token.IsCancellationRequested) return;
+
+                    System.Collections.Generic.List<MediaAsset>? covers = null;
+                    System.Collections.Generic.List<MediaAsset>? wallpapers = null;
+                    System.Collections.Generic.List<MediaAsset>? music = null;
+
+                    foreach (var asset in item.Assets)
+                    {
+                        if (randomizeCovers)
+                        {
+                            if (asset.Type == AssetType.Cover)
+                                (covers ??= new()).Add(asset);
+                            else if (asset.Type == AssetType.Wallpaper)
+                                (wallpapers ??= new()).Add(asset);
+                        }
+
+                        if (randomizeMusic && asset.Type == AssetType.Music)
+                            (music ??= new()).Add(asset);
+                    }
+
+                    string? coverWinner = null;
+                    string? wallpaperWinner = null;
+                    string? musicWinner = null;
+
                     if (randomizeCovers)
                     {
-                        if (asset.Type == AssetType.Cover)
-                            (covers ??= new()).Add(asset);
-                        else if (asset.Type == AssetType.Wallpaper)
-                            (wallpapers ??= new()).Add(asset);
+                        if (covers is { Count: > 1 })
+                            coverWinner = RandomHelper.PickRandom(covers)?.RelativePath;
+
+                        if (wallpapers is { Count: > 1 })
+                            wallpaperWinner = RandomHelper.PickRandom(wallpapers)?.RelativePath;
                     }
 
-                    if (randomizeMusic && asset.Type == AssetType.Music)
-                        (music ??= new()).Add(asset);
-                }
+                    if (randomizeMusic && music is { Count: > 1 })
+                        musicWinner = RandomHelper.PickRandom(music)?.RelativePath;
 
-                if (randomizeCovers)
-                {
-                    if (covers is { Count: > 1 })
-                    {
-                        var winner = RandomHelper.PickRandom(covers);
-                        if (winner != null)
-                            item.SetActiveAsset(AssetType.Cover, winner.RelativePath);
-                    }
-
-                    if (wallpapers is { Count: > 1 })
-                    {
-                        var winner = RandomHelper.PickRandom(wallpapers);
-                        if (winner != null)
-                            item.SetActiveAsset(AssetType.Wallpaper, winner.RelativePath);
-                    }
-                }
-
-                if (randomizeMusic && music is { Count: > 1 })
-                {
-                    var winner = RandomHelper.PickRandom(music);
-                    if (winner != null)
-                        item.SetActiveAsset(AssetType.Music, winner.RelativePath);
+                    randomizationPlan.Add((item, coverWinner, wallpaperWinner, musicWinner));
                 }
             }
 
@@ -623,10 +619,26 @@ public partial class MainWindowViewModel : ViewModelBase
                 Items = allItems
             };
 
-            // 4. Switch to UI thread once
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            // 4. Switch to UI thread once (apply randomization + build VM)
+            await UiThreadHelper.InvokeAsync(() =>
             {
+                if (token.IsCancellationRequested) return;
                 if (SelectedNode != nodeToLoad) return;
+
+                // Apply randomization safely on UI thread
+                foreach (var plan in randomizationPlan)
+                {
+                    plan.Item.ResetActiveAssets();
+
+                    if (!string.IsNullOrEmpty(plan.Cover))
+                        plan.Item.SetActiveAsset(AssetType.Cover, plan.Cover);
+
+                    if (!string.IsNullOrEmpty(plan.Wallpaper))
+                        plan.Item.SetActiveAsset(AssetType.Wallpaper, plan.Wallpaper);
+
+                    if (!string.IsNullOrEmpty(plan.Music))
+                        plan.Item.SetActiveAsset(AssetType.Music, plan.Music);
+                }
 
                 var mediaVm = new MediaAreaViewModel(displayNode, ItemWidth);
 

@@ -5,9 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
 
@@ -132,7 +132,7 @@ public partial class BulkScrapeViewModel : ViewModelBase
                     // but let's stick to updating progress bar always and text sometimes.
                     if (processedCount % 5 == 0)
                     {
-                        await Dispatcher.UIThread.InvokeAsync(() => 
+                        await UiThreadHelper.InvokeAsync(() =>
                         {
                             StatusMessage = $"Processing: {item.Title}";
                         });
@@ -152,13 +152,12 @@ public partial class BulkScrapeViewModel : ViewModelBase
 
                     if (match != null)
                     {
-                        // Success Case
-                        // We must invoke on UI thread because this likely modifies the MediaItem 
-                        // which is bound to UI controls (cover image, description etc.)
-                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        // Buffer log in worker thread (no UI)
+                        AppendLogBuffer($"[MATCH] {item.Title} -> {match.Title}");
+
+                        // Apply scraping result on UI thread (likely touches bound objects)
+                        await UiThreadHelper.InvokeAsync(() =>
                         {
-                            // Important: Thread-safe log appending (buffered)
-                            AppendLogBuffer($"[MATCH] {item.Title} -> {match.Title}");
                             OnItemScraped?.Invoke(item, match);
                         });
                     }
@@ -182,7 +181,7 @@ public partial class BulkScrapeViewModel : ViewModelBase
                 if (current % 10 == 0 || current == totalItems)
                 {
                     double newVal = (double)current * 100 / totalItems;
-                    await Dispatcher.UIThread.InvokeAsync(() => ProgressValue = newVal);
+                    await UiThreadHelper.InvokeAsync(() => ProgressValue = newVal);
                 }
 
                 // Politeness Delay
@@ -246,7 +245,9 @@ public partial class BulkScrapeViewModel : ViewModelBase
         {
             _logBuffer.Clear();
         }
-        LogText = "";
+        
+        // ensure UI thread
+        UiThreadHelper.Post(() => LogText = "");
     }
 
     /// <summary>
@@ -254,16 +255,8 @@ public partial class BulkScrapeViewModel : ViewModelBase
     /// </summary>
     private void AppendLog(string msg)
     {
-        var entry = $"[{DateTime.Now:HH:mm:ss}] {msg}\n";
-        
-        // Immediate update
-        LogText += entry; 
-        
-        // Also keep buffer in sync if we use it for rebuilding history (optional)
-        lock (_logLock)
-        {
-            _logBuffer.Append(entry);
-        }
+        AppendLogBuffer(msg);
+        FlushLogBufferToUi();
     }
 
     /// <summary>
@@ -291,17 +284,18 @@ public partial class BulkScrapeViewModel : ViewModelBase
             _logBuffer.Clear();
         }
 
-        if (!string.IsNullOrEmpty(newLogChunk))
+        if (string.IsNullOrEmpty(newLogChunk))
+            return;
+
+        UiThreadHelper.Post(() =>
         {
-            Dispatcher.UIThread.Post(() =>
+            // Consider limiting total log size here to avoid OOM with 30k items
+            if (LogText.Length > 50000)
             {
-                // Consider limiting total log size here to avoid OOM with 30k items
-                if (LogText.Length > 50000) 
-                {
-                    LogText = "..." + LogText.Substring(LogText.Length - 40000);
-                }
-                LogText += newLogChunk;
-            });
-        }
+                LogText = "..." + LogText.Substring(LogText.Length - 40000);
+            }
+
+            LogText += newLogChunk;
+        });
     }
 }

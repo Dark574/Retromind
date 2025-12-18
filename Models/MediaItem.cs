@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Helpers;
 
@@ -133,12 +132,6 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     public void SetActiveAsset(AssetType type, string relativePath)
     {
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.InvokeAsync(() => SetActiveAsset(type, relativePath));
-            return;
-        }
-        
         _activeAssets[type] = relativePath;
         
         switch (type)
@@ -157,12 +150,6 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     public void ResetActiveAssets()
     {
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.InvokeAsync(ResetActiveAssets);
-            return;
-        }
-
         if (_activeAssets.Count > 0)
         {
             _activeAssets.Clear();
@@ -236,21 +223,12 @@ public partial class MediaItem : ObservableObject
     
     private void OnAssetsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        // Sicherstellen, dass die UI-Updates auf dem UI-Thread passieren
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.InvokeAsync(() => OnAssetsChanged(sender, e));
-            return;
-        }
-        
-        // 1. Clean up active assets cache
-        // If an asset was removed that was currently "active" (randomized winner),
-        // we must remove it from the dictionary so the fallback (First) works again.
-        
+        // Model layer must be UI-agnostic:
+        // Ensure the caller modifies Assets on the UI thread if the UI is bound to this collection.
+
         var keysToRemove = new List<AssetType>();
         foreach (var kvp in _activeAssets)
         {
-            // Check if the path stored in active assets still exists in the collection
             bool stillExists = Assets.Any(a => a.RelativePath == kvp.Value && a.Type == kvp.Key);
             if (!stillExists)
             {
@@ -263,7 +241,6 @@ public partial class MediaItem : ObservableObject
             _activeAssets.Remove(key);
         }
 
-        // 2. Notify UI
         OnPropertyChanged(nameof(PrimaryCoverPath));
         OnPropertyChanged(nameof(PrimaryWallpaperPath));
         OnPropertyChanged(nameof(PrimaryLogoPath));

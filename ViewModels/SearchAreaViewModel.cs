@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
@@ -160,7 +159,7 @@ public partial class SearchAreaViewModel : ViewModelBase
         // If both filters are empty, do not show the entire library (too expensive/noisy).
         if (string.IsNullOrWhiteSpace(query) && string.IsNullOrWhiteSpace(yearText))
         {
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await UiThreadHelper.InvokeAsync(() =>
             {
                 SearchResults.Clear();
                 OnPropertyChanged(nameof(HasResults));
@@ -191,13 +190,13 @@ public partial class SearchAreaViewModel : ViewModelBase
             CollectMatchesRecursive(activeScopes[i], results, query, filterYear, token);
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await UiThreadHelper.InvokeAsync(() =>
         {
             SearchResults.ReplaceAll(results);
 
             OnPropertyChanged(nameof(HasResults));
             OnPropertyChanged(nameof(HasNoResults));
-            
+
             // Keep "Play random" enabled state accurate.
             (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
         });

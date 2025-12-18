@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Retromind.Helpers;
 using Retromind.Services;
 
 namespace Retromind.Views;
@@ -72,7 +73,7 @@ public partial class BigModeHostView : UserControl
 
         _placementUpdateQueued = true;
 
-        Dispatcher.UIThread.Post(() =>
+        UiThreadHelper.Post(() =>
         {
             _placementUpdateQueued = false;
             UpdateVideoPlacement();
@@ -123,8 +124,8 @@ public partial class BigModeHostView : UserControl
     public async void NotifyViewReadyAfterRender(object viewModel)
     {
         // Two render ticks as settle time for XWayland/VLC embedding.
-        await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
-        await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
 
         if (viewModel is Retromind.ViewModels.BigModeViewModel vm)
             vm.NotifyViewReady();

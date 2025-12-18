@@ -11,17 +11,17 @@
 
     <Grid RowDefinitions="Auto, *, Auto" Margin="20">
 
-        <!-- Header Hinweis -->
+        <!-- Header Hint -->
         <TextBlock Grid.Row="0" Text="{x:Static p:Strings.Settings_GlobalSettingsHint}"
                    Margin="0,0,0,15" Opacity="0.6" FontStyle="Italic" />
 
-        <!-- Hauptbereich mit Tabs -->
+        <!-- Main Content with Tabs -->
         <TabControl Grid.Row="1">
             
-            <!-- TAB 1: EMULATOREN -->
+            <!-- TAB 1: EMULATORS -->
             <TabItem Header="{x:Static p:Strings.Settings_TabEmulators}">
                 <Grid ColumnDefinitions="200, 20, *">
-                    <!-- LINKS: Liste der Emulatoren -->
+                    <!-- LEFT: List of emulators -->
                     <Grid Grid.Column="0" RowDefinitions="*, Auto">
                         <ListBox Grid.Row="0"
                                  ItemsSource="{Binding Emulators}"
@@ -34,15 +34,14 @@
                         </ListBox>
 
                         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" Margin="0,10,0,0">
-                            <Button Content="+" Command="{Binding AddEmulatorCommand}" />
-                            <Button Content="-" Command="{Binding RemoveEmulatorCommand}" />
+                            <Button Content="+" Command="{Binding AddEmulatorCommand}" ToolTip.Tip="{x:Static p:Strings.Button_Add}" />
+                            <Button Content="-" Command="{Binding RemoveEmulatorCommand}" ToolTip.Tip="{x:Static p:Strings.Button_Remove}" />
                         </StackPanel>
                     </Grid>
 
-                    <!-- RECHTS: Details Scraper -->
+                    <!-- RIGHT: Emulator Details -->
                     <Border Grid.Column="2" BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="15"
                             IsVisible="{Binding SelectedEmulator, Converter={x:Static ObjectConverters.IsNotNull}}">
-                        <!-- ... Details Emulatoren ... -->
                         <StackPanel Spacing="15" DataContext="{Binding SelectedEmulator}">
                             <TextBlock Text="{x:Static p:Strings.Settings_SectionEmulators}" FontWeight="Bold" FontSize="16" Margin="0,0,0,10" />
                             <!-- Name -->
@@ -50,14 +49,17 @@
                                 <TextBlock Text="{x:Static p:Strings.Settings_ProfileName}" FontWeight="Bold" />
                                 <TextBox Text="{Binding Name}" />
                             </StackPanel>
-                            <!-- Typ -->
+                            <!-- Path -->
                             <StackPanel>
                                 <TextBlock Text="{x:Static p:Strings.Settings_ExecutablePath}" FontWeight="Bold" />
                                 <Grid ColumnDefinitions="*, Auto">
                                     <TextBox Grid.Column="0" Text="{Binding Path}" />
-                                    <Button Grid.Column="1" Content="..." Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).BrowsePathCommand}" Margin="5,0,0,0" />
+                                    <Button Grid.Column="1" Content="..." 
+                                            ToolTip.Tip="{x:Static p:Strings.Button_Browse}"
+                                            Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).BrowsePathCommand}" Margin="5,0,0,0" />
                                 </Grid>
                             </StackPanel>
+                            <!-- Arguments -->
                             <StackPanel>
                                 <TextBlock Text="{x:Static p:Strings.Settings_DefaultArguments}" FontWeight="Bold" />
                                 <TextBox Text="{Binding Arguments}" />
@@ -67,10 +69,10 @@
                 </Grid>
             </TabItem>
             
-            <!-- TAB 2: METADATEN (SCRAPER) -->
+            <!-- TAB 2: METADATA (SCRAPER) -->
             <TabItem Header="{x:Static p:Strings.Settings_TabMetadata}">
                 <Grid ColumnDefinitions="200, 20, *">
-                    <!-- LINKS: Liste der Scraper -->
+                    <!-- LEFT: List of scrapers -->
                     <Grid Grid.Column="0" RowDefinitions="*, Auto">
                         <ListBox Grid.Row="0"
                                  ItemsSource="{Binding Scrapers}"
@@ -83,12 +85,12 @@
                         </ListBox>
 
                         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" Margin="0,10,0,0">
-                            <Button Content="+" Command="{Binding AddScraperCommand}" />
-                            <Button Content="-" Command="{Binding RemoveScraperCommand}" />
+                            <Button Content="+" Command="{Binding AddScraperCommand}" ToolTip.Tip="{x:Static p:Strings.Button_Add}" />
+                            <Button Content="-" Command="{Binding RemoveScraperCommand}" ToolTip.Tip="{x:Static p:Strings.Button_Remove}" />
                         </StackPanel>
                     </Grid>
                     
-                    <!-- RECHTS: Details Scraper -->
+                    <!-- RIGHT: Scraper Details -->
                     <ScrollViewer Grid.Column="2"> 
                         <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="15"
                                 IsVisible="{Binding SelectedScraper, Converter={x:Static ObjectConverters.IsNotNull}}">
@@ -103,7 +105,7 @@
                                     <TextBox Text="{Binding Name}" />
                                 </StackPanel>
                                 
-                                <!-- Typ -->
+                                <!-- Type -->
                                 <StackPanel>
                                     <TextBlock Text="{x:Static p:Strings.Metadata_Type}" FontWeight="Bold" />
                                     <ComboBox ItemsSource="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).AvailableScraperTypes}"
@@ -114,7 +116,7 @@
                                 
                                 <TextBlock Text="{x:Static p:Strings.Metadata_AccessData}" FontWeight="Bold" FontSize="14" Margin="0,5,0,0"/>
     
-                                <!-- IGDB Felder -->
+                                <!-- IGDB Fields -->
                                 <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsIgdbSelected}">
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal">
@@ -132,7 +134,7 @@
                                     </StackPanel>
                                 </StackPanel>
                                 
-                                <!-- Login Felder -->
+                                <!-- Login Fields (EmuMovies) -->
                                 <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsEmuMoviesSelected}">
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal">
@@ -150,11 +152,8 @@
                                     </StackPanel>
                                 </StackPanel>
                                 
-                                <!-- API Key (TMDB & Andere) -->
-                                <!-- Sichtbar wenn NICHT IGDB und NICHT EmuMovies -->
+                                <!-- API Key (TMDB & Others) -->
                                 <StackPanel>
-                                    <!-- Visibility Trick: Wenn TMDB, dann zeigen. Bei anderen (GoogleBooks) auch. -->
-                                    <!-- Einfachheitshalber zeigen wir es immer, außer bei EmuMovies/IGDB die keine API Keys nutzen in diesem Feld -->
                                     <StackPanel.IsVisible>
                                         <MultiBinding Converter="{x:Static BoolConverters.And}">
                                             <Binding Path="!$parent[Window].((vm:SettingsViewModel)DataContext).IsIgdbSelected"/>
@@ -164,14 +163,14 @@
 
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{x:Static p:Strings.Metadata_ApiKey}" FontWeight="Bold" />
-                                        <!-- Spezieller TMDB Hinweis -->
                                         <TextBlock Text="{x:Static p:Strings.Hint_TmdbKey}" 
                                                    IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsTmdbSelected}"
                                                    FontSize="10" Opacity="0.6" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
                                     </StackPanel>
                                     <TextBox Text="{Binding ApiKey}" PasswordChar="*" />
                                 </StackPanel>
-                                <!-- Sprache (Nur für TMDB sichtbar) -->
+
+                                <!-- Language (Specific to TMDB) -->
                                 <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsTmdbSelected}">
                                     <TextBlock Text="{x:Static p:Strings.Metadata_DataLanguage}" FontWeight="Bold" Margin="0,10,0,2"/>
                                     <ComboBox SelectedItem="{Binding Language}" HorizontalAlignment="Stretch">
@@ -181,12 +180,11 @@
                                         </ComboBox.Items>
                                     </ComboBox>
                                 </StackPanel>
-    
                             </StackPanel>
                         </Border>
                     </ScrollViewer>
                     
-                     <!-- Fallback -->
+                     <!-- Fallback when no scraper selected -->
                     <TextBlock Grid.Column="2"
                                Text="{x:Static p:Strings.Dialog_ChooseASource}"
                                VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.5"
@@ -196,7 +194,7 @@
             
         </TabControl>
 
-        <!-- Buttons unten -->
+        <!-- Footer Buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
             <Button Content="{x:Static p:Strings.Button_Save}" Command="{Binding SaveCommand}" Classes="accent"
                     IsDefault="True" />
