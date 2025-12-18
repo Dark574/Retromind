@@ -74,15 +74,34 @@ public sealed class LauncherService
 
     private static Process? LaunchCommand(MediaItem item)
     {
-        // For Command media we expect FilePath to be a URL/protocol or an executable,
-        // and LauncherArgs to hold the argument string.
-        if (string.IsNullOrWhiteSpace(item.LauncherArgs))
+        // Command media: can be either
+        // A) a URL/protocol (steam://, heroic://, https://, …) -> open via xdg-open on Linux
+        // B) an executable command with arguments
+        var target = item.FilePath;
+        
+        if (string.IsNullOrWhiteSpace(target))
             return null;
 
+        // Linux-first: prefer xdg-open for URI/protocol
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && LooksLikeUriOrProtocol(target))
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "xdg-open",
+                UseShellExecute = false
+            };
+
+            // xdg-open expects the URI as a single argument
+            psi.ArgumentList.Add(target);
+
+            return Process.Start(psi);
+        }
+        
+        // Otherwise treat as executable command.
         return Process.Start(new ProcessStartInfo
         {
-            FileName = item.FilePath ?? "xdg-open",
-            Arguments = item.LauncherArgs,
+            FileName = target,
+            Arguments = item.LauncherArgs ?? string.Empty,
             UseShellExecute = true
         });
     }
@@ -106,7 +125,15 @@ public sealed class LauncherService
 
             startInfo.WorkingDirectory = ResolveWorkingDirectory(fileName, item.FilePath);
 
-            if (useWinePrefix)
+            // Linux-only project: WINEPREFIX is only applied when explicitly requested.
+            // Rules:
+            // - If the item already has PrefixPath -> always apply (Native wrappers included).
+            // - If launched via an emulator profile with UsesWinePrefix=true -> auto-create/apply.
+            var shouldApplyPrefix =
+                !string.IsNullOrWhiteSpace(item.PrefixPath) ||
+                (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
+
+            if (shouldApplyPrefix)
                 ConfigureWinePrefix(item, nodePath, startInfo);
 
             startInfo.Arguments = args ?? string.Empty;
@@ -131,7 +158,8 @@ public sealed class LauncherService
             var templateArgs = string.IsNullOrWhiteSpace(item.LauncherArgs) ? "{file}" : item.LauncherArgs;
             var args = BuildArgumentsString(item, templateArgs);
 
-            return (item.LauncherPath, args, UseWinePrefix: true, UseShellExecute: false);
+            // NOTE: Prefix decision is handled in LaunchNativeOrEmulator via shouldApplyPrefix.
+            return (item.LauncherPath, args, UseWinePrefix: false, UseShellExecute: false);
         }
 
         // 2) Inherited emulator profile
@@ -140,7 +168,8 @@ public sealed class LauncherService
             var templateArgs = CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
             var args = BuildArgumentsString(item, templateArgs);
 
-            return (inheritedConfig.Path, args, UseWinePrefix: true, UseShellExecute: false);
+            // NOTE: Prefix decision is handled in LaunchNativeOrEmulator via shouldApplyPrefix.
+            return (inheritedConfig.Path, args, UseWinePrefix: false, UseShellExecute: false);
         }
 
         // 3) Native execution (direct or via wrappers)
@@ -171,8 +200,8 @@ public sealed class LauncherService
 
     private static string? ResolveWorkingDirectory(string fileName, string? itemFilePath)
     {
-        // Prefer the launcher/executable directory.
-        if (File.Exists(fileName))
+        // Prefer launcher directory ONLY if it's a real file path.
+        if (Path.IsPathRooted(fileName) && File.Exists(fileName))
             return Path.GetDirectoryName(fileName) ?? string.Empty;
 
         // Fallback to ROM/file directory.
@@ -182,6 +211,25 @@ public sealed class LauncherService
         return string.Empty;
     }
 
+    private static bool LooksLikeUriOrProtocol(string value)
+    {
+        // Cheap heuristics (no heavy Uri parsing needed):
+        // - contains "://": http://, https://, steam://, heroic://, …
+        // - or "scheme:" (steam:, magnet:, etc.)
+        if (value.Contains("://", StringComparison.Ordinal))
+            return true;
+
+        var colon = value.IndexOf(':', StringComparison.Ordinal);
+        if (colon <= 0) return false;
+
+        // Avoid treating "C:\..." (Windows paths) as protocol.
+        // (Windows is not the focus, but this keeps behavior sane.)
+        if (colon == 1 && char.IsLetter(value[0]))
+            return false;
+
+        return true;
+    }
+    
     private static (string FileName, string Args, bool UseShellExecute) FoldWrappers(
         string executablePath,
         string nativeArgs,
@@ -315,26 +363,26 @@ public sealed class LauncherService
         string? prefixPath = null;
         string? relativePrefixPathToSave = null;
 
+        // Prefix base folder on library/app level (portable).
+        // Library/Prefixes/<itemId_Title>
+        var prefixesBaseRel = "Prefixes";
+        
         // Priority 1: Existing saved path (relative to library root).
         if (!string.IsNullOrWhiteSpace(item.PrefixPath))
         {
             prefixPath = Path.Combine(_libraryRootPath, item.PrefixPath);
         }
-        // Priority 2: Generate a stable path based on the node structure.
-        else if (nodePath is { Count: > 0 })
+        else
         {
-            // Library/<nodePath>/Prefixes/<safeTitle>
-            var relParts = new List<string>(nodePath) { "Prefixes", SanitizeForPathSegment(item.Title) };
+            // Priority 2: Stable, human-friendly per-item folder.
+            var safeTitle = SanitizeForPathSegment(item.Title);
 
-            relativePrefixPathToSave = Path.Combine(relParts.ToArray());
+            // Keep both: stable id + readable title
+            // Example: Prefixes/123e4567-e89b-12d3-a456-426614174000_My_Game
+            var folderName = $"{item.Id}_{safeTitle}";
+
+            relativePrefixPathToSave = Path.Combine(prefixesBaseRel, folderName);
             prefixPath = Path.Combine(_libraryRootPath, relativePrefixPathToSave);
-        }
-        // Priority 3: Fallback near the ROM/file (portable but less organized).
-        else if (!string.IsNullOrWhiteSpace(item.FilePath))
-        {
-            var dir = Path.GetDirectoryName(item.FilePath);
-            if (!string.IsNullOrWhiteSpace(dir))
-                prefixPath = Path.Combine(dir, "pfx");
         }
 
         if (string.IsNullOrWhiteSpace(prefixPath))
@@ -343,7 +391,7 @@ public sealed class LauncherService
         Directory.CreateDirectory(prefixPath);
         startInfo.EnvironmentVariables["WINEPREFIX"] = prefixPath;
 
-        // Persist generated relative path.
+        // Persist generated relative path (portable).
         if (relativePrefixPathToSave != null)
             item.PrefixPath = relativePrefixPathToSave;
     }
@@ -361,6 +409,11 @@ public sealed class LauncherService
         while (safe.Contains("__", StringComparison.Ordinal))
             safe = safe.Replace("__", "_", StringComparison.Ordinal);
 
+        // Avoid absurdly long folder names (portable FS sanity).
+        const int maxLen = 80;
+        if (safe.Length > maxLen)
+            safe = safe[..maxLen];
+        
         return safe;
     }
 

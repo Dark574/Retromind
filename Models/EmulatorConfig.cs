@@ -31,4 +31,8 @@ public partial class EmulatorConfig : ObservableObject
     /// </summary>
     [ObservableProperty] 
     private string _arguments = "{file}";
+    
+    // for runners like UMU/Proton/Wine that benefit from per-game prefixes.
+    [ObservableProperty]
+    private bool _usesWinePrefix;
 }

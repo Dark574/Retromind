@@ -130,20 +130,42 @@
                         </StackPanel>
 
                         <!-- Arguments: always visible -->
-                        <!-- Allows flags for emulators (UMU) or native args -->
                         <StackPanel Margin="0,15,0,0">
                             <TextBlock Text="{x:Static p:Strings.Launch_Arguments}" Margin="0,0,0,5" />
 
-                            <!-- Native: no {file} -->
                             <TextBox IsVisible="{Binding IsNativeMode}"
                                      Text="{Binding LauncherArgs, Mode=TwoWay}"
                                      Watermark="{x:Static p:Strings.Launch_ArgumentsHintShort}" />
 
-                            <!-- Emulator: {file} makes sense -->
                             <TextBox IsVisible="{Binding !IsNativeMode}"
                                      Text="{Binding LauncherArgs, Mode=TwoWay}"
                                      Watermark="{x:Static p:Strings.Launch_ArgumentsHintLong}" />
                         </StackPanel>
+
+                        <!-- Prefix (Wine/Proton/UMU) -->
+                        <Expander Header="Prefix (Wine/Proton/UMU)" IsExpanded="False" Margin="0,10,0,0">
+                            <StackPanel Spacing="10">
+                                <TextBlock Opacity="0.7" FontSize="11"
+                                           Text="Optional. Wenn gesetzt, wird WINEPREFIX beim Start verwendet. Für Native+Wrapper gilt: Prefix wird nur genutzt, wenn hier ein PrefixPath gesetzt ist." />
+
+                                <StackPanel>
+                                    <TextBlock Text="PrefixPath (relativ zu Library/)" FontWeight="Bold" />
+                                    <TextBox Text="{Binding PrefixPath, Mode=TwoWay}"
+                                             Watermark="Prefixes/itemId_Titel" />
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Content="Generate"
+                                            Command="{Binding GeneratePrefixCommand}" />
+                                    <Button Content="Open Folder"
+                                            Command="{Binding OpenPrefixFolderCommand}"
+                                            IsEnabled="{Binding HasPrefix}" />
+                                    <Button Content="Clear"
+                                            Command="{Binding ClearPrefixCommand}"
+                                            IsEnabled="{Binding HasPrefix}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
 
                         <!-- Native wrapper chain (Linux) - Item-level -->
                         <StackPanel Spacing="8"

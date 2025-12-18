@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -23,8 +25,80 @@ public partial class EditMediaViewModel : ViewModelBase
     private readonly ObservableCollection<MediaNode> _rootNodes;
     private readonly MediaNode? _parentNode;
 
+    // --- Prefix (Wine/Proton/UMU) ---
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPrefix))]
+    [NotifyCanExecuteChangedFor(nameof(OpenPrefixFolderCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearPrefixCommand))]
+    private string _prefixPath = string.Empty;
+
+    public bool HasPrefix => !string.IsNullOrWhiteSpace(PrefixPath);
+
+    public IRelayCommand GeneratePrefixCommand { get; }
+    public IRelayCommand OpenPrefixFolderCommand { get; }
+    public IRelayCommand ClearPrefixCommand { get; }
+
+    private void GeneratePrefix()
+    {
+        // Only generate if not already set (user might have a custom path).
+        if (HasPrefix) return;
+
+        var safeTitle = SanitizeForPathSegment(Title);
+        var folderName = $"{_originalItem.Id}_{safeTitle}";
+        PrefixPath = Path.Combine("Prefixes", folderName);
+    }
+
+    private void OpenPrefixFolder()
+    {
+        try
+        {
+            if (!HasPrefix) return;
+
+            var folder = Path.GetFullPath(Path.Combine(AppPaths.LibraryRoot, PrefixPath));
+            Directory.CreateDirectory(folder);
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "xdg-open",
+                UseShellExecute = false,
+                ArgumentList = { folder }
+            });
+        }
+        catch
+        {
+            // best-effort: opening a folder must not break the dialog
+        }
+    }
+
+    private void ClearPrefix()
+    {
+        PrefixPath = string.Empty;
+    }
+    
     // --- Native wrapper chain (Tri-state; item-level) ---
 
+    private static string SanitizeForPathSegment(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return "Unknown";
+
+        var safe = input.Replace(' ', '_');
+
+        foreach (var c in Path.GetInvalidFileNameChars())
+            safe = safe.Replace(c.ToString(), string.Empty);
+
+        while (safe.Contains("__", StringComparison.Ordinal))
+            safe = safe.Replace("__", "_", StringComparison.Ordinal);
+
+        // Keep it readable, but avoid pathological lengths in folder names.
+        const int maxLen = 80;
+        if (safe.Length > maxLen)
+            safe = safe[..maxLen];
+
+        return safe;
+    }
+    
     public enum WrapperMode
     {
         Inherit,
@@ -298,6 +372,11 @@ public partial class EditMediaViewModel : ViewModelBase
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
         _parentNode = parentNode;
 
+        // Prefix commands
+        GeneratePrefixCommand = new RelayCommand(GeneratePrefix);
+        OpenPrefixFolderCommand = new RelayCommand(OpenPrefixFolder, () => HasPrefix);
+        ClearPrefixCommand = new RelayCommand(ClearPrefix, () => HasPrefix);
+        
         // Commands initialisieren
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
         
@@ -394,6 +473,9 @@ public partial class EditMediaViewModel : ViewModelBase
         // Launch Config laden
         LauncherPath = _originalItem.LauncherPath;
         OverrideWatchProcess = _originalItem.OverrideWatchProcess ?? string.Empty;
+        
+        // Prefix
+        PrefixPath = _originalItem.PrefixPath ?? string.Empty;
         
         // Native: no {file} placeholder needed anymore
         if (MediaType == MediaType.Native)
@@ -771,6 +853,9 @@ public partial class EditMediaViewModel : ViewModelBase
         _originalItem.Description = Description;
         _originalItem.MediaType = MediaType;
 
+        // Prefix: store null when not used
+        _originalItem.PrefixPath = string.IsNullOrWhiteSpace(PrefixPath) ? null : PrefixPath.Trim();
+        
         // 2. Launch Config zurückschreiben
         if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
         {
