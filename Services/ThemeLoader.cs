@@ -60,7 +60,23 @@ public static class ThemeLoader
 
             var videoEnabled = ThemeProperties.GetVideoEnabled(view);
 
-            return new Theme(view, sounds, themeDir, videoEnabled);
+            var videoSlotName = ThemeProperties.GetVideoSlotName(view);
+
+            var themeName = ThemeProperties.GetName(view);
+            var themeAuthor = ThemeProperties.GetAuthor(view);
+            var themeVersion = ThemeProperties.GetVersion(view);
+            var themeWebsiteUrl = ThemeProperties.GetWebsiteUrl(view);
+
+            return new Theme(
+                view,
+                sounds,
+                themeDir,
+                videoEnabled: videoEnabled,
+                videoSlotName: videoSlotName,
+                name: themeName,
+                author: themeAuthor,
+                version: themeVersion,
+                websiteUrl: themeWebsiteUrl);
         }
         catch (Exception ex)
         {

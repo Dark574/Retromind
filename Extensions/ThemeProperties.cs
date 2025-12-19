@@ -1,4 +1,6 @@
+using System;
 using Avalonia;
+using Avalonia.Media;
 
 namespace Retromind.Extensions;
 
@@ -32,4 +34,151 @@ public class ThemeProperties : AvaloniaObject
 
     public static bool GetVideoEnabled(AvaloniaObject element) => element.GetValue(VideoEnabledProperty);
     public static void SetVideoEnabled(AvaloniaObject element, bool value) => element.SetValue(VideoEnabledProperty, value);
+
+    // --- Theme metadata (optional, for UI/diagnostics) ---
+
+    public static readonly AttachedProperty<string?> NameProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string?>("Name");
+
+    public static string? GetName(AvaloniaObject element) => element.GetValue(NameProperty);
+    public static void SetName(AvaloniaObject element, string? value) => element.SetValue(NameProperty, value);
+
+    public static readonly AttachedProperty<string?> AuthorProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string?>("Author");
+
+    public static string? GetAuthor(AvaloniaObject element) => element.GetValue(AuthorProperty);
+    public static void SetAuthor(AvaloniaObject element, string? value) => element.SetValue(AuthorProperty, value);
+
+    public static readonly AttachedProperty<string?> VersionProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string?>("Version");
+
+    public static string? GetVersion(AvaloniaObject element) => element.GetValue(VersionProperty);
+    public static void SetVersion(AvaloniaObject element, string? value) => element.SetValue(VersionProperty, value);
+
+    public static readonly AttachedProperty<string?> WebsiteUrlProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string?>("WebsiteUrl");
+
+    public static string? GetWebsiteUrl(AvaloniaObject element) => element.GetValue(WebsiteUrlProperty);
+    public static void SetWebsiteUrl(AvaloniaObject element, string? value) => element.SetValue(WebsiteUrlProperty, value);
+
+    // --- Slot conventions (optional) ---
+    // Default keeps current behavior: "VideoSlot"
+    public static readonly AttachedProperty<string> VideoSlotNameProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string>("VideoSlotName", defaultValue: "VideoSlot");
+
+    public static string GetVideoSlotName(AvaloniaObject element) => element.GetValue(VideoSlotNameProperty);
+    public static void SetVideoSlotName(AvaloniaObject element, string value) => element.SetValue(VideoSlotNameProperty, value);
+
+    // --- Theme tuning (Layout / Animation / Typography) ---
+    // These values are intended to be set on the theme root element and consumed by
+    // styles, converters, or the host to provide consistent UX across themes.
+
+    // Spacing / sizing
+    public static readonly AttachedProperty<double> TileSizeProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("TileSize", defaultValue: 220);
+
+    public static double GetTileSize(AvaloniaObject element) => element.GetValue(TileSizeProperty);
+    public static void SetTileSize(AvaloniaObject element, double value) => element.SetValue(TileSizeProperty, value);
+
+    public static readonly AttachedProperty<double> TileSpacingProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("TileSpacing", defaultValue: 12);
+
+    public static double GetTileSpacing(AvaloniaObject element) => element.GetValue(TileSpacingProperty);
+    public static void SetTileSpacing(AvaloniaObject element, double value) => element.SetValue(TileSpacingProperty, value);
+
+    public static readonly AttachedProperty<Thickness> PanelPaddingProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, Thickness>("PanelPadding", defaultValue: new Thickness(20));
+
+    public static Thickness GetPanelPadding(AvaloniaObject element) => element.GetValue(PanelPaddingProperty);
+    public static void SetPanelPadding(AvaloniaObject element, Thickness value) => element.SetValue(PanelPaddingProperty, value);
+
+    public static readonly AttachedProperty<double> HeaderSpacingProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("HeaderSpacing", defaultValue: 10);
+
+    public static double GetHeaderSpacing(AvaloniaObject element) => element.GetValue(HeaderSpacingProperty);
+    public static void SetHeaderSpacing(AvaloniaObject element, double value) => element.SetValue(HeaderSpacingProperty, value);
+
+    // Shape / borders
+    public static readonly AttachedProperty<CornerRadius> TileCornerRadiusProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, CornerRadius>("TileCornerRadius", defaultValue: new CornerRadius(12));
+
+    public static CornerRadius GetTileCornerRadius(AvaloniaObject element) => element.GetValue(TileCornerRadiusProperty);
+    public static void SetTileCornerRadius(AvaloniaObject element, CornerRadius value) => element.SetValue(TileCornerRadiusProperty, value);
+
+    public static readonly AttachedProperty<Thickness> TileBorderThicknessProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, Thickness>("TileBorderThickness", defaultValue: new Thickness(0));
+
+    public static Thickness GetTileBorderThickness(AvaloniaObject element) => element.GetValue(TileBorderThicknessProperty);
+    public static void SetTileBorderThickness(AvaloniaObject element, Thickness value) => element.SetValue(TileBorderThicknessProperty, value);
+
+    // Focus/selection behavior (controller-friendly)
+    public static readonly AttachedProperty<double> SelectedScaleProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("SelectedScale", defaultValue: 1.06);
+
+    public static double GetSelectedScale(AvaloniaObject element) => element.GetValue(SelectedScaleProperty);
+    public static void SetSelectedScale(AvaloniaObject element, double value) => element.SetValue(SelectedScaleProperty, value);
+
+    public static readonly AttachedProperty<double> UnselectedOpacityProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("UnselectedOpacity", defaultValue: 0.75);
+
+    public static double GetUnselectedOpacity(AvaloniaObject element) => element.GetValue(UnselectedOpacityProperty);
+    public static void SetUnselectedOpacity(AvaloniaObject element, double value) => element.SetValue(UnselectedOpacityProperty, value);
+
+    public static readonly AttachedProperty<double> SelectedGlowOpacityProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("SelectedGlowOpacity", defaultValue: 0.35);
+
+    public static double GetSelectedGlowOpacity(AvaloniaObject element) => element.GetValue(SelectedGlowOpacityProperty);
+    public static void SetSelectedGlowOpacity(AvaloniaObject element, double value) => element.SetValue(SelectedGlowOpacityProperty, value);
+
+    // Overlays / background
+    public static readonly AttachedProperty<double> BackgroundDimOpacityProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("BackgroundDimOpacity", defaultValue: 0.35);
+
+    public static double GetBackgroundDimOpacity(AvaloniaObject element) => element.GetValue(BackgroundDimOpacityProperty);
+    public static void SetBackgroundDimOpacity(AvaloniaObject element, double value) => element.SetValue(BackgroundDimOpacityProperty, value);
+
+    public static readonly AttachedProperty<double> PanelBackgroundOpacityProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("PanelBackgroundOpacity", defaultValue: 0.18);
+
+    public static double GetPanelBackgroundOpacity(AvaloniaObject element) => element.GetValue(PanelBackgroundOpacityProperty);
+    public static void SetPanelBackgroundOpacity(AvaloniaObject element, double value) => element.SetValue(PanelBackgroundOpacityProperty, value);
+
+    // Animation timings (milliseconds; easy for theme authors)
+    public static readonly AttachedProperty<int> FadeDurationMsProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, int>("FadeDurationMs", defaultValue: 200);
+
+    public static int GetFadeDurationMs(AvaloniaObject element) => element.GetValue(FadeDurationMsProperty);
+    public static void SetFadeDurationMs(AvaloniaObject element, int value) => element.SetValue(FadeDurationMsProperty, value);
+
+    public static readonly AttachedProperty<int> MoveDurationMsProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, int>("MoveDurationMs", defaultValue: 160);
+
+    public static int GetMoveDurationMs(AvaloniaObject element) => element.GetValue(MoveDurationMsProperty);
+    public static void SetMoveDurationMs(AvaloniaObject element, int value) => element.SetValue(MoveDurationMsProperty, value);
+
+    // Typography (defaults tuned for “TV distance”)
+    public static readonly AttachedProperty<double> TitleFontSizeProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("TitleFontSize", defaultValue: 34);
+
+    public static double GetTitleFontSize(AvaloniaObject element) => element.GetValue(TitleFontSizeProperty);
+    public static void SetTitleFontSize(AvaloniaObject element, double value) => element.SetValue(TitleFontSizeProperty, value);
+
+    public static readonly AttachedProperty<double> BodyFontSizeProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("BodyFontSize", defaultValue: 18);
+
+    public static double GetBodyFontSize(AvaloniaObject element) => element.GetValue(BodyFontSizeProperty);
+    public static void SetBodyFontSize(AvaloniaObject element, double value) => element.SetValue(BodyFontSizeProperty, value);
+
+    public static readonly AttachedProperty<double> CaptionFontSizeProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("CaptionFontSize", defaultValue: 14);
+
+    public static double GetCaptionFontSize(AvaloniaObject element) => element.GetValue(CaptionFontSizeProperty);
+    public static void SetCaptionFontSize(AvaloniaObject element, double value) => element.SetValue(CaptionFontSizeProperty, value);
+
+    // Optional visual hints
+    public static readonly AttachedProperty<Color?> AccentColorProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, Color?>("AccentColor");
+
+    public static Color? GetAccentColor(AvaloniaObject element) => element.GetValue(AccentColorProperty);
+    public static void SetAccentColor(AvaloniaObject element, Color? value) => element.SetValue(AccentColorProperty, value);
 }

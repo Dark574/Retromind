@@ -3,9 +3,17 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
              xmlns:helpers="using:Retromind.Helpers"
+             xmlns:ext="clr-namespace:Retromind.Extensions"
              x:DataType="vm:BigModeViewModel"
              x:Name="BigModeRoot"
-             Background="Black">
+             Background="Black"
+
+             ext:ThemeProperties.AccentColor="#FFD700"
+             ext:ThemeProperties.BackgroundDimOpacity="0.15"
+             ext:ThemeProperties.TitleFontSize="48"
+             ext:ThemeProperties.BodyFontSize="18"
+             ext:ThemeProperties.FadeDurationMs="250"
+             ext:ThemeProperties.MoveDurationMs="250">
 
     <UserControl.Styles>
         <!-- ... Styles bleiben unverändert ... -->
@@ -40,7 +48,8 @@
         <!-- LAYER 1: Hintergrund -->
         <Image Name="WallpaperImage"
                helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
-               Stretch="UniformToFill" Opacity="0.15" />
+               Stretch="UniformToFill"
+               Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />
         
         <!-- LAYER 2: Das Wheel -->
         <ListBox ItemsSource="{Binding Items}"
@@ -64,10 +73,14 @@
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Panel Width="300" Height="140">
-                         <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}" Stretch="Uniform"
+                        <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}" Stretch="Uniform"
                                IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                        <TextBlock Text="{Binding Title}" FontSize="32" FontWeight="Bold"
-                                   TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center"
+                        <TextBlock Text="{Binding Title}"
+                                   FontSize="32"
+                                   FontWeight="Bold"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   VerticalAlignment="Center"
                                    IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
                     </Panel>
                 </DataTemplate>
@@ -80,10 +93,16 @@
             <ScrollViewer Grid.Row="0" Margin="40, 60, 60, 20" VerticalScrollBarVisibility="Auto"
                           VerticalAlignment="Stretch">
                 <StackPanel>
-                    <TextBlock Text="{Binding SelectedItem.Title}" FontSize="48" FontWeight="Bold" Foreground="White"
+                    <TextBlock Text="{Binding SelectedItem.Title}"
+                               Classes="rm-title"
+                               FontWeight="Bold"
+                               Foreground="White"
                                TextWrapping="Wrap"/>
-                    <TextBlock Text="{Binding SelectedItem.Description}" FontSize="18" Foreground="#DDFFFFFF" 
-                               TextWrapping="Wrap" Margin="0,20,0,0"/>
+                    <TextBlock Text="{Binding SelectedItem.Description}"
+                               Classes="rm-body"
+                               Foreground="#DDFFFFFF"
+                               TextWrapping="Wrap"
+                               Margin="0,20,0,0"/>
                 </StackPanel>
             </ScrollViewer>
             
@@ -99,7 +118,7 @@
                 
                 <!-- COVER (wird zuletzt gezeichnet, liegt also VORNE) -->
                 <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" 
-                        Margin="900, 0, 0, 100"> <!-- Weiter nach rechts verschoben -->
+                        Margin="900, 0, 0, 100">
                     <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
                            Width="280" Height="380" Stretch="Uniform"/>
                     <Border.Effect>
