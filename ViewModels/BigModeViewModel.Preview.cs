@@ -201,23 +201,30 @@ public partial class BigModeViewModel
                 videoPath = candidate;
         }
 
-        // Fallback: "<romname>.mp4" next to the ROM file.
-        if (videoPath == null && !string.IsNullOrEmpty(item.FilePath))
+        // Fallback: "<romname>.mp4" next to the primary launch file (only if it is a real local file path).
+        if (videoPath == null)
         {
-            try
+            var primary = item.GetPrimaryLaunchPath();
+
+            if (!string.IsNullOrWhiteSpace(primary) &&
+                Path.IsPathRooted(primary) &&
+                File.Exists(primary))
             {
-                var dir = Path.GetDirectoryName(item.FilePath);
-                var name = Path.GetFileNameWithoutExtension(item.FilePath);
-                if (dir != null)
+                try
                 {
-                    var candidate = Path.Combine(dir, name + ".mp4");
-                    if (File.Exists(candidate))
-                        videoPath = candidate;
+                    var dir = Path.GetDirectoryName(primary);
+                    var name = Path.GetFileNameWithoutExtension(primary);
+                    if (dir != null)
+                    {
+                        var candidate = Path.Combine(dir, name + ".mp4");
+                        if (File.Exists(candidate))
+                            videoPath = candidate;
+                    }
                 }
-            }
-            catch
-            {
-                // best-effort only
+                catch
+                {
+                    // best-effort only
+                }
             }
         }
 

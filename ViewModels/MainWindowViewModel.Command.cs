@@ -376,103 +376,98 @@ public partial class MainWindowViewModel
     }
 
     private async Task PlayMediaAsync(MediaItem? item)
+{
+    if (item == null || SelectedNode == null) return;
+
+    // Stop music immediately for responsiveness
+    _audioService.StopMusic();
+
+    try
     {
-        if (item == null || SelectedNode == null) return;
-        
-        // Stop music immediately for responsiveness
-        _audioService.StopMusic();
-
-        try 
+        EmulatorConfig? emulator = null;
+        if (!string.IsNullOrEmpty(item.EmulatorId))
         {
-            EmulatorConfig? emulator = null;
-            if (!string.IsNullOrEmpty(item.EmulatorId))
-            {
-                emulator = _currentSettings.Emulators.FirstOrDefault(e => e.Id == item.EmulatorId);
-            }
+            emulator = _currentSettings.Emulators.FirstOrDefault(e => e.Id == item.EmulatorId);
+        }
 
-            var trueParent = FindParentNode(RootItems, item) ?? SelectedNode;
-            var nodePath = PathHelper.GetNodePath(trueParent, RootItems);
+        var trueParent = FindParentNode(RootItems, item) ?? SelectedNode;
+        var nodePath = PathHelper.GetNodePath(trueParent, RootItems);
 
-            if (emulator == null)
+        if (emulator == null)
+        {
+            // Traverse up the tree to find inherited emulator config
+            var nodeChain = GetNodeChain(trueParent, RootItems);
+            nodeChain.Reverse();
+            foreach (var node in nodeChain)
             {
-                // Traverse up the tree to find inherited emulator config
-                var nodeChain = GetNodeChain(trueParent, RootItems);
-                nodeChain.Reverse(); 
-                foreach (var node in nodeChain)
+                if (!string.IsNullOrEmpty(node.DefaultEmulatorId))
                 {
-                    if (!string.IsNullOrEmpty(node.DefaultEmulatorId))
+                    emulator = _currentSettings.Emulators.FirstOrDefault(e => e.Id == node.DefaultEmulatorId);
+                    if (emulator != null) break;
+                }
+            }
+        }
+
+        // C) Native wrapper resolution (global -> node -> item)
+        IReadOnlyList<LaunchWrapper>? effectiveWrappers = null;
+
+        if (item.MediaType == MediaType.Native)
+        {
+            // Item override wins (null=inherits, empty=explicit none)
+            if (item.NativeWrappersOverride != null)
+            {
+                effectiveWrappers = item.NativeWrappersOverride;
+            }
+            else
+            {
+                // Start with global defaults
+                List<LaunchWrapper>? wrappers = _currentSettings.DefaultNativeWrappers;
+
+                // Node override (nearest wins)
+                var chain = GetNodeChain(trueParent, RootItems);
+                chain.Reverse();
+
+                foreach (var node in chain)
+                {
+                    if (node.NativeWrappersOverride != null)
                     {
-                        emulator = _currentSettings.Emulators.FirstOrDefault(e => e.Id == node.DefaultEmulatorId);
-                        if (emulator != null) break;
+                        wrappers = node.NativeWrappersOverride;
+                        break;
                     }
                 }
+
+                effectiveWrappers = wrappers;
             }
-            
-            // C) Native wrapper resolution (global -> node -> item)
-            string? wrapperPath = null;
-            string? wrapperArgs = null;
-
-            IReadOnlyList<LaunchWrapper>? effectiveWrappers = null;
-
-            if (item.MediaType == MediaType.Native)
-            {
-                // Item override wins (null=inherits, empty=explicit none)
-                if (item.NativeWrappersOverride != null)
-                {
-                    effectiveWrappers = item.NativeWrappersOverride;
-                }
-                else
-                {
-                    // Start with global defaults
-                    List<LaunchWrapper>? wrappers = _currentSettings.DefaultNativeWrappers;
-
-                    // Node override (nearest wins)
-                    var chain = GetNodeChain(trueParent, RootItems);
-                    chain.Reverse();
-
-                    foreach (var node in chain)
-                    {
-                        if (node.NativeWrappersOverride != null)
-                        {
-                            wrappers = node.NativeWrappersOverride;
-                            break;
-                        }
-                    }
-
-                    effectiveWrappers = wrappers;
-                }
-            }
-
-            await _launcherService.LaunchAsync(
-                item,
-                emulator,
-                nodePath,
-                nativeWrappers: effectiveWrappers);
-            
-            // Resume background music after game exit (if applicable)
-            if (SelectedNodeContent is MediaAreaViewModel vm && 
-                vm.SelectedMediaItem == item)
-            {
-                // Musikpfad über AssetSystem holen
-                var relativeMusicPath = item.GetPrimaryAssetPath(AssetType.Music);
-                
-                if (!string.IsNullOrEmpty(relativeMusicPath))
-                {
-                    var musicPath = AppPaths.ResolveDataPath(relativeMusicPath);
-                    // Fire and forget music playback
-                    _ = _audioService.PlayMusicAsync(musicPath);
-                }
-            }
-            
-            // Stats wurden evtl. aktualisiert -> Library ist dirty
-            MarkLibraryDirty();
-            await SaveData(); // Update stats (playtime, last played)
         }
-        catch (Exception ex)
+
+        await _launcherService.LaunchAsync(
+            item,
+            emulator,
+            nodePath,
+            nativeWrappers: effectiveWrappers,
+            usePlaylistForMultiDisc: emulator?.UsePlaylistForMultiDisc == true);
+
+        // Resume background music after game exit (if applicable)
+        if (SelectedNodeContent is MediaAreaViewModel vm &&
+            vm.SelectedMediaItem == item)
         {
-            Debug.WriteLine($"[Error] PlayMedia failed: {ex.Message}");
+            var relativeMusicPath = item.GetPrimaryAssetPath(AssetType.Music);
+
+            if (!string.IsNullOrEmpty(relativeMusicPath))
+            {
+                var musicPath = AppPaths.ResolveDataPath(relativeMusicPath);
+                _ = _audioService.PlayMusicAsync(musicPath);
+            }
         }
+
+        MarkLibraryDirty();
+        await SaveData();
     }
+    catch (Exception ex)
+    {
+        Debug.WriteLine($"[Error] PlayMedia failed: {ex.Message}");
+    }
+}
 
     private async Task DeleteMediaAsync(MediaItem? item)
     {

@@ -31,6 +31,7 @@ public sealed class LauncherService
         EmulatorConfig? inheritedConfig = null,
         List<string>? nodePath = null,
         IReadOnlyList<LaunchWrapper>? nativeWrappers = null,
+        bool usePlaylistForMultiDisc = false,
         CancellationToken cancellationToken = default)
     {
         if (item == null) return;
@@ -42,7 +43,7 @@ public sealed class LauncherService
         {
             process = item.MediaType == MediaType.Command
                 ? LaunchCommand(item)
-                : LaunchNativeOrEmulator(item, inheritedConfig, nodePath, nativeWrappers);
+                : LaunchNativeOrEmulator(item, inheritedConfig, nodePath, nativeWrappers, usePlaylistForMultiDisc);
 
             // Tracking strategy:
             // A) If OverrideWatchProcess is set, we track by process name (for launchers like Steam).
@@ -77,8 +78,8 @@ public sealed class LauncherService
         // Command media: can be either
         // A) a URL/protocol (steam://, heroic://, https://, …) -> open via xdg-open on Linux
         // B) an executable command with arguments
-        var target = item.FilePath;
-        
+        var target = item.GetPrimaryLaunchPath();
+
         if (string.IsNullOrWhiteSpace(target))
             return null;
 
@@ -96,7 +97,7 @@ public sealed class LauncherService
 
             return Process.Start(psi);
         }
-        
+
         // Otherwise treat as executable command.
         return Process.Start(new ProcessStartInfo
         {
@@ -110,12 +111,13 @@ public sealed class LauncherService
         MediaItem item,
         EmulatorConfig? inheritedConfig,
         List<string>? nodePath,
-        IReadOnlyList<LaunchWrapper>? nativeWrappers)
+        IReadOnlyList<LaunchWrapper>? nativeWrappers,
+        bool usePlaylistForMultiDisc)
     {
         try
         {
-            var (fileName, args, useWinePrefix, useShellExecute) =
-                ResolveLaunchPlan(item, inheritedConfig, nativeWrappers);
+            var (fileName, args, useShellExecute, launchFilePath) =
+                ResolveLaunchPlan(item, inheritedConfig, nodePath, nativeWrappers, usePlaylistForMultiDisc);
 
             var startInfo = new ProcessStartInfo
             {
@@ -123,7 +125,7 @@ public sealed class LauncherService
                 UseShellExecute = useShellExecute
             };
 
-            startInfo.WorkingDirectory = ResolveWorkingDirectory(fileName, item.FilePath);
+            startInfo.WorkingDirectory = ResolveWorkingDirectory(fileName, launchFilePath);
 
             // Linux-only project: WINEPREFIX is only applied when explicitly requested.
             // Rules:
@@ -147,42 +149,49 @@ public sealed class LauncherService
         }
     }
 
-    private static (string FileName, string? Args, bool UseWinePrefix, bool UseShellExecute) ResolveLaunchPlan(
+    private (string FileName, string? Args, bool UseShellExecute, string? LaunchFilePath) ResolveLaunchPlan(
         MediaItem item,
         EmulatorConfig? inheritedConfig,
-        IReadOnlyList<LaunchWrapper>? nativeWrappers)
+        List<string>? nodePath,
+        IReadOnlyList<LaunchWrapper>? nativeWrappers,
+        bool usePlaylistForMultiDisc)
     {
+        // Determine which file should be passed into {file}.
+        // Default: primary file (Disc 1 / first entry).
+        // Optional: generate an .m3u playlist for multi-disc items and pass the playlist path instead.
+        var launchFilePath = ResolveLaunchFilePath(item, nodePath, usePlaylistForMultiDisc);
+
         // 1) Item-level custom launcher (wrapper/emulator/etc.) always wins
         if (!string.IsNullOrWhiteSpace(item.LauncherPath))
         {
             var templateArgs = string.IsNullOrWhiteSpace(item.LauncherArgs) ? "{file}" : item.LauncherArgs;
-            var args = BuildArgumentsString(item, templateArgs);
+            var args = BuildArgumentsString(launchFilePath, templateArgs);
 
             // NOTE: Prefix decision is handled in LaunchNativeOrEmulator via shouldApplyPrefix.
-            return (item.LauncherPath, args, UseWinePrefix: false, UseShellExecute: false);
+            return (item.LauncherPath, args, UseShellExecute: false, LaunchFilePath: launchFilePath);
         }
 
         // 2) Inherited emulator profile
         if (inheritedConfig != null)
         {
             var templateArgs = CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
-            var args = BuildArgumentsString(item, templateArgs);
+            var args = BuildArgumentsString(launchFilePath, templateArgs);
 
             // NOTE: Prefix decision is handled in LaunchNativeOrEmulator via shouldApplyPrefix.
-            return (inheritedConfig.Path, args, UseWinePrefix: false, UseShellExecute: false);
+            return (inheritedConfig.Path, args, UseShellExecute: false, LaunchFilePath: launchFilePath);
         }
 
         // 3) Native execution (direct or via wrappers)
-        if (string.IsNullOrWhiteSpace(item.FilePath))
-            throw new InvalidOperationException("MediaItem.FilePath is required for native execution.");
+        if (string.IsNullOrWhiteSpace(launchFilePath))
+            throw new InvalidOperationException("MediaItem.Files must contain at least one valid file for native execution.");
 
         var nativeArgs = BuildNativeArguments(item.LauncherArgs);
 
         // Apply wrapper chain if provided and non-empty
         if (nativeWrappers is { Count: > 0 })
         {
-            var folded = FoldWrappers(item.FilePath, nativeArgs, nativeWrappers);
-            return (folded.FileName, folded.Args, UseWinePrefix: false, UseShellExecute: folded.UseShellExecute);
+            var folded = FoldWrappers(launchFilePath, nativeArgs, nativeWrappers);
+            return (folded.FileName, folded.Args, UseShellExecute: folded.UseShellExecute, LaunchFilePath: launchFilePath);
         }
 
         // Direct native
@@ -190,23 +199,118 @@ public sealed class LauncherService
 
         // For shell scripts, direct execution with a working directory is often more reliable.
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
-            item.FilePath.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
+            launchFilePath.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
         {
             useShellExecute = false;
         }
 
-        return (item.FilePath, nativeArgs, UseWinePrefix: false, UseShellExecute: useShellExecute);
+        return (launchFilePath, nativeArgs, UseShellExecute: useShellExecute, LaunchFilePath: launchFilePath);
     }
 
-    private static string? ResolveWorkingDirectory(string fileName, string? itemFilePath)
+    private string? ResolveLaunchFilePath(MediaItem item, List<string>? nodePath, bool usePlaylistForMultiDisc)
+    {
+        var primary = item.GetPrimaryLaunchPath();
+        if (string.IsNullOrWhiteSpace(primary))
+            return null;
+
+        if (!usePlaylistForMultiDisc)
+            return primary;
+
+        if (item.Files is not { Count: > 1 })
+            return primary;
+
+        // Playlists are stored inside the selected node folder:
+        // <LibraryRoot>/<NodePath>/Playlists/<itemId>_<GameTitle>.m3u
+        if (nodePath is not { Count: > 0 })
+            return primary;
+
+        var playlistPath = CreateOrUpdatePlaylist(item, nodePath);
+        return string.IsNullOrWhiteSpace(playlistPath) ? primary : playlistPath;
+    }
+
+    private string? CreateOrUpdatePlaylist(MediaItem item, List<string> nodePath)
+    {
+        try
+        {
+            var nodeFolder = Path.Combine(_libraryRootPath, Path.Combine(nodePath.ToArray()));
+            var playlistsFolder = Path.Combine(nodeFolder, "Playlists");
+            Directory.CreateDirectory(playlistsFolder);
+
+            var safeTitle = SanitizeForFilename(item.Title);
+            var fileName = $"{item.Id}_{safeTitle}.m3u";
+            var fullPath = Path.Combine(playlistsFolder, fileName);
+
+            // Build playlist lines in a stable order (Index ascending, then Label, then Path).
+            var ordered = new List<MediaFileRef>(item.Files);
+            ordered.Sort(static (a, b) =>
+            {
+                var ai = a.Index ?? int.MaxValue;
+                var bi = b.Index ?? int.MaxValue;
+                var c = ai.CompareTo(bi);
+                if (c != 0) return c;
+
+                c = string.Compare(a.Label, b.Label, StringComparison.OrdinalIgnoreCase);
+                if (c != 0) return c;
+
+                return string.Compare(a.Path, b.Path, StringComparison.OrdinalIgnoreCase);
+            });
+
+            var lines = new List<string>(capacity: ordered.Count);
+            foreach (var f in ordered)
+            {
+                if (f.Kind != MediaFileKind.Absolute)
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(f.Path))
+                    continue;
+
+                lines.Add(f.Path);
+            }
+
+            // If we ended up with an invalid playlist, do not create anything.
+            if (lines.Count == 0)
+                return null;
+
+            File.WriteAllLines(fullPath, lines);
+            return fullPath;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Launcher] Failed to create playlist: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static string SanitizeForFilename(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return "Unknown";
+
+        var sanitized = input.Replace(' ', '_');
+
+        foreach (var c in Path.GetInvalidFileNameChars())
+            sanitized = sanitized.Replace(c.ToString(), string.Empty);
+
+        while (sanitized.Contains("__", StringComparison.Ordinal))
+            sanitized = sanitized.Replace("__", "_", StringComparison.Ordinal);
+
+        // Keep filenames at a reasonable length for portability/usability.
+        const int maxLen = 80;
+        if (sanitized.Length > maxLen)
+            sanitized = sanitized[..maxLen];
+
+        return sanitized;
+    }
+
+    private static string? ResolveWorkingDirectory(string fileName, string? launchFilePath)
     {
         // Prefer launcher directory ONLY if it's a real file path.
         if (Path.IsPathRooted(fileName) && File.Exists(fileName))
             return Path.GetDirectoryName(fileName) ?? string.Empty;
 
-        // Fallback to ROM/file directory.
-        if (!string.IsNullOrWhiteSpace(itemFilePath) && File.Exists(itemFilePath))
-            return Path.GetDirectoryName(itemFilePath) ?? string.Empty;
+        // Fallback to media file directory.
+        if (!string.IsNullOrWhiteSpace(launchFilePath) && File.Exists(launchFilePath))
+            return Path.GetDirectoryName(launchFilePath) ?? string.Empty;
 
         return string.Empty;
     }
@@ -229,7 +333,7 @@ public sealed class LauncherService
 
         return true;
     }
-    
+
     private static (string FileName, string Args, bool UseShellExecute) FoldWrappers(
         string executablePath,
         string nativeArgs,
@@ -279,7 +383,7 @@ public sealed class LauncherService
 
         return path.Contains(' ', StringComparison.Ordinal) ? $"\"{path}\"" : path;
     }
-    
+
     private static string CombineTemplateArguments(string? baseArgs, string? itemArgs)
     {
         baseArgs ??= string.Empty;
@@ -357,7 +461,7 @@ public sealed class LauncherService
 
         return length <= 0 ? string.Empty : new string(buffer.Slice(start, length));
     }
-    
+
     private void ConfigureWinePrefix(MediaItem item, List<string>? nodePath, ProcessStartInfo startInfo)
     {
         string? prefixPath = null;
@@ -366,7 +470,7 @@ public sealed class LauncherService
         // Prefix base folder on library/app level (portable).
         // Library/Prefixes/<itemId_Title>
         var prefixesBaseRel = "Prefixes";
-        
+
         // Priority 1: Existing saved path (relative to library root).
         if (!string.IsNullOrWhiteSpace(item.PrefixPath))
         {
@@ -413,13 +517,13 @@ public sealed class LauncherService
         const int maxLen = 80;
         if (safe.Length > maxLen)
             safe = safe[..maxLen];
-        
+
         return safe;
     }
 
-    private static string BuildArgumentsString(MediaItem item, string? templateArgs)
+    private static string BuildArgumentsString(string? filePath, string? templateArgs)
     {
-        var fullPath = string.IsNullOrWhiteSpace(item.FilePath) ? string.Empty : Path.GetFullPath(item.FilePath);
+        var fullPath = string.IsNullOrWhiteSpace(filePath) ? string.Empty : Path.GetFullPath(filePath);
 
         // If the path contains spaces, quote it unless the template already provides quotes around "{file}".
         var quotedPath = (!string.IsNullOrEmpty(fullPath) && fullPath.Contains(' ', StringComparison.Ordinal))

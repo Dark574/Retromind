@@ -15,6 +15,64 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
+    // Regex to detect Disk/Disc/Side/Part suffixes
+    // Matches: " (Disk 1)", "_Disk1", " (Side A)", " - CD 1", etc.
+    private static readonly System.Text.RegularExpressions.Regex MultiDiscRegex =
+        new(@"[\s_]*(\(?-?|\[)(Disk|Disc|CD|Side|Part)[\s_]*([0-9A-H]+)(\)?|\])",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static int? ParseDiscIndex(string token)
+    {
+        // Supports: "1", "2", ... and "A".."H" (Side A/B, etc.)
+        if (int.TryParse(token, out var n) && n > 0)
+            return n;
+
+        if (token.Length == 1)
+        {
+            var c = char.ToUpperInvariant(token[0]);
+            if (c is >= 'A' and <= 'H')
+                return (c - 'A') + 1;
+        }
+
+        return null;
+    }
+
+    private static string? BuildDiscLabel(string kind, string token, int? index)
+    {
+        // Keep labels user-friendly and stable for UI and playlist readability.
+        kind = kind.Trim();
+
+        if (string.Equals(kind, "Side", StringComparison.OrdinalIgnoreCase) && token.Length == 1)
+        {
+            var side = char.ToUpperInvariant(token[0]);
+            if (side is >= 'A' and <= 'H')
+                return $"Side {side}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(token))
+            return $"{kind} {token}";
+
+        if (index.HasValue)
+            return $"{kind} {index.Value}";
+
+        return null;
+    }
+
+    private static (int? Index, string? Label) TryGetDiscInfoFromFileName(string fileNameWithoutExtension)
+    {
+        var match = MultiDiscRegex.Match(fileNameWithoutExtension);
+        if (!match.Success)
+            return (null, null);
+
+        var kind = match.Groups[2].Value.Trim();
+        var token = match.Groups[3].Value.Trim();
+
+        var idx = ParseDiscIndex(token);
+        var label = BuildDiscLabel(kind, token, idx);
+
+        return (idx, label);
+    }
+    
     // --- Import Actions ---
 
     private async Task ImportRomsAsync(MediaNode? targetNode)
@@ -53,7 +111,15 @@ public partial class MainWindowViewModel
 
         // 1) Decide what to add (no UI mutations)
         var itemsToAdd = importedItems
-            .Where(item => !targetNode.Items.Any(i => i.FilePath == item.FilePath))
+            .Where(item =>
+            {
+                var incoming = item.GetPrimaryLaunchPath();
+                if (string.IsNullOrWhiteSpace(incoming))
+                    return false;
+
+                return !targetNode.Items.Any(existing =>
+                    string.Equals(existing.GetPrimaryLaunchPath(), incoming, StringComparison.OrdinalIgnoreCase));
+            })
             .ToList();
 
         if (itemsToAdd.Count == 0) return;
@@ -63,10 +129,10 @@ public partial class MainWindowViewModel
         {
             var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(itemsToAdd.Count);
 
-            foreach (var item in itemsToAdd)
+            foreach (MediaItem item in itemsToAdd)
             {
                 var assets = _fileService.ScanItemAssets(item, nodePath);
-                list.Add((item, assets));
+                list.Add((Item: item, Assets: assets));
             }
 
             return list;
@@ -175,16 +241,16 @@ public partial class MainWindowViewModel
     private async Task AddMediaAsync(MediaNode? node)
     {
         var targetNode = node ?? SelectedNode;
-        if (SelectedNode != null && targetNode != null && targetNode.Id == SelectedNode.Id && targetNode != SelectedNode) 
+        if (SelectedNode != null && targetNode != null && targetNode.Id == SelectedNode.Id && targetNode != SelectedNode)
             targetNode = SelectedNode;
-            
+
         if (targetNode == null || CurrentWindow is not { } owner) return;
 
         var storageProvider = StorageProvider ?? owner.StorageProvider;
-        var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions 
-        { 
-            Title = Strings.Ctx_Media_Add, 
-            AllowMultiple = true 
+        var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = Strings.Ctx_Media_Add,
+            AllowMultiple = true
         });
 
         if (result == null || result.Count == 0) return;
@@ -193,8 +259,85 @@ public partial class MainWindowViewModel
 
         // 1) Build new items (UI-free)
         var itemsToAdd = new List<MediaItem>(result.Count);
-        foreach (var file in result)
+
+        if (result.Count > 1)
         {
+            var combine = await ShowConfirmDialog(owner,
+                string.Format(Strings.Dialog_ConfirmCombineMultiDiscFormat, result.Count));
+
+            if (combine)
+            {
+                var first = result[0];
+                var rawTitle = Path.GetFileNameWithoutExtension(first.Name);
+                var title = await PromptForName(owner, $"{Strings.Common_Title} '{first.Name}':") ?? rawTitle;
+                if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
+
+                // Build file refs with "smart" disc detection from filenames.
+                var temp = result
+                    .Select(f =>
+                    {
+                        var baseName = Path.GetFileNameWithoutExtension(f.Name);
+                        var (idx, label) = TryGetDiscInfoFromFileName(baseName);
+                        return (File: f, Index: idx, Label: label);
+                    })
+                    .ToList();
+
+                // Stable ordering: Index ascending when available, else by filename.
+                var ordered = temp
+                    .OrderBy(x => x.Index ?? int.MaxValue)
+                    .ThenBy(x => x.File.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var files = new List<MediaFileRef>(ordered.Count);
+                for (int i = 0; i < ordered.Count; i++)
+                {
+                    var fallbackIndex = i + 1;
+
+                    files.Add(new MediaFileRef
+                    {
+                        Kind = MediaFileKind.Absolute,
+                        Path = ordered[i].File.Path.LocalPath,
+                        Index = ordered[i].Index ?? fallbackIndex,
+                        Label = ordered[i].Label ?? $"Disc {fallbackIndex}"
+                    });
+                }
+
+                itemsToAdd.Add(new MediaItem
+                {
+                    Title = title,
+                    Files = files,
+                    MediaType = MediaType.Native
+                });
+            }
+            else
+            {
+                foreach (var file in result)
+                {
+                    var rawTitle = Path.GetFileNameWithoutExtension(file.Name);
+                    var title = await PromptForName(owner, $"{Strings.Common_Title} '{file.Name}':") ?? rawTitle;
+                    if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
+
+                    itemsToAdd.Add(new MediaItem
+                    {
+                        Title = title,
+                        Files = new List<MediaFileRef>
+                        {
+                            new()
+                            {
+                                Kind = MediaFileKind.Absolute,
+                                Path = file.Path.LocalPath,
+                                Index = 1,
+                                Label = "Disc 1"
+                            }
+                        },
+                        MediaType = MediaType.Native
+                    });
+                }
+            }
+        }
+        else
+        {
+            var file = result[0];
             var rawTitle = Path.GetFileNameWithoutExtension(file.Name);
             var title = await PromptForName(owner, $"{Strings.Common_Title} '{file.Name}':") ?? rawTitle;
             if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
@@ -202,10 +345,21 @@ public partial class MainWindowViewModel
             itemsToAdd.Add(new MediaItem
             {
                 Title = title,
-                FilePath = file.Path.LocalPath,
+                Files = new List<MediaFileRef>
+                {
+                    new()
+                    {
+                        Kind = MediaFileKind.Absolute,
+                        Path = file.Path.LocalPath,
+                        Index = 1,
+                        Label = "Disc 1"
+                    }
+                },
                 MediaType = MediaType.Native
             });
         }
+
+        if (itemsToAdd.Count == 0) return;
 
         // 2) Scan assets off-thread (filesystem only)
         var scanned = await Task.Run(() =>

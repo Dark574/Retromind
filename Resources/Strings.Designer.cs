@@ -453,6 +453,12 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Dialog_ConfirmCombineMultiDiscFormat {
+            get {
+                return ResourceManager.GetString("Dialog_ConfirmCombineMultiDiscFormat", resourceCulture);
+            }
+        }
+        
         public static string FileType_Videos {
             get {
                 return ResourceManager.GetString("FileType_Videos", resourceCulture);
@@ -912,6 +918,36 @@ namespace Retromind.Resources {
         public static string Settings_Title {
             get {
                 return ResourceManager.GetString("Settings.Title", resourceCulture);
+            }
+        }
+        
+        public static string Settings_Advanced {
+            get {
+                return ResourceManager.GetString("Settings_Advanced", resourceCulture);
+            }
+        }
+        
+        public static string Settings_UseWinePrefix {
+            get {
+                return ResourceManager.GetString("Settings_UseWinePrefix", resourceCulture);
+            }
+        }
+        
+        public static string Settings_UseWinePrefix_Hint {
+            get {
+                return ResourceManager.GetString("Settings_UseWinePrefix_Hint", resourceCulture);
+            }
+        }
+        
+        public static string Settings_UsePlaylistForMultiDisc {
+            get {
+                return ResourceManager.GetString("Settings_UsePlaylistForMultiDisc", resourceCulture);
+            }
+        }
+        
+        public static string Settings_UsePlaylistForMultiDisc_Hint {
+            get {
+                return ResourceManager.GetString("Settings_UsePlaylistForMultiDisc_Hint", resourceCulture);
             }
         }
         

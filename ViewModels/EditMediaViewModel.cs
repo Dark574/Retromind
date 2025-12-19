@@ -605,8 +605,10 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         get
         {
-            var realFile = !string.IsNullOrEmpty(_originalItem.FilePath)
-                ? $"\"{_originalItem.FilePath}\""
+            // Use the primary launch file (Disc 1 / first entry). If missing, fall back to a sample path.
+            var primaryPath = _originalItem.GetPrimaryLaunchPath();
+            var realFile = !string.IsNullOrWhiteSpace(primaryPath)
+                ? $"\"{primaryPath}\""
                 : "\"/Games/SuperMario.smc\"";
 
             if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)

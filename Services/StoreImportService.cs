@@ -113,8 +113,17 @@ public class StoreImportService
             return new MediaItem
             {
                 Title = name,
-                // Use the steam protocol to launch the game
-                FilePath = "steam", 
+                // Use the steam command to launch the game (Steam will handle the URL argument).
+                Files = new List<MediaFileRef>
+                {
+                    new()
+                    {
+                        Kind = MediaFileKind.Absolute,
+                        Path = "steam",
+                        Index = 1,
+                        Label = "Steam"
+                    }
+                },
                 LauncherArgs = $"steam://rungameid/{appId}",
                 MediaType = MediaType.Command,
                 Description = "Imported from Steam",
@@ -186,8 +195,17 @@ public class StoreImportService
         return new MediaItem
         {
             Title = title,
-            // Command to launch via Heroic CLI
-            FilePath = "heroic",
+            // Command to launch via Heroic CLI (Heroic will handle the URL argument).
+            Files = new List<MediaFileRef>
+            {
+                new()
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = "heroic",
+                    Index = 1,
+                    Label = "Heroic"
+                }
+            },
             LauncherArgs = $"gog://{id}",
             MediaType = MediaType.Command,
             Description = $"Imported from Heroic (GOG) - Platform: {platform}",

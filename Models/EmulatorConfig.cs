@@ -16,23 +16,30 @@ public partial class EmulatorConfig : ObservableObject
     /// <summary>
     /// Display name of the profile (e.g. "RetroArch SNES Core").
     /// </summary>
-    [ObservableProperty] 
+    [ObservableProperty]
     private string _name = string.Empty; // initialize empty
 
     /// <summary>
     /// Full path to the executable file.
     /// </summary>
-    [ObservableProperty] 
+    [ObservableProperty]
     private string _path = string.Empty;
 
     /// <summary>
     /// Command line arguments passed to the emulator.
     /// Must contain "{file}" as a placeholder for the ROM path.
     /// </summary>
-    [ObservableProperty] 
+    [ObservableProperty]
     private string _arguments = "{file}";
-    
-    // for runners like UMU/Proton/Wine that benefit from per-game prefixes.
+
+    /// <summary>
+    /// If true, Retromind will generate an .m3u playlist for multi-disc items and pass the playlist
+    /// as "{file}" to the emulator (instead of launching Disc 1 directly).
+    /// </summary>
+    [ObservableProperty]
+    private bool _usePlaylistForMultiDisc;
+
+    // For runners like UMU/Proton/Wine that benefit from per-game prefixes.
     [ObservableProperty]
     private bool _usesWinePrefix;
 }

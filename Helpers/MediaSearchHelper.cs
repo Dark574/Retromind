@@ -47,7 +47,7 @@ public static class MediaSearchHelper
     {
         var results = new List<string>();
         var distinctResults = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // Case-insensitive deduplication
-        
+
         // 1. Collect Search Patterns (e.g., "Super_Mario", "Super Mario World")
         var searchPrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -59,10 +59,11 @@ public static class MediaSearchHelper
             searchPrefixes.Add(item.Title);
         }
 
-        if (!string.IsNullOrEmpty(item.FilePath))
+        var localLaunchFile = TryGetExistingLocalFilePath(item);
+        if (!string.IsNullOrWhiteSpace(localLaunchFile))
         {
-            var romName = Path.GetFileNameWithoutExtension(item.FilePath);
-            if (!string.IsNullOrWhiteSpace(romName)) 
+            var romName = Path.GetFileNameWithoutExtension(localLaunchFile);
+            if (!string.IsNullOrWhiteSpace(romName))
             {
                 searchPrefixes.Add(romName);
             }
@@ -70,19 +71,18 @@ public static class MediaSearchHelper
 
         // 2. Collect Folders to Scan
         var foldersToScan = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        
-        if (!string.IsNullOrEmpty(item.FilePath))
+
+        if (!string.IsNullOrWhiteSpace(localLaunchFile))
         {
-            try 
+            try
             {
-                // Resolve full path (important if FilePath is relative)
-                var fullRomPath = Path.GetFullPath(item.FilePath);
+                var fullRomPath = Path.GetFullPath(localLaunchFile);
                 var romDir = Path.GetDirectoryName(fullRomPath);
-                
+
                 if (!string.IsNullOrEmpty(romDir) && Directory.Exists(romDir))
                 {
                     foldersToScan.Add(romDir);
-                    
+
                     // Common subfolder convention
                     var subfolders = new[] { "media", "images", "art", "music", "sound" };
                     foreach (var sub in subfolders)
@@ -92,28 +92,26 @@ public static class MediaSearchHelper
                     }
                 }
             }
-            catch { /* Ignore invalid paths */ }
+            catch
+            {
+                // Ignore invalid paths
+            }
         }
 
         // 3. Execute Scan (Performance Optimized)
-        // Optimization: Instead of loading ALL files, we iterate and filter efficiently using OS globbing.
         foreach (var dir in foldersToScan)
         {
             try
             {
                 foreach (var prefix in searchPrefixes)
                 {
-                    // OS Optimized Search: Let the file system filter by prefix
-                    // This avoids iterating 30,000 files in C#.
-                    var pattern = $"{prefix}*"; 
-                    
+                    var pattern = $"{prefix}*";
+
                     foreach (var file in Directory.EnumerateFiles(dir, pattern))
                     {
-                        // Fast Extension Check
                         if (!validExtensions.Contains(Path.GetExtension(file))) continue;
-                        
-                        // Deduplication Check
-                        if (distinctResults.Add(file)) // Returns true if added (deduplication)
+
+                        if (distinctResults.Add(file))
                         {
                             results.Add(file);
                         }
@@ -125,5 +123,36 @@ public static class MediaSearchHelper
         }
 
         return results;
+    }
+    
+    private static string? TryGetExistingLocalFilePath(MediaItem item)
+    {
+        // Prefer a real, existing local file path (not URLs, not commands like "steam").
+        // This keeps MediaSearchHelper safe for Command-type items.
+        if (item.Files is { Count: > 0 })
+        {
+            foreach (var f in item.Files)
+            {
+                if (f.Kind != MediaFileKind.Absolute)
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(f.Path))
+                    continue;
+
+                // Only treat rooted paths as local files we can scan around.
+                if (!Path.IsPathRooted(f.Path))
+                    continue;
+
+                if (File.Exists(f.Path))
+                    return f.Path;
+            }
+        }
+
+        // Fallback: primary path (might still be non-local); we only accept it if it looks like an existing rooted file.
+        var primary = item.GetPrimaryLaunchPath();
+        if (!string.IsNullOrWhiteSpace(primary) && Path.IsPathRooted(primary) && File.Exists(primary))
+            return primary;
+
+        return null;
     }
 }
