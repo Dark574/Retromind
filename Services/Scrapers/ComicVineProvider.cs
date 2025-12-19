@@ -18,8 +18,7 @@ public class ComicVineProvider : IMetadataProvider
     {
         _config = config;
         _httpClient = httpClient;
-        // ComicVine blockt Requests ohne eindeutigen User-Agent strikt!
-        _httpClient.DefaultRequestHeaders.Add("User-Agent", "Retromind-MediaManager/1.0");
+        // Do not mutate shared HttpClient.DefaultRequestHeaders here (HttpClient is a singleton in DI).
     }
 
     public Task<bool> ConnectAsync()
@@ -41,12 +40,16 @@ public class ComicVineProvider : IMetadataProvider
             var encodedQuery = HttpUtility.UrlEncode(query);
             var url = $"https://comicvine.gamespot.com/api/search/?api_key={_config.ApiKey}&format=json&query={encodedQuery}&resources=volume,issue&limit=20";
 
-            var response = await _httpClient.GetAsync(url);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            // ComicVine blocks requests without a clear User-Agent.
+            request.Headers.UserAgent.ParseAdd("Retromind-MediaManager/1.0");
+
+            var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             var doc = JsonNode.Parse(json);
-            
+
             var results = new List<ScraperSearchResult>();
             var items = doc?["results"]?.AsArray();
 
@@ -56,8 +59,8 @@ public class ComicVineProvider : IMetadataProvider
             {
                 var id = item?["id"]?.ToString() ?? "";
                 var resType = item?["resource_type"]?.ToString(); // volume oder issue
-                
-                var name = item?["name"]?.ToString(); 
+
+                var name = item?["name"]?.ToString();
                 var volumeName = item?["volume"]?["name"]?.ToString();
                 var issueNumber = item?["issue_number"]?.ToString();
 
@@ -75,22 +78,20 @@ public class ComicVineProvider : IMetadataProvider
                 }
 
                 var desc = item?["description"]?.ToString() ?? item?["deck"]?.ToString() ?? "";
-                // ComicVine liefert oft HTML in Description. Wir müssten strippen, lassen es aber erstmal roh.
 
                 var res = new ScraperSearchResult
                 {
                     Source = "ComicVine",
                     Id = id,
                     Title = title,
-                    Description = StripHtml(desc) // Kleiner Helper nötig
+                    Description = StripHtml(desc)
                 };
 
-                // Bilder
                 var image = item?["image"];
                 if (image != null)
                 {
-                    res.CoverUrl = image["medium_url"]?.ToString(); // oder super_url
-                    res.WallpaperUrl = image["screen_url"]?.ToString(); // screen_url ist oft gut für Backgrounds
+                    res.CoverUrl = image["medium_url"]?.ToString();
+                    res.WallpaperUrl = image["screen_url"]?.ToString();
                 }
 
                 results.Add(res);
@@ -100,7 +101,7 @@ public class ComicVineProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            throw new Exception($"ComicVine Fehler: {ex.Message}");
+            throw new Exception($"ComicVine Fehler: {ex.Message}", ex);
         }
     }
 

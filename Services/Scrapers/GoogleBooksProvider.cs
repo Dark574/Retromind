@@ -44,10 +44,10 @@ public class GoogleBooksProvider : IMetadataProvider
                 url += $"&key={apiKey}";
             }
 
-            var response = await _httpClient.GetAsync(url);
+            var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             var doc = JsonNode.Parse(json);
             
             var items = doc?["items"]?.AsArray();
@@ -116,7 +116,7 @@ public class GoogleBooksProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            throw new Exception($"GoogleBooks Fehler: {ex.Message}");
+            throw new Exception($"GoogleBooks Fehler: {ex.Message}", ex);
         }
     }
 }

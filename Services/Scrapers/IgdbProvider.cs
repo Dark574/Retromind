@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Models;
 using Retromind.Helpers;
@@ -23,11 +24,14 @@ public class IgdbProvider : IMetadataProvider
     private string? _accessToken;
     private DateTime _tokenExpiry;
 
+    // Serialize token acquisition to avoid concurrent login races.
+    private readonly SemaphoreSlim _connectGate = new(1, 1);
+
     private const string TwitchTokenUrl = "https://id.twitch.tv/oauth2/token";
     private const string IgdbApiUrl = "https://api.igdb.com/v4/games";
     private const int TokenExpiryBufferSeconds = 60; // Buffer to avoid edge-case expirations
     private const int MaxRetries = 3;
-    
+
     public IgdbProvider(ScraperConfig config, HttpClient httpClient)
     {
         _config = config;
@@ -50,27 +54,32 @@ public class IgdbProvider : IMetadataProvider
 
         return (clientId, clientSecret);
     }
-    
+
     /// <summary>
     /// Authenticates with IGDB via Twitch API if not already connected.
     /// Returns true if connected successfully.
     /// </summary>
     public async Task<bool> ConnectAsync()
     {
-        // If we still have a valid token, we are good
+        // Fast path: token still valid.
         if (!string.IsNullOrEmpty(_accessToken) && DateTime.Now < _tokenExpiry)
             return true;
 
+        await _connectGate.WaitAsync().ConfigureAwait(false);
         try
         {
+            // Re-check after acquiring the gate (another caller may have refreshed already).
+            if (!string.IsNullOrEmpty(_accessToken) && DateTime.Now < _tokenExpiry)
+                return true;
+
             var creds = GetCredentials();
-            
+
             // Build token request URL
             var url = $"{TwitchTokenUrl}?client_id={creds.ClientId}&client_secret={creds.ClientSecret}&grant_type=client_credentials";
-            var response = await _httpClient.PostAsync(url, null);
+            var response = await _httpClient.PostAsync(url, null).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             var doc = JsonNode.Parse(json);
 
             _accessToken = doc?["access_token"]?.ToString() ?? "";
@@ -81,10 +90,15 @@ public class IgdbProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            throw new Exception($"IGDB login failed: {ex.Message}");
+            // Preserve the original exception as InnerException for easier debugging.
+            throw new Exception($"IGDB login failed: {ex.Message}", ex);
+        }
+        finally
+        {
+            _connectGate.Release();
         }
     }
-    
+
     /// <summary>
     /// Searches IGDB for games matching the query.
     /// Returns up to 20 results with metadata.
@@ -92,7 +106,10 @@ public class IgdbProvider : IMetadataProvider
     public async Task<List<ScraperSearchResult>> SearchAsync(string query)
     {
         // Ensure we are logged in
-        await ConnectAsync();
+        var connected = await ConnectAsync().ConfigureAwait(false);
+        if (!connected)
+            throw new Exception("IGDB login failed.");
+
         var creds = GetCredentials();
 
         try
@@ -108,13 +125,13 @@ public class IgdbProvider : IMetadataProvider
                 request.Headers.Add("Client-ID", creds.ClientId);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
                 request.Content = new StringContent(igdbQuery, Encoding.UTF8, "text/plain");
-                return await _httpClient.SendAsync(request);
-            });
+                return await _httpClient.SendAsync(request).ConfigureAwait(false);
+            }).ConfigureAwait(false);
 
             if (response == null) throw new Exception("No response from IGDB.");
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             var items = JsonNode.Parse(json)?.AsArray();
 
             var results = new List<ScraperSearchResult>();
@@ -176,12 +193,12 @@ public class IgdbProvider : IMetadataProvider
 
                 results.Add(res);
             }
-            
+
             return results;
         }
         catch (Exception ex)
         {
-            throw new Exception($"IGDB search error: {ex.Message}");
+            throw new Exception($"IGDB search error: {ex.Message}", ex);
         }
     }
 
@@ -193,7 +210,7 @@ public class IgdbProvider : IMetadataProvider
         if (url.StartsWith("//")) url = "https:" + url;
         return url.Replace("t_thumb", size);
     }
-    
+
     /// <summary>
     /// Sends an HTTP request with retry logic for rate limits.
     /// </summary>
@@ -202,11 +219,11 @@ public class IgdbProvider : IMetadataProvider
         HttpResponseMessage? response = null;
         for (int retry = 0; retry <= MaxRetries; retry++)
         {
-            response = await sendAction();
+            response = await sendAction().ConfigureAwait(false);
 
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
             {
-                await Task.Delay(1000 * (retry + 1)); // Exponential backoff
+                await Task.Delay(1000 * (retry + 1)).ConfigureAwait(false); // Exponential backoff
                 continue;
             }
 

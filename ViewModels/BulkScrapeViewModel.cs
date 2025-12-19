@@ -88,7 +88,7 @@ public partial class BulkScrapeViewModel : ViewModelBase
         ClearLog();
         AppendLog($"Starting bulk scrape with {SelectedScraper.Name}...");
 
-        var provider = _metadataService.GetProvider(SelectedScraper.Id);
+        var provider = await _metadataService.GetProviderAsync(SelectedScraper.Id, _cancellationTokenSource.Token);
         if (provider == null)
         {
             AppendLog("Error: Could not load provider.");

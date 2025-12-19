@@ -37,8 +37,9 @@ public class TmdbProvider : IMetadataProvider
     
     public Task<bool> ConnectAsync()
     {
-        // TMDB braucht nur den API Key
-        return Task.FromResult(!string.IsNullOrEmpty(_config.ApiKey));
+        // TMDB only requires an API key (either user-provided or bundled via secrets).
+        var apiKey = GetApiKey();
+        return Task.FromResult(!string.IsNullOrWhiteSpace(apiKey) && apiKey != "INSERT_KEY_HERE");
     }
 
     public async Task<List<ScraperSearchResult>> SearchAsync(string query)
@@ -59,15 +60,15 @@ public class TmdbProvider : IMetadataProvider
             
             // Sprache aus Config nutzen (Fallback auf de-DE)
             var lang = string.IsNullOrEmpty(_config.Language) ? "en-US" : _config.Language;
-            
+
             var url = $"{BaseUrl}/search/multi?api_key={apiKey}&query={encodedQuery}&language={lang}";
 
-            var response = await _httpClient.GetAsync(url);
+            var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             var doc = JsonNode.Parse(json);
-            
+
             var items = doc?["results"]?.AsArray();
             var results = new List<ScraperSearchResult>();
 
@@ -116,7 +117,7 @@ public class TmdbProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            throw new Exception($"TMDB Fehler: {ex.Message}");
+            throw new Exception($"TMDB Fehler: {ex.Message}", ex);
         }
     }
 }
