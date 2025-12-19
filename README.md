@@ -25,6 +25,9 @@ This project ships a build script that creates a portable **AppImage** containin
 - a self-contained .NET build (no system .NET required)
 - bundled **LibVLC + plugins** (video playback required)
 
+Note: When using the AppImage, you do not need a system-wide VLC installation because LibVLC is bundled.
+The Wayland/X11 note below still applies because it affects how video is embedded into the Avalonia window.
+
 ### Requirements (host)
 - Docker (for reproducible LibVLC export)
 - `curl` (to download `appimagetool` if missing)
@@ -90,12 +93,30 @@ To configure locally:
 3. Insert your personal API keys
 4. Ensure `ApiSecrets.cs` stays ignored by Git
 
-## Wayland note (video embedding)
-On some Wayland setups, embedded video playback can be problematic. Retromind may force X11/XWayland
-depending on configuration/platform behavior.
+## Wayland / X11 note (VLC video embedding)
+Embedded video playback via **LibVLCSharp** can be unreliable on some Wayland setups (depending on compositor and XWayland behavior).
+To make VLC embedding work consistently, Retromind defaults to **X11 via XWayland** on Linux by setting `AVALONIA_PLATFORM=x11` early at startup.
+
+You can override this behavior for testing:
+
+- Force X11 (default):
+  ```bash
+  dotnet run --project Retromind.csproj -- --avalonia-platform=x11
+  ```
+
+- Force Wayland (experimental / compositor-dependent):
+  ```bash
+  dotnet run --project Retromind.csproj -- --avalonia-platform=wayland
+  ```
+
+- Let Avalonia decide automatically:
+  ```bash
+  dotnet run --project Retromind.csproj -- --avalonia-platform=auto
+  ```
+
 
 ## Architecture
-See [`docs/architecture.md`](docs/architecture.md).
+See [`Docs/architecture.md`](Docs/architecture.md).
 
 ## License
 GPL-3.0-only (see `COPYING`).

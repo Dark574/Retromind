@@ -44,13 +44,17 @@ public partial class App : Application
         {
             // Ensure portable themes are present in the user directory.
             AppPaths.EnsurePortableThemes();
-            
-            // 1. Load Application Settings
-            // Offload async loading to prevent UI deadlocks during synchronous startup.
+
+            // Build a minimal container to load settings first (sync startup, async IO inside).
+            var bootstrapServices = new ServiceCollection();
+            bootstrapServices.AddSingleton<SettingsService>();
+            using var bootstrapProvider = bootstrapServices.BuildServiceProvider();
+
             AppSettings settings;
             try
             {
-                settings = Task.Run(async () => await new SettingsService().LoadAsync()).GetAwaiter().GetResult();
+                var settingsService = bootstrapProvider.GetRequiredService<SettingsService>();
+                settings = Task.Run(settingsService.LoadAsync).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -58,27 +62,24 @@ public partial class App : Application
                 settings = new AppSettings();
             }
 
-            // 2. Setup Dependency Injection
-            var serviceCollection = new ServiceCollection();
-            serviceCollection.AddSingleton(settings);
-            ConfigureServices(serviceCollection);
+            // Now build the final container exactly once (single Settings instance for the whole app).
+            var services = new ServiceCollection();
+            services.AddSingleton(settings);
+            ConfigureServices(services);
 
-            Services = serviceCollection.BuildServiceProvider();
+            Services = services.BuildServiceProvider();
 
-            // 3. UI Initialization
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // Resolve the MainViewModel. 
-                // The DI container automatically injects all required services (Audio, Data, Metadata, etc.).
                 var mainViewModel = Services.GetRequiredService<MainWindowViewModel>();
-                
+
                 // Check CLI arguments for BigMode override
                 if (desktop.Args?.Contains("--bigmode") == true)
                 {
                     IsBigModeOnly = true;
                     Debug.WriteLine("[App] CLI: --bigmode detected.");
                 }
-                
+
                 var mainWindow = new MainWindow
                 {
                     DataContext = mainViewModel
@@ -86,25 +87,21 @@ public partial class App : Application
                 desktop.MainWindow = mainWindow;
 
                 // Fire-and-forget data loading to keep the UI responsive.
-                // For 30,000+ items, this is crucial.
                 var dataLoadingTask = mainViewModel.LoadData();
-                
+
                 if (IsBigModeOnly)
                 {
-                    mainWindow.Loaded += async (sender, args) =>
+                    mainWindow.Loaded += async (_, _) =>
                     {
-                        // Wait for the initial data scan to finish before switching view
                         await dataLoadingTask;
-                        
+
                         if (mainViewModel.EnterBigModeCommand.CanExecute(null))
-                        {
                             mainViewModel.EnterBigModeCommand.Execute(null);
-                        }
                     };
                 }
 
                 // Ensure resources (like music playback) are cleaned up on exit
-                desktop.Exit += (sender, args) => { mainViewModel.Cleanup(); };
+                desktop.Exit += (_, _) => { mainViewModel.Cleanup(); };
             }
         }
         catch (Exception ex)
@@ -113,6 +110,7 @@ public partial class App : Application
             Debug.WriteLine($"[App] CRITICAL STARTUP ERROR: {ex}");
             throw;
         }
+        
         base.OnFrameworkInitializationCompleted();
     }
     
@@ -128,21 +126,17 @@ public partial class App : Application
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Retromind/1.0 (Linux Portable Media Manager)");
             return client;
         });
-        
+
+        // --- Path-based Services (AppImage/Portable Support) ---
+        var libraryPath = AppPaths.LibraryRoot;
+        if (!Directory.Exists(libraryPath))
+            Directory.CreateDirectory(libraryPath);
+
         // --- Core Services ---
         services.AddSingleton<AudioService>();
         services.AddSingleton<SoundEffectService>();
         services.AddSingleton<MediaDataService>();
-        
-        // --- Path-based Services (AppImage/Portable Support) ---
-        string libraryPath = AppPaths.LibraryRoot;
-        
-        if (!Directory.Exists(libraryPath))
-        {
-            Directory.CreateDirectory(libraryPath);
-        }
-
-        services.AddSingleton<FileManagementService>(provider => new FileManagementService(libraryPath));
+        services.AddSingleton<FileManagementService>(_ => new FileManagementService(libraryPath));
         services.AddSingleton<LauncherService>(provider =>
         {
             var settings = provider.GetRequiredService<AppSettings>();
@@ -154,7 +148,7 @@ public partial class App : Application
         services.AddSingleton<MetadataService>();
 
         // --- ViewModels ---
-        // Registered as Transient to allow fresh instances if needed (though MainVM is usually long-lived)
-        services.AddTransient<MainWindowViewModel>();
+        // MainWindowViewModel is the long-lived app coordinator -> singleton is safer.
+        services.AddSingleton<MainWindowViewModel>();
     }
 }

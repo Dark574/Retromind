@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Avalonia;
 using LibVLCSharp.Shared;
 
@@ -6,19 +7,38 @@ namespace Retromind;
 
 internal sealed class Program
 {
-    // Initialization code. Don't use any Avalonia, third-party APIs or any
-    // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
-    // yet and stuff might break.
+    // NOTE:
+    // Do not touch Avalonia / UI APIs before AppMain is called. Things aren't initialized yet.
+
     [STAThread]
     public static void Main(string[] args)
     {
         bool isBigModeOnly = args.Contains("--bigmode");
         
-        // 1. FIX FÜR WAYLAND:
-        // Wir zwingen Avalonia, X11 (via XWayland) zu nutzen.
-        // Das ermöglicht es VLC, das Video korrekt in das Fenster einzubetten.
-        // Das MUSS vor "BuildAvaloniaApp" passieren!
-        Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", "x11");
+        // VLC video embedding is most reliable via X11 (XWayland) on Linux.
+        // Allow overriding for contributors via:
+        //   --avalonia-platform=auto|x11|wayland
+        // Default: x11 (for VLC embedding).
+        var platformArg = args.FirstOrDefault(a => a.StartsWith("--avalonia-platform=", StringComparison.OrdinalIgnoreCase));
+        var platformValue = platformArg?.Split('=', 2).ElementAtOrDefault(1)?.Trim();
+
+        if (string.IsNullOrWhiteSpace(platformValue) || platformValue.Equals("x11", StringComparison.OrdinalIgnoreCase))
+        {
+            Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", "x11");
+        }
+        else if (platformValue.Equals("wayland", StringComparison.OrdinalIgnoreCase))
+        {
+            Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", "wayland");
+        }
+        else if (platformValue.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            // Intentionally do not set AVALONIA_PLATFORM (let Avalonia decide).
+        }
+        else
+        {
+            // Unknown value -> fall back to safe default for VLC embedding.
+            Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", "x11");
+        }
 
         // VLC is REQUIRED for this build.
         try
@@ -44,11 +64,8 @@ internal sealed class Program
             .LogToTrace()
             .AfterSetup(builder => 
             {
-                // NEU: Flag in App speichern
                 if (App.Current is App app)
-                {
                     app.IsBigModeOnly = isBigModeOnly;
-                }
             });
     }
 }
