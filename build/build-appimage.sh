@@ -57,6 +57,25 @@ cp "$APPDIR/usr/share/applications/retromind.desktop" "$APPDIR/retromind.desktop
 # --- Icon (ensure Icon=retromind resolves) ---
 cp "$BUILD_DIR/retromind.svg" "$APPDIR/retromind.svg"
 
+# --- License and notice files ---
+DOC_DIR="$APPDIR/usr/share/doc/retromind"
+mkdir -p "$DOC_DIR"
+
+# Main project licenses
+if [ -f "$PROJECT_ROOT/COPYING" ]; then
+  cp "$PROJECT_ROOT/COPYING" "$DOC_DIR/"
+fi
+
+if [ -f "$PROJECT_ROOT/THIRD-PARTY-NOTICES.md" ]; then
+  cp "$PROJECT_ROOT/THIRD-PARTY-NOTICES.md" "$DOC_DIR/"
+fi
+
+# Third-party licenses (MIT/LGPL/GPL etc.)
+if [ -d "$PROJECT_ROOT/Licenses" ]; then
+  mkdir -p "$DOC_DIR/Licenses"
+  cp -r "$PROJECT_ROOT/Licenses/." "$DOC_DIR/Licenses/"
+fi
+
 echo "[6/7] Download appimagetool (if missing)..."
 APPIMAGETOOL="$WORK_DIR/appimagetool"
 if [ ! -x "$APPIMAGETOOL" ]; then
