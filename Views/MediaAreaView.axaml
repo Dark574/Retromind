@@ -20,7 +20,8 @@
                 <!-- Zufall Button -->
                 <Button Command="{Binding PlayRandomCommand}" 
                         ToolTip.Tip="{x:Static p:Strings.Tip_RandomGame}"
-                        Padding="10,5">
+                        Padding="10,5"
+                        IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsLaunchIdle}">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <TextBlock Text="🎲"/>
                         <TextBlock Text="{x:Static p:Strings.Button_Random}"/>

@@ -59,6 +59,16 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private object? _fullScreenContent;
     
+    // Prevents overlapping launches (double-click + Start button + Play Random).
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLaunchIdle))]
+    private bool _isLaunchInProgress;
+    
+    /// <summary>
+    /// True if no launch is currently running. Can be used to enable/disable UI elements.
+    /// </summary>
+    public bool IsLaunchIdle => !IsLaunchInProgress;
+    
     // Keeps the currently active content VM so we can detach event handlers (prevents leaks).
     private MediaAreaViewModel? _currentMediaAreaVm;
     

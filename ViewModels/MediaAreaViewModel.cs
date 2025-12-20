@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
@@ -219,7 +220,11 @@ public partial class MediaAreaViewModel : ViewModelBase
         {
             // Small cooldown to avoid accidental double-activation.
             await Task.Delay(PlayRandomCooldown).ConfigureAwait(false);
-            IsPlayRandomEnabled = true;
+            
+            // Re-enable on the UI thread so NotifyCanExecuteChanged and bindings are safe.
+            await UiThreadHelper.InvokeAsync(
+                () => IsPlayRandomEnabled = true,
+                DispatcherPriority.Background);
         }
     }
 

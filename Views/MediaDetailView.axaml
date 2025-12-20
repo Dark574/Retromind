@@ -67,7 +67,8 @@
                     FontWeight="Bold"
                     Margin="0,10"
                     Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).PlayCommand}"
-                    CommandParameter="{Binding .}" />
+                    CommandParameter="{Binding .}"
+                    IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsLaunchIdle}"/>
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 
