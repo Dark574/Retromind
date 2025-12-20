@@ -137,7 +137,7 @@
     <data name="Media.Library" xml:space="preserve"><value>Library</value></data>
     <data name="Media.MusicFiles" xml:space="preserve"><value>Music Files:</value></data>
     <data name="Media.PlayCount" xml:space="preserve"><value>Played:</value></data>
-    <data name="Media.RandomCover" xml:space="preserve"><value>Random covers (■ = Inherited)</value></data>
+    <data name="Media.RandomCover" xml:space="preserve"><value>Random images (■ = Inherited)</value></data>
     <data name="Media.RandomMusic" xml:space="preserve"><value>Random music (■ = Inherited)</value></data>
     <data name="Media.SetMusicActive" xml:space="preserve"><value>Set as music</value></data>
     <data name="Media.Settings" xml:space="preserve"><value>Settings / Rename...</value></data>
@@ -177,7 +177,7 @@
     <data name="NodeSettings_Background" xml:space="preserve"><value>Background</value></data>
     <data name="NodeSettings_BackgroundHint" xml:space="preserve"><value>For BigMode wallpaper</value></data>
     <data name="NodeSettings_VideoSnap" xml:space="preserve"><value>Video snap</value></data>
-    <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Show random covers in this folder</value></data>
+    <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Show random images in this folder</value></data>
     <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Play random music from this folder</value></data>
     
     <!-- PROFILE -->

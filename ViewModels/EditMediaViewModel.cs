@@ -171,7 +171,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
     private void InitializeNativeWrapperUiFromItem()
     {
-        // Wichtig: alte Rows abhängen (falls die VM wiederverwendet wird)
+        // Important: detach old rows (in case the view model instance is reused).
         foreach (var row in NativeWrappers)
             UnwireWrapperRow(row);
         
@@ -210,7 +210,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
     private void OnWrapperRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        // Sobald Path/Args geändert werden: Preview aktualisieren (DAU erwartet "live")
+        // Whenever Path/Args change, update the preview (users expect it to be live).
         if (e.PropertyName == nameof(LaunchWrapperRow.Path) ||
             e.PropertyName == nameof(LaunchWrapperRow.Args))
         {
@@ -327,8 +327,8 @@ public partial class EditMediaViewModel : ViewModelBase
     
     // --- Asset Management ---
     
-    // Wir binden direkt an die Collection des Items. 
-    // Da FileService die Liste live aktualisiert, sieht die UI sofort Änderungen.
+    // We bind directly to the item's Assets collection.
+    // Since FileService updates the list live, the UI immediately reflects all changes.
     public ObservableCollection<MediaAsset> Assets => _originalItem.Assets;
 
     [ObservableProperty] 
@@ -377,10 +377,10 @@ public partial class EditMediaViewModel : ViewModelBase
         OpenPrefixFolderCommand = new RelayCommand(OpenPrefixFolder, () => HasPrefix);
         ClearPrefixCommand = new RelayCommand(ClearPrefix, () => HasPrefix);
         
-        // Commands initialisieren
+        // General commands.
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
         
-        // Generische Asset-Commands
+        // Generic asset commands.
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
         DeleteAssetCommand = new RelayCommand(DeleteSelectedAsset, () => SelectedAsset != null);
 
@@ -399,7 +399,7 @@ public partial class EditMediaViewModel : ViewModelBase
         
         NativeWrappers.CollectionChanged += (_, e) =>
         {
-            // Rows wiring/unwiring (Add/Remove) – sonst updated Preview nur beim "+ Wrapper"
+            // Wire/unwire rows on Add/Remove – otherwise Preview would only update when clicking "+ Wrapper".
             if (e.OldItems != null)
                 foreach (var oldItem in e.OldItems.OfType<LaunchWrapperRow>())
                     UnwireWrapperRow(oldItem);
@@ -413,7 +413,7 @@ public partial class EditMediaViewModel : ViewModelBase
             OnPropertyChanged(nameof(PreviewText));
         };
         
-        // Dialog schließt sich selbst (reduziert WM/Modal "pop")
+        // Dialog closes itself (less window manager / modal noise).
         SaveAndCloseCommand = new RelayCommand<Window?>(win =>
         {
             Save();
@@ -430,7 +430,7 @@ public partial class EditMediaViewModel : ViewModelBase
         
         InitializeNativeWrapperUiFromItem();
 
-        // nach Initialisierung auch einmal aktualisieren
+        // After initialization, ensure commands reflect the current list state.
         MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
         MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
     }
@@ -461,7 +461,7 @@ public partial class EditMediaViewModel : ViewModelBase
     
     private void LoadItemData()
     {
-        // Metadaten laden (Puffer)
+        // Load metadata into the temporary buffer.
         Title = _originalItem.Title;
         Developer = _originalItem.Developer;
         Genre = _originalItem.Genre;
@@ -470,7 +470,7 @@ public partial class EditMediaViewModel : ViewModelBase
         Description = _originalItem.Description;
         MediaType = _originalItem.MediaType;
         
-        // Launch Config laden
+        // Load launch configuration.
         LauncherPath = _originalItem.LauncherPath;
         OverrideWatchProcess = _originalItem.OverrideWatchProcess ?? string.Empty;
         
@@ -487,14 +487,14 @@ public partial class EditMediaViewModel : ViewModelBase
             LauncherArgs = string.IsNullOrWhiteSpace(_originalItem.LauncherArgs) ? "{file}" : _originalItem.LauncherArgs;
         }
         
-        // Assets müssen nicht geladen werden, da wir direkt auf _originalItem.Assets zugreifen
-        // Der FileService sollte idealerweise vor dem Öffnen dieses Dialogs sicherstellen,
-        // dass die Assets-Liste aktuell ist (via RefreshItemAssets).
+        // Assets do not need to be loaded separately because we bind directly to _originalItem.Assets.
+        // The FileService should ensure the assets list is up to date before opening this dialog
+        // (via something like RefreshItemAssets).
     }
 
     partial void OnMediaTypeChanged(MediaType value)
     {
-        // Wenn der User zu Native wechselt: {file} entfernen (DAU-freundlich)
+        // When switching to Native, strip any leftover {file} placeholder (friendlier defaults).
         if (value == MediaType.Native)
         {
             if (string.Equals(LauncherArgs?.Trim(), "{file}", StringComparison.Ordinal) ||
@@ -506,7 +506,7 @@ public partial class EditMediaViewModel : ViewModelBase
             return;
         }
 
-        // Wenn der User zu Emulator wechselt und Args leer sind: {file} setzen
+        // When switching to Emulator and args are empty, insert a default {file} placeholder.
         if (value == MediaType.Emulator)
         {
             if (string.IsNullOrWhiteSpace(LauncherArgs))
@@ -542,7 +542,7 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         if (StorageProvider == null) return;
 
-        // Filter basierend auf AssetType erstellen
+        // Create file type filters based on the selected asset type.
         var fileTypes = type switch
         {
             AssetType.Music => new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.ogg", "*.wav", "*.flac", "*.sid" } } },
@@ -561,7 +561,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
         foreach (var file in result)
         {
-            // Der Service übernimmt das Kopieren, Umbenennen und Hinzufügen zur Liste
+            // The FileManagementService handles copying, renaming, and adding the asset to the list.
             var imported = await _fileService.ImportAssetAsync(file.Path.LocalPath, _originalItem, _nodePath, type);
             if (imported != null)
             {
@@ -846,7 +846,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
     private void Save()
     {
-        // 1. Metadaten zurückschreiben
+        // 1. Write metadata back to the original item.
         _originalItem.Title = Title;
         _originalItem.Developer = Developer;
         _originalItem.Genre = Genre;
@@ -858,7 +858,7 @@ public partial class EditMediaViewModel : ViewModelBase
         // Prefix: store null when not used
         _originalItem.PrefixPath = string.IsNullOrWhiteSpace(PrefixPath) ? null : PrefixPath.Trim();
         
-        // 2. Launch Config zurückschreiben
+        // 2. Write launch configuration back.
         if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
         {
             _originalItem.EmulatorId = SelectedEmulatorProfile.Id;

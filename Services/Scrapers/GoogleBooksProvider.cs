@@ -36,7 +36,7 @@ public class GoogleBooksProvider : IMetadataProvider
             var encodedQuery = HttpUtility.UrlEncode(query);
             var url = $"https://www.googleapis.com/books/v1/volumes?q={encodedQuery}&maxResults=20";
             
-            // Key Logik: User-Key > Secret-Key > Kein Key
+            // API key priority: user-specified key > secret key > no key.
             string apiKey = !string.IsNullOrWhiteSpace(_config.ApiKey) ? _config.ApiKey : ApiSecrets.GoogleBooksApiKey;
 
             if (!string.IsNullOrWhiteSpace(apiKey) && apiKey != "INSERT_KEY_HERE")
@@ -84,7 +84,7 @@ public class GoogleBooksProvider : IMetadataProvider
                     Description = desc
                 };
 
-                // Datum parsen
+                // Parse date.
                 if (!string.IsNullOrEmpty(publishedDate))
                 {
                     if (DateTime.TryParse(publishedDate, out var date))
@@ -93,20 +93,19 @@ public class GoogleBooksProvider : IMetadataProvider
                         res.ReleaseDate = new DateTime(year, 1, 1);
                 }
 
-                // Bilder
-                // Google liefert "imageLinks" mit "thumbnail" und "smallThumbnail"
+                // Google returns "imageLinks" with "thumbnail" and "smallThumbnail".
                 var images = info["imageLinks"];
                 var thumb = images?["thumbnail"]?.ToString();
                 
-                // Google Bilder sind oft http://, wir wollen https://
+                // Google thumbnails are often http://; prefer https:// for safety.
                 if (!string.IsNullOrEmpty(thumb))
                 {
                     res.CoverUrl = thumb.Replace("http://", "https://");
                     
-                    // Trick für höhere Auflösung: &zoom=1 ist oft klein. &zoom=0 oder weglassen?
-                    // Google API liefert oft nur kleine Thumbs in der Suche.
-                    // Man kann versuchen, zoom=1 durch zoom=0 zu ersetzen, funktioniert aber nicht immer.
-                    // Wir nehmen erstmal, was wir kriegen.
+                    // Higher resolution trick:
+                    // Many Google thumbnails include a &zoom=1 parameter.
+                    // In some cases &zoom=0 or removing the flag yields a bigger image,
+                    // but behavior is not guaranteed, so we keep the original for now.
                 }
 
                 results.Add(res);

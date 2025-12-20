@@ -449,7 +449,7 @@ public partial class MainWindowViewModel
             var sourceFile = result[0].Path.LocalPath;
             var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
             
-            // AssetType statt MediaFileType
+            // Use AssetType.Music instead of a media file kind enum.
             var asset = await _fileService.ImportAssetAsync(sourceFile, item, nodePath, AssetType.Music);
 
             if (asset != null)

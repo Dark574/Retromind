@@ -32,10 +32,10 @@ public class ComicVineProvider : IMetadataProvider
         {
             // ComicVine Search API
             // https://comicvine.gamespot.com/api/search/?api_key={key}&format=json&query={query}&resources=volume
-            // resources=volume sucht nach Serien (z.B. "Amazing Spider-Man"), resources=issue nach Heften.
-            // Da wir Ordner oft als "Serie" und Dateien als "Issues" haben, ist die Suche tricky.
-            // Wir suchen hier erstmal nach "Volumes" (Serien/Bände), da dies meist das ist, was man sucht.
-            // Wenn du einzelne Heft-Dateien hast, wäre "issue" besser. Wir nehmen "volume,issue"
+            // resources=volume searches for series (e.g. "Amazing Spider-Man"), resources=issue for individual issues.
+            // Since folders often represent "series" and files represent "issues", this mapping is tricky.
+            // Here we first search for "volumes" (series/collections), as this is usually what users expect.
+            // If you primarily have single issue files, "issue" would be more appropriate. We use "volume,issue".
             
             var encodedQuery = HttpUtility.UrlEncode(query);
             var url = $"https://comicvine.gamespot.com/api/search/?api_key={_config.ApiKey}&format=json&query={encodedQuery}&resources=volume,issue&limit=20";
@@ -105,7 +105,8 @@ public class ComicVineProvider : IMetadataProvider
         }
     }
 
-    // Simpler HTML Stripper (Regex wäre besser, aber für Textvorschau reicht das)
+    // Simple HTML stripper. A Regex or dedicated HTML parser would be more robust,
+    // but this is sufficient for short text previews.
     private string StripHtml(string input)
     {
         if (string.IsNullOrEmpty(input)) return "";

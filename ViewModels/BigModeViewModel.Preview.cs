@@ -42,7 +42,8 @@ public partial class BigModeViewModel
         _isViewReady = true;
 
         // After the view is ready, start preview for the current selection.
-        TriggerPreviewPlayback();
+        // Use the debounced path for consistent behavior with navigation changes.
+        TriggerPreviewPlaybackWithDebounce();
     }
 
     /// <summary>

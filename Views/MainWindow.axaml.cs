@@ -8,10 +8,10 @@ namespace Retromind;
 
 public partial class MainWindow : Window
 {
-    // Flag to check if we have already safed
+    // Flag to check if we have already performed the final save/cleanup.
     private bool _canClose = false;
     
-    // prevents Re-Entry (e.g. duplicate Close/Alt+F4 while Flush is running)
+    // Prevents re-entry (e.g., duplicate Close/Alt+F4 while Flush is still running).
     private bool _closeInProgress = false;
     
     public MainWindow()
@@ -19,24 +19,24 @@ public partial class MainWindow : Window
         InitializeComponent();
     }
 
-    // we override the method which is called on closing
+    // Override the method that is called when the window is closing.
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
-        // Wenn wir schon gespeichert haben (2. Durchlauf), lassen wir das Fenster zugehen.
+        // If we already saved and cleaned up (2nd pass), allow the window to close.
         if (_canClose)
         {
             base.OnClosing(e);
             return;
         }
 
-        // Wenn bereits ein Close-Flush läuft: Schließen weiterhin verhindern.
+        // If a close/flush is already in progress, keep the window from closing.
         if (_closeInProgress)
         {
             e.Cancel = true;
             return;
         }
 
-        // 1. Durchlauf: Wir brechen das Schließen ab!
+        // 1st pass: cancel closing and start the flush/cleanup sequence.
         e.Cancel = true;
         _closeInProgress = true;
 
@@ -50,10 +50,10 @@ public partial class MainWindow : Window
         }
         catch
         {
-            // best-effort; never block closing because of UI state
+            // Best-effort; never block closing because of UI state issues.
         }
 
-        // Wir holen uns das ViewModel
+        // Try to get the ViewModel.
         if (DataContext is MainWindowViewModel vm)
         {
             try
@@ -62,15 +62,15 @@ public partial class MainWindow : Window
             }
             catch
             {
-                // Best effort: Wenn das Speichern crasht, trotzdem schließen.
+                // Best effort: if saving crashes, still continue and close the app.
             }
         }
 
-        // Jetzt setzen wir das Flag auf wahr (2. Durchlauf darf schließen)
+        // Now mark that the next closing attempt may proceed.
         _canClose = true;
 
-        // Wichtig gegen "pop back up":
-        // Close nicht inline ausführen, sondern in den UI-Queue posten.
+        // Important to avoid "pop back up":
+        // Do not call Close() inline, but post it to the UI queue.
         UiThreadHelper.Post(() =>
         {
             try
@@ -79,16 +79,16 @@ public partial class MainWindow : Window
             }
             catch
             {
-                // Ignorieren: wir sind beim Shutdown
+                // Ignore: we are shutting down anyway.
             }
         }, DispatcherPriority.Background);
     }
 
-    // Event Handler für das Draggen
+    // Event handler for dragging the custom title bar.
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        // Unterscheiden zwischen Klick und Drag
-        // Doppelklick zum Maximieren
+        // Distinguish between click and drag.
+        // Double-click toggles maximize/restore.
         if (e.ClickCount == 2)
             ToggleWindowState();
         else
@@ -112,7 +112,7 @@ public partial class MainWindow : Window
         Close();
     }
 
-    // Resizing Logic
+    // Resizing logic for custom resize grips.
     private void OnResizeDrag(object? sender, PointerPressedEventArgs e)
     {
         if (sender is Control control && control.Tag is WindowEdge edge) BeginResizeDrag(edge, e);
@@ -129,23 +129,23 @@ public partial class MainWindow : Window
             return;
         }
         
-        // Wir suchen das BigModeViewModel.
-        // Es kann entweder direkt der Content sein (ViewModel-First) 
-        // ODER im DataContext eines Controls stecken (View-First).
+        // Try to locate the BigModeViewModel.
+        // It can either be the FullScreenContent directly (ViewModel-first)
+        // OR be the DataContext of a control (View-first).
         BigModeViewModel? bigVm = null;
 
         if (vm.FullScreenContent is BigModeViewModel directVm)
         {
-            // Fall 1: Der Content IST das ViewModel
+            // Case 1: the content IS the view model.
             bigVm = directVm;
         }
         else if (vm.FullScreenContent is Control { DataContext: BigModeViewModel contextVm })
         {
-            // Fall 2: Der Content ist ein Control, das das ViewModel hält
+            // Case 2: the content is a control that holds the view model.
             bigVm = contextVm;
         }
 
-        // Wenn wir das ViewModel gefunden haben, führen wir die Befehle aus
+        // If we found the view model, forward the key to its commands.
         if (bigVm != null)
         {
             switch (e.Key)

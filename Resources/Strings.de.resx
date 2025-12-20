@@ -137,7 +137,7 @@
     <data name="Media.Library" xml:space="preserve"><value>Bibliothek</value></data>
     <data name="Media.MusicFiles" xml:space="preserve"><value>Musikdateien:</value></data>
     <data name="Media.PlayCount" xml:space="preserve"><value>Gespielt:</value></data>
-    <data name="Media.RandomCover" xml:space="preserve"><value>Zufällige Cover (■ = Vererbt)</value></data>
+    <data name="Media.RandomCover" xml:space="preserve"><value>Zufällige Grafiken (■ = Vererbt)</value></data>
     <data name="Media.RandomMusic" xml:space="preserve"><value>Zufällige Musik (■ = Vererbt)</value></data>
     <data name="Media.SetMusicActive" xml:space="preserve"><value>Als Musik festlegen</value></data>
     <data name="Media.Settings" xml:space="preserve"><value>Einstellungen / Umbenennen...</value></data>
@@ -177,7 +177,7 @@
     <data name="NodeSettings_Background" xml:space="preserve"><value>Hintergrund</value></data>
     <data name="NodeSettings_BackgroundHint" xml:space="preserve"><value>Für BigMode Wallpaper</value></data>
     <data name="NodeSettings_VideoSnap" xml:space="preserve"><value>Video Snap</value></data>
-    <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Zufällige Cover in diesem Ordner anzeigen</value></data>
+    <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Zufällige Grafiken in diesem Ordner anzeigen</value></data>
     <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Zufällige Musik aus diesem Ordner abspielen</value></data>
     
     

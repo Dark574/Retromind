@@ -23,7 +23,7 @@ public class OpenLibraryProvider : IMetadataProvider
 
     public Task<bool> ConnectAsync()
     {
-        // Keine Authentifizierung nötig
+        // no authentication required
         return Task.FromResult(true);
     }
 
@@ -85,12 +85,10 @@ public class OpenLibraryProvider : IMetadataProvider
                 results.Add(res);
             }
             
-            // Da wir keine Description haben, könnten wir sie nachladen (FetchWork),
-            // aber für die Suche reicht Titel + Autor + Cover oft aus.
-            // Optional: Wir laden die Description, wenn der User draufklickt?
-            // Wir machen es hier einfachheitshalber NICHT, um die Suche schnell zu halten.
-            // (Die Work API hat Raten-Limits).
-
+            // We currently do not fetch detailed descriptions here.
+            // For quick search results, title + author + cover are usually sufficient.
+            // Optionally, you could load the Work details (including description) when the
+            // user selects a result, but the Work API is rate-limited and slower.
             return results;
         }
         catch (Exception ex)

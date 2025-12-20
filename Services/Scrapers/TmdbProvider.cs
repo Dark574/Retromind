@@ -22,16 +22,16 @@ public class TmdbProvider : IMetadataProvider
         _httpClient = httpClient;
     }
 
-    // Neue Hilfsmethode, um den richtigen Key zu ermitteln
+    // Helper to resolve the effective API key (user setting or bundled secret).
     private string GetApiKey()
     {
-        // 1. Priorität: Der User hat seinen eigenen Key in den Settings eingetragen
+        // 1st priority: user-provided key in settings.
         if (!string.IsNullOrWhiteSpace(_config.ApiKey))
         {
             return _config.ApiKey;
         }
 
-        // 2. Priorität: Wir nutzen den mitgelieferten Key der App
+        // 2nd priority: bundled application key (via secrets).
         return ApiSecrets.TmdbApiKey;
     }
     
@@ -46,19 +46,20 @@ public class TmdbProvider : IMetadataProvider
     {
         var apiKey = GetApiKey();
 
-        // Sicherheitscheck: Wenn auch im Secret nichts steht, können wir nichts machen
+        // Safety check: if no key is available at all, we cannot query TMDB.
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new System.Exception("Kein API-Key für TMDB gefunden (weder in Settings noch intern).");
         
         try
         {
-            // Wir suchen nach Filmen (Movies). Für Serien müsste man "search/tv" nehmen.
-            // Da wir "gemischt" nicht wissen, suchen wir beides oder priorisieren Filme.
-            // "search/multi" sucht Filme, Serien und Personen. Das ist oft am besten.
+            // We search for movies and TV shows.
+            // "search/movie" would restrict to movies only, "search/tv" to series.
+            // To cover both without prior knowledge, we use "search/multi".
+            // "search/multi" returns movies, TV shows and persons – we will ignore persons.
             
             var encodedQuery = HttpUtility.UrlEncode(query);
             
-            // Sprache aus Config nutzen (Fallback auf de-DE)
+            // Use the configured language, fallback to en-US.
             var lang = string.IsNullOrEmpty(_config.Language) ? "en-US" : _config.Language;
 
             var url = $"{BaseUrl}/search/multi?api_key={apiKey}&query={encodedQuery}&language={lang}";
@@ -83,8 +84,8 @@ public class TmdbProvider : IMetadataProvider
                 var title = mediaType == "movie" ? item?["title"]?.ToString() : item?["name"]?.ToString();
                 var release = mediaType == "movie" ? item?["release_date"]?.ToString() : item?["first_air_date"]?.ToString();
                 var overview = item?["overview"]?.ToString() ?? "";
-                var rating = item?["vote_average"]?.GetValue<double>() * 10; // TMDB ist 0-10, wir wollen 0-100? Oder wir lassen es. 
-                // Retromind Rating scheint double zu sein, Skala unbekannt. Machen wir mal x10 für Prozent.
+                // TMDB rating is 0–10, Retromind uses 0–100 – convert to percentage.
+                var rating = item?["vote_average"]?.GetValue<double>() * 10;
 
                 var posterPath = item?["poster_path"]?.ToString();
                 var backdropPath = item?["backdrop_path"]?.ToString();
@@ -107,8 +108,10 @@ public class TmdbProvider : IMetadataProvider
                 if (!string.IsNullOrEmpty(backdropPath))
                     res.WallpaperUrl = ImageBaseUrl + backdropPath;
                 
-                // Logo hat TMDB nicht direkt in der Suche/Standard-Info. Dafür bräuchte man separate "Images" Query.
-                // Wir lassen Logo erstmal weg für Speed.
+                // TMDB does not expose logo images in the basic search result.
+                // For logos you'd need a separate "images" request per item,
+                // which would significantly increase API traffic and latency.
+                // For now we skip logos for performance reasons.
 
                 results.Add(res);
             }

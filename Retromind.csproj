@@ -69,6 +69,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Licenses\" />
       <Folder Include="Themes\Wheel\sounds\" />
     </ItemGroup>
 </Project>

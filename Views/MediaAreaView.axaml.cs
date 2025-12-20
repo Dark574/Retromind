@@ -17,7 +17,7 @@ public partial class MediaAreaView : UserControl
         AvaloniaXamlLoader.Load(this);
     }
 
-    // NEU: Diese Methode leitet den Doppelklick an das ViewModel weiter
+    // transfers the double click to the view model
     private void OnItemDoubleTapped(object? sender, TappedEventArgs e)
     {
         if (DataContext is MediaAreaViewModel vm)

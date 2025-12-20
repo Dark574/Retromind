@@ -14,7 +14,7 @@ public partial class NamePromptView : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
-        // Fokus auf das Eingabefeld setzen (NameBox muss im XAML definiert sein!)
+        // Set focus to the input field (NameBox must exist in the XAML).
         this.FindControl<TextBox>("NameBox")?.Focus();
     }
 

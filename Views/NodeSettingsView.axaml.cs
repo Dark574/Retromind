@@ -14,7 +14,7 @@ public partial class NodeSettingsView : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
-        // Provider injizieren
+        // inject Provider
         if (DataContext is NodeSettingsViewModel vm)
         {
             vm.StorageProvider = this.StorageProvider;

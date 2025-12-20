@@ -187,7 +187,7 @@ public partial class MainWindowViewModel
     
     private void UpdateBigModeStateFromCoreSelection(MediaNode node, MediaItem? selectedItem)
     {
-        // Build the root-to-node chain and persist it for BigMode restore.
+        // Reverse chain to find the nearest configuration (bottom-up).
         var chain = GetNodeChain(node, RootItems);
         _currentSettings.LastBigModeNavigationPath = chain.Select(n => n.Id).ToList();
 

@@ -583,17 +583,17 @@ public sealed class LauncherService
     {
         var seconds = elapsed.TotalSeconds;
 
-        if (seconds > MinPlayTimeSeconds)
-        {
-            UpdateStats(item, elapsed);
+        // if there is no time recorded, no need to record something
+        if (seconds <= 0)
             return;
-        }
 
-        // For untracked commands (e.g. steam://) we at least count an "attempt".
-        if (item.MediaType == MediaType.Command && string.IsNullOrWhiteSpace(item.OverrideWatchProcess))
-        {
-            UpdateStats(item, TimeSpan.Zero);
-        }
+        // after a certain minimum time, we count the session time
+        // the start will always be recorded (PlayCount, LastPlayed)
+        var effectiveSessionTime = seconds > MinPlayTimeSeconds
+            ? elapsed
+            : TimeSpan.Zero;
+
+        UpdateStats(item, effectiveSessionTime);
     }
 
     private static void UpdateStats(MediaItem item, TimeSpan sessionTime)

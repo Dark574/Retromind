@@ -108,7 +108,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     _currentSettings.LastSelectedNodeId = value.Id;
                     SaveSettingsOnly();
                     
-                    // BigMode-State spiegeln (CoreApp -> BigMode)
+                    // Mirror state into BigMode (CoreApp -> BigMode).
                     UpdateBigModeStateFromCoreSelection(value, null);
                 }
             }
@@ -287,13 +287,13 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    // Helper, um UpdateContent awaitable zu machen (wandelt den Background-Task in awaitable Task um)
+    // Helper to make UpdateContent awaitable (wraps the background task in an awaitable Task).
     private async Task UpdateContentAsync()
     {
-        UpdateContent();  // Starte den bestehenden Background-Task
+        UpdateContent();  // Start the existing background task.
     
-        // Warte, bis SelectedNodeContent gesetzt ist (einfaches Polling mit Timeout)
-        int timeout = 5000;  // 5 Sekunden Max-Wartezeit
+        // Wait until SelectedNodeContent is set (simple polling with timeout).
+        int timeout = 5000;  // 5 seconds max wait.
         int delay = 100;
         while (SelectedNodeContent == null && timeout > 0)
         {
@@ -309,8 +309,8 @@ public partial class MainWindowViewModel : ViewModelBase
     
     public async Task SaveData()
     {
-        // SaveData ist „stark“: wenn jemand es explizit aufruft,
-        // speichern wir die Library (nur wenn dirty) + Settings (sofort).
+        // SaveData is a “strong” save: when someone calls it explicitly,
+        // we persist the library (if dirty) + settings (immediately).
         await SaveLibraryIfDirtyAsync(force: false).ConfigureAwait(false);
         await _settingsService.SaveAsync(_currentSettings).ConfigureAwait(false);
     }
@@ -356,8 +356,8 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (!force && !_isLibraryDirty) return;
 
-        // Wenn wir aus einem Debounce-Run kommen, aber inzwischen neue Änderungen passiert sind,
-        // sparen wir uns den Save (der nächste Debounce-Lauf übernimmt).
+        // When called from a debounced run, but a newer change already bumped the version,
+        // skip this save (the next debounce run will handle it).
         if (expectedVersion.HasValue && expectedVersion.Value != _libraryDirtyVersion)
             return;
 
@@ -365,7 +365,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             await _dataService.SaveAsync(RootItems).ConfigureAwait(false);
 
-            // Nur „clean“ setzen, wenn seit dem Start dieses Saves nichts Neues passiert ist.
+            // Only mark the library as clean if no new changes happened during this save.
             if (expectedVersion.HasValue)
             {
                 if (expectedVersion.Value == _libraryDirtyVersion)
@@ -373,14 +373,14 @@ public partial class MainWindowViewModel : ViewModelBase
             }
             else
             {
-                // Force/normal path: nach Save ist clean.
+                // Force/normal path: after a successful save we are clean.
                 _isLibraryDirty = false;
             }
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[Library] Save failed: {ex.Message}");
-            // Dirty bleibt true, damit wir später nochmal versuchen können.
+            // Keep dirty=true so a later attempt can retry the save.
             _isLibraryDirty = true;
         }
     }
@@ -474,7 +474,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (_currentMediaAreaVm == null)
             return;
 
-        // Unwire events to avoid repeated invocations after content switches.
+        // Unsubscribe events to avoid repeated invocations after content switches.
         _currentMediaAreaVm.RequestPlay -= OnMediaAreaRequestPlay;
         _currentMediaAreaVm.PropertyChanged -= OnMediaAreaPropertyChanged;
 
@@ -525,7 +525,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _audioService.StopMusic();
     
-        // Cancel old task if running
+        // Cancel any previously running content update.
         _updateContentCts?.Cancel();
         _updateContentCts?.Dispose();
         _updateContentCts = new CancellationTokenSource();
@@ -558,8 +558,8 @@ public partial class MainWindowViewModel : ViewModelBase
             bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);
             bool randomizeCovers = IsRandomizeActive(nodeToLoad);
 
-            // We only compute the winners in the background.
-            // Applying Reset/SetActiveAsset is done on UI thread to avoid cross-thread PropertyChanged/Bindings issues.
+            // Compute the randomization winners in the background.
+            // Applying Reset/SetActiveAsset happens on the UI thread to avoid cross-thread binding issues.
             var randomizationPlan =
                 new System.Collections.Generic.List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)>(
                     capacity: itemList.Count);

@@ -338,9 +338,17 @@ public partial class BigModeHostView : UserControl
 
     public async void NotifyViewReadyAfterRender(object viewModel)
     {
-        // Two render ticks as settle time for XWayland/VLC embedding.
+        // We want the VideoSlot to have real bounds before BigMode starts preview playback.
+        // Otherwise the preview may start while the overlay is still 0x0 and appears "not playing".
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        UpdateVideoPlacement();
+
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        UpdateVideoPlacement();
+
+        // One extra tick for tricky setups (Wayland/XWayland + LibVLC embedding).
+        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        UpdateVideoPlacement();
 
         if (viewModel is Retromind.ViewModels.BigModeViewModel vm)
             vm.NotifyViewReady();

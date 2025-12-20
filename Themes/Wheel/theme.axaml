@@ -3,7 +3,7 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
              xmlns:helpers="using:Retromind.Helpers"
-             xmlns:ext="clr-namespace:Retromind.Extensions"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
              x:Name="BigModeRoot"
              Background="Black"

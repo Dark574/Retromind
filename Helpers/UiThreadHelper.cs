@@ -5,8 +5,8 @@ using Avalonia.Threading;
 namespace Retromind.Helpers;
 
 /// <summary>
-/// Zentraler Helper für UI-Thread-Marshalling (Avalonia).
-/// Hinweis: Nicht in Models verwenden – nur in ViewModels / UI-nahen Services.
+/// Central helper for UI thread marshalling (Avalonia).
+/// Note: Do not use this in models – only in view models or UI-facing services.
 /// </summary>
 public static class UiThreadHelper
 {
@@ -42,7 +42,7 @@ public static class UiThreadHelper
             return;
         }
 
-        // DispatcherOperation ist awaitbar (GetAwaiter), aber nicht zwingend "Task"-basiert.
+        // DispatcherOperation is awaitable (GetAwaiter), but not strictly Task-based.
         await Dispatcher.UIThread.InvokeAsync(action, priority);
     }
 

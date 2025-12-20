@@ -10,17 +10,17 @@ public partial class BulkScrapeView : Window
     {
         InitializeComponent();
         
-        // Wir suchen die TextBox anhand des Namens
+        // Find the log TextBox by its name.
         var logBox = this.FindControl<TextBox>("LogBox");
         
         if (logBox != null)
         {
-            // Wir hören auf Änderungen am Text-Property
+            // Listen to changes on the Text property.
             logBox.PropertyChanged += (sender, args) =>
             {
                 if (args.Property == TextBox.TextProperty)
                 {
-                    // Caret ans Ende setzen -> Scrollt automatisch
+                    // Move the caret to the end -> automatically scrolls to the latest log entry.
                     logBox.CaretIndex = int.MaxValue; 
                 }
             };
