@@ -563,6 +563,11 @@ public partial class MainWindowViewModel : ViewModelBase
             CollectItemsRecursive(nodeToLoad, itemList);
 
             if (token.IsCancellationRequested) return;
+            
+            // Globally sort all collected items by title so aggregated views (root/areas)
+            // are truly alphabetical across all subcategories.
+            itemList.Sort(static (a, b) =>
+                string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase));
 
             // 2. Randomization Logic (covers/wallpapers/music)
             bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);

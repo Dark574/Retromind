@@ -459,6 +459,24 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string EditMedia_Tab_General {
+            get {
+                return ResourceManager.GetString("EditMedia.Tab_General", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_Tab_MediaAssets {
+            get {
+                return ResourceManager.GetString("EditMedia.Tab_MediaAssets", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_Tab_Prefix {
+            get {
+                return ResourceManager.GetString("EditMedia.Tab_Prefix", resourceCulture);
+            }
+        }
+        
         public static string FileType_Videos {
             get {
                 return ResourceManager.GetString("FileType_Videos", resourceCulture);

@@ -16,16 +16,16 @@
         <helpers:MediaTypeToLocalizedNameConverter x:Key="MediaTypeConverter" />
     </Window.Resources>
 
-    <!-- Grid füllt das Fenster -->
+    <!-- Main grid filling the window -->
     <Grid RowDefinitions="*, Auto" Margin="10">
 
         <TabControl Grid.Row="0">
-            <!-- TAB 1: METADATEN -->
-            <TabItem Header="Allgemein" FontSize="16">
-                <!-- FIX: Padding vom ScrollViewer entfernt -->
+            <!-- TAB 1: METADATA -->
+            <TabItem Header="{x:Static p:Strings.EditMedia_Tab_General}" FontSize="16">
+                <!-- Removed extra padding from ScrollViewer for a tighter layout -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="15" Margin="10,10,20,50">
-                        <!-- Titel -->
+                        <!-- Title -->
                         <StackPanel>
                             <TextBlock Text="{x:Static p:Strings.Common_Title}" FontWeight="Bold" Margin="0,0,0,5" />
                             <TextBox Text="{Binding Title}" />
@@ -44,7 +44,7 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- Datum & Status -->
+                        <!-- Release date & Status -->
                         <Grid ColumnDefinitions="*, 15, *">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="{x:Static p:Strings.Common_ReleaseDate}" FontWeight="Bold" Margin="0,0,0,5" />
@@ -59,7 +59,7 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- Beschreibung -->
+                        <!-- Description -->
                         <StackPanel>
                             <TextBlock Text="{x:Static p:Strings.Common_Summary}" FontWeight="Bold" Margin="0,0,0,5" />
                             <TextBox Text="{Binding Description}"
@@ -68,11 +68,11 @@
                                      Height="100" />
                         </StackPanel>
 
-                        <!-- TRENNLINIE -->
+                        <!-- Separator -->
                         <Separator Opacity="0.5" Margin="0,10" />
                         <TextBlock Text="{x:Static p:Strings.Launch_Config}" FontWeight="Bold" FontSize="16" />
 
-                        <!-- Start Methode -->
+                        <!-- Launch mode -->
                         <StackPanel>
                             <TextBlock Text="{x:Static p:Strings.Launch_Mode}" Margin="0,0,0,5" />
                             <ComboBox ItemsSource="{Binding MediaTypeOptions}"
@@ -86,12 +86,12 @@
                             </ComboBox>
                         </StackPanel>
                         
-                        <!-- Prozess Überwachung -->
+                        <!-- Process monitoring -->
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,10,0,5">
                                 <TextBlock Text="{x:Static p:Strings.Process_Monitor}" VerticalAlignment="Center"/>
                                     
-                                <!-- Ein schicker "Help Badge" -->
+                                <!-- Small help badge with tooltip for playtime tracking hint -->
                                 <Border Background="LightGray" CornerRadius="10" Width="18" Height="18" Margin="8,0,0,0"
                                         ToolTip.Tip="{x:Static p:Strings.Hint_TimePlayed}" 
                                         Cursor="Help">
@@ -102,7 +102,7 @@
                             <TextBox Text="{Binding OverrideWatchProcess}" Watermark="{x:Static p:Strings.Media_WatermarkOverrideWatchProcess}" />
                         </StackPanel>
 
-                        <!-- Profil Auswahl -->
+                        <!-- Emulator profile selection -->
                         <StackPanel IsVisible="{Binding IsEmulatorMode}">
                             <TextBlock Text="{x:Static p:Strings.Profile_Profile}" Margin="0,10,0,5" />
                             <ComboBox ItemsSource="{Binding AvailableEmulators}"
@@ -146,12 +146,12 @@
                         <Expander Header="Prefix (Wine/Proton/UMU)" IsExpanded="False" Margin="0,10,0,0">
                             <StackPanel Spacing="10">
                                 <TextBlock Opacity="0.7" FontSize="11"
-                                           Text="Optional. Wenn gesetzt, wird WINEPREFIX beim Start verwendet. Für Native+Wrapper gilt: Prefix wird nur genutzt, wenn hier ein PrefixPath gesetzt ist." />
+                                           Text="Optional. If set, WINEPREFIX will be used when launching. For Native+Wrapper: the prefix is applied only when PrefixPath is set here." />
 
                                 <StackPanel>
-                                    <TextBlock Text="PrefixPath (relativ zu Library/)" FontWeight="Bold" />
+                                    <TextBlock Text="PrefixPath (relative to Library/)" FontWeight="Bold" />
                                     <TextBox Text="{Binding PrefixPath, Mode=TwoWay}"
-                                             Watermark="Prefixes/itemId_Titel" />
+                                             Watermark="Prefixes/itemId_Title" />
                                 </StackPanel>
 
                                 <StackPanel Orientation="Horizontal" Spacing="10">
@@ -167,7 +167,7 @@
                             </StackPanel>
                         </Expander>
 
-                        <!-- Native wrapper chain (Linux) - Item-level -->
+                        <!-- Native wrapper chain (Linux) - item-level override -->
                         <StackPanel Spacing="8"
                                     Margin="0,15,0,0"
                                     IsVisible="{Binding IsNativeMode}">
@@ -223,7 +223,7 @@
                             </StackPanel>
                         </StackPanel>
                         
-                         <!-- Vorschau -->
+                        <!-- Command preview section -->
                         <StackPanel>
                             <Grid ColumnDefinitions="*, Auto" Margin="0,10,0,5">
                                 <TextBlock Grid.Column="0"
@@ -250,14 +250,14 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- TAB 2: MEDIEN -->
-            <TabItem Header="Medien (Assets)" FontSize="16">
+            <!-- TAB 2: MEDIA -->
+            <TabItem Header="{x:Static p:Strings.EditMedia_Tab_MediaAssets}" FontSize="16">
                 <Grid RowDefinitions="Auto, *, Auto" Margin="0,10,0,0">
                     
-                    <!-- Toolbar Oben: Import Buttons -->
+                    <!-- Top toolbar: import buttons for different asset types -->
                     <Border Grid.Row="0" Background="#10000000" CornerRadius="4" Padding="5" Margin="0,0,0,10">
                         <WrapPanel Orientation="Horizontal">
-                            <!-- Wir nutzen CommandParameter für die AssetTypes -->
+                            <!-- Use CommandParameter to distinguish asset types -->
                             <Button Content="+ Cover" Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static m:AssetType.Cover}" Margin="0,0,5,5"/>
                             <Button Content="+ Wallpaper" Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static m:AssetType.Wallpaper}" Margin="0,0,5,5"/>
                             <Button Content="+ Logo" Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static m:AssetType.Logo}" Margin="0,0,5,5"/>
@@ -267,7 +267,7 @@
                         </WrapPanel>
                     </Border>
                     
-                    <!-- Liste aller Assets -->
+                    <!-- Asset list -->
                     <ListBox Grid.Row="1" ItemsSource="{Binding Assets}" SelectedItem="{Binding SelectedAsset}" Background="Transparent">
                         <ListBox.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -281,14 +281,14 @@
                                         CornerRadius="4" Background="#10000000">
                                     <Grid RowDefinitions="*, Auto">
                                         
-                                        <!-- Vorschaubild (für Grafiken) -->
-                                        <!-- Wir nutzen RelativePath, der AsyncImageHelper muss damit klarkommen. 
-                                             Alternativ: Einen Converter im XAML nutzen, der Relative->Absolut macht. -->
+                                        <!-- Preview image (for image-like assets) -->
+                                        <!-- Uses AbsolutePath; AsyncImageHelper must handle that.
+                                             Alternatively, a converter could turn relative paths into absolute ones. -->
                                         <Image Grid.Row="0" 
                                                helpers:AsyncImageHelper.Url="{Binding AbsolutePath}"
                                                Stretch="Uniform" Margin="5"/>
                                         
-                                        <!-- Typ-Label -->
+                                        <!-- Type label + relative path -->
                                         <Border Grid.Row="1" Background="#80000000" Padding="5">
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Type}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
@@ -296,22 +296,21 @@
                                             </StackPanel>
                                         </Border>
                                         
-                                        <!-- Indikator für Musik/Video wenn kein Bild -->
-                                        <!-- Hier könnte man komplexe Trigger nutzen, aber für den MVP reicht Text -->
+                                        <!-- Additional indicators for music/video could be shown here if no image is available -->
                                     </Grid>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
 
-                    <!-- Footer Toolbar: Löschen -->
+                    <!-- Footer toolbar: delete asset -->
                     <Border Grid.Row="2" Background="#15FF0000" CornerRadius="5" Margin="0,10,0,0" Padding="10">
                         <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Wähle ein Asset zum Löschen" VerticalAlignment="Center" FontStyle="Italic" Foreground="Gray"
+                            <TextBlock Text="Select an asset to delete" VerticalAlignment="Center" FontStyle="Italic" Foreground="Gray"
                                        IsVisible="{Binding SelectedAsset, Converter={x:Static ObjectConverters.IsNull}}"/>
                             
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" IsVisible="{Binding SelectedAsset, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                <TextBlock Text="{Binding SelectedAsset.RelativePath, StringFormat='Lösche: {0}', TargetNullValue=''}" VerticalAlignment="Center" Foreground="Red"/>
+                                <TextBlock Text="{Binding SelectedAsset.RelativePath, StringFormat='Delete: {0}', TargetNullValue=''}" VerticalAlignment="Center" Foreground="Red"/>
                                 <Button Content="{x:Static p:Strings.Button_Delete}" Command="{Binding DeleteAssetCommand}" 
                                         Foreground="White" Background="Red"/>
                             </StackPanel>
@@ -321,7 +320,7 @@
             </TabItem>
         </TabControl>
 
-        <!-- HAUPT BUTTONS (Unten rechts) -->
+        <!-- Main dialog buttons (bottom-right) -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,10,0,0">
             <Button Content="{x:Static p:Strings.Button_Cancel}"
                     Command="{Binding CancelAndCloseCommand}"

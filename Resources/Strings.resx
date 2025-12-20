@@ -106,6 +106,11 @@
     <data name="Dialog_ConfirmImportGogFormat" xml:space="preserve"><value>Found {0} GOG games. Import?</value></data>
     <data name="Dialog_ConfirmCombineMultiDiscFormat" xml:space="preserve"><value>You selected {0} files. Combine them into one multi-disc item?</value></data>
 
+    <!-- EDITMEDIA -->
+    <data name="EditMedia.Tab_General" xml:space="preserve"><value>General</value></data>
+    <data name="EditMedia.Tab_MediaAssets" xml:space="preserve"><value>Media (Assets)</value></data>
+    <data name="EditMedia.Tab_Prefix" xml:space="preserve"><value>Prefix (Wine/Proton/UMU)</value></data>
+    
     <!-- FILETYPE -->
     <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>
     
