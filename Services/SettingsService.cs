@@ -128,7 +128,9 @@ public class SettingsService
                     try
                     {
                         File.Copy(BackupPath, FilePath, overwrite: true);
-                        return await LoadFromFileAsync(FilePath).ConfigureAwait(false);
+                        var settings = await LoadFromFileAsync(FilePath).ConfigureAwait(false);
+                        if (settings != null)
+                            return settings;
                     }
                     catch
                     {
@@ -232,11 +234,13 @@ public class SettingsService
         }
         catch (JsonException)
         {
-            return null;
+            // Corrupt/invalid JSON -> treat as "no settings" and fall back to defaults.
+            return new AppSettings();
         }
         catch
         {
-            return null;
+            // IO or other unexpected error -> also return defaults.
+            return new AppSettings();
         }
     }
     

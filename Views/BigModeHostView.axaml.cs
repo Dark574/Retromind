@@ -32,8 +32,10 @@ public partial class BigModeHostView : UserControl
     {
         InitializeComponent();
 
-        _themePresenter = this.FindControl<ContentPresenter>("ThemePresenter");
-        _videoBorder = this.FindControl<Border>("VideoBorder");
+        _themePresenter = this.FindControl<ContentPresenter>("ThemePresenter")
+                          ?? throw new InvalidOperationException("ThemePresenter control not found in BigModeHostView.");
+        _videoBorder = this.FindControl<Border>("VideoBorder")
+                       ?? throw new InvalidOperationException("VideoBorder control not found in BigModeHostView.");
 
         ResetVideoBorder();
         

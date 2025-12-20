@@ -16,7 +16,7 @@
              ext:ThemeProperties.MoveDurationMs="250">
 
     <UserControl.Styles>
-        <!-- ... Styles bleiben unverändert ... -->
+        <!-- ... Styles remain unchanged ... -->
         <Style Selector="ListBoxItem">
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="0"/>
@@ -45,13 +45,13 @@
     </UserControl.Styles>
     
     <Panel>
-        <!-- LAYER 1: Hintergrund -->
+        <!-- LAYER 1: Background -->
         <Image Name="WallpaperImage"
                helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
                Stretch="UniformToFill"
                Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />
         
-        <!-- LAYER 2: Das Wheel -->
+        <!-- LAYER 2: The wheel -->
         <ListBox ItemsSource="{Binding Items}"
                  SelectedItem="{Binding SelectedItem}"
                  Background="Transparent"
@@ -87,9 +87,9 @@
             </ListBox.ItemTemplate>
         </ListBox>
         
-        <!-- LAYER 3: Der rechte Inhalt -->
+        <!-- LAYER 3: The right-hand content -->
         <Grid ColumnDefinitions="*" RowDefinitions="*, Auto" Margin="450,0,0,0">
-            <!-- METADATEN -->
+            <!-- METADATA -->
             <ScrollViewer Grid.Row="0" Margin="40, 60, 60, 20" VerticalScrollBarVisibility="Auto"
                           VerticalAlignment="Stretch">
                 <StackPanel>
@@ -106,17 +106,17 @@
                 </StackPanel>
             </ScrollViewer>
             
-            <!-- MEDIEN -->
+            <!-- MEDIA -->
             <Panel Grid.Row="1" Margin="40,20,60,60">
                
-                <!-- VIDEO SLOT (nur Platzhalter, echte VideoView kommt aus dem Host) -->
+                <!-- VIDEO SLOT (placeholder only, actual VideoView comes from the host) -->
                 <Border x:Name="VideoSlot"
                         Width="854" Height="480"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Bottom"
                         Background="Transparent" />
                 
-                <!-- COVER (wird zuletzt gezeichnet, liegt also VORNE) -->
+                <!-- COVER (drawn last, visually in the foreground) -->
                 <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" 
                         Margin="900, 0, 0, 100">
                     <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"

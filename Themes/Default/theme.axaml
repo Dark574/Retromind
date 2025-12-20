@@ -30,30 +30,30 @@
     </UserControl.Styles>
     
     <Grid>
-        <!-- HINTERGRUND -->
+        <!-- BACKGROUND -->
         <Image converters:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}" 
                Stretch="UniformToFill" IsVisible="{Binding IsGameListActive}"/>
         <Image converters:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}" 
                Stretch="UniformToFill" IsVisible="{Binding IsCategorySelectionActive}"/>
         <Rectangle Fill="Black" Opacity="0.85" />
 
-        <!-- HAUPT LAYOUT: 2 Spalten (Links: Listen, Rechts: Details) -->
+        <!-- MAIN LAYOUT: 2 columns (left: lists, right: details) -->
         <Grid ColumnDefinitions="450, 30, *" Margin="30">
 
-            <!-- LINKS: HEADER & LISTEN -->
+            <!-- LEFT: HEADER & LISTS -->
             <Grid Grid.Column="0" RowDefinitions="Auto, *">
                 
-                <!-- Header (Titel) -->
+                <!-- Header (title for category view) -->
                 <TextBlock Text="{Binding CategoryTitle}" 
                            FontSize="30" FontWeight="Light" Foreground="#88FFFFFF" Margin="0,0,0,20"
                            IsVisible="{Binding IsCategorySelectionActive}"/>
                            
-                <!-- Header (Spiel Titel, falls gewünscht, oder leer lassen) -->
+                <!-- Header (category name for game list view) -->
                 <TextBlock Text="{Binding SelectedCategory.Name}" 
                            FontSize="30" FontWeight="Light" Foreground="#88FFFFFF" Margin="0,0,0,20"
                            IsVisible="{Binding IsGameListActive}"/>
 
-                <!-- LISTE: KATEGORIEN -->
+                <!-- LIST: CATEGORIES -->
                 <Border Grid.Row="1" Background="#33000000" CornerRadius="8" Padding="10"
                         IsVisible="{Binding IsCategorySelectionActive}">
                     <ListBox ItemsSource="{Binding CurrentCategories}" 
@@ -67,7 +67,7 @@
                                     <Image converters:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
                                            Stretch="Uniform" HorizontalAlignment="Left"
                                            IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                    <!-- TEXT Fallback -->
+                                    <!-- TEXT fallback -->
                                     <TextBlock Text="{Binding Name}" FontSize="24" VerticalAlignment="Center" Padding="10,5" Foreground="White"
                                                IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
                                 </Grid>
@@ -76,7 +76,7 @@
                     </ListBox>
                 </Border>
 
-                <!-- LISTE: SPIELE (FIX FÜR PUNKT 2) -->
+                <!-- LIST: GAMES -->
                 <Border Grid.Row="1" Background="#33000000" CornerRadius="8" Padding="10"
                         IsVisible="{Binding IsGameListActive}">
                     <ListBox ItemsSource="{Binding Items}" 
@@ -87,15 +87,15 @@
                             <DataTemplate>
                                 <Grid Height="90" ColumnDefinitions="Auto, *"> <!-- 2 Spalten: Bild + Text -->
                                         
-                                    <!-- COVER / ICON (Spalte 0) -->
-                                    <!-- Zeige Cover wenn vorhanden -->
+                                    <!-- COVER / ICON (column 0) -->
+                                    <!-- Show cover if available -->
                                     <Image Grid.Column="0" 
                                            converters:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
                                            Width="70" Margin="0,5,15,5" Stretch="Uniform"
                                            IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-                                    <!-- TITEL (Spalte 1) -->
-                                    <!-- Zeige Titel immer (als Hauptinfo in der Liste) -->
+                                    <!-- TITLE (column 1) -->
+                                    <!-- Always show title as main info in the list -->
                                     <TextBlock Grid.Column="1" 
                                                Text="{Binding Title}" 
                                                FontSize="22" 
@@ -109,23 +109,23 @@
                 </Border>
             </Grid>
 
-            <!-- RECHTS: DETAILS (Geteilt für beide Ansichten -> Löst Video Problem!) -->
+            <!-- RIGHT: DETAILS (shared for both views; also used for video slot) -->
             <Grid Grid.Column="2" RowDefinitions="Auto, Auto, *">
                 
-                <!-- 1. LOGO BEREICH -->
+                <!-- 1. LOGO AREA -->
                 <Panel Grid.Row="0" Height="150" Margin="0,0,0,20">
-                    <!-- Logo für Kategorie -->
+                    <!-- Logo for category -->
                     <Image converters:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoPath}"
                            Stretch="Uniform" HorizontalAlignment="Left"
                            IsVisible="{Binding IsCategorySelectionActive}"/>
                            
-                    <!-- Logo für Spiel (Falls vorhanden, MediaItem braucht PrimaryLogoPath Property!) -->
+                    <!-- Logo for game (if present, via MediaItem.PrimaryLogoPath) -->
                     <Image converters:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
                            Stretch="Uniform" HorizontalAlignment="Left"
                            IsVisible="{Binding IsGameListActive}"/>
                 </Panel>
 
-                <!-- 2. VIDEO SLOT (nur Platzhalter, echte VideoView kommt aus dem Host) -->
+                <!-- 2. VIDEO SLOT (placeholder only, actual VideoView comes from the host) -->
                 <Border x:Name="VideoSlot"
                         Grid.Row="1"
                         CornerRadius="12" ClipToBounds="True"
@@ -133,21 +133,21 @@
                         Height="350" HorizontalAlignment="Left" Width="622"
                         Margin="0,0,0,20" />
 
-                <!-- 3. BESCHREIBUNG -->
+                <!-- 3. DESCRIPTION -->
                 <ScrollViewer Grid.Row="2">
                     <StackPanel>
-                        <!-- Beschreibung Kategorie -->
+                        <!-- Description for category -->
                         <TextBlock Text="{Binding SelectedCategory.Description}" 
                                    FontSize="16" Foreground="#DDFFFFFF" TextWrapping="Wrap" LineHeight="24"
                                    IsVisible="{Binding IsCategorySelectionActive}"/>
                                    
-                        <!-- Details für Spiel -->
+                            <!-- Details for game -->
                             <StackPanel Spacing="15" IsVisible="{Binding IsGameListActive}">
-                                <!-- Beschreibung -->
+                                <!-- Description -->
                                 <TextBlock Text="{Binding SelectedItem.Description}" 
                                            FontSize="16" Foreground="#DDFFFFFF" TextWrapping="Wrap" LineHeight="24"/>
                                 
-                                <!-- Metadaten Sektion -->
+                                <!-- Metadata section -->
                                 <WrapPanel HorizontalAlignment="Left" ItemWidth="200">
                                     <StackPanel Margin="0,0,20,0" IsVisible="{Binding SelectedItem.ReleaseDate, Converter={x:Static ObjectConverters.IsNotNull}}">
                                         <TextBlock Text="Release" Opacity="0.7" FontSize="14" FontWeight="Bold" Foreground="White"/>

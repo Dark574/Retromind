@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Avalonia;
@@ -74,7 +75,7 @@ public partial class App : Application
                 var mainViewModel = Services.GetRequiredService<MainWindowViewModel>();
 
                 // Check CLI arguments for BigMode override
-                if (desktop.Args?.Contains("--bigmode") == true)
+                if (desktop.Args is { Length: > 0 } && desktop.Args.Any(a => a == "--bigmode"))
                 {
                     IsBigModeOnly = true;
                     Debug.WriteLine("[App] CLI: --bigmode detected.");
