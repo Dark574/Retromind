@@ -587,8 +587,9 @@ public sealed class LauncherService
         if (seconds <= 0)
             return;
 
-        // after a certain minimum time, we count the session time
-        // the start will always be recorded (PlayCount, LastPlayed)
+        // Above the minimum threshold, we add the measured time.
+        // Below it, we only record that the item was started (PlayCount/LastPlayed),
+        // but we do not add to TotalPlayTime.
         var effectiveSessionTime = seconds > MinPlayTimeSeconds
             ? elapsed
             : TimeSpan.Zero;
