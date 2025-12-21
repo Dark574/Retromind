@@ -79,6 +79,67 @@ Ignored runtime files (not committed):
 A sample settings file is provided:
 - `app_settings.sample.json`
 
+## Launch arguments placeholders
+
+When configuring emulator profiles or per-item launch arguments, Retromind supports a few simple placeholders that are expanded at launch time:
+
+- `{file}`  
+  Full path to the primary launch file (quoted when needed).
+- `{fileDir}`  
+  Directory of the primary launch file (no trailing slash).
+- `{fileName}`  
+  File name including extension (e.g. `cabal.zip`).
+- `{fileBase}`  
+  File name without extension (e.g. `cabal`).
+
+These placeholders can be used in both:
+
+- **Emulator profile arguments** (`EmulatorConfig.Arguments`)
+- **Per-item arguments** (`MediaItem.LauncherArgs`), which are combined with the profile arguments.
+
+### Example: Flatpak MAME via emulator profile
+
+To launch the Flatpak MAME build using ROM short names derived from the file path:
+
+- **Executable path**:  
+  `flatpak`
+- **Default arguments**:  
+  `run org.mamedev.MAME {fileBase}`
+
+With a ROM stored as:
+```text
+/run/media/…/MAME/NameOfROM.zip
+```
+
+Retromind expands `{fileBase}` to `NameOfROM` and starts:
+```bash
+flatpak run org.mamedev.MAME NameOfROM
+```
+
+Make sure the ROM directory is part of MAME’s `rompath`, or pass it explicitly:
+```text
+run org.mamedev.MAME -rompath "{fileDir}" {fileBase}
+```
+
+which yields, for the example above:
+```bash
+flatpak run org.mamedev.MAME -rompath "/run/media/…/MAME" NameOfROM 
+```
+
+### Example: Wine / UMU wrappers
+
+For Wine-based games (e.g. via UMU) you can keep most logic in the emulator profile:
+```text
+umu-run --some-default-options {file} 
+```
+
+and use per-item arguments only for game-specific flags, e.g.:
+```text
+--use-special-mode 
+```
+
+Retromind combines profile + item arguments into a single command line while expanding the placeholders as described above.
+
 ## API keys / Secrets (Scrapers)
 This repository does **not** contain real API keys.
 

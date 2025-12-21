@@ -139,6 +139,8 @@ public sealed class LauncherService
                 ConfigureWinePrefix(item, nodePath, startInfo);
 
             startInfo.Arguments = args ?? string.Empty;
+            // DEBUG: log the exact command-line we are about to run
+            Debug.WriteLine($"[Launcher] START: {startInfo.FileName} {startInfo.Arguments}");
 
             return Process.Start(startInfo);
         }
@@ -560,17 +562,17 @@ public sealed class LauncherService
             .Replace("{fileBase}", fileBase, StringComparison.Ordinal);
 
         // If the user provided explicit quotes like "\"{file}\"", preserve exact quoting behavior
-        if (templateArgs.Contains("\"{file}\"", StringComparison.Ordinal))
+        if (result.Contains("\"{file}\"", StringComparison.Ordinal))
         {
-            return templateArgs.Replace("{file}", fullPath, StringComparison.Ordinal);
+            return result.Replace("{file}", fullPath, StringComparison.Ordinal);
         }
 
-        // Standard case: {file} is replaced – if present – ​​with a possibly quoted path
+        // Standard case: {file} is replaced – if present – with a possibly quoted path
         var quotedPath = (!string.IsNullOrEmpty(fullPath) && fullPath.Contains(' ', StringComparison.Ordinal))
             ? $"\"{fullPath}\""
             : fullPath;
         
-        return templateArgs.Replace("{file}", quotedPath, StringComparison.Ordinal);
+        return result.Replace("{file}", quotedPath, StringComparison.Ordinal);
     }
 
     private static async Task WatchProcessByNameAsync(string processName, CancellationToken cancellationToken)

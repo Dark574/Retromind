@@ -450,6 +450,13 @@ public partial class EditMediaViewModel : ViewModelBase
             // Optional: trim to keep copy clean (no trailing whitespace)
             text = text.Trim();
 
+            // Strip leading prompt marker ("> ") so the copied command can be
+            // pasted directly into a terminal.
+            if (text.StartsWith("> ", StringComparison.Ordinal))
+            {
+                text = text.Substring(2).TrimStart();
+            }
+            
             if (win?.Clipboard != null)
                 await win.Clipboard.SetTextAsync(text);
         }
@@ -477,15 +484,10 @@ public partial class EditMediaViewModel : ViewModelBase
         // Prefix
         PrefixPath = _originalItem.PrefixPath ?? string.Empty;
         
-        // Native: no {file} placeholder needed anymore
-        if (MediaType == MediaType.Native)
-        {
-            LauncherArgs = _originalItem.LauncherArgs ?? string.Empty;
-        }
-        else
-        {
-            LauncherArgs = string.IsNullOrWhiteSpace(_originalItem.LauncherArgs) ? "{file}" : _originalItem.LauncherArgs;
-        }
+        // Arguments: load exactly what is stored on the item.
+        // No automatic "{file}" injection here; defaults are handled only
+        // when the user explicitly switches MediaType in the UI.
+        LauncherArgs = _originalItem.LauncherArgs ?? string.Empty;
         
         // Assets do not need to be loaded separately because we bind directly to _originalItem.Assets.
         // The FileService should ensure the assets list is up to date before opening this dialog
@@ -506,8 +508,9 @@ public partial class EditMediaViewModel : ViewModelBase
             return;
         }
 
-        // When switching to Emulator and args are empty, insert a default {file} placeholder.
-        if (value == MediaType.Emulator)
+        // When switching to Emulator and we are in manual-emulator mode (no profile selected),
+        // insert a default {file} placeholder if the field is empty.
+        if (value == MediaType.Emulator && IsManualEmulator)
         {
             if (string.IsNullOrWhiteSpace(LauncherArgs))
                 LauncherArgs = "{file}";
@@ -607,52 +610,46 @@ public partial class EditMediaViewModel : ViewModelBase
         {
             // Use the primary launch file (Disc 1 / first entry). If missing, fall back to a sample path.
             var primaryPath = _originalItem.GetPrimaryLaunchPath();
-            var realFile = !string.IsNullOrWhiteSpace(primaryPath)
-                ? $"\"{primaryPath}\""
-                : "\"/Games/SuperMario.smc\"";
+            var launchPath = !string.IsNullOrWhiteSpace(primaryPath)
+                ? primaryPath
+                : "/Games/SuperMario.smc";
 
+            var realFileQuoted = $"\"{launchPath}\"";
+
+            // --- Emulator via profile ---
             if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
             {
-                // ... existing code (Emulator Profile preview bleibt) ...
-                var baseArgs = SelectedEmulatorProfile.Arguments ?? "";
-                var itemArgs = LauncherArgs ?? "";
+                var baseArgs = SelectedEmulatorProfile.Arguments ?? string.Empty;
+                var itemArgs = LauncherArgs ?? string.Empty;
 
-                string combinedArgs;
+                // Keep the combination logic in sync with LauncherService.CombineTemplateArguments(...)
+                var combinedTemplate = CombineTemplateArguments(baseArgs, itemArgs);
 
-                if (!string.IsNullOrWhiteSpace(itemArgs))
-                {
-                    if (baseArgs.Contains("{file}") && itemArgs.Contains("{file}"))
-                    {
-                        combinedArgs = baseArgs.Replace("{file}", itemArgs);
-                    }
-                    else
-                    {
-                        combinedArgs = $"{baseArgs} {itemArgs}".Trim();
-                    }
-                }
-                else
-                {
-                    combinedArgs = baseArgs;
-                }
+                var expandedArgs = ExpandPreviewArguments(combinedTemplate, launchPath);
 
-                if (string.IsNullOrWhiteSpace(combinedArgs))
-                    return $"> {SelectedEmulatorProfile.Path} {realFile}";
+                if (string.IsNullOrWhiteSpace(expandedArgs))
+                    return $"> {SelectedEmulatorProfile.Path} {realFileQuoted}".Trim();
 
-                if (combinedArgs.Contains("{file}"))
-                    return $"> {SelectedEmulatorProfile.Path} {combinedArgs.Replace("{file}", realFile)}";
-
-                return $"> {SelectedEmulatorProfile.Path} {combinedArgs} {realFile}";
+                return $"> {SelectedEmulatorProfile.Path} {expandedArgs}".Trim();
             }
 
+            // --- Manual emulator (no profile selected) ---
             if (MediaType == MediaType.Emulator && IsManualEmulator)
             {
-                var args = string.IsNullOrWhiteSpace(LauncherArgs)
-                    ? realFile
-                    : LauncherArgs?.Replace("{file}", realFile) ?? realFile;
+                var expandedArgs = ExpandPreviewArguments(LauncherArgs, launchPath);
 
-                return $"> {LauncherPath} {args}".Trim();
+                if (string.IsNullOrWhiteSpace(LauncherPath))
+                    return string.IsNullOrWhiteSpace(expandedArgs)
+                        ? string.Empty
+                        : $"> {expandedArgs}".Trim();
+
+                if (string.IsNullOrWhiteSpace(expandedArgs))
+                    return $"> {LauncherPath} {realFileQuoted}".Trim();
+
+                return $"> {LauncherPath} {expandedArgs}".Trim();
             }
 
+            // --- Native execution (direct or via wrappers) ---
             if (MediaType == MediaType.Native)
             {
                 var wrappers = ResolveEffectiveNativeWrappersForPreview();
@@ -660,17 +657,64 @@ public partial class EditMediaViewModel : ViewModelBase
 
                 // Inner command = the real executable + native args
                 var inner = string.IsNullOrWhiteSpace(nativeArgs)
-                    ? realFile
-                    : $"{realFile} {nativeArgs}";
+                    ? realFileQuoted
+                    : $"{realFileQuoted} {nativeArgs}";
 
                 var final = BuildWrappedCommandLine(inner, wrappers);
                 return $"> {final}".Trim();
             }
 
-            return "";
+            return string.Empty;
         }
     }
 
+    /// <summary>
+    /// Expands preview argument templates using the same placeholder semantics as the runtime launcher:
+    /// {file}     -> full path to the launch file (quoted if necessary)
+    /// {fileDir}  -> directory of the launch file
+    /// {fileName} -> file name with extension
+    /// {fileBase} -> file name without extension (e.g. ROM short name for MAME)
+    /// </summary>
+    private static string ExpandPreviewArguments(string? templateArgs, string launchFilePath)
+    {
+        var fullPath = string.IsNullOrWhiteSpace(launchFilePath)
+            ? string.Empty
+            : Path.GetFullPath(launchFilePath);
+
+        var fileDir = string.Empty;
+        var fileName = string.Empty;
+        var fileBase = string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(fullPath))
+        {
+            fileDir = Path.GetDirectoryName(fullPath) ?? string.Empty;
+            fileName = Path.GetFileName(fullPath);
+            fileBase = string.IsNullOrEmpty(fileName)
+                ? string.Empty
+                : Path.GetFileNameWithoutExtension(fileName);
+        }
+
+        if (string.IsNullOrWhiteSpace(templateArgs))
+            return string.Empty;
+
+        var result = templateArgs
+            .Replace("{fileDir}", fileDir, StringComparison.Ordinal)
+            .Replace("{fileName}", fileName, StringComparison.Ordinal)
+            .Replace("{fileBase}", fileBase, StringComparison.Ordinal);
+
+        // If the user explicitly wrote "\"{file}\"", preserve that quoting style.
+        if (result.Contains("\"{file}\"", StringComparison.Ordinal))
+        {
+            return result.Replace("{file}", fullPath, StringComparison.Ordinal).Trim();
+        }
+
+        var quotedPath = (!string.IsNullOrEmpty(fullPath) && fullPath.Contains(' ', StringComparison.Ordinal))
+            ? $"\"{fullPath}\""
+            : fullPath;
+
+        return result.Replace("{file}", quotedPath, StringComparison.Ordinal).Trim();
+    }
+    
     private List<LaunchWrapper> ResolveEffectiveNativeWrappersForPreview()
     {
         // 1) Item-level tri-state (based on current UI state)
