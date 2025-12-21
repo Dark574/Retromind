@@ -587,12 +587,10 @@ public partial class MainWindowViewModel
                 changed = true;
             }
     
-            // Wir laden einfach runter und fügen hinzu. Der FileService kümmert sich um Dubletten/Nummerierung.
+            // We simply download and add assets. FileService handles naming and numbering
+            // (Cover_01, Cover_02, ...). For now we add only if there is no asset of that type yet.
             if (!string.IsNullOrEmpty(result.CoverUrl))
             {
-                // Prüfen wir noch, ob schon ein Cover da ist?
-                // Mit dem neuen System können wir einfach hinzufügen (ergibt dann Cover_02)
-                // oder prüfen ob Assets.Any(a => a.Type == AssetType.Cover)
                 if (!item.Assets.Any(a => a.Type == AssetType.Cover))
                 {
                     await DownloadAndSetAsset(result.CoverUrl, item, nodePath, AssetType.Cover);
@@ -604,6 +602,42 @@ public partial class MainWindowViewModel
                 if (!item.Assets.Any(a => a.Type == AssetType.Wallpaper))
                 {
                     await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
+                    changed = true;
+                }
+            }
+            
+            if (!string.IsNullOrEmpty(result.LogoUrl))
+            {
+                if (!item.Assets.Any(a => a.Type == AssetType.Logo))
+                {
+                    await DownloadAndSetAsset(result.LogoUrl, item, nodePath, AssetType.Logo);
+                    changed = true;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(result.MarqueeUrl))
+            {
+                if (!item.Assets.Any(a => a.Type == AssetType.Marquee))
+                {
+                    await DownloadAndSetAsset(result.MarqueeUrl, item, nodePath, AssetType.Marquee);
+                    changed = true;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(result.BezelUrl))
+            {
+                if (!item.Assets.Any(a => a.Type == AssetType.Bezel))
+                {
+                    await DownloadAndSetAsset(result.BezelUrl, item, nodePath, AssetType.Bezel);
+                    changed = true;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(result.ControlPanelUrl))
+            {
+                if (!item.Assets.Any(a => a.Type == AssetType.ControlPanel))
+                {
+                    await DownloadAndSetAsset(result.ControlPanelUrl, item, nodePath, AssetType.ControlPanel);
                     changed = true;
                 }
             }

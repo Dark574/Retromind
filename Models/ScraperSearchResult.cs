@@ -52,6 +52,21 @@ public class ScraperSearchResult
     /// </summary>
     public string? LogoUrl { get; set; }
     
+    /// <summary>
+    /// URL to the marquee artwork (typically a wide cabinet header graphic).
+    /// </summary>
+    public string? MarqueeUrl { get; set; }
+
+    /// <summary>
+    /// URL to the bezel artwork (decorative frame around the game screen).
+    /// </summary>
+    public string? BezelUrl { get; set; }
+
+    /// <summary>
+    /// URL to the control panel artwork (joysticks/buttons layout).
+    /// </summary>
+    public string? ControlPanelUrl { get; set; }
+    
     // --- Additional Metadata ---
 
     public string? Developer { get; set; }

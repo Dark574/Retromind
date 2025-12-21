@@ -177,6 +177,18 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Button_Bezel {
+            get {
+                return ResourceManager.GetString("Button.Bezel", resourceCulture);
+            }
+        }
+        
+        public static string Button_ControlPanel {
+            get {
+                return ResourceManager.GetString("Button.ControlPanel", resourceCulture);
+            }
+        }
+        
         public static string Common_Active {
             get {
                 return ResourceManager.GetString("Common.Active", resourceCulture);

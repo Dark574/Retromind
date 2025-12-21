@@ -203,7 +203,9 @@ public class EmuMoviesProvider : IMetadataProvider
             
                 if (string.IsNullOrEmpty(mediaUrl)) continue;
             
-                // Map EmuMovies types to our model
+                // Map EmuMovies types to our model.
+                // NOTE: MediaType strings are based on EmuMovies documentation and may need
+                // adjustments if the API changes (e.g. "Marquee", "Cabinet", "Control Panel").
                 switch (type)
                 {
                     case "Box 2D":
@@ -221,6 +223,21 @@ public class EmuMoviesProvider : IMetadataProvider
                     case "Logo":
                     case "Clear Logo":
                         item.LogoUrl = mediaUrl;
+                        break;
+                    
+                    case "Marquee":
+                        item.MarqueeUrl = mediaUrl;
+                        break;
+
+                    case "Bezel":
+                    case "Bezels":
+                    case "Cabinet Bezel":
+                        item.BezelUrl = mediaUrl;
+                        break;
+
+                    case "Control Panel":
+                    case "ControlPanel":
+                        item.ControlPanelUrl = mediaUrl;
                         break;
                 }
             }

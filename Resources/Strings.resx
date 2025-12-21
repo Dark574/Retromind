@@ -52,6 +52,8 @@
     <data name="Button_Add" xml:space="preserve"><value>Add</value></data>
     <data name="Button_Remove" xml:space="preserve"><value>Remove</value></data>
     <data name="Button_Browse" xml:space="preserve"><value>Browse...</value></data>
+    <data name="Button.Bezel" xml:space="preserve"><value>Bezel</value></data>
+    <data name="Button.ControlPanel" xml:space="preserve"><value>Control panel</value></data>
     
     <!-- COMMON -->
     <data name="Common.Active" xml:space="preserve"><value>Active</value></data>

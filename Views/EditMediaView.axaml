@@ -258,12 +258,38 @@
                     <Border Grid.Row="0" Background="#10000000" CornerRadius="4" Padding="5" Margin="0,0,0,10">
                         <WrapPanel Orientation="Horizontal">
                             <!-- Use CommandParameter to distinguish asset types -->
-                            <Button Content="+ Cover" Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static m:AssetType.Cover}" Margin="0,0,5,5"/>
-                            <Button Content="+ Wallpaper" Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static m:AssetType.Wallpaper}" Margin="0,0,5,5"/>
-                            <Button Content="+ Logo" Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static m:AssetType.Logo}" Margin="0,0,5,5"/>
-                            <Button Content="+ Video" Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static m:AssetType.Video}" Margin="0,0,5,5"/>
-                            <Button Content="+ Music" Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static m:AssetType.Music}" Margin="0,0,5,5"/>
-                            <Button Content="+ Marquee" Command="{Binding ImportAssetCommand}" CommandParameter="{x:Static m:AssetType.Marquee}" Margin="0,0,5,5"/>
+                            <Button Content="{x:Static p:Strings.Button_Cover}"
+                                    Command="{Binding ImportAssetCommand}"
+                                    CommandParameter="{x:Static m:AssetType.Cover}"
+                                    Margin="0,0,5,5"/>
+                            <Button Content="{x:Static p:Strings.Button_Wall}"
+                                    Command="{Binding ImportAssetCommand}"
+                                    CommandParameter="{x:Static m:AssetType.Wallpaper}"
+                                    Margin="0,0,5,5"/>
+                            <Button Content="{x:Static p:Strings.Button_Logo}"
+                                    Command="{Binding ImportAssetCommand}"
+                                    CommandParameter="{x:Static m:AssetType.Logo}"
+                                    Margin="0,0,5,5"/>
+                            <Button Content="{x:Static p:Strings.FileType_Videos}"
+                                    Command="{Binding ImportAssetCommand}"
+                                    CommandParameter="{x:Static m:AssetType.Video}"
+                                    Margin="0,0,5,5"/>
+                            <Button Content="{x:Static p:Strings.Media_AddMusic}"
+                                    Command="{Binding ImportAssetCommand}"
+                                    CommandParameter="{x:Static m:AssetType.Music}"
+                                    Margin="0,0,5,5"/>
+                            <Button Content="Marquee"
+                                    Command="{Binding ImportAssetCommand}"
+                                    CommandParameter="{x:Static m:AssetType.Marquee}"
+                                    Margin="0,0,5,5"/>
+                            <Button Content="{x:Static p:Strings.Button_Bezel}"
+                                    Command="{Binding ImportAssetCommand}"
+                                    CommandParameter="{x:Static m:AssetType.Bezel}"
+                                    Margin="0,0,5,5"/>
+                            <Button Content="{x:Static p:Strings.Button_ControlPanel}"
+                                    Command="{Binding ImportAssetCommand}"
+                                    CommandParameter="{x:Static m:AssetType.ControlPanel}"
+                                    Margin="0,0,5,5"/>
                         </WrapPanel>
                     </Border>
                     
@@ -282,8 +308,6 @@
                                     <Grid RowDefinitions="*, Auto">
                                         
                                         <!-- Preview image (for image-like assets) -->
-                                        <!-- Uses AbsolutePath; AsyncImageHelper must handle that.
-                                             Alternatively, a converter could turn relative paths into absolute ones. -->
                                         <Image Grid.Row="0" 
                                                helpers:AsyncImageHelper.Url="{Binding AbsolutePath}"
                                                Stretch="Uniform" Margin="5"/>
