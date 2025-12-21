@@ -112,6 +112,10 @@ public partial class BigModeViewModel
         // Selection changed -> update counters before triggering preview logic.
         UpdateGameCounters();
         
+        // Notify dependent computed properties used by themes.
+        OnPropertyChanged(nameof(SelectedYear));
+        OnPropertyChanged(nameof(SelectedDeveloper));
+        
         TriggerPreviewPlaybackWithDebounce();
     }
 

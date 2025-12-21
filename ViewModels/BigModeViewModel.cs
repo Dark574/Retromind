@@ -119,7 +119,19 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     [ObservableProperty]
     private int _currentGameNumber;
-    
+
+    /// <summary>
+    /// Release year of the currently selected game, or null if unknown or
+    /// no game is selected. Intended for use in BigMode themes (bottom info bar).
+    /// </summary>
+    public int? SelectedYear => SelectedItem?.ReleaseDate?.Year;
+
+    /// <summary>
+    /// Developer of the currently selected game, or null/empty if unknown or
+    /// no game is selected. Intended for use in BigMode themes (bottom info bar).
+    /// </summary>
+    public string? SelectedDeveloper => SelectedItem?.Developer;
+
     public ICommand ForceExitCommand { get; }
 
     public event Action? RequestClose;

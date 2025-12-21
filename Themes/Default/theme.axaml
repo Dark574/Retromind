@@ -170,10 +170,51 @@
 
         </Grid>
         
-        <!-- Footer Overlay -->
-        <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="20" Margin="30" Opacity="0.6">
-             <TextBlock Text="[ESC] Back" Foreground="White"/>
-             <TextBlock Text="[ENTER] Open" Foreground="White"/>
-        </StackPanel>
+        <!-- Bottom info bar (year, developer, game counter) -->
+        <Border VerticalAlignment="Bottom"
+                Margin="30,0,30,20"
+                CornerRadius="6"
+                Background="#66000000"
+                Padding="10,6">
+            <Grid ColumnDefinitions="*,*,Auto">
+
+                <!-- Left: Year (only if a game is selected and year is known) -->
+                <TextBlock Grid.Column="0"
+                           HorizontalAlignment="Left"
+                           FontSize="14"
+                           Foreground="#CCFFFFFF"
+                           Text="{Binding SelectedYear}"
+                           IsVisible="{Binding SelectedYear, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+
+                <!-- Center: Developer (only if a game is selected and developer is set) -->
+                <TextBlock Grid.Column="1"
+                           HorizontalAlignment="Center"
+                           FontSize="14"
+                           Foreground="#CCFFFFFF"
+                           Text="{Binding SelectedDeveloper}"
+                           TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding SelectedDeveloper, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                <!-- Right: Game counter (X / Y) -->
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="4">
+                    <TextBlock FontSize="14"
+                               Foreground="#88FFFFFF"
+                               Text="Game:"/>
+                    <TextBlock FontSize="14"
+                               Foreground="#CCFFFFFF"
+                               Text="{Binding CurrentGameNumber}"/>
+                    <TextBlock FontSize="14"
+                               Foreground="#88FFFFFF"
+                               Text="/"/>
+                    <TextBlock FontSize="14"
+                               Foreground="#CCFFFFFF"
+                               Text="{Binding TotalGames}"/>
+                </StackPanel>
+
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>
