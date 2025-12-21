@@ -7,6 +7,7 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibVLCSharp.Shared;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
@@ -53,8 +54,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private int _selectedCategoryIndex = -1;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
+    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
+    [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
     private MediaNode? _themeContextNode;
-
+    
     // Avoid repeated filesystem I/O while scrolling large lists.
     private readonly Dictionary<string, string?> _itemVideoPathCache = new();
     private readonly Dictionary<string, string?> _nodeVideoPathCache = new();
@@ -66,6 +70,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCategorySelectionActive))]
+    [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
+    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
+    [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
     private bool _isGameListActive;
 
     public bool IsCategorySelectionActive => !IsGameListActive;
@@ -101,6 +108,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private ObservableCollection<MediaItem> _items = new();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
+    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
+    [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
     private MediaItem? _selectedItem;
 
     [ObservableProperty]
@@ -132,6 +142,47 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     public string? SelectedDeveloper => SelectedItem?.Developer;
 
+    /// <summary>
+    /// Resolved marquee artwork path for the currently selected item in context of the
+    /// active node. Resolution order: item → node. Does not apply theme defaults.
+    /// </summary>
+    public string? ActiveMarqueePath =>
+        ResolveArtworkForSelection(AssetType.Marquee);
+
+    /// <summary>
+    /// Resolved bezel artwork path for the currently selected item in context of the
+    /// active node. Resolution order: item → node. Does not apply theme defaults.
+    /// </summary>
+    public string? ActiveBezelPath =>
+        ResolveArtworkForSelection(AssetType.Bezel);
+
+    /// <summary>
+    /// Resolved control panel artwork path for the currently selected item in context of the
+    /// active node. Resolution order: item → node. Does not apply theme defaults.
+    /// </summary>
+    public string? ActiveControlPanelPath =>
+        ResolveArtworkForSelection(AssetType.ControlPanel);
+
+    /// <summary>
+    /// Helper that resolves artwork for the currently selected item using the standard
+    /// item → node fallback order. Returns null if no game list or selection is active.
+    /// Theme-level defaults are intentionally not applied here to keep this ViewModel
+    /// theme-agnostic. Themes can use ThemeProperties for additional fallbacks.
+    /// </summary>
+    private string? ResolveArtworkForSelection(AssetType type)
+    {
+        if (!IsGameListActive || SelectedItem is null)
+            return null;
+
+        // ThemeContextNode represents the logical node whose items are currently shown.
+        var node = ThemeContextNode ?? CurrentNode;
+
+        return AssetResolver.ResolveAssetPath(
+            SelectedItem,
+            node,
+            type);
+    }
+    
     public ICommand ForceExitCommand { get; }
 
     public event Action? RequestClose;
