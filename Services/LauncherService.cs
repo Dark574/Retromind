@@ -525,23 +525,51 @@ public sealed class LauncherService
     {
         var fullPath = string.IsNullOrWhiteSpace(filePath) ? string.Empty : Path.GetFullPath(filePath);
 
-        // If the path contains spaces, quote it unless the template already provides quotes around "{file}".
-        var quotedPath = (!string.IsNullOrEmpty(fullPath) && fullPath.Contains(' ', StringComparison.Ordinal))
-            ? $"\"{fullPath}\""
-            : fullPath;
-
-        if (string.IsNullOrWhiteSpace(templateArgs))
+        // The caller can use additional placeholders, which we derive directly from the path:
+        // - {fileDir}  -> Directory (without a trailing slash)
+        // - {fileName} -> Filename with extension
+        // - {fileBase} -> Filename without extension (e.g., ROM shortname for MAME)
+        var fileDir = string.Empty;
+        var fileName = string.Empty;
+        var fileBase = string.Empty;
+        
+        if (!string.IsNullOrWhiteSpace(fullPath))
         {
-            // Default: just the file path (quoted if needed).
-            return quotedPath;
+            fileDir = Path.GetDirectoryName(fullPath) ?? string.Empty;
+            fileName = Path.GetFileName(fullPath);
+            fileBase = string.IsNullOrEmpty(fileName)
+                ? string.Empty
+                : Path.GetFileNameWithoutExtension(fileName);
         }
 
-        // If the user provided explicit quotes like "\"{file}\"", preserve exact quoting behavior.
+        // If no template is specified, we only return the (possibly quoted) path.
+        if (string.IsNullOrWhiteSpace(templateArgs))
+        {
+            if (string.IsNullOrEmpty(fullPath))
+                return string.Empty;
+
+            return fullPath.Contains(' ', StringComparison.Ordinal)
+                ? $"\"{fullPath}\""
+                : fullPath;
+        }
+        
+        // First, replace all the extra placeholders
+        var result = templateArgs
+            .Replace("{fileDir}", fileDir, StringComparison.Ordinal)
+            .Replace("{fileName}", fileName, StringComparison.Ordinal)
+            .Replace("{fileBase}", fileBase, StringComparison.Ordinal);
+
+        // If the user provided explicit quotes like "\"{file}\"", preserve exact quoting behavior
         if (templateArgs.Contains("\"{file}\"", StringComparison.Ordinal))
         {
             return templateArgs.Replace("{file}", fullPath, StringComparison.Ordinal);
         }
 
+        // Standard case: {file} is replaced – if present – ​​with a possibly quoted path
+        var quotedPath = (!string.IsNullOrEmpty(fullPath) && fullPath.Contains(' ', StringComparison.Ordinal))
+            ? $"\"{fullPath}\""
+            : fullPath;
+        
         return templateArgs.Replace("{file}", quotedPath, StringComparison.Ordinal);
     }
 
