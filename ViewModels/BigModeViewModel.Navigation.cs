@@ -177,6 +177,9 @@ public partial class BigModeViewModel
 
         // Root context: no node-specific theme context.
         ThemeContextNode = null;
+        
+        // No active game list at root -> reset counters explicitly.
+        UpdateGameCounters();
     }
 
     /// <summary>
@@ -208,6 +211,9 @@ public partial class BigModeViewModel
 
         // Items list changed -> cached item video paths may no longer be relevant.
         _itemVideoPathCache.Clear();
+        
+        // Keep game counters in sync with the new item collection.
+        UpdateGameCounters();
     }
 
     /// <summary>

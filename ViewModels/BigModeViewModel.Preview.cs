@@ -109,6 +109,9 @@ public partial class BigModeViewModel
             if (idx >= 0) SelectedItemIndex = idx;
         }
 
+        // Selection changed -> update counters before triggering preview logic.
+        UpdateGameCounters();
+        
         TriggerPreviewPlaybackWithDebounce();
     }
 
@@ -133,6 +136,10 @@ public partial class BigModeViewModel
         _previewDebounceCts = null;
 
         StopVideo();
+        
+        // View mode changed (categories vs. games) -> counters may need to reset.
+        UpdateGameCounters();
+        
         TriggerPreviewPlaybackWithDebounce();
     }
 

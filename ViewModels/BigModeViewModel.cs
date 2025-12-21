@@ -106,6 +106,20 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _categoryTitle = "";
 
+    /// <summary>
+    /// Total number of games in the current game list.
+    /// Equals zero while the category list is active.
+    /// </summary>
+    [ObservableProperty]
+    private int _totalGames;
+
+    /// <summary>
+    /// 1-based index of the currently selected game in the current game list.
+    /// Equals zero if no item is selected or the category list is active.
+    /// </summary>
+    [ObservableProperty]
+    private int _currentGameNumber;
+    
     public ICommand ForceExitCommand { get; }
 
     public event Action? RequestClose;
@@ -165,8 +179,38 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         {
             RestoreLastState();
         }
+        
+        // Ensure counters are in a known state even if the restored state
+        // did not activate a game list yet.
+        UpdateGameCounters();
     }
 
+    /// <summary>
+    /// Updates game counters (TotalGames, CurrentGameNumber) based on the current
+    /// game list and selection. Safe to call from any place that changes Items
+    /// or SelectedItem, or toggles between category and game view.
+    /// </summary>
+    private void UpdateGameCounters()
+    {
+        if (!IsGameListActive || Items is not { Count: > 0 })
+        {
+            TotalGames = 0;
+            CurrentGameNumber = 0;
+            return;
+        }
+
+        TotalGames = Items.Count;
+
+        if (SelectedItem == null)
+        {
+            CurrentGameNumber = 0;
+            return;
+        }
+
+        var index = Items.IndexOf(SelectedItem);
+        CurrentGameNumber = index >= 0 ? index + 1 : 0;
+    }
+    
     /// <summary>
     /// Updates the active theme at runtime.
     /// The host is responsible for swapping the view and calling NotifyViewReady() afterwards.
@@ -189,5 +233,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         // Update default capability (host may still disable based on missing slot).
         CanShowVideo = _theme.VideoEnabled;
+        
+        // Theme swap may change how many items are visible or how they are
+        // interpreted by the theme; keep counters consistent.
+        UpdateGameCounters();
     }
 }
