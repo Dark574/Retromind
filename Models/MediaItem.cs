@@ -141,12 +141,30 @@ public partial class MediaItem : ObservableObject
 
         switch (type)
         {
-            case AssetType.Cover: OnPropertyChanged(nameof(PrimaryCoverPath)); break;
-            case AssetType.Wallpaper: OnPropertyChanged(nameof(PrimaryWallpaperPath)); break;
-            case AssetType.Logo: OnPropertyChanged(nameof(PrimaryLogoPath)); break;
-            case AssetType.Video: OnPropertyChanged(nameof(PrimaryVideoPath)); break;
-            case AssetType.Marquee: OnPropertyChanged(nameof(PrimaryMarqueePath)); break;
-            case AssetType.Banner: OnPropertyChanged(nameof(PrimaryBannerPath)); break;
+            case AssetType.Cover:
+                OnPropertyChanged(nameof(PrimaryCoverPath));
+                break;
+            case AssetType.Wallpaper:
+                OnPropertyChanged(nameof(PrimaryWallpaperPath));
+                break;
+            case AssetType.Logo:
+                OnPropertyChanged(nameof(PrimaryLogoPath));
+                break;
+            case AssetType.Video:
+                OnPropertyChanged(nameof(PrimaryVideoPath));
+                break;
+            case AssetType.Marquee:
+                OnPropertyChanged(nameof(PrimaryMarqueePath));
+                break;
+            case AssetType.Banner:
+                OnPropertyChanged(nameof(PrimaryBannerPath));
+                break;
+            case AssetType.Bezel:
+                OnPropertyChanged(nameof(PrimaryBezelPath));
+                break;
+            case AssetType.ControlPanel:
+                OnPropertyChanged(nameof(PrimaryControlPanelPath));
+                break;
         }
     }
 
@@ -164,6 +182,8 @@ public partial class MediaItem : ObservableObject
             OnPropertyChanged(nameof(PrimaryVideoPath));
             OnPropertyChanged(nameof(PrimaryMarqueePath));
             OnPropertyChanged(nameof(PrimaryBannerPath));
+            OnPropertyChanged(nameof(PrimaryBezelPath));
+            OnPropertyChanged(nameof(PrimaryControlPanelPath));
         }
     }
 
@@ -174,6 +194,17 @@ public partial class MediaItem : ObservableObject
     public string? PrimaryVideoPath => GetPrimaryAssetAbsolutePath(AssetType.Video);
     public string? PrimaryMarqueePath => GetPrimaryAssetAbsolutePath(AssetType.Marquee);
     public string? PrimaryBannerPath => GetPrimaryAssetAbsolutePath(AssetType.Banner);
+    /// <summary>
+    /// Primary bezel artwork for this item, resolved to an absolute path.
+    /// Used by arcade-style themes to decorate the game screen.
+    /// </summary>
+    public string? PrimaryBezelPath => GetPrimaryAssetAbsolutePath(AssetType.Bezel);
+    /// <summary>
+    /// Primary control panel artwork for this item, resolved to an absolute path.
+    /// Used by arcade-style themes to show joysticks/buttons layout.
+    /// </summary>
+    public string? PrimaryControlPanelPath => GetPrimaryAssetAbsolutePath(AssetType.ControlPanel);
+
 
     // --- Launch: Multi-file helpers ---
 
@@ -289,6 +320,8 @@ public partial class MediaItem : ObservableObject
         OnPropertyChanged(nameof(PrimaryVideoPath));
         OnPropertyChanged(nameof(PrimaryMarqueePath));
         OnPropertyChanged(nameof(PrimaryBannerPath));
+        OnPropertyChanged(nameof(PrimaryBezelPath));
+        OnPropertyChanged(nameof(PrimaryControlPanelPath));
     }
 }
 

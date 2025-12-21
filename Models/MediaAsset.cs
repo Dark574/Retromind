@@ -15,7 +15,15 @@ public enum AssetType
     Video,
     Marquee,
     Music,
-    Banner
+    Banner,
+    /// <summary>
+    /// Artwork used as decorative frame around the game screen (arcade bezel).
+    /// </summary>
+    Bezel,
+    /// <summary>
+    /// Artwork used for the arcade control panel (joysticks, buttons, etc.).
+    /// </summary>
+    ControlPanel
 }
 
 /// <summary>
