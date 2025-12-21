@@ -46,19 +46,30 @@
     
     <Panel>
         <!-- LAYER 1: Background -->
-        <Image Name="WallpaperImage"
+        <!-- Wallpaper for Games-View -->
+        <Image Name="GameWallpaper"
                helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
                Stretch="UniformToFill"
+               IsVisible="{Binding IsGameListActive}"
                Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />
         
-        <!-- LAYER 2: The wheel -->
+        <!-- Wallpaper for Categories-View -->
+        <Image Name="CategoryWallpaper"
+               helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}"
+               Stretch="UniformToFill"
+               IsVisible="{Binding IsCategorySelectionActive}"
+               Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />
+        
+        <!-- Games-Wheel -->
         <ListBox ItemsSource="{Binding Items}"
                  SelectedItem="{Binding SelectedItem}"
+                 IsVisible="{Binding IsGameListActive}"
                  Background="Transparent"
                  AutoScrollToSelectedItem="True"
                  SelectedIndex="{Binding SelectedItemIndex, Mode=OneWayToSource}"
                  ClipToBounds="False"
-                 VerticalAlignment="Stretch" HorizontalAlignment="Left"
+                 VerticalAlignment="Stretch"
+                 HorizontalAlignment="Left"
                  Width="450">
             
             <ListBox.ItemsPanel>
@@ -86,6 +97,46 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+
+        <!-- Categories-Wheel -->
+        <ListBox ItemsSource="{Binding CurrentCategories}"
+                 SelectedItem="{Binding SelectedCategory}"
+                 IsVisible="{Binding IsCategorySelectionActive}"
+                 Background="Transparent"
+                 AutoScrollToSelectedItem="True"
+                 ClipToBounds="False"
+                 VerticalAlignment="Stretch"
+                 HorizontalAlignment="Left"
+                 Width="450">
+            
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <helpers:WheelPanel WheelRadius="500" 
+                                        ItemSpacingAngle="18"
+                                        helpers:WheelPanel.OffsetX="225"
+                                        helpers:WheelPanel.SelectedItemIndex="{Binding $parent[ListBox].SelectedIndex}"/>
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Panel Width="300" Height="140">
+                        <!-- Categorie-Logo, if available -->
+                        <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}" Stretch="Uniform"
+                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        
+                        <!-- Fallback: Categorie name -->
+                        <TextBlock Text="{Binding Name}"
+                                   FontSize="32"
+                                   FontWeight="Bold"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                    </Panel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
         
         <!-- LAYER 3: The right-hand content -->
         <Grid ColumnDefinitions="*" RowDefinitions="*, Auto" Margin="450,0,0,0">
@@ -93,32 +144,61 @@
             <ScrollViewer Grid.Row="0" Margin="40, 60, 60, 20" VerticalScrollBarVisibility="Auto"
                           VerticalAlignment="Stretch">
                 <StackPanel>
-                    <TextBlock Text="{Binding SelectedItem.Title}"
-                               Classes="rm-title"
-                               FontWeight="Bold"
-                               Foreground="White"
-                               TextWrapping="Wrap"/>
-                    <TextBlock Text="{Binding SelectedItem.Description}"
-                               Classes="rm-body"
-                               Foreground="#DDFFFFFF"
-                               TextWrapping="Wrap"
-                               Margin="0,20,0,0"/>
+                    <!-- Kategorie-Titel/Description im Kategorienmodus -->
+                    <StackPanel IsVisible="{Binding IsCategorySelectionActive}">
+                        <TextBlock Text="{Binding SelectedCategory.Name}"
+                                   Classes="rm-title"
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding SelectedCategory.Description}"
+                                   Classes="rm-body"
+                                   Foreground="#DDFFFFFF"
+                                   TextWrapping="Wrap"
+                                   Margin="0,20,0,0"/>
+                    </StackPanel>
+
+                    <!-- Spiel-Titel/Description im Spielmodus -->
+                    <StackPanel IsVisible="{Binding IsGameListActive}">
+                        <TextBlock Text="{Binding SelectedItem.Title}"
+                                   Classes="rm-title"
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding SelectedItem.Description}"
+                                   Classes="rm-body"
+                                   Foreground="#DDFFFFFF"
+                                   TextWrapping="Wrap"
+                                   Margin="0,20,0,0"/>
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
-            
+        
             <!-- MEDIA -->
             <Panel Grid.Row="1" Margin="40,20,60,60">
-               
+           
                 <!-- VIDEO SLOT (placeholder only, actual VideoView comes from the host) -->
                 <Border x:Name="VideoSlot"
                         Width="854" Height="480"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Bottom"
                         Background="Transparent" />
-                
-                <!-- COVER (drawn last, visually in the foreground) -->
+            
+                <!-- COVER für Kategorien -->
                 <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" 
-                        Margin="900, 0, 0, 100">
+                        Margin="900, 0, 0, 100"
+                        IsVisible="{Binding IsCategorySelectionActive}">
+                    <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryCoverPath}"
+                           Width="280" Height="380" Stretch="Uniform"/>
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="30" OffsetX="0" OffsetY="0" Color="Black" Opacity="0.7"/>
+                    </Border.Effect>
+                </Border>
+
+                <!-- COVER für Spiele (wie bisher) -->
+                <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" 
+                        Margin="900, 0, 0, 100"
+                        IsVisible="{Binding IsGameListActive}">
                     <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
                            Width="280" Height="380" Stretch="Uniform"/>
                     <Border.Effect>

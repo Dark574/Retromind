@@ -17,8 +17,6 @@ public partial class BigModeViewModel
     /// </summary>
     private void RestoreLastState()
     {
-        SelectedCategory = CurrentCategories.FirstOrDefault();
-
         try
         {
             // 1) Validate the persisted navigation path. If it no longer matches the current tree, discard it.
@@ -89,24 +87,58 @@ public partial class BigModeViewModel
             if (_settings.LastBigModeWasItemView)
             {
                 var parentNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
-                if (parentNode != null)
+                // NUR in den Item-View wechseln, wenn es wirklich Items gibt.
+                if (parentNode != null && parentNode.Items is { Count: > 0 })
                 {
                     IsGameListActive = true;
                     Items = parentNode.Items;
                     SelectedCategory = parentNode;
 
+                    // Ensure ThemeContextNode is set in item view too, to trigger preview consistently.
+                    ThemeContextNode = parentNode;
+                    
                     var item = parentNode.Items.FirstOrDefault(i => i.Id == _settings.LastBigModeSelectedNodeId);
                     SelectedItem = item ?? Items.FirstOrDefault();
 
                     return;
                 }
+                
+                // Fallback: Wenn der gespeicherte Item-View nicht mehr sinnvoll ist
+                // (z.B. weil der Node keine Items (mehr) hat oder nicht gefunden wurde),
+                // auf Kategorie-Ansicht zurückfallen.
+                _settings.LastBigModeWasItemView = false;
+                _settings.LastBigModeSelectedNodeId = null;
+            }
+            
+            // Kategorie-Ansicht wiederherstellen
+            // Versuche, die zuletzt selektierte Kategorie auf der aktuellen Ebene zu finden
+            MediaNode? category = null;
+            if (!string.IsNullOrWhiteSpace(_settings.LastBigModeSelectedNodeId))
+            {
+                category = CurrentCategories.FirstOrDefault(c => c.Id == _settings.LastBigModeSelectedNodeId);
+            }
+
+            if (category != null)
+            {
+                SelectedCategory = category;
+            }
+            else if (CurrentCategories.Count > 0)
+            {
+                // Fallback: erste Kategorie auswählen, damit IMMER eine gültige Auswahl existiert
+                SelectedCategory = CurrentCategories[0];
             }
             else
             {
-                var category = CurrentCategories.FirstOrDefault(c => c.Id == _settings.LastBigModeSelectedNodeId);
-                if (category != null)
-                    SelectedCategory = category;
+                SelectedCategory = null;
             }
+
+            // ThemeContextNode = aktueller Ordner (oberster Eintrag im NavigationPath) oder null für Root
+            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
+
+            // Sicherstellen, dass wir im Kategorie-Modus sind
+            IsGameListActive = false;
+            Items = new ObservableCollection<MediaItem>();
+            SelectedItem = null;
         }
         catch (Exception ex)
         {

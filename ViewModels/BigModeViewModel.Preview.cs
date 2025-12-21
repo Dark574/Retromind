@@ -38,12 +38,22 @@ public partial class BigModeViewModel
     /// </summary>
     public void NotifyViewReady()
     {
-        if (_isViewReady) return;
+        // The first time, we note: View is ready.
+        var wasReady = _isViewReady;
         _isViewReady = true;
 
-        // After the view is ready, start preview for the current selection.
-        // Use the debounced path for consistent behavior with navigation changes.
+        // In any case: Try starting (or restarting) the preview.
+        // This way we catch timing issues where the first call is lost.
         TriggerPreviewPlaybackWithDebounce();
+
+        // Optional: an additional, slightly delayed repetition,
+        // to ensure that layout/slot bounds are stable.
+        if (!wasReady)
+        {
+            UiThreadHelper.Post(
+                TriggerPreviewPlaybackWithDebounce,
+                DispatcherPriority.Background);
+        }
     }
 
     /// <summary>
