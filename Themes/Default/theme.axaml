@@ -1,201 +1,186 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
-             xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
-             xmlns:converters="clr-namespace:Retromind.Helpers;assembly=Retromind" 
-             x:DataType="vm:BigModeViewModel">
+             xmlns:ext="clr-namespace:Retromind.Extensions"
+             xmlns:helpers="using:Retromind.Helpers"
+             x:DataType="vm:BigModeViewModel"
+             Background="Black"
+
+             ext:ThemeProperties.Name="Arcade"
+             ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
+             ext:ThemeProperties.Version="0.1.0">
 
     <UserControl.Styles>
+        <!-- Base style for items in the game list -->
         <Style Selector="ListBoxItem">
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Margin" Value="0, 3"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Margin" Value="0,2"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="BorderThickness" Value="0,0,0,0"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="CornerRadius" Value="5"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0.1"/>
-                    <BrushTransition Property="BorderBrush" Duration="0.1"/>
-                </Transitions>
-            </Setter>
         </Style>
+
+        <!-- Selected item: highlight + left "pointer" bar -->
         <Style Selector="ListBoxItem:selected">
-            <Setter Property="Background" Value="#CCFFFFFF"/>
-            <Setter Property="BorderBrush" Value="#FFD700"/> <!-- Gold Border -->
-        </Style>
-        <Style Selector="ListBoxItem:selected TextBlock">
-            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="Background" Value="#40FFFFFF"/>
+            <Setter Property="BorderThickness" Value="4,0,0,0"/>
+            <Setter Property="BorderBrush" Value="#FFD700"/>
         </Style>
     </UserControl.Styles>
-    
+
     <Grid>
-        <!-- BACKGROUND -->
-        <Image converters:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}" 
-               Stretch="UniformToFill" IsVisible="{Binding IsGameListActive}"/>
-        <Image converters:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}" 
-               Stretch="UniformToFill" IsVisible="{Binding IsCategorySelectionActive}"/>
-        <Rectangle Fill="Black" Opacity="0.85" />
+        <!-- Background: dark -->
+        <Rectangle Fill="#101015"/>
 
-        <!-- MAIN LAYOUT: 2 columns (left: lists, right: details) -->
-        <Grid ColumnDefinitions="450, 30, *" Margin="30">
+        <!-- Main layout: cabinet area (left) + game list (right) -->
+        <Grid ColumnDefinitions="3*,2*" Margin="40,30,40,30">
 
-            <!-- LEFT: HEADER & LISTS -->
-            <Grid Grid.Column="0" RowDefinitions="Auto, *">
-                
-                <!-- Header (title for category view) -->
-                <TextBlock Text="{Binding CategoryTitle}" 
-                           FontSize="30" FontWeight="Light" Foreground="#88FFFFFF" Margin="0,0,0,20"
-                           IsVisible="{Binding IsCategorySelectionActive}"/>
-                           
-                <!-- Header (category name for game list view) -->
-                <TextBlock Text="{Binding SelectedCategory.Name}" 
-                           FontSize="30" FontWeight="Light" Foreground="#88FFFFFF" Margin="0,0,0,20"
+            <!-- LEFT: Arcade cabinet area -->
+            <Grid Grid.Column="0"
+                  ColumnDefinitions="Auto"
+                  RowDefinitions="Auto,*">
+
+                <!-- Optional: title as fallback if no marquee/logo is available -->
+                <TextBlock Grid.Row="0"
+                           Text="{Binding SelectedItem.Title}"
+                           FontSize="28"
+                           FontWeight="Bold"
+                           Foreground="#FFFFFF"
+                           Margin="0,0,0,8"
+                           TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding IsGameListActive}"/>
 
-                <!-- LIST: CATEGORIES -->
-                <Border Grid.Row="1" Background="#33000000" CornerRadius="8" Padding="10"
-                        IsVisible="{Binding IsCategorySelectionActive}">
-                    <ListBox ItemsSource="{Binding CurrentCategories}" 
-                             SelectedItem="{Binding SelectedCategory}"
-                             Background="Transparent"
-                             AutoScrollToSelectedItem="True">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Height="60">
-                                    <!-- LOGO -->
-                                    <Image converters:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
-                                           Stretch="Uniform" HorizontalAlignment="Left"
-                                           IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                    <!-- TEXT fallback -->
-                                    <TextBlock Text="{Binding Name}" FontSize="24" VerticalAlignment="Center" Padding="10,5" Foreground="White"
-                                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Border>
+                <!-- Cabinet composition -->
+                <Grid Grid.Row="1">
+                    <!-- Use a simple relative layout to approximate marquee / screen / panel areas.
+                         The exact proportions may be adjusted visually to match the cabinet PNG. -->
+                    <Grid Margin="0"
+                          RowDefinitions="2*,5*,2*">
 
-                <!-- LIST: GAMES -->
-                <Border Grid.Row="1" Background="#33000000" CornerRadius="8" Padding="10"
-                        IsVisible="{Binding IsGameListActive}">
-                    <ListBox ItemsSource="{Binding Items}" 
-                             SelectedItem="{Binding SelectedItem}"
-                             Background="Transparent"
-                             AutoScrollToSelectedItem="True">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Height="90" ColumnDefinitions="Auto, *"> <!-- 2 Spalten: Bild + Text -->
-                                        
-                                    <!-- COVER / ICON (column 0) -->
-                                    <!-- Show cover if available -->
-                                    <Image Grid.Column="0" 
-                                           converters:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
-                                           Width="70" Margin="0,5,15,5" Stretch="Uniform"
-                                           IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <!-- Marquee row -->
+                        <Grid Grid.Row="0"
+                              Margin="80,10,80,10">
 
-                                    <!-- TITLE (column 1) -->
-                                    <!-- Always show title as main info in the list -->
-                                    <TextBlock Grid.Column="1" 
-                                               Text="{Binding Title}" 
-                                               FontSize="22" 
-                                               VerticalAlignment="Center" 
-                                               Foreground="White"
-                                               TextTrimming="CharacterEllipsis"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Border>
+                            <!-- Dynamic marquee from item/node (ActiveMarqueePath) -->
+                            <Image Source="{Binding ActiveMarqueePath,
+                                                    Converter={StaticResource PathToBitmapConverter}}"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding ActiveMarqueePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                        </Grid>
+
+                        <!-- Screen row: bezel + video slot -->
+                        <Grid Grid.Row="1"
+                              Margin="60,0,60,0">
+                            <!-- Bezel artwork (item/node) -->
+                            <Image Source="{Binding ActiveBezelPath,
+                                                    Converter={StaticResource PathToBitmapConverter}}"
+                                   Stretch="UniformToFill"
+                                   HorizontalAlignment="Stretch"
+                                   VerticalAlignment="Stretch"
+                                   IsVisible="{Binding ActiveBezelPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+
+                            <!-- Video area: this slot is used by the host for the preview video.
+                                 Sized and positioned to sit inside the cabinet screen. -->
+                            <Border x:Name="VideoSlot"
+                                    Width="720"
+                                    Height="405"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    CornerRadius="12"
+                                    Background="#202020"
+                                    BorderBrush="#505050"
+                                    BorderThickness="2"
+                                    ClipToBounds="True">
+                                <!-- Simple static placeholder for now -->
+                                <TextBlock Text="Preview"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Foreground="#404040"
+                                           FontSize="20" />
+                            </Border>
+                        </Grid>
+
+                        <!-- Control panel row -->
+                        <Grid Grid.Row="2"
+                              Margin="40,10,40,0">
+                            <!-- Dynamic control panel artwork (item/node) -->
+                            <Image Source="{Binding ActiveControlPanelPath,
+                                                    Converter={StaticResource PathToBitmapConverter}}"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Top"
+                                   IsVisible="{Binding ActiveControlPanelPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                        </Grid>
+                    </Grid>
+                </Grid>
             </Grid>
 
-            <!-- RIGHT: DETAILS (shared for both views; also used for video slot) -->
-            <Grid Grid.Column="2" RowDefinitions="Auto, Auto, *">
-                
-                <!-- 1. LOGO AREA -->
-                <Panel Grid.Row="0" Height="150" Margin="0,0,0,20">
-                    <!-- Logo for category -->
-                    <Image converters:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoPath}"
-                           Stretch="Uniform" HorizontalAlignment="Left"
-                           IsVisible="{Binding IsCategorySelectionActive}"/>
-                           
-                    <!-- Logo for game (if present, via MediaItem.PrimaryLogoPath) -->
-                    <Image converters:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
-                           Stretch="Uniform" HorizontalAlignment="Left"
-                           IsVisible="{Binding IsGameListActive}"/>
-                </Panel>
+            <!-- RIGHT: Game logo list with basic highlight (pointer will come later) -->
+            <Border Grid.Column="1"
+                    Background="#22000000"
+                    CornerRadius="10"
+                    Padding="12">
+                <ListBox ItemsSource="{Binding Items}"
+                         SelectedItem="{Binding SelectedItem}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         AutoScrollToSelectedItem="True">
 
-                <!-- 2. VIDEO SLOT (placeholder only, actual VideoView comes from the host) -->
-                <Border x:Name="VideoSlot"
-                        Grid.Row="1"
-                        CornerRadius="12" ClipToBounds="True"
-                        Background="Transparent"
-                        Height="350" HorizontalAlignment="Left" Width="622"
-                        Margin="0,0,0,20" />
-
-                <!-- 3. DESCRIPTION -->
-                <ScrollViewer Grid.Row="2">
-                    <StackPanel>
-                        <!-- Description for category -->
-                        <TextBlock Text="{Binding SelectedCategory.Description}" 
-                                   FontSize="16" Foreground="#DDFFFFFF" TextWrapping="Wrap" LineHeight="24"
-                                   IsVisible="{Binding IsCategorySelectionActive}"/>
-                                   
-                            <!-- Details for game -->
-                            <StackPanel Spacing="15" IsVisible="{Binding IsGameListActive}">
-                                <!-- Description -->
-                                <TextBlock Text="{Binding SelectedItem.Description}" 
-                                           FontSize="16" Foreground="#DDFFFFFF" TextWrapping="Wrap" LineHeight="24"/>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Height="72"
+                                  Margin="0,4"
+                                  ColumnDefinitions="Auto,*">
                                 
-                                <!-- Metadata section -->
-                                <WrapPanel HorizontalAlignment="Left" ItemWidth="200">
-                                    <StackPanel Margin="0,0,20,0" IsVisible="{Binding SelectedItem.ReleaseDate, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                        <TextBlock Text="Release" Opacity="0.7" FontSize="14" FontWeight="Bold" Foreground="White"/>
-                                        <TextBlock Text="{Binding SelectedItem.ReleaseDate, StringFormat=d}" FontSize="14" Foreground="#CCFFFFFF"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="0,0,20,0" IsVisible="{Binding SelectedItem.Developer, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <TextBlock Text="Developer" Opacity="0.7" FontSize="14" FontWeight="Bold" Foreground="White"/>
-                                        <TextBlock Text="{Binding SelectedItem.Developer}" TextTrimming="CharacterEllipsis" FontSize="14" Foreground="#CCFFFFFF"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="0,0,20,0" IsVisible="{Binding SelectedItem.Genre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <TextBlock Text="Genre" Opacity="0.7" FontSize="14" FontWeight="Bold" Foreground="White"/>
-                                        <TextBlock Text="{Binding SelectedItem.Genre}" TextTrimming="CharacterEllipsis" FontSize="14" Foreground="#CCFFFFFF"/>
-                                    </StackPanel>
-                                </WrapPanel>
-                            </StackPanel>
-                    </StackPanel>
-                </ScrollViewer>
+                                <!-- Game logo (if present) -->
+                                <Image Grid.Column="0"
+                                       helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
+                                       Width="140"
+                                       Stretch="Uniform"
+                                       IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
 
-            </Grid>
-
+                                <!-- Fallback: title text if no logo -->
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Title}"
+                                           Margin="12,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="White"
+                                           FontSize="18"
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
         </Grid>
-        
+
         <!-- Bottom info bar (year, developer, game counter) -->
         <Border VerticalAlignment="Bottom"
-                Margin="30,0,30,20"
+                Margin="40,0,40,20"
                 CornerRadius="6"
                 Background="#66000000"
                 Padding="10,6">
             <Grid ColumnDefinitions="*,*,Auto">
 
-                <!-- Left: Year (only if a game is selected and year is known) -->
-                <TextBlock Grid.Column="0"
-                           HorizontalAlignment="Left"
-                           FontSize="14"
-                           Foreground="#CCFFFFFF"
-                           Text="{Binding SelectedYear}"
-                           IsVisible="{Binding SelectedYear, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                <!-- Left: Year + Developer -->
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Left"
+                            Spacing="8">
+                    <TextBlock FontSize="14"
+                               Foreground="#CCFFFFFF"
+                               Text="{Binding SelectedYear}"/>
+                    <TextBlock FontSize="14"
+                               Foreground="#CCFFFFFF"
+                               Text="{Binding SelectedDeveloper}"
+                               TextTrimming="CharacterEllipsis"
+                               Margin="8,0,0,0"/>
+                </StackPanel>
 
-                <!-- Center: Developer (only if a game is selected and developer is set) -->
-                <TextBlock Grid.Column="1"
-                           HorizontalAlignment="Center"
-                           FontSize="14"
-                           Foreground="#CCFFFFFF"
-                           Text="{Binding SelectedDeveloper}"
-                           TextTrimming="CharacterEllipsis"
-                           IsVisible="{Binding SelectedDeveloper, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-
-                <!-- Right: Game counter (X / Y) -->
+                <!-- Right: Game counter -->
                 <StackPanel Grid.Column="2"
                             Orientation="Horizontal"
                             HorizontalAlignment="Right"
@@ -213,7 +198,6 @@
                                Foreground="#CCFFFFFF"
                                Text="{Binding TotalGames}"/>
                 </StackPanel>
-
             </Grid>
         </Border>
     </Grid>
