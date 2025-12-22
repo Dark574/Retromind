@@ -68,7 +68,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Themes\Arcade\Images\" />
       <Folder Include="Themes\Wheel\sounds\" />
     </ItemGroup>
 </Project>

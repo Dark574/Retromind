@@ -41,11 +41,19 @@ public static class ThemeLoader
         if (string.IsNullOrWhiteSpace(themeDir) || !File.Exists(filePath))
         {
             var errorView = CreateErrorView(string.Format(Strings.Theme_Error_FileNotFoundFormat, filePath));
+            
+            // In error mode we reset ThemeBasePath to avoid pointing to a stale directory.
+            ThemeProperties.ThemeBasePath = null;
+            
             return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, videoEnabled: false);
         }
 
         try
         {
+            // At this point we have a valid theme file.
+            // Make the directory available globally for theme-local assets (cabinet, pointer, sounds, ...).
+            ThemeProperties.ThemeBasePath = themeDir;
+            
             var xamlContent = ReadXamlWithCache(filePath);
 
             var view = AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent)
