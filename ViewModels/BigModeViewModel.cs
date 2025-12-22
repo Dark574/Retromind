@@ -228,6 +228,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             Scale = 0f // 0 = scale to fill the control
         };
 
+        // Loop preview videos by restarting them when they reach the end.
+        MediaPlayer.EndReached += OnPreviewEndReached;
+        
         ForceExitCommand = new RelayCommand(() => RequestClose?.Invoke());
 
         // Subscribe to gamepad events (raised on SDL thread; handler methods must marshal if they touch UI state).

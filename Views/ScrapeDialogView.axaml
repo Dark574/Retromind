@@ -60,6 +60,12 @@
                                     <TextBlock Text="{Binding ReleaseDate, StringFormat={}{0:yyyy}}"
                                                FontSize="12"
                                                Foreground="Gray"/>
+                                    <TextBlock Text="{Binding Platform}"
+                                               FontSize="12"
+                                               Foreground="#666666"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxWidth="220"
+                                               IsVisible="{Binding Platform}"/>
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
@@ -100,6 +106,9 @@
 
                     <TextBlock Text="{x:Static p:Strings.Common_Rating}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Rating}" />
+                    
+                    <TextBlock Text="Platform" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding SelectedResult.Platform}" TextWrapping="Wrap"/>
                 </StackPanel>
             </ScrollViewer>
 

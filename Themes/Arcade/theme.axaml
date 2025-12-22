@@ -3,12 +3,14 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions"
              xmlns:helpers="using:Retromind.Helpers"
+             xmlns:ac="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls"
              x:DataType="vm:BigModeViewModel"
              Background="Black"
 
              ext:ThemeProperties.Name="Arcade"
              ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
-             ext:ThemeProperties.Version="0.1.0">
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.SelectedScale="1.0">
 
     <UserControl.Resources>
         <!-- Converter to load theme-local images (e.g. Images/cabinet.png, Images/pointer.png) -->
@@ -17,183 +19,205 @@
         <helpers:PathToBitmapConverter x:Key="PathToBitmapConverter" />
         <!-- Opacity helper for pointer visibility -->
         <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1.0" FalseOpacity="0.0" />
+        <!-- Logo-Scale-Converter -->
+        <helpers:BoolToScaleConverter x:Key="LogoScaleConverter"
+                                      NormalScale="1.0"
+                                      SelectedScale="1.5" />
     </UserControl.Resources>
 
-    <UserControl.Styles>
-        <!-- Base style for items in the game list -->
-        <Style Selector="ListBoxItem">
-            <Setter Property="Padding" Value="4"/>
-            <Setter Property="Margin" Value="0,2"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0,0,0,0"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-        </Style>
-
-        <!-- Selected item: slight background highlight -->
-        <Style Selector="ListBoxItem:selected">
-            <Setter Property="Background" Value="#40FFFFFF"/>
-        </Style>
-    </UserControl.Styles>
-
     <Grid>
-        <!-- Background: dark -->
-        <Rectangle Fill="#101015"/>
+        <!-- Background image (screenshot of the former video) + dark tint -->
+        <Grid>
+            <Image Source="{Binding Converter={StaticResource ThemeAssetConverter},
+                                    ConverterParameter=Images/background.jpg}"
+                   Stretch="UniformToFill"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   IsHitTestVisible="False" />
+
+            <!-- Dark tint above the image to keep text readable -->
+            <Rectangle Fill="#AA101015" IsHitTestVisible="False" />
+        </Grid>
 
         <!-- Main layout: cabinet area (left) + game list (right) -->
-        <Grid ColumnDefinitions="3*,2*" Margin="40,30,40,30">
+        <Grid ColumnDefinitions="3*,1.5*" Margin="40,30,40,30">
 
             <!-- LEFT: Arcade cabinet area -->
             <Grid Grid.Column="0"
                   ColumnDefinitions="Auto"
-                  RowDefinitions="Auto,*">
+                  RowDefinitions="*">
 
-                <!-- Optional: title as fallback if no marquee/logo is available -->
-                <TextBlock Grid.Row="0"
-                           Text="{Binding SelectedItem.Title}"
-                           FontSize="28"
-                           FontWeight="Bold"
-                           Foreground="#FFFFFF"
-                           Margin="0,0,0,8"
-                           TextTrimming="CharacterEllipsis"
-                           IsVisible="{Binding IsGameListActive}"/>
+                <!-- Skalierbare Cabinet-Area: alles darin wird proportional skaliert -->
+                <Viewbox Stretch="Uniform"
+                         StretchDirection="DownOnly"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Bottom"
+                         Margin="-40,80,0,0">
+                    <!-- Design-Koordinatensystem: 1280x720 (16:9) -->
+                    <Grid Width="1280"
+                          Height="720">
 
-                <!-- Cabinet composition -->
-                <Grid Grid.Row="1">
-                    <!-- Overlay grid: logical slots for marquee, bezel/screen and control panel.
-                             These are rendered first, so the cabinet image can sit visually on top. -->
-                    <Grid Margin="0"
-                          RowDefinitions="Auto,Auto,Auto"
-                          HorizontalAlignment="Center">
+                        <!-- Cabinet composition -->
+                        <Grid>
+                            <!-- Overlay-Layer: Marquee + Screen-Bereich -->
+                            <Grid Margin="0"
+                                  RowDefinitions="Auto,Auto"
+                                  HorizontalAlignment="Center">
 
-                        <!-- Marquee row -->
-                        <Border Grid.Row="0"
-                                Width="730"
-                                Height="180"
-                                Margin="-180,15,0,10"
-                                Background="Transparent"
-                                ClipToBounds="True">
-                            <Image Source="{Binding ActiveMarqueePath,
-                                                    Converter={StaticResource PathToBitmapConverter}}"
-                                   Stretch="UniformToFill"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   IsVisible="{Binding ActiveMarqueePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
-                        </Border>
-
-                        <!-- Screen row: bezel + video slot -->
-                        <Border Grid.Row="1"
-                                Width="660"
-                                Height="480"
-                                Margin="-175,85,0,10"
-                                Background="Transparent"
-                                ClipToBounds="True">
-                            <Grid>
-                                <!-- Bezel artwork (item/node) -->
-                                <Image Source="{Binding ActiveBezelPath,
-                                                        Converter={StaticResource PathToBitmapConverter}}"
-                                       Stretch="UniformToFill"
-                                       HorizontalAlignment="Stretch"
-                                       VerticalAlignment="Stretch"
-                                       IsVisible="{Binding ActiveBezelPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
-
-                                <!-- Video area: this slot is used by the host for the preview video.
-                                     Sized and positioned to sit inside the cabinet screen. -->
-                                <Border x:Name="VideoSlot"
-                                        Width="550"
-                                        Height="330"
-                                        Margin="0,-30,0,0"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        CornerRadius="12"
-                                        Background="#202020"
-                                        BorderBrush="#505050"
-                                        BorderThickness="2"
+                                <!-- Marquee (oben im 16:9-Automaten) -->
+                                <Border Grid.Row="0"
+                                        Width="580"
+                                        Height="122"
+                                        Margin="0,18,0,10"
+                                        Background="Transparent"
                                         ClipToBounds="True">
-                                    <TextBlock Text="Preview"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               Foreground="#404040"
-                                               FontSize="20" />
+                                    <Image Source="{Binding ActiveMarqueePath,
+                                                            Converter={StaticResource PathToBitmapConverter}}"
+                                           Stretch="UniformToFill"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IsVisible="{Binding ActiveMarqueePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                                </Border>
+
+                                <!-- Screen-Block (16:9) -->
+                                <Border Grid.Row="1"
+                                        Width="510"
+                                        Height="287"
+                                        Margin="0,30,0,0"
+                                        Background="Transparent"
+                                        ClipToBounds="True">
+                                    <Grid>
+                                        <!-- 16:9-Video-Slot -->
+                                        <Border x:Name="VideoSlot"
+                                                Width="340"
+                                                Height="255"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                CornerRadius="0"
+                                                Background="#000000"
+                                                BorderBrush="#505050"
+                                                BorderThickness="2"
+                                                ClipToBounds="True">
+                                            <!-- Placeholder-Text bei fehlendem Video -->
+                                            <TextBlock Text="Preview"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="#404040"
+                                                       FontSize="20" />
+                                        </Border>
+
+                                        <Image Source="{Binding ActiveBezelPath,
+                                                                Converter={StaticResource PathToBitmapConverter}}"
+                                               Stretch="UniformToFill"
+                                               HorizontalAlignment="Stretch"
+                                               VerticalAlignment="Stretch"
+                                               IsHitTestVisible="False"
+                                               IsVisible="{Binding ActiveBezelPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                                    </Grid>
                                 </Border>
                             </Grid>
-                        </Border>
-                    </Grid>
-                    
-                    <!-- Base cabinet artwork from the theme directory (drawn on top).
-                             The cabinet PNG should have transparent openings for marquee,
-                             screen and control panel so the inner content remains visible. -->
-                    <Image Source="{Binding Converter={StaticResource ThemeAssetConverter},
-                                                ConverterParameter=Images/cabinet.png}"
-                           Stretch="Uniform"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           IsHitTestVisible="False"/>
-                </Grid>
-                
-                <!-- Control panel row -->
-                <Border Grid.Row="1"
-                        Width="1200"
-                        Height="200"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Bottom"
-                        Margin="-150,0,0,10"
-                        Background="Transparent">
-                    <!-- <Border.Clip>
-                        <PathGeometry Figures="M200,0 L600,0 L620,120 L180,120 Z" />
-                    </Border.Clip> -->
 
-                    <Image Source="{Binding ActiveControlPanelPath,
-                                                    Converter={StaticResource PathToBitmapConverter}}"
-                           Stretch="Uniform"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           IsVisible="{Binding ActiveControlPanelPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
-                </Border>
+                            <!-- Cabinet-PNG oben drauf.
+                                 Diese Grafik hat eine große 16:9-Screen-Öffnung und einen separaten Marquee-Bereich. -->
+                            <Image Source="{Binding Converter={StaticResource ThemeAssetConverter},
+                                                    ConverterParameter=Images/cabinet.png}"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   IsHitTestVisible="False"/>
+                        </Grid>
+                    </Grid>
+                </Viewbox>
             </Grid>
 
-            <!-- RIGHT: Game logo list with pointer -->
+            <!-- RIGHT: vertical logo rail (inspired by the original video) -->
             <Border Grid.Column="1"
-                    Background="#22000000"
-                    CornerRadius="10"
-                    Padding="12">
-                <ListBox ItemsSource="{Binding Items}"
+                    Background="#66000000"
+                    CornerRadius="0"
+                    Padding="20,24"
+                    Margin="8,20,0,40"
+                    HorizontalAlignment="Stretch"
+                    MaxWidth="320">
+                <ListBox x:Name="ArcadeLogoList"
+                         ItemsSource="{Binding Items}"
                          SelectedItem="{Binding SelectedItem}"
                          Background="Transparent"
                          BorderThickness="0"
-                         AutoScrollToSelectedItem="True">
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Hidden">
+                    <!-- Lokale Styles nur für diese ListBox -->
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}">
+                                            <ContentPresenter Content="{TemplateBinding Content}"
+                                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+
+                            <!-- komplett transparenter Container, zentriert -->
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderBrush" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                        </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Vertical"
+                                        HorizontalAlignment="Center"
+                                        Spacing="8" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
 
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Grid Height="72"
-                                  Margin="0,4"
-                                  ColumnDefinitions="Auto,*,Auto">
-                                
-                                <!-- Game logo (if present) -->
-                                <Image Grid.Column="0"
-                                       helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
-                                       Width="140"
-                                       Stretch="Uniform"
-                                       IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                            <ac:LayoutTransformControl Margin="0,4"
+                                                       Padding="2"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center">
+                                <ac:LayoutTransformControl.LayoutTransform>
+                                    <ScaleTransform
+                                        ScaleX="{Binding $parent[ListBoxItem].IsSelected,
+                                     Converter={StaticResource LogoScaleConverter}}"
+                                        ScaleY="{Binding $parent[ListBoxItem].IsSelected,
+                                     Converter={StaticResource LogoScaleConverter}}"/>
+                                </ac:LayoutTransformControl.LayoutTransform>
 
-                                <!-- Fallback: title text if no logo -->
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding Title}"
-                                           Margin="12,0,0,0"
-                                           VerticalAlignment="Center"
-                                           Foreground="White"
-                                           FontSize="18"
-                                           TextTrimming="CharacterEllipsis"
-                                           IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
+                                <StackPanel Orientation="Vertical"
+                                            HorizontalAlignment="Center"
+                                            Spacing="2">
+                                    <!-- Logo -->
+                                    <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
+                                           Width="140"
+                                           Stretch="Uniform"
+                                           HorizontalAlignment="Center"
+                                           IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
 
-                                <!-- Pointer graphic on the right, bound to selection -->
-                                <Image Grid.Column="2"
-                                       Source="{Binding Converter={StaticResource ThemeAssetConverter},
-                                                        ConverterParameter=Images/pointer.png}"
-                                       Width="40"
-                                       HorizontalAlignment="Left"
-                                       VerticalAlignment="Center"
-                                       Opacity="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource BoolToOpacity}}"/>
-                            </Grid>
+                                    <!-- Fallback: Texttitel wenn kein Logo -->
+                                    <TextBlock Text="{Binding Title}"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="White"
+                                               TextAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxWidth="200"
+                                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
+                                </StackPanel>
+                            </ac:LayoutTransformControl>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

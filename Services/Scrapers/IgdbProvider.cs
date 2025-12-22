@@ -116,7 +116,7 @@ public class IgdbProvider : IMetadataProvider
         {
             // Query string with fields for metadata
             var igdbQuery =
-                $"search \"{query}\"; fields name, summary, first_release_date, total_rating, cover.url, artworks.url, screenshots.url, genres.name, involved_companies.company.name; limit 20;";
+                $"search \"{query}\"; fields name, summary, first_release_date, total_rating, cover.url, artworks.url, screenshots.url, genres.name, involved_companies.company.name, platforms.name; limit 20;";
 
             // Send request with retry logic
             var response = await SendWithRetryAsync(async () =>
@@ -169,6 +169,15 @@ public class IgdbProvider : IMetadataProvider
                     res.Developer = companiesArr[0]?["company"]?["name"]?.ToString();
                 }
 
+                // Platforms (comma-separated)
+                if (node["platforms"] is JsonArray platformsArr && platformsArr.Count > 0)
+                {
+                    res.Platform = string.Join(", ",
+                        platformsArr
+                            .Select(p => p?["name"]?.ToString())
+                            .Where(n => !string.IsNullOrWhiteSpace(n)));
+                }
+                
                 // Cover image
                 if (node["cover"]?["url"]?.ToString() is string coverUrl && !string.IsNullOrEmpty(coverUrl))
                 {

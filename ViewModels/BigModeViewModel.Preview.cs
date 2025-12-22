@@ -32,6 +32,30 @@ public partial class BigModeViewModel
 
     private CancellationTokenSource? _previewDebounceCts;
 
+    private void OnPreviewEndReached(object? sender, EventArgs e)
+    {
+        // Called on a VLC thread; marshal back to UI thread.
+        if (string.IsNullOrEmpty(_currentPreviewVideoPath))
+            return;
+
+        UiThreadHelper.Post(() =>
+        {
+            if (!CanShowVideo || !_isViewReady || _isLaunching || MediaPlayer == null)
+                return;
+
+            // Replay the current preview video from the beginning.
+            try
+            {
+                MediaPlayer.Stop();
+                MediaPlayer.Play();
+            }
+            catch
+            {
+                // best-effort only
+            }
+        }, DispatcherPriority.Background);
+    }
+    
     /// <summary>
     /// Must be called by the host once the theme view is fully loaded/layouted.
     /// If LibVLC starts playback too early, it may create its own output window (platform-dependent).
@@ -333,6 +357,7 @@ public partial class BigModeViewModel
             _currentPreviewMedia = null;
 
             var media = new Media(_libVlc, new Uri(videoPath));
+            
             _currentPreviewMedia = media;
 
             MediaPlayer.Media = media;

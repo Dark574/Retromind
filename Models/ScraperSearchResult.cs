@@ -73,6 +73,13 @@ public class ScraperSearchResult
     public string? Genre { get; set; }
     
     /// <summary>
+    /// Platform / system name (e.g. "Amiga", "PC (Windows)", "SNES").
+    /// For sources that support multiple platforms, this may be a
+    /// comma-separated list.
+    /// </summary>
+    public string? Platform { get; set; }
+    
+    /// <summary>
     /// Name of the provider source (e.g. "TMDB", "IGDB", "Screenscraper").
     /// Useful for debugging or UI badges.
     /// </summary>

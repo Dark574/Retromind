@@ -103,6 +103,9 @@ public partial class MainWindowViewModel
             _soundEffectService,
             _gamepadService);
 
+        // Launch-Requests aus BigMode an die zentrale Play-Logik anbinden
+        bigVm.RequestPlay += async item => await PlayMediaAsync(item);
+        
         var host = new BigModeHostView
         {
             DataContext = bigVm,
