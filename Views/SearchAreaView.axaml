@@ -109,8 +109,8 @@
 
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="models:MediaItem">
-                    <Border Width="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).ItemWidth, ElementName=Root}"
-                            Height="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).ItemWidth, ElementName=Root}"
+                    <Border Width="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).ItemWidth}"
+                            Height="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).ItemWidth}"
                             Margin="5"
                             CornerRadius="5"
                             ClipToBounds="True"
