@@ -6,6 +6,9 @@ Retromind is a Linux-first, portable media manager for organizing and launching 
 Built with **C#** + **Avalonia**.
 
 ## Status
+IMPORTANT:
+Retromind is currently at version 0.1-alpha. Data formats (retromind_tree.json, app_settings.json) can change between releases without a migration path. Therefore, use this version more for testing than for a large, long-term library.
+
 Work in progress. Expect breaking changes while features and data formats evolve.
 
 ## Key features (high-level)

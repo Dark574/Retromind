@@ -81,6 +81,61 @@
                                                   ToolTip.Tip="{x:Static p:Strings.Settings_UsePlaylistForMultiDisc_Hint}" />
                                     </StackPanel>
                                 </Expander>
+                                
+                                <!-- Native wrapper chain (Linux, emulator-level) -->
+                                <StackPanel Spacing="8" Margin="0,10,0,0"
+                                            DataContext="{Binding $parent[Window].((vm:SettingsViewModel)DataContext)}">
+                                    <TextBlock Text="Native Wrapper (Linux)" FontWeight="Bold" />
+
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <RadioButton Content="Inherit"
+                                                     IsChecked="{Binding IsNativeWrapperInherit, Mode=TwoWay}" />
+                                        <RadioButton Content="None"
+                                                     IsChecked="{Binding IsNativeWrapperNone, Mode=TwoWay}" />
+                                        <RadioButton Content="Override"
+                                                     IsChecked="{Binding IsNativeWrapperOverride, Mode=TwoWay}" />
+                                    </StackPanel>
+
+                                    <StackPanel IsVisible="{Binding IsNativeWrapperOverride}">
+                                        <Button Content="+ Add wrapper"
+                                                Command="{Binding AddEmulatorWrapperCommand}"
+                                                HorizontalAlignment="Left" />
+
+                                        <ItemsControl ItemsSource="{Binding EmulatorNativeWrappers}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#10000000" CornerRadius="4" Padding="8" Margin="0,5,0,0">
+                                                        <Grid ColumnDefinitions="*, 10, *, 10, Auto" RowDefinitions="Auto, Auto" >
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Path" />
+                                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Args" />
+
+                                                            <TextBox Grid.Row="1" Grid.Column="0"
+                                                                     Text="{Binding Path, Mode=TwoWay}"
+                                                                     Watermark="gamemoderun / mangohud / env" />
+
+                                                            <TextBox Grid.Row="1" Grid.Column="2"
+                                                                     Text="{Binding Args, Mode=TwoWay}" />
+
+                                                            <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="5">
+                                                                <Button Content="↑"
+                                                                        ToolTip.Tip="Move up"
+                                                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).MoveEmulatorWrapperUpCommand}"
+                                                                        CommandParameter="{Binding}" />
+                                                                <Button Content="↓"
+                                                                        ToolTip.Tip="Move down"
+                                                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).MoveEmulatorWrapperDownCommand}"
+                                                                        CommandParameter="{Binding}" />
+                                                                <Button Content="✕"
+                                                                        Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).RemoveEmulatorWrapperCommand}"
+                                                                        CommandParameter="{Binding .}" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </ScrollViewer>

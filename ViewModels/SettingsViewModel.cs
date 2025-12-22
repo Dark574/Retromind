@@ -42,6 +42,89 @@ public partial class SettingsViewModel : ViewModelBase
     public ObservableCollection<EmulatorConfig> Emulators { get; } = new();
     public ObservableCollection<ScraperConfig> Scrapers { get; } = new();
 
+    /// <summary>
+    /// Lightweight UI row for editing a single wrapper (Path + Args) on emulator level.
+    /// Mirrors <see cref="LaunchWrapper"/> but keeps the model decoupled from live editing.
+    /// </summary>
+    public sealed partial class LaunchWrapperRow : ObservableObject
+    {
+        [ObservableProperty] private string _path = string.Empty;
+        [ObservableProperty] private string _args = string.Empty;
+
+        public LaunchWrapperRow()
+        {
+        }
+
+        public LaunchWrapperRow(LaunchWrapper wrapper)
+        {
+            Path = wrapper.Path ?? string.Empty;
+            Args = wrapper.Args ?? string.Empty;
+        }
+
+        public LaunchWrapper ToModel()
+            => new LaunchWrapper
+            {
+                Path = Path?.Trim() ?? string.Empty,
+                Args = string.IsNullOrWhiteSpace(Args) ? null : Args
+            };
+    }
+
+    /// <summary>
+    /// Current wrapper mode of the selected emulator (tri-state).
+    /// Direct proxy for SelectedEmulator.NativeWrapperMode, but safe when null.
+    /// </summary>
+    public EmulatorConfig.WrapperMode EmulatorWrapperMode
+    {
+        get => SelectedEmulator?.NativeWrapperMode ?? EmulatorConfig.WrapperMode.Inherit;
+        set
+        {
+            if (SelectedEmulator == null) return;
+            if (SelectedEmulator.NativeWrapperMode == value) return;
+
+            SelectedEmulator.NativeWrapperMode = value;
+            OnPropertyChanged(nameof(EmulatorWrapperMode));
+            OnPropertyChanged(nameof(IsNativeWrapperInherit));
+            OnPropertyChanged(nameof(IsNativeWrapperNone));
+            OnPropertyChanged(nameof(IsNativeWrapperOverride));
+        }
+    }
+
+    /// <summary>
+    /// UI collection bound to the emulator wrapper editor.
+    /// This list is re-synchronized when SelectedEmulator changes.
+    /// </summary>
+    public ObservableCollection<LaunchWrapperRow> EmulatorNativeWrappers { get; } = new();
+
+    public bool IsNativeWrapperInherit
+    {
+        get => EmulatorWrapperMode == EmulatorConfig.WrapperMode.Inherit;
+        set
+        {
+            if (!value) return;
+            EmulatorWrapperMode = EmulatorConfig.WrapperMode.Inherit;
+        }
+    }
+
+    public bool IsNativeWrapperNone
+    {
+        get => EmulatorWrapperMode == EmulatorConfig.WrapperMode.None;
+        set
+        {
+            if (!value) return;
+            EmulatorWrapperMode = EmulatorConfig.WrapperMode.None;
+        }
+    }
+
+    public bool IsNativeWrapperOverride
+    {
+        get => EmulatorWrapperMode == EmulatorConfig.WrapperMode.Override;
+        set
+        {
+            if (!value) return;
+            EmulatorWrapperMode = EmulatorConfig.WrapperMode.Override;
+        }
+    }
+    
     // Commands
     public IRelayCommand AddEmulatorCommand { get; }
     public IRelayCommand RemoveEmulatorCommand { get; }
@@ -50,6 +133,12 @@ public partial class SettingsViewModel : ViewModelBase
     public IRelayCommand SaveCommand { get; }
     public IAsyncRelayCommand BrowsePathCommand { get; }
 
+    // Emulator wrapper editor commands
+    public IRelayCommand AddEmulatorWrapperCommand { get; }
+    public IRelayCommand<LaunchWrapperRow?> RemoveEmulatorWrapperCommand { get; }
+    public IRelayCommand<LaunchWrapperRow?> MoveEmulatorWrapperUpCommand { get; }
+    public IRelayCommand<LaunchWrapperRow?> MoveEmulatorWrapperDownCommand { get; }
+    
     public event Action? RequestClose;
 
     // Optional dependency injection for file dialogs (better for testing)
@@ -79,6 +168,22 @@ public partial class SettingsViewModel : ViewModelBase
         
         SaveCommand = new RelayCommand(Save);
         BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync, () => SelectedEmulator != null);
+        
+        // Emulator-wrapper commands
+        AddEmulatorWrapperCommand = new RelayCommand(AddEmulatorWrapper);
+        RemoveEmulatorWrapperCommand = new RelayCommand<LaunchWrapperRow?>(RemoveEmulatorWrapper);
+        MoveEmulatorWrapperUpCommand = new RelayCommand<LaunchWrapperRow?>(
+            MoveEmulatorWrapperUp,
+            row => row != null && EmulatorNativeWrappers.IndexOf(row) > 0);
+
+        MoveEmulatorWrapperDownCommand = new RelayCommand<LaunchWrapperRow?>(
+            MoveEmulatorWrapperDown,
+            row =>
+            {
+                if (row == null) return false;
+                var idx = EmulatorNativeWrappers.IndexOf(row);
+                return idx >= 0 && idx < EmulatorNativeWrappers.Count - 1;
+            });
     }
 
     // --- Computed Properties for UI Hints ---
@@ -99,6 +204,38 @@ public partial class SettingsViewModel : ViewModelBase
         RefreshHintProperties();
     }
 
+    partial void OnSelectedEmulatorChanged(EmulatorConfig? oldValue, EmulatorConfig? newValue)
+    {
+        // Rebuild wrapper UI collection based on the newly selected emulator.
+        EmulatorNativeWrappers.Clear();
+
+        if (newValue?.NativeWrappersOverride == null)
+        {
+            EmulatorWrapperMode = newValue?.NativeWrapperMode ?? EmulatorConfig.WrapperMode.Inherit;
+        }
+        else if (newValue.NativeWrappersOverride.Count == 0)
+        {
+            EmulatorWrapperMode = EmulatorConfig.WrapperMode.None;
+        }
+        else
+        {
+            EmulatorWrapperMode = EmulatorConfig.WrapperMode.Override;
+
+            foreach (var w in newValue.NativeWrappersOverride)
+            {
+                EmulatorNativeWrappers.Add(new LaunchWrapperRow(w));
+            }
+        }
+
+        OnPropertyChanged(nameof(EmulatorWrapperMode));
+        OnPropertyChanged(nameof(IsNativeWrapperInherit));
+        OnPropertyChanged(nameof(IsNativeWrapperNone));
+        OnPropertyChanged(nameof(IsNativeWrapperOverride));
+
+        MoveEmulatorWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveEmulatorWrapperDownCommand.NotifyCanExecuteChanged();
+    }
+
     private void OnScraperPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ScraperConfig.Type))
@@ -112,6 +249,47 @@ public partial class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsTmdbSelected));
         OnPropertyChanged(nameof(IsIgdbSelected));
         OnPropertyChanged(nameof(IsEmuMoviesSelected));
+    }
+
+    // --- Emulator wrapper editor actions ---
+
+    private void AddEmulatorWrapper()
+    {
+        EmulatorNativeWrappers.Add(new LaunchWrapperRow());
+        MoveEmulatorWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveEmulatorWrapperDownCommand.NotifyCanExecuteChanged();
+    }
+
+    private void RemoveEmulatorWrapper(LaunchWrapperRow? row)
+    {
+        if (row == null) return;
+        EmulatorNativeWrappers.Remove(row);
+        MoveEmulatorWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveEmulatorWrapperDownCommand.NotifyCanExecuteChanged();
+    }
+
+    private void MoveEmulatorWrapperUp(LaunchWrapperRow? row)
+    {
+        if (row == null) return;
+
+        var idx = EmulatorNativeWrappers.IndexOf(row);
+        if (idx <= 0) return;
+
+        EmulatorNativeWrappers.Move(idx, idx - 1);
+        MoveEmulatorWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveEmulatorWrapperDownCommand.NotifyCanExecuteChanged();
+    }
+
+    private void MoveEmulatorWrapperDown(LaunchWrapperRow? row)
+    {
+        if (row == null) return;
+
+        var idx = EmulatorNativeWrappers.IndexOf(row);
+        if (idx < 0 || idx >= EmulatorNativeWrappers.Count - 1) return;
+
+        EmulatorNativeWrappers.Move(idx, idx + 1);
+        MoveEmulatorWrapperUpCommand.NotifyCanExecuteChanged();
+        MoveEmulatorWrapperDownCommand.NotifyCanExecuteChanged();
     }
     
     // --- Actions ---
@@ -157,6 +335,28 @@ public partial class SettingsViewModel : ViewModelBase
     
     private void Save()
     {
+        // Persist emulator wrapper configuration from UI into the model
+        if (SelectedEmulator != null)
+        {
+            switch (EmulatorWrapperMode)
+            {
+                case EmulatorConfig.WrapperMode.Inherit:
+                    SelectedEmulator.NativeWrappersOverride = null;
+                    break;
+
+                case EmulatorConfig.WrapperMode.None:
+                    SelectedEmulator.NativeWrappersOverride = new System.Collections.Generic.List<LaunchWrapper>();
+                    break;
+
+                case EmulatorConfig.WrapperMode.Override:
+                    SelectedEmulator.NativeWrappersOverride = EmulatorNativeWrappers
+                        .Select(x => x.ToModel())
+                        .Where(x => !string.IsNullOrWhiteSpace(x.Path))
+                        .ToList();
+                    break;
+            }
+        }
+        
         // Persist changes back to the main settings object
         _appSettings.Emulators.Clear();
         _appSettings.Emulators.AddRange(Emulators);

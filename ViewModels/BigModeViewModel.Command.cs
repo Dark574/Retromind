@@ -57,6 +57,18 @@ public partial class BigModeViewModel
         });
 
     /// <summary>
+    /// Immediately exits BigMode regardless of the current navigation depth.
+    /// Intended for keyboard ESC (quick way back to desktop UI),
+    /// while gamepad back keeps its step-by-step behavior.
+    /// </summary>
+    [RelayCommand]
+    private void HardExitBigMode()
+    {
+        ThemeContextNode = null;
+        RequestClose?.Invoke();
+    }
+    
+    /// <summary>
     /// Gamepad callbacks arrive on the SDL thread.
     /// All UI-bound state changes must be marshaled to the UI thread.
     /// </summary>

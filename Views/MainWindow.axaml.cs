@@ -163,6 +163,10 @@ public partial class MainWindow : Window
                     e.Handled = true;
                     break;
                 case Key.Escape:
+                    // ESC: always exit BigMode completely.
+                    bigVm.HardExitBigModeCommand.Execute(null);
+                    e.Handled = true;
+                    break;
                 case Key.Back:
                     bigVm.ExitBigModeCommand.Execute(null);
                     e.Handled = true;

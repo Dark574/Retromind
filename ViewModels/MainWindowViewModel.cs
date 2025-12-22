@@ -97,6 +97,9 @@ public partial class MainWindowViewModel : ViewModelBase
     // Helper to access the current window for dialogs
     private Window? CurrentWindow => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
+    // Remember the window state before entering BigMode so we can restore it afterwards.
+    private WindowState _previousWindowState = WindowState.Maximized;
+    
     public ObservableCollection<MediaNode> RootItems
     {
         get => _rootItems;

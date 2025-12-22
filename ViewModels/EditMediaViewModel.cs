@@ -24,6 +24,10 @@ public partial class EditMediaViewModel : ViewModelBase
     
     private readonly ObservableCollection<MediaNode> _rootNodes;
     private readonly MediaNode? _parentNode;
+    
+    // Keep a reference to global settings so preview can resolve emulator profiles
+    // and default native wrappers in the same way as the runtime launcher.
+    private readonly AppSettings _settings;
 
     // --- Prefix (Wine/Proton/UMU) ---
 
@@ -371,6 +375,7 @@ public partial class EditMediaViewModel : ViewModelBase
         
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
         _parentNode = parentNode;
+        _settings = settings;
 
         // Prefix commands
         GeneratePrefixCommand = new RelayCommand(GeneratePrefix);
@@ -717,13 +722,16 @@ public partial class EditMediaViewModel : ViewModelBase
     
     private List<LaunchWrapper> ResolveEffectiveNativeWrappersForPreview()
     {
-        // 1) Item-level tri-state (based on current UI state)
+        // 1) Item-level tri-state (based on current UI state in the dialog)
+        //    This reflects unsaved overrides directly from the edit UI.
         switch (NativeWrapperMode)
         {
             case WrapperMode.None:
-                return new List<LaunchWrapper>(); // explicit "no wrappers"
+                // Explicit "no wrappers" for this item.
+                return new List<LaunchWrapper>();
 
             case WrapperMode.Override:
+                // Use the item-level override list from the UI (ignoring node/emulator).
                 return NativeWrappers
                     .Select(x => x.ToModel())
                     .Where(x => !string.IsNullOrWhiteSpace(x.Path))
@@ -731,28 +739,93 @@ public partial class EditMediaViewModel : ViewModelBase
 
             case WrapperMode.Inherit:
             default:
+                // Fall through to emulator/node chain resolution.
                 break;
         }
 
-        // 2) Node-level inheritance (nearest override wins)
-        if (_parentNode == null || _rootNodes.Count == 0)
-            return new List<LaunchWrapper>();
+        // 2) Emulator-level base (matches PlayMediaAsync semantics for MediaType.Native)
+        List<LaunchWrapper>? wrappers = null;
 
-        var chain = GetNodeChain(_parentNode, _rootNodes);
+        EmulatorConfig? effectiveEmulator = null;
 
-        // nearest wins => walk from leaf to root
-        for (int i = chain.Count - 1; i >= 0; i--)
+        // 2a) If the item has an explicit emulator assigned, use it.
+        if (!string.IsNullOrWhiteSpace(_originalItem.EmulatorId))
         {
-            var node = chain[i];
-            if (node.NativeWrappersOverride == null)
-                continue; // inherit
+            effectiveEmulator = _settings.Emulators
+                .FirstOrDefault(e => e.Id == _originalItem.EmulatorId);
+        }
+        else if (_parentNode != null)
+        {
+            // 2b) Otherwise traverse node chain upwards to find a DefaultEmulatorId.
+            var chain = GetNodeChain(_parentNode, _rootNodes);
+            chain.Reverse(); // Leaf first (nearest wins)
 
-            // empty => none; non-empty => override
-            return node.NativeWrappersOverride.ToList();
+            foreach (var node in chain)
+            {
+                if (string.IsNullOrWhiteSpace(node.DefaultEmulatorId))
+                    continue;
+
+                effectiveEmulator = _settings.Emulators
+                    .FirstOrDefault(e => e.Id == node.DefaultEmulatorId);
+
+                if (effectiveEmulator != null)
+                    break;
+            }
         }
 
-        // 3) Global defaults (noch nicht im Edit-Dialog verfügbar) => none for now
-        return new List<LaunchWrapper>();
+        if (effectiveEmulator != null)
+        {
+            switch (effectiveEmulator.NativeWrapperMode)
+            {
+                case EmulatorConfig.WrapperMode.Inherit:
+                    // Inherit from global defaults (may be null).
+                    wrappers = _settings.DefaultNativeWrappers;
+                    break;
+
+                case EmulatorConfig.WrapperMode.None:
+                    // Explicitly no wrappers for this emulator (unless item overrides, which it doesn't in Inherit mode).
+                    wrappers = new List<LaunchWrapper>();
+                    break;
+
+                case EmulatorConfig.WrapperMode.Override:
+                    // Use emulator-level override list (may be empty to mean "none").
+                    wrappers = effectiveEmulator.NativeWrappersOverride != null
+                        ? new List<LaunchWrapper>(effectiveEmulator.NativeWrappersOverride)
+                        : new List<LaunchWrapper>();
+                    break;
+            }
+        }
+        else
+        {
+            // No emulator: start with global defaults only.
+            wrappers = _settings.DefaultNativeWrappers;
+        }
+
+        // 3) Node-level inheritance (nearest override wins, tri-state via null/empty/non-empty).
+        if (_parentNode != null && _rootNodes.Count > 0)
+        {
+            var chain = GetNodeChain(_parentNode, _rootNodes);
+            chain.Reverse(); // Leaf (parent) first
+
+            foreach (var node in chain)
+            {
+                if (node.NativeWrappersOverride == null)
+                {
+                    // Inherit -> nothing to do here, continue upwards.
+                    continue;
+                }
+
+                // Empty list => explicit "none" at node level.
+                // Non-empty   => node-level override.
+                wrappers = node.NativeWrappersOverride;
+                break;
+            }
+        }
+
+        // 4) Final normalization: return a concrete list (never null).
+        return wrappers != null
+            ? wrappers.ToList()
+            : new List<LaunchWrapper>();
     }
 
     private static string BuildWrappedCommandLine(string innerCommand, IReadOnlyList<LaunchWrapper> wrappers)

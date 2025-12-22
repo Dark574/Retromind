@@ -93,6 +93,17 @@ public partial class MainWindowViewModel
         // Stop music immediately to avoid overlap and to keep the UI responsive.
         _audioService.StopMusic();
 
+        // Switch main window to fullscreen while BigMode is active.
+        var window = CurrentWindow;
+        if (window != null)
+        {
+            _previousWindowState = window.WindowState;
+            if (window.WindowState != WindowState.FullScreen)
+            {
+                window.WindowState = WindowState.FullScreen;
+            }
+        }
+        
         var initialThemePath = GetEffectiveThemePath(SelectedNode);
         var initialTheme = ThemeLoader.LoadTheme(initialThemePath);
 
@@ -171,6 +182,15 @@ public partial class MainWindowViewModel
 
                     FullScreenContent = null;
 
+                    // Restore the previous window state after leaving BigMode.
+                    var window = CurrentWindow;
+                    if (window != null &&
+                        window.WindowState == WindowState.FullScreen &&
+                        _previousWindowState != WindowState.FullScreen)
+                    {
+                        window.WindowState = _previousWindowState;
+                    }
+                    
                     bigVm.Dispose();
                     await SyncSelectionFromBigModeAsync();
                 }
@@ -422,31 +442,62 @@ public partial class MainWindowViewModel
 
             if (item.MediaType == MediaType.Native)
             {
-                // Item override wins (null=inherits, empty=explicit none)
-                if (item.NativeWrappersOverride != null)
+                List<LaunchWrapper>? wrappers = null;
+
+                // 1) Emulator-Ebene (falls vorhanden)
+                if (emulator != null)
                 {
-                    effectiveWrappers = item.NativeWrappersOverride;
+                    switch (emulator.NativeWrapperMode)
+                    {
+                        case EmulatorConfig.WrapperMode.Inherit:
+                            // Inherit from global defaults (may be null)
+                            wrappers = _currentSettings.DefaultNativeWrappers;
+                            break;
+
+                        case EmulatorConfig.WrapperMode.None:
+                            // Explicitly no wrappers for this emulator (unless item overrides later)
+                            wrappers = new List<LaunchWrapper>();
+                            break;
+
+                        case EmulatorConfig.WrapperMode.Override:
+                            // Use emulator-level override list (may be empty to mean "none")
+                            wrappers = emulator.NativeWrappersOverride != null
+                                ? new List<LaunchWrapper>(emulator.NativeWrappersOverride)
+                                : new List<LaunchWrapper>();
+                            break;
+                    }
                 }
                 else
                 {
-                    // Start with global defaults
-                    List<LaunchWrapper>? wrappers = _currentSettings.DefaultNativeWrappers;
+                    // Kein Emulator: nur globale Defaults als Basis
+                    wrappers = _currentSettings.DefaultNativeWrappers;
+                }
 
-                    // Node override (nearest wins)
-                    var chain = GetNodeChain(trueParent, RootItems);
-                    chain.Reverse();
+                // 2) Node-Ebene (nearest node in chain; tri-state über null/leer/nicht-leer)
+                var chain = GetNodeChain(trueParent, RootItems);
+                chain.Reverse(); // Leaf (trueParent) zuerst
 
-                    foreach (var node in chain)
+                foreach (var node in chain)
+                {
+                    if (node.NativeWrappersOverride == null)
                     {
-                        if (node.NativeWrappersOverride != null)
-                        {
-                            wrappers = node.NativeWrappersOverride;
-                            break;
-                        }
+                        // Inherit -> nichts tun, nächste Ebene entscheidet
+                        continue;
                     }
 
-                    effectiveWrappers = wrappers;
+                    // Empty list => explizit "keine Wrapper" auf Node-Ebene
+                    // Non-empty => Override
+                    wrappers = node.NativeWrappersOverride;
+                    break;
                 }
+
+                // 3) Item-Ebene (gewinnt immer, tri-state über null/leer/nicht-leer)
+                if (item.NativeWrappersOverride != null)
+                {
+                    wrappers = item.NativeWrappersOverride;
+                }
+
+                effectiveWrappers = wrappers;
             }
 
             await _launcherService.LaunchAsync(

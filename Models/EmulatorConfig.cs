@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Retromind.Models;
@@ -8,6 +9,19 @@ namespace Retromind.Models;
 /// </summary>
 public partial class EmulatorConfig : ObservableObject
 {
+    /// <summary>
+    /// Wrapper inheritance mode at emulator level.
+    /// Inherit: no explicit wrappers here, let Node/Item decide.
+    /// None:    explicitly disable all wrappers for this emulator (unless overridden by item).
+    /// Override: use the list in <see cref="NativeWrappersOverride"/> as the base chain.
+    /// </summary>
+    public enum WrapperMode
+    {
+        Inherit,
+        None,
+        Override
+    }
+    
     /// <summary>
     /// Unique identifier for this profile.
     /// </summary>
@@ -42,4 +56,17 @@ public partial class EmulatorConfig : ObservableObject
     // For runners like UMU/Proton/Wine that benefit from per-game prefixes.
     [ObservableProperty]
     private bool _usesWinePrefix;
+    
+    /// <summary>
+    /// Emulator-level wrapper mode. See <see cref="WrapperMode"/> for semantics.
+    /// Default is Inherit, which means "no explicit wrappers here, defer to Node/Item".
+    /// </summary>
+    [ObservableProperty]
+    private WrapperMode _nativeWrapperMode = WrapperMode.Inherit;
+
+    /// <summary>
+    /// Optional emulator-level wrapper chain. Only used when <see cref="NativeWrapperMode"/> is Override.
+    /// For example: gamemoderun, mangohud, env FOO=bar.
+    /// </summary>
+    public List<LaunchWrapper>? NativeWrappersOverride { get; set; }
 }
