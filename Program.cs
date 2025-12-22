@@ -61,7 +61,8 @@ internal sealed class Program
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
-            .LogToTrace()
+            // Only log errors (suppress most binding warnings like "Value is null")
+            .LogToTrace(Avalonia.Logging.LogEventLevel.Error)
             .AfterSetup(builder => 
             {
                 if (App.Current is App app)
