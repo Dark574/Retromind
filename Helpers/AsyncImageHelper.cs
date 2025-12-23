@@ -218,7 +218,7 @@ public class AsyncImageHelper : AvaloniaObject
     {
         lock (CacheLock)
         {
-            // Nimm die zuletzt genutzte Variante (MRU), die zur URL passt.
+            // Take the most recently used variant (MRU) that matches the URL
             for (var node = LruList.Last; node != null; node = node.Previous)
             {
                 var key = node.Value;

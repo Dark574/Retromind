@@ -29,12 +29,12 @@
         </DataTemplate>
     </Window.DataTemplates>
 
-    <!-- Wir nutzen ein Panel als Root, um Layering zu ermöglichen -->
+    <!-- We use a panel as the root to enable layering -->
     <Panel>
-       <!-- LAYER -1: Globaler Fallback Hintergrund -->
+       <!-- LAYER -1: Global Fallback Background -->
        <Border Background="{Binding WindowBackground}" />
 
-       <!-- LAYER 0: Wallpaper (legt sich drüber) -->
+       <!-- LAYER 0: Wallpaper (lies over it) -->
        <Image x:CompileBindings="False"
               helpers:AsyncImageHelper.Url="{Binding SelectedNodeContent.SelectedMediaItem.PrimaryWallpaperPath}"
               Stretch="UniformToFill"
@@ -42,17 +42,17 @@
               IsHitTestVisible="False"
               IsVisible="{Binding SelectedNodeContent.SelectedMediaItem.PrimaryWallpaperPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
        
-       <!-- LAYER 1: Das UI Grid (mit teil-transparenten Hintergründen) -->
-       <Grid RowDefinitions="30, *"> <!-- Neue Zeile für Custom Titlebar -->
+       <!-- LAYER 1: The UI Grid (with semi-transparent backgrounds) -->
+       <Grid RowDefinitions="30, *"> <!-- New line for custom title bar -->
        
-           <!-- CUSTOM TITLEBAR (Zeile 0) -->
+           <!-- CUSTOM TITLEBAR (line 0) -->
            <Grid Grid.Row="0" Background="{Binding WindowBackground}" PointerPressed="OnTitleBarPointerPressed"
                  ColumnDefinitions="*, Auto">
                
-               <!-- Titel -->
+               <!-- Title -->
                <TextBlock Grid.Column="0" Text="{Binding Title, ElementName=MainWin}" 
                           VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.5" 
-                          IsHitTestVisible="False"/> <!-- Wichtig: HitTestFalse damit Drag geht -->
+                          IsHitTestVisible="False"/> <!-- Important: HitTestFalse for drag to work -->
                
                <!-- Buttons StackPanel -->
                <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -72,10 +72,10 @@
                </StackPanel>
            </Grid>
 
-           <!-- REST DER APP (Zeile 1) -->
+           <!-- REST OF THE APP (Line 1) -->
            <Grid Grid.Row="1">
-               <!-- LAYER 1: Das UI Grid (mit teil-transparenten Hintergründen) -->
-               <!-- TextElement.Foreground vererbt die Farbe an alle Kinder, außer sie überschreiben es -->
+               <!-- LAYER 1: The UI Grid (with semi-transparent backgrounds) -->
+               <!-- TextElement.Foreground inherits the color to all children unless they override it -->
                <Grid TextElement.Foreground="{Binding TextColor}">
                    <Grid.ColumnDefinitions>
                        <ColumnDefinition Width="{Binding TreePaneWidth, Mode=TwoWay}" MinWidth="100" />
@@ -85,16 +85,16 @@
                        <ColumnDefinition Width="{Binding DetailPaneWidth, Mode=TwoWay}" MinWidth="200" />
                    </Grid.ColumnDefinitions>
 
-                   <!-- LEFT CONTENT (Spalte 0) -->
-                   <!-- Background an PanelBackground binden! -->
+                   <!-- LEFT CONTENT (column 0) -->
+                   <!-- Bind Background to PanelBackground -->
                    <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="0,0,1,0" 
                            Background="{Binding PanelBackground}">
 
-                       <!-- Wir packen TreeView und Header in ein Grid -->
+                       <!-- We're putting the TreeView and header into a grid -->
                        <Grid RowDefinitions="Auto, *">
 
-                           <!-- Header Leiste mit Settings Button -->
-                           <!-- KORRIGIERT: Eine "Auto" Spalte mehr hinzugefügt -->
+                           <!-- Header bar with settings button -->
+                           <!-- CORRECTED: Added one more "Car" column -->
                            <Grid Grid.Row="0" ColumnDefinitions="*, Auto, Auto, Auto, Auto" Margin="10">
                                <TextBlock Text="{x:Static p:Strings.Media_Library}" 
                                           FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
@@ -107,7 +107,7 @@
                                        FontSize="16" Cursor="Hand" Margin="0,0,5,0"
                                        Foreground="{Binding TextColor}"/>
 
-                               <!-- Such-Button integriert im Header -->
+                               <!-- Search button integrated into the header -->
                                <Button Grid.Column="2" Content="🔍" 
                                        Command="{Binding OpenSearchCommand}"
                                        Background="Transparent" BorderThickness="0"
@@ -131,7 +131,7 @@
                                        Foreground="{Binding TextColor}"/>
                            </Grid>
 
-                           <!-- Der eigentliche Baum -->
+                           <!-- The actual tree -->
                            <TreeView x:Name="Tree" Grid.Row="1"
                                      ItemsSource="{Binding RootItems}"
                                      SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Background="Transparent">
@@ -148,24 +148,24 @@
                                    <Style Selector="TreeViewItem">
                                        <Setter x:DataType="models:MediaNode" Property="IsExpanded"
                                                Value="{Binding IsExpanded, Mode=TwoWay}" />
-                                       <!-- Textfarbe explizit setzen, da TreeViewItem manchmal eigene Styles hat -->
+                                       <!-- Set text color explicitly, as TreeViewItem sometimes has its own styles -->
                                        <Setter Property="Foreground" Value="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TextColor}" />
                                    </Style>
                                </TreeView.Styles>
                                <TreeView.ItemTemplate>
-                                   <!-- TreeDataTemplate für die Nodes -->
+                                   <!-- TreeDataTemplate for the nodes -->
                                    <TreeDataTemplate x:DataType="models:MediaNode" ItemsSource="{Binding Children}">
                                        <Grid Background="Transparent">
                                            <Grid.ContextMenu>
                                                <ContextMenu>
-                                                   <!-- VEREINFACHT & LOKALISIERT -->
+                                                   <!-- SIMPLIFIED & LOCALIZED -->
                                                    <MenuItem Header="{x:Static p:Strings.Ctx_Category_Add}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddCategoryCommand}"
                                                              CommandParameter="{Binding .}" />
 
                                                    <Separator />
                                                    
-                                                   <!-- IMPORT UNTERMENÜ -->
+                                                   <!-- IMPORT SUBMENU -->
                                                    <MenuItem Header="{x:Static p:Strings.Button_Import}" FontWeight="Bold">
                                                        <MenuItem Header="{x:Static p:Strings.Import_Roms}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
@@ -190,7 +190,7 @@
 
                                                    <Separator/>
 
-                                                   <!-- Einstellungen für den Ordner -->
+                                                   <!-- Settings for the folder -->
                                                    <MenuItem Header="{x:Static p:Strings.Media_Settings}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditNodeCommand}"
                                                              CommandParameter="{Binding .}"/>
@@ -215,8 +215,8 @@
                    <!-- Splitter 1 -->
                    <GridSplitter Grid.Column="1" Width="5" Background="#DDDDDD" Opacity="0.5" ResizeBehavior="PreviousAndNext" />
 
-                   <!-- MIDDLE CONTENT (Spalte 2) -->
-                   <!-- Background entfernen, damit Wallpaper voll durchkommt -->
+                   <!-- MIDDLE CONTENT (column 2) -->
+                   <!-- Remove the background so the wallpaper shows through completely -->
                    <Border Grid.Column="2" Background="Transparent"> <!-- Transparent! -->
                        <ContentControl Content="{Binding SelectedNodeContent}" />
                    </Border>
@@ -224,8 +224,8 @@
                    <!-- Splitter 2 -->
                    <GridSplitter Grid.Column="3" Width="5" Background="#DDDDDD" Opacity="0.5" ResizeBehavior="PreviousAndNext" />
 
-                   <!-- RIGHT CONTENT (Spalte 4) -->
-                   <!-- Background an PanelBackground binden! -->
+                   <!-- RIGHT CONTENT (column 4) -->
+                   <!-- Attach background to panel background! -->
                    <Grid Grid.Column="4" Background="{Binding PanelBackground}" x:CompileBindings="False">
                        
                        <TextBlock Text="{x:Static p:Strings.Dialog_ChooseMedia}"
@@ -236,25 +236,25 @@
                                   FontStyle="Italic"
                                   IsVisible="{Binding SelectedNodeContent.SelectedMediaItem, Converter={x:Static ObjectConverters.IsNull}}" />
 
-                       <!-- ... ContentControl und Fallback wie bisher ... -->
+                       <!-- ... ContentControl and fallback as before ... -->
                        <ContentControl x:CompileBindings="False"
                                        Content="{Binding SelectedNodeContent.SelectedMediaItem}"
                                        IsVisible="{Binding SelectedNodeContent.SelectedMediaItem, Converter={x:Static ObjectConverters.IsNotNull}}">
                            <ContentControl.ContentTemplate>
                                <DataTemplate DataType="models:MediaItem">
-                                   <!-- Hier Background Transparent, da das Grid dahinter schon die Farbe hat -->
+                                   <!-- Here, the background is transparent because the grid behind it already has the color -->
                                    <views:MediaDetailView Background="Transparent" />
                                </DataTemplate>
                            </ContentControl.ContentTemplate>
                        </ContentControl>
                    </Grid>
 
-               </Grid> <!-- Ende Grid -->
+               </Grid> <!-- End Grid -->
            </Grid>
        </Grid>
 
-        <!-- NEU: Resize Grips (Unsichtbare Ränder) -->
-        <!-- Wir nutzen x:Static für WindowEdge. Avalonia.Controls Namespace ist standardmäßig da. -->
+        <!-- Resize Grips (Invisible Edges) -->
+        <!-- We use x:Static for WindowEdge. The Avalonia.Controls namespace is there by default -->
         <Grid RowDefinitions="5,*,5" ColumnDefinitions="5,*,5">
             <!-- Top Left -->
             <Rectangle Grid.Row="0" Grid.Column="0" Fill="Transparent" Cursor="TopLeftCorner" Tag="{x:Static WindowEdge.NorthWest}" PointerPressed="OnResizeDrag"/>

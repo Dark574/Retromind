@@ -133,8 +133,8 @@ public partial class BigModeHostView : UserControl
             if (lb is not ListBox listBox)
                 continue;
 
-            // ArcadeLogoList rendert eigene Selection-Effekte (Glow/Scale),
-            // daher hier NICHT vom Host tunen.
+            // ArcadeLogoList renders its own selection effects (Glow/Scale),
+            // therefore DO NOT tune them from the host
             if (listBox.Name == "ArcadeLogoList")
                 continue;
             

@@ -8,16 +8,16 @@
              x:DataType="vm:MediaAreaViewModel">
 
     <Grid RowDefinitions="Auto, *">
-        <!-- Header Leiste -->
+        <!-- Header bar -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="10">
                 
-            <!-- Titel -->
+            <!-- Title -->
             <TextBlock Grid.Column="0" Text="{Binding Node.Name}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
 
-            <!-- Rechte Seite: Controls -->
+            <!-- Right side: Controls -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
                     
-                <!-- Zufall Button -->
+                <!-- Random Button -->
                 <Button Command="{Binding PlayRandomCommand}" 
                         ToolTip.Tip="{x:Static p:Strings.Tip_RandomGame}"
                         Padding="10,5"
@@ -28,7 +28,7 @@
                     </StackPanel>
                 </Button>
 
-                <!-- Suche -->
+                <!-- Search -->
                 <TextBox Text="{Binding SearchText}" 
                          Watermark="{x:Static p:Strings.Search_Search}" 
                          Width="200"
@@ -42,14 +42,14 @@
             </StackPanel>
         </Grid>
 
-        <!-- Die Medien-Liste -->
-        <!-- WICHTIG: ItemsSource geändert auf FilteredItems -->
+        <!-- The Medien-List -->
+        <!-- IMPORTANT: ItemsSource changed to FilteredItems -->
         <ListBox Grid.Row="1"
                  ItemsSource="{Binding FilteredItems}"
                  SelectedItem="{Binding SelectedMediaItem}"
                  Background="Transparent">
 
-            <!-- Kontextmenü für den LEEREN Bereich -->
+            <!-- Context menu for the EMPTY area -->
             <ListBox.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
@@ -67,10 +67,10 @@
                 </ItemsPanelTemplate>
             </ListBox.ItemsPanel>
 
-            <!-- Aussehen eines einzelnen Items -->
+            <!-- Appearance of a single item -->
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="models:MediaItem">
-                    <!-- Breite wird an den Slider im ViewModel gebunden -->
+                    <!-- The width is bound to the slider in the ViewModel -->
                     <Border Width="{Binding $parent[UserControl].((vm:MediaAreaViewModel)DataContext).ItemWidth}"
                             Height="{Binding $parent[UserControl].((vm:MediaAreaViewModel)DataContext).ItemWidth}"
                             Margin="5"
@@ -98,7 +98,7 @@
                         </Border.ContextMenu>
 
                         <Grid>
-                            <!-- Titel: Nur sichtbar, wenn KEIN CoverPath da ist -->
+                            <!-- Title: Only visible if there is NO CoverPath -->
                             <TextBlock Text="{Binding Title}"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"

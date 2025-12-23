@@ -417,7 +417,7 @@ public partial class MainWindowViewModel
         
         var dialog = new EditMediaView { DataContext = editVm };
         
-        // bool? damit "X" (kein Ergebnis) eindeutig erkennbar bleibt
+        // bool? so that "X" (no result) remains clearly identifiable
         var result = await dialog.ShowDialog<bool?>(owner);
         
         if (result == true)
@@ -505,32 +505,32 @@ public partial class MainWindowViewModel
             if (result.Rating.HasValue) item.Rating = result.Rating.Value;
             if (string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre)) item.Genre = result.Genre;
 
-            // Änderungen am Item -> dirty
+            // Changes to the item -> dirty
             MarkLibraryDirty();
             
             var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
             
-            // Downloads, Imports und Save in Background-Task verschieben (fire-and-forget)
+            // Move Downloads, Imports and Save to a background task (fire-and-forget)
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    // DownloadAndSetAsset nutzt jetzt AssetType
+                    // DownloadAndSetAsset now uses AssetType
                     if (!string.IsNullOrEmpty(result.CoverUrl)) 
                         await DownloadAndSetAsset(result.CoverUrl, item, nodePath, AssetType.Cover);
                 
                     if (!string.IsNullOrEmpty(result.WallpaperUrl)) 
                         await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
 
-                    // Weitere Assets, falls vorhanden (z. B. Logo)...
+                    // Other assets, if any (e.g. logo)...
 
-                    await SaveData(); // Speichern im Background
+                    await SaveData(); // Save in the background
                 }
                 catch (Exception ex)
                 {
-                    // Logge den Error (z. B. zeige später eine Notification oder Console)
+                    // Log the error (e.g., show a notification or console later)
                     Console.WriteLine($"Background scraping error: {ex.Message}");
-                    // Optional: Invoke auf UI für eine MessageBox, falls kritisch
+                    // Optional: Invoke on UI for a message box if critical
                 }
             });
             
@@ -717,7 +717,7 @@ public partial class MainWindowViewModel
             {
                 var item = searchVm.SelectedMediaItem;
                  
-                // Musik-Logik mit Helper und Assets
+                // Music logic with helper and assets
                 var musicAsset = item?.GetPrimaryAssetPath(AssetType.Music);
                 if (!string.IsNullOrEmpty(musicAsset))
                     _ = _audioService.PlayMusicAsync(AppPaths.ResolveDataPath(musicAsset));

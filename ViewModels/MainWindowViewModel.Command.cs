@@ -114,7 +114,7 @@ public partial class MainWindowViewModel
             _soundEffectService,
             _gamepadService);
 
-        // Launch-Requests aus BigMode an die zentrale Play-Logik anbinden
+        // Connect launch requests from BigMode to the central Play logic
         bigVm.RequestPlay += async item => await PlayMediaAsync(item);
         
         var host = new BigModeHostView
@@ -246,7 +246,7 @@ public partial class MainWindowViewModel
         {
             if (RootItems.Count == 0) return;
 
-            // 1) Ziel-Node bestimmen: letzter Eintrag im BigMode-Navigationspfad
+            // 1) Determine target node: last entry in the BigMode navigation path
             var targetNodeId = _currentSettings.LastBigModeNavigationPath?.LastOrDefault();
             if (string.IsNullOrWhiteSpace(targetNodeId))
                 return;
@@ -254,17 +254,17 @@ public partial class MainWindowViewModel
             var node = FindNodeById(RootItems, targetNodeId);
             if (node == null) return;
 
-            // 2) Tree selektieren + expandieren (UI Thread)
+            // 2) Tree select + expand (UI Thread)
             await UiThreadHelper.InvokeAsync(() =>
             {
                 ExpandPathToNode(RootItems, node);
                 SelectedNode = node;
             });
 
-            // 3) Warten bis das Grid (SelectedNodeContent) wirklich da ist
+            // 3) Wait until the grid (SelectedNodeContent) is actually there.
             await UpdateContentAsync();
 
-            // 4) Falls BigMode in Item-Ansicht war: Item im Grid selektieren
+            // 4) If BigMode was in Item View: Select item in the grid
             if (_currentSettings.LastBigModeWasItemView &&
                 !string.IsNullOrWhiteSpace(_currentSettings.LastBigModeSelectedNodeId))
             {
@@ -357,7 +357,7 @@ public partial class MainWindowViewModel
         
         await dialog.ShowDialog(owner);
         
-        // NodeSettings kann Eigenschaften/Assets ändern -> als dirty markieren.
+        // NodeSettings can change properties/assets -> mark as dirty
         MarkLibraryDirty();
         await SaveData();
     }
@@ -444,7 +444,7 @@ public partial class MainWindowViewModel
             {
                 List<LaunchWrapper>? wrappers = null;
 
-                // 1) Emulator-Ebene (falls vorhanden)
+                // 1) Emulator level (if available)
                 if (emulator != null)
                 {
                     switch (emulator.NativeWrapperMode)
@@ -469,11 +469,11 @@ public partial class MainWindowViewModel
                 }
                 else
                 {
-                    // Kein Emulator: nur globale Defaults als Basis
+                    // No emulator: only global defaults as a basis
                     wrappers = _currentSettings.DefaultNativeWrappers;
                 }
 
-                // 2) Node-Ebene (nearest node in chain; tri-state über null/leer/nicht-leer)
+                // 2) Node level (nearest node in chain; tri-state over null/empty/non-empty)
                 var chain = GetNodeChain(trueParent, RootItems);
                 chain.Reverse(); // Leaf (trueParent) zuerst
 
@@ -481,17 +481,17 @@ public partial class MainWindowViewModel
                 {
                     if (node.NativeWrappersOverride == null)
                     {
-                        // Inherit -> nichts tun, nächste Ebene entscheidet
+                        // Inherit -> Do nothing, the next level decides
                         continue;
                     }
 
-                    // Empty list => explizit "keine Wrapper" auf Node-Ebene
+                    // Empty list => explicitly "no wrappers" at the node level
                     // Non-empty => Override
                     wrappers = node.NativeWrappersOverride;
                     break;
                 }
 
-                // 3) Item-Ebene (gewinnt immer, tri-state über null/leer/nicht-leer)
+                // 3) Item level (always wins, tri-state over zero/empty/non-empty)
                 if (item.NativeWrappersOverride != null)
                 {
                     wrappers = item.NativeWrappersOverride;

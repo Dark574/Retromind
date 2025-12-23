@@ -22,8 +22,8 @@ public static class AssetResolver
     /// </param>
     /// <param name="type">Type of the artwork to resolve (Bezel, ControlPanel, Marquee, etc.).</param>
     /// <param name="themeFallbackRelativePath">
-        /// Optional path inside the current theme directory used as final fallback,
-        /// e.g. "Images/cabinet_bezel.png".
+    /// Optional path inside the current theme directory used as final fallback,
+    /// e.g. "Images/cabinet_bezel.png".
     /// </param>
     /// <returns>
     /// Absolute file system path if any source provides a value; otherwise null.

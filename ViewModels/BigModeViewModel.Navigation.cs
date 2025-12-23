@@ -87,7 +87,7 @@ public partial class BigModeViewModel
             if (_settings.LastBigModeWasItemView)
             {
                 var parentNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
-                // NUR in den Item-View wechseln, wenn es wirklich Items gibt.
+                // Only switch to the item view if there are actually items
                 if (parentNode != null && parentNode.Items is { Count: > 0 })
                 {
                     IsGameListActive = true;
@@ -103,15 +103,15 @@ public partial class BigModeViewModel
                     return;
                 }
                 
-                // Fallback: Wenn der gespeicherte Item-View nicht mehr sinnvoll ist
-                // (z.B. weil der Node keine Items (mehr) hat oder nicht gefunden wurde),
-                // auf Kategorie-Ansicht zurückfallen.
+                // Fallback: If the saved item view is no longer relevant
+                // (e.g., because the node has no items (anymore) or was not found),
+                // revert to the category view
                 _settings.LastBigModeWasItemView = false;
                 _settings.LastBigModeSelectedNodeId = null;
             }
             
-            // Kategorie-Ansicht wiederherstellen
-            // Versuche, die zuletzt selektierte Kategorie auf der aktuellen Ebene zu finden
+            // Restore category view
+            // Try to find the last selected category on the current level
             MediaNode? category = null;
             if (!string.IsNullOrWhiteSpace(_settings.LastBigModeSelectedNodeId))
             {
@@ -124,7 +124,7 @@ public partial class BigModeViewModel
             }
             else if (CurrentCategories.Count > 0)
             {
-                // Fallback: erste Kategorie auswählen, damit IMMER eine gültige Auswahl existiert
+                // Fallback: Select the first category so that a valid selection ALWAYS exists
                 SelectedCategory = CurrentCategories[0];
             }
             else
@@ -132,10 +132,10 @@ public partial class BigModeViewModel
                 SelectedCategory = null;
             }
 
-            // ThemeContextNode = aktueller Ordner (oberster Eintrag im NavigationPath) oder null für Root
+            // ThemeContextNode = current folder (topmost entry in the NavigationPath) or null for root
             ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
 
-            // Sicherstellen, dass wir im Kategorie-Modus sind
+            // Make sure we are in category mode
             IsGameListActive = false;
             Items = new ObservableCollection<MediaItem>();
             SelectedItem = null;

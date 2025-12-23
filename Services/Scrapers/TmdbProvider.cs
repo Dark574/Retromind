@@ -14,7 +14,7 @@ public class TmdbProvider : IMetadataProvider
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
     private const string BaseUrl = "https://api.themoviedb.org/3";
-    private const string ImageBaseUrl = "https://image.tmdb.org/t/p/original"; // Oder w500 für kleiner
+    private const string ImageBaseUrl = "https://image.tmdb.org/t/p/original";
 
     public TmdbProvider(ScraperConfig config, HttpClient httpClient)
     {
@@ -77,8 +77,8 @@ public class TmdbProvider : IMetadataProvider
 
             foreach (var item in items)
             {
-                var mediaType = item?["media_type"]?.ToString(); // "movie" oder "tv"
-                if (mediaType != "movie" && mediaType != "tv") continue; // Personen ignorieren
+                var mediaType = item?["media_type"]?.ToString(); // "movie" or "tv"
+                if (mediaType != "movie" && mediaType != "tv") continue;
 
                 var id = item?["id"]?.ToString() ?? "";
                 var title = mediaType == "movie" ? item?["title"]?.ToString() : item?["name"]?.ToString();

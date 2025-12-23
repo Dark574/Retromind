@@ -15,7 +15,7 @@
     <StackPanel Margin="20" Spacing="10">
         <TextBlock Text="{Binding Message}" FontSize="16" />
 
-        <!-- x:Name hinzugefügt, damit wir es im Code finden -->
+        <!-- x:Name added so we can find it in the code -->
         <TextBox x:Name="NameBox"
                  Text="{Binding InputText}"
                  Width="300" />

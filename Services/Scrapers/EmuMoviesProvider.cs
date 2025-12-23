@@ -101,7 +101,7 @@ public class EmuMoviesProvider : IMetadataProvider
             var term = HttpUtility.UrlEncode(query);
             var url = $"https://api.emumovies.com/api/search-games?term={term}&session={_sessionId}";
 
-            // Retry Logic (einfach)
+            // Retry Logic (simple)
             HttpResponseMessage? response = null;
             for (int i = 0; i < 3; i++)
             {
@@ -150,7 +150,7 @@ public class EmuMoviesProvider : IMetadataProvider
         }
     }
 
-    // Neue Helper-Methode für parallele Verarbeitung
+    // New helper method for parallel processing
     private async Task<ScraperSearchResult?> ProcessGameAsync(JsonNode? game)
     {
         try
@@ -167,7 +167,7 @@ public class EmuMoviesProvider : IMetadataProvider
                 Description = game?["Description"]?.ToString() ?? "",
             };
 
-            // Medien laden (Async Call)
+            // Load media (Async Call)
             await EnrichWithMedia(res, id, system);
                 
             return res;
@@ -175,7 +175,7 @@ public class EmuMoviesProvider : IMetadataProvider
         catch (Exception ex)
         {
             Debug.WriteLine($"[EmuMovies] Error processing game result: {ex.Message}");
-            return null; // Bei Fehler null zurückgeben, damit der Rest nicht crasht
+            return null; // Return zero on error to prevent the rest from crashing
         }
     }
     

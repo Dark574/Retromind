@@ -40,7 +40,7 @@ public class FileManagementService
         }
         catch
         {
-            // Event-Handler sollen File-Operationen niemals crashen lassen.
+            // Event handlers should never cause file operations to crash
         }
     }
     /// <summary>

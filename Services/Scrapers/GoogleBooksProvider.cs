@@ -74,7 +74,7 @@ public class GoogleBooksProvider : IMetadataProvider
                     title += $" ({authorStr})";
 
                 var desc = info["description"]?.ToString() ?? "";
-                var publishedDate = info["publishedDate"]?.ToString(); // "YYYY-MM-DD" oder nur "YYYY"
+                var publishedDate = info["publishedDate"]?.ToString(); // "YYYY-MM-DD" or simple "YYYY"
 
                 var res = new ScraperSearchResult
                 {
@@ -89,7 +89,7 @@ public class GoogleBooksProvider : IMetadataProvider
                 {
                     if (DateTime.TryParse(publishedDate, out var date))
                         res.ReleaseDate = date;
-                    else if (int.TryParse(publishedDate, out int year)) // Nur Jahr
+                    else if (int.TryParse(publishedDate, out int year)) // only year
                         res.ReleaseDate = new DateTime(year, 1, 1);
                 }
 

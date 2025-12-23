@@ -157,7 +157,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         InitializeNativeWrapperUiFromNode();
         
-        // nach Initialisierung auch einmal aktualisieren
+        // Update once after initialization
         MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
         MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
     }

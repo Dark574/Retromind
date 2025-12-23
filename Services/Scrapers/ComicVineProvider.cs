@@ -58,7 +58,7 @@ public class ComicVineProvider : IMetadataProvider
             foreach (var item in items)
             {
                 var id = item?["id"]?.ToString() ?? "";
-                var resType = item?["resource_type"]?.ToString(); // volume oder issue
+                var resType = item?["resource_type"]?.ToString(); // volume or issue
 
                 var name = item?["name"]?.ToString();
                 var volumeName = item?["volume"]?["name"]?.ToString();

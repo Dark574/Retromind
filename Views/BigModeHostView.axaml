@@ -11,10 +11,10 @@
     </UserControl.Resources>
 
     <Grid>
-        <!-- Theme wird hier reingeladen/ausgetauscht -->
+        <!-- The theme is being loaded/replaced here -->
         <ContentPresenter x:Name="ThemePresenter"/>
 
-        <!-- Stabiles Overlay: VideoView bleibt IMMER im VisualTree -->
+        <!-- Stable overlay: VideoView always remains in the VisualTree -->
         <Canvas x:Name="Overlay" IsHitTestVisible="False">
             <Border x:Name="VideoBorder"
                     Background="Black"

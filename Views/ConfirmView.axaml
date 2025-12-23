@@ -13,7 +13,7 @@
         CanResize="False">
 
     <StackPanel Margin="20" Spacing="20">
-        <!-- Die Nachricht wird per DataContext (String) oder ViewModel übergeben -->
+        <!-- The message is passed via DataContext (String) or ViewModel -->
         <TextBlock Text="{Binding}" FontSize="16" TextWrapping="Wrap" MaxWidth="300" />
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
