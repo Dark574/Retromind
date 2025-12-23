@@ -63,7 +63,7 @@ So you can bind directly:
 
 ## 4) Video preview: host overlay + theme “slot”
 
-Retromind renders preview video via a **stable host overlay** (LibVLC).  
+Retromind renders preview video via a **stable host overlay** (LibVLC + texture rendering).  
 Your theme only defines a **slot** (a placeholder control) to tell the host where to place the video.
 
 ### Default slot name: `VideoSlot`
@@ -106,6 +106,48 @@ Your theme only defines a **slot** (a placeholder control) to tell the host wher
 ```
 
 > Video is shown only if `VideoEnabled=true` and the slot exists and has a meaningful size.
+
+#### Control how the video fills the slot (`VideoStretchMode`)
+
+The host renders the video into a dedicated overlay that is positioned over your slot.  
+You can control **how** the video is scaled using:
+
+- `ext:ThemeProperties.VideoStretchMode="Fill|Uniform|UniformToFill|Cover"`
+
+Supported values:
+
+- `Fill` (default) – fill the slot completely, even if this **distorts** the aspect ratio
+    - No black bars, but 4:3 videos in a 16:9 slot will be stretched.
+- `Uniform` – keep aspect ratio, show the whole video, **allow bars**
+    - Letterboxing/pillarboxing as needed, video is centered.
+- `UniformToFill` or `Cover` – keep aspect ratio, **fill the slot**, cropping overflow
+    - No bars, no distortion, but edges of the video may be cut off, video is centered.
+
+Example:
+```xml
+<UserControl xmlns="https://github.com/avaloniaui" 
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
+             xmlns:vm="using:Retromind.ViewModels" 
+             xmlns:ext="clr-namespace:Retromind.Extensions" 
+             x:DataType="vm:BigModeViewModel" 
+             Background="Black"
+
+             ext:ThemeProperties.VideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoStretchMode="UniformToFill">
+
+    <Grid>
+        <Border x:Name="VideoSlot"
+                Width="854"
+                Height="480"
+                Background="Transparent"/>
+    </Grid>
+</UserControl>
+```
+> Tip:
+> - Use `Uniform` if you want to **preserve the original aspect ratio** at all costs.
+> - Use `UniformToFill` / `Cover` for cinematic, fully filled slots (like CSS `object-fit: cover`).
+> - Use `Fill` if you prefer **no bars** and some stretching is acceptable.
 
 ---
 
@@ -186,8 +228,30 @@ Example:
 
 ### 6.3 Video
 
-- `ThemeProperties.VideoEnabled` (bool, default: `true`)
-- `ThemeProperties.VideoSlotName` (string, default: `"VideoSlot"`)
+- `ThemeProperties.VideoEnabled` (bool, default: `true`)  
+  Enables/disables the video overlay for this theme.
+- `ThemeProperties.VideoSlotName` (string, default: `"VideoSlot"`)  
+  Name of the control in the theme used as anchor for the video overlay.
+- `ThemeProperties.VideoStretchMode` (string, default: `"Fill"`)  
+  How the video is scaled into the slot:
+    - `"Fill"` – fill slot, may distort aspect ratio (no bars, no cropping).
+    - `"Uniform"` – preserve aspect ratio, show full video, bars allowed.
+    - `"UniformToFill"` or `"Cover"` – preserve aspect ratio, fill slot, cropping allowed.
+
+Example:
+```xml
+<UserControl xmlns="https://github.com/avaloniaui" 
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
+             xmlns:vm="using:Retromind.ViewModels" 
+             xmlns:ext="clr-namespace:Retromind.Extensions" 
+             x:DataType="vm:BigModeViewModel"
+             
+         ext:ThemeProperties.VideoEnabled="True"
+         ext:ThemeProperties.VideoSlotName="VideoSlot"
+         ext:ThemeProperties.VideoStretchMode="Uniform">
+<!-- layout -->
+</UserControl>
+```
 
 ### 6.4 Tuning: selection/focus (controller-friendly)
 

@@ -1,8 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:helpers="using:Retromind.Helpers"
+             xmlns:video="using:Retromind.Helpers.Video"
              x:Class="Retromind.Views.BigModeHostView"
              x:DataType="vm:BigModeViewModel">
 
@@ -29,9 +29,9 @@
                     </Transitions>
                 </Border.Transitions>
                 
-                <vlc:VideoView x:Name="StableVideoView"
-                               MediaPlayer="{Binding MediaPlayer}"
-                               Focusable="False" />
+                <video:VideoSurfaceControl x:Name="StableVideoSurface"
+                                           Surface="{Binding VideoSurface}"
+                                           Focusable="False" />
             </Border>
         </Canvas>
     </Grid>

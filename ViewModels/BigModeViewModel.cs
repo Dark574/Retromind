@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibVLCSharp.Shared;
 using Retromind.Helpers;
+using Retromind.Helpers.Video;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
@@ -28,6 +29,14 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private readonly SoundEffectService _soundEffectService;
     private readonly GamepadService _gamepadService;
 
+    // Oberfläche für das gerenderte Video (LibVLC-Callbacks)
+    private readonly LibVlcVideoSurface _videoSurface;
+
+    /// <summary>
+    /// Oberfläche für das Vorschaubild (wird von BigModeHostView gerendert).
+    /// </summary>
+    public IVideoSurface VideoSurface => _videoSurface;
+    
     // Navigation history used to implement "Back" behavior.
     private readonly Stack<ObservableCollection<MediaNode>> _navigationStack = new();
     private readonly Stack<string> _titleStack = new();
@@ -222,12 +231,26 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         string[] vlcOptions = { "--no-osd", "--avcodec-hw=none", "--quiet" };
 
         _libVlc = new LibVLC(enableDebugLogs: false, vlcOptions);
+        
+        // Video-Surface für Callback-Rendering
+        _videoSurface = new LibVlcVideoSurface();
+        
         MediaPlayer = new MediaPlayer(_libVlc)
         {
             Volume = 100,
             Scale = 0f // 0 = scale to fill the control
         };
 
+        // Videoformat + -Callbacks einrichten (wie in LibVlcVideoPlayer)
+        MediaPlayer.SetVideoFormatCallbacks(
+            _videoSurface.VideoFormat,
+            _videoSurface.VideoCleanup);
+
+        MediaPlayer.SetVideoCallbacks(
+            _videoSurface.VideoLock,
+            _videoSurface.VideoUnlock,
+            _videoSurface.VideoDisplay);
+        
         // Loop preview videos by restarting them when they reach the end.
         MediaPlayer.EndReached += OnPreviewEndReached;
         

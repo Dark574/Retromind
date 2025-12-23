@@ -227,4 +227,48 @@ public class ThemeProperties : AvaloniaObject
 
         return GetThemeFilePath(System.IO.Path.Combine("Images", fileName));
     }
+    
+    /// <summary>
+    /// Eckradius für den Video-Overlay-Rahmen. Standard: 12 (passt zu Tiles).
+    /// </summary>
+    public static readonly AttachedProperty<CornerRadius> VideoCornerRadiusProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, CornerRadius>(
+            "VideoCornerRadius",
+            defaultValue: new CornerRadius(12));
+
+    public static CornerRadius GetVideoCornerRadius(AvaloniaObject element) =>
+        element.GetValue(VideoCornerRadiusProperty);
+
+    public static void SetVideoCornerRadius(AvaloniaObject element, CornerRadius value) =>
+        element.SetValue(VideoCornerRadiusProperty, value);
+
+    /// <summary>
+    /// Rahmenstärke für den Video-Overlay-Rand. Standard: 0 (kein Rahmen).
+    /// </summary>
+    public static readonly AttachedProperty<Thickness> VideoBorderThicknessProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, Thickness>(
+            "VideoBorderThickness",
+            defaultValue: new Thickness(0));
+
+    public static Thickness GetVideoBorderThickness(AvaloniaObject element) =>
+        element.GetValue(VideoBorderThicknessProperty);
+
+    public static void SetVideoBorderThickness(AvaloniaObject element, Thickness value) =>
+        element.SetValue(VideoBorderThicknessProperty, value);
+
+    /// <summary>
+    /// Steuert, wie das Video im Slot skaliert wird.
+    /// "Fill" (Standard), "Uniform", "UniformToFill".
+    /// Das Host-Control interpretiert diesen Wert.
+    /// </summary>
+    public static readonly AttachedProperty<string> VideoStretchModeProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string>(
+            "VideoStretchMode",
+            defaultValue: "Fill");
+
+    public static string GetVideoStretchMode(AvaloniaObject element) =>
+        element.GetValue(VideoStretchModeProperty);
+
+    public static void SetVideoStretchMode(AvaloniaObject element, string value) =>
+        element.SetValue(VideoStretchModeProperty, value);
 }

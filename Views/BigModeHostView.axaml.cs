@@ -12,6 +12,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Retromind.Extensions;
 using Retromind.Helpers;
+using Retromind.Helpers.Video;
 using Retromind.Services;
 
 namespace Retromind.Views;
@@ -20,6 +21,7 @@ public partial class BigModeHostView : UserControl
 {
     private ContentPresenter _themePresenter = null!;
     private Border _videoBorder = null!;
+    private VideoSurfaceControl _videoSurface = null!;
 
     private Control? _videoSlot;
 
@@ -53,6 +55,8 @@ public partial class BigModeHostView : UserControl
                           ?? throw new InvalidOperationException("ThemePresenter control not found in BigModeHostView.");
         _videoBorder = this.FindControl<Border>("VideoBorder")
                        ?? throw new InvalidOperationException("VideoBorder control not found in BigModeHostView.");
+        _videoSurface = this.FindControl<VideoSurfaceControl>("StableVideoSurface")
+                        ?? throw new InvalidOperationException("StableVideoSurface control not found in BigModeHostView.");
 
         ResetVideoBorder();
         
@@ -267,7 +271,7 @@ public partial class BigModeHostView : UserControl
 
         var accent = ThemeProperties.GetAccentColor(themeRoot);
 
-        // 3) Apply animation duration to the stable video overlay fade (Opacity transition).
+        // 1) Apply animation duration to the stable video overlay fade (Opacity transition).
         // Keep it very safe: if transitions are missing, create them.
         var fadeDuration = TimeSpan.FromMilliseconds(Math.Clamp(fadeMs, 0, 5000));
         _videoBorder.Transitions = new Transitions
@@ -279,7 +283,7 @@ public partial class BigModeHostView : UserControl
             }
         };
 
-        // 1) Selection UX: apply to ALL ListBoxes in the theme visual tree.
+        // 2) Selection UX: apply to ALL ListBoxes in the theme visual tree.
         // We use ContainerPrepared + SelectionChanged so it works with virtualization.
         foreach (var lb in themeRoot.GetVisualDescendants())
         {
@@ -299,7 +303,7 @@ public partial class BigModeHostView : UserControl
             ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, fadeMs, moveMs, accent);
         }
 
-        // 2) Spacing/Padding: opt-in via classes (theme authors can just add Classes="rm-panel"/"rm-header")
+        // 3) Spacing/Padding: opt-in via classes (theme authors can just add Classes="rm-panel"/"rm-header")
         foreach (var v in themeRoot.GetVisualDescendants())
         {
             if (v is not Control c)
@@ -336,6 +340,31 @@ public partial class BigModeHostView : UserControl
                 tb.FontSize = bodyFontSize;
             else if (tb.Classes.Contains("rm-caption"))
                 tb.FontSize = captionFontSize;
+        }
+        
+        // 5) Video-Overlay Tuning: Eckradius / Rahmenstärke
+        var videoCornerRadius = ThemeProperties.GetVideoCornerRadius(themeRoot);
+        var videoBorderThickness = ThemeProperties.GetVideoBorderThickness(themeRoot);
+
+        _videoBorder.CornerRadius = videoCornerRadius;
+        _videoBorder.BorderThickness = videoBorderThickness;
+
+        // 6) Video-Stretch-Modus aus Theme auslesen und anwenden
+        var stretchMode = ThemeProperties.GetVideoStretchMode(themeRoot)?.Trim();
+
+        if (string.Equals(stretchMode, "Uniform", StringComparison.OrdinalIgnoreCase))
+        {
+            _videoSurface.Stretch = Stretch.Uniform;
+        }
+        else if (string.Equals(stretchMode, "UniformToFill", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(stretchMode, "Cover", StringComparison.OrdinalIgnoreCase))
+        {
+            _videoSurface.Stretch = Stretch.UniformToFill;
+        }
+        else
+        {
+            // Standard: Fill (keine Balken, kann verzerren)
+            _videoSurface.Stretch = Stretch.Fill;
         }
     }
 

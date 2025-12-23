@@ -296,6 +296,7 @@ public partial class BigModeViewModel
                 player?.Stop();
                 player?.Dispose();
                 vlc?.Dispose();
+                _videoSurface.Dispose();
             }
             catch
             {

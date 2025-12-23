@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
-             xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+             xmlns:video="using:Retromind.Helpers.Video"
              xmlns:helpers="using:Retromind.Helpers"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
