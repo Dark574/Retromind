@@ -21,19 +21,18 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class NodeSettingsViewModel : ViewModelBase
 {
-    private const int PreviewDecodeWidth = 200;
-
     // Sentinel: "inherit / no default emulator".
     // We avoid null-suppression on Id by using an empty string.
     private const string InheritEmulatorId = "";
 
     private readonly MediaNode _node;
     private readonly AppSettings _settings;
-    private readonly FileManagementService _fileService;
-    private readonly List<string> _nodePath;
 
-    public ObservableCollection<MediaAsset> Assets => _node.Assets;
-
+    public ObservableCollection<SystemThemeOption> AvailableSystemThemes { get; } = new();
+    
+    [ObservableProperty]
+    private SystemThemeOption? _selectedSystemTheme;
+    
     public ObservableCollection<EmulatorConfig> AvailableEmulators { get; } = new();
     public ObservableCollection<string> AvailableThemes { get; } = new();
 
@@ -45,32 +44,23 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     [ObservableProperty] private EmulatorConfig? _selectedEmulator;
 
-    [ObservableProperty] private Bitmap? _coverPreview;
-    [ObservableProperty] private Bitmap? _logoPreview;
-    [ObservableProperty] private Bitmap? _wallpaperPreview;
-
-    [ObservableProperty] private string _videoName = "";
-
     [ObservableProperty] private string? _selectedTheme;
 
     public bool IsThemeExplicitlySelected => !string.IsNullOrWhiteSpace(SelectedTheme);
     
-    public bool HasVideoAsset => _node.Assets.Any(a => a.Type == AssetType.Video);
-
+    // System-theme selection is only meaningful if the BigMode theme is NOT the SystemHost itself.
+    public bool IsSystemThemeSelectionEnabled =>
+        !string.Equals(SelectedTheme, "SystemHost/theme.axaml", StringComparison.OrdinalIgnoreCase);
+    
     partial void OnSelectedThemeChanged(string? value)
-        => OnPropertyChanged(nameof(IsThemeExplicitlySelected));
-
+    {
+        OnPropertyChanged(nameof(IsThemeExplicitlySelected));
+        OnPropertyChanged(nameof(IsSystemThemeSelectionEnabled));
+    }
+    
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
     public IRelayCommand ClearThemeCommand { get; }
-
-    public IAsyncRelayCommand<AssetType> ImportAssetCommand { get; }
-    public IAsyncRelayCommand<AssetType> DeleteAssetCommand { get; }
-
-    /// <summary>
-    /// Set by the view (Window injects it on open).
-    /// </summary>
-    public IStorageProvider? StorageProvider { get; set; }
 
     /// <summary>
     /// Signals the view to close (true = saved, false = cancelled).
@@ -115,30 +105,23 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     public NodeSettingsViewModel(
         MediaNode node,
-        AppSettings settings,
-        FileManagementService fileService,
-        List<string> nodePath)
+        AppSettings settings)
     {
         _node = node ?? throw new ArgumentNullException(nameof(node));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-        _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
-        _nodePath = nodePath ?? [];
 
         InitializeFromNode();
         InitializeEmulators();
         LoadAvailableThemes();
+        LoadSystemThemes();
+        InitializeSystemThemeSelection();
 
         SelectedTheme = string.IsNullOrWhiteSpace(_node.ThemePath) ? null : _node.ThemePath;
-
-        RefreshPreviews();
 
         SaveCommand = new RelayCommand(Save);
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
         ClearThemeCommand = new RelayCommand(() => SelectedTheme = null);
 
-        ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
-        DeleteAssetCommand = new AsyncRelayCommand<AssetType>(DeleteAssetsByTypeAsync);
-        
         AddNativeWrapperCommand = new RelayCommand(AddNativeWrapper);
         RemoveNativeWrapperCommand = new RelayCommand<LaunchWrapperRow?>(RemoveNativeWrapper);
         MoveNativeWrapperUpCommand = new RelayCommand<LaunchWrapperRow?>(
@@ -162,6 +145,41 @@ public partial class NodeSettingsViewModel : ViewModelBase
         MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
     }
 
+    private void LoadSystemThemes()
+    {
+        AvailableSystemThemes.Clear();
+        foreach (var opt in SystemThemeDiscovery.GetAvailableSystemThemes())
+        {
+            AvailableSystemThemes.Add(opt);
+        }
+    }
+
+    private void InitializeSystemThemeSelection()
+    {
+        var id = _node.SystemPreviewThemeId;
+
+        // If nothing is set -> select Default
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            SelectedSystemTheme = AvailableSystemThemes
+                .FirstOrDefault(o => string.Equals(o.Id, "Default", StringComparison.OrdinalIgnoreCase));
+            return;
+        }
+
+        // Search for the appropriate entry, otherwise default
+        SelectedSystemTheme =
+            AvailableSystemThemes.FirstOrDefault(o =>
+                string.Equals(o.Id, id, StringComparison.OrdinalIgnoreCase))
+            ?? AvailableSystemThemes.FirstOrDefault(o =>
+                string.Equals(o.Id, "Default", StringComparison.OrdinalIgnoreCase));
+    }
+    
+    public void SaveToNode()
+    {
+        // Option: Explicitly save the default as "Default"
+        _node.SystemPreviewThemeId = SelectedSystemTheme?.Id;
+    }
+    
     public bool IsNativeWrapperInherit
     {
         get => NativeWrapperMode == WrapperMode.Inherit;
@@ -313,122 +331,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
             // Best-effort: if scanning fails (permissions, IO errors), keep the list empty.
         }
     }
-
-    // --- Asset logic ---
-
-    private void RefreshPreviews()
-    {
-        CoverPreview = LoadBitmapPreview(AssetType.Cover);
-        LogoPreview = LoadBitmapPreview(AssetType.Logo);
-        WallpaperPreview = LoadBitmapPreview(AssetType.Wallpaper);
-
-        var vidAsset = _node.Assets.FirstOrDefault(a => a.Type == AssetType.Video);
-        VideoName = vidAsset != null
-            ? Path.GetFileName(vidAsset.RelativePath)
-            : Strings.Common_NoVideo;
-        
-        OnPropertyChanged(nameof(HasVideoAsset));
-    }
-
-    private Bitmap? LoadBitmapPreview(AssetType type)
-    {
-        var asset = _node.Assets.FirstOrDefault(a => a.Type == type);
-        if (asset?.RelativePath is not { Length: > 0 } relPath)
-            return null;
-
-        var fullPath = AppPaths.ResolveDataPath(relPath);
-        if (!File.Exists(fullPath))
-            return null;
-
-        try
-        {
-            // Decode down to a small width to keep memory and CPU usage low.
-            using var stream = File.OpenRead(fullPath);
-            return Bitmap.DecodeToWidth(stream, PreviewDecodeWidth);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private async Task ImportAssetAsync(AssetType type)
-    {
-        if (StorageProvider == null)
-            return;
-
-        var fileTypes = type == AssetType.Video
-            ? new[] { new FilePickerFileType(Strings.FileType_Videos) { Patterns = new[] { "*.mp4", "*.mkv", "*.avi" } } }
-            : new[] { FilePickerFileTypes.ImageAll };
-
-        var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = string.Format(Strings.Dialog_ImportAssetTitle, type),
-            AllowMultiple = false,
-            FileTypeFilter = fileTypes
-        });
-
-        if (result == null || result.Count == 0)
-            return;
-
-        var sourcePath = result[0].Path.LocalPath;
-
-        // Single-slot behavior for node assets:
-        // A node can have multiple assets in the filesystem, but for UI simplicity
-        // we keep only one active asset per type here (delete old -> import new).
-        await DeleteAssetsByTypeAsync(type);
-
-        var imported = await _fileService.ImportAssetAsync(sourcePath, _node, _nodePath, type);
-        if (imported != null)
-        {
-            // Ensure collection mutation is on UI thread
-            await UiThreadHelper.InvokeAsync(() => _node.Assets.Add(imported));
-        }
-
-        RefreshPreviews();
-    }
-
-    private async Task DeleteAssetsByTypeAsync(AssetType type)
-    {
-        var toRemove = _node.Assets.Where(a => a.Type == type).ToList();
-        if (toRemove.Count == 0)
-        {
-            RefreshPreviews();
-            return;
-        }
-
-        // Remove from the model first (UI updates immediately).
-        foreach (var asset in toRemove)
-            _node.Assets.Remove(asset);
-
-        // Delete files on a background thread to avoid UI stalls on slow disks.
-        await Task.Run(() =>
-        {
-            foreach (var asset in toRemove)
-            {
-                if (string.IsNullOrWhiteSpace(asset.RelativePath))
-                    continue;
-
-                var fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
-
-                try
-                {
-                    Helpers.AsyncImageHelper.InvalidateCache(fullPath);
-
-                    if (File.Exists(fullPath))
-                        File.Delete(fullPath);
-                }
-                catch
-                {
-                    // Best-effort: if a file is locked or deletion fails, we ignore it.
-                    // The next cleanup/rescan can reconcile the state.
-                }
-            }
-        });
-
-        RefreshPreviews();
-    }
-
+    
     private void Save()
     {
         if (string.IsNullOrWhiteSpace(Name))
@@ -441,6 +344,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         _node.ThemePath = string.IsNullOrWhiteSpace(SelectedTheme) ? null : SelectedTheme;
 
+        // Persist selected system preview theme (used by the BigMode system browser).
+        // Convention: Id matches the folder name under Themes/System (e.g. "Default", "C64").
+        _node.SystemPreviewThemeId = SelectedSystemTheme?.Id;
+        
         if (SelectedEmulator != null && !string.IsNullOrWhiteSpace(SelectedEmulator.Id) && SelectedEmulator.Id != InheritEmulatorId)
         {
             _node.DefaultEmulatorId = SelectedEmulator.Id;

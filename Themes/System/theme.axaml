@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions"
+             x:DataType="vm:BigModeViewModel"
+             Background="Black"
+
+             ext:ThemeProperties.Name="System Host"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0">
+
+    <Grid ColumnDefinitions="*,2*">
+        <!-- LEFT: simple vertical list of systems (nodes) -->
+        <Border Grid.Column="0"
+                Background="#66000000"
+                Padding="16"
+                Margin="24,24,12,24">
+            <ListBox ItemsSource="{Binding CurrentCategories}"
+                     SelectedItem="{Binding SelectedCategory}"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}"
+                                   FontSize="20"
+                                   Margin="0,4"
+                                   Foreground="White"
+                                   TextTrimming="CharacterEllipsis" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <!-- RIGHT: host for the per-system subtheme (C64, SNES, ...) -->
+        <!-- The host view (BigModeHostView or a dedicated controller) will set this Content
+             to the loaded system subtheme based on node.SystemPreviewThemeId. -->
+        <Border Grid.Column="1"
+                Background="#22000000"
+                Margin="12,24,24,24"
+                CornerRadius="8">
+            <ContentControl x:Name="SystemLayoutHost"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch" />
+        </Border>
+    </Grid>
+</UserControl>

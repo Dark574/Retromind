@@ -1,0 +1,125 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions"
+             x:DataType="vm:BigModeViewModel"
+             Background="#101010"
+
+             ext:ThemeProperties.Name="Default System Layout"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.VideoEnabled="True">
+
+    <!-- Very simple, neutral system layout:
+         - large system title on the left
+         - centered "monitor" with VideoSlot
+         - basic stats at the bottom -->
+
+    <Grid RowDefinitions="*,Auto"
+          ColumnDefinitions="*,2*"
+          Margin="40">
+
+        <!-- LEFT: system title and short info -->
+        <StackPanel Grid.Row="0"
+                    Grid.Column="0"
+                    VerticalAlignment="Center"
+                    Spacing="8">
+            <!-- Current system name (SelectedCategory is the active node in system view) -->
+            <TextBlock Text="{Binding SelectedCategory.Name}"
+                       FontSize="40"
+                       FontWeight="Bold"
+                       Foreground="White"
+                       TextTrimming="CharacterEllipsis" />
+
+            <!-- Optional: use CategoryTitle or later a dedicated node description -->
+            <TextBlock Text="{Binding CategoryTitle}"
+                       FontSize="16"
+                       Foreground="#CCCCCC"
+                       TextWrapping="Wrap"
+                       MaxWidth="400" />
+        </StackPanel>
+
+        <!-- RIGHT: simple "monitor" with video preview -->
+        <Grid Grid.Row="0"
+              Grid.Column="1"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center">
+            <!-- Outer frame -->
+            <Border Background="#181818"
+                    CornerRadius="16"
+                    Padding="16">
+                <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*">
+
+                    <!-- "Screen" area with VideoSlot in the center -->
+                    <Border Grid.Row="0"
+                            Background="#000000"
+                            CornerRadius="8"
+                            Padding="4"
+                            Margin="0,0,0,12">
+                        <!-- VideoSlot is where BigModeHostView will place the VLC overlay -->
+                        <Border x:Name="VideoSlot"
+                                Background="#000000"
+                                CornerRadius="4"
+                                ClipToBounds="True"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch"
+                                MinWidth="480"
+                                MinHeight="270">
+                            <!-- Simple placeholder text when no video is available -->
+                            <TextBlock Text="No preview video"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="#505050"
+                                       FontSize="18" />
+                        </Border>
+                    </Border>
+
+                    <!-- Basic stats below the screen -->
+                    <StackPanel Grid.Row="1"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Games:"
+                                       Foreground="#AAAAAA"
+                                       FontSize="14" />
+                            <TextBlock Text="{Binding TotalGames}"
+                                       Foreground="#FFFFFF"
+                                       FontSize="14" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="Year:"
+                                       Foreground="#AAAAAA"
+                                       FontSize="14" />
+                            <TextBlock Text="{Binding SelectedYear}"
+                                       Foreground="#FFFFFF"
+                                       FontSize="14" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- BOTTOM: developer / extra info bar -->
+        <Border Grid.Row="1"
+                Grid.ColumnSpan="2"
+                Margin="0,24,0,0"
+                Background="#22000000"
+                CornerRadius="6"
+                Padding="10,6">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Left"
+                        Spacing="8">
+                <TextBlock Text="Developer:"
+                           Foreground="#AAAAAA"
+                           FontSize="14" />
+                <TextBlock Text="{Binding SelectedDeveloper}"
+                           Foreground="#FFFFFF"
+                           FontSize="14"
+                           TextTrimming="CharacterEllipsis"
+                           MaxWidth="400" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

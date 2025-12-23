@@ -380,3 +380,228 @@ Either rely on host selection defaults, or intentionally tune your styles to mat
 - If a theme uses properties unknown to an older Retromind version, it may fail to load.
     - Keep `ThemeProperties.Version` up to date.
     - When publishing a theme, mention the minimum supported Retromind version.
+
+## 12) System browser themes (platform selection)
+
+Retromind supports a **two-level theming model** for the platform selection in BigMode:
+
+1. A **system host theme** – the main BigMode theme used on the „Systems“ level  
+   (e.g. a list of platforms on the left, preview on the right).
+2. **System subthemes** – per-platform layouts that are embedded into the host on the right side  
+   (e.g. different TV/mockups for C64, SNES, PC, …).
+
+This section describes how to build both.
+
+### 12.1 System host themes (BigMode themes with `SystemLayoutHost`)
+
+A **system host theme** is just a normal BigMode theme stored under:
+
+- `Themes/<HostName>/theme.axaml`
+
+and recognized by the host because it contains a `ContentControl` named `SystemLayoutHost`:
+
+```xml
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Retromind.ViewModels" xmlns:ext="clr-namespace:Retromind.Extensions" x:DataType="vm:BigModeViewModel" Background="Black"
+         ext:ThemeProperties.Name="System Host (Classic)">
+<Grid ColumnDefinitions="*,2*">
+
+    <!-- LEFT: system list -->
+    <Border Grid.Column="0"
+            Background="#66000000"
+            Padding="16"
+            Margin="24,24,12,24">
+        <ListBox ItemsSource="{Binding CurrentCategories}"
+                 SelectedItem="{Binding SelectedCategory}"
+                 BorderThickness="0"
+                 Background="Transparent"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Name}"
+                               FontSize="20"
+                               Margin="0,4"
+                               Foreground="White"
+                               TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Border>
+
+    <!-- RIGHT: host slot for per-system subthemes -->
+    <Border Grid.Column="1"
+            Background="#22000000"
+            Margin="12,24,24,24"
+            CornerRadius="8">
+        <ContentControl x:Name="SystemLayoutHost"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch" />
+    </Border>
+</Grid>
+</UserControl>
+```
+
+Any BigMode theme that defines a `ContentControl x:Name="SystemLayoutHost"` is automatically treated as a **system host**:
+
+- The host continues to provide `BigModeViewModel` as `DataContext`.
+- The left side is up to the theme author (list, wheel, carousel, …).
+- The right `SystemLayoutHost` is filled by the host with a **system subtheme** based on the selected node.
+
+> You can ship multiple host variants, e.g. `Themes/SystemHostClassic/theme.axaml`,  
+> `Themes/SystemHostCarousel/theme.axaml`, …  
+> Users can pick one per node via the normal „BigMode theme“ dropdown.
+
+### 12.2 System subthemes (per-platform layouts)
+
+System subthemes live under:
+
+- `Themes/System/<Id>/theme.axaml`
+
+Recommended structure:
+
+- `Themes/System/Default/theme.axaml`
+- `Themes/System/C64/theme.axaml`
+- `Themes/System/SNES/theme.axaml`
+- (optional: `Images/`, `Videos/` per folder)
+
+The folder name `<Id>` is used as:
+
+- the **technical id** (`SystemPreviewThemeId`) stored on `MediaNode`,
+- the **key** in the system theme dropdown,
+- part of the relative path `System/<Id>/theme.axaml` passed to `ThemeLoader`.
+
+A minimal subtheme:
+```xml
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Retromind.ViewModels" xmlns:ext="clr-namespace:Retromind.Extensions" x:DataType="vm:BigModeViewModel" Background="#101010"
+         ext:ThemeProperties.Name="Default System Layout"
+         ext:ThemeProperties.VideoEnabled="True">
+
+<Grid RowDefinitions="*,Auto" ColumnDefinitions="*,2*" Margin="40">
+
+    <!-- LEFT: system info -->
+    <StackPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Spacing="8">
+        <TextBlock Text="{Binding SelectedCategory.Name}"
+                   FontSize="40"
+                   FontWeight="Bold"
+                   Foreground="White"
+                   TextTrimming="CharacterEllipsis" />
+
+        <TextBlock Text="{Binding CategoryTitle}"
+                   FontSize="16"
+                   Foreground="#CCCCCC"
+                   TextWrapping="Wrap"
+                   MaxWidth="400" />
+    </StackPanel>
+
+    <!-- RIGHT: simple monitor with VideoSlot -->
+    <Grid Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Border Background="#181818" CornerRadius="16" Padding="16">
+            <Grid RowDefinitions="Auto,Auto">
+
+                <Border Grid.Row="0"
+                        Background="#000000"
+                        CornerRadius="8"
+                        Padding="4"
+                        Margin="0,0,0,12">
+                    <!-- VideoSlot: the host will place the VLC overlay here -->
+                    <Border x:Name="VideoSlot"
+                            Background="#000000"
+                            CornerRadius="4"
+                            ClipToBounds="True"
+                            MinWidth="480"
+                            MinHeight="270">
+                        <TextBlock Text="No preview video"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="#505050"
+                                   FontSize="18" />
+                    </Border>
+                </Border>
+
+                <StackPanel Grid.Row="1"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Games:" Foreground="#AAAAAA" FontSize="14" />
+                        <TextBlock Text="{Binding TotalGames}" Foreground="#FFFFFF" FontSize="14" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Year:" Foreground="#AAAAAA" FontSize="14" />
+                        <TextBlock Text="{Binding SelectedYear}" Foreground="#FFFFFF" FontSize="14" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Grid>
+</UserControl>
+```
+
+Requirements for a subtheme:
+
+- `x:DataType="vm:BigModeViewModel"`
+- A `Border` (or any control) named **`VideoSlot`** where the video preview should appear.
+- Optional `ThemeProperties` for metadata / tuning.
+
+### 12.3 Wiring: how the host selects subthemes
+
+- For the active system host theme, `BigModeHostView`:
+    - watches `BigModeViewModel.SelectedCategory`,
+    - reads `SystemPreviewThemeId` from the selected `MediaNode`,
+    - resolves it to a folder under `Themes/System/<Id>/`,
+    - loads `System/<Id>/theme.axaml` through `ThemeLoader`,
+    - sets the subtheme view as `Content` of `SystemLayoutHost`,
+    - and uses the subtheme’s `VideoSlot` for the preview overlay.
+
+`SystemPreviewThemeId` is stored on `MediaNode` and configured via the Node settings dialog.
+
+If `SystemPreviewThemeId` is `null` or empty, the host falls back to `"Default"`:
+
+- `Themes/System/Default/theme.axaml`
+
+### 12.4 Selecting host + subthemes in the UI
+
+In the node settings dialog:
+
+- **BigMode theme**  
+  → `ThemePath` (e.g. `Arcade/theme.axaml`, `Wheel/theme.axaml`, `SystemHostClassic/theme.axaml`)
+
+- **System-Theme (System-Auswahl)**  
+  → `SystemPreviewThemeId` (`"Default"`, `"C64"`, `"SNES"`, …)
+
+Typical setup:
+
+- Root node „Games“ / „Spiele“:
+    - BigMode theme: `SystemHostClassic/theme.axaml`
+    - System-Theme: `(disabled)`
+
+- System nodes (C64, SNES, …):
+    - BigMode theme: `Arcade/theme.axaml` (or any content theme)
+    - System-Theme: `C64`, `SNES`, … (folder names under `Themes/System`)
+
+This allows:
+
+- Multiple **system host** layouts (scroll list, carousel, grid, …).
+- Per-system **subthemes** for the preview area.
+
+### 12.5 Publishing new system hosts and system subthemes
+
+To publish an additional **system host theme**:
+
+1. Create a folder under `Themes/`, e.g. `Themes/SystemHostCarousel/`.
+2. Add `theme.axaml` with:
+    - `x:DataType="vm:BigModeViewModel"`
+    - a `ContentControl x:Name="SystemLayoutHost"` somewhere in your layout.
+3. Ship the folder. Retromind will:
+    - show `SystemHostCarousel/theme.axaml` in the BigMode theme dropdown,
+    - treat it automatically as a system host theme.
+
+To publish a new **system subtheme**:
+
+1. Create a folder under `Themes/System/<Id>/`, e.g. `Themes/System/C64/`.
+2. Add `theme.axaml` with:
+    - `x:DataType="vm:BigModeViewModel"`
+    - `Border x:Name="VideoSlot"` at the desired position.
+3. Optionally set `ext:ThemeProperties.Name` on the root for a friendly display name.
+4. Users can then pick `C64` in the „System-Theme (System-Auswahl)“ dropdown for the C64 node.

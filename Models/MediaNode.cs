@@ -36,6 +36,13 @@ public partial class MediaNode : ObservableObject
     public string? DefaultNativeWrapperArgs { get; set; }
     
     /// <summary>
+    /// Optionales System-Preview-Theme für diesen Node (System-Auswahl in BigMode).
+    /// Entspricht dem Ordnernamen unter Themes/System (z.B. "C64", "SNES").
+    /// Wenn null/leer, verwendet der System-Browser das Standardlayout ("Default").
+    /// </summary>
+    public string? SystemPreviewThemeId { get; set; }
+    
+    /// <summary>
     /// Unique identifier for state persistence (e.g., remembering selection).
     /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();

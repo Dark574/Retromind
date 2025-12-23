@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
@@ -22,6 +23,22 @@ public partial class BigModeHostView : UserControl
 
     private Control? _videoSlot;
 
+    // When the active theme is a "system host" theme, this points to its
+    // right-hand content placeholder (SystemLayoutHost).
+    private ContentControl? _systemLayoutHost;
+
+    // True while the active theme is the SystemHost theme (detected by presence
+    // of a "SystemLayoutHost" ContentControl in the theme root).
+    private bool _isSystemHostTheme;
+
+    // Cache of loaded system subthemes (e.g. Themes/System/C64/theme.axaml).
+    // Key = SystemPreviewThemeId / folder name ("Default", "C64", ...).
+    private readonly Dictionary<string, Theme> _systemThemeCache = new(StringComparer.OrdinalIgnoreCase);
+
+    // Track ViewModel notifications so we can react to SelectedCategory changes
+    // while the SystemHost theme is active.
+    private INotifyPropertyChanged? _vmNotifications;
+    
     // Coalesce LayoutUpdated spam into a single placement calculation per UI tick
     private bool _placementUpdateQueued;
 
@@ -40,10 +57,36 @@ public partial class BigModeHostView : UserControl
         ResetVideoBorder();
         
         LayoutUpdated += (_, _) => QueueUpdateVideoPlacement();
+        
+        // React when BigModeViewModel is swapped so we can subscribe to property changes.
+        DataContextChanged += OnDataContextChanged;
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_vmNotifications != null)
+            _vmNotifications.PropertyChanged -= OnViewModelPropertyChanged;
+
+        _vmNotifications = DataContext as INotifyPropertyChanged;
+
+        if (_vmNotifications != null)
+            _vmNotifications.PropertyChanged += OnViewModelPropertyChanged;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!_isSystemHostTheme)
+            return;
+
+        // SelectedCategory changed -> update per-system subtheme on the right side.
+        if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedCategory))
+        {
+            UpdateSystemLayoutForSelectedCategory();
+        }
+    }
+    
     public void SetThemeContent(Control themeRoot, Theme theme)
     {
         UnhookThemeTuning();
@@ -58,6 +101,11 @@ public partial class BigModeHostView : UserControl
         var slotName = string.IsNullOrWhiteSpace(theme.VideoSlotName) ? "VideoSlot" : theme.VideoSlotName;
         _videoSlot = themeRoot.FindControl<Control>(slotName);
 
+        // Detect whether this theme is the "System Host" theme by checking for
+        // a named content placeholder "SystemLayoutHost" in the visual tree.
+        _systemLayoutHost = themeRoot.FindControl<ContentControl>("SystemLayoutHost");
+        _isSystemHostTheme = _systemLayoutHost != null;
+        
         // Capability: theme allows video AND a slot exists
         var canShowVideo = theme.VideoEnabled && _videoSlot != null;
 
@@ -79,11 +127,116 @@ public partial class BigModeHostView : UserControl
         // Apply theme tuning (selection UX, spacing, typography, animation timings)
         ApplyThemeTuning(themeRoot);
 
+        // If this is the SystemHost theme, initialize the right-hand system layout
+        // immediately for the current SelectedCategory.
+        if (_isSystemHostTheme)
+        {
+            UpdateSystemLayoutForSelectedCategory();
+        }
+        
         // Layout settles asynchronously; schedule placement + VM "view ready" after render ticks
         QueueUpdateVideoPlacement();
         NotifyViewReadyAfterRender(DataContext!);
     }
 
+    /// <summary>
+    /// Updates the right-hand system layout (SystemLayoutHost) when the SystemHost
+    /// theme is active. Selects and loads the per-system subtheme based on the
+    /// current node's SystemPreviewThemeId.
+    /// </summary>
+    private void UpdateSystemLayoutForSelectedCategory()
+    {
+        if (!_isSystemHostTheme || _systemLayoutHost is null)
+            return;
+
+        if (DataContext is not Retromind.ViewModels.BigModeViewModel vm)
+            return;
+
+        var node = vm.SelectedCategory;
+        if (node is null)
+        {
+            _systemLayoutHost.Content = null;
+            _videoSlot = null;
+            vm.CanShowVideo = false;
+            return;
+        }
+
+        // Resolve system preview theme id with a safe default.
+        // The id corresponds to a folder under Themes/System (e.g. "Default", "C64").
+        var id = string.IsNullOrWhiteSpace(node.SystemPreviewThemeId)
+            ? "Default"
+            : node.SystemPreviewThemeId;
+        
+        // Always load a fresh instance of the system subtheme to avoid
+        // reusing the same Control instance across different SystemLayoutHosts,
+        // which would cause "already has a visual parent" exceptions.
+        var relativePath = System.IO.Path.Combine("System", id, "theme.axaml");
+        Theme systemTheme;
+
+        try
+        {
+            systemTheme = ThemeLoader.LoadTheme(relativePath);
+        }
+        catch
+        {
+            // If loading fails for this id, fall back to the Default system layout.
+            if (!string.Equals(id, "Default", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var fallbackPath = System.IO.Path.Combine("System", "Default", "theme.axaml");
+                    systemTheme = ThemeLoader.LoadTheme(fallbackPath);
+                }
+                catch
+                {
+                    // As a last resort, clear the host and disable video.
+                    _systemLayoutHost.Content = null;
+                    _videoSlot = null;
+                    vm.CanShowVideo = false;
+                    vm.IsVideoVisible = false;
+                    vm.IsVideoOverlayVisible = false;
+                    return;
+                }
+            }
+            else
+            {
+                _systemLayoutHost.Content = null;
+                _videoSlot = null;
+                vm.CanShowVideo = false;
+                vm.IsVideoVisible = false;
+                vm.IsVideoOverlayVisible = false;
+                return;
+            }
+        }
+
+        var subView = systemTheme.View;
+
+        // Share the same BigModeViewModel for all subthemes so bindings just work.
+        subView.DataContext = vm;
+
+        _systemLayoutHost.Content = subView;
+
+        // Per-subtheme VideoSlot takes precedence when SystemHost is active.
+        var subSlotName = string.IsNullOrWhiteSpace(systemTheme.VideoSlotName)
+            ? "VideoSlot"
+            : systemTheme.VideoSlotName;
+
+        _videoSlot = subView.FindControl<Control>(subSlotName);
+
+        // Re-position overlay to match the new subtheme slot.
+        ResetVideoBorder();
+        QueueUpdateVideoPlacement();
+
+        // Effective video capability for the current system subtheme.
+        vm.CanShowVideo = systemTheme.VideoEnabled && _videoSlot != null;
+
+        if (!vm.CanShowVideo)
+        {
+            vm.IsVideoVisible = false;
+            vm.IsVideoOverlayVisible = false;
+        }
+    }
+    
     private void UnhookThemeTuning()
     {
         foreach (var lb in _tunedListBoxes)

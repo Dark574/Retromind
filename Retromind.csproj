@@ -8,6 +8,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <NoWarn>$(NoWarn);NU1510</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -32,6 +33,7 @@
         <PackageReference Include="LibVLCSharp.Avalonia" Version="3.9.5" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
         <PackageReference Include="Silk.NET.SDL" Version="2.22.0" />
+        <PackageReference Include="System.Text.Json" Version="8.0.5" />
     </ItemGroup>
 
     <ItemGroup>

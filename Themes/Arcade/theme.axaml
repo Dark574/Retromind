@@ -40,7 +40,7 @@
         </Grid>
 
         <!-- Main layout: cabinet area (left) + game list (right) -->
-        <Grid ColumnDefinitions="3*,1.5*" Margin="40,30,40,30">
+        <Grid ColumnDefinitions="4*,1.25*" Margin="25,20,40,30">
 
             <!-- LEFT: Arcade cabinet area -->
             <Grid Grid.Column="0"
@@ -49,13 +49,13 @@
 
                 <!-- Skalierbare Cabinet-Area: alles darin wird proportional skaliert -->
                 <Viewbox Stretch="Uniform"
-                         StretchDirection="DownOnly"
-                         HorizontalAlignment="Center"
+                         StretchDirection="Both"
+                         HorizontalAlignment="Left"
                          VerticalAlignment="Bottom"
-                         Margin="-40,80,0,0">
-                    <!-- Design-Koordinatensystem: 1280x720 (16:9) -->
-                    <Grid Width="1280"
-                          Height="720">
+                         Margin="-110,40,0,0">
+                    <!-- Design-Koordinatensystem: 1400x800 (16:9) -->
+                    <Grid Width="1400"
+                          Height="800">
 
                         <!-- Cabinet composition -->
                         <Grid>
@@ -64,33 +64,34 @@
                                   RowDefinitions="Auto,Auto"
                                   HorizontalAlignment="Center">
 
-                                <!-- Marquee (oben im 16:9-Automaten) -->
+                                <!-- Marquee (oben im Automaten) -->
                                 <Border Grid.Row="0"
-                                        Width="580"
-                                        Height="122"
-                                        Margin="0,18,0,10"
+                                        Width="640"
+                                        Height="178"
+                                        Margin="0,12,0,0"
                                         Background="Transparent"
                                         ClipToBounds="True">
                                     <Image Source="{Binding ActiveMarqueePath,
-                                                            Converter={StaticResource PathToBitmapConverter}}"
+                                                        Converter={StaticResource PathToBitmapConverter}}"
                                            Stretch="UniformToFill"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
                                            IsVisible="{Binding ActiveMarqueePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
                                 </Border>
 
-                                <!-- Screen-Block (16:9) -->
+                                <!-- Screen-Block -->
                                 <Border Grid.Row="1"
-                                        Width="510"
-                                        Height="287"
-                                        Margin="0,30,0,0"
+                                        Width="578"
+                                        Height="325"
+                                        Margin="0,60,0,0"
                                         Background="Transparent"
                                         ClipToBounds="True">
                                     <Grid>
-                                        <!-- 16:9-Video-Slot -->
+                                        <!-- Video-Slot im Screen -->
                                         <Border x:Name="VideoSlot"
-                                                Width="340"
-                                                Height="255"
+                                                Width="465"
+                                                Height="350"
+                                                Margin="90,65,0,0"
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
                                                 CornerRadius="0"
@@ -117,10 +118,9 @@
                                 </Border>
                             </Grid>
 
-                            <!-- Cabinet-PNG oben drauf.
-                                 Diese Grafik hat eine große 16:9-Screen-Öffnung und einen separaten Marquee-Bereich. -->
+                            <!-- Cabinet-PNG -->
                             <Image Source="{Binding Converter={StaticResource ThemeAssetConverter},
-                                                    ConverterParameter=Images/cabinet.png}"
+                                                ConverterParameter=Images/cabinet.png}"
                                    Stretch="Uniform"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
@@ -135,9 +135,9 @@
                     Background="#66000000"
                     CornerRadius="0"
                     Padding="20,24"
-                    Margin="8,20,0,40"
+                    Margin="16,20,0,40"
                     HorizontalAlignment="Stretch"
-                    MaxWidth="320">
+                    MaxWidth="340">
                 <ListBox x:Name="ArcadeLogoList"
                          ItemsSource="{Binding Items}"
                          SelectedItem="{Binding SelectedItem}"

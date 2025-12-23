@@ -346,11 +346,8 @@ public partial class MainWindowViewModel
     {
         if (node == null || CurrentWindow is not { } owner) return;
         
-        // Calculate Node Path for the FileService
-        var nodePath = PathHelper.GetNodePath(node, RootItems);
-        
         // Pass _fileService and nodePath to the ViewModel
-        var vm = new NodeSettingsViewModel(node, _currentSettings, _fileService, nodePath);
+        var vm = new NodeSettingsViewModel(node, _currentSettings);
         var dialog = new NodeSettingsView { DataContext = vm };
         
         vm.RequestClose += _ => { dialog.Close(); };
