@@ -338,6 +338,74 @@ Not every theme must use every value; many are intended as shared knobs.
 - `ThemeProperties.BodyFontSize` (double, default: `18`)
 - `ThemeProperties.CaptionFontSize` (double, default: `14`)
 
+### 6.8 Attract Mode (auto-random selection on idle)
+
+Some BigMode themes (especially arcade-style layouts) may want to automatically
+scroll/select random games after a period of user inactivity — similar to an
+"attract mode" in classic arcade cabinets.
+
+This behavior is fully opt-in and controlled per theme via `ThemeProperties`:
+
+- `ThemeProperties.AttractModeEnabled` (bool, default: `false`)  
+  Enables the attract mode logic for this theme.
+- `ThemeProperties.AttractModeIdleSeconds` (int, default: `0`)  
+  Idle time in **seconds** before the first random selection.  
+  Every additional multiple of this interval (2×, 3×, …) will trigger another
+  random selection while the user remains inactive.
+- `ThemeProperties.AttractModeSound` (string?, optional)  
+  Theme-local path to a short sound effect that is played when the attract-mode
+  "spin" animation starts (e.g. `sounds/attract_spin.wav`).
+
+The ViewModel exposes an additional flag:
+
+- `IsInAttractMode` (bool) — `true` while the attract-mode animation is actively
+  spinning through the list. Themes can use this to drive temporary visual
+  effects (glow, shake, etc.) on the selected item.
+
+Example (Arcade theme):
+```xml
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Retromind.ViewModels" xmlns:ext="clr-namespace:Retromind.Extensions" x:DataType="vm:BigModeViewModel" Background="Black"
+         ext:ThemeProperties.Name="Arcade"
+         ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
+         ext:ThemeProperties.Version="0.1.0"
+         ext:ThemeProperties.VideoEnabled="True"
+         ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4"
+         ext:ThemeProperties.AttractModeEnabled="True"
+         ext:ThemeProperties.AttractModeIdleSeconds="60"
+         ext:ThemeProperties.AttractModeSound="sounds/attract_spin.wav">
+</UserControl>
+```
+
+
+Details:
+
+- Attract mode only operates while **game list view** is active
+  (`IsGameListActive == true`) and `Items.Count > 0`.
+- Selections are performed using Retromind’s `RandomHelper`; the ViewModel
+  simply moves the selection to a random item in the current list.
+- Any user input (navigation, select, back) resets the idle timer and the
+  internal step counter.
+
+Example (Arcade theme):
+```xml
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Retromind.ViewModels" xmlns:ext="clr-namespace:Retromind.Extensions" x:DataType="vm:BigModeViewModel" Background="Black"
+         ext:ThemeProperties.Name="Arcade"
+         ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
+         ext:ThemeProperties.Version="0.1.0"
+         ext:ThemeProperties.VideoEnabled="True"
+         ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4"
+         ext:ThemeProperties.AttractModeEnabled="True"
+         ext:ThemeProperties.AttractModeIdleSeconds="60">
+
+</UserControl>
+```
+
+In this example:
+
+- After 60 seconds of no input in game view, one random game is selected.
+- After 120 seconds, another random game is selected.
+- After 180 seconds, a third one, and so on — until the user interacts again.
+
 ---
 
 ## 7) Classes: opt-in hooks for automatic styling

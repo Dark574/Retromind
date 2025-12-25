@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions"
+             xmlns:video="using:Retromind.Helpers.Video"
              x:DataType="vm:BigModeViewModel"
              Background="#101010"
 
@@ -43,35 +44,42 @@
         <Grid Grid.Row="0"
               Grid.Column="1"
               HorizontalAlignment="Center"
-              VerticalAlignment="Center">
+              VerticalAlignment="Center"
+              MinWidth="640"
+              MinHeight="360">
             <!-- Outer frame -->
             <Border Background="#181818"
                     CornerRadius="16"
-                    Padding="16">
-                <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*">
+                    Padding="20"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch">
+                <Grid RowDefinitions="*,Auto">
 
-                    <!-- "Screen" area with VideoSlot in the center -->
+                    <!-- "Screen" area with video + fallback text -->
                     <Border Grid.Row="0"
+                            Width="640"
+                            Height="360"
                             Background="#000000"
                             CornerRadius="8"
-                            Padding="4"
-                            Margin="0,0,0,12">
-                        <!-- VideoSlot is where BigModeHostView will place the VLC overlay -->
-                        <Border x:Name="VideoSlot"
-                                Background="#000000"
-                                CornerRadius="4"
-                                ClipToBounds="True"
-                                HorizontalAlignment="Stretch"
-                                VerticalAlignment="Stretch"
-                                MinWidth="480"
-                                MinHeight="270">
-                            <!-- Simple placeholder text when no video is available -->
+                            Padding="0"
+                            Margin="0,0,0,12"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                        <Grid>
+                            <!-- Fallback-Text (sichtbar, wenn kein Video vorhanden ist) -->
                             <TextBlock Text="No preview video"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"
                                        Foreground="#505050"
                                        FontSize="18" />
-                        </Border>
+
+                            <!-- Video-Fläche -->
+                            <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
+                                                       Stretch="UniformToFill"
+                                                       HorizontalAlignment="Stretch"
+                                                       VerticalAlignment="Stretch"
+                                                       IsVisible="{Binding MainVideoHasContent}" />
+                        </Grid>
                     </Border>
 
                     <!-- Basic stats below the screen -->
@@ -83,16 +91,7 @@
                             <TextBlock Text="Games:"
                                        Foreground="#AAAAAA"
                                        FontSize="14" />
-                            <TextBlock Text="{Binding TotalGames}"
-                                       Foreground="#FFFFFF"
-                                       FontSize="14" />
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Year:"
-                                       Foreground="#AAAAAA"
-                                       FontSize="14" />
-                            <TextBlock Text="{Binding SelectedYear}"
+                            <TextBlock Text="{Binding SelectedCategory.Items.Count}"
                                        Foreground="#FFFFFF"
                                        FontSize="14" />
                         </StackPanel>

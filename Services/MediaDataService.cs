@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -24,6 +25,9 @@ public class MediaDataService
     private string BackupPath => Path.Combine(AppPaths.DataRoot, BackupFileName);
     private string TempPath => Path.Combine(AppPaths.DataRoot, TempFileName);
 
+    // Serialize library IO to avoid concurrent temp/backup/replace races.
+    private readonly SemaphoreSlim _ioGate = new(1, 1);
+    
     /// <summary>
     /// Saves the current state of the library to disk asynchronously.
     /// Uses an atomic write strategy (Write to Temp -> Move to Final) to prevent data corruption.
@@ -47,7 +51,14 @@ public class MediaDataService
             // 2. Create a backup of the existing valid file
             if (File.Exists(FilePath))
             {
-                File.Copy(FilePath, BackupPath, overwrite: true);
+                try
+                {
+                    File.Copy(FilePath, BackupPath, overwrite: true);
+                }
+                catch
+                {
+                    // best effort
+                }
             }
 
             // 3. Atomic Move: Replace the real file with the temp file
@@ -59,13 +70,31 @@ public class MediaDataService
             Console.Error.WriteLine($"[MediaDataService] Save failed: {ex.Message}");
             
             // Cleanup temp file if something went wrong
-            if (File.Exists(TempPath)) File.Delete(TempPath);
-            
-            // Optional: Try to restore backup if the main file got lost during the move (rare edge case)
-            if (!File.Exists(FilePath) && File.Exists(BackupPath))
+            try
             {
-                File.Copy(BackupPath, FilePath);
+                if (File.Exists(TempPath)) File.Delete(TempPath);
             }
+            catch
+            {
+                // ignore
+            }
+
+            // Optional: Try to restore backup if the main file got lost during the move (rare edge case)
+            try
+            {
+                if (!File.Exists(FilePath) && File.Exists(BackupPath))
+                {
+                    File.Copy(BackupPath, FilePath, overwrite: true);
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+        finally
+        {
+            _ioGate.Release();
         }
     }
 
@@ -76,51 +105,78 @@ public class MediaDataService
     /// <returns>The media tree or a new default tree if nothing exists.</returns>
     public async Task<ObservableCollection<MediaNode>> LoadAsync()
     {
-        ObservableCollection<MediaNode>? result = null;
-
-        // 1. Try loading the main file
-        if (File.Exists(FilePath))
+        await _ioGate.WaitAsync().ConfigureAwait(false);
+        try
         {
+            Directory.CreateDirectory(AppPaths.DataRoot);
+
+            // Cleanup stale temp file (e.g. after crash during SaveAsync)
             try
             {
-                using var stream = File.OpenRead(FilePath);
-                result = await JsonSerializer.DeserializeAsync<ObservableCollection<MediaNode>>(stream);
+                if (File.Exists(TempPath))
+                    File.Delete(TempPath);
             }
-            catch (JsonException ex)
+            catch
             {
-                Console.Error.WriteLine($"[MediaDataService] CRITICAL: Main DB corrupt: {ex.Message}");
-                
-                // Quarantine the corrupt file for manual inspection
-                var corruptPath = FilePath + ".corrupt-" + DateTime.Now.Ticks;
-                File.Move(FilePath, corruptPath);
+                // ignore
             }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"[MediaDataService] General Load Error: {ex.Message}");
-            }
-        }
 
-        // 2. If main file failed or didn't exist, try backup
-        if (result == null || result.Count == 0)
+            ObservableCollection<MediaNode>? result = null;
+
+            // 1. Try loading the main file
+            if (File.Exists(FilePath))
+            {
+                try
+                {
+                    using var stream = File.OpenRead(FilePath);
+                    result = await JsonSerializer.DeserializeAsync<ObservableCollection<MediaNode>>(stream).ConfigureAwait(false);
+                }
+                catch (JsonException ex)
+                {
+                    Console.Error.WriteLine($"[MediaDataService] CRITICAL: Main DB corrupt: {ex.Message}");
+
+                    // Quarantine the corrupt file for manual inspection
+                    try
+                    {
+                        var corruptPath = FilePath + ".corrupt-" + DateTime.Now.Ticks;
+                        File.Move(FilePath, corruptPath, overwrite: true);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"[MediaDataService] General Load Error: {ex.Message}");
+                }
+            }
+
+            // 2. If main file failed or didn't exist, try backup
+            if (result == null || result.Count == 0)
+            {
+                if (File.Exists(BackupPath))
+                {
+                    Console.WriteLine("[MediaDataService] Attempting to restore from backup...");
+                    result = await LoadFromFileAsync(BackupPath).ConfigureAwait(false);
+                }
+            }
+
+            // 3. If everything failed, return a fresh tree
+            if (result == null || result.Count == 0)
+            {
+                return new ObservableCollection<MediaNode>
+                {
+                    new(Strings.Media_Library, NodeType.Area)
+                };
+            }
+
+            return result;
+        }
+        finally
         {
-            if (File.Exists(BackupPath))
-            {
-                Console.WriteLine("[MediaDataService] Attempting to restore from backup...");
-                result = await LoadFromFileAsync(BackupPath);
-            }
+            _ioGate.Release();
         }
-
-        // 3. If everything failed, return a fresh tree
-        if (result == null || result.Count == 0)
-        {
-            return new ObservableCollection<MediaNode>
-            {
-                // Default root node
-                new(Strings.Media_Library, NodeType.Area) 
-            };
-        }
-
-        return result;
     }
 
     private async Task<ObservableCollection<MediaNode>?> LoadFromFileAsync(string path)

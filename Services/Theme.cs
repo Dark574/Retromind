@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 using Retromind.Models;
 
@@ -38,6 +39,25 @@ public class Theme
     public string? Version { get; }
     public string? WebsiteUrl { get; }
 
+    /// <summary>
+    /// Enables theme-driven attract mode. When true and AttractModeIdleInterval is set,
+    /// the host may automatically scroll/select random items while the user is idle.
+    /// </summary>
+    public bool AttractModeEnabled { get; }
+
+    /// <summary>
+    /// Base idle interval after which the first attract-mode selection occurs.
+    /// Additional multiples of this interval trigger further selections
+    /// while the user remains inactive.
+    /// </summary>
+    public TimeSpan? AttractModeIdleInterval { get; }
+    
+    /// <summary>
+    /// Optional theme-local sound that is played when Attract Mode starts its
+    /// "spin" animation (relative to BasePath).
+    /// </summary>
+    public string? AttractModeSoundPath { get; }
+    
     public Theme(
         Control view,
         ThemeSounds sounds,
@@ -48,7 +68,10 @@ public class Theme
         string? name = null,
         string? author = null,
         string? version = null,
-        string? websiteUrl = null)
+        string? websiteUrl = null,
+        bool attractModeEnabled = false,
+        TimeSpan? attractModeIdleInterval = null,
+        string? attractModeSoundPath = null)
     {
         View = view;
         Sounds = sounds;
@@ -62,5 +85,9 @@ public class Theme
         Author = author;
         Version = version;
         WebsiteUrl = websiteUrl;
+        
+        AttractModeEnabled = attractModeEnabled;
+        AttractModeIdleInterval = attractModeIdleInterval;
+        AttractModeSoundPath = attractModeSoundPath;
     }
 }

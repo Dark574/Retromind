@@ -76,6 +76,16 @@ public static class ThemeLoader
             var themeVersion = ThemeProperties.GetVersion(view);
             var themeWebsiteUrl = ThemeProperties.GetWebsiteUrl(view);
 
+            var attractEnabled = ThemeProperties.GetAttractModeEnabled(view);
+            var attractIdleSeconds = ThemeProperties.GetAttractModeIdleSeconds(view);
+            var attractSound = ThemeProperties.GetAttractModeSound(view);
+
+            TimeSpan? attractInterval = null;
+            if (attractEnabled && attractIdleSeconds > 0)
+            {
+                attractInterval = TimeSpan.FromSeconds(attractIdleSeconds);
+            }
+            
             return new Theme(
                 view,
                 sounds,
@@ -86,7 +96,10 @@ public static class ThemeLoader
                 name: themeName,
                 author: themeAuthor,
                 version: themeVersion,
-                websiteUrl: themeWebsiteUrl);
+                websiteUrl: themeWebsiteUrl,
+                attractModeEnabled: attractEnabled,
+                attractModeIdleInterval: attractInterval,
+                attractModeSoundPath: attractSound);
         }
         catch (Exception ex)
         {

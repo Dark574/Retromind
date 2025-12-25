@@ -5,6 +5,7 @@
              xmlns:helpers="using:Retromind.Helpers"
              xmlns:ac="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls"
              xmlns:video="using:Retromind.Helpers.Video"
+             xmlns:media="using:Avalonia.Media"
              x:DataType="vm:BigModeViewModel"
              Background="Black"
 
@@ -12,7 +13,10 @@
              ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
              ext:ThemeProperties.Version="0.1.0"
              ext:ThemeProperties.SelectedScale="1.0"
-             ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4">
+             ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4"
+             ext:ThemeProperties.AttractModeEnabled="True"
+             ext:ThemeProperties.AttractModeIdleSeconds="60"
+             ext:ThemeProperties.AttractModeSound="sounds/attract_spin.wav">
 
     <UserControl.Resources>
         <!-- Converter to load theme-local images (e.g. Images/cabinet.png, Images/pointer.png) -->
@@ -201,39 +205,44 @@
 
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <ac:LayoutTransformControl Margin="0,4"
-                                                       Padding="2"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center">
-                                <ac:LayoutTransformControl.LayoutTransform>
-                                    <ScaleTransform
-                                        ScaleX="{Binding $parent[ListBoxItem].IsSelected,
-                                     Converter={StaticResource LogoScaleConverter}}"
-                                        ScaleY="{Binding $parent[ListBoxItem].IsSelected,
-                                     Converter={StaticResource LogoScaleConverter}}"/>
-                                </ac:LayoutTransformControl.LayoutTransform>
+                            <!-- Äußerer Container (ohne Attract-Glow) -->
+                            <Border Margin="0,4"
+                                    Padding="0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                <ac:LayoutTransformControl Padding="2"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center">
+                                    <ac:LayoutTransformControl.LayoutTransform>
+                                        <ScaleTransform
+                                            ScaleX="{Binding $parent[ListBoxItem].IsSelected,
+                                                             Converter={StaticResource LogoScaleConverter}}"
+                                            ScaleY="{Binding $parent[ListBoxItem].IsSelected,
+                                                             Converter={StaticResource LogoScaleConverter}}"/>
+                                    </ac:LayoutTransformControl.LayoutTransform>
 
-                                <StackPanel Orientation="Vertical"
-                                            HorizontalAlignment="Center"
-                                            Spacing="2">
-                                    <!-- Logo -->
-                                    <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
-                                           Width="140"
-                                           Stretch="Uniform"
-                                           HorizontalAlignment="Center"
-                                           IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                                    <StackPanel Orientation="Vertical"
+                                                HorizontalAlignment="Center"
+                                                Spacing="2">
+                                        <!-- Logo -->
+                                        <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
+                                               Width="140"
+                                               Stretch="Uniform"
+                                               HorizontalAlignment="Center"
+                                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
 
-                                    <!-- Fallback: Texttitel wenn kein Logo -->
-                                    <TextBlock Text="{Binding Title}"
-                                               FontSize="14"
-                                               FontWeight="SemiBold"
-                                               Foreground="White"
-                                               TextAlignment="Center"
-                                               TextTrimming="CharacterEllipsis"
-                                               MaxWidth="200"
-                                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
-                                </StackPanel>
-                            </ac:LayoutTransformControl>
+                                        <!-- Fallback: Texttitel wenn kein Logo -->
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="White"
+                                                   TextAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxWidth="200"
+                                                   IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
+                                    </StackPanel>
+                                </ac:LayoutTransformControl>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibVLCSharp.Shared;
@@ -29,6 +30,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private readonly SoundEffectService _soundEffectService;
     private readonly GamepadService _gamepadService;
 
+    private int _disposed;
+    
     // Oberfläche für das gerenderte Video (LibVLC-Callbacks)
     private readonly LibVlcVideoSurface _videoSurface;
 
@@ -40,6 +43,21 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     // Player für den zweiten Hintergrundkanal.
     private MediaPlayer? _secondaryPlayer;
 
+    // Attract-Mode
+    private readonly bool _attractModeEnabled;
+    private readonly TimeSpan? _attractModeIdleInterval;
+    private DispatcherTimer? _attractTimer;
+    private DateTime _lastUserInputUtc;
+    private int _attractStepsExecuted;
+    private bool _isAttractAnimating; // verhindert parallele Attract-Animationen
+    
+    /// <summary>
+    /// True while the attract-mode animation is actively "spinning" through the list.
+    /// Themes can use this flag to trigger temporary visual effects (glow, shake, etc.).
+    /// </summary>
+    [ObservableProperty]
+    private bool _isInAttractMode;
+    
     // Aktuelle Media-Instanz für den Hintergrundkanal (z.B. bkg_anim.mp4).
     private Media? _secondaryBackgroundMedia;
     private string? _secondaryBackgroundPath;
@@ -278,6 +296,12 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Default capability based on the loaded theme (the host may further restrict this based on VideoSlot existence).
         CanShowVideo = _theme.VideoEnabled;
 
+        // Attract-Mode-Konfiguration aus dem Theme
+        _attractModeEnabled = _theme.AttractModeEnabled;
+        _attractModeIdleInterval = _theme.AttractModeIdleInterval;
+        _lastUserInputUtc = DateTime.UtcNow;
+        _attractStepsExecuted = 0;
+        
         CategoryTitle = Strings.BigMode_MainMenu;
 
         // Linux-friendly VLC options:
@@ -352,8 +376,195 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         
         // Nach Konstruktion: möglichen Hintergrundkanal anhand des aktuellen Themes vorbereiten.
         UpdateSecondaryBackgroundVideo();
+        
+        // Attract-Mode-Timer starten (falls konfiguriert)
+        InitializeAttractModeTimer();
     }
 
+    private void InitializeAttractModeTimer()
+    {
+        if (!_attractModeEnabled || _attractModeIdleInterval is null || _attractModeIdleInterval.Value <= TimeSpan.Zero)
+            return;
+
+        _attractTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1), // feingranular genug
+            IsEnabled = true
+        };
+        _attractTimer.Tick += OnAttractTimerTick;
+        _lastUserInputUtc = DateTime.UtcNow;
+        _attractStepsExecuted = 0;
+    }
+
+    private void OnAttractTimerTick(object? sender, EventArgs e)
+    {
+        if (Volatile.Read(ref _disposed) == 1)
+            return;
+        
+        if (!_attractModeEnabled || _attractModeIdleInterval is null)
+            return;
+
+        if (_isLaunching)
+            return;
+
+        // Attract-Mode nur im Spielemodus sinnvoll
+        if (!IsGameListActive || Items is not { Count: > 0 })
+        {
+            _attractStepsExecuted = 0;
+            return;
+        }
+
+        // Wenn aktuell eine Attract-Animation läuft, nicht erneut starten
+        if (_isAttractAnimating)
+            return;
+        
+        var now = DateTime.UtcNow;
+        var elapsed = now - _lastUserInputUtc;
+        if (elapsed <= TimeSpan.Zero)
+        {
+            _attractStepsExecuted = 0;
+            return;
+        }
+
+        var interval = _attractModeIdleInterval.Value;
+        if (interval <= TimeSpan.Zero)
+            return;
+
+        // Wie viele Intervalle sind bereits vergangen?
+        var totalStepsShouldHave = (int)(elapsed.Ticks / interval.Ticks);
+        if (totalStepsShouldHave <= _attractStepsExecuted)
+            return;
+
+        // Genau ein neuer Attract-Schritt für dieses Intervall
+        _attractStepsExecuted++;
+
+        PerformAttractModeStepAnimated();
+    }
+
+    private async void PerformAttractModeStepAnimated()
+    {
+        if (Volatile.Read(ref _disposed) == 1)
+            return;
+
+        if (!IsGameListActive || Items is not { Count: > 0 })
+            return;
+
+        var count = Items.Count;
+        if (count == 0)
+            return;
+
+        if (_isAttractAnimating)
+            return;
+
+        _isAttractAnimating = true;
+
+        try
+        {
+            // Attract-Mode visuell kennzeichnen
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                if (Volatile.Read(ref _disposed) == 1)
+                    return;
+
+                IsInAttractMode = true;
+            }, DispatcherPriority.Background);
+
+            // Optionaler Attract-Mode-Sound (z.B. kurzes "Spin"-Geräusch)
+            if (!string.IsNullOrWhiteSpace(_theme.AttractModeSoundPath))
+            {
+                try
+                {
+                    var fullPath = System.IO.Path.Combine(_theme.BasePath, _theme.AttractModeSoundPath);
+                    _soundEffectService.PlaySound(fullPath);
+                }
+                catch
+                {
+                    // Sound ist "Best Effort" – Fehler hier ignorieren
+                }
+            }
+
+            // Ein paar schnelle "Scroll"-Schritte, Anzahl leicht zufällig
+            var minSteps = Math.Min(10, count);        // mindestens eine gute Runde
+            var maxSteps = Math.Min(25, count * 3);    // nicht übertreiben
+            var steps = RandomHelper.Next(minSteps, maxSteps + 1);
+
+            for (int i = 0; i < steps; i++)
+            {
+                if (Volatile.Read(ref _disposed) == 1)
+                    break;
+
+                if (!IsGameListActive || Items.Count == 0 || _isLaunching)
+                    break;
+
+                // ein Schritt nach vorne, Wrap-around über SelectedItemIndex
+                if (Items.Count > 0)
+                {
+                    var nextIndex = SelectedItemIndex;
+                    if (nextIndex < 0 || nextIndex >= Items.Count)
+                        nextIndex = 0;
+
+                    nextIndex = (nextIndex + 1) % Items.Count;
+                    SelectedItemIndex = nextIndex;
+                    SelectedItem = Items[nextIndex];
+                }
+
+                // kurze Verzögerung für sichtbare Animation
+                await Task.Delay(60).ConfigureAwait(false);
+            }
+
+            // Nach der "Glücksrad"-Phase auf einen zufälligen Titel springen
+            if (IsGameListActive && Items is { Count: > 0 } && !_isLaunching)
+            {
+                var currentIndex = SelectedItemIndex >= 0 && SelectedItemIndex < Items.Count
+                    ? SelectedItemIndex
+                    : -1;
+
+                var newIndex = RandomHelper.Next(0, Items.Count);
+
+                if (Items.Count > 1 && newIndex == currentIndex)
+                {
+                    newIndex = (newIndex + 1) % Items.Count;
+                }
+
+                // zurück auf den UI-Thread
+                await UiThreadHelper.InvokeAsync(() =>
+                {
+                    if (Volatile.Read(ref _disposed) == 1)
+                        return;
+
+                    if (!IsGameListActive || Items.Count == 0)
+                        return;
+
+                    SelectedItemIndex = newIndex;
+                    SelectedItem = Items[newIndex];
+                }, DispatcherPriority.Background);
+            }
+        }
+        catch
+        {
+            // Attract-Mode ist "Best Effort" – Fehler dürfen die UI nicht killen.
+        }
+        finally
+        {
+            // Flag wieder zurücksetzen
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                if (Volatile.Read(ref _disposed) == 1)
+                    return;
+
+                IsInAttractMode = false;
+            }, DispatcherPriority.Background);
+
+            _isAttractAnimating = false;
+        }
+    }
+
+    private void ResetAttractIdleTimer()
+    {
+        _lastUserInputUtc = DateTime.UtcNow;
+        _attractStepsExecuted = 0;
+    }
+    
     /// <summary>
     /// Lädt/aktualisiert das optionale Theme-Hintergrundvideo (Secondary-Kanal).
     /// Sucht im aktuellen Theme-Verzeichnis nach "Video/bkg_anim.mp4".

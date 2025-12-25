@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Models;
 using Retromind.Resources;
@@ -275,6 +276,9 @@ public partial class BigModeViewModel
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            return;
+
         _gamepadService.OnUp -= OnGamepadUp;
         _gamepadService.OnDown -= OnGamepadDown;
         _gamepadService.OnLeft -= OnGamepadLeft;
@@ -282,10 +286,39 @@ public partial class BigModeViewModel
         _gamepadService.OnSelect -= OnGamepadSelect;
         _gamepadService.OnBack -= OnGamepadBack;
 
-        var player = MediaPlayer;
+        // Stop attract timer early so it can't fire while we tear down VLC
+        try
+        {
+            if (_attractTimer != null)
+            {
+                _attractTimer.Tick -= OnAttractTimerTick;
+                _attractTimer.Stop();
+                _attractTimer.IsEnabled = false;
+                _attractTimer = null;
+            }
+        }
+        catch
+        {
+            // best effort
+        }
+
+        // Cancel pending preview debounce and stop video overlay deterministically
+        try
+        {
+            _previewDebounceCts?.Cancel();
+            _previewDebounceCts = null;
+        }
+        catch
+        {
+            // ignore
+        }
+
+        var mainPlayer = MediaPlayer;
+        var secondaryPlayer = _secondaryPlayer;
         var vlc = _libVlc;
 
         MediaPlayer = null;
+        _secondaryPlayer = null;
 
         SaveState();
 
@@ -293,10 +326,94 @@ public partial class BigModeViewModel
         {
             try
             {
-                player?.Stop();
-                player?.Dispose();
-                vlc?.Dispose();
-                _videoSurface.Dispose();
+                // Stop & dispose secondary channel first
+                try
+                {
+                    if (secondaryPlayer != null)
+                    {
+                        if (secondaryPlayer.IsPlaying)
+                            secondaryPlayer.Stop();
+
+                        secondaryPlayer.Media = null;
+                        secondaryPlayer.Dispose();
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    _secondaryBackgroundMedia?.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
+                finally
+                {
+                    _secondaryBackgroundMedia = null;
+                    _secondaryBackgroundPath = null;
+                }
+
+                // Stop & dispose main channel
+                try
+                {
+                    if (mainPlayer != null)
+                    {
+                        if (mainPlayer.IsPlaying)
+                            mainPlayer.Stop();
+
+                        mainPlayer.Media = null;
+                        mainPlayer.Dispose();
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    _currentPreviewMedia?.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
+                finally
+                {
+                    _currentPreviewMedia = null;
+                }
+
+                // Dispose LibVLC last
+                try
+                {
+                    vlc.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    _videoSurface.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    _secondaryVideoSurface?.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
             }
             catch
             {

@@ -15,6 +15,7 @@ public partial class BigModeViewModel
     private void OnGamepadUp()
         => DispatchGamepadAction(() =>
         {
+            ResetAttractIdleTimer();
             PlaySound(_theme.Sounds.Navigate);
             SelectPrevious();
         });
@@ -22,6 +23,7 @@ public partial class BigModeViewModel
     private void OnGamepadDown()
         => DispatchGamepadAction(() =>
         {
+            ResetAttractIdleTimer();
             PlaySound(_theme.Sounds.Navigate);
             SelectNext();
         });
@@ -29,6 +31,7 @@ public partial class BigModeViewModel
     private void OnGamepadLeft()
         => DispatchGamepadAction(() =>
         {
+            ResetAttractIdleTimer();
             PlaySound(_theme.Sounds.Navigate);
             // Default mapping: left behaves like "previous".
             SelectPrevious();
@@ -37,6 +40,7 @@ public partial class BigModeViewModel
     private void OnGamepadRight()
         => DispatchGamepadAction(() =>
         {
+            ResetAttractIdleTimer();
             PlaySound(_theme.Sounds.Navigate);
             // Default mapping: right behaves like "next".
             SelectNext();
@@ -45,6 +49,7 @@ public partial class BigModeViewModel
     private void OnGamepadSelect()
         => DispatchGamepadAction(() =>
         {
+            ResetAttractIdleTimer();
             PlaySound(_theme.Sounds.Confirm);
             _ = PlayCurrent();
         });
@@ -52,6 +57,7 @@ public partial class BigModeViewModel
     private void OnGamepadBack()
         => DispatchGamepadAction(() =>
         {
+            ResetAttractIdleTimer();
             PlaySound(_theme.Sounds.Cancel);
             ExitBigMode();
         });
@@ -96,6 +102,8 @@ public partial class BigModeViewModel
     {
         if (_isLaunching) return;
 
+        ResetAttractIdleTimer();
+        
         if (IsGameListActive)
         {
             if (Items.Count == 0) return;
@@ -129,6 +137,8 @@ public partial class BigModeViewModel
     {
         if (_isLaunching) return;
 
+        ResetAttractIdleTimer();
+        
         if (IsGameListActive)
         {
             if (Items.Count == 0) return;
@@ -162,6 +172,8 @@ public partial class BigModeViewModel
     {
         if (_isLaunching) return;
 
+        ResetAttractIdleTimer();
+        
         // Category view: enter folder (children) or switch into game list (items).
         if (!IsGameListActive)
         {
@@ -234,6 +246,8 @@ public partial class BigModeViewModel
     [RelayCommand]
     private void ExitBigMode()
     {
+        ResetAttractIdleTimer();
+        
         // If we are currently in the game list, go back to category view first.
         if (IsGameListActive)
         {

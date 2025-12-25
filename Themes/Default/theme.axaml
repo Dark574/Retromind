@@ -65,7 +65,6 @@
                                TextWrapping="Wrap"
                                MaxLines="2"
                                TextTrimming="CharacterEllipsis">
-                        <!-- Start slightly shifted to the left; animation brings it in -->
                         <TextBlock.RenderTransform>
                             <TranslateTransform X="-40" />
                         </TextBlock.RenderTransform>
@@ -75,14 +74,37 @@
                     </TextBlock>
                 </Border>
 
-                <!-- Vertical game list -->
+                <!-- ROW 2: entweder Kategorien oder Spiele, je nach Modus -->
+
+                <!-- Kategorien-Liste (z.B. Bibliothek: Spiele / Filme, oder Spiele: SNES / C64 ...) -->
+                <ListBox Grid.Row="2"
+                         ItemsSource="{Binding CurrentCategories}"
+                         SelectedItem="{Binding SelectedCategory}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         IsVisible="{Binding IsCategorySelectionActive}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="16"
+                                       Margin="0,3"
+                                       Foreground="White"
+                                       TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Spiele-Liste (wie bisher) -->
                 <ListBox Grid.Row="2"
                          ItemsSource="{Binding Items}"
                          SelectedItem="{Binding SelectedItem}"
                          Background="Transparent"
                          BorderThickness="0"
                          Padding="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         IsVisible="{Binding IsGameListActive}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding Title}"

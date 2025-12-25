@@ -188,6 +188,52 @@ public class ThemeProperties : AvaloniaObject
     // The host (ThemeLoader) is responsible for setting ThemeBasePath when a theme is loaded.
 
     /// <summary>
+    /// Enables the "Attract Mode" for this theme.
+    /// When true, the host may automatically scroll/select random items
+    /// after a period of user inactivity (see AttractModeIdleSeconds).
+    /// </summary>
+    public static readonly AttachedProperty<bool> AttractModeEnabledProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "AttractModeEnabled",
+            defaultValue: false);
+
+    public static bool GetAttractModeEnabled(AvaloniaObject element) =>
+        element.GetValue(AttractModeEnabledProperty);
+
+    public static void SetAttractModeEnabled(AvaloniaObject element, bool value) =>
+        element.SetValue(AttractModeEnabledProperty, value);
+
+    /// <summary>
+    /// Idle time in seconds before Attract Mode performs the first random selection.
+    /// Every additional multiple of this interval will trigger another random selection
+    /// while the user remains inactive. A value of 0 disables the timer.
+    /// </summary>
+    public static readonly AttachedProperty<int> AttractModeIdleSecondsProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, int>(
+            "AttractModeIdleSeconds",
+            defaultValue: 0);
+
+    public static int GetAttractModeIdleSeconds(AvaloniaObject element) =>
+        element.GetValue(AttractModeIdleSecondsProperty);
+
+    public static void SetAttractModeIdleSeconds(AvaloniaObject element, int value) =>
+        element.SetValue(AttractModeIdleSecondsProperty, value);
+
+    /// <summary>
+    /// Optional theme-local sound that is played when Attract Mode kicks in
+    /// (e.g. a short spin / "roulette" sound). Path is relative to the theme directory.
+    /// </summary>
+    public static readonly AttachedProperty<string?> AttractModeSoundProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string?>(
+            "AttractModeSound");
+
+    public static string? GetAttractModeSound(AvaloniaObject element) =>
+        element.GetValue(AttractModeSoundProperty);
+
+    public static void SetAttractModeSound(AvaloniaObject element, string? value) =>
+        element.SetValue(AttractModeSoundProperty, value);
+
+    /// <summary>
     /// Gets or sets the absolute base directory of the currently active theme.
     /// Example: "/home/user/Retromind/Themes/Arcade".
     /// This is set by the host (ThemeLoader) when a theme is loaded.
