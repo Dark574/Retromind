@@ -32,10 +32,34 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     // Oberfläche für das gerenderte Video (LibVLC-Callbacks)
     private readonly LibVlcVideoSurface _videoSurface;
 
+    // Zweite Oberfläche für einen optionalen zweiten Video-Kanal (Secondary).
+    // Wird in einem späteren Schritt vollständig verdrahtet.
+    private readonly LibVlcVideoSurface? _secondaryVideoSurface;
+
+    // Player für den Haupt-Preview-Kanal (MediaPlayer-Property).
+    // Player für den zweiten Hintergrundkanal.
+    private MediaPlayer? _secondaryPlayer;
+
+    // Aktuelle Media-Instanz für den Hintergrundkanal (z.B. bkg_anim.mp4).
+    private Media? _secondaryBackgroundMedia;
+    private string? _secondaryBackgroundPath;
+    
     /// <summary>
-    /// Oberfläche für das Vorschaubild (wird von BigModeHostView gerendert).
+    /// Alte API: Oberfläche für das Vorschaubild (wird von BigModeHostView gerendert).
+    /// Entspricht dem Haupt-Videokanal (MainVideoSurface).
     /// </summary>
     public IVideoSurface VideoSurface => _videoSurface;
+    
+    /// <summary>
+    /// Hauptkanal für Video-Vorschau. Themes sollten bevorzugt diese Property nutzen.
+    /// </summary>
+    public IVideoSurface? MainVideoSurface => _videoSurface;
+
+    /// <summary>
+    /// Optionaler zweiter Videokanal (z.B. System-Intro, B-Roll).
+    /// Wird in einem späteren Schritt vollständig mit LibVLC verdrahtet.
+    /// </summary>
+    public IVideoSurface? SecondaryVideoSurface => _secondaryVideoSurface;
     
     // Navigation history used to implement "Back" behavior.
     private readonly Stack<ObservableCollection<MediaNode>> _navigationStack = new();
@@ -92,6 +116,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private MediaNode? _selectedCategory;
 
+    /// <summary>
+    /// Sichtbarkeits-Flag für den Haupt-Videokanal (Legacy: Overlay-Fades).
+    /// Themes können dies weiterhin für Opacity-Bindings verwenden, bis die
+    /// Inline-Video-Implementierung abgeschlossen ist.
+    /// </summary>
     [ObservableProperty]
     private bool _isVideoVisible;
 
@@ -104,6 +133,33 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _canShowVideo = true;
 
+    /// <summary>
+    /// Gibt an, ob für die aktuelle Auswahl ein Video im Hauptkanal verfügbar ist.
+    /// (CanShowVideo &amp;&amp; aufgelöster Pfad != null)
+    /// </summary>
+    [ObservableProperty]
+    private bool _mainVideoHasContent;
+
+    /// <summary>
+    /// Gibt an, ob der Haupt-Videokanal aktuell abgespielt wird.
+    /// </summary>
+    [ObservableProperty]
+    private bool _mainVideoIsPlaying;
+
+    /// <summary>
+    /// Gibt an, ob für die aktuelle Auswahl ein Video im zweiten Kanal verfügbar ist.
+    /// Wird in einem späteren Schritt befüllt.
+    /// </summary>
+    [ObservableProperty]
+    private bool _secondaryVideoHasContent;
+
+    /// <summary>
+    /// Gibt an, ob der zweite Videokanal aktuell abgespielt wird.
+    /// Wird in einem späteren Schritt befüllt.
+    /// </summary>
+    [ObservableProperty]
+    private bool _secondaryVideoIsPlaying;
+    
     [ObservableProperty]
     private MediaNode? _currentNode;
 
@@ -232,8 +288,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         _libVlc = new LibVLC(enableDebugLogs: false, vlcOptions);
         
-        // Video-Surface für Callback-Rendering
+        // Video-Surface für Callback-Rendering – Hauptkanal.
         _videoSurface = new LibVlcVideoSurface();
+
+        // Zweiter Videokanal: Oberfläche vorbereiten (Player-Anbindung folgt später).
+        _secondaryVideoSurface = new LibVlcVideoSurface();
         
         MediaPlayer = new MediaPlayer(_libVlc)
         {
@@ -254,6 +313,24 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Loop preview videos by restarting them when they reach the end.
         MediaPlayer.EndReached += OnPreviewEndReached;
         
+        // Zweiter Player für Hintergrundvideos (z.B. Theme-Wallpaper).
+        _secondaryPlayer = new MediaPlayer(_libVlc)
+        {
+            Volume = 0,  // Wallpaper ohne Ton
+            Scale = 0f
+        };
+        
+        _secondaryPlayer.SetVideoFormatCallbacks(
+            _secondaryVideoSurface.VideoFormat,
+            _secondaryVideoSurface.VideoCleanup);
+
+        _secondaryPlayer.SetVideoCallbacks(
+            _secondaryVideoSurface.VideoLock,
+            _secondaryVideoSurface.VideoUnlock,
+            _secondaryVideoSurface.VideoDisplay);
+
+        _secondaryPlayer.EndReached += OnSecondaryBackgroundEndReached;
+
         ForceExitCommand = new RelayCommand(() => RequestClose?.Invoke());
 
         // Subscribe to gamepad events (raised on SDL thread; handler methods must marshal if they touch UI state).
@@ -272,8 +349,128 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Ensure counters are in a known state even if the restored state
         // did not activate a game list yet.
         UpdateGameCounters();
+        
+        // Nach Konstruktion: möglichen Hintergrundkanal anhand des aktuellen Themes vorbereiten.
+        UpdateSecondaryBackgroundVideo();
     }
 
+    /// <summary>
+    /// Lädt/aktualisiert das optionale Theme-Hintergrundvideo (Secondary-Kanal).
+    /// Sucht im aktuellen Theme-Verzeichnis nach "Video/bkg_anim.mp4".
+    /// </summary>
+    private void UpdateSecondaryBackgroundVideo()
+    {
+        // Vorherigen Inhalt bereinigen
+        try
+        {
+            if (_secondaryPlayer != null && _secondaryPlayer.IsPlaying)
+                _secondaryPlayer.Stop();
+        }
+        catch
+        {
+            // best effort
+        }
+
+        try
+        {
+            _secondaryPlayer?.Media?.Dispose();
+        }
+        catch
+        {
+            // ignore
+        }
+
+        try
+        {
+            _secondaryBackgroundMedia?.Dispose();
+        }
+        catch
+        {
+            // ignore
+        }
+
+        _secondaryBackgroundMedia = null;
+        _secondaryBackgroundPath = null;
+
+        SecondaryVideoHasContent = false;
+        SecondaryVideoIsPlaying = false;
+
+        if (!CanShowVideo || _secondaryPlayer == null || _secondaryVideoSurface == null)
+            return;
+
+        // Theme-Ordner + vom Theme definierter Pfad für Hintergrundvideo
+        try
+        {
+            var basePath = _theme.BasePath;
+            var relative = _theme.SecondaryBackgroundVideoPath;
+
+            if (string.IsNullOrWhiteSpace(basePath) || string.IsNullOrWhiteSpace(relative))
+                return;
+
+            var candidate = System.IO.Path.Combine(basePath, relative);
+            if (!System.IO.File.Exists(candidate))
+                return;
+
+            _secondaryBackgroundPath = candidate;
+            var media = new Media(_libVlc, new Uri(candidate));
+            _secondaryBackgroundMedia = media;
+            _secondaryPlayer.Media = media;
+
+            SecondaryVideoHasContent = true;
+
+            // Noch nicht starten – das machen wir erst, wenn die View "ready" ist.
+        }
+        catch
+        {
+            // Bei Fehlern den Hintergrundkanal einfach deaktiviert lassen.
+            SecondaryVideoHasContent = false;
+            SecondaryVideoIsPlaying = false;
+        }
+    }
+
+    /// <summary>
+    /// Startet das vorbereitete Hintergrundvideo, falls vorhanden und die View bereit ist.
+    /// </summary>
+    private void EnsureSecondaryBackgroundPlayingIfReady()
+    {
+        if (!CanShowVideo || !_isViewReady || _isLaunching)
+            return;
+
+        if (!SecondaryVideoHasContent || _secondaryPlayer == null || _secondaryBackgroundMedia == null)
+            return;
+
+        try
+        {
+            if (!_secondaryPlayer.IsPlaying)
+            {
+                _secondaryPlayer.Play();
+            }
+
+            SecondaryVideoIsPlaying = true;
+        }
+        catch
+        {
+            SecondaryVideoIsPlaying = false;
+        }
+    }
+
+    private void OnSecondaryBackgroundEndReached(object? sender, EventArgs e)
+    {
+        // Loop des Hintergrundvideos – läuft "ewig" im Kreis.
+        if (!SecondaryVideoHasContent || _secondaryPlayer == null)
+            return;
+
+        try
+        {
+            _secondaryPlayer.Stop();
+            _secondaryPlayer.Play();
+        }
+        catch
+        {
+            SecondaryVideoIsPlaying = false;
+        }
+    }
+    
     /// <summary>
     /// Updates game counters (TotalGames, CurrentGameNumber) based on the current
     /// game list and selection. Safe to call from any place that changes Items
@@ -326,5 +523,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Theme swap may change how many items are visible or how they are
         // interpreted by the theme; keep counters consistent.
         UpdateGameCounters();
+        
+        // Hintergrund-Video für das neue Theme aktualisieren.
+        UpdateSecondaryBackgroundVideo();
     }
 }

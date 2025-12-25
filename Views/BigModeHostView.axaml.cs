@@ -20,11 +20,7 @@ namespace Retromind.Views;
 public partial class BigModeHostView : UserControl
 {
     private ContentPresenter _themePresenter = null!;
-    private Border _videoBorder = null!;
-    private VideoSurfaceControl _videoSurface = null!;
-
-    private Control? _videoSlot;
-
+    
     // When the active theme is a "system host" theme, this points to its
     // right-hand content placeholder (SystemLayoutHost).
     private ContentControl? _systemLayoutHost;
@@ -32,7 +28,7 @@ public partial class BigModeHostView : UserControl
     // True while the active theme is the SystemHost theme (detected by presence
     // of a "SystemLayoutHost" ContentControl in the theme root).
     private bool _isSystemHostTheme;
-
+    
     // Cache of loaded system subthemes (e.g. Themes/System/C64/theme.axaml).
     // Key = SystemPreviewThemeId / folder name ("Default", "C64", ...).
     private readonly Dictionary<string, Theme> _systemThemeCache = new(StringComparer.OrdinalIgnoreCase);
@@ -53,15 +49,7 @@ public partial class BigModeHostView : UserControl
 
         _themePresenter = this.FindControl<ContentPresenter>("ThemePresenter")
                           ?? throw new InvalidOperationException("ThemePresenter control not found in BigModeHostView.");
-        _videoBorder = this.FindControl<Border>("VideoBorder")
-                       ?? throw new InvalidOperationException("VideoBorder control not found in BigModeHostView.");
-        _videoSurface = this.FindControl<VideoSurfaceControl>("StableVideoSurface")
-                        ?? throw new InvalidOperationException("StableVideoSurface control not found in BigModeHostView.");
 
-        ResetVideoBorder();
-        
-        LayoutUpdated += (_, _) => QueueUpdateVideoPlacement();
-        
         // React when BigModeViewModel is swapped so we can subscribe to property changes.
         DataContextChanged += OnDataContextChanged;
     }
@@ -100,32 +88,15 @@ public partial class BigModeHostView : UserControl
 
         _themePresenter.Content = themeRoot;
 
-        // Convention: the theme defines one element that acts as slot for video placement.
-        // Default is "VideoSlot", but theme can override via ThemeProperties.VideoSlotName on the root.
-        var slotName = string.IsNullOrWhiteSpace(theme.VideoSlotName) ? "VideoSlot" : theme.VideoSlotName;
-        _videoSlot = themeRoot.FindControl<Control>(slotName);
-
         // Detect whether this theme is the "System Host" theme by checking for
         // a named content placeholder "SystemLayoutHost" in the visual tree.
         _systemLayoutHost = themeRoot.FindControl<ContentControl>("SystemLayoutHost");
         _isSystemHostTheme = _systemLayoutHost != null;
-        
-        // Capability: theme allows video AND a slot exists
-        var canShowVideo = theme.VideoEnabled && _videoSlot != null;
 
-        // Reset first so old placements/state never leaks across theme swaps
-        ResetVideoBorder();
-        
+        // Theme-basierte Video-Fähigkeit (kein Slot-basiertes Abschalten mehr).
         if (DataContext is Retromind.ViewModels.BigModeViewModel vm)
         {
-            vm.CanShowVideo = canShowVideo;
-
-            if (!vm.CanShowVideo)
-            {
-                // Ensure overlay is fully gone (no standbild, no wasted work)
-                vm.IsVideoVisible = false;
-                vm.IsVideoOverlayVisible = false;
-            }
+            vm.CanShowVideo = theme.VideoEnabled;
         }
         
         // Apply theme tuning (selection UX, spacing, typography, animation timings)
@@ -138,8 +109,7 @@ public partial class BigModeHostView : UserControl
             UpdateSystemLayoutForSelectedCategory();
         }
         
-        // Layout settles asynchronously; schedule placement + VM "view ready" after render ticks
-        QueueUpdateVideoPlacement();
+        // Layout settles asynchronously; schedule VM "view ready" after render ticks
         NotifyViewReadyAfterRender(DataContext!);
     }
 
@@ -160,7 +130,6 @@ public partial class BigModeHostView : UserControl
         if (node is null)
         {
             _systemLayoutHost.Content = null;
-            _videoSlot = null;
             vm.CanShowVideo = false;
             return;
         }
@@ -195,20 +164,14 @@ public partial class BigModeHostView : UserControl
                 {
                     // As a last resort, clear the host and disable video.
                     _systemLayoutHost.Content = null;
-                    _videoSlot = null;
                     vm.CanShowVideo = false;
-                    vm.IsVideoVisible = false;
-                    vm.IsVideoOverlayVisible = false;
                     return;
                 }
             }
             else
             {
                 _systemLayoutHost.Content = null;
-                _videoSlot = null;
                 vm.CanShowVideo = false;
-                vm.IsVideoVisible = false;
-                vm.IsVideoOverlayVisible = false;
                 return;
             }
         }
@@ -220,25 +183,8 @@ public partial class BigModeHostView : UserControl
 
         _systemLayoutHost.Content = subView;
 
-        // Per-subtheme VideoSlot takes precedence when SystemHost is active.
-        var subSlotName = string.IsNullOrWhiteSpace(systemTheme.VideoSlotName)
-            ? "VideoSlot"
-            : systemTheme.VideoSlotName;
-
-        _videoSlot = subView.FindControl<Control>(subSlotName);
-
-        // Re-position overlay to match the new subtheme slot.
-        ResetVideoBorder();
-        QueueUpdateVideoPlacement();
-
-        // Effective video capability for the current system subtheme.
-        vm.CanShowVideo = systemTheme.VideoEnabled && _videoSlot != null;
-
-        if (!vm.CanShowVideo)
-        {
-            vm.IsVideoVisible = false;
-            vm.IsVideoOverlayVisible = false;
-        }
+        // Effektive Video-Fähigkeit für das aktuelle System-Subtheme.
+        vm.CanShowVideo = systemTheme.VideoEnabled;
     }
     
     private void UnhookThemeTuning()
@@ -271,19 +217,9 @@ public partial class BigModeHostView : UserControl
 
         var accent = ThemeProperties.GetAccentColor(themeRoot);
 
-        // 1) Apply animation duration to the stable video overlay fade (Opacity transition).
-        // Keep it very safe: if transitions are missing, create them.
         var fadeDuration = TimeSpan.FromMilliseconds(Math.Clamp(fadeMs, 0, 5000));
-        _videoBorder.Transitions = new Transitions
-        {
-            new DoubleTransition
-            {
-                Property = OpacityProperty,
-                Duration = fadeDuration
-            }
-        };
-
-        // 2) Selection UX: apply to ALL ListBoxes in the theme visual tree.
+        
+        // Selection UX: apply to ALL ListBoxes in the theme visual tree.
         // We use ContainerPrepared + SelectionChanged so it works with virtualization.
         foreach (var lb in themeRoot.GetVisualDescendants())
         {
@@ -303,7 +239,7 @@ public partial class BigModeHostView : UserControl
             ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, fadeMs, moveMs, accent);
         }
 
-        // 3) Spacing/Padding: opt-in via classes (theme authors can just add Classes="rm-panel"/"rm-header")
+        // Spacing/Padding: opt-in via classes (theme authors can just add Classes="rm-panel"/"rm-header")
         foreach (var v in themeRoot.GetVisualDescendants())
         {
             if (v is not Control c)
@@ -328,7 +264,7 @@ public partial class BigModeHostView : UserControl
             }
         }
 
-        // 4) Typography defaults: opt-in via classes (rm-title/rm-body/rm-caption)
+        // Typography defaults: opt-in via classes (rm-title/rm-body/rm-caption)
         foreach (var v in themeRoot.GetVisualDescendants())
         {
             if (v is not TextBlock tb)
@@ -340,31 +276,6 @@ public partial class BigModeHostView : UserControl
                 tb.FontSize = bodyFontSize;
             else if (tb.Classes.Contains("rm-caption"))
                 tb.FontSize = captionFontSize;
-        }
-        
-        // 5) Video-Overlay Tuning: Eckradius / Rahmenstärke
-        var videoCornerRadius = ThemeProperties.GetVideoCornerRadius(themeRoot);
-        var videoBorderThickness = ThemeProperties.GetVideoBorderThickness(themeRoot);
-
-        _videoBorder.CornerRadius = videoCornerRadius;
-        _videoBorder.BorderThickness = videoBorderThickness;
-
-        // 6) Video-Stretch-Modus aus Theme auslesen und anwenden
-        var stretchMode = ThemeProperties.GetVideoStretchMode(themeRoot)?.Trim();
-
-        if (string.Equals(stretchMode, "Uniform", StringComparison.OrdinalIgnoreCase))
-        {
-            _videoSurface.Stretch = Stretch.Uniform;
-        }
-        else if (string.Equals(stretchMode, "UniformToFill", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(stretchMode, "Cover", StringComparison.OrdinalIgnoreCase))
-        {
-            _videoSurface.Stretch = Stretch.UniformToFill;
-        }
-        else
-        {
-            // Standard: Fill (keine Balken, kann verzerren)
-            _videoSurface.Stretch = Stretch.Fill;
         }
     }
 
@@ -469,75 +380,14 @@ public partial class BigModeHostView : UserControl
             };
         }
     }
-    
-    private void QueueUpdateVideoPlacement()
-    {
-        if (_placementUpdateQueued)
-            return;
-
-        _placementUpdateQueued = true;
-
-        UiThreadHelper.Post(() =>
-        {
-            _placementUpdateQueued = false;
-            UpdateVideoPlacement();
-        }, DispatcherPriority.Render);
-    }
-
-    private void ResetVideoBorder()
-    {
-        _videoBorder.Width = 0;
-        _videoBorder.Height = 0;
-        Canvas.SetLeft(_videoBorder, 0);
-        Canvas.SetTop(_videoBorder, 0);
-    }
-    
-    private void UpdateVideoPlacement()
-    {
-        if (_videoSlot == null)
-        {
-            ResetVideoBorder();
-            return;
-        }
-        
-        // The slot must be attached to the visual tree to resolve coordinates.
-        var topLeft = _videoSlot.TranslatePoint(new Point(0, 0), this);
-        if (topLeft == null)
-        {
-            ResetVideoBorder();
-            return;
-        }
-        
-        var bounds = _videoSlot.Bounds;
-
-        // If the slot has no meaningful size yet, keep the overlay disabled
-        // to avoid full-screen or glitchy placement.
-        if (bounds.Width < 1 || bounds.Height < 1)
-        {
-            ResetVideoBorder();
-            return;
-        }
-
-        Canvas.SetLeft(_videoBorder, topLeft.Value.X);
-        Canvas.SetTop(_videoBorder, topLeft.Value.Y);
-
-        _videoBorder.Width = Math.Max(0, bounds.Width);
-        _videoBorder.Height = Math.Max(0, bounds.Height);
-    }
 
     public async void NotifyViewReadyAfterRender(object viewModel)
     {
-        // We want the VideoSlot to have real bounds before BigMode starts preview playback.
-        // Otherwise the preview may start while the overlay is still 0x0 and appears "not playing".
+        // Ein paar Render-Ticks abwarten, damit das Theme komplett aufgebaut ist,
+        // bevor LibVLC mit der Wiedergabe startet.
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
-        UpdateVideoPlacement();
-
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
-        UpdateVideoPlacement();
-
-        // One extra tick for tricky setups (Wayland/XWayland + LibVLC embedding).
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
-        UpdateVideoPlacement();
 
         if (viewModel is Retromind.ViewModels.BigModeViewModel vm)
             vm.NotifyViewReady();

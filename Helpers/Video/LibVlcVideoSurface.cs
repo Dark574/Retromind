@@ -31,8 +31,6 @@ public sealed class LibVlcVideoSurface : IVideoSurface
         ref uint pitches,
         ref uint lines)
     {
-        Console.WriteLine($"[LibVlcSurface] VideoFormat: {width}x{height}");
-
         // BGRA32 als FourCC "RV32"
         var rv32 = BitConverter.ToUInt32(new byte[] { (byte)'R', (byte)'V', (byte)'3', (byte)'2' }, 0);
 
@@ -58,7 +56,6 @@ public sealed class LibVlcVideoSurface : IVideoSurface
             }
 
             var size = (int)(pitches * lines);
-            Console.WriteLine($"[LibVlcSurface] Alloc buffer: {size} bytes");
             _buffer = Marshal.AllocHGlobal(size);
         }
 
@@ -110,7 +107,6 @@ public sealed class LibVlcVideoSurface : IVideoSurface
     /// </summary>
     internal void VideoDisplay(IntPtr opaque, IntPtr picture)
     {
-        Console.WriteLine("[LibVlcSurface] VideoDisplay (frame ready)");
         FrameReady?.Invoke();
     }
 

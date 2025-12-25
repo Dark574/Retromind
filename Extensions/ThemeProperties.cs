@@ -271,4 +271,19 @@ public class ThemeProperties : AvaloniaObject
 
     public static void SetVideoStretchMode(AvaloniaObject element, string value) =>
         element.SetValue(VideoStretchModeProperty, value);
+    
+    /// <summary>
+    /// Relativer Pfad zu einem optionalen Hintergrundvideo für das Theme
+    /// (z.B. "Video/bkg_anim.mp4"). Wird relativ zum Theme-Basisordner aufgelöst.
+    /// </summary>
+    public static readonly AttachedProperty<string?> SecondaryBackgroundVideoPathProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string?>(
+            "SecondaryBackgroundVideoPath");
+
+    public static string? GetSecondaryBackgroundVideoPath(AvaloniaObject element) =>
+        element.GetValue(SecondaryBackgroundVideoPathProperty);
+
+    public static void SetSecondaryBackgroundVideoPath(AvaloniaObject element, string? value) =>
+        element.SetValue(SecondaryBackgroundVideoPathProperty, value);
+
 }

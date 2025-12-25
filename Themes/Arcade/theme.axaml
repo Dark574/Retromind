@@ -4,13 +4,15 @@
              xmlns:ext="clr-namespace:Retromind.Extensions"
              xmlns:helpers="using:Retromind.Helpers"
              xmlns:ac="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls"
+             xmlns:video="using:Retromind.Helpers.Video"
              x:DataType="vm:BigModeViewModel"
              Background="Black"
 
              ext:ThemeProperties.Name="Arcade"
              ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
              ext:ThemeProperties.Version="0.1.0"
-             ext:ThemeProperties.SelectedScale="1.0">
+             ext:ThemeProperties.SelectedScale="1.0"
+             ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4">
 
     <UserControl.Resources>
         <!-- Converter to load theme-local images (e.g. Images/cabinet.png, Images/pointer.png) -->
@@ -26,16 +28,22 @@
     </UserControl.Resources>
 
     <Grid>
-        <!-- Background image (screenshot of the former video) + dark tint -->
+        <!-- Hintergrund: Video-Wallpaper + Fallbackbild + dunkler Tint -->
         <Grid>
+            <!-- Fallback: statisches Hintergrundbild -->
             <Image Source="{Binding Converter={StaticResource ThemeAssetConverter},
                                     ConverterParameter=Images/background.jpg}"
                    Stretch="UniformToFill"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"
                    IsHitTestVisible="False" />
+            
+            <!-- Video-Hintergrund (Secondary-Kanal) -->
+            <video:VideoSurfaceControl Surface="{Binding SecondaryVideoSurface}"
+                                       Stretch="UniformToFill"
+                                       IsVisible="{Binding SecondaryVideoHasContent}"/>
 
-            <!-- Dark tint above the image to keep text readable -->
+            <!-- Dark tint above the image/video to keep text readable -->
             <Rectangle Fill="#AA101015" IsHitTestVisible="False" />
         </Grid>
 
@@ -81,17 +89,17 @@
 
                                 <!-- Screen-Block -->
                                 <Border Grid.Row="1"
-                                        Width="578"
-                                        Height="325"
+                                        Width="575"
+                                        Height="311"
                                         Margin="0,60,0,0"
                                         Background="Transparent"
                                         ClipToBounds="True">
                                     <Grid>
                                         <!-- Video-Slot im Screen -->
                                         <Border x:Name="VideoSlot"
-                                                Width="465"
-                                                Height="350"
-                                                Margin="90,65,0,0"
+                                                Width="460"
+                                                Height="345"
+                                                Margin="90,55,0,0"
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
                                                 CornerRadius="0"
@@ -99,12 +107,20 @@
                                                 BorderBrush="#505050"
                                                 BorderThickness="2"
                                                 ClipToBounds="True">
-                                            <!-- Placeholder-Text bei fehlendem Video -->
-                                            <TextBlock Text="Preview"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="#404040"
-                                                       FontSize="20" />
+                                            <Grid>
+                                                <!-- Placeholder-Text bei fehlendem Video -->
+                                                <TextBlock Text="Preview"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="#404040"
+                                                           FontSize="20"/>
+
+                                                <!-- Inline-Video: Hauptkanal -->
+                                                <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
+                                                                           Stretch="Uniform"
+                                                                           Opacity="{Binding MainVideoIsPlaying, Converter={StaticResource BoolToOpacity}}"
+                                                                           IsVisible="{Binding MainVideoHasContent}"/>
+                                            </Grid>
                                         </Border>
 
                                         <Image Source="{Binding ActiveBezelPath,

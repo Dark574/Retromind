@@ -1,38 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
-             xmlns:helpers="using:Retromind.Helpers"
-             xmlns:video="using:Retromind.Helpers.Video"
              x:Class="Retromind.Views.BigModeHostView"
              x:DataType="vm:BigModeViewModel">
-
-    <UserControl.Resources>
-        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1" FalseOpacity="0" />
-    </UserControl.Resources>
 
     <Grid>
         <!-- The theme is being loaded/replaced here -->
         <ContentPresenter x:Name="ThemePresenter"/>
-
-        <!-- Stable overlay: VideoView always remains in the VisualTree -->
-        <Canvas x:Name="Overlay" IsHitTestVisible="False">
-            <Border x:Name="VideoBorder"
-                    Background="Black"
-                    CornerRadius="12"
-                    ClipToBounds="True"
-                    IsVisible="{Binding IsVideoOverlayVisible}"
-                    Opacity="{Binding IsVideoVisible, Converter={StaticResource BoolToOpacity}}">
-                
-                <Border.Transitions>
-                    <Transitions>
-                        <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
-                    </Transitions>
-                </Border.Transitions>
-                
-                <video:VideoSurfaceControl x:Name="StableVideoSurface"
-                                           Surface="{Binding VideoSurface}"
-                                           Focusable="False" />
-            </Border>
-        </Canvas>
     </Grid>
 </UserControl>

@@ -70,12 +70,19 @@ public partial class BigModeViewModel
         // This way we catch timing issues where the first call is lost.
         TriggerPreviewPlaybackWithDebounce();
 
+        // Hintergrundvideo ggf. starten
+        EnsureSecondaryBackgroundPlayingIfReady();
+        
         // Optional: an additional, slightly delayed repetition,
         // to ensure that layout/slot bounds are stable.
         if (!wasReady)
         {
             UiThreadHelper.Post(
-                TriggerPreviewPlaybackWithDebounce,
+                () =>
+                {
+                    TriggerPreviewPlaybackWithDebounce();
+                    EnsureSecondaryBackgroundPlayingIfReady();
+                },
                 DispatcherPriority.Background);
         }
     }
@@ -215,16 +222,21 @@ public partial class BigModeViewModel
     /// </summary>
     private void TriggerPreviewPlayback()
     {
+        string? videoPath;
+        
         if (IsGameListActive)
         {
-            var videoPath = ResolveItemVideoPath(SelectedItem);
-            PlayPreviewForPath(videoPath);
+            videoPath = ResolveItemVideoPath(SelectedItem);
         }
         else
         {
-            var videoPath = ResolveNodeVideoPath(SelectedCategory);
-            PlayPreviewForPath(videoPath);
+            videoPath = ResolveNodeVideoPath(SelectedCategory);
         }
+        
+        // Hauptkanal: Content-Flag aus Pfad und Modus ableiten.
+        MainVideoHasContent = CanShowVideo && !string.IsNullOrEmpty(videoPath);
+
+        PlayPreviewForPath(videoPath);
     }
 
     private string? ResolveItemVideoPath(MediaItem? item)
@@ -362,10 +374,14 @@ public partial class BigModeViewModel
 
             MediaPlayer.Media = media;
             MediaPlayer.Play();
+            
+            // Hauptkanal läuft jetzt
+            MainVideoIsPlaying = true;
         }
         catch
         {
             // Best-effort: preview must never crash the UI.
+            MainVideoIsPlaying = false;
         }
     }
 
@@ -384,6 +400,10 @@ public partial class BigModeViewModel
 
         IsVideoVisible = false;
 
+        // Hauptkanal: Status zurücksetzen
+        MainVideoIsPlaying = false;
+        MainVideoHasContent = false;
+        
         var fadeGen = Interlocked.Increment(ref _overlayFadeGeneration);
         _ = HideOverlayAfterFadeAsync(fadeGen);
 

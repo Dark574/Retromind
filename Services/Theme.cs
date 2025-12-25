@@ -14,6 +14,13 @@ public class Theme
     public string BasePath { get; }
 
     /// <summary>
+    /// Optionaler, theme-lokaler Pfad zu einem Hintergrundvideo für den
+    /// zweiten Videokanal (z.B. "Video/bkg_anim.mp4").
+    /// Wird mit BasePath kombiniert.
+    /// </summary>
+    public string? SecondaryBackgroundVideoPath { get; }
+
+    /// <summary>
     /// If false, the host should disable any video overlay/preview even if the theme contains a video slot.
     /// Defaults to true when not specified by the theme.
     /// </summary>
@@ -35,6 +42,7 @@ public class Theme
         Control view,
         ThemeSounds sounds,
         string basePath,
+        string? secondaryBackgroundVideoPath = null,
         bool videoEnabled = true,
         string? videoSlotName = null,
         string? name = null,
@@ -45,6 +53,7 @@ public class Theme
         View = view;
         Sounds = sounds;
         BasePath = basePath;
+        SecondaryBackgroundVideoPath = secondaryBackgroundVideoPath;
         VideoEnabled = videoEnabled;
 
         VideoSlotName = string.IsNullOrWhiteSpace(videoSlotName) ? "VideoSlot" : videoSlotName;

@@ -67,6 +67,7 @@ public static class ThemeLoader
             };
 
             var videoEnabled = ThemeProperties.GetVideoEnabled(view);
+            var secondaryBackgroundVideoPath = ThemeProperties.GetSecondaryBackgroundVideoPath(view);
 
             var videoSlotName = ThemeProperties.GetVideoSlotName(view);
 
@@ -81,6 +82,7 @@ public static class ThemeLoader
                 themeDir,
                 videoEnabled: videoEnabled,
                 videoSlotName: videoSlotName,
+                secondaryBackgroundVideoPath: secondaryBackgroundVideoPath,
                 name: themeName,
                 author: themeAuthor,
                 version: themeVersion,

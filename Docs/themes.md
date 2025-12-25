@@ -61,93 +61,148 @@ So you can bind directly:
 
 ---
 
-## 4) Video preview: host overlay + theme “slot”
+## 4) Video preview: Inline video controls (Main & Secondary)
 
-Retromind renders preview video via a **stable host overlay** (LibVLC + texture rendering).  
-Your theme only defines a **slot** (a placeholder control) to tell the host where to place the video.
+Retromind renders videos via LibVLC into one or more `IVideoSurface` instances.  
+Your theme can place these surfaces **directly** in the layout using `VideoSurfaceControl`, just like any other control.
 
-### Default slot name: `VideoSlot`
+There are currently two logical channels:
+
+- **Main channel** – per-item/system preview (`MainVideoSurface`)
+- **Secondary channel** – optional background / B‑Roll (`SecondaryVideoSurface`)
+
+The `BigModeViewModel` exposes:
+
+- `IVideoSurface? MainVideoSurface`
+- `bool MainVideoHasContent`
+- `bool MainVideoIsPlaying`
+
+- `IVideoSurface? SecondaryVideoSurface`
+- `bool SecondaryVideoHasContent`
+- `bool SecondaryVideoIsPlaying`
+
+> Important:
+> - Themes never talk to LibVLC directly.
+> - You only bind to these properties and decide **where** and **how** videos appear.
+
+### 4.1 Main video (per-item preview)
+
+Typical usage: show the preview video of the selected game or system in a dedicated area.
+
 ```xml
-<Border x:Name="VideoSlot"
-        Width="854"
-        Height="480"
-        Background="Transparent"/>
+<Grid xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Retromind.ViewModels" xmlns:video="using:Retromind.Helpers.Video" xmlns:helpers="using:Retromind.Helpers" x:DataType="vm:BigModeViewModel">
+    <Grid.Resources>
+        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"
+                                        TrueOpacity="1.0"
+                                        FalseOpacity="0.0" />
+    </Grid.Resources>
+    
+    <Border Background="Black"
+            CornerRadius="4"
+            ClipToBounds="True">
+        <Grid>
+            <!-- Fallback text if no video is available for this item -->
+            <TextBlock Text="Preview"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#404040"
+                       FontSize="20"
+                       IsVisible="{Binding MainVideoHasContent,
+                                           Converter={x:Static helpers:ObjectConverters.IsNull}}"/>
+    
+            <!-- Inline video: main channel -->
+            <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
+                                       Stretch="UniformToFill"
+                                       IsVisible="{Binding MainVideoHasContent}"
+                                       Opacity="{Binding MainVideoIsPlaying,
+                                                         Converter={StaticResource BoolToOpacity}}"/>
+        </Grid>
+    </Border>
+</Grid>
 ```
 
-### Optional: rename the slot
+- `MainVideoHasContent` → `true` if the current selection has a valid preview video and video mode is enabled.
+- `MainVideoIsPlaying` → `true` while the main player is actually running.
 
-### Rename the slot (`VideoSlotName`)
+You are free to:
 
+- put overlays (bezels, CRT masks, scanlines, etc.) **above** the video,
+- combine the video with reactive effects (opacity, blur, glow) based on `MainVideoIsPlaying`.
+
+### 4.2 Secondary video (background / B‑Roll)
+
+The secondary channel is intended for theme‑level videos, for example:
+
+- a moving background (wallpaper),
+- a small system intro loop,
+- decorative B‑Roll.
+
+The pipeline is:
+
+1. The theme root specifies a **theme‑local relative path** via `ThemeProperties.SecondaryBackgroundVideoPath`, e.g.:
 ```xml
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:Retromind.ViewModels"
-             xmlns:ext="clr-namespace:Retromind.Extensions"
-             x:DataType="vm:BigModeViewModel"
-             ext:ThemeProperties.VideoSlotName="PreviewVideo">
-  <Border x:Name="PreviewVideo"
-          Width="854"
-          Height="480"
-          Background="Transparent"/>
-</UserControl>
+<UserControl    xmlns:ext="clr-namespace:Retromind.Extensions"
+                ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/NameOfVideo.mp4">
 ```
 
-### Disable video
+This path is relative to the theme folder (e.g. `Themes/Arcade/Videos/bkg_anim.mp4`).
 
+2. `ThemeLoader` reads that property and stores it in `Theme.SecondaryBackgroundVideoPath`.
+
+3. `BigModeViewModel` resolves `BasePath + SecondaryBackgroundVideoPath`, loads the video into a second LibVLC player and exposes it via:
+
+    - `SecondaryVideoSurface`
+    - `SecondaryVideoHasContent`
+    - `SecondaryVideoIsPlaying`
+
+Example: full‑screen video wallpaper with static fallback image:
 ```xml
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:Retromind.ViewModels"
-             xmlns:ext="clr-namespace:Retromind.Extensions"
-             x:DataType="vm:BigModeViewModel"
-             ext:ThemeProperties.VideoEnabled="False">
-  <!-- Layout without video -->
-</UserControl>
-```
-
-> Video is shown only if `VideoEnabled=true` and the slot exists and has a meaningful size.
-
-#### Control how the video fills the slot (`VideoStretchMode`)
-
-The host renders the video into a dedicated overlay that is positioned over your slot.  
-You can control **how** the video is scaled using:
-
-- `ext:ThemeProperties.VideoStretchMode="Fill|Uniform|UniformToFill|Cover"`
-
-Supported values:
-
-- `Fill` (default) – fill the slot completely, even if this **distorts** the aspect ratio
-    - No black bars, but 4:3 videos in a 16:9 slot will be stretched.
-- `Uniform` – keep aspect ratio, show the whole video, **allow bars**
-    - Letterboxing/pillarboxing as needed, video is centered.
-- `UniformToFill` or `Cover` – keep aspect ratio, **fill the slot**, cropping overflow
-    - No bars, no distortion, but edges of the video may be cut off, video is centered.
-
-Example:
-```xml
-<UserControl xmlns="https://github.com/avaloniaui" 
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
-             xmlns:vm="using:Retromind.ViewModels" 
+<UserControl xmlns:video="using:Retromind.Helpers.Video" 
+             xmlns:helpers="using:Retromind.Helpers" 
              xmlns:ext="clr-namespace:Retromind.Extensions" 
              x:DataType="vm:BigModeViewModel" 
-             Background="Black"
-
-             ext:ThemeProperties.VideoEnabled="True"
-             ext:ThemeProperties.VideoSlotName="VideoSlot"
-             ext:ThemeProperties.VideoStretchMode="UniformToFill">
-
+             Background="Black" 
+             
+             ext:ThemeProperties.Name="Arcade" 
+             ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4">
+    
+    <UserControl.Resources>
+        <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
+        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1.0" FalseOpacity="0.0" />
+        <helpers:BoolToOpacityConverter x:Key="BoolToOpacityInverse" TrueOpacity="0.0" FalseOpacity="1.0" />
+    </UserControl.Resources>
+    
     <Grid>
-        <Border x:Name="VideoSlot"
-                Width="854"
-                Height="480"
-                Background="Transparent"/>
+        <!-- Background: video wallpaper + fallback image + dark tint -->
+        <Grid>
+            <!-- Video background (secondary channel) -->
+            <video:VideoSurfaceControl Surface="{Binding SecondaryVideoSurface}"
+                                       Stretch="UniformToFill"
+                                       IsVisible="{Binding SecondaryVideoHasContent}"/>
+    
+            <!-- Static fallback wallpaper when no background video is available -->
+            <Image Source="{Binding Converter={StaticResource ThemeAssetConverter},
+                                    ConverterParameter=Images/background.jpg}"
+                   Stretch="UniformToFill"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   IsHitTestVisible="False"
+                   Opacity="{Binding SecondaryVideoHasContent,
+                                     Converter={StaticResource BoolToOpacityInverse}}"/>
+    
+            <!-- Dark tint above image/video to keep text readable -->
+            <Rectangle Fill="#AA101015" IsHitTestVisible="False" />
+        </Grid>
+    
+        <!-- Your foreground layout (cabinet, logo list, info bar, etc.) -->
     </Grid>
 </UserControl>
 ```
-> Tip:
-> - Use `Uniform` if you want to **preserve the original aspect ratio** at all costs.
-> - Use `UniformToFill` / `Cover` for cinematic, fully filled slots (like CSS `object-fit: cover`).
-> - Use `Fill` if you prefer **no bars** and some stretching is acceptable.
+
+Behavior:
+
+- If the configured video file exists → `SecondaryVideoHasContent = true` → video is drawn, image fades out.
+- If it does not exist (or video is disabled) → no secondary video, only the static wallpaper is visible.
 
 ---
 
@@ -229,27 +284,17 @@ Example:
 ### 6.3 Video
 
 - `ThemeProperties.VideoEnabled` (bool, default: `true`)  
-  Enables/disables the video overlay for this theme.
-- `ThemeProperties.VideoSlotName` (string, default: `"VideoSlot"`)  
-  Name of the control in the theme used as anchor for the video overlay.
-- `ThemeProperties.VideoStretchMode` (string, default: `"Fill"`)  
-  How the video is scaled into the slot:
-    - `"Fill"` – fill slot, may distort aspect ratio (no bars, no cropping).
-    - `"Uniform"` – preserve aspect ratio, show full video, bars allowed.
-    - `"UniformToFill"` or `"Cover"` – preserve aspect ratio, fill slot, cropping allowed.
+  Enables/disables all video playback for this theme (both main and secondary channels). If false, the ViewModel will not start LibVLC preview playback for this theme.
+- `ThemeProperties.SecondaryBackgroundVideoPath` (string?, optional)  
+  Theme-local relative path to a background video for the secondary channel.
+  Example: "Videos/NameOfVideo.mp4" → resolved as Path.Combine(BasePath, "Videos/NameOfVideo.mp4").
 
 Example:
 ```xml
-<UserControl xmlns="https://github.com/avaloniaui" 
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
-             xmlns:vm="using:Retromind.ViewModels" 
-             xmlns:ext="clr-namespace:Retromind.Extensions" 
-             x:DataType="vm:BigModeViewModel"
-             
-         ext:ThemeProperties.VideoEnabled="True"
-         ext:ThemeProperties.VideoSlotName="VideoSlot"
-         ext:ThemeProperties.VideoStretchMode="Uniform">
-<!-- layout -->
+<UserControl xmlns:ext="clr-namespace:Retromind.Extensions"
+             ext:ThemeProperties.VideoEnabled="True"
+             ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4">
+             <!-- layout -->
 </UserControl>
 ```
 
