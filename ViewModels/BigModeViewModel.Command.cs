@@ -119,12 +119,12 @@ public partial class BigModeViewModel
         {
             if (CurrentCategories.Count == 0) return;
 
-            if (_selectedCategoryIndex < 0)
-                _selectedCategoryIndex = 0;
+            if (SelectedCategoryIndex < 0)
+                SelectedCategoryIndex = 0;
 
             // Wrap-around navigation.
-            _selectedCategoryIndex = (_selectedCategoryIndex - 1 + CurrentCategories.Count) % CurrentCategories.Count;
-            SelectedCategory = CurrentCategories[_selectedCategoryIndex];
+            SelectedCategoryIndex = (SelectedCategoryIndex - 1 + CurrentCategories.Count) % CurrentCategories.Count;
+            SelectedCategory = CurrentCategories[SelectedCategoryIndex];
         }
 
         // Defensive fallback (should rarely be needed).
@@ -154,12 +154,12 @@ public partial class BigModeViewModel
         {
             if (CurrentCategories.Count == 0) return;
 
-            if (_selectedCategoryIndex < 0)
-                _selectedCategoryIndex = 0;
+            if (SelectedCategoryIndex < 0)
+                SelectedCategoryIndex = 0;
 
             // Wrap-around navigation.
-            _selectedCategoryIndex = (_selectedCategoryIndex + 1) % CurrentCategories.Count;
-            SelectedCategory = CurrentCategories[_selectedCategoryIndex];
+            SelectedCategoryIndex = (SelectedCategoryIndex + 1) % CurrentCategories.Count;
+            SelectedCategory = CurrentCategories[SelectedCategoryIndex];
         }
 
         // Defensive fallback (should rarely be needed).
@@ -232,7 +232,6 @@ public partial class BigModeViewModel
         _isLaunching = true;
 
         StopVideo();
-        _previewDebounceCts?.Cancel();
 
         if (RequestPlay != null)
             await RequestPlay(SelectedItem);

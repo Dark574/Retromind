@@ -37,9 +37,6 @@ public partial class BigModeHostView : UserControl
     // while the SystemHost theme is active.
     private INotifyPropertyChanged? _vmNotifications;
     
-    // Coalesce LayoutUpdated spam into a single placement calculation per UI tick
-    private bool _placementUpdateQueued;
-
     // Track hooked list boxes so we can unhook on theme swap (avoid leaks)
     private readonly List<ListBox> _tunedListBoxes = new();
 

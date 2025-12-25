@@ -12,7 +12,12 @@ namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
-    private static readonly TimeSpan PreviewDebounceDelay = TimeSpan.FromMilliseconds(150);
+    // --- Timing knobs ---
+    private static readonly TimeSpan PreviewDebounceSmall = TimeSpan.FromMilliseconds(150);
+    private static readonly TimeSpan PreviewDebounceMedium = TimeSpan.FromMilliseconds(200);
+    private static readonly TimeSpan PreviewDebounceLarge = TimeSpan.FromMilliseconds(275);
+    private static readonly TimeSpan PreviewDebounceHuge = TimeSpan.FromMilliseconds(350);
+
     private static readonly TimeSpan VideoFadeOutDelay = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan VideoStartSettleDelay = TimeSpan.FromMilliseconds(75);
     private static readonly TimeSpan StopWaitTimeout = TimeSpan.FromMilliseconds(750);
@@ -21,17 +26,90 @@ public partial class BigModeViewModel
     private const int MaxItemVideoCacheEntries = 10_000;
     private const int MaxNodeVideoCacheEntries = 2_000;
 
+    // --- Preview state ---
+    private DispatcherTimer? _previewDebounceTimer;
+    
+    // One-time estimate of overall library size to tune debounce for huge collections.
+    private int? _estimatedTotalItems;
+    
     // Prevent old "play after render" tasks from starting late.
     private int _previewPlayGeneration;
+    
+    // Prevent old fade tasks from hiding the overlay after a new playback started.
+    private int _overlayFadeGeneration;
 
     // IMPORTANT: Keep Media alive while VLC is using it, otherwise playback can freeze.
     private Media? _currentPreviewMedia;
 
-    // Prevent old fade tasks from hiding the overlay after a new playback started.
-    private int _overlayFadeGeneration;
+    // ----------------------------
+    // Entry points (host API)
+    // ----------------------------
+    
+    /// <summary>
+    /// Must be called by the host once the theme view is fully loaded/layouted.
+    /// If LibVLC starts playback too early, it may create its own output window (platform-dependent).
+    /// </summary>
+    public void NotifyViewReady()
+    {
+        // The first time, we note: View is ready.
+        var wasReady = _isViewReady;
+        _isViewReady = true;
 
-    private CancellationTokenSource? _previewDebounceCts;
+        // In any case: Try starting (or restarting) the preview
+        // This way we catch timing issues where the first call is lost
+        TriggerPreviewPlaybackWithDebounce();
 
+        // play background video eventually
+        EnsureSecondaryBackgroundPlayingIfReady();
+        
+        // Optional: an additional, slightly delayed repetition,
+        // to ensure that layout/slot bounds are stable.
+        if (!wasReady)
+        {
+            UiThreadHelper.Post(
+                () =>
+                {
+                    TriggerPreviewPlaybackWithDebounce();
+                    EnsureSecondaryBackgroundPlayingIfReady();
+                },
+                DispatcherPriority.Background);
+        }
+    }
+    
+    /// <summary>
+    /// Must be called before swapping the theme view, otherwise LibVLC may detach and spawn its own output window.
+    /// </summary>
+    public async Task PrepareForThemeSwapAsync()
+    {
+        _isViewReady = false;
+
+        // Cancel any pending debounce/play tasks.
+        CancelPreviewDebounce();
+        StopVideo();
+
+        // StopVideo() may not be fully "settled" in LibVLC immediately.
+        // Wait defensively for a short time until playback is confirmed stopped.
+        var mp = MediaPlayer;
+        if (mp != null)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (sw.Elapsed < StopWaitTimeout)
+            {
+                if (!mp.IsPlaying)
+                    break;
+
+                await Task.Delay(25).ConfigureAwait(false);
+            }
+        }
+
+        // One render tick to let Avalonia process detach/layout before the root view swap.
+        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
+    }
+
+    // ----------------------------
+    // Event handlers / callbacks
+    // ----------------------------
+    
     private void OnPreviewEndReached(object? sender, EventArgs e)
     {
         // Called on a VLC thread; marshal back to UI thread.
@@ -55,75 +133,10 @@ public partial class BigModeViewModel
             }
         }, DispatcherPriority.Background);
     }
-    
-    /// <summary>
-    /// Must be called by the host once the theme view is fully loaded/layouted.
-    /// If LibVLC starts playback too early, it may create its own output window (platform-dependent).
-    /// </summary>
-    public void NotifyViewReady()
-    {
-        // The first time, we note: View is ready.
-        var wasReady = _isViewReady;
-        _isViewReady = true;
-
-        // In any case: Try starting (or restarting) the preview.
-        // This way we catch timing issues where the first call is lost.
-        TriggerPreviewPlaybackWithDebounce();
-
-        // Hintergrundvideo ggf. starten
-        EnsureSecondaryBackgroundPlayingIfReady();
-        
-        // Optional: an additional, slightly delayed repetition,
-        // to ensure that layout/slot bounds are stable.
-        if (!wasReady)
-        {
-            UiThreadHelper.Post(
-                () =>
-                {
-                    TriggerPreviewPlaybackWithDebounce();
-                    EnsureSecondaryBackgroundPlayingIfReady();
-                },
-                DispatcherPriority.Background);
-        }
-    }
-
-    /// <summary>
-    /// Must be called before swapping the theme view, otherwise LibVLC may detach and spawn its own output window.
-    /// </summary>
-    public async Task PrepareForThemeSwapAsync()
-    {
-        _isViewReady = false;
-
-        // Cancel any pending debounce/play tasks.
-        _previewDebounceCts?.Cancel();
-        _previewDebounceCts = null;
-
-        StopVideo();
-
-        // StopVideo() may not be fully "settled" in LibVLC immediately.
-        // Wait defensively for a short time until playback is confirmed stopped.
-        var mp = MediaPlayer;
-        if (mp != null)
-        {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            while (sw.Elapsed < StopWaitTimeout)
-            {
-                if (!mp.IsPlaying)
-                    break;
-
-                await Task.Delay(25).ConfigureAwait(false);
-            }
-        }
-
-        // One render tick to let Avalonia process detach/layout before the root view swap.
-        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
-    }
 
     partial void OnThemeContextNodeChanged(MediaNode? value)
     {
-        _previewDebounceCts?.Cancel();
-        _previewDebounceCts = null;
-
+        CancelPreviewDebounce();
         TriggerPreviewPlaybackWithDebounce();
     }
 
@@ -154,21 +167,20 @@ public partial class BigModeViewModel
     {
         if (value == null)
         {
-            _selectedCategoryIndex = -1;
+            SelectedCategoryIndex = -1;
         }
         else
         {
             // O(n) only for external selection changes (mouse/touch).
-            _selectedCategoryIndex = CurrentCategories.IndexOf(value);
+            SelectedCategoryIndex = CurrentCategories.IndexOf(value);
         }
 
         TriggerPreviewPlaybackWithDebounce();
     }
-
+    
     partial void OnIsGameListActiveChanged(bool value)
     {
-        _previewDebounceCts?.Cancel();
-        _previewDebounceCts = null;
+        CancelPreviewDebounce();
 
         StopVideo();
         
@@ -177,13 +189,23 @@ public partial class BigModeViewModel
         
         TriggerPreviewPlaybackWithDebounce();
     }
-
+    
+    // ----------------------------
+    // Debounce / scheduling
+    // ----------------------------
+    
     /// <summary>
     /// Debounced entry point. Safe to call frequently (scrolling / key repeat).
     /// Schedules the work on the UI thread without allocating extra thread-pool tasks.
     /// </summary>
     private void TriggerPreviewPlaybackWithDebounce()
     {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(TriggerPreviewPlaybackWithDebounce, DispatcherPriority.Background);
+            return;
+        }
+
         if (!_isViewReady || _isLaunching)
             return;
 
@@ -194,46 +216,109 @@ public partial class BigModeViewModel
             return;
         }
 
-        _previewDebounceCts?.Cancel();
-        _previewDebounceCts = new CancellationTokenSource();
-        var token = _previewDebounceCts.Token;
+        EnsurePreviewDebounceTimer();
 
-        // Debounce OFF the UI thread, then marshal the actual work back to the UI thread.
-        _ = Task.Run(async () =>
+        var delay = GetAdaptivePreviewDebounceDelay();
+
+        // One-shot timer: reset interval and enable
+        _previewDebounceTimer!.Interval = delay;
+        _previewDebounceTimer.IsEnabled = true;
+    }
+    
+    private void EnsurePreviewDebounceTimer()
+    {
+        if (_previewDebounceTimer != null)
+            return;
+
+        _previewDebounceTimer = new DispatcherTimer
         {
-            try
-            {
-                await Task.Delay(PreviewDebounceDelay, token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
+            IsEnabled = false
+        };
 
-            if (token.IsCancellationRequested)
-                return;
+        _previewDebounceTimer.Tick += (_, _) =>
+        {
+            // One-shot timer behavior
+            if (_previewDebounceTimer != null)
+                _previewDebounceTimer.IsEnabled = false;
 
-            UiThreadHelper.Post(TriggerPreviewPlayback, DispatcherPriority.Background);
-        }, token);
+            TriggerPreviewPlayback();
+        };
     }
 
+    private void CancelPreviewDebounce()
+    {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(CancelPreviewDebounce, DispatcherPriority.Background);
+            return;
+        }
+
+        if (_previewDebounceTimer != null)
+            _previewDebounceTimer.IsEnabled = false;
+    }
+
+    private TimeSpan GetAdaptivePreviewDebounceDelay()
+    {
+        // Primary heuristic: current visible list size (this is what the user is scrolling).
+        var currentListCount = IsGameListActive ? Items.Count : CurrentCategories.Count;
+
+        // Secondary heuristic: overall library size (one-time estimated; avoids too short debounce on huge collections).
+        _estimatedTotalItems ??= EstimateTotalItemCountSoftCap(_rootNodes, softCap: 100_000);
+
+        // Use the larger signal.
+        var size = Math.Max(currentListCount, _estimatedTotalItems.Value);
+
+        return size switch
+        {
+            <= 2_000 => PreviewDebounceSmall,
+            <= 10_000 => PreviewDebounceMedium,
+            <= 30_000 => PreviewDebounceLarge,
+            _ => PreviewDebounceHuge
+        };
+    }
+
+    private static int EstimateTotalItemCountSoftCap(System.Collections.Generic.IEnumerable<MediaNode> nodes, int softCap)
+    {
+        var total = 0;
+
+        void Walk(System.Collections.Generic.IEnumerable<MediaNode> level)
+        {
+            foreach (var n in level)
+            {
+                if (n.Items is { Count: > 0 })
+                {
+                    total += n.Items.Count;
+                    if (total >= softCap)
+                        return;
+                }
+
+                if (n.Children is { Count: > 0 })
+                {
+                    Walk(n.Children);
+                    if (total >= softCap)
+                        return;
+                }
+            }
+        }
+
+        Walk(nodes);
+        return Math.Min(total, softCap);
+    }
+
+    // ----------------------------
+    // Playback
+    // ----------------------------
+    
     /// <summary>
     /// Starts preview playback for the current selection. Must run on the UI thread.
     /// </summary>
     private void TriggerPreviewPlayback()
     {
-        string? videoPath;
+        string? videoPath = IsGameListActive
+            ? ResolveItemVideoPath(SelectedItem)
+            : ResolveNodeVideoPath(SelectedCategory);
         
-        if (IsGameListActive)
-        {
-            videoPath = ResolveItemVideoPath(SelectedItem);
-        }
-        else
-        {
-            videoPath = ResolveNodeVideoPath(SelectedCategory);
-        }
-        
-        // Hauptkanal: Content-Flag aus Pfad und Modus ableiten.
+        // Main channel: Derive content flag from path and mode
         MainVideoHasContent = CanShowVideo && !string.IsNullOrEmpty(videoPath);
 
         PlayPreviewForPath(videoPath);
@@ -375,7 +460,6 @@ public partial class BigModeViewModel
             MediaPlayer.Media = media;
             MediaPlayer.Play();
             
-            // Hauptkanal läuft jetzt
             MainVideoIsPlaying = true;
         }
         catch
@@ -395,12 +479,11 @@ public partial class BigModeViewModel
 
         Interlocked.Increment(ref _previewPlayGeneration);
 
-        _previewDebounceCts?.Cancel();
-        _previewDebounceCts = null;
+        CancelPreviewDebounce();
 
         IsVideoVisible = false;
 
-        // Hauptkanal: Status zurücksetzen
+        // Main channel: Reset status
         MainVideoIsPlaying = false;
         MainVideoHasContent = false;
         

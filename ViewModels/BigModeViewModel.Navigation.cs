@@ -158,9 +158,6 @@ public partial class BigModeViewModel
         _titleStack.Clear();
         _navigationPath.Clear();
 
-        _previewDebounceCts?.Cancel();
-        _previewDebounceCts = null;
-
         StopVideo();
 
         // Reset caches (safe + avoids stale paths if the library changes)
@@ -203,7 +200,7 @@ public partial class BigModeViewModel
 
     partial void OnCurrentCategoriesChanged(ObservableCollection<MediaNode> value)
     {
-        _selectedCategoryIndex = -1;
+        SelectedCategoryIndex = -1;
     }
 
     partial void OnItemsChanged(ObservableCollection<MediaItem> value)
@@ -302,11 +299,14 @@ public partial class BigModeViewModel
             // best effort
         }
 
-        // Cancel pending preview debounce and stop video overlay deterministically
+        // Stop preview debounce timer (new UI-thread debounce, replaces the old CTS/Task.Run approach)
         try
         {
-            _previewDebounceCts?.Cancel();
-            _previewDebounceCts = null;
+            if (_previewDebounceTimer != null)
+            {
+                _previewDebounceTimer.IsEnabled = false;
+                _previewDebounceTimer = null;
+            }
         }
         catch
         {
@@ -354,7 +354,6 @@ public partial class BigModeViewModel
                 finally
                 {
                     _secondaryBackgroundMedia = null;
-                    _secondaryBackgroundPath = null;
                 }
 
                 // Stop & dispose main channel

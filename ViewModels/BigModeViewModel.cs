@@ -22,46 +22,117 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class BigModeViewModel : ViewModelBase, IDisposable
 {
+    // --- Dependencies (constructor-injected / core) ---
     private readonly LibVLC _libVlc;
     private readonly AppSettings _settings;
-
-    // Injected dependencies
     private Theme _theme;
     private readonly SoundEffectService _soundEffectService;
     private readonly GamepadService _gamepadService;
 
+    // --- Lifecycle / safety ---
     private int _disposed;
-    
-    // Oberfläche für das gerenderte Video (LibVLC-Callbacks)
+    private bool _stateSaved;
+
+    // --- Navigation state ---
+    private readonly ObservableCollection<MediaNode> _rootNodes;
+    private readonly Stack<ObservableCollection<MediaNode>> _navigationStack = new();
+    private readonly Stack<string> _titleStack = new();
+    private readonly Stack<MediaNode> _navigationPath = new();
+
+    private bool _isLaunching;
+
+    // --- Video (VLC + surfaces + players) ---
     private readonly LibVlcVideoSurface _videoSurface;
-
-    // Zweite Oberfläche für einen optionalen zweiten Video-Kanal (Secondary).
-    // Wird in einem späteren Schritt vollständig verdrahtet.
     private readonly LibVlcVideoSurface? _secondaryVideoSurface;
-
-    // Player für den Haupt-Preview-Kanal (MediaPlayer-Property).
-    // Player für den zweiten Hintergrundkanal.
     private MediaPlayer? _secondaryPlayer;
-
-    // Attract-Mode
-    private readonly bool _attractModeEnabled;
-    private readonly TimeSpan? _attractModeIdleInterval;
-    private DispatcherTimer? _attractTimer;
-    private DateTime _lastUserInputUtc;
-    private int _attractStepsExecuted;
-    private bool _isAttractAnimating; // verhindert parallele Attract-Animationen
-    
-    /// <summary>
-    /// True while the attract-mode animation is actively "spinning" through the list.
-    /// Themes can use this flag to trigger temporary visual effects (glow, shake, etc.).
-    /// </summary>
-    [ObservableProperty]
-    private bool _isInAttractMode;
-    
-    // Aktuelle Media-Instanz für den Hintergrundkanal (z.B. bkg_anim.mp4).
     private Media? _secondaryBackgroundMedia;
-    private string? _secondaryBackgroundPath;
+
+    private bool _isViewReady;
+    private string? _currentPreviewVideoPath;
+
+    // --- Caches ---
+    private readonly Dictionary<string, string?> _itemVideoPathCache = new();
+    private readonly Dictionary<string, string?> _nodeVideoPathCache = new();
+
+    // --- Index helpers ---
+    [ObservableProperty]
+    private int _selectedItemIndex = -1;
+
+    [ObservableProperty]
+    private int _selectedCategoryIndex = -1;
+
+    // --- Theme context / selection ---
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
+    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
+    [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
+    private MediaNode? _themeContextNode;
+
+    [ObservableProperty]
+    private ObservableCollection<MediaNode> _currentCategories;
+
+    [ObservableProperty]
+    private MediaNode? _selectedCategory;
+
+    [ObservableProperty]
+    private MediaNode? _currentNode;
+
+    [ObservableProperty]
+    private ObservableCollection<MediaItem> _items = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
+    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
+    [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
+    private MediaItem? _selectedItem;
+
+    // --- Video UI flags (theme bindings) ---
+    [ObservableProperty]
+    private bool _isVideoVisible;
+
+    [ObservableProperty]
+    private bool _isVideoOverlayVisible;
+
+    [ObservableProperty]
+    private bool _canShowVideo = true;
+
+    [ObservableProperty]
+    private bool _mainVideoHasContent;
+
+    [ObservableProperty]
+    private bool _mainVideoIsPlaying;
+
+    [ObservableProperty]
+    private bool _secondaryVideoHasContent;
+
+    [ObservableProperty]
+    private bool _secondaryVideoIsPlaying;
+
+    // --- Misc UI state ---
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCategorySelectionActive))]
+    [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
+    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
+    [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
+    private bool _isGameListActive;
+
+    public bool IsCategorySelectionActive => !IsGameListActive;
     
+    [ObservableProperty]
+    private string _currentThemeDirectory = string.Empty;
+
+    [ObservableProperty]
+    private MediaPlayer? _mediaPlayer;
+
+    [ObservableProperty]
+    private string _categoryTitle = "";
+
+    [ObservableProperty]
+    private int _totalGames;
+
+    [ObservableProperty]
+    private int _currentGameNumber;
+
     /// <summary>
     /// Alte API: Oberfläche für das Vorschaubild (wird von BigModeHostView gerendert).
     /// Entspricht dem Haupt-Videokanal (MainVideoSurface).
@@ -79,140 +150,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     public IVideoSurface? SecondaryVideoSurface => _secondaryVideoSurface;
     
-    // Navigation history used to implement "Back" behavior.
-    private readonly Stack<ObservableCollection<MediaNode>> _navigationStack = new();
-    private readonly Stack<string> _titleStack = new();
-    private readonly Stack<MediaNode> _navigationPath = new();
-
-    // Top-level categories (e.g. "Games", "Movies", ...).
-    private readonly ObservableCollection<MediaNode> _rootNodes;
-
-    // Prevents input while a game is being launched.
-    private bool _isLaunching;
-
-    // Avoids unnecessary VLC stop/play cycles (reduces flicker and CPU usage).
-    private string? _currentPreviewVideoPath;
-
-    // LibVLC may open its own output window if playback starts before the VideoView is attached.
-    // The host must call NotifyViewReady() after the theme view is loaded.
-    private bool _isViewReady;
-
-    // Makes state saving idempotent (RequestClose + Dispose can both call SaveState).
-    private bool _stateSaved;
-
-    [ObservableProperty]
-    private int _selectedItemIndex = -1;
-    private int _selectedCategoryIndex = -1;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
-    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
-    [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
-    private MediaNode? _themeContextNode;
-    
-    // Avoid repeated filesystem I/O while scrolling large lists.
-    private readonly Dictionary<string, string?> _itemVideoPathCache = new();
-    private readonly Dictionary<string, string?> _nodeVideoPathCache = new();
-
-    // --- View state ---
-
-    /// <summary>
-    /// True: game list is shown. False: category list is shown.
-    /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsCategorySelectionActive))]
-    [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
-    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
-    [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
-    private bool _isGameListActive;
-
-    public bool IsCategorySelectionActive => !IsGameListActive;
-
-    [ObservableProperty]
-    private ObservableCollection<MediaNode> _currentCategories;
-
-    [ObservableProperty]
-    private MediaNode? _selectedCategory;
-
-    /// <summary>
-    /// Sichtbarkeits-Flag für den Haupt-Videokanal (Legacy: Overlay-Fades).
-    /// Themes können dies weiterhin für Opacity-Bindings verwenden, bis die
-    /// Inline-Video-Implementierung abgeschlossen ist.
-    /// </summary>
-    [ObservableProperty]
-    private bool _isVideoVisible;
-
-    // The overlay exists in the visual tree only if this flag is true.
-    // IsVideoVisible is used for opacity/fade.
-    [ObservableProperty]
-    private bool _isVideoOverlayVisible;
-
-    // Theme capability: the host should only enable video if the theme allows it AND provides a slot.
-    [ObservableProperty]
-    private bool _canShowVideo = true;
-
-    /// <summary>
-    /// Gibt an, ob für die aktuelle Auswahl ein Video im Hauptkanal verfügbar ist.
-    /// (CanShowVideo &amp;&amp; aufgelöster Pfad != null)
-    /// </summary>
-    [ObservableProperty]
-    private bool _mainVideoHasContent;
-
-    /// <summary>
-    /// Gibt an, ob der Haupt-Videokanal aktuell abgespielt wird.
-    /// </summary>
-    [ObservableProperty]
-    private bool _mainVideoIsPlaying;
-
-    /// <summary>
-    /// Gibt an, ob für die aktuelle Auswahl ein Video im zweiten Kanal verfügbar ist.
-    /// Wird in einem späteren Schritt befüllt.
-    /// </summary>
-    [ObservableProperty]
-    private bool _secondaryVideoHasContent;
-
-    /// <summary>
-    /// Gibt an, ob der zweite Videokanal aktuell abgespielt wird.
-    /// Wird in einem späteren Schritt befüllt.
-    /// </summary>
-    [ObservableProperty]
-    private bool _secondaryVideoIsPlaying;
-    
-    [ObservableProperty]
-    private MediaNode? _currentNode;
-
-    [ObservableProperty]
-    private string _currentThemeDirectory = string.Empty;
-
-    [ObservableProperty]
-    private MediaPlayer? _mediaPlayer;
-
-    [ObservableProperty]
-    private ObservableCollection<MediaItem> _items = new();
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
-    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
-    [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
-    private MediaItem? _selectedItem;
-
-    [ObservableProperty]
-    private string _categoryTitle = "";
-
-    /// <summary>
-    /// Total number of games in the current game list.
-    /// Equals zero while the category list is active.
-    /// </summary>
-    [ObservableProperty]
-    private int _totalGames;
-
-    /// <summary>
-    /// 1-based index of the currently selected game in the current game list.
-    /// Equals zero if no item is selected or the category list is active.
-    /// </summary>
-    [ObservableProperty]
-    private int _currentGameNumber;
-
     /// <summary>
     /// Release year of the currently selected game, or null if unknown or
     /// no game is selected. Intended for use in BigMode themes (bottom info bar).
@@ -296,12 +233,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Default capability based on the loaded theme (the host may further restrict this based on VideoSlot existence).
         CanShowVideo = _theme.VideoEnabled;
 
-        // Attract-Mode-Konfiguration aus dem Theme
-        _attractModeEnabled = _theme.AttractModeEnabled;
-        _attractModeIdleInterval = _theme.AttractModeIdleInterval;
-        _lastUserInputUtc = DateTime.UtcNow;
-        _attractStepsExecuted = 0;
-        
         CategoryTitle = Strings.BigMode_MainMenu;
 
         // Linux-friendly VLC options:
@@ -377,201 +308,17 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Nach Konstruktion: möglichen Hintergrundkanal anhand des aktuellen Themes vorbereiten.
         UpdateSecondaryBackgroundVideo();
         
-        // Attract-Mode-Timer starten (falls konfiguriert)
+        // Start attract-mode timer (if configured by the theme).
         InitializeAttractModeTimer();
     }
 
-    private void InitializeAttractModeTimer()
-    {
-        if (!_attractModeEnabled || _attractModeIdleInterval is null || _attractModeIdleInterval.Value <= TimeSpan.Zero)
-            return;
-
-        _attractTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromSeconds(1), // feingranular genug
-            IsEnabled = true
-        };
-        _attractTimer.Tick += OnAttractTimerTick;
-        _lastUserInputUtc = DateTime.UtcNow;
-        _attractStepsExecuted = 0;
-    }
-
-    private void OnAttractTimerTick(object? sender, EventArgs e)
-    {
-        if (Volatile.Read(ref _disposed) == 1)
-            return;
-        
-        if (!_attractModeEnabled || _attractModeIdleInterval is null)
-            return;
-
-        if (_isLaunching)
-            return;
-
-        // Attract-Mode nur im Spielemodus sinnvoll
-        if (!IsGameListActive || Items is not { Count: > 0 })
-        {
-            _attractStepsExecuted = 0;
-            return;
-        }
-
-        // Wenn aktuell eine Attract-Animation läuft, nicht erneut starten
-        if (_isAttractAnimating)
-            return;
-        
-        var now = DateTime.UtcNow;
-        var elapsed = now - _lastUserInputUtc;
-        if (elapsed <= TimeSpan.Zero)
-        {
-            _attractStepsExecuted = 0;
-            return;
-        }
-
-        var interval = _attractModeIdleInterval.Value;
-        if (interval <= TimeSpan.Zero)
-            return;
-
-        // Wie viele Intervalle sind bereits vergangen?
-        var totalStepsShouldHave = (int)(elapsed.Ticks / interval.Ticks);
-        if (totalStepsShouldHave <= _attractStepsExecuted)
-            return;
-
-        // Genau ein neuer Attract-Schritt für dieses Intervall
-        _attractStepsExecuted++;
-
-        PerformAttractModeStepAnimated();
-    }
-
-    private async void PerformAttractModeStepAnimated()
-    {
-        if (Volatile.Read(ref _disposed) == 1)
-            return;
-
-        if (!IsGameListActive || Items is not { Count: > 0 })
-            return;
-
-        var count = Items.Count;
-        if (count == 0)
-            return;
-
-        if (_isAttractAnimating)
-            return;
-
-        _isAttractAnimating = true;
-
-        try
-        {
-            // Attract-Mode visuell kennzeichnen
-            await UiThreadHelper.InvokeAsync(() =>
-            {
-                if (Volatile.Read(ref _disposed) == 1)
-                    return;
-
-                IsInAttractMode = true;
-            }, DispatcherPriority.Background);
-
-            // Optionaler Attract-Mode-Sound (z.B. kurzes "Spin"-Geräusch)
-            if (!string.IsNullOrWhiteSpace(_theme.AttractModeSoundPath))
-            {
-                try
-                {
-                    var fullPath = System.IO.Path.Combine(_theme.BasePath, _theme.AttractModeSoundPath);
-                    _soundEffectService.PlaySound(fullPath);
-                }
-                catch
-                {
-                    // Sound ist "Best Effort" – Fehler hier ignorieren
-                }
-            }
-
-            // Ein paar schnelle "Scroll"-Schritte, Anzahl leicht zufällig
-            var minSteps = Math.Min(10, count);        // mindestens eine gute Runde
-            var maxSteps = Math.Min(25, count * 3);    // nicht übertreiben
-            var steps = RandomHelper.Next(minSteps, maxSteps + 1);
-
-            for (int i = 0; i < steps; i++)
-            {
-                if (Volatile.Read(ref _disposed) == 1)
-                    break;
-
-                if (!IsGameListActive || Items.Count == 0 || _isLaunching)
-                    break;
-
-                // ein Schritt nach vorne, Wrap-around über SelectedItemIndex
-                if (Items.Count > 0)
-                {
-                    var nextIndex = SelectedItemIndex;
-                    if (nextIndex < 0 || nextIndex >= Items.Count)
-                        nextIndex = 0;
-
-                    nextIndex = (nextIndex + 1) % Items.Count;
-                    SelectedItemIndex = nextIndex;
-                    SelectedItem = Items[nextIndex];
-                }
-
-                // kurze Verzögerung für sichtbare Animation
-                await Task.Delay(60).ConfigureAwait(false);
-            }
-
-            // Nach der "Glücksrad"-Phase auf einen zufälligen Titel springen
-            if (IsGameListActive && Items is { Count: > 0 } && !_isLaunching)
-            {
-                var currentIndex = SelectedItemIndex >= 0 && SelectedItemIndex < Items.Count
-                    ? SelectedItemIndex
-                    : -1;
-
-                var newIndex = RandomHelper.Next(0, Items.Count);
-
-                if (Items.Count > 1 && newIndex == currentIndex)
-                {
-                    newIndex = (newIndex + 1) % Items.Count;
-                }
-
-                // zurück auf den UI-Thread
-                await UiThreadHelper.InvokeAsync(() =>
-                {
-                    if (Volatile.Read(ref _disposed) == 1)
-                        return;
-
-                    if (!IsGameListActive || Items.Count == 0)
-                        return;
-
-                    SelectedItemIndex = newIndex;
-                    SelectedItem = Items[newIndex];
-                }, DispatcherPriority.Background);
-            }
-        }
-        catch
-        {
-            // Attract-Mode ist "Best Effort" – Fehler dürfen die UI nicht killen.
-        }
-        finally
-        {
-            // Flag wieder zurücksetzen
-            await UiThreadHelper.InvokeAsync(() =>
-            {
-                if (Volatile.Read(ref _disposed) == 1)
-                    return;
-
-                IsInAttractMode = false;
-            }, DispatcherPriority.Background);
-
-            _isAttractAnimating = false;
-        }
-    }
-
-    private void ResetAttractIdleTimer()
-    {
-        _lastUserInputUtc = DateTime.UtcNow;
-        _attractStepsExecuted = 0;
-    }
-    
     /// <summary>
-    /// Lädt/aktualisiert das optionale Theme-Hintergrundvideo (Secondary-Kanal).
-    /// Sucht im aktuellen Theme-Verzeichnis nach "Video/bkg_anim.mp4".
+    /// Loads/updates the optional theme background video (secondary channel),
+    /// using <see cref="Theme.SecondaryBackgroundVideoPath"/> resolved against <see cref="Theme.BasePath"/>.
     /// </summary>
     private void UpdateSecondaryBackgroundVideo()
     {
-        // Vorherigen Inhalt bereinigen
+        // Stop previous content (best-effort)
         try
         {
             if (_secondaryPlayer != null && _secondaryPlayer.IsPlaying)
@@ -601,7 +348,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         }
 
         _secondaryBackgroundMedia = null;
-        _secondaryBackgroundPath = null;
 
         SecondaryVideoHasContent = false;
         SecondaryVideoIsPlaying = false;
@@ -609,7 +355,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         if (!CanShowVideo || _secondaryPlayer == null || _secondaryVideoSurface == null)
             return;
 
-        // Theme-Ordner + vom Theme definierter Pfad für Hintergrundvideo
+        // Resolve theme folder + theme-defined relative path for background video
         try
         {
             var basePath = _theme.BasePath;
@@ -622,18 +368,17 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             if (!System.IO.File.Exists(candidate))
                 return;
 
-            _secondaryBackgroundPath = candidate;
             var media = new Media(_libVlc, new Uri(candidate));
             _secondaryBackgroundMedia = media;
             _secondaryPlayer.Media = media;
 
             SecondaryVideoHasContent = true;
 
-            // Noch nicht starten – das machen wir erst, wenn die View "ready" ist.
+            // Do not start yet; only start once the view is marked as ready
         }
         catch
         {
-            // Bei Fehlern den Hintergrundkanal einfach deaktiviert lassen.
+            // If this fails, keep the secondary channel disabled.
             SecondaryVideoHasContent = false;
             SecondaryVideoIsPlaying = false;
         }
@@ -667,7 +412,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     private void OnSecondaryBackgroundEndReached(object? sender, EventArgs e)
     {
-        // Loop des Hintergrundvideos – läuft "ewig" im Kreis.
+        // Loop the background video indefinitely
         if (!SecondaryVideoHasContent || _secondaryPlayer == null)
             return;
 
@@ -710,7 +455,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     
     /// <summary>
     /// Updates the active theme at runtime.
-    /// The host is responsible for swapping the view and calling NotifyViewReady() afterwards.
+    /// The host is responsible for swapping the view and calling NotifyViewReady() afterwards
     /// </summary>
     public void UpdateTheme(Theme newTheme)
     {
@@ -718,24 +463,23 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         CurrentThemeDirectory = _theme.BasePath;
 
-        // When a new theme view is loaded, the VideoView attachment state becomes invalid.
-        // Wait for the next NotifyViewReady() call before starting preview playback.
+        // When a new theme view is loaded, the VideoView attachment state becomes invalid
+        // Wait for the next NotifyViewReady() call before starting preview playback
         _isViewReady = false;
-
-        // Ensure VLC is stopped before the old view detaches to avoid LibVLC spawning its own output window.
-        _previewDebounceCts?.Cancel();
-        _previewDebounceCts = null;
 
         StopVideo();
 
-        // Update default capability (host may still disable based on missing slot).
+        // Update default capability (host may still disable based on missing slot)
         CanShowVideo = _theme.VideoEnabled;
         
         // Theme swap may change how many items are visible or how they are
-        // interpreted by the theme; keep counters consistent.
+        // interpreted by the theme; keep counters consistent
         UpdateGameCounters();
         
-        // Hintergrund-Video für das neue Theme aktualisieren.
+        // Background video for the new theme
         UpdateSecondaryBackgroundVideo();
+        
+        // Re-evaluate attract-mode configuration for the new theme.
+        InitializeAttractModeTimer();
     }
 }
