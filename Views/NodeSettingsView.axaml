@@ -15,128 +15,265 @@
         CanResize="False">
 
     <Border Padding="20">
-        <StackPanel Spacing="20">
+        <!-- Wrap all content in a ScrollViewer to keep the dialog usable
+             even with many native wrappers or small screens. -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="20">
 
-            <!-- NAME & DESCRIPTION -->
-            <StackPanel Spacing="10">
-                <StackPanel Spacing="5">
-                    <TextBlock Text="{x:Static p:Strings.Common_Name}"/>
-                    <TextBox Text="{Binding Name}"/>
+                <!-- NAME & DESCRIPTION -->
+                <StackPanel Spacing="10">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="{x:Static p:Strings.Common_Name}"/>
+                        <TextBox Text="{Binding Name}"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="{x:Static p:Strings.NodeSettings_DescriptionForBigMode}"/>
+                        <TextBox Text="{Binding Description}" AcceptsReturn="True" Height="60" TextWrapping="Wrap"/>
+                    </StackPanel>
                 </StackPanel>
 
-                <StackPanel Spacing="5">
-                    <TextBlock Text="{x:Static p:Strings.NodeSettings_DescriptionForBigMode}"/>
-                    <TextBox Text="{Binding Description}" AcceptsReturn="True" Height="60" TextWrapping="Wrap"/>
-                </StackPanel>
-            </StackPanel>
+                <!-- NODE ARTWORK (Logo / Wallpaper / Video) -->
+                <Border BorderBrush="#444444"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="8"
+                        Background="#11000000">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="BigMode Artwork (per category)"
+                                   FontWeight="SemiBold" />
 
-            <!-- EMULATOR -->
-            <StackPanel Spacing="5">
-                <TextBlock Text="{x:Static p:Strings.NodeSettings_DefaultEmulatorForFolder}"/>
-                <ComboBox ItemsSource="{Binding AvailableEmulators}"
-                          SelectedItem="{Binding SelectedEmulator}"
-                          HorizontalAlignment="Stretch">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Name}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-            </StackPanel>
+                        <!-- Logo -->
+                        <StackPanel Spacing="4">
+                            <!-- Row 1: Label + Buttons + Preview -->
+                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="8">
+                                <TextBlock Grid.Column="0"
+                                           Text="Logo"
+                                           VerticalAlignment="Center" />
 
-            <!-- Native wrapper chain (Linux) -->
-            <StackPanel Spacing="8">
-                <TextBlock Text="Native Wrapper (Linux)" FontWeight="Bold" />
+                                <Button Grid.Column="1"
+                                        Content="Browse..."
+                                        Padding="8,2"
+                                        Click="OnBrowseLogoClicked" />
 
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <RadioButton Content="Inherit"
-                                 IsChecked="{Binding IsNativeWrapperInherit, Mode=TwoWay}" />
-                    <RadioButton Content="None"
-                                 IsChecked="{Binding IsNativeWrapperNone, Mode=TwoWay}" />
-                    <RadioButton Content="Override"
-                                 IsChecked="{Binding IsNativeWrapperOverride, Mode=TwoWay}" />
-                </StackPanel>
+                                <Button Grid.Column="2"
+                                        Content="✕"
+                                        Padding="6,2"
+                                        ToolTip.Tip="Remove logo"
+                                        Foreground="Red"
+                                        IsEnabled="{Binding NodeLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
+                                        Click="OnClearLogoClicked" />
 
-                <StackPanel IsVisible="{Binding IsNativeWrapperOverride}">
-                    <Button Content="+ Add wrapper"
-                            Command="{Binding AddNativeWrapperCommand}"
-                            HorizontalAlignment="Left" />
-
-                    <ItemsControl ItemsSource="{Binding NativeWrappers}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#10000000" CornerRadius="4" Padding="8" Margin="0,5,0,0">
-                                    <Grid ColumnDefinitions="*, 10, *, 10, Auto" RowDefinitions="Auto, Auto" >
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Path" />
-                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Args" />
-
-                                        <TextBox Grid.Row="1" Grid.Column="0"
-                                                 Text="{Binding Path, Mode=TwoWay}"
-                                                 Watermark="gamemoderun / mangohud / env" />
-
-                                        <TextBox Grid.Row="1" Grid.Column="2"
-                                                 Text="{Binding Args, Mode=TwoWay}" />
-
-                                        <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="5">
-                                            <Button Content="↑"
-                                                    ToolTip.Tip="Move up"
-                                                    Command="{Binding $parent[Window].((vm:NodeSettingsViewModel)DataContext).MoveNativeWrapperUpCommand}"
-                                                    CommandParameter="{Binding}" />
-                                            <Button Content="↓"
-                                                    ToolTip.Tip="Move down"
-                                                    Command="{Binding $parent[Window].((vm:NodeSettingsViewModel)DataContext).MoveNativeWrapperDownCommand}"
-                                                    CommandParameter="{Binding}" />
-                                            <Button Content="✕"
-                                                    Command="{Binding $parent[Window].((vm:NodeSettingsViewModel)DataContext).RemoveNativeWrapperCommand}"
-                                                    CommandParameter="{Binding .}" />
-                                        </StackPanel>
-                                    </Grid>
+                                <Border Grid.Column="3"
+                                        HorizontalAlignment="Right"
+                                        Width="80" Height="40"
+                                        Background="#22000000"
+                                        CornerRadius="4"
+                                        ClipToBounds="True"
+                                        VerticalAlignment="Center">
+                                    <Image helpers:AsyncImageHelper.Url="{Binding NodeLogoPath}"
+                                           Stretch="Uniform"
+                                           IsVisible="{Binding NodeLogoPath,
+                                                               Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
                                 </Border>
+                            </Grid>
+
+                            <!-- Row 2: Path -->
+                            <TextBox Text="{Binding NodeLogoPath}"
+                                     IsReadOnly="True"
+                                     Background="#22000000"
+                                     BorderThickness="0"
+                                     Padding="4,2" />
+                        </StackPanel>
+
+                        <!-- Wallpaper -->
+                        <StackPanel Spacing="4">
+                            <!-- Row 1: Label + Buttons + Preview -->
+                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="8">
+                                <TextBlock Grid.Column="0"
+                                           Text="Wallpaper"
+                                           VerticalAlignment="Center" />
+
+                                <Button Grid.Column="1"
+                                        Content="Browse..."
+                                        Padding="8,2"
+                                        Click="OnBrowseWallpaperClicked" />
+
+                                <Button Grid.Column="2"
+                                        Content="✕"
+                                        Padding="6,2"
+                                        ToolTip.Tip="Remove wallpaper"
+                                        Foreground="Red"
+                                        IsEnabled="{Binding NodeWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
+                                        Click="OnClearWallpaperClicked" />
+
+                                <Border Grid.Column="3"
+                                        HorizontalAlignment="Right"
+                                        Width="120" Height="50"
+                                        Background="#22000000"
+                                        CornerRadius="4"
+                                        ClipToBounds="True"
+                                        VerticalAlignment="Center">
+                                    <Image helpers:AsyncImageHelper.Url="{Binding NodeWallpaperPath}"
+                                           Stretch="UniformToFill"
+                                           IsVisible="{Binding NodeWallpaperPath,
+                                                               Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                                </Border>
+                            </Grid>
+
+                            <!-- Row 2: Path -->
+                            <TextBox Text="{Binding NodeWallpaperPath}"
+                                     IsReadOnly="True"
+                                     Background="#22000000"
+                                     BorderThickness="0"
+                                     Padding="4,2" />
+                        </StackPanel>
+
+                        <!-- Video -->
+                        <StackPanel Spacing="4">
+                            <!-- Row 1: Label + Buttons -->
+                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="8">
+                                <TextBlock Grid.Column="0"
+                                           Text="Video"
+                                           VerticalAlignment="Center" />
+
+                                <Button Grid.Column="1"
+                                        Content="Browse..."
+                                        Padding="8,2"
+                                        Click="OnBrowseVideoClicked" />
+
+                                <Button Grid.Column="2"
+                                        Content="✕"
+                                        Padding="6,2"
+                                        ToolTip.Tip="Remove video"
+                                        Foreground="Red"
+                                        IsEnabled="{Binding NodeVideoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
+                                        Click="OnClearVideoClicked" />
+                                <!-- Column 3 left empty to align with logo/wallpaper layout -->
+                            </Grid>
+
+                            <!-- Row 2: Path -->
+                            <TextBox Text="{Binding NodeVideoPath}"
+                                     IsReadOnly="True"
+                                     Background="#22000000"
+                                     BorderThickness="0"
+                                     Padding="4,2" />
+
+                            <TextBlock Text="(Preview is currently not shown in this dialog)"
+                                       FontSize="11"
+                                       Foreground="#888888" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- EMULATOR -->
+                <StackPanel Spacing="5">
+                    <TextBlock Text="{x:Static p:Strings.NodeSettings_DefaultEmulatorForFolder}"/>
+                    <ComboBox ItemsSource="{Binding AvailableEmulators}"
+                              SelectedItem="{Binding SelectedEmulator}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"/>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Native wrapper chain (Linux) -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Native Wrapper (Linux)" FontWeight="Bold" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <RadioButton Content="Inherit"
+                                     IsChecked="{Binding IsNativeWrapperInherit, Mode=TwoWay}" />
+                        <RadioButton Content="None"
+                                     IsChecked="{Binding IsNativeWrapperNone, Mode=TwoWay}" />
+                        <RadioButton Content="Override"
+                                     IsChecked="{Binding IsNativeWrapperOverride, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <StackPanel IsVisible="{Binding IsNativeWrapperOverride}">
+                        <Button Content="+ Add wrapper"
+                                Command="{Binding AddNativeWrapperCommand}"
+                                HorizontalAlignment="Left" />
+
+                        <ItemsControl ItemsSource="{Binding NativeWrappers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#10000000" CornerRadius="4" Padding="8" Margin="0,5,0,0">
+                                        <Grid ColumnDefinitions="*, 10, *, 10, Auto" RowDefinitions="Auto, Auto" >
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Path" />
+                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Args" />
+
+                                            <TextBox Grid.Row="1" Grid.Column="0"
+                                                     Text="{Binding Path, Mode=TwoWay}"
+                                                     Watermark="gamemoderun / mangohud / env" />
+
+                                            <TextBox Grid.Row="1" Grid.Column="2"
+                                                     Text="{Binding Args, Mode=TwoWay}" />
+
+                                            <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="5">
+                                                <Button Content="↑"
+                                                        ToolTip.Tip="Move up"
+                                                        Command="{Binding $parent[Window].((vm:NodeSettingsViewModel)DataContext).MoveNativeWrapperUpCommand}"
+                                                        CommandParameter="{Binding}" />
+                                                <Button Content="↓"
+                                                        ToolTip.Tip="Move down"
+                                                        Command="{Binding $parent[Window].((vm:NodeSettingsViewModel)DataContext).MoveNativeWrapperDownCommand}"
+                                                        CommandParameter="{Binding}" />
+                                                <Button Content="✕"
+                                                        Command="{Binding $parent[Window].((vm:NodeSettingsViewModel)DataContext).RemoveNativeWrapperCommand}"
+                                                        CommandParameter="{Binding .}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            
+                <!-- BIGMODE THEME -->
+                <StackPanel Spacing="5">
+                    <TextBlock Text="{x:Static p:Strings.NodeSettings_BigModeThemeHint}"/>
+                    <ComboBox ItemsSource="{Binding AvailableThemes}"
+                              SelectedItem="{Binding SelectedTheme}"
+                              HorizontalAlignment="Stretch"/>
+
+                    <Button Content="{x:Static p:Strings.NodeSettings_ThemeAuto}"
+                            HorizontalAlignment="Left"
+                            Command="{Binding ClearThemeCommand}"
+                            IsVisible="{Binding IsThemeExplicitlySelected}"/>
+                
+                    <TextBlock Text="System-Theme (System-Auswahl)"
+                               FontWeight="SemiBold"
+                               Margin="0,8,0,2" />
+
+                    <ComboBox ItemsSource="{Binding AvailableSystemThemes}"
+                              SelectedItem="{Binding SelectedSystemTheme}"
+                              Width="260"
+                              IsEnabled="{Binding IsSystemThemeSelectionEnabled}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="helpers:SystemThemeOption">
+                                <TextBlock Text="{Binding DisplayName}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- OPTIONS -->
+                <StackPanel Spacing="10">
+                    <CheckBox Content="{x:Static p:Strings.NodeSettings_RandomizeCovers}" IsChecked="{Binding RandomizeCovers}"/>
+                    <CheckBox Content="{x:Static p:Strings.NodeSettings_RandomizeMusic}" IsChecked="{Binding RandomizeMusic}"/>
+                </StackPanel>
+
+                <!-- BUTTONS -->
+                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,10,0,0">
+                    <Button Content="{x:Static p:Strings.Button_Cancel}" Command="{Binding CancelCommand}"/>
+                    <Button Content="{x:Static p:Strings.Button_Save}" Classes="accent" Command="{Binding SaveCommand}"/>
                 </StackPanel>
             </StackPanel>
-            
-            <!-- BIGMODE THEME -->
-            <StackPanel Spacing="5">
-                <TextBlock Text="{x:Static p:Strings.NodeSettings_BigModeThemeHint}"/>
-                <ComboBox ItemsSource="{Binding AvailableThemes}"
-                          SelectedItem="{Binding SelectedTheme}"
-                          HorizontalAlignment="Stretch"/>
-
-                <Button Content="{x:Static p:Strings.NodeSettings_ThemeAuto}"
-                        HorizontalAlignment="Left"
-                        Command="{Binding ClearThemeCommand}"
-                        IsVisible="{Binding IsThemeExplicitlySelected}"/>
-                
-                <TextBlock Text="System-Theme (System-Auswahl)"
-                           FontWeight="SemiBold"
-                           Margin="0,8,0,2" />
-
-                <ComboBox ItemsSource="{Binding AvailableSystemThemes}"
-                          SelectedItem="{Binding SelectedSystemTheme}"
-                          Width="260"
-                          IsEnabled="{Binding IsSystemThemeSelectionEnabled}">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="helpers:SystemThemeOption">
-                            <TextBlock Text="{Binding DisplayName}" />
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-            </StackPanel>
-
-            <!-- OPTIONS -->
-            <StackPanel Spacing="10">
-                <CheckBox Content="{x:Static p:Strings.NodeSettings_RandomizeCovers}" IsChecked="{Binding RandomizeCovers}"/>
-                <CheckBox Content="{x:Static p:Strings.NodeSettings_RandomizeMusic}" IsChecked="{Binding RandomizeMusic}"/>
-            </StackPanel>
-
-            <!-- BUTTONS -->
-            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,10,0,0">
-                <Button Content="{x:Static p:Strings.Button_Cancel}" Command="{Binding CancelCommand}"/>
-                <Button Content="{x:Static p:Strings.Button_Save}" Classes="accent" Command="{Binding SaveCommand}"/>
-            </StackPanel>
-        </StackPanel>
+        </ScrollViewer>
     </Border>
 </Window>

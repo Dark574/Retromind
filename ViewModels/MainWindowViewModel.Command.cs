@@ -346,8 +346,16 @@ public partial class MainWindowViewModel
     {
         if (node == null || CurrentWindow is not { } owner) return;
         
-        // Pass _fileService and nodePath to the ViewModel
-        var vm = new NodeSettingsViewModel(node, _currentSettings);
+        // Determine the logical node path (from root to this node),
+        // so node-level assets end up in the same folder structure as media items.
+        var nodePath = PathHelper.GetNodePath(node, RootItems);
+        
+        var vm = new NodeSettingsViewModel(
+            node,
+            _currentSettings,
+            _fileService,
+            nodePath);
+        
         var dialog = new NodeSettingsView { DataContext = vm };
         
         vm.RequestClose += _ => { dialog.Close(); };
@@ -366,6 +374,12 @@ public partial class MainWindowViewModel
     /// Resolves the effective theme file path for a given node:
     /// searches upwards (node -> parents) for the first ThemePath assignment,
     /// otherwise returns the default theme.
+    /// 
+    /// Special case: the System Host theme ("System/theme.axaml") is only applied
+    /// to the node on which it is explicitly set and is not inherited by child
+    /// nodes. This allows using System Host for the top-level "systems" view,
+    /// while leaf nodes (e.g. platforms) fall back to the Default theme unless
+    /// they specify their own BigMode theme.
     /// </summary>
     private string GetEffectiveThemePath(MediaNode? startNode)
     {
@@ -375,17 +389,32 @@ public partial class MainWindowViewModel
             var nodeChain = GetNodeChain(startNode, RootItems);
             nodeChain.Reverse();
 
+            // Absolute path of the System Host theme (used as a non-inheritable marker).
+            var systemHostThemeFullPath = Path.Combine(AppPaths.ThemesRoot, "System", ThemeFileName);
+            systemHostThemeFullPath = Path.GetFullPath(systemHostThemeFullPath);
+
             foreach (var node in nodeChain)
             {
                 if (string.IsNullOrWhiteSpace(node.ThemePath))
                     continue;
 
                 var fullPath = Path.Combine(AppPaths.ThemesRoot, node.ThemePath);
+                var fullPathNormalized = Path.GetFullPath(fullPath);
 
-                if (File.Exists(fullPath))
-                    return fullPath;
+                // Do not inherit the System Host theme from parent nodes.
+                // It should only be applied to the node where it is explicitly set.
+                if (!ReferenceEquals(node, startNode) &&
+                    string.Equals(fullPathNormalized, systemHostThemeFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Skip this assignment and continue searching upwards.
+                    Debug.WriteLine($"[Theme] Skipping inherited System Host theme from node '{node.Name}'.");
+                    continue;
+                }
 
-                Debug.WriteLine($"[Theme] Assigned theme file not found: '{fullPath}'.");
+                if (File.Exists(fullPathNormalized))
+                    return fullPathNormalized;
+
+                Debug.WriteLine($"[Theme] Assigned theme file not found: '{fullPathNormalized}'.");
             }
         }
 

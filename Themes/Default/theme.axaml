@@ -3,21 +3,21 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions"
              xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="using:Retromind.Resources"
+             xmlns:video="using:Retromind.Helpers.Video"
              x:DataType="vm:BigModeViewModel"
              Background="#111319"
-
+             
              ext:ThemeProperties.Name="Default"
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.2.0"
              ext:ThemeProperties.VideoEnabled="True"
-             ext:ThemeProperties.SelectedScale="1.05"
-             ext:ThemeProperties.UnselectedOpacity="0.65"
-             ext:ThemeProperties.SelectedGlowOpacity="0.45"
-             ext:ThemeProperties.FadeDurationMs="220"
-             ext:ThemeProperties.MoveDurationMs="220"
-             ext:ThemeProperties.PanelPadding="32"
-             ext:ThemeProperties.TitleFontSize="46"
-             ext:ThemeProperties.BodyFontSize="18">
+             ext:ThemeProperties.FadeDurationMs="1100"
+             ext:ThemeProperties.MoveDurationMs="1100"
+             ext:ThemeProperties.PrimaryVisualElementName="CoverPanel"
+             ext:ThemeProperties.PrimaryVisualEnterMode="SlideFromLeft"
+             ext:ThemeProperties.PrimaryVisualEnterOffsetX="-420"
+             ext:ThemeProperties.PrimaryVisualEnterOffsetY="0">
 
     <UserControl.Resources>
         <!-- Soft slide+fade animation for the main title -->
@@ -31,136 +31,305 @@
         <!-- Slightly slower slide+fade for the cover overlay -->
         <Transitions x:Key="CoverTransitions">
             <DoubleTransition Property="{x:Static Visual.OpacityProperty}"
-                              Duration="0:0:0.70" />
+                              Duration="0:0:2.00">
+                <DoubleTransition.Easing>
+                    <CubicEaseOut />
+                </DoubleTransition.Easing>
+            </DoubleTransition>
             <TransformOperationsTransition Property="{x:Static Visual.RenderTransformProperty}"
-                                           Duration="0:0:0.70" />
+                                           Duration="0:0:2.00">
+                <TransformOperationsTransition.Easing>
+                    <CubicEaseOut />
+                </TransformOperationsTransition.Easing>
+            </TransformOperationsTransition>
         </Transitions>
+
+        <!-- Opacity helper for video visibility -->
+        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1.0" FalseOpacity="0.0" />
+
+        <!-- Playtime formatting -->
+        <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
     </UserControl.Resources>
+    
+    <!-- Background layer + actual content -->
+    <Grid>
+        <!-- Very transparent wallpaper from the current item -->
+        <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
+               Stretch="UniformToFill"
+               Opacity="0.18"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               IsVisible="{Binding SelectedItem.PrimaryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
+               IsHitTestVisible="False" />
 
-    <!-- Two-column layout: left = text/list, right = video + cover -->
-    <Grid ColumnDefinitions="0.38*,0.62*"
-          Margin="40,30">
-        <!-- LEFT COLUMN: category, big title, game list -->
-        <Border Grid.Column="0"
-                Background="#20232A"
-                CornerRadius="8"
-                Padding="28,32,24,28">
-            <Grid RowDefinitions="Auto,Auto,*">
-                <!-- Category / genre label -->
-                <TextBlock Grid.Row="0"
-                           Text="{Binding CategoryTitle}"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           Foreground="#7BA3FF"
-                           Margin="0,0,0,12"
-                           TextTrimming="CharacterEllipsis" />
+        <!-- Two-column layout: navigation on the left, video + details on the right -->
+        <Grid ColumnDefinitions="0.38*,0.62*"
+              Margin="40,30">
 
-                <!-- Big title of the selected game -->
-                <Border Grid.Row="1"
-                        Margin="0,0,0,24">
-                    <TextBlock Text="{Binding SelectedItem.Title}"
-                               FontSize="42"
-                               FontWeight="Bold"
-                               Foreground="White"
-                               TextWrapping="Wrap"
-                               MaxLines="2"
-                               TextTrimming="CharacterEllipsis">
-                        <TextBlock.RenderTransform>
-                            <TranslateTransform X="-40" />
-                        </TextBlock.RenderTransform>
-                        <TextBlock.Transitions>
-                            <StaticResource ResourceKey="TitleTransitions" />
-                        </TextBlock.Transitions>
-                    </TextBlock>
-                </Border>
-
-                <!-- ROW 2: entweder Kategorien oder Spiele, je nach Modus -->
-
-                <!-- Kategorien-Liste (z.B. Bibliothek: Spiele / Filme, oder Spiele: SNES / C64 ...) -->
-                <ListBox Grid.Row="2"
-                         ItemsSource="{Binding CurrentCategories}"
-                         SelectedItem="{Binding SelectedCategory}"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         Padding="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         IsVisible="{Binding IsCategorySelectionActive}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Name}"
-                                       FontSize="16"
-                                       Margin="0,3"
-                                       Foreground="White"
-                                       TextTrimming="CharacterEllipsis" />
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-
-                <!-- Spiele-Liste (wie bisher) -->
-                <ListBox Grid.Row="2"
-                         ItemsSource="{Binding Items}"
-                         SelectedItem="{Binding SelectedItem}"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         Padding="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         IsVisible="{Binding IsGameListActive}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Title}"
-                                       FontSize="16"
-                                       Margin="0,3"
-                                       Foreground="White"
-                                       TextTrimming="CharacterEllipsis" />
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
-        </Border>
-
-        <!-- RIGHT COLUMN: video background + cover overlay -->
-        <Grid Grid.Column="1"
-              Margin="28,0,0,0">
-            <Border Background="#181A20"
+            <!-- LEFT COLUMN: category, big title, list -->
+            <Border Grid.Column="0"
+                    Background="#CC20232A"
                     CornerRadius="8"
-                    Padding="16"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Stretch">
-                <!-- Two columns: cover (auto) + video (*) -->
-                <Grid ColumnDefinitions="Auto,*">
-                    <!-- Game cover: separate column so it is not under the video overlay -->
-                    <Border Grid.Column="0"
-                            Width="260"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center"
-                            Margin="0,0,16,0"
-                            Background="#00000000"
-                            Opacity="0.0">
-                        <!-- Start a bit more to the left; transition slides it in -->
-                        <Border.RenderTransform>
-                            <TranslateTransform X="-32" />
-                        </Border.RenderTransform>
-                        <Border.Transitions>
-                            <StaticResource ResourceKey="CoverTransitions" />
-                        </Border.Transitions>
+                    Padding="28,32,24,28">
+                <Grid RowDefinitions="Auto,Auto,*">
 
-                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
-                               Stretch="UniformToFill"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center" />
+                    <!-- Category label -->
+                    <TextBlock Grid.Row="0"
+                               Text="{Binding CategoryTitle}"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="#7BA3FF"
+                               Margin="0,0,0,12"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <!-- Big title (selected game) -->
+                    <Border Grid.Row="1"
+                            Margin="0,0,0,24">
+                        <Grid>
+                            <!-- Game logo (if available) -->
+                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
+                                   Height="80"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Left"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding SelectedItem.PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                                <Image.RenderTransform>
+                                    <TranslateTransform X="-12" />
+                                </Image.RenderTransform>
+                                <Image.Transitions>
+                                    <StaticResource ResourceKey="TitleTransitions" />
+                                </Image.Transitions>
+                            </Image>
+
+                            <!-- Fallback: text title when no logo is available -->
+                            <TextBlock Text="{Binding SelectedItem.Title}"
+                                       FontSize="48"
+                                       FontWeight="Bold"
+                                       Foreground="White"
+                                       TextWrapping="Wrap"
+                                       MaxLines="2"
+                                       TextTrimming="CharacterEllipsis"
+                                       IsVisible="{Binding SelectedItem.PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
+                                <TextBlock.RenderTransform>
+                                    <!-- Less negative = moves to the right -->
+                                    <TranslateTransform X="-12" />
+                                </TextBlock.RenderTransform>
+                                <TextBlock.Transitions>
+                                    <StaticResource ResourceKey="TitleTransitions" />
+                                </TextBlock.Transitions>
+                            </TextBlock>
+                        </Grid>
                     </Border>
 
-                    <!-- VideoSlot used by the BigMode host to place the VLC overlay -->
-                    <Border Grid.Column="1"
-                            x:Name="VideoSlot"
-                            Background="Black"
-                            CornerRadius="4"
-                            HorizontalAlignment="Stretch"
-                            VerticalAlignment="Stretch"
-                            MinWidth="640"
-                            MinHeight="360" />
+                    <!-- Row 2: categories OR games depending on view mode -->
+
+                    <!-- Category list (e.g. systems) -->
+                    <ListBox Grid.Row="2"
+                             ItemsSource="{Binding CurrentCategories}"
+                             SelectedItem="{Binding SelectedCategory}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             IsVisible="{Binding IsCategorySelectionActive}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"
+                                           FontSize="16"
+                                           Margin="0,3"
+                                           Foreground="White"
+                                           TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- Game list -->
+                    <ListBox Grid.Row="2"
+                             ItemsSource="{Binding Items}"
+                             SelectedItem="{Binding SelectedItem}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             IsVisible="{Binding IsGameListActive}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Title}"
+                                           FontSize="16"
+                                           Margin="0,3"
+                                           Foreground="White"
+                                           TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </Border>
+
+            <!-- RIGHT COLUMN: big video on top + details below -->
+            <Grid Grid.Column="1"
+                  Margin="28,0,0,0">
+                <Border Background="#CC181A20"
+                        CornerRadius="8"
+                        Padding="16"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch">
+
+                    <!-- Make the right content responsive: centered, capped width -->
+                    <Grid Grid.Column="1"
+                          Margin="28,0,0,0">
+                        <Border Background="#E6181A20"
+                                CornerRadius="8"
+                                Padding="16"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch">
+
+                            <!-- Responsive container -->
+                            <Grid HorizontalAlignment="Center"
+                                  MaxWidth="1400">
+                                <Grid RowDefinitions="Auto,*">
+
+                                    <!-- VIDEO AREA -->
+                                    <Grid Grid.Row="0"
+                                          Height="520">
+
+                                        <!-- Video slot stretches to available width -->
+                                        <Border x:Name="VideoSlot"
+                                                Background="#181A20"
+                                                CornerRadius="6"
+                                                ClipToBounds="True"
+                                                HorizontalAlignment="Stretch"
+                                                MinWidth="900">
+                                            <Grid>
+                                                <TextBlock Text="No preview video"
+                                                           Foreground="#606060"
+                                                           FontSize="18"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           IsVisible="{Binding MainVideoHasContent, Converter={x:Static helpers:ObjectConverters.IsNull}}" />
+
+                                                <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
+                                                                           Stretch="Uniform"
+                                                                           Opacity="{Binding MainVideoIsPlaying, Converter={StaticResource BoolToOpacity}}"
+                                                                           IsVisible="{Binding MainVideoHasContent}" />
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Cover overlay (smaller, not cropped, sits over the video) -->
+                                        <Border x:Name="CoverPanel"
+                                                Width="220"
+                                                Height="330"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Top"
+                                                Margin="-120,28,0,0"
+                                                CornerRadius="8"
+                                                ClipToBounds="True"
+                                                Background="#00000000"
+                                                IsHitTestVisible="False"
+                                                IsVisible="{Binding SelectedItem.PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
+                                                   Stretch="Uniform"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                        </Border>
+
+                                    </Grid>
+
+                                    <!-- DETAILS (responsive: same width as video, centered) -->
+                                    <Border Grid.Row="1"
+                                            Margin="0,14,0,0"
+                                            Background="#E020232A"
+                                            CornerRadius="6"
+                                            Padding="14"
+                                            HorizontalAlignment="Stretch">
+                                        <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+                                              ColumnDefinitions="*,*"
+                                              ColumnSpacing="16"
+                                              RowSpacing="10">
+
+                                            <!-- Node / item description -->
+                                            <StackPanel Grid.Row="0"
+                                                        Grid.ColumnSpan="2"
+                                                        Spacing="6">
+                                                <TextBlock Text="{x:Static resources:Strings.Common_Description}"
+                                                           Foreground="#7BA3FF"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="14" />
+
+                                                <!-- Description in category mode -->
+                                                <TextBlock Text="{Binding SelectedCategory.Description}"
+                                                           Foreground="#DDFFFFFF"
+                                                           TextWrapping="Wrap"
+                                                           MaxHeight="72"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           IsVisible="{Binding IsCategorySelectionActive}" />
+
+                                                <!-- Description in game mode -->
+                                                <TextBlock Text="{Binding SelectedItem.Description}"
+                                                           Foreground="#DDFFFFFF"
+                                                           TextWrapping="Wrap"
+                                                           MaxHeight="72"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           IsVisible="{Binding IsGameListActive}" />
+                                            </StackPanel>
+
+                                            <!-- Release date -->
+                                            <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                                                <TextBlock Text="{x:Static resources:Strings.Common_ReleaseDate}"
+                                                           Foreground="#7BA3FF"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="14" />
+                                                <TextBlock Text="{Binding SelectedItem.ReleaseDate, StringFormat={}{0:yyyy-MM-dd}}"
+                                                           Foreground="White" />
+                                            </StackPanel>
+
+                                            <!-- Developer -->
+                                            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+                                                <TextBlock Text="{x:Static resources:Strings.Common_Developer}"
+                                                           Foreground="#7BA3FF"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="14" />
+                                                <TextBlock Text="{Binding SelectedDeveloper}"
+                                                           Foreground="White"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+
+                                            <!-- Played count -->
+                                            <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
+                                                <TextBlock Text="{x:Static resources:Strings.Media_PlayCount}"
+                                                           Foreground="#7BA3FF"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="14" />
+                                                <TextBlock Text="{Binding SelectedItem.PlayCount}"
+                                                           Foreground="White" />
+                                            </StackPanel>
+
+                                            <!-- Last played -->
+                                            <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
+                                                <TextBlock Text="{x:Static resources:Strings.Media_LastPlayed}"
+                                                           Foreground="#7BA3FF"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="14" />
+                                                <TextBlock Text="{Binding SelectedItem.LastPlayed, StringFormat={}{0:yyyy-MM-dd HH:mm}}"
+                                                           Foreground="White" />
+                                            </StackPanel>
+
+                                            <!-- Play time -->
+                                            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
+                                                <TextBlock Text="{x:Static resources:Strings.Media_PlayTime}"
+                                                           Foreground="#7BA3FF"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="14" />
+                                                <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
+                                                           Foreground="White" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

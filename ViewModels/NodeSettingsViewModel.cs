@@ -28,6 +28,19 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private readonly MediaNode _node;
     private readonly AppSettings _settings;
 
+    /// <summary>
+    /// Central file management service used to import/copy node artwork
+    /// into the portable library structure (same conventions as media items).
+    /// </summary>
+    private readonly FileManagementService _fileService;
+
+    /// <summary>
+    /// Logical path from the root node down to this node.
+    /// Used by FileManagementService to determine the target folder
+    /// for node-level assets (e.g. ["Games", "SNES"]).
+    /// </summary>
+    private readonly List<string> _nodePath;
+    
     public ObservableCollection<SystemThemeOption> AvailableSystemThemes { get; } = new();
     
     [ObservableProperty]
@@ -47,6 +60,11 @@ public partial class NodeSettingsViewModel : ViewModelBase
     [ObservableProperty] private string? _selectedTheme;
 
     public bool IsThemeExplicitlySelected => !string.IsNullOrWhiteSpace(SelectedTheme);
+    
+    // Node-level artwork for BigMode / System themes
+    [ObservableProperty] private string? _nodeLogoPath;
+    [ObservableProperty] private string? _nodeWallpaperPath;
+    [ObservableProperty] private string? _nodeVideoPath;
     
     // System-theme selection is only meaningful if the BigMode theme is NOT the SystemHost itself.
     public bool IsSystemThemeSelectionEnabled =>
@@ -105,10 +123,14 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     public NodeSettingsViewModel(
         MediaNode node,
-        AppSettings settings)
+        AppSettings settings,
+        FileManagementService fileService,
+        List<string> nodePath)
     {
         _node = node ?? throw new ArgumentNullException(nameof(node));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
+        _nodePath = nodePath ?? throw new ArgumentNullException(nameof(nodePath));
 
         InitializeFromNode();
         InitializeEmulators();
@@ -145,6 +167,20 @@ public partial class NodeSettingsViewModel : ViewModelBase
         MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>
+    /// Imports a node-level asset (Logo/Wallpaper/Video) into the library using the same
+    /// naming and folder conventions as media item assets.
+    /// Returns the DataRoot-relative path to be stored on the node, or null on failure.
+    /// </summary>
+    public async Task<string?> ImportNodeAssetAsync(string sourceFilePath, AssetType type)
+    {
+        if (string.IsNullOrWhiteSpace(sourceFilePath))
+            return null;
+
+        var asset = await _fileService.ImportAssetAsync(sourceFilePath, _node, _nodePath, type);
+        return asset?.RelativePath;
+    }
+    
     private void LoadSystemThemes()
     {
         AvailableSystemThemes.Clear();
@@ -281,6 +317,11 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         RandomizeCovers = _node.RandomizeCovers;
         RandomizeMusic = _node.RandomizeMusic;
+        
+        // Initialize node-level artwork from existing assets (if any)
+        NodeLogoPath = _node.PrimaryLogoPath;
+        NodeWallpaperPath = _node.PrimaryWallpaperPath;
+        NodeVideoPath = _node.PrimaryVideoPath;
     }
 
     private void InitializeEmulators()
@@ -357,6 +398,11 @@ public partial class NodeSettingsViewModel : ViewModelBase
             _node.DefaultEmulatorId = null;
         }
         
+        // Persist node-level artwork (Logo / Wallpaper / Video)
+        UpdateNodeAsset(AssetType.Logo, NodeLogoPath);
+        UpdateNodeAsset(AssetType.Wallpaper, NodeWallpaperPath);
+        UpdateNodeAsset(AssetType.Video, NodeVideoPath);
+        
         // persist wrapper override with tri-state semantics
         switch (NativeWrapperMode)
         {
@@ -379,5 +425,34 @@ public partial class NodeSettingsViewModel : ViewModelBase
         RequestClose?.Invoke(true);
     }
     
-    
+    /// <summary>
+    /// Updates the node's MediaAsset list for a given asset type.
+    /// Removes existing assets of that type and, if a non-empty path is provided,
+    /// creates/activates a new asset entry.
+    /// The path is expected to be relative to the Retromind data directory.
+    /// </summary>
+    private void UpdateNodeAsset(AssetType type, string? relativePath)
+    {
+        // Remove all existing assets of this type
+        var existing = _node.Assets.Where(a => a.Type == type).ToList();
+        foreach (var asset in existing)
+            _node.Assets.Remove(asset);
+
+        if (string.IsNullOrWhiteSpace(relativePath))
+            return;
+
+        // Add a new asset entry and mark it as active
+        var trimmed = relativePath.Trim();
+        if (trimmed.Length == 0)
+            return;
+
+        var assetModel = new MediaAsset
+        {
+            Type = type,
+            RelativePath = trimmed
+        };
+
+        _node.Assets.Add(assetModel);
+        _node.SetActiveAsset(type, trimmed);
+    }
 }

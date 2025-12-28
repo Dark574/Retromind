@@ -3,42 +3,57 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions"
              x:DataType="vm:BigModeViewModel"
-             Background="Black"
+             Background="#111319"
 
              ext:ThemeProperties.Name="System Host"
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.1.0">
 
-    <Grid ColumnDefinitions="*,2*">
-        <!-- LEFT: simple vertical list of systems (nodes) -->
+    <Grid ColumnDefinitions="0.38*,0.62*"
+          Margin="40,30">
+
+        <!-- LEFT COLUMN: match Default theme styling -->
         <Border Grid.Column="0"
-                Background="#66000000"
-                Padding="16"
-                Margin="24,24,12,24">
-            <ListBox ItemsSource="{Binding CurrentCategories}"
-                     SelectedItem="{Binding SelectedCategory}"
-                     BorderThickness="0"
-                     Background="Transparent"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Name}"
-                                   FontSize="20"
-                                   Margin="0,4"
-                                   Foreground="White"
-                                   TextTrimming="CharacterEllipsis" />
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+                Background="#20232A"
+                CornerRadius="8"
+                Padding="28,32,24,28">
+            <Grid RowDefinitions="Auto,*">
+                <!-- Category / context label -->
+                <TextBlock Grid.Row="0"
+                           Text="{Binding CategoryTitle}"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="#7BA3FF"
+                           Margin="0,0,0,12"
+                           TextTrimming="CharacterEllipsis" />
+
+                <!-- System list -->
+                <ListBox Grid.Row="1"
+                         ItemsSource="{Binding CurrentCategories}"
+                         SelectedItem="{Binding SelectedCategory}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="16"
+                                       Margin="0,3"
+                                       Foreground="White"
+                                       TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
         </Border>
 
-        <!-- RIGHT: host for the per-system subtheme (C64, SNES, ...) -->
-        <!-- The host view (BigModeHostView or a dedicated controller) will set this Content
-             to the loaded system subtheme based on node.SystemPreviewThemeId. -->
+        <!-- RIGHT: keep SystemLayoutHost, but match Default right panel feel a bit -->
         <Border Grid.Column="1"
-                Background="#22000000"
-                Margin="12,24,24,24"
-                CornerRadius="8">
+                Background="#181A20"
+                Margin="28,0,0,0"
+                CornerRadius="8"
+                Padding="16">
             <ContentControl x:Name="SystemLayoutHost"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch" />

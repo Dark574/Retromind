@@ -141,8 +141,14 @@ The pipeline is:
 
 1. The theme root specifies a **theme‑local relative path** via `ThemeProperties.SecondaryBackgroundVideoPath`, e.g.:
 ```xml
-<UserControl    xmlns:ext="clr-namespace:Retromind.Extensions"
-                ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/NameOfVideo.mp4">
+<UserControl xmlns:video="using:Retromind.Helpers.Video"
+             xmlns:helpers="using:Retromind.Helpers"
+             xmlns:ext="clr-namespace:Retromind.Extensions"
+             x:DataType="vm:BigModeViewModel"
+             Background="Black"
+                
+             ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/NameOfVideo.mp4">
+</UserControl>
 ```
 
 This path is relative to the theme folder (e.g. `Themes/Arcade/Videos/bkg_anim.mp4`).
@@ -376,7 +382,6 @@ Example (Arcade theme):
 </UserControl>
 ```
 
-
 Details:
 
 - Attract mode only operates while **game list view** is active
@@ -407,6 +412,103 @@ In this example:
 - After 180 seconds, a third one, and so on — until the user interacts again.
 
 ---
+
+### 6.9 Host selection effects for lists (zoom/opacity/glow)
+
+By default, the BigMode host applies generic selection effects to all `ListBox`
+instances in the theme:
+
+- Zoom of the selected item (`SelectedScale`)
+- Dimmed, unselected items (`UnselectedOpacity`)
+- A subtle glow around the selected item (`SelectedGlowOpacity`)
+- Animated transitions (opacity / transform)
+
+These effects are convenient for "standard" lists, but they can conflict with
+very specialized themes that render their **own** selection visuals
+(e.g. custom logo rails or bespoke layout transforms).
+
+Via the attached property
+
+- `ThemeProperties.UseHostSelectionEffects` (bool, default: `true`)
+
+a theme can control **per ListBox** whether the host is allowed to apply its
+standard selection effects.
+
+#### 6.9.1 Default behavior (host effects enabled)
+
+If you don't set anything, the behavior is:
+```xml
+<UserControl>
+    <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"></ListBox>
+</UserControl>
+```
+
+The host reads the global tuning values from the theme root:
+```xml
+<UserControl xmlns:ext="clr-namespace:Retromind.Extensions"
+             
+             ext:ThemeProperties.SelectedScale="1.08"
+             ext:ThemeProperties.UnselectedOpacity="0.70"
+             ext:ThemeProperties.SelectedGlowOpacity="0.40"
+             ext:ThemeProperties.AccentColor="#00D1FF">
+</UserControl>
+```
+
+and automatically applies them to all `ListBoxItem`s.
+
+#### 6.9.2 Explicitly disabling host effects (custom zoom logic)
+
+If a particular `ListBox` implements its **own** selection animation
+(e.g. via `LayoutTransformControl` + converter bound to `IsSelected`), you can
+turn off the host effects explicitly:
+
+```xml
+<UserControl>
+    <ListBox xmlns:ext="clr-namespace:Retromind.Extensions"
+             
+             ext:ThemeProperties.UseHostSelectionEffects="False"
+             ItemsSource="{Binding Items}"
+             SelectedItem="{Binding SelectedItem}"></ListBox>
+</UserControl>
+```
+
+In this case:
+
+- the host does **not** register selection handlers for this ListBox,
+- it does not change `Opacity`, `RenderTransform`, or `Effect` on the items,
+- all selection visuals are fully controlled by the theme.
+
+#### 6.9.3 Example: Arcade logo list with custom zoom
+
+The Arcade theme uses a vertical logo rail where the zoom is implemented purely
+in XAML. To keep the host from adding its own selection visuals on top, the
+theme sets:
+
+```xml
+<UserControl>
+    <ListBox x:Name="ArcadeLogoList"
+             xmlns:ext="clr-namespace:Retromind.Extensions"
+             
+             ext:ThemeProperties.UseHostSelectionEffects="False"
+             ItemsSource="{Binding Items}"
+             SelectedItem="{Binding SelectedItem}"
+             Background="Transparent"
+             BorderThickness="0">
+        <ListBox.ItemTemplate>     
+            <ac:LayoutTransformControl.LayoutTransform>
+                <!-- Logo + fallback text -->
+                <!-- ... -->
+            </ac:LayoutTransformControl.LayoutTransform>
+        </ListBox.ItemTemplate>
+    </ListBox>
+</UserControl>
+```
+
+This means:
+
+- The logo list renders its own zoom effect purely in XAML.
+- Other `ListBox` instances in the theme (e.g. simple text lists) can still use
+  the generic host-driven selection effects.
 
 ## 7) Classes: opt-in hooks for automatic styling
 
@@ -551,14 +653,200 @@ Either rely on host selection defaults, or intentionally tune your styles to mat
 ```
 ---
 
-## 11) Versioning & compatibility
+## 11) Visual transition slots (Primary / Secondary / Background)
+
+Retromind provides a small, generic animation system for prominent visuals in a theme.
+Instead of every theme implementing its own logic, the host can animate up to three
+visual "slots" based on `ThemeProperties`:
+
+- **PrimaryVisual** – typically the main cover / hero image for the selected item
+- **SecondaryVisual** – e.g. logo, big title area, or a secondary image
+- **BackgroundVisual** – a wallpaper or large background container
+
+The host reads these properties from the **theme root** and applies Margin+Opacity
+transitions when the selection changes (e.g. `SelectedItem` in BigMode).
+
+### 11.1 Global animation timing
+
+These properties control the default timing for all slots:
+```xml
+<UserControl ext:ThemeProperties.FadeDurationMs="400"
+             ext:ThemeProperties.MoveDurationMs="400">
+</UserControl>
+    
+```
+
+- `FadeDurationMs` – duration for opacity changes
+- `MoveDurationMs` – duration for margin / slide changes  
+  Both are in milliseconds and are clamped internally to a sensible range.
+
+### 11.2 PrimaryVisual slot
+
+Properties (set on the root `UserControl`):
+```xml
+<UserControl ext:ThemeProperties.PrimaryVisualElementName="CoverPanel"
+             ext:ThemeProperties.PrimaryVisualEnterMode="SlideFromLeft"
+             ext:ThemeProperties.PrimaryVisualEnterOffsetX="-420"
+             ext:ThemeProperties.PrimaryVisualEnterOffsetY="0">
+
+    <!-- somewhere in the layout -->
+    <Border x:Name="CoverPanel"
+            Width="220"
+            Height="330"
+            Margin="-70,28,0,0">
+        <Image/> <!-- some image here -->
+    </Border>
+</UserControl>
+```
+
+Supported `PrimaryVisualEnterMode` values:
+
+- `"None"` – no animation
+- `"Fade"` – only opacity 0 → 1
+- `"SlideFromLeft"` – margin is shifted to the left and slides back
+- `"SlideFromRight"`
+- `"SlideFromTop"`
+- `"SlideFromBottom"`
+
+Offsets:
+
+- `PrimaryVisualEnterOffsetX` – horizontal offset in pixels
+    - negative = start further left
+    - positive = start further right
+- `PrimaryVisualEnterOffsetY` – vertical offset in pixels
+    - negative = start further up
+    - positive = start further down
+
+If offsets are `0`, the host uses reasonable defaults
+(e.g. `-420` for `"SlideFromLeft"`).
+
+**Example (Default theme – cover fly-in):**
+```xml
+<UserControl ext:ThemeProperties.FadeDurationMs="900"
+             ext:ThemeProperties.MoveDurationMs="900"
+             ext:ThemeProperties.PrimaryVisualElementName="CoverPanel"
+             ext:ThemeProperties.PrimaryVisualEnterMode="SlideFromLeft"
+             ext:ThemeProperties.PrimaryVisualEnterOffsetX="-420"
+             ext:ThemeProperties.PrimaryVisualEnterOffsetY="0">
+
+    <!-- somewhere in the layout -->
+    <Border x:Name="CoverPanel"
+            Width="220"
+            Height="330"
+            Margin="-70,28,0,0">
+        <Image/> <!-- some image here -->
+    </Border>
+</UserControl>
+```
+
+The host then automatically animates `CoverPanel` when `SelectedItem` changes.
+
+### 11.3 SecondaryVisual slot
+
+Analogous to `PrimaryVisual`, but intended for a **secondary** element
+(e.g. logo, big title text, secondary image).
+```xml
+<UserControl ext:ThemeProperties.SecondaryVisualElementName="BigTitle"
+             ext:ThemeProperties.SecondaryVisualEnterMode="SlideFromTop"
+             ext:ThemeProperties.SecondaryVisualEnterOffsetY="-120">
+</UserControl>
+```
+
+Properties:
+
+- `SecondaryVisualElementName`
+- `SecondaryVisualEnterMode`
+- `SecondaryVisualEnterOffsetX`
+- `SecondaryVisualEnterOffsetY`
+
+Animation modes and semantics are identical to the primary slot.
+
+You are free to decide *which* element is your `SecondaryVisual` – a logo, a title block,
+a small preview image, etc.
+
+### 11.4 BackgroundVisual slot
+
+The background slot is useful to softly animate a wallpaper or a large background container.
+```xml
+<UserControl ext:ThemeProperties.BackgroundVisualElementName="WallpaperImage"
+             ext:ThemeProperties.BackgroundVisualEnterMode="Fade">
+</UserControl>
+```
+
+Properties:
+
+- `BackgroundVisualElementName`
+- `BackgroundVisualEnterMode`
+- `BackgroundVisualEnterOffsetX`
+- `BackgroundVisualEnterOffsetY`
+
+Typical usage is `"Fade"` (simple cross-fade) or a gentle `"SlideFromBottom"` / `"SlideFromTop"`.
+
+### 11.5 How the host uses these slots
+
+Internally, the host:
+
+1. Reads the configured element names and modes from `ThemeProperties`.
+2. Finds the corresponding `Control` in the theme by `x:Name`.
+3. Applies transitions on:
+    - `Opacity` (via `DoubleTransition`)
+    - `Margin` (via `ThicknessTransition`)
+4. On selection changes (e.g. `SelectedItem`), the host:
+    - sets a **start** margin/opacity according to the chosen mode and offsets,
+    - then sets the **target** margin/opacity (original layout) so Avalonia animates between them.
+
+Primary/Secondary/Background all use the same mechanics; only the mapping
+from slot → concrete element name is configured via ThemeProperties.
+
+### 11.6 Minimum required setup
+
+For a slot to be animated:
+
+1. The root `UserControl` must define:
+    - `ext:ThemeProperties.<Slot>VisualElementName`
+    - optionally: `...EnterMode` and `...EnterOffsetX/Y`
+2. A `Control` with the matching `x:Name` must exist inside the theme.
+3. Global timings (`FadeDurationMs` / `MoveDurationMs`) may be overridden
+   but are optional (defaults are used otherwise).
+4. The host must decide when to trigger animation (currently on `SelectedItem` changes).
+
+If any of these are missing or a mode is `"None"`, the slot is simply ignored
+and no animation is applied.
+
+### 11.7 What visual slots are NOT for
+
+The `Primary/Secondary/BackgroundVisual*` slots are designed for
+**single, named controls** (e.g. cover panel, big title block, wallpaper),
+which are updated when `SelectedItem` changes.
+
+They are **not** intended for per-item selection effects inside `ItemsControl`s
+(such as zooming a single `ListBoxItem` in a list or carousel):
+
+- Do **use** slots for things like:
+    - main cover image
+    - hero/title area
+    - large background image/container
+
+- Do **not** use slots directly on:
+    - individual list items (e.g. each game entry in a wheel/list)
+    - templated children inside `ItemsControl`s
+
+For per-item selection visuals (zoom, glow, opacity) in lists, use:
+
+- the host’s selection tuning (`ThemeProperties.SelectedScale`,
+  `UnselectedOpacity`, `SelectedGlowOpacity`) which is applied to
+  `ListBoxItem`s by the host, or
+- local XAML logic inside the `ItemTemplate`  
+  (e.g. `LayoutTransformControl` + `BoolToScaleConverter` bound to `IsSelected`).
+
+## 12) Versioning & compatibility
 
 - ThemeProperties are designed to be optional; missing values fall back to defaults.
 - If a theme uses properties unknown to an older Retromind version, it may fail to load.
     - Keep `ThemeProperties.Version` up to date.
     - When publishing a theme, mention the minimum supported Retromind version.
 
-## 12) System browser themes (platform selection)
+## 13) System browser themes (platform selection)
 
 Retromind supports a **two-level theming model** for the platform selection in BigMode:
 
@@ -569,7 +857,7 @@ Retromind supports a **two-level theming model** for the platform selection in B
 
 This section describes how to build both.
 
-### 12.1 System host themes (BigMode themes with `SystemLayoutHost`)
+### 13.1 System host themes (BigMode themes with `SystemLayoutHost`)
 
 A **system host theme** is just a normal BigMode theme stored under:
 
@@ -627,7 +915,7 @@ Any BigMode theme that defines a `ContentControl x:Name="SystemLayoutHost"` is a
 > `Themes/SystemHostCarousel/theme.axaml`, …  
 > Users can pick one per node via the normal „BigMode theme“ dropdown.
 
-### 12.2 System subthemes (per-platform layouts)
+### 13.2 System subthemes (per-platform layouts)
 
 System subthemes live under:
 
@@ -721,7 +1009,7 @@ Requirements for a subtheme:
 - A `Border` (or any control) named **`VideoSlot`** where the video preview should appear.
 - Optional `ThemeProperties` for metadata / tuning.
 
-### 12.3 Wiring: how the host selects subthemes
+### 13.3 Wiring: how the host selects subthemes
 
 - For the active system host theme, `BigModeHostView`:
     - watches `BigModeViewModel.SelectedCategory`,
@@ -737,7 +1025,7 @@ If `SystemPreviewThemeId` is `null` or empty, the host falls back to `"Default"`
 
 - `Themes/System/Default/theme.axaml`
 
-### 12.4 Selecting host + subthemes in the UI
+### 13.4 Selecting host + subthemes in the UI
 
 In the node settings dialog:
 
@@ -762,7 +1050,7 @@ This allows:
 - Multiple **system host** layouts (scroll list, carousel, grid, …).
 - Per-system **subthemes** for the preview area.
 
-### 12.5 Publishing new system hosts and system subthemes
+### 13.5 Publishing new system hosts and system subthemes
 
 To publish an additional **system host theme**:
 

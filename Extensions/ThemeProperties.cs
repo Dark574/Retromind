@@ -130,6 +130,23 @@ public class ThemeProperties : AvaloniaObject
     public static double GetSelectedGlowOpacity(AvaloniaObject element) => element.GetValue(SelectedGlowOpacityProperty);
     public static void SetSelectedGlowOpacity(AvaloniaObject element, double value) => element.SetValue(SelectedGlowOpacityProperty, value);
 
+    /// <summary>
+    /// Steuert, ob der BigMode-Host generische Auswahl-Effekte (Zoom/Opacity/Glow)
+    /// für diese ListBox anwenden darf. Standard: true.
+    /// Themes, die ihre eigenen Effekte pro Item rendern (z.B. ArcadeLogoList),
+    /// können diesen Wert auf false setzen.
+    /// </summary>
+    public static readonly AttachedProperty<bool> UseHostSelectionEffectsProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "UseHostSelectionEffects",
+            defaultValue: true);
+
+    public static bool GetUseHostSelectionEffects(AvaloniaObject element) =>
+        element.GetValue(UseHostSelectionEffectsProperty);
+
+    public static void SetUseHostSelectionEffects(AvaloniaObject element, bool value) =>
+        element.SetValue(UseHostSelectionEffectsProperty, value);
+
     // Overlays / background
     public static readonly AttachedProperty<double> BackgroundDimOpacityProperty =
         AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>("BackgroundDimOpacity", defaultValue: 0.35);
@@ -155,6 +172,174 @@ public class ThemeProperties : AvaloniaObject
 
     public static int GetMoveDurationMs(AvaloniaObject element) => element.GetValue(MoveDurationMsProperty);
     public static void SetMoveDurationMs(AvaloniaObject element, int value) => element.SetValue(MoveDurationMsProperty, value);
+
+    // --- Generische Animations-Slots (Primary/Secondary/Background Visuals) ---
+
+    /// <summary>
+    /// Name des primären visuellen Elements im Theme (z.B. Cover, Hauptlogo, Cabinet-Screen).
+    /// Der Host kann dieses Element anhand des Namens finden und animieren.
+    /// </summary>
+    public static readonly AttachedProperty<string> PrimaryVisualElementNameProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string>(
+            "PrimaryVisualElementName",
+            defaultValue: "PrimaryVisual");
+
+    public static string GetPrimaryVisualElementName(AvaloniaObject element) =>
+        element.GetValue(PrimaryVisualElementNameProperty);
+
+    public static void SetPrimaryVisualElementName(AvaloniaObject element, string value) =>
+        element.SetValue(PrimaryVisualElementNameProperty, value);
+
+    /// <summary>
+    /// Einfache Kennzeichnung, wie das primäre Visual beim Wechsel eingeblendet werden soll.
+    /// Unterstützte Werte (Konvention, vom Host interpretiert): "None", "Fade", "SlideFromLeft",
+    /// "SlideFromRight", "SlideFromTop", "SlideFromBottom".
+    /// </summary>
+    public static readonly AttachedProperty<string> PrimaryVisualEnterModeProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string>(
+            "PrimaryVisualEnterMode",
+            defaultValue: "None");
+
+    public static string GetPrimaryVisualEnterMode(AvaloniaObject element) =>
+        element.GetValue(PrimaryVisualEnterModeProperty);
+
+    public static void SetPrimaryVisualEnterMode(AvaloniaObject element, string value) =>
+        element.SetValue(PrimaryVisualEnterModeProperty, value);
+
+    /// <summary>
+    /// Horizontaler Startversatz für das primäre Visual (in Pixeln).
+    /// Negativ = von links, positiv = von rechts. Wird nur von Slide-Modi genutzt.
+    /// </summary>
+    public static readonly AttachedProperty<double> PrimaryVisualEnterOffsetXProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>(
+            "PrimaryVisualEnterOffsetX",
+            defaultValue: 0);
+
+    public static double GetPrimaryVisualEnterOffsetX(AvaloniaObject element) =>
+        element.GetValue(PrimaryVisualEnterOffsetXProperty);
+
+    public static void SetPrimaryVisualEnterOffsetX(AvaloniaObject element, double value) =>
+        element.SetValue(PrimaryVisualEnterOffsetXProperty, value);
+
+    /// <summary>
+    /// Vertikaler Startversatz für das primäre Visual (in Pixeln).
+    /// Negativ = von oben, positiv = von unten. Wird nur von Slide-Modi genutzt.
+    /// </summary>
+    public static readonly AttachedProperty<double> PrimaryVisualEnterOffsetYProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>(
+            "PrimaryVisualEnterOffsetY",
+            defaultValue: 0);
+
+    public static double GetPrimaryVisualEnterOffsetY(AvaloniaObject element) =>
+        element.GetValue(PrimaryVisualEnterOffsetYProperty);
+
+    public static void SetPrimaryVisualEnterOffsetY(AvaloniaObject element, double value) =>
+        element.SetValue(PrimaryVisualEnterOffsetYProperty, value);
+
+    // --- SECONDARY VISUAL ---
+
+    /// <summary>
+    /// Name des sekundären visuellen Elements (z.B. Logo, Titel-Textbereich).
+    /// </summary>
+    public static readonly AttachedProperty<string> SecondaryVisualElementNameProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string>(
+            "SecondaryVisualElementName",
+            defaultValue: "SecondaryVisual");
+
+    public static string GetSecondaryVisualElementName(AvaloniaObject element) =>
+        element.GetValue(SecondaryVisualElementNameProperty);
+
+    public static void SetSecondaryVisualElementName(AvaloniaObject element, string value) =>
+        element.SetValue(SecondaryVisualElementNameProperty, value);
+
+    /// <summary>
+    /// Modus für die Einblendung des sekundären Visuals. Gleiche Werte wie beim PrimaryVisualEnterMode.
+    /// </summary>
+    public static readonly AttachedProperty<string> SecondaryVisualEnterModeProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string>(
+            "SecondaryVisualEnterMode",
+            defaultValue: "None");
+
+    public static string GetSecondaryVisualEnterMode(AvaloniaObject element) =>
+        element.GetValue(SecondaryVisualEnterModeProperty);
+
+    public static void SetSecondaryVisualEnterMode(AvaloniaObject element, string value) =>
+        element.SetValue(SecondaryVisualEnterModeProperty, value);
+
+    public static readonly AttachedProperty<double> SecondaryVisualEnterOffsetXProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>(
+            "SecondaryVisualEnterOffsetX",
+            defaultValue: 0);
+
+    public static double GetSecondaryVisualEnterOffsetX(AvaloniaObject element) =>
+        element.GetValue(SecondaryVisualEnterOffsetXProperty);
+
+    public static void SetSecondaryVisualEnterOffsetX(AvaloniaObject element, double value) =>
+        element.SetValue(SecondaryVisualEnterOffsetXProperty, value);
+
+    public static readonly AttachedProperty<double> SecondaryVisualEnterOffsetYProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>(
+            "SecondaryVisualEnterOffsetY",
+            defaultValue: 0);
+
+    public static double GetSecondaryVisualEnterOffsetY(AvaloniaObject element) =>
+        element.GetValue(SecondaryVisualEnterOffsetYProperty);
+
+    public static void SetSecondaryVisualEnterOffsetY(AvaloniaObject element, double value) =>
+        element.SetValue(SecondaryVisualEnterOffsetYProperty, value);
+
+    // --- BACKGROUND VISUAL ---
+
+    /// <summary>
+    /// Name des Hintergrund-Visuals, das beim Item-Wechsel animiert werden soll
+    /// (z.B. Wallpaper-Image, großer Hintergrund-Container).
+    /// </summary>
+    public static readonly AttachedProperty<string> BackgroundVisualElementNameProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string>(
+            "BackgroundVisualElementName",
+            defaultValue: "BackgroundVisual");
+
+    public static string GetBackgroundVisualElementName(AvaloniaObject element) =>
+        element.GetValue(BackgroundVisualElementNameProperty);
+
+    public static void SetBackgroundVisualElementName(AvaloniaObject element, string value) =>
+        element.SetValue(BackgroundVisualElementNameProperty, value);
+
+    /// <summary>
+    /// Modus für die Einblendung des Hintergrund-Visuals (Fade/Slide...).
+    /// </summary>
+    public static readonly AttachedProperty<string> BackgroundVisualEnterModeProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string>(
+            "BackgroundVisualEnterMode",
+            defaultValue: "None");
+
+    public static string GetBackgroundVisualEnterMode(AvaloniaObject element) =>
+        element.GetValue(BackgroundVisualEnterModeProperty);
+
+    public static void SetBackgroundVisualEnterMode(AvaloniaObject element, string value) =>
+        element.SetValue(BackgroundVisualEnterModeProperty, value);
+
+    public static readonly AttachedProperty<double> BackgroundVisualEnterOffsetXProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>(
+            "BackgroundVisualEnterOffsetX",
+            defaultValue: 0);
+
+    public static double GetBackgroundVisualEnterOffsetX(AvaloniaObject element) =>
+        element.GetValue(BackgroundVisualEnterOffsetXProperty);
+
+    public static void SetBackgroundVisualEnterOffsetX(AvaloniaObject element, double value) =>
+        element.SetValue(BackgroundVisualEnterOffsetXProperty, value);
+
+    public static readonly AttachedProperty<double> BackgroundVisualEnterOffsetYProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>(
+            "BackgroundVisualEnterOffsetY",
+            defaultValue: 0);
+
+    public static double GetBackgroundVisualEnterOffsetY(AvaloniaObject element) =>
+        element.GetValue(BackgroundVisualEnterOffsetYProperty);
+
+    public static void SetBackgroundVisualEnterOffsetY(AvaloniaObject element, double value) =>
+        element.SetValue(BackgroundVisualEnterOffsetYProperty, value);
 
     // Typography (defaults tuned for “TV distance”)
     public static readonly AttachedProperty<double> TitleFontSizeProperty =
@@ -302,6 +487,36 @@ public class ThemeProperties : AvaloniaObject
     public static void SetVideoBorderThickness(AvaloniaObject element, Thickness value) =>
         element.SetValue(VideoBorderThicknessProperty, value);
 
+    /// <summary>
+    /// Internal helper: stores the original margin of a visual slot so that
+    /// repeated enter-animations can always return to the same base position.
+    /// </summary>
+    public static readonly AttachedProperty<Thickness> VisualBaseMarginProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, Thickness>(
+            "VisualBaseMargin",
+            defaultValue: new Thickness(0));
+
+    public static Thickness GetVisualBaseMargin(AvaloniaObject element) =>
+        element.GetValue(VisualBaseMarginProperty);
+
+    public static void SetVisualBaseMargin(AvaloniaObject element, Thickness value) =>
+        element.SetValue(VisualBaseMarginProperty, value);
+
+    /// <summary>
+    /// Internal helper: indicates whether VisualBaseMargin has been initialized
+    /// for a given control.
+    /// </summary>
+    public static readonly AttachedProperty<bool> VisualBaseMarginInitializedProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "VisualBaseMarginInitialized",
+            defaultValue: false);
+
+    public static bool GetVisualBaseMarginInitialized(AvaloniaObject element) =>
+        element.GetValue(VisualBaseMarginInitializedProperty);
+
+    public static void SetVisualBaseMarginInitialized(AvaloniaObject element, bool value) =>
+        element.SetValue(VisualBaseMarginInitializedProperty, value);
+    
     /// <summary>
     /// Steuert, wie das Video im Slot skaliert wird.
     /// "Fill" (Standard), "Uniform", "UniformToFill".

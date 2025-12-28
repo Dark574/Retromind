@@ -66,11 +66,18 @@ public partial class BigModeHostView : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (!_isSystemHostTheme)
-            return;
+        // 1) Item-Wechsel: PrimaryVisual-Animation auslösen (für alle Themes)
+        if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedItem))
+        {
+            if (_themePresenter.Content is Control currentThemeRoot)
+            {
+                ThemeTransitionHelper.AnimatePrimaryVisual(currentThemeRoot);
+            }
+        }
 
-        // SelectedCategory changed -> update per-system subtheme on the right side.
-        if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedCategory))
+        // 2) Nur im SystemHost-Theme: System-Layout bei Category-Wechsel aktualisieren
+        if (_isSystemHostTheme &&
+            e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedCategory))
         {
             UpdateSystemLayoutForSelectedCategory();
         }
@@ -98,6 +105,9 @@ public partial class BigModeHostView : UserControl
         
         // Apply theme tuning (selection UX, spacing, typography, animation timings)
         ApplyThemeTuning(themeRoot);
+
+        // Initiale PrimaryVisual-Animation für das frisch gesetzte Theme
+        ThemeTransitionHelper.AnimatePrimaryVisual(themeRoot);
 
         // If this is the SystemHost theme, initialize the right-hand system layout
         // immediately for the current SelectedCategory.
@@ -180,6 +190,9 @@ public partial class BigModeHostView : UserControl
 
         _systemLayoutHost.Content = subView;
 
+        // PrimaryVisual-Animation für das System-Subtheme
+        ThemeTransitionHelper.AnimatePrimaryVisual(subView);
+        
         // Effektive Video-Fähigkeit für das aktuelle System-Subtheme.
         vm.CanShowVideo = systemTheme.VideoEnabled;
     }
@@ -223,9 +236,8 @@ public partial class BigModeHostView : UserControl
             if (lb is not ListBox listBox)
                 continue;
 
-            // ArcadeLogoList renders its own selection effects (Glow/Scale),
-            // therefore DO NOT tune them from the host
-            if (listBox.Name == "ArcadeLogoList")
+            // Themes können den generischen Host-Effekt explizit abschalten.
+            if (!ThemeProperties.GetUseHostSelectionEffects(listBox))
                 continue;
             
             listBox.SelectionChanged += OnListBoxSelectionChanged;

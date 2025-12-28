@@ -3,6 +3,7 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions"
              xmlns:video="using:Retromind.Helpers.Video"
+             xmlns:helpers="using:Retromind.Helpers"
              x:DataType="vm:BigModeViewModel"
              Background="#101010"
 
@@ -17,7 +18,7 @@
          - basic stats at the bottom -->
 
     <Grid RowDefinitions="*,Auto"
-          ColumnDefinitions="*,2*"
+          ColumnDefinitions="*,2.3*"
           Margin="40">
 
         <!-- LEFT: system title and short info -->
@@ -26,99 +27,88 @@
                     VerticalAlignment="Center"
                     Spacing="8">
             <!-- Current system name (SelectedCategory is the active node in system view) -->
+            <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoPath}"
+                   Height="80"
+                   Stretch="Uniform"
+                   HorizontalAlignment="Left"
+                   IsVisible="{Binding SelectedCategory.PrimaryLogoPath,
+                                                   Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+
+            <!-- Fallback: text title if no logo -->
             <TextBlock Text="{Binding SelectedCategory.Name}"
                        FontSize="40"
                        FontWeight="Bold"
                        Foreground="White"
-                       TextTrimming="CharacterEllipsis" />
-
-            <!-- Optional: use CategoryTitle or later a dedicated node description -->
-            <TextBlock Text="{Binding CategoryTitle}"
-                       FontSize="16"
-                       Foreground="#CCCCCC"
-                       TextWrapping="Wrap"
-                       MaxWidth="400" />
+                       TextTrimming="CharacterEllipsis"
+                       MaxWidth="260"
+                       IsVisible="{Binding SelectedCategory.PrimaryLogoPath,
+                                                       Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
         </StackPanel>
 
-        <!-- RIGHT: simple "monitor" with video preview -->
+        <!-- RIGHT: logo / title + simple "monitor" with video preview -->
         <Grid Grid.Row="0"
               Grid.Column="1"
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
-              MinWidth="640"
+              MinWidth="720"
               MinHeight="360">
             <!-- Outer frame -->
             <Border Background="#181818"
                     CornerRadius="16"
-                    Padding="20"
+                    Padding="24"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch">
-                <Grid RowDefinitions="*,Auto">
+                <!-- Split into: left = logo/name, right = screen -->
+                <Grid ColumnDefinitions="Auto,*"
+                      RowDefinitions="*">
+                    <!-- RIGHT SIDE: monitor with video -->
+                    <Grid Grid.Column="1"
+                          RowDefinitions="*,Auto">
+                        <!-- "Screen" area with video + fallback text -->
+                        <Border Grid.Row="0"
+                                Width="640"
+                                Height="360"
+                                Background="#181818"
+                                CornerRadius="8"
+                                Padding="0"
+                                Margin="0,0,0,12"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                            <Grid>
+                                <!-- Fallback text (visible when no video is present) -->
+                                <TextBlock Text="No preview video"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Foreground="#505050"
+                                           FontSize="18" />
 
-                    <!-- "Screen" area with video + fallback text -->
-                    <Border Grid.Row="0"
-                            Width="640"
-                            Height="360"
-                            Background="#000000"
-                            CornerRadius="8"
-                            Padding="0"
-                            Margin="0,0,0,12"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
-                        <Grid>
-                            <!-- Fallback-Text (sichtbar, wenn kein Video vorhanden ist) -->
-                            <TextBlock Text="No preview video"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Foreground="#505050"
-                                       FontSize="18" />
+                                <!-- Video area -->
+                                <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
+                                                           Stretch="Uniform"
+                                                           HorizontalAlignment="Stretch"
+                                                           VerticalAlignment="Stretch"
+                                                           IsVisible="{Binding MainVideoHasContent}" />
+                            </Grid>
+                        </Border>
 
-                            <!-- Video-Fläche -->
-                            <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
-                                                       Stretch="UniformToFill"
-                                                       HorizontalAlignment="Stretch"
-                                                       VerticalAlignment="Stretch"
-                                                       IsVisible="{Binding MainVideoHasContent}" />
-                        </Grid>
-                    </Border>
-
-                    <!-- Basic stats below the screen -->
-                    <StackPanel Grid.Row="1"
-                                Orientation="Horizontal"
-                                HorizontalAlignment="Right"
-                                Spacing="12">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="Games:"
-                                       Foreground="#AAAAAA"
-                                       FontSize="14" />
-                            <TextBlock Text="{Binding SelectedCategory.Items.Count}"
-                                       Foreground="#FFFFFF"
-                                       FontSize="14" />
+                        <!-- Basic stats below the screen -->
+                        <StackPanel Grid.Row="1"
+                                    Orientation="Horizontal"
+                                    HorizontalAlignment="Right"
+                                    Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="Games:"
+                                           Foreground="#AAAAAA"
+                                           FontSize="14" />
+                                <TextBlock Text="{Binding SelectedCategory.Items.Count}"
+                                           Foreground="#FFFFFF"
+                                           FontSize="14" />
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
+                    </Grid>
                 </Grid>
             </Border>
         </Grid>
-
-        <!-- BOTTOM: developer / extra info bar -->
-        <Border Grid.Row="1"
-                Grid.ColumnSpan="2"
-                Margin="0,24,0,0"
-                Background="#22000000"
-                CornerRadius="6"
-                Padding="10,6">
-            <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Left"
-                        Spacing="8">
-                <TextBlock Text="Developer:"
-                           Foreground="#AAAAAA"
-                           FontSize="14" />
-                <TextBlock Text="{Binding SelectedDeveloper}"
-                           Foreground="#FFFFFF"
-                           FontSize="14"
-                           TextTrimming="CharacterEllipsis"
-                           MaxWidth="400" />
-            </StackPanel>
-        </Border>
+        
     </Grid>
 </UserControl>

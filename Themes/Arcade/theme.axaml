@@ -12,7 +12,10 @@
              ext:ThemeProperties.Name="Arcade"
              ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
              ext:ThemeProperties.Version="0.1.0"
-             ext:ThemeProperties.SelectedScale="1.0"
+             ext:ThemeProperties.SelectedScale="1.06"
+             ext:ThemeProperties.UnselectedOpacity="0.75"
+             ext:ThemeProperties.SelectedGlowOpacity="0.40"
+             ext:ThemeProperties.AccentColor="#00D1FF"
              ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4"
              ext:ThemeProperties.AttractModeEnabled="True"
              ext:ThemeProperties.AttractModeIdleSeconds="60"
@@ -25,10 +28,10 @@
         <helpers:PathToBitmapConverter x:Key="PathToBitmapConverter" />
         <!-- Opacity helper for pointer visibility -->
         <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1.0" FalseOpacity="0.0" />
-        <!-- Logo-Scale-Converter -->
+        <!-- Logo-Scale-Converter: lokales Zoom für die ArcadeLogoList -->
         <helpers:BoolToScaleConverter x:Key="LogoScaleConverter"
                                       NormalScale="1.0"
-                                      SelectedScale="1.5" />
+                                      SelectedScale="1.35" />
     </UserControl.Resources>
 
     <Grid>
@@ -159,6 +162,7 @@
                     HorizontalAlignment="Stretch"
                     MaxWidth="340">
                 <ListBox x:Name="ArcadeLogoList"
+                         ext:ThemeProperties.UseHostSelectionEffects="False"
                          ItemsSource="{Binding Items}"
                          SelectedItem="{Binding SelectedItem}"
                          Background="Transparent"
@@ -205,11 +209,12 @@
 
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <!-- Äußerer Container (ohne Attract-Glow) -->
+                            <!-- Äußerer Container -->
                             <Border Margin="0,4"
                                     Padding="0"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center">
+                                <!-- Zoom per LayoutTransformControl, abhängig von IsSelected -->
                                 <ac:LayoutTransformControl Padding="2"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center">

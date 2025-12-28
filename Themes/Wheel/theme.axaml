@@ -13,7 +13,12 @@
              ext:ThemeProperties.TitleFontSize="48"
              ext:ThemeProperties.BodyFontSize="18"
              ext:ThemeProperties.FadeDurationMs="250"
-             ext:ThemeProperties.MoveDurationMs="250">
+             ext:ThemeProperties.MoveDurationMs="250"
+             ext:ThemeProperties.VideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoCornerRadius="8"
+             ext:ThemeProperties.VideoBorderThickness="0"
+             ext:ThemeProperties.VideoStretchMode="Uniform">
 
     <UserControl.Styles>
         <!-- ... Styles remain unchanged ... -->
@@ -70,7 +75,8 @@
                  ClipToBounds="False"
                  VerticalAlignment="Stretch"
                  HorizontalAlignment="Left"
-                 Width="450">
+                 Width="450"
+                 ext:ThemeProperties.UseHostSelectionEffects="False">
             
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -107,7 +113,8 @@
                  ClipToBounds="False"
                  VerticalAlignment="Stretch"
                  HorizontalAlignment="Left"
-                 Width="450">
+                 Width="450"
+                 ext:ThemeProperties.UseHostSelectionEffects="False">
             
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -182,7 +189,9 @@
                         Width="854" Height="480"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Bottom"
-                        Background="Transparent" />
+                        Background="#181818"
+                        CornerRadius="8"
+                        ClipToBounds="True" />
             
                 <!-- COVER für Kategorien -->
                 <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" 
