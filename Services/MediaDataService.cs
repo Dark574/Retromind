@@ -31,9 +31,13 @@ public class MediaDataService
     /// <summary>
     /// Saves the current state of the library to disk asynchronously.
     /// Uses an atomic write strategy (Write to Temp -> Move to Final) to prevent data corruption.
+    /// All save operations are serialized via _ioGate to avoid concurrent file access.
     /// </summary>
     public async Task SaveAsync(ObservableCollection<MediaNode> nodes)
     {
+        // Ensure only one save/load operation accesses the JSON files at a time.
+        await _ioGate.WaitAsync().ConfigureAwait(false);
+        
         try
         {
             #if DEBUG

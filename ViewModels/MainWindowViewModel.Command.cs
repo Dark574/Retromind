@@ -180,6 +180,10 @@ public partial class MainWindowViewModel
                     if (themeChangedHandler != null)
                         bigVm.PropertyChanged -= themeChangedHandler;
 
+                    // Ensure VLC playback (preview + background video) is fully stopped
+                    // before tearing down the visual tree and returning to the core UI.
+                    await bigVm.PrepareForThemeSwapAsync();
+                    
                     FullScreenContent = null;
 
                     // Restore the previous window state after leaving BigMode.

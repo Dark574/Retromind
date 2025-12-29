@@ -31,7 +31,7 @@
         <!-- Logo-Scale-Converter: lokales Zoom für die ArcadeLogoList -->
         <helpers:BoolToScaleConverter x:Key="LogoScaleConverter"
                                       NormalScale="1.0"
-                                      SelectedScale="1.35" />
+                                      SelectedScale="1.75" />
     </UserControl.Resources>
 
     <Grid>
@@ -67,7 +67,7 @@
                          StretchDirection="Both"
                          HorizontalAlignment="Left"
                          VerticalAlignment="Bottom"
-                         Margin="-110,40,0,0">
+                         Margin="-120,40,0,0">
                     <!-- Design-Koordinatensystem: 1400x800 (16:9) -->
                     <Grid Width="1400"
                           Height="800">
@@ -81,9 +81,9 @@
 
                                 <!-- Marquee (oben im Automaten) -->
                                 <Border Grid.Row="0"
-                                        Width="640"
-                                        Height="178"
-                                        Margin="0,12,0,0"
+                                        Width="620"
+                                        Height="180"
+                                        Margin="-125,0,0,0"
                                         Background="Transparent"
                                         ClipToBounds="True">
                                     <Image Source="{Binding ActiveMarqueePath,
@@ -96,17 +96,17 @@
 
                                 <!-- Screen-Block -->
                                 <Border Grid.Row="1"
-                                        Width="575"
-                                        Height="311"
-                                        Margin="0,60,0,0"
+                                        Width="520"
+                                        Height="390"
+                                        Margin="-145,57,0,0"
                                         Background="Transparent"
                                         ClipToBounds="True">
                                     <Grid>
                                         <!-- Video-Slot im Screen -->
                                         <Border x:Name="VideoSlot"
-                                                Width="460"
-                                                Height="345"
-                                                Margin="90,55,0,0"
+                                                Width="520"
+                                                Height="390"
+                                                Margin="0,0,0,0"
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
                                                 CornerRadius="0"
@@ -168,7 +168,8 @@
                          Background="Transparent"
                          BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ScrollViewer.VerticalScrollBarVisibility="Hidden">
+                         ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                         helpers:ListBoxBehaviors.CenterSelectedItem="True">
                     <!-- Lokale Styles nur für diese ListBox -->
                     <ListBox.Styles>
                         <Style Selector="ListBoxItem">
@@ -231,7 +232,7 @@
                                                 Spacing="2">
                                         <!-- Logo -->
                                         <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
-                                               Width="140"
+                                               Width="150"
                                                Stretch="Uniform"
                                                HorizontalAlignment="Center"
                                                IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>

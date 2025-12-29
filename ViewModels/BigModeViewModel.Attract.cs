@@ -16,6 +16,10 @@ public partial class BigModeViewModel
     private int _attractStepsExecuted;
     private bool _isAttractAnimating;
 
+    // Minimum delay between visual attract-mode steps so that users can
+    // actually see the list "spinning" instead of jumping instantly.
+    private static readonly TimeSpan AttractSpinStepDelay = TimeSpan.FromMilliseconds(120);
+    
     /// <summary>
     /// True while the attract-mode animation is actively spinning through the list.
     /// Themes can bind to this to trigger temporary visual effects.
@@ -146,6 +150,11 @@ public partial class BigModeViewModel
                     return;
 
                 IsInAttractMode = true;
+                
+                // Stop any currently playing preview video before starting
+                // the attract-mode spin, so that artwork (marquee/logo) and
+                // the on-screen content do not show mismatched titles.
+                StopVideo();
             }, DispatcherPriority.Background);
 
             // Optional attract-mode sound (best effort).
@@ -163,7 +172,7 @@ public partial class BigModeViewModel
             }
 
             // Quick spin steps (slightly randomized).
-            var minSteps = Math.Min(10, count);
+            var minSteps = Math.Min(15, count);
             var maxSteps = Math.Min(25, count * 3);
             var steps = RandomHelper.Next(minSteps, maxSteps + 1);
 
@@ -183,7 +192,10 @@ public partial class BigModeViewModel
                 SelectedItemIndex = nextIndex;
                 SelectedItem = Items[nextIndex];
 
-                await Task.Delay(60).ConfigureAwait(false);
+                // Keep the whole attract-mode spin on the UI thread so that
+                // bindings (logo highlight, marquee, bezel) stay consistent.
+                // The delay is large enough so users can actually see the scroll.
+                await Task.Delay(AttractSpinStepDelay);
             }
 
             // Finally jump to a random title.
@@ -206,8 +218,26 @@ public partial class BigModeViewModel
                     if (!IsGameListActive || Items.Count == 0)
                         return;
 
+                    // Update selection to the final random item
                     SelectedItemIndex = newIndex;
                     SelectedItem = Items[newIndex];
+                    
+                    // Keep theme context in sync with the node whose items are shown.
+                    // This is important for artwork resolution (marquee, bezel, etc.).
+                    if (CurrentNode != null)
+                    {
+                        ThemeContextNode = CurrentNode;
+                    }
+                    
+                    // Force dependent properties to refresh, even if some bindings
+                    // missed intermediate notifications during the spin.
+                    OnPropertyChanged(nameof(ActiveMarqueePath));
+                    OnPropertyChanged(nameof(ActiveBezelPath));
+                    OnPropertyChanged(nameof(ActiveControlPanelPath));
+
+                    // Keep game counter and preview in sync with the final attract-mode result.
+                    UpdateGameCounters();
+                    TriggerPreviewPlaybackWithDebounce();
                 }, DispatcherPriority.Background);
             }
         }
