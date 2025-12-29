@@ -1,5 +1,9 @@
 # Retromind
 
+Built by human creativity, powered by artificial intelligence.
+Dedicated to the digital spark that helped compile this reality.
+
+ 
 Retromind is a Linux-first, portable media manager for organizing and launching your media library
 (games, movies, books, comics, ...).
 
