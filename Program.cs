@@ -55,7 +55,7 @@ internal sealed class Program
             .StartWithClassicDesktopLifetime(args);
     }
 
-    // Avalonia configuration, don't remove; also used by visual designer.
+    // Avalonia configuration, used by the application
     public static AppBuilder BuildAvaloniaApp(bool isBigModeOnly)
     {
         return AppBuilder.Configure<App>()
@@ -68,5 +68,13 @@ internal sealed class Program
                 if (App.Current is App app)
                     app.IsBigModeOnly = isBigModeOnly;
             });
+    }
+    
+    // Avalonia designer configuration, MUST be parameterless
+    // The designer looks for a public static BuildAvaloniaApp() -> AppBuilder
+    public static AppBuilder BuildAvaloniaApp()
+    {
+        // Designer: always start in "normal" mode (no --bigmode).
+        return BuildAvaloniaApp(isBigModeOnly: false);
     }
 }

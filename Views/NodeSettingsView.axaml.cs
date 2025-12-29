@@ -17,7 +17,7 @@ public partial class NodeSettingsView : Window
         InitializeComponent();
     }
 
-    // <summary>
+    /// <summary>
     /// Opens a file picker and imports a logo image as a node-level asset
     /// using the same convention as media assets.
     /// </summary>
