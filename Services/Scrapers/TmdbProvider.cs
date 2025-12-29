@@ -25,21 +25,24 @@ public class TmdbProvider : IMetadataProvider
     // Helper to resolve the effective API key (user setting or bundled secret).
     private string GetApiKey()
     {
-        // 1st priority: user-provided key in settings.
-        if (!string.IsNullOrWhiteSpace(_config.ApiKey))
-        {
-            return _config.ApiKey;
-        }
+        if (string.IsNullOrWhiteSpace(_config.ApiKey))
+            throw new Exception("TMDB requires an API key. Please enter it in the scraper settings.");
 
-        // 2nd priority: bundled application key (via secrets).
-        return ApiSecrets.TmdbApiKey;
+        return _config.ApiKey;
     }
     
     public Task<bool> ConnectAsync()
     {
-        // TMDB only requires an API key (either user-provided or bundled via secrets).
-        var apiKey = GetApiKey();
-        return Task.FromResult(!string.IsNullOrWhiteSpace(apiKey) && apiKey != "INSERT_KEY_HERE");
+        try
+        {
+            // Will throw if no valid key is configured.
+            _ = GetApiKey();
+            return Task.FromResult(true);
+        }
+        catch
+        {
+            return Task.FromResult(false);
+        }
     }
 
     public async Task<List<ScraperSearchResult>> SearchAsync(string query)
@@ -120,7 +123,7 @@ public class TmdbProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            throw new Exception($"TMDB Fehler: {ex.Message}", ex);
+            throw new Exception($"TMDB Error: {ex.Message}", ex);
         }
     }
 }

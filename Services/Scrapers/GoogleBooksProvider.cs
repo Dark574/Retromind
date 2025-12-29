@@ -36,10 +36,10 @@ public class GoogleBooksProvider : IMetadataProvider
             var encodedQuery = HttpUtility.UrlEncode(query);
             var url = $"https://www.googleapis.com/books/v1/volumes?q={encodedQuery}&maxResults=20";
             
-            // API key priority: user-specified key > secret key > no key.
-            string apiKey = !string.IsNullOrWhiteSpace(_config.ApiKey) ? _config.ApiKey : ApiSecrets.GoogleBooksApiKey;
+            // API key (optional): user-specified key only.
+            string apiKey = _config.ApiKey ?? string.Empty;
 
-            if (!string.IsNullOrWhiteSpace(apiKey) && apiKey != "INSERT_KEY_HERE")
+            if (!string.IsNullOrWhiteSpace(apiKey))
             {
                 url += $"&key={apiKey}";
             }
@@ -115,7 +115,7 @@ public class GoogleBooksProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            throw new Exception($"GoogleBooks Fehler: {ex.Message}", ex);
+            throw new Exception($"GoogleBooks Error: {ex.Message}", ex);
         }
     }
 }

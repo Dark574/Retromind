@@ -57,7 +57,7 @@ dotnet run --project Retromind.csproj
 ```
 
 Start directly in BigMode:
-```
+```bash
 dotnet run --project Retromind.csproj -- --bigmode
 ```
 
@@ -145,18 +145,47 @@ and use per-item arguments only for game-specific flags, e.g.:
 Retromind combines profile + item arguments into a single command line while expanding the placeholders as described above.
 
 ## API keys / Secrets (Scrapers)
-This repository does **not** contain real API keys.
+Retromind does **not** use any bundled default keys at runtime.  
+All scraper providers (TMDB, IGDB, Google Books, …) read their API credentials
+from the scraper configuration (e.g. via the settings dialog). If no key is
+configured, the corresponding scraper simply cannot be used.
 
-Secrets are not stored in plain text. The app persists only encrypted fields (EncryptedApiKey, etc.).
+Secrets are not stored in plain text. The app persists only encrypted fields
+(e.g. `EncryptedApiKey`).
 
-A template is provided:
+A template is provided for local development experiments:
 - `Helpers/ApiSecretsTemplate.cs`
 
-To configure locally:
-1. Copy/rename it to `Helpers/ApiSecrets.cs`
-2. Rename the class `ApiSecretsTemplate` to `ApiSecrets`
-3. Insert your personal API keys
-4. Ensure `ApiSecrets.cs` stays ignored by Git
+> NOTE: The main Retromind application does **not** use `ApiSecrets` for
+> scraping. This template is only for custom tools or debugging scenarios.
+
+### Where to get API keys
+
+You need to create your own API keys on the respective provider pages:
+
+- **TMDB (The Movie Database)**  
+  Create a free account at:  
+  https://www.themoviedb.org/  
+  Then go to *Settings → API* in your profile and request an API key (v3 auth).
+  Enter this key in the TMDB scraper configuration in Retromind.
+
+- **IGDB (via Twitch Developer)**
+  1. Create a Twitch Developer account:  
+     https://dev.twitch.tv/
+  2. In the Developer Console, create an application to obtain:
+    - `Client ID`
+    - `Client Secret`
+  3. Enter both values in the IGDB scraper configuration in Retromind.
+
+- **Google Books (optional)**  
+  The Google Books API can be used without a key in many cases, but you may
+  configure an API key to raise limits:  
+  https://console.cloud.google.com/apis/library/books.googleapis.com  
+  Create a project, enable the Books API, and create an API key. Enter it in
+  the Google Books scraper configuration in Retromind.
+
+Each user is responsible for their own API keys and must comply with the
+respective provider terms of service.
 
 ## Wayland / X11 note (VLC video embedding)
 Embedded video playback via **LibVLCSharp** can be unreliable on some Wayland setups (depending on compositor and XWayland behavior).

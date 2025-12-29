@@ -39,18 +39,16 @@ public class IgdbProvider : IMetadataProvider
     }
 
     /// <summary>
-    /// Retrieves effective credentials, preferring config over secrets.
+    /// Retrieves effective credentials from the scraper configuration only.
     /// Throws if credentials are invalid or missing.
     /// </summary>
     private (string ClientId, string ClientSecret) GetCredentials()
     {
-        var clientId = !string.IsNullOrWhiteSpace(_config.ClientId) ? _config.ClientId : ApiSecrets.IgdbClientId;
-        var clientSecret = !string.IsNullOrWhiteSpace(_config.ClientSecret) ? _config.ClientSecret : ApiSecrets.IgdbClientSecret;
+        var clientId = _config.ClientId;
+        var clientSecret = _config.ClientSecret;
 
-        if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret) || clientId == "INSERT_KEY_HERE")
-        {
-            throw new Exception("IGDB requires Client ID and Client Secret. Please enter in Settings.");
-        }
+        if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
+            throw new Exception("IGDB requires Client ID and Client Secret. Please enter them in the scraper settings.");
 
         return (clientId, clientSecret);
     }

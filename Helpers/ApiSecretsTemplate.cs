@@ -7,6 +7,11 @@ namespace Retromind.Helpers;
 // 3. Enter your personal API keys.
 // 4. Ensure "ApiSecrets.cs" is listed in your .gitignore file.
 
+// NOTE:
+// The main Retromind application reads scraper API keys from its configuration
+// (e.g. the scraper settings dialog). This template is only for custom tools
+// or experiments and is not used by the built-in scrapers.
+
 public static class ApiSecretsTemplate
 {
     // The Movie Database (TMDB) API Key
