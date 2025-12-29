@@ -38,6 +38,12 @@ chmod +x "$APPDIR/AppRun"
 cp "$PUBLISH_DIR/Retromind" "$APPDIR/usr/bin/Retromind"
 chmod +x "$APPDIR/usr/bin/Retromind"
 
+# Copy themes so that the AppImage has the same layout as the publish folder.
+if [ -d "$PUBLISH_DIR/Themes" ]; then
+  echo "Copying themes into AppDir..."
+  cp -a "$PUBLISH_DIR/Themes" "$APPDIR/usr/bin/"
+fi
+
 cp -a "$WORK_DIR/vlc/vlc" "$APPDIR/usr/lib/vlc/"
 cp -a "$WORK_DIR/vlc/lib" "$APPDIR/usr/lib/vlc/"
 
