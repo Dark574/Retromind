@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Helpers;
@@ -232,18 +233,75 @@ public partial class MediaItem : ObservableObject
 
     /// <summary>
     /// Resolves the primary file to a full path for launching.
-    /// For now we support Absolute paths. Future kinds can be added without changing callers.
+    /// Supports:
+    /// - Absolute paths (as stored)
+    /// - Library-relative paths (relative to AppPaths.DataRoot / portable AppImage folder)
+    /// Future kinds can be added without changing callers.
     /// </summary>
     public string? GetPrimaryLaunchPath()
     {
         var primary = GetPrimaryFile();
         if (primary == null) return null;
 
-        if (primary.Kind == MediaFileKind.Absolute)
-            return string.IsNullOrWhiteSpace(primary.Path) ? null : primary.Path;
+        if (string.IsNullOrWhiteSpace(primary.Path))
+            return null;
 
-        // Future: MountRelative / LibraryRelative resolution can be implemented here.
-        return string.IsNullOrWhiteSpace(primary.Path) ? null : primary.Path;
+        switch (primary.Kind)
+        {
+            case MediaFileKind.LibraryRelative:
+                // Path is stored relative to the portable DataRoot (AppImage folder).
+                // Resolve it to an absolute path for launching.
+                return AppPaths.ResolveDataPath(primary.Path);
+
+            case MediaFileKind.Absolute:
+            {
+                // Auto-migrate: if the absolute path points inside our portable DataRoot
+                // (e.g. ROMs on the same USB stick as the AppImage),
+                // convert it once to a LibraryRelative path. This makes the entry
+                // robust across different users/mount points as long as DataRoot
+                // (the AppImage directory) moves together with the ROMs.
+                var absolutePath = primary.Path;
+
+                if (Path.IsPathRooted(absolutePath))
+                {
+                    try
+                    {
+                        var dataRoot = AppPaths.DataRoot;
+                        var normalizedAbsolute = Path.GetFullPath(absolutePath);
+                        var normalizedRoot = Path.GetFullPath(dataRoot);
+
+                        if (normalizedAbsolute.StartsWith(normalizedRoot + Path.DirectorySeparatorChar,
+                                StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(normalizedAbsolute, normalizedRoot, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Compute relative path from DataRoot to the ROM file.
+                            var relative = Path.GetRelativePath(normalizedRoot, normalizedAbsolute);
+
+                            primary.Kind = MediaFileKind.LibraryRelative;
+                            primary.Path = relative;
+
+                            return AppPaths.ResolveDataPath(relative);
+                        }
+                    }
+                    catch
+                    {
+                        // Best-effort: if anything goes wrong, fall back to the original absolute path.
+                        return absolutePath;
+                    }
+                }
+
+                // Outside of DataRoot: keep absolute as-is (classic behavior).
+                return absolutePath;
+            }
+
+            case MediaFileKind.MountRelative:
+                // Future: implement mount-root based resolution here.
+                // For now, treat it like a raw path.
+                return primary.Path;
+
+            default:
+                return primary.Path;
+        }
     }
 
     // --- Launch Configuration ---

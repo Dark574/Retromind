@@ -83,6 +83,63 @@ Ignored runtime files (not committed):
 A sample settings file is provided:
 - `app_settings.sample.json`
 
+### Portable layout on USB sticks / external drives
+
+Retromind is designed to work well from a single portable folder (e.g. on a USB stick)
+together with your ROMs and native games. The core idea:
+
+- The directory that contains the Retromind binary/AppImage is treated as the **portable data root**.
+- Any files *inside* this directory (or subdirectories) are stored as **relative paths** in the library.
+- On another Linux system, as long as you copy/mount the entire directory tree, Retromind will
+  resolve these relative paths correctly, regardless of the exact mountpoint or user name.
+
+A practical layout might look like this:
+```text
+Retromind/ Retromind-x86_64.AppImage Library/ ROMs/ SNES/ PSX/ NativeGames/ MyPortedGame/ WinePrefixes/ 123e4567-..._Some_Wine_Game/ Themes/
+```
+
+If you add ROMs or native games from anywhere *inside* the `Retromind/` folder:
+
+- Retromind will detect that their absolute paths are under the portable root,
+- convert them once to **library-relative** paths in the JSON database,
+- and resolve them at runtime against the current AppImage directory.
+
+This means:
+
+- Moving the entire `Retromind/` folder to another machine or mounting it under a different path
+  will **not** break those entries.
+- Only data stored outside of `Retromind/` (e.g. `/home/user/Downloads/…`) is saved as an absolute path
+  and depends on the original mountpoint.
+
+### Wine prefixes and portability
+
+When launching items that use Wine/Proton/UMU, Retromind can automatically create and
+remember a **per-item Wine prefix** in the library:
+
+- Prefixes are stored under `Library/Prefixes/…` (inside the portable root).
+- The stored prefix path is **relative** to the library root.
+- On another system, as long as the whole `Retromind/` folder moves together,
+  the same prefixes will be reused.
+
+Note:
+
+- The prefix itself is portable within Retromind’s folder.
+- Game saves and configs that a title writes into `~/.config` or `~/.local/share` remain
+  user-specific and are not automatically moved with the USB stick.
+
+### Native games on the stick
+
+Native games that live under the `Retromind/` directory tree (e.g. `Retromind/NativeGames/MyGame/...`)
+are resolved the same way as ROMs:
+
+- Internally, Retromind stores their launch paths relative to the portable root.
+- On a different Linux system, launching still works as long as:
+  - the game files remain in the same relative position under `Retromind/`,
+  - system-level dependencies (e.g. libraries, drivers) required by the game are available.
+
+Game-specific saves/configs stored under the user’s home directory are not moved automatically;
+they will behave like any regular native Linux game when run on a different machine.
+
 ## Launch arguments placeholders
 
 When configuring emulator profiles or per-item launch arguments, Retromind supports a few simple placeholders that are expanded at launch time:
