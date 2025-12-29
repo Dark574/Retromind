@@ -56,7 +56,7 @@
         <!-- Very transparent wallpaper from the current item -->
         <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
                Stretch="UniformToFill"
-               Opacity="0.18"
+               Opacity="0.20"
                HorizontalAlignment="Center"
                VerticalAlignment="Center"
                IsVisible="{Binding SelectedItem.PrimaryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
@@ -64,7 +64,7 @@
 
         <!-- Two-column layout: navigation on the left, video + details on the right -->
         <Grid ColumnDefinitions="0.38*,0.62*"
-              Margin="40,30">
+              Margin="32,24">
 
             <!-- LEFT COLUMN: category, big title, list -->
             <Border Grid.Column="0"
@@ -174,158 +174,145 @@
                         HorizontalAlignment="Stretch"
                         VerticalAlignment="Stretch">
 
-                    <!-- Make the right content responsive: centered, capped width -->
-                    <Grid Grid.Column="1"
-                          Margin="28,0,0,0">
-                        <Border Background="#E6181A20"
-                                CornerRadius="8"
-                                Padding="16"
+                    <!-- Single container grid for video (top) and details (bottom) -->
+                    <Grid RowDefinitions="2*,*">
+                        <!-- VIDEO AREA -->
+                        <Grid Grid.Row="0">
+                            <Border x:Name="VideoSlot"
+                                    Background="#181A20"
+                                    CornerRadius="6"
+                                    ClipToBounds="True"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch">
+                                <Grid>
+                                    <TextBlock Text="No preview video"
+                                               Foreground="#606060"
+                                               FontSize="18"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding MainVideoHasContent, Converter={x:Static helpers:ObjectConverters.IsNull}}" />
+
+                                    <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
+                                                               Stretch="Uniform"
+                                                               Opacity="{Binding MainVideoIsPlaying, Converter={StaticResource BoolToOpacity}}"
+                                                               IsVisible="{Binding MainVideoHasContent}" />
+                                </Grid>
+                            </Border>
+
+                            <!-- Cover overlay -->
+                            <Border x:Name="CoverPanel"
+                                    Width="220"
+                                    Height="330"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Margin="-120,28,0,0"
+                                    CornerRadius="8"
+                                    ClipToBounds="True"
+                                    Background="#00000000"
+                                    IsHitTestVisible="False"
+                                    IsVisible="{Binding SelectedItem.PrimaryCoverPath,
+                                                        Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                                <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
+                                       Stretch="Uniform"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+
+                        <!-- DETAILS: always fill the available width of the right column -->
+                        <Border Grid.Row="1"
+                                Margin="0,14,0,0"
+                                Background="#E020232A"
+                                CornerRadius="6"
+                                Padding="14"
                                 HorizontalAlignment="Stretch"
                                 VerticalAlignment="Stretch">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch">
+                                <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+                                      ColumnDefinitions="*,*"
+                                      ColumnSpacing="16"
+                                      RowSpacing="10">
+                                    <!-- Node / item description -->
+                                    <StackPanel Grid.Row="0"
+                                                Grid.ColumnSpan="2"
+                                                Spacing="6">
+                                        <TextBlock Text="{x:Static resources:Strings.Common_Description}"
+                                                   Foreground="#7BA3FF"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="14" />
 
-                            <!-- Responsive container -->
-                            <Grid HorizontalAlignment="Center"
-                                  MaxWidth="1400">
-                                <Grid RowDefinitions="Auto,*">
+                                        <!-- Description in category mode -->
+                                        <TextBlock Text="{Binding SelectedCategory.Description}"
+                                                   Foreground="#DDFFFFFF"
+                                                   TextWrapping="Wrap"
+                                                   MaxHeight="72"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   IsVisible="{Binding IsCategorySelectionActive}" />
 
-                                    <!-- VIDEO AREA -->
-                                    <Grid Grid.Row="0"
-                                          Height="520">
+                                        <!-- Description in game mode -->
+                                        <TextBlock Text="{Binding SelectedItem.Description}"
+                                                   Foreground="#DDFFFFFF"
+                                                   TextWrapping="Wrap"
+                                                   MaxHeight="72"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   IsVisible="{Binding IsGameListActive}" />
+                                    </StackPanel>
 
-                                        <!-- Video slot stretches to available width -->
-                                        <Border x:Name="VideoSlot"
-                                                Background="#181A20"
-                                                CornerRadius="6"
-                                                ClipToBounds="True"
-                                                HorizontalAlignment="Stretch"
-                                                MinWidth="900">
-                                            <Grid>
-                                                <TextBlock Text="No preview video"
-                                                           Foreground="#606060"
-                                                           FontSize="18"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           IsVisible="{Binding MainVideoHasContent, Converter={x:Static helpers:ObjectConverters.IsNull}}" />
+                                    <!-- Release date -->
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                                        <TextBlock Text="{x:Static resources:Strings.Common_ReleaseDate}"
+                                                   Foreground="#7BA3FF"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="14" />
+                                        <TextBlock Text="{Binding SelectedItem.ReleaseDate, StringFormat={}{0:yyyy-MM-dd}}"
+                                                   Foreground="White" />
+                                    </StackPanel>
 
-                                                <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
-                                                                           Stretch="Uniform"
-                                                                           Opacity="{Binding MainVideoIsPlaying, Converter={StaticResource BoolToOpacity}}"
-                                                                           IsVisible="{Binding MainVideoHasContent}" />
-                                            </Grid>
-                                        </Border>
+                                    <!-- Developer -->
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+                                        <TextBlock Text="{x:Static resources:Strings.Common_Developer}"
+                                                   Foreground="#7BA3FF"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="14" />
+                                        <TextBlock Text="{Binding SelectedDeveloper}"
+                                                   Foreground="White"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
 
-                                        <!-- Cover overlay (smaller, not cropped, sits over the video) -->
-                                        <Border x:Name="CoverPanel"
-                                                Width="220"
-                                                Height="330"
-                                                HorizontalAlignment="Left"
-                                                VerticalAlignment="Top"
-                                                Margin="-120,28,0,0"
-                                                CornerRadius="8"
-                                                ClipToBounds="True"
-                                                Background="#00000000"
-                                                IsHitTestVisible="False"
-                                                IsVisible="{Binding SelectedItem.PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
-                                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
-                                                   Stretch="Uniform"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" />
-                                        </Border>
+                                    <!-- Played count -->
+                                    <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
+                                        <TextBlock Text="{x:Static resources:Strings.Media_PlayCount}"
+                                                   Foreground="#7BA3FF"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="14" />
+                                        <TextBlock Text="{Binding SelectedItem.PlayCount}"
+                                                   Foreground="White" />
+                                    </StackPanel>
 
-                                    </Grid>
+                                    <!-- Last played -->
+                                    <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
+                                        <TextBlock Text="{x:Static resources:Strings.Media_LastPlayed}"
+                                                   Foreground="#7BA3FF"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="14" />
+                                        <TextBlock Text="{Binding SelectedItem.LastPlayed, StringFormat={}{0:yyyy-MM-dd HH:mm}}"
+                                                   Foreground="White" />
+                                    </StackPanel>
 
-                                    <!-- DETAILS (responsive: same width as video, centered) -->
-                                    <Border Grid.Row="1"
-                                            Margin="0,14,0,0"
-                                            Background="#E020232A"
-                                            CornerRadius="6"
-                                            Padding="14"
-                                            HorizontalAlignment="Stretch">
-                                        <Grid RowDefinitions="Auto,Auto,Auto,Auto"
-                                              ColumnDefinitions="*,*"
-                                              ColumnSpacing="16"
-                                              RowSpacing="10">
-
-                                            <!-- Node / item description -->
-                                            <StackPanel Grid.Row="0"
-                                                        Grid.ColumnSpan="2"
-                                                        Spacing="6">
-                                                <TextBlock Text="{x:Static resources:Strings.Common_Description}"
-                                                           Foreground="#7BA3FF"
-                                                           FontWeight="SemiBold"
-                                                           FontSize="14" />
-
-                                                <!-- Description in category mode -->
-                                                <TextBlock Text="{Binding SelectedCategory.Description}"
-                                                           Foreground="#DDFFFFFF"
-                                                           TextWrapping="Wrap"
-                                                           MaxHeight="72"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           IsVisible="{Binding IsCategorySelectionActive}" />
-
-                                                <!-- Description in game mode -->
-                                                <TextBlock Text="{Binding SelectedItem.Description}"
-                                                           Foreground="#DDFFFFFF"
-                                                           TextWrapping="Wrap"
-                                                           MaxHeight="72"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           IsVisible="{Binding IsGameListActive}" />
-                                            </StackPanel>
-
-                                            <!-- Release date -->
-                                            <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
-                                                <TextBlock Text="{x:Static resources:Strings.Common_ReleaseDate}"
-                                                           Foreground="#7BA3FF"
-                                                           FontWeight="SemiBold"
-                                                           FontSize="14" />
-                                                <TextBlock Text="{Binding SelectedItem.ReleaseDate, StringFormat={}{0:yyyy-MM-dd}}"
-                                                           Foreground="White" />
-                                            </StackPanel>
-
-                                            <!-- Developer -->
-                                            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
-                                                <TextBlock Text="{x:Static resources:Strings.Common_Developer}"
-                                                           Foreground="#7BA3FF"
-                                                           FontWeight="SemiBold"
-                                                           FontSize="14" />
-                                                <TextBlock Text="{Binding SelectedDeveloper}"
-                                                           Foreground="White"
-                                                           TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
-
-                                            <!-- Played count -->
-                                            <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
-                                                <TextBlock Text="{x:Static resources:Strings.Media_PlayCount}"
-                                                           Foreground="#7BA3FF"
-                                                           FontWeight="SemiBold"
-                                                           FontSize="14" />
-                                                <TextBlock Text="{Binding SelectedItem.PlayCount}"
-                                                           Foreground="White" />
-                                            </StackPanel>
-
-                                            <!-- Last played -->
-                                            <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
-                                                <TextBlock Text="{x:Static resources:Strings.Media_LastPlayed}"
-                                                           Foreground="#7BA3FF"
-                                                           FontWeight="SemiBold"
-                                                           FontSize="14" />
-                                                <TextBlock Text="{Binding SelectedItem.LastPlayed, StringFormat={}{0:yyyy-MM-dd HH:mm}}"
-                                                           Foreground="White" />
-                                            </StackPanel>
-
-                                            <!-- Play time -->
-                                            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
-                                                <TextBlock Text="{x:Static resources:Strings.Media_PlayTime}"
-                                                           Foreground="#7BA3FF"
-                                                           FontWeight="SemiBold"
-                                                           FontSize="14" />
-                                                <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
-                                                           Foreground="White" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
+                                    <!-- Play time -->
+                                    <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
+                                        <TextBlock Text="{x:Static resources:Strings.Media_PlayTime}"
+                                                   Foreground="#7BA3FF"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="14" />
+                                        <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
+                                                   Foreground="White" />
+                                    </StackPanel>
                                 </Grid>
-                            </Grid>
+                            </ScrollViewer>
                         </Border>
                     </Grid>
                 </Border>

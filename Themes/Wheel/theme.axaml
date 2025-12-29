@@ -4,12 +4,13 @@
              xmlns:video="using:Retromind.Helpers.Video"
              xmlns:helpers="using:Retromind.Helpers"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:resources="clr-namespace:Retromind.Resources"
              x:DataType="vm:BigModeViewModel"
              x:Name="BigModeRoot"
              Background="Black"
 
              ext:ThemeProperties.AccentColor="#FFD700"
-             ext:ThemeProperties.BackgroundDimOpacity="0.15"
+             ext:ThemeProperties.BackgroundDimOpacity="0.25"
              ext:ThemeProperties.TitleFontSize="48"
              ext:ThemeProperties.BodyFontSize="18"
              ext:ThemeProperties.FadeDurationMs="250"
@@ -48,6 +49,11 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
     </UserControl.Styles>
+    
+    <UserControl.Resources>
+        <!-- Playtime formatting -->
+        <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
+    </UserControl.Resources>
     
     <Panel>
         <!-- LAYER 1: Background -->
@@ -147,72 +153,166 @@
         
         <!-- LAYER 3: The right-hand content -->
         <Grid ColumnDefinitions="*" RowDefinitions="*, Auto" Margin="450,0,0,0">
-            <!-- METADATA -->
-            <ScrollViewer Grid.Row="0" Margin="40, 60, 60, 20" VerticalScrollBarVisibility="Auto"
-                          VerticalAlignment="Stretch">
-                <StackPanel>
-                    <!-- Kategorie-Titel/Description im Kategorienmodus -->
-                    <StackPanel IsVisible="{Binding IsCategorySelectionActive}">
-                        <TextBlock Text="{Binding SelectedCategory.Name}"
-                                   Classes="rm-title"
-                                   FontWeight="Bold"
-                                   Foreground="White"
-                                   TextWrapping="Wrap"/>
-                        <TextBlock Text="{Binding SelectedCategory.Description}"
-                                   Classes="rm-body"
-                                   Foreground="#DDFFFFFF"
-                                   TextWrapping="Wrap"
-                                   Margin="0,20,0,0"/>
-                    </StackPanel>
+            <!-- METADATA in a semi-transparent panel (similar to Default outer frame) -->
+            <Border Grid.Row="0"
+                    Margin="40,60,60,10"
+                    Background="#CC181A20"
+                    CornerRadius="8"
+                    Padding="16">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              VerticalAlignment="Stretch">
+                    <StackPanel>
+                        <!-- Category title & description -->
+                        <StackPanel IsVisible="{Binding IsCategorySelectionActive}"
+                                    Spacing="12">
+                            <TextBlock Text="{Binding SelectedCategory.Name}"
+                                       FontWeight="Bold"
+                                       Foreground="White"
+                                       FontSize="36"
+                                       TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding SelectedCategory.Description}"
+                                       Foreground="#DDFFFFFF"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
 
-                    <!-- Spiel-Titel/Description im Spielmodus -->
-                    <StackPanel IsVisible="{Binding IsGameListActive}">
-                        <TextBlock Text="{Binding SelectedItem.Title}"
-                                   Classes="rm-title"
-                                   FontWeight="Bold"
-                                   Foreground="White"
-                                   TextWrapping="Wrap"/>
-                        <TextBlock Text="{Binding SelectedItem.Description}"
-                                   Classes="rm-body"
-                                   Foreground="#DDFFFFFF"
-                                   TextWrapping="Wrap"
-                                   Margin="0,20,0,0"/>
+                        <!-- Game title & description -->
+                        <StackPanel IsVisible="{Binding IsGameListActive}"
+                                    Spacing="12">
+                            <TextBlock Text="{Binding SelectedItem.Title}"
+                                       FontWeight="Bold"
+                                       Foreground="White"
+                                       FontSize="36"
+                                       TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding SelectedItem.Description}"
+                                       Foreground="#DDFFFFFF"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <!-- Additional game details (only in game mode) -->
+                        <Grid Margin="0,20,0,0"
+                              RowDefinitions="Auto,Auto,Auto"
+                              ColumnDefinitions="*,*"
+                              ColumnSpacing="16"
+                              RowSpacing="10"
+                              IsVisible="{Binding IsGameListActive}">
+                            <!-- Release date -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                                <TextBlock Text="{x:Static resources:Strings.Common_ReleaseDate}"
+                                           Foreground="#7BA3FF"
+                                           FontWeight="SemiBold"
+                                           FontSize="14" />
+                                <TextBlock Text="{Binding SelectedItem.ReleaseDate, StringFormat={}{0:yyyy-MM-dd}}"
+                                           Foreground="White" />
+                            </StackPanel>
+
+                            <!-- Developer -->
+                            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4">
+                                <TextBlock Text="{x:Static resources:Strings.Common_Developer}"
+                                           Foreground="#7BA3FF"
+                                           FontWeight="SemiBold"
+                                           FontSize="14" />
+                                <TextBlock Text="{Binding SelectedDeveloper}"
+                                           Foreground="White"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+
+                            <!-- Play count -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                                <TextBlock Text="{x:Static resources:Strings.Media_PlayCount}"
+                                           Foreground="#7BA3FF"
+                                           FontWeight="SemiBold"
+                                           FontSize="14" />
+                                <TextBlock Text="{Binding SelectedItem.PlayCount}"
+                                           Foreground="White" />
+                            </StackPanel>
+
+                            <!-- Last played -->
+                            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+                                <TextBlock Text="{x:Static resources:Strings.Media_LastPlayed}"
+                                           Foreground="#7BA3FF"
+                                           FontWeight="SemiBold"
+                                           FontSize="14" />
+                                <TextBlock Text="{Binding SelectedItem.LastPlayed, StringFormat={}{0:yyyy-MM-dd HH:mm}}"
+                                           Foreground="White" />
+                            </StackPanel>
+
+                            <!-- Total play time -->
+                            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
+                                <TextBlock Text="{x:Static resources:Strings.Media_PlayTime}"
+                                           Foreground="#7BA3FF"
+                                           FontWeight="SemiBold"
+                                           FontSize="14" />
+                                <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
+                                           Foreground="White" />
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
-                </StackPanel>
-            </ScrollViewer>
+                </ScrollViewer>
+            </Border>
         
-            <!-- MEDIA -->
-            <Panel Grid.Row="1" Margin="40,20,60,60">
-           
-                <!-- VIDEO SLOT (placeholder only, actual VideoView comes from the host) -->
-                <Border x:Name="VideoSlot"
-                        Width="854" Height="480"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Bottom"
-                        Background="#181818"
+            <!-- MEDIA panel with same style, some spacing below the metadata panel -->
+            <Panel Grid.Row="1" Margin="40,0,60,60">
+                <!-- Outer media frame: semi-transparent, like Default -->
+                <Border Background="#CC181A20"
                         CornerRadius="8"
-                        ClipToBounds="True" />
-            
-                <!-- COVER für Kategorien -->
-                <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" 
-                        Margin="900, 0, 0, 100"
-                        IsVisible="{Binding IsCategorySelectionActive}">
-                    <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryCoverPath}"
-                           Width="280" Height="380" Stretch="Uniform"/>
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="30" OffsetX="0" OffsetY="0" Color="Black" Opacity="0.7"/>
-                    </Border.Effect>
-                </Border>
+                        Padding="16"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Bottom">
+                    <!-- Center video + cover group inside the frame -->
+                    <Grid ColumnDefinitions="Auto,Auto"
+                          ColumnSpacing="24"
+                          HorizontalAlignment="Center">
+                        <!-- VIDEO SLOT: solid dark background, matches Default inner panels -->
+                        <Border x:Name="VideoSlot"
+                                Width="854"
+                                Height="480"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                Background="#181A20"
+                                CornerRadius="6"
+                                ClipToBounds="True">
+                            <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
+                                                       Stretch="Uniform"
+                                                       IsVisible="{Binding MainVideoHasContent}" />
+                        </Border>
 
-                <!-- COVER für Spiele (wie bisher) -->
-                <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" 
-                        Margin="900, 0, 0, 100"
-                        IsVisible="{Binding IsGameListActive}">
-                    <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
-                           Width="280" Height="380" Stretch="Uniform"/>
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="30" OffsetX="0" OffsetY="0" Color="Black" Opacity="0.7"/>
-                    </Border.Effect>
+                        <!-- COVER for categories (right, centered vertically) -->
+                        <Border Grid.Column="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding IsCategorySelectionActive}">
+                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryCoverPath}"
+                                   Width="280"
+                                   Height="380"
+                                   Stretch="Uniform" />
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="30"
+                                                  OffsetX="0"
+                                                  OffsetY="0"
+                                                  Color="Black"
+                                                  Opacity="0.7" />
+                            </Border.Effect>
+                        </Border>
+
+                        <!-- COVER for games (right, centered vertically) -->
+                        <Border Grid.Column="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding IsGameListActive}">
+                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
+                                   Width="280"
+                                   Height="380"
+                                   Stretch="Uniform" />
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="30"
+                                                  OffsetX="0"
+                                                  OffsetY="0"
+                                                  Color="Black"
+                                                  Opacity="0.7" />
+                            </Border.Effect>
+                        </Border>
+                    </Grid>
                 </Border>
             </Panel>
         </Grid>
