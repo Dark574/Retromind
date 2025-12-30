@@ -9,7 +9,7 @@
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.1.0">
 
-    <Grid ColumnDefinitions="0.38*,0.62*"
+    <Grid ColumnDefinitions="0.25*,0.75*"
           Margin="40,30">
 
         <!-- LEFT COLUMN: match Default theme styling -->
