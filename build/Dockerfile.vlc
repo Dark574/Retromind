@@ -1,21 +1,60 @@
-FROM debian:stable-slim
+FROM debian:bookworm
 
+# Install VLC + LibVLC and core FFmpeg dependencies (runtime + headers).
+# We deliberately install the Debian packages so that:
+#  - libvlc.so / libvlccore.so match the plugin tree,
+#  - common codecs used by Retromind videos (H.264/H.265/VP9/Opus/MP3/...) are available.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
        vlc \
        libvlc-dev \
+       libavcodec-dev \
+       libavformat-dev \
+       libavutil-dev \
+       libswresample-dev \
+       libswscale-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Export folder inside the container (we will copy it out to the host)
-RUN mkdir -p /out/vlc
+RUN mkdir -p /out/vlc/lib
 
-# Copy VLC plugins and the libvlc libraries to /out
-# Note: Debian paths can vary slightly; these are the common ones.
+# Copy VLC plugins and the core libraries to /out
 RUN set -eux; \
+    # 1) VLC plugin tree (includes demuxers, decoders, audio/video outputs, etc.)
     cp -a /usr/lib/x86_64-linux-gnu/vlc /out/vlc/; \
-    mkdir -p /out/vlc/lib; \
-    cp -a /usr/lib/x86_64-linux-gnu/libvlc.so* /out/vlc/lib/; \
-    cp -a /usr/lib/x86_64-linux-gnu/libvlccore.so* /out/vlc/lib/
+    # 2) Core LibVLC runtime
+    cp -a /usr/lib/x86_64-linux-gnu/libvlc.so*     /out/vlc/lib/; \
+    cp -a /usr/lib/x86_64-linux-gnu/libvlccore.so* /out/vlc/lib/; \
+    # 3) FFmpeg core (containers + codecs)
+    cp -a /usr/lib/x86_64-linux-gnu/libavcodec.so*    /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libavformat.so*   /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libavutil.so*     /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libswresample.so* /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libswscale.so*    /out/vlc/lib/ || true; \
+    # 4) Additional codec dependencies used by this VLC/FFmpeg build.
+    #    This list does not need to be exhaustive; missing ones will simply
+    #    disable the corresponding exotic codecs.
+    cp -a /usr/lib/x86_64-linux-gnu/libvpx.so*           /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libjpeg.so*          /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libtheora*.so*       /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libcodec2.so*        /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libjxl*.so*          /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/librav1e.so*         /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libshine.so*         /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libSvtAv1Enc.so*     /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libx264.so*          /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libx265.so*          /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libFLAC.so*          /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libdav1d.so*         /out/vlc/lib/ || true; \
+    # Common audio codecs / containers
+    cp -a /usr/lib/x86_64-linux-gnu/libvorbis*.so*       /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libopus.so*          /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libogg.so*           /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libmp3lame.so*       /out/vlc/lib/ || true; \
+    # 5) Drop VDPAU plugins – VAAPI/CUDA/Software will be used instead.
+    #    This avoids pulling in a ton of VDPAU dependencies that are rarely useful
+    #    inside an AppImage.
+    rm -rf /out/vlc/vlc/plugins/vdpau
 
-CMD ["bash", "-lc", "ls -la /out/vlc && echo 'VLC export ready.'"]
+CMD ["bash", "-lc", "ls -la /out/vlc && echo 'VLC export ready (Debian bookworm).'"]

@@ -20,12 +20,23 @@ public sealed class LibVlcVideoPlayer : IVideoPlayer
 
     public LibVlcVideoPlayer()
     {
-        // Stelle sicher, dass Core.Initialize() in Program.Main aufgerufen wurde.
-        _libVlc = new LibVLC(enableDebugLogs: false, "--no-osd", "--quiet");
-        _mediaPlayer = new MediaPlayer(_libVlc);
+        // Make sure Core.Initialize() was called in Program.Main before creating LibVLC instances.
+        // Default: quiet logs for normal runtime. For troubleshooting you can temporarily enable
+        // debug logs and/or increase verbosity (e.g. "--verbose=2").
+        _libVlc = new LibVLC(
+            enableDebugLogs: false,
+            "--no-osd",
+            "--quiet");
+
+        _mediaPlayer = new MediaPlayer(_libVlc)
+        {
+            // Ensure we start with a sane, audible volume
+            Volume = 100
+        };
+
         _surface = new LibVlcVideoSurface();
 
-        // Videoformat + -Callbacks einrichten
+        // Configure video format + callbacks to render into the LibVlcVideoSurface
         _mediaPlayer.SetVideoFormatCallbacks(
             _surface.VideoFormat,
             _surface.VideoCleanup);

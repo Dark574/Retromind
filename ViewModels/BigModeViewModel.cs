@@ -235,11 +235,31 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         CategoryTitle = Strings.BigMode_MainMenu;
 
+        // Determine the effective hardware decode mode from settings.
+        // Accepted values are implementation-defined; typical values are:
+        //  - "none"  : always use software decoding (safest default)
+        //  - "auto"  : let VLC/FFmpeg pick a suitable hardware backend
+        //  - "vaapi" : force VAAPI on compatible Linux systems
+        var hwMode = (_settings.VlcHardwareDecodeMode ?? "none").Trim().ToLowerInvariant();
+        if (hwMode is not ("none" or "auto" or "vaapi"))
+        {
+            // Fallback for unknown/typo values to keep startup robust.
+            hwMode = "none";
+        }
+
         // Linux-friendly VLC options:
-        // --no-osd: disable VLC overlays (file name, volume, etc.)
-        // --avcodec-hw=none: force software decoding for better compatibility
-        // --quiet: reduce console noise
-        string[] vlcOptions = { "--no-osd", "--avcodec-hw=none", "--quiet" };
+        // --no-osd         : disable VLC overlays (file name, volume, etc.)
+        // --avcodec-hw=...: hardware decode mode from settings (see above)
+        // --quiet          : reduce console noise for normal runtime
+        //
+        // For detailed troubleshooting you can temporarily replace "--quiet" with
+        // e.g. "--verbose=2" and/or set enableDebugLogs: true.
+        string[] vlcOptions =
+        {
+            "--no-osd",
+            $"--avcodec-hw={hwMode}",
+            "--quiet"
+        };
 
         _libVlc = new LibVLC(enableDebugLogs: false, vlcOptions);
         

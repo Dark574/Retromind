@@ -21,13 +21,34 @@ dotnet publish Retromind.csproj -c Release -r linux-x64 \
   -p:IncludeNativeLibrariesForSelfExtract=true \
   -p:PublishTrimmed=false
 
+if [ ! -f "$PUBLISH_DIR/Retromind" ]; then
+  echo "ERROR: Publish output not found at '$PUBLISH_DIR/Retromind'."
+  echo "       Check the dotnet publish step above for errors."
+  exit 1
+fi
+
 echo "[3/7] Build VLC export container image..."
 docker build -f "$BUILD_DIR/Dockerfile.vlc" -t retromind-vlc-export:stable-slim "$PROJECT_ROOT/build"
 
 echo "[4/7] Export VLC libs/plugins from container..."
 CID="$(docker create retromind-vlc-export:stable-slim)"
+# Ensure the container always gets removed, even on failure.
+cleanup_container() {
+  if [ -n "${CID:-}" ]; then
+    docker rm "$CID" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup_container EXIT
+
 docker cp "$CID:/out/vlc" "$WORK_DIR/vlc"
-docker rm "$CID" >/dev/null
+cleanup_container
+trap - EXIT
+
+if [ ! -d "$WORK_DIR/vlc" ]; then
+  echo "ERROR: VLC export directory '$WORK_DIR/vlc' not found."
+  echo "       Check Dockerfile.vlc and the docker cp step."
+  exit 1
+fi
 
 echo "[5/7] Build AppDir layout..."
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib/vlc" "$APPDIR/usr/share/applications"
@@ -42,6 +63,8 @@ chmod +x "$APPDIR/usr/bin/Retromind"
 if [ -d "$PUBLISH_DIR/Themes" ]; then
   echo "Copying themes into AppDir..."
   cp -a "$PUBLISH_DIR/Themes" "$APPDIR/usr/bin/"
+else
+  echo "Notice: No Themes directory found in publish output (expected at '$PUBLISH_DIR/Themes')."
 fi
 
 cp -a "$WORK_DIR/vlc/vlc" "$APPDIR/usr/lib/vlc/"

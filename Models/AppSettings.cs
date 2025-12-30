@@ -33,6 +33,13 @@ public class AppSettings
     /// </summary>
     public string? DefaultNativeWrapperArgs { get; set; }
     
+    /// <summary>
+    /// Preferred LibVLC/FFmpeg hardware decoding mode for BigMode preview videos.
+    /// Valid values are implementation-defined (e.g. "none", "auto", "vaapi").
+    /// Default is "none" for maximum compatibility on unknown systems.
+    /// </summary>
+    public string? VlcHardwareDecodeMode { get; set; } = "none";
+    
     // --- UI Layout ---
 
     public double TreeColumnWidth { get; set; } = 250;

@@ -40,6 +40,13 @@ public partial class BigModeViewModel
 
     // IMPORTANT: Keep Media alive while VLC is using it, otherwise playback can freeze.
     private Media? _currentPreviewMedia;
+    
+    /// <summary>
+    /// Forces the main MediaPlayer instance to be recreated on the next playback start.
+    /// This is used as a defensive workaround for platform-specific LibVLC state glitches
+    /// (e.g. when running inside an AppImage bundle).
+    /// </summary>
+    private bool _forceRecreateMediaPlayerNextTime;
 
     // ----------------------------
     // Entry points (host API)
@@ -308,7 +315,71 @@ public partial class BigModeViewModel
     // ----------------------------
     // Playback
     // ----------------------------
-    
+
+    /// <summary>
+    /// Ensures that the main MediaPlayer instance is in a clean, usable state.
+    /// If a previous Stop/Dispose cycle left the player in an undefined state,
+    /// this recreates it and reattaches the video callbacks.
+    /// </summary>
+    private MediaPlayer EnsureMediaPlayer(bool forceRecreate = false)
+    {
+        // Some LibVLC builds (especially when bundled in portable runtimes / AppImages)
+        // can end up in a broken audio state when the same MediaPlayer is reused
+        // across many rapid Stop/Play cycles. In that case we allow the caller to
+        // request a hard recreate of the player.
+        if (forceRecreate && MediaPlayer is not null)
+        {
+            try
+            {
+                if (MediaPlayer.IsPlaying)
+                    MediaPlayer.Stop();
+
+                MediaPlayer.Media = null;
+                MediaPlayer.Dispose();
+            }
+            catch
+            {
+                // Best-effort cleanup; fallback is simply to drop the reference.
+            }
+
+            MediaPlayer = null;
+        }
+        
+        // If the current player is null or already disposed (LibVLC 3.x can get
+        // into odd states after Stop/Media = null), create a fresh one.
+        if (MediaPlayer is null)
+        {
+            var newPlayer = new MediaPlayer(_libVlc)
+            {
+                Volume = 100,
+                Scale = 0f // 0 = scale to fill the control
+            };
+
+            newPlayer.SetVideoFormatCallbacks(
+                _videoSurface.VideoFormat,
+                _videoSurface.VideoCleanup);
+
+            newPlayer.SetVideoCallbacks(
+                _videoSurface.VideoLock,
+                _videoSurface.VideoUnlock,
+                _videoSurface.VideoDisplay);
+
+            newPlayer.EndReached += OnPreviewEndReached;
+
+            MediaPlayer = newPlayer;
+        }
+        else
+        {
+            // Defensive: ensure we always start from a known volume and unmuted state.
+            if (MediaPlayer.Volume <= 0)
+                MediaPlayer.Volume = 100;
+
+            MediaPlayer.Mute = false;
+        }
+
+        return MediaPlayer;
+    }
+
     /// <summary>
     /// Starts preview playback for the current selection. Must run on the UI thread.
     /// </summary>
@@ -409,6 +480,14 @@ public partial class BigModeViewModel
 
         if (string.IsNullOrEmpty(videoPath))
         {
+            // No video available for the current selection. We mark the current
+            // player instance as "suspect" so that the next playback start will
+            // recreate the MediaPlayer from scratch. This is a defensive
+            // workaround for platform-specific LibVLC issues in bundled runtimes
+            // (e.g. AppImage), where reusing the same player across "no-media"
+            // transitions can sometimes leave the audio output in a bad state
+            _forceRecreateMediaPlayerNextTime = true;
+            
             StopVideo();
             return;
         }
@@ -442,7 +521,7 @@ public partial class BigModeViewModel
         if (generation != Volatile.Read(ref _previewPlayGeneration))
             return;
 
-        if (!_isViewReady || _isLaunching || MediaPlayer == null)
+        if (!_isViewReady || _isLaunching)
             return;
 
         if (!string.Equals(_currentPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase))
@@ -450,6 +529,12 @@ public partial class BigModeViewModel
 
         try
         {
+            // (Re)create MediaPlayer if needed and ensure a clean state.
+            var forceRecreate = _forceRecreateMediaPlayerNextTime;
+            _forceRecreateMediaPlayerNextTime = false;
+
+            var player = EnsureMediaPlayer(forceRecreate);
+            
             _currentPreviewMedia?.Dispose();
             _currentPreviewMedia = null;
 
@@ -457,9 +542,13 @@ public partial class BigModeViewModel
             
             _currentPreviewMedia = media;
 
-            MediaPlayer.Media = media;
-            MediaPlayer.Play();
-            
+            player.Media = media;
+            player.Mute = false;
+            if (player.Volume <= 0)
+                player.Volume = 100;
+
+            player.Play();
+
             MainVideoIsPlaying = true;
         }
         catch

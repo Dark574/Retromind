@@ -6,6 +6,8 @@
   "ItemWidth": 150,
   "IsDarkTheme": false,
 
+  "VlcHardwareDecodeMode": "none",
+  
   "LastSelectedNodeId": null,
   "LastSelectedMediaId": null,
 

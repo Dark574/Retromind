@@ -3,9 +3,12 @@ set -eu
 
 HERE="$(dirname "$(readlink -f "$0")")"
 
-# Make sure our bundled VLC libs are preferred.
-# Use default empty values so this also works when variables are unset.
+# Prefer bundled VLC libs
 export LD_LIBRARY_PATH="$HERE/usr/lib/vlc/lib:$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 export VLC_PLUGIN_PATH="$HERE/usr/lib/vlc/vlc/plugins"
+
+# Force ALSA as audio backend inside the AppImage to avoid incomplete PulseAudio plugin dependencies.
+# On most modern desktops this still ends up going through PulseAudio/PipeWire via the system's ALSA "default" device.
+export VLC_AUDIOOUTPUT=alsa
 
 exec "$HERE/usr/bin/Retromind" "$@"

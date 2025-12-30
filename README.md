@@ -87,6 +87,36 @@ Ignored runtime files (not committed):
 A sample settings file is provided:
 - `app_settings.sample.json`
 
+### LibVLC hardware decoding (BigMode previews)
+
+Retromind uses **LibVLC** for video previews in BigMode.  
+The hardware decoding mode is configurable via `app_settings.json`:
+
+```jsonc
+"VlcHardwareDecodeMode": "none" // or "auto", "vaapi"
+```
+
+Supported values (depend on the host system / VLC build):
+
+- `"none"`  
+  Always use software decoding.  
+  Safest default for unknown systems and portable AppImage builds.
+
+- `"auto"`  
+  Let VLC/FFmpeg pick a suitable hardware backend if available.  
+  Good compromise on well-configured desktop systems.
+
+- `"vaapi"`  
+  Force VAAPI hardware decoding on compatible Linux systems (Intel/AMD iGPU).  
+  Can noticeably reduce CPU usage and make high-resolution videos smoother,
+  but may fail on systems with broken/incomplete VAAPI setups.
+
+If the value is missing or invalid, Retromind falls back to `"none"`.
+
+For the **AppImage**, `"none"` is recommended as default for maximum compatibility.  
+On your own machine you can set `"vaapi"` in `app_settings.json` if VAAPI works
+well (e.g. smoother BigMode videos, lower CPU load).
+
 ### Portable layout on USB sticks / external drives
 
 Retromind is designed to work well from a single portable folder (e.g. on a USB stick)
