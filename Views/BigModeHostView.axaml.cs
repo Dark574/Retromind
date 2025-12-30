@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -398,6 +400,17 @@ public partial class BigModeHostView : UserControl
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
 
+        // Nach dem initialen Layout explizit Keyboard-Fokus in den Theme-Inhalt setzen,
+        // damit die erste Pfeiltaste nicht nur den Fokus "ins Fenster holt".
+        if (_themePresenter.Content is Control themeRoot)
+        {
+            // Bevorzugt die erste ListBox im Theme (Hauptnavigation).
+            var focusTarget =
+                themeRoot.GetVisualDescendants().OfType<ListBox>().FirstOrDefault()
+                ?? themeRoot as IInputElement;
+
+            focusTarget?.Focus();
+        }
         if (viewModel is Retromind.ViewModels.BigModeViewModel vm)
             vm.NotifyViewReady();
     }
