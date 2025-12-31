@@ -169,8 +169,23 @@ public sealed class LauncherService
             var templateArgs = string.IsNullOrWhiteSpace(item.LauncherArgs) ? "{file}" : item.LauncherArgs;
             var args = BuildArgumentsString(launchFilePath, templateArgs);
 
-            // NOTE: Prefix decision is handled in LaunchNativeOrEmulator via shouldApplyPrefix.
-            return (item.LauncherPath, args, UseShellExecute: false, LaunchFilePath: launchFilePath);
+            var fileName = item.LauncherPath;
+            var useShellExecute = false;
+
+            // If there is a wrapper chain, wrap the item-level launcher as inner command.
+            if (nativeWrappers is { Count: > 0 })
+            {
+                var inner = string.IsNullOrWhiteSpace(args)
+                    ? QuoteIfNeeded(fileName)
+                    : $"{QuoteIfNeeded(fileName)} {args}";
+
+                var folded = FoldWrappers(innerExecutable: inner, nativeWrappers);
+                fileName = folded.FileName;
+                args = folded.Args;
+                useShellExecute = folded.UseShellExecute;
+            }
+
+            return (fileName, args, useShellExecute, LaunchFilePath: launchFilePath);
         }
 
         // 2) Inherited emulator profile
@@ -179,8 +194,23 @@ public sealed class LauncherService
             var templateArgs = CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
             var args = BuildArgumentsString(launchFilePath, templateArgs);
 
-            // NOTE: Prefix decision is handled in LaunchNativeOrEmulator via shouldApplyPrefix.
-            return (inheritedConfig.Path, args, UseShellExecute: false, LaunchFilePath: launchFilePath);
+            var fileName = inheritedConfig.Path;
+            var useShellExecute = false;
+
+            // Apply wrapper chain around the emulator command if present
+            if (nativeWrappers is { Count: > 0 })
+            {
+                var inner = string.IsNullOrWhiteSpace(args)
+                    ? QuoteIfNeeded(fileName)
+                    : $"{QuoteIfNeeded(fileName)} {args}";
+
+                var folded = FoldWrappers(innerExecutable: inner, nativeWrappers);
+                fileName = folded.FileName;
+                args = folded.Args;
+                useShellExecute = folded.UseShellExecute;
+            }
+
+            return (fileName, args, useShellExecute, LaunchFilePath: launchFilePath);
         }
 
         // 3) Native execution (direct or via wrappers)
@@ -192,23 +222,71 @@ public sealed class LauncherService
         // Apply wrapper chain if provided and non-empty
         if (nativeWrappers is { Count: > 0 })
         {
-            var folded = FoldWrappers(launchFilePath, nativeArgs, nativeWrappers);
+            // Here the inner executable is the actual media file itself.
+            var inner = string.IsNullOrWhiteSpace(nativeArgs)
+                ? QuoteIfNeeded(launchFilePath)
+                : $"{QuoteIfNeeded(launchFilePath)} {nativeArgs}";
+
+            var folded = FoldWrappers(innerExecutable: inner, nativeWrappers);
             return (folded.FileName, folded.Args, UseShellExecute: folded.UseShellExecute, LaunchFilePath: launchFilePath);
         }
 
         // Direct native
-        var useShellExecute = true;
+        var useShell = true;
 
         // For shell scripts, direct execution with a working directory is often more reliable.
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
             launchFilePath.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
         {
+            useShell = false;
+        }
+
+        return (launchFilePath, nativeArgs, UseShellExecute: useShell, LaunchFilePath: launchFilePath);
+    }
+
+    /// <summary>
+    /// Folds a wrapper chain around an already composed inner command line.
+    /// Example: inner = "myemu \"rom.smc\" --option", wrappers = [gamemoderun, mangohud]
+    /// result: FileName = "gamemoderun", Args = "mangohud myemu \"rom.smc\" --option"
+    /// </summary>
+    private static (string FileName, string Args, bool UseShellExecute) FoldWrappers(
+        string innerExecutable,
+        IReadOnlyList<LaunchWrapper> wrappers)
+    {
+        var current = innerExecutable;
+
+        // We interpret wrapper order as "outer -> inner".
+        // Example: [gamemoderun, mangohud] -> gamemoderun mangohud <inner>
+        for (int i = wrappers.Count - 1; i >= 0; i--)
+        {
+            var w = wrappers[i];
+            if (string.IsNullOrWhiteSpace(w.Path))
+                continue;
+
+            var template = string.IsNullOrWhiteSpace(w.Args) ? "{file}" : w.Args!;
+            var argsWithChild = template.Contains("{file}", StringComparison.Ordinal)
+                ? template.Replace("{file}", current, StringComparison.Ordinal)
+                : $"{template} {current}";
+
+            current = $"{w.Path} {NormalizeWhitespace(argsWithChild)}".Trim();
+        }
+
+        // Split final command into FileName + Args in a simple way: first token = FileName, rest = Args.
+        // For our use-case (simple wrapper chains) this is sufficient.
+        var parts = current.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        var fileName = parts.Length > 0 ? parts[0] : string.Empty;
+        var args = parts.Length > 1 ? parts[1] : string.Empty;
+
+        var useShellExecute = true;
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
+            fileName.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
+        {
             useShellExecute = false;
         }
 
-        return (launchFilePath, nativeArgs, UseShellExecute: useShellExecute, LaunchFilePath: launchFilePath);
+        return (fileName, args, useShellExecute);
     }
-
+    
     private string? ResolveLaunchFilePath(MediaItem item, List<string>? nodePath, bool usePlaylistForMultiDisc)
     {
         var primary = item.GetPrimaryLaunchPath();

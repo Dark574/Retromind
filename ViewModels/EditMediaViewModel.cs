@@ -639,13 +639,16 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         get
         {
-            // Use the primary launch file (Disc 1 / first entry). If missing, fall back to a sample path.
+            // Use the primary launch file (Disc 1 / first entry). If missing, fall back to a sample path
             var primaryPath = _originalItem.GetPrimaryLaunchPath();
             var launchPath = !string.IsNullOrWhiteSpace(primaryPath)
                 ? primaryPath
                 : "/Games/SuperMario.smc";
 
             var realFileQuoted = $"\"{launchPath}\"";
+
+            // Resolve effective wrapper chain once (global/emulator/node/item logic)
+            var wrappers = ResolveEffectiveNativeWrappersForPreview();
 
             // --- Emulator via profile ---
             if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
@@ -658,10 +661,19 @@ public partial class EditMediaViewModel : ViewModelBase
 
                 var expandedArgs = ExpandPreviewArguments(combinedTemplate, launchPath);
 
+                // Inner command: emulator binary + expanded args + file
+                string inner;
                 if (string.IsNullOrWhiteSpace(expandedArgs))
-                    return $"> {SelectedEmulatorProfile.Path} {realFileQuoted}".Trim();
+                    inner = $"{SelectedEmulatorProfile.Path} {realFileQuoted}".Trim();
+                else
+                    inner = $"{SelectedEmulatorProfile.Path} {expandedArgs}".Trim();
 
-                return $"> {SelectedEmulatorProfile.Path} {expandedArgs}".Trim();
+                // If there is a wrapper chain, wrap it; otherwise return inner directly
+                var final = wrappers.Count > 0
+                    ? BuildWrappedCommandLine(inner, wrappers)
+                    : inner;
+
+                return $"> {final}".Trim();
             }
 
             // --- Manual emulator (no profile selected) ---
@@ -669,21 +681,32 @@ public partial class EditMediaViewModel : ViewModelBase
             {
                 var expandedArgs = ExpandPreviewArguments(LauncherArgs, launchPath);
 
+                string inner;
                 if (string.IsNullOrWhiteSpace(LauncherPath))
-                    return string.IsNullOrWhiteSpace(expandedArgs)
-                        ? string.Empty
-                        : $"> {expandedArgs}".Trim();
+                {
+                    if (string.IsNullOrWhiteSpace(expandedArgs))
+                        return string.Empty;
 
-                if (string.IsNullOrWhiteSpace(expandedArgs))
-                    return $"> {LauncherPath} {realFileQuoted}".Trim();
+                    inner = expandedArgs;
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(expandedArgs))
+                        inner = $"{LauncherPath} {realFileQuoted}".Trim();
+                    else
+                        inner = $"{LauncherPath} {expandedArgs}".Trim();
+                }
 
-                return $"> {LauncherPath} {expandedArgs}".Trim();
+                var final = wrappers.Count > 0
+                    ? BuildWrappedCommandLine(inner, wrappers)
+                    : inner;
+
+                return $"> {final}".Trim();
             }
 
             // --- Native execution (direct or via wrappers) ---
             if (MediaType == MediaType.Native)
             {
-                var wrappers = ResolveEffectiveNativeWrappersForPreview();
                 var nativeArgs = BuildNativeArgumentsForPreview(LauncherArgs);
 
                 // Inner command = the real executable + native args
@@ -691,7 +714,10 @@ public partial class EditMediaViewModel : ViewModelBase
                     ? realFileQuoted
                     : $"{realFileQuoted} {nativeArgs}";
 
-                var final = BuildWrappedCommandLine(inner, wrappers);
+                var final = wrappers.Count > 0
+                    ? BuildWrappedCommandLine(inner, wrappers)
+                    : inner;
+
                 return $"> {final}".Trim();
             }
 
