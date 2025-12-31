@@ -63,7 +63,7 @@
                IsHitTestVisible="False" />
 
         <!-- Two-column layout: navigation on the left, video + details on the right -->
-        <Grid ColumnDefinitions="0.38*,0.62*"
+        <Grid ColumnDefinitions="0.25*,0.75*"
               Margin="32,24">
 
             <!-- LEFT COLUMN: category, big title, list -->
