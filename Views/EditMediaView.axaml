@@ -85,12 +85,26 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                         </StackPanel>
+
+                        <!-- Primary launch file (native/exe/ROM) -->
+                        <StackPanel Margin="0,10,0,0">
+                            <TextBlock Text="Launch file" Margin="0,0,0,5" />
+                            <Grid ColumnDefinitions="*, 10, Auto">
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding PrimaryFileDisplayPath}"
+                                         IsReadOnly="True"
+                                         Watermark="No launch file selected" />
+                                <Button Grid.Column="2"
+                                        Content="Change..."
+                                        Command="{Binding ChangePrimaryFileCommand}" />
+                            </Grid>
+                        </StackPanel>
                         
                         <!-- Process monitoring -->
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,10,0,5">
                                 <TextBlock Text="{x:Static p:Strings.Process_Monitor}" VerticalAlignment="Center"/>
-                                    
+            
                                 <!-- Small help badge with tooltip for playtime tracking hint -->
                                 <Border Background="LightGray" CornerRadius="10" Width="18" Height="18" Margin="8,0,0,0"
                                         ToolTip.Tip="{x:Static p:Strings.Hint_TimePlayed}" 

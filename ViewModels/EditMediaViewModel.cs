@@ -43,9 +43,28 @@ public partial class EditMediaViewModel : ViewModelBase
     public IRelayCommand OpenPrefixFolderCommand { get; }
     public IRelayCommand ClearPrefixCommand { get; }
 
+    /// <summary>
+    /// Human-readable path of the primary launch file used by this item
+    /// This resolves exactly what the launcher will use via GetPrimaryLaunchPath()
+    /// </summary>
+    public string PrimaryFileDisplayPath
+    {
+        get
+        {
+            var path = _originalItem.GetPrimaryLaunchPath();
+            return string.IsNullOrWhiteSpace(path) ? "(no launch file set)" : path;
+        }
+    }
+
+    /// <summary>
+    /// Command to change the primary launch file (Disc 1 / main executable)
+    /// This updates MediaItem.Files so the launcher and preview both use the new path
+    /// </summary>
+    public IAsyncRelayCommand ChangePrimaryFileCommand { get; }
+    
     private void GeneratePrefix()
     {
-        // Only generate if not already set (user might have a custom path).
+        // Only generate if not already set (user might have a custom path)
         if (HasPrefix) return;
 
         var safeTitle = SanitizeForPathSegment(Title);
@@ -382,10 +401,13 @@ public partial class EditMediaViewModel : ViewModelBase
         OpenPrefixFolderCommand = new RelayCommand(OpenPrefixFolder, () => HasPrefix);
         ClearPrefixCommand = new RelayCommand(ClearPrefix, () => HasPrefix);
         
+        // Primary launch file command
+        ChangePrimaryFileCommand = new AsyncRelayCommand(ChangePrimaryFileAsync);
+        
         // General commands.
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
         
-        // Generic asset commands.
+        // Generic asset commands
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
         DeleteAssetCommand = new RelayCommand(DeleteSelectedAsset, () => SelectedAsset != null);
 
@@ -404,7 +426,7 @@ public partial class EditMediaViewModel : ViewModelBase
         
         NativeWrappers.CollectionChanged += (_, e) =>
         {
-            // Wire/unwire rows on Add/Remove – otherwise Preview would only update when clicking "+ Wrapper".
+            // Wire/unwire rows on Add/Remove – otherwise Preview would only update when clicking "+ Wrapper"
             if (e.OldItems != null)
                 foreach (var oldItem in e.OldItems.OfType<LaunchWrapperRow>())
                     UnwireWrapperRow(oldItem);
@@ -418,7 +440,7 @@ public partial class EditMediaViewModel : ViewModelBase
             OnPropertyChanged(nameof(PreviewText));
         };
         
-        // Dialog closes itself (less window manager / modal noise).
+        // Dialog closes itself (less window manager / modal noise)
         SaveAndCloseCommand = new RelayCommand<Window?>(win =>
         {
             Save();
@@ -435,9 +457,13 @@ public partial class EditMediaViewModel : ViewModelBase
         
         InitializeNativeWrapperUiFromItem();
 
-        // After initialization, ensure commands reflect the current list state.
+        // After initialization, ensure commands reflect the current list state
         MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
         MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+        
+        // Ensure preview reflects the current primary file at startup
+        OnPropertyChanged(nameof(PrimaryFileDisplayPath));
+        OnPropertyChanged(nameof(PreviewText));
     }
 
     private bool CanCopyPreview(Window? _)
@@ -947,6 +973,59 @@ public partial class EditMediaViewModel : ViewModelBase
         }
 
         return length <= 0 ? string.Empty : new string(buffer.Slice(start, length));
+    }
+    
+    private async Task ChangePrimaryFileAsync()
+    {
+        if (StorageProvider == null)
+            return;
+
+        var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select launch file (main executable / Disc 1)",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                // Generic filter: let the user pick anything; launch semantics are defined elsewhere.
+                FilePickerFileTypes.All
+            }
+        });
+
+        var file = result?.FirstOrDefault();
+        if (file == null)
+            return;
+
+        var path = file.Path.LocalPath;
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        // Update the primary file in the item's Files list.
+        // If there is no file yet, add a new entry.
+        var primary = _originalItem.GetPrimaryFile();
+        if (primary == null)
+        {
+            primary = new MediaFileRef
+            {
+                Kind = MediaFileKind.Absolute,
+                Path = path,
+                Index = 1
+            };
+            var list = _originalItem.Files ?? new List<MediaFileRef>();
+            list.Add(primary);
+            _originalItem.Files = list;
+        }
+        else
+        {
+            primary.Path = path;
+            primary.Kind = MediaFileKind.Absolute;
+        }
+
+        // Notify UI about the change:
+        // - display path
+        // - preview command line (uses GetPrimaryLaunchPath())
+        OnPropertyChanged(nameof(PrimaryFileDisplayPath));
+        OnPropertyChanged(nameof(PreviewText));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
     }
     
     private async Task BrowseLauncherAsync()
