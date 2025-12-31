@@ -21,6 +21,7 @@
         <AvaloniaResource Include="Assets\**"/>
         <Content Include="Themes\**">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
         </Content>
     </ItemGroup>
 
@@ -69,9 +70,11 @@
     <ItemGroup>
         <AvaloniaXaml Update="Themes\Default\theme.axaml">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
         </AvaloniaXaml>
         <AvaloniaXaml Update="Themes\Wheel\theme.axaml">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
         </AvaloniaXaml>
     </ItemGroup>
 
