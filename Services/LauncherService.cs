@@ -494,7 +494,34 @@ public sealed class LauncherService
         if (string.IsNullOrWhiteSpace(prefixPath))
             return;
 
+        // Ensure basic prefix structure
         Directory.CreateDirectory(prefixPath);
+        
+        // drive_c + dosdevices are needed so we can add an additional portable D: drive.
+        var driveCPath    = Path.Combine(prefixPath, "drive_c");
+        var dosDevicesDir = Path.Combine(prefixPath, "dosdevices");
+        
+        Directory.CreateDirectory(driveCPath);
+        Directory.CreateDirectory(dosDevicesDir);
+        
+        // Ensure C: mapping (relative to dosdevices)
+        //   c: -> ../drive_c
+        EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
+        
+        var libraryRoot = _libraryRootPath;                        // .../Library
+        var rootDir     = Directory.GetParent(libraryRoot)?.FullName;
+        if (!string.IsNullOrEmpty(rootDir))
+        {
+            var gamesRoot = Path.Combine(rootDir, "Games");
+            Directory.CreateDirectory(gamesRoot);
+        }
+        
+        // From: <Root>/Library/Prefixes/<prefix>/dosdevices
+        // To:   <Root>/Games
+        // => ../../../../Games
+        EnsureDosDeviceMapping(dosDevicesDir, "d:", "../../../../Games");
+        
+        // Apply WINEPREFIX to the launched process
         startInfo.EnvironmentVariables["WINEPREFIX"] = prefixPath;
 
         // Persist generated relative path (portable).
@@ -502,6 +529,59 @@ public sealed class LauncherService
             item.PrefixPath = relativePrefixPathToSave;
     }
 
+    /// <summary>
+    /// Ensures a dosdevices mapping like "d:" -> "../../Games" exists.
+    /// On Linux this is implemented as a symbolic link, which is what Wine/Proton expect.
+    /// Existing mappings are left untouched.
+    /// </summary>
+    private static void EnsureDosDeviceMapping(string dosDevicesDir, string driveName, string relativeTarget)
+    {
+        if (string.IsNullOrWhiteSpace(driveName))
+            throw new ArgumentException("Drive name must not be empty.", nameof(driveName));
+
+        if (!driveName.EndsWith(":", StringComparison.Ordinal))
+            throw new ArgumentException("Drive name must end with ':' (e.g. 'd:').", nameof(driveName));
+
+        Directory.CreateDirectory(dosDevicesDir);
+
+        var linkPath    = Path.Combine(dosDevicesDir, driveName);
+        var targetValue = relativeTarget.Replace('\\', '/'); // Wine/Proton typically use Unix-style paths here
+
+        // If there is already something at this path, we assume the user knows what they are doing
+        // and do not override it automatically.
+        if (File.Exists(linkPath) || Directory.Exists(linkPath))
+            return;
+
+        try
+        {
+            #if NET6_0_OR_GREATER
+            // .NET on Linux can create directory symlinks directly.
+            File.CreateSymbolicLink(linkPath, targetValue);
+            #else
+            // Fallback: call ln -s on Linux.
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                return;
+
+            var psi = new ProcessStartInfo
+            {
+                FileName               = "ln",
+                ArgumentList           = { "-s", targetValue, linkPath },
+                UseShellExecute        = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true
+            };
+
+            using var proc = Process.Start(psi);
+            proc?.WaitForExit();
+            #endif
+        }
+        catch (Exception ex)
+        {
+            // Best-effort only – prefix wiring must not crash the launcher.
+            Debug.WriteLine($"[Launcher] Failed to create dosdevices mapping {driveName} -> {relativeTarget}: {ex.Message}");
+        }
+    }
+    
     private static string SanitizeForPathSegment(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
