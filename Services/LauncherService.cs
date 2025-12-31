@@ -138,6 +138,18 @@ public sealed class LauncherService
             if (shouldApplyPrefix)
                 ConfigureWinePrefix(item, nodePath, startInfo);
 
+            // Apply per-item environment overrides (e.g. UMU_PROTON_PATH, PROTON_LOG, DXVK_HUD)
+            if (item.EnvironmentOverrides is { Count: > 0 })
+            {
+                foreach (var kv in item.EnvironmentOverrides)
+                {
+                    if (string.IsNullOrWhiteSpace(kv.Key))
+                        continue;
+
+                    startInfo.EnvironmentVariables[kv.Key] = kv.Value ?? string.Empty;
+                }
+            }
+            
             startInfo.Arguments = args ?? string.Empty;
             // DEBUG: log the exact command-line we are about to run
             Debug.WriteLine($"[Launcher] START: {startInfo.FileName} {startInfo.Arguments}");

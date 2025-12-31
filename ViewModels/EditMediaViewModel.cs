@@ -62,6 +62,33 @@ public partial class EditMediaViewModel : ViewModelBase
     /// </summary>
     public IAsyncRelayCommand ChangePrimaryFileCommand { get; }
     
+    // --- Per-item environment overrides (e.g. UMU_PROTON_PATH, PROTON_LOG) ---
+
+    public sealed partial class EnvVarRow : ObservableObject
+    {
+        [ObservableProperty] private string _key = string.Empty;
+        [ObservableProperty] private string _value = string.Empty;
+    }
+
+    /// <summary>
+    /// Editable list of per-item environment overrides.
+    /// </summary>
+    public ObservableCollection<EnvVarRow> EnvironmentOverrides { get; } = new();
+
+    public IRelayCommand AddEnvironmentVariableCommand { get; }
+    public IRelayCommand<EnvVarRow?> RemoveEnvironmentVariableCommand { get; }
+
+    private void AddEnvironmentVariable()
+    {
+        EnvironmentOverrides.Add(new EnvVarRow());
+    }
+
+    private void RemoveEnvironmentVariable(EnvVarRow? row)
+    {
+        if (row == null) return;
+        EnvironmentOverrides.Remove(row);
+    }
+    
     private void GeneratePrefix()
     {
         // Only generate if not already set (user might have a custom path)
@@ -404,6 +431,10 @@ public partial class EditMediaViewModel : ViewModelBase
         // Primary launch file command
         ChangePrimaryFileCommand = new AsyncRelayCommand(ChangePrimaryFileAsync);
         
+        // Environment overrides commands
+        AddEnvironmentVariableCommand = new RelayCommand(AddEnvironmentVariable);
+        RemoveEnvironmentVariableCommand = new RelayCommand<EnvVarRow?>(RemoveEnvironmentVariable);
+
         // General commands.
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
         
@@ -454,9 +485,22 @@ public partial class EditMediaViewModel : ViewModelBase
         
         LoadItemData();
         InitializeEmulators(settings);
-        
         InitializeNativeWrapperUiFromItem();
 
+        // Initialize environment overrides from the original item
+        EnvironmentOverrides.Clear();
+        if (_originalItem.EnvironmentOverrides is { Count: > 0 })
+        {
+            foreach (var kv in _originalItem.EnvironmentOverrides)
+            {
+                EnvironmentOverrides.Add(new EnvVarRow
+                {
+                    Key = kv.Key,
+                    Value = kv.Value
+                });
+            }
+        }
+        
         // After initialization, ensure commands reflect the current list state
         MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
         MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
@@ -499,7 +543,7 @@ public partial class EditMediaViewModel : ViewModelBase
     
     private void LoadItemData()
     {
-        // Load metadata into the temporary buffer.
+        // Load metadata into the temporary buffer
         Title = _originalItem.Title;
         Developer = _originalItem.Developer;
         Genre = _originalItem.Genre;
@@ -508,7 +552,7 @@ public partial class EditMediaViewModel : ViewModelBase
         Description = _originalItem.Description;
         MediaType = _originalItem.MediaType;
         
-        // Load launch configuration.
+        // Load launch configuration
         LauncherPath = _originalItem.LauncherPath;
         OverrideWatchProcess = _originalItem.OverrideWatchProcess ?? string.Empty;
         
@@ -516,18 +560,16 @@ public partial class EditMediaViewModel : ViewModelBase
         PrefixPath = _originalItem.PrefixPath ?? string.Empty;
         
         // Arguments: load exactly what is stored on the item.
-        // No automatic "{file}" injection here; defaults are handled only
-        // when the user explicitly switches MediaType in the UI.
         LauncherArgs = _originalItem.LauncherArgs ?? string.Empty;
         
-        // Assets do not need to be loaded separately because we bind directly to _originalItem.Assets.
+        // Assets do not need to be loaded separately because we bind directly to _originalItem.Assets
         // The FileService should ensure the assets list is up to date before opening this dialog
-        // (via something like RefreshItemAssets).
+        // (via something like RefreshItemAssets)
     }
 
     partial void OnMediaTypeChanged(MediaType value)
     {
-        // When switching to Native, strip any leftover {file} placeholder (friendlier defaults).
+        // When switching to Native, strip any leftover {file} placeholder (friendlier defaults)
         if (value == MediaType.Native)
         {
             if (string.Equals(LauncherArgs?.Trim(), "{file}", StringComparison.Ordinal) ||
@@ -540,7 +582,7 @@ public partial class EditMediaViewModel : ViewModelBase
         }
 
         // When switching to Emulator and we are in manual-emulator mode (no profile selected),
-        // insert a default {file} placeholder if the field is empty.
+        // insert a default {file} placeholder if the field is empty
         if (value == MediaType.Emulator && IsManualEmulator)
         {
             if (string.IsNullOrWhiteSpace(LauncherArgs))
@@ -1068,7 +1110,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
     private void Save()
     {
-        // 1. Write metadata back to the original item.
+        // 1. Write metadata back to the original item
         _originalItem.Title = Title;
         _originalItem.Developer = Developer;
         _originalItem.Genre = Genre;
@@ -1080,7 +1122,7 @@ public partial class EditMediaViewModel : ViewModelBase
         // Prefix: store null when not used
         _originalItem.PrefixPath = string.IsNullOrWhiteSpace(PrefixPath) ? null : PrefixPath.Trim();
         
-        // 2. Write launch configuration back.
+        // 2. Write launch configuration back
         if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
         {
             _originalItem.EmulatorId = SelectedEmulatorProfile.Id;
@@ -1089,7 +1131,7 @@ public partial class EditMediaViewModel : ViewModelBase
         {
             _originalItem.EmulatorId = null;
 
-            // Manual emulator only: LauncherPath is the tool/emulator path.
+            // Manual emulator only: LauncherPath is the tool/emulator path
             if (MediaType == MediaType.Emulator)
             {
                 _originalItem.LauncherPath = LauncherPath;
@@ -1097,7 +1139,7 @@ public partial class EditMediaViewModel : ViewModelBase
             }
             else
             {
-                // Native: LauncherPath is deprecated (wrapper chain handles launching).
+                // Native: LauncherPath is deprecated (wrapper chain handles launching)
                 _originalItem.LauncherPath = null;
                 _originalItem.LauncherArgs = LauncherArgs;
             }
@@ -1122,6 +1164,16 @@ public partial class EditMediaViewModel : ViewModelBase
                     .Where(x => !string.IsNullOrWhiteSpace(x.Path))
                     .ToList();
                 break;
+        }
+        
+        // 4. Environment overrides: sync back into the model dictionary
+        _originalItem.EnvironmentOverrides.Clear();
+        foreach (var row in EnvironmentOverrides)
+        {
+            if (string.IsNullOrWhiteSpace(row.Key))
+                continue;
+
+            _originalItem.EnvironmentOverrides[row.Key.Trim()] = row.Value ?? string.Empty;
         }
     }
 }

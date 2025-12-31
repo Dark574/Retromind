@@ -157,7 +157,7 @@
                         </StackPanel>
 
                         <!-- Prefix (Wine/Proton/UMU) -->
-                        <Expander Header="Prefix (Wine/Proton/UMU)" IsExpanded="False" Margin="0,10,0,0">
+                        <Expander Header="Prefix (Wine/Proton/UMU)" IsExpanded="False" Margin="0,10,0,0" HorizontalAlignment="Stretch">
                             <StackPanel Spacing="10">
                                 <TextBlock Opacity="0.7" FontSize="11"
                                            Text="Optional. If set, WINEPREFIX will be used when launching. For Native+Wrapper: the prefix is applied only when PrefixPath is set here." />
@@ -181,6 +181,39 @@
                             </StackPanel>
                         </Expander>
 
+                        <!-- Per-item environment variables -->
+                        <Expander Header="Environment (per item)" IsExpanded="False" Margin="0,10,0,0" HorizontalAlignment="Stretch">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Optional key/value pairs applied to the launched process."
+                                           Opacity="0.7" FontSize="11"/>
+
+                                <ItemsControl ItemsSource="{Binding EnvironmentOverrides}"
+                                              HorizontalAlignment="Stretch">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid ColumnDefinitions="2*, 3*, Auto" Margin="0,2,0,2" HorizontalAlignment="Stretch">
+                                                <TextBox Grid.Column="0"
+                                                         Text="{Binding Key, Mode=TwoWay}"
+                                                         Watermark="VAR_NAME (e.g. UMU_PROTON_PATH)" />
+                                                <TextBox Grid.Column="1"
+                                                         Text="{Binding Value, Mode=TwoWay}"
+                                                         Margin="4,0,4,0"
+                                                         Watermark="value" />
+                                                <Button Grid.Column="2"
+                                                        Content="✕"
+                                                        Command="{Binding $parent[Window].((vm:EditMediaViewModel)DataContext).RemoveEnvironmentVariableCommand}"
+                                                        CommandParameter="{Binding .}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Button Content="+ Add variable"
+                                        Command="{Binding AddEnvironmentVariableCommand}"
+                                        HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Expander>
+                        
                         <!-- Native wrapper chain (Linux) - item-level override -->
                         <StackPanel Spacing="8"
                                     Margin="0,15,0,0"

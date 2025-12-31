@@ -10,27 +10,35 @@ using Retromind.Helpers;
 namespace Retromind.Models;
 
 /// <summary>
-/// Represents a single media entry (Game, Movie, Book, etc.) in the library.
-/// Contains all metadata, file references, launch configuration, and statistics.
+/// Represents a single media entry (Game, Movie, Book, etc.) in the library
+/// Contains all metadata, file references, launch configuration, and statistics
 /// </summary>
 public partial class MediaItem : ObservableObject
 {
     // --- Identification ---
 
     /// <summary>
-    /// Native wrapper override for this item.
-    /// null = inherit, empty list = explicit "no wrappers", non-empty list = override.
+    /// Native wrapper override for this item
+    /// null = inherit, empty list = explicit "no wrappers", non-empty list = override
     /// </summary>
     public List<LaunchWrapper>? NativeWrappersOverride { get; set; }
 
     /// <summary>
-    /// Unique identifier for this item.
+    /// Per-item environment variable overrides for the launched process
+    /// Keys are variable names (e.g. "UMU_PROTON_PATH"), values are the desired contents
+    /// These are applied on top of the inherited environment and can be used to tweak
+    /// Proton/Wine runners or emulators on a per-game basis
+    /// </summary>
+    public Dictionary<string, string> EnvironmentOverrides { get; set; } = new();
+    
+    /// <summary>
+    /// Unique identifier for this item
     /// </summary>
     [ObservableProperty]
     private string _id = Guid.NewGuid().ToString();
 
     /// <summary>
-    /// The display title of the item.
+    /// The display title of the item
     /// </summary>
     [ObservableProperty]
     private string _title = string.Empty;
@@ -38,14 +46,14 @@ public partial class MediaItem : ObservableObject
     // --- Core Data ---
 
     /// <summary>
-    /// File references for this item (multi-disc, multi-part, etc.).
-    /// For now we primarily support Absolute paths (portable Retromind, external media).
+    /// File references for this item (multi-disc, multi-part, etc.)
+    /// For now we primarily support Absolute paths (portable Retromind, external media)
     /// </summary>
     [ObservableProperty]
     private List<MediaFileRef> _files = new();
 
     /// <summary>
-    /// Type of the media, determining how it is launched.
+    /// Type of the media, determining how it is launched
     /// </summary>
     [ObservableProperty]
     private MediaType _mediaType = MediaType.Native;
@@ -59,22 +67,22 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private string? _players;
 
     /// <summary>
-    /// Original release date of the media.
+    /// Original release date of the media
     /// </summary>
     [ObservableProperty] private DateTime? _releaseDate;
 
     /// <summary>
-    /// User rating (normalized 0-100).
+    /// User rating (normalized 0-100)
     /// </summary>
     [ObservableProperty] private double _rating;
 
     /// <summary>
-    /// Current play status (e.g. Completed, Abandoned).
+    /// Current play status (e.g. Completed, Abandoned)
     /// </summary>
     [ObservableProperty] private PlayStatus _status = PlayStatus.Incomplete;
 
     /// <summary>
-    /// Gets or sets a value indicating whether this item is marked as a favorite.
+    /// Gets or sets a value indicating whether this item is marked as a favorite
     /// </summary>
     [ObservableProperty] private bool _isFavorite;
 
@@ -134,7 +142,7 @@ public partial class MediaItem : ObservableObject
     }
 
     /// <summary>
-    /// Sets an asset explicitly as "active" for display (used by randomization).
+    /// Sets an asset explicitly as "active" for display (used by randomization)
     /// </summary>
     public void SetActiveAsset(AssetType type, string relativePath)
     {
@@ -170,7 +178,7 @@ public partial class MediaItem : ObservableObject
     }
 
     /// <summary>
-    /// Clears all forced overrides (random images) and reverts back to defaults.
+    /// Clears all forced overrides (random images) and reverts back to defaults
     /// </summary>
     public void ResetActiveAssets()
     {
@@ -196,13 +204,13 @@ public partial class MediaItem : ObservableObject
     public string? PrimaryMarqueePath => GetPrimaryAssetAbsolutePath(AssetType.Marquee);
     public string? PrimaryBannerPath => GetPrimaryAssetAbsolutePath(AssetType.Banner);
     /// <summary>
-    /// Primary bezel artwork for this item, resolved to an absolute path.
-    /// Used by arcade-style themes to decorate the game screen.
+    /// Primary bezel artwork for this item, resolved to an absolute path
+    /// Used by arcade-style themes to decorate the game screen
     /// </summary>
     public string? PrimaryBezelPath => GetPrimaryAssetAbsolutePath(AssetType.Bezel);
     /// <summary>
-    /// Primary control panel artwork for this item, resolved to an absolute path.
-    /// Used by arcade-style themes to show joysticks/buttons layout.
+    /// Primary control panel artwork for this item, resolved to an absolute path
+    /// Used by arcade-style themes to show joysticks/buttons layout
     /// </summary>
     public string? PrimaryControlPanelPath => GetPrimaryAssetAbsolutePath(AssetType.ControlPanel);
 
@@ -210,7 +218,7 @@ public partial class MediaItem : ObservableObject
     // --- Launch: Multi-file helpers ---
 
     /// <summary>
-    /// Returns the primary file reference used for default launching (Disc 1 / first entry).
+    /// Returns the primary file reference used for default launching (Disc 1 / first entry)
     /// </summary>
     public MediaFileRef? GetPrimaryFile()
     {
@@ -236,7 +244,7 @@ public partial class MediaItem : ObservableObject
     /// Supports:
     /// - Absolute paths (as stored)
     /// - Library-relative paths (relative to AppPaths.DataRoot / portable AppImage folder)
-    /// Future kinds can be added without changing callers.
+    /// Future kinds can be added without changing callers
     /// </summary>
     public string? GetPrimaryLaunchPath()
     {
@@ -249,8 +257,8 @@ public partial class MediaItem : ObservableObject
         switch (primary.Kind)
         {
             case MediaFileKind.LibraryRelative:
-                // Path is stored relative to the portable DataRoot (AppImage folder).
-                // Resolve it to an absolute path for launching.
+                // Path is stored relative to the portable DataRoot (AppImage folder)
+                // Resolve it to an absolute path for launching
                 return AppPaths.ResolveDataPath(primary.Path);
 
             case MediaFileKind.Absolute:
@@ -259,7 +267,7 @@ public partial class MediaItem : ObservableObject
                 // (e.g. ROMs on the same USB stick as the AppImage),
                 // convert it once to a LibraryRelative path. This makes the entry
                 // robust across different users/mount points as long as DataRoot
-                // (the AppImage directory) moves together with the ROMs.
+                // (the AppImage directory) moves together with the ROMs
                 var absolutePath = primary.Path;
 
                 if (Path.IsPathRooted(absolutePath))
@@ -274,7 +282,7 @@ public partial class MediaItem : ObservableObject
                                 StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(normalizedAbsolute, normalizedRoot, StringComparison.OrdinalIgnoreCase))
                         {
-                            // Compute relative path from DataRoot to the ROM file.
+                            // Compute relative path from DataRoot to the ROM file
                             var relative = Path.GetRelativePath(normalizedRoot, normalizedAbsolute);
 
                             primary.Kind = MediaFileKind.LibraryRelative;
@@ -285,18 +293,18 @@ public partial class MediaItem : ObservableObject
                     }
                     catch
                     {
-                        // Best-effort: if anything goes wrong, fall back to the original absolute path.
+                        // Best-effort: if anything goes wrong, fall back to the original absolute path
                         return absolutePath;
                     }
                 }
 
-                // Outside of DataRoot: keep absolute as-is (classic behavior).
+                // Outside of DataRoot: keep absolute as-is (classic behavior)
                 return absolutePath;
             }
 
             case MediaFileKind.MountRelative:
-                // Future: implement mount-root based resolution here.
-                // For now, treat it like a raw path.
+                // Future: implement mount-root based resolution here
+                // For now, treat it like a raw path
                 return primary.Path;
 
             default:
@@ -307,29 +315,29 @@ public partial class MediaItem : ObservableObject
     // --- Launch Configuration ---
 
     /// <summary>
-    /// Link to a specific Emulator Profile ID (if MediaType is Emulator).
-    /// If null, manual configuration below is used.
+    /// Link to a specific Emulator Profile ID (if MediaType is Emulator)
+    /// If null, manual configuration below is used
     /// </summary>
     [ObservableProperty] private string? _emulatorId;
 
     /// <summary>
-    /// Custom path to the executable launcher (if not using a profile).
+    /// Custom path to the executable launcher (if not using a profile)
     /// </summary>
     [ObservableProperty] private string? _launcherPath;
 
     /// <summary>
-    /// Command line arguments. Placeholder {file} is replaced by the primary launch file.
+    /// Command line arguments. Placeholder {file} is replaced by the primary launch file
     /// </summary>
     [ObservableProperty] private string? _launcherArgs;
 
     /// <summary>
-    /// Optional: Path to a WINE prefix directory (relative to library root or absolute).
+    /// Optional: Path to a WINE prefix directory (relative to library root or absolute)
     /// </summary>
     [ObservableProperty] private string? _prefixPath;
 
     /// <summary>
-    /// Optional: Name of the process to watch for playtime tracking (e.g. "hl2_linux").
-    /// Useful if the launcher exits immediately (like Steam).
+    /// Optional: Name of the process to watch for playtime tracking (e.g. "hl2_linux")
+    /// Useful if the launcher exits immediately (like Steam)
     /// </summary>
     [ObservableProperty] private string? _overrideWatchProcess;
 
@@ -355,7 +363,7 @@ public partial class MediaItem : ObservableObject
     private void OnAssetsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         // Model layer must be UI-agnostic:
-        // Ensure the caller modifies Assets on the UI thread if the UI is bound to this collection.
+        // Ensure the caller modifies Assets on the UI thread if the UI is bound to this collection
 
         var keysToRemove = new List<AssetType>();
         foreach (var kvp in _activeAssets)
@@ -384,12 +392,12 @@ public partial class MediaItem : ObservableObject
 }
 
 /// <summary>
-/// Defines how the media item is launched.
+/// Defines how the media item is launched
 /// </summary>
 public enum MediaType
 {
     /// <summary>
-    /// Directly executable (Binary, Shell Script).
+    /// Directly executable (Binary, Shell Script)
     /// </summary>
     Native,
     /// <summary>
@@ -403,7 +411,7 @@ public enum MediaType
 }
 
 /// <summary>
-/// Completion status of the item.
+/// Completion status of the item
 /// </summary>
 public enum PlayStatus
 {
