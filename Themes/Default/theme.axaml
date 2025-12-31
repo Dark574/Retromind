@@ -56,14 +56,14 @@
         <!-- Very transparent wallpaper from the current item -->
         <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
                Stretch="UniformToFill"
-               Opacity="0.20"
+               Opacity="0.30"
                HorizontalAlignment="Center"
                VerticalAlignment="Center"
                IsVisible="{Binding SelectedItem.PrimaryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
                IsHitTestVisible="False" />
 
         <!-- Two-column layout: navigation on the left, video + details on the right -->
-        <Grid ColumnDefinitions="0.25*,0.75*"
+        <Grid ColumnDefinitions="0.20*,0.80*"
               Margin="32,24">
 
             <!-- LEFT COLUMN: category, big title, list -->

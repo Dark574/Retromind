@@ -30,7 +30,7 @@
             <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoPath}"
                    Height="80"
                    Stretch="Uniform"
-                   HorizontalAlignment="Left"
+                   HorizontalAlignment="Center"
                    IsVisible="{Binding SelectedCategory.PrimaryLogoPath,
                                                    Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
 

@@ -10,7 +10,7 @@
              Background="Black"
 
              ext:ThemeProperties.AccentColor="#FFD700"
-             ext:ThemeProperties.BackgroundDimOpacity="0.25"
+             ext:ThemeProperties.BackgroundDimOpacity="0.30"
              ext:ThemeProperties.TitleFontSize="48"
              ext:ThemeProperties.BodyFontSize="18"
              ext:ThemeProperties.FadeDurationMs="250"
