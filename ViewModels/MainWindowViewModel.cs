@@ -533,6 +533,34 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
     
+    /// <summary>
+    /// Converts all absolute launch file paths that are located under AppPaths.DataRoot
+    /// into LibraryRelative paths, then persists the updated library
+    /// This is intended as a one-time operation when switching to a portable setup
+    /// </summary>
+    public async Task ConvertLaunchPathsToPortableAsync()
+    {
+        if (RootItems == null || RootItems.Count == 0)
+            return;
+
+        try
+        {
+            var migrated = LibraryMigrationHelper.MigrateLaunchFilePathsToLibraryRelative(RootItems);
+            if (migrated <= 0)
+            {
+                Debug.WriteLine("[Migration] No launch file paths needed conversion.");
+                return;
+            }
+
+            Debug.WriteLine($"[Migration] Converted {migrated} launch file paths to LibraryRelative.");
+            await _dataService.SaveAsync(RootItems);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Migration] ConvertLaunchPathsToPortableAsync failed: {ex}");
+        }
+    }
+    
     // --- Content Logic (The heart of the UI) ---
     private void UpdateContent()
     {
@@ -576,8 +604,8 @@ public partial class MainWindowViewModel : ViewModelBase
             bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);
             bool randomizeCovers = IsRandomizeActive(nodeToLoad);
 
-            // Compute the randomization winners in the background.
-            // Applying Reset/SetActiveAsset happens on the UI thread to avoid cross-thread binding issues.
+            // Compute the randomization winners in the background
+            // Applying Reset/SetActiveAsset happens on the UI thread to avoid cross-thread binding issues
             var randomizationPlan =
                 new System.Collections.Generic.List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)>(
                     capacity: itemList.Count);

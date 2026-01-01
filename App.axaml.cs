@@ -87,7 +87,7 @@ public partial class App : Application
                 };
                 desktop.MainWindow = mainWindow;
 
-                // Fire-and-forget data loading to keep the UI responsive.
+                // Fire-and-forget data loading to keep the UI responsive
                 var dataLoadingTask = mainViewModel.LoadData();
 
                 if (IsBigModeOnly)

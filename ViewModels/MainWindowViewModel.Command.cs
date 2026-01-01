@@ -621,6 +621,12 @@ public partial class MainWindowViewModel
 
         settingsVm.RequestClose += () => { dialog.Close(); };
     
+        // Allow the settings dialog to request a one-time portable migration
+        settingsVm.RequestPortableMigration += async () =>
+        {
+            await ConvertLaunchPathsToPortableAsync();
+        };
+        
         await dialog.ShowDialog(owner);
         SaveSettingsOnly();
     }

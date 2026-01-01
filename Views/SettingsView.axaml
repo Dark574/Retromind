@@ -12,16 +12,18 @@
     <Grid RowDefinitions="Auto, *, Auto" Margin="20">
 
         <!-- Header Hint -->
-        <TextBlock Grid.Row="0" Text="{x:Static p:Strings.Settings_GlobalSettingsHint}"
-                   Margin="0,0,0,5" Opacity="0.6" FontStyle="Italic" />
+        <StackPanel Grid.Row="0" Orientation="Vertical" Spacing="5" Margin="0,0,0,15">
+            <TextBlock Text="{x:Static p:Strings.Settings_GlobalSettingsHint}"
+                       Opacity="0.6" FontStyle="Italic" />
 
-        <!-- Portable launch path toggle -->
-        <CheckBox Grid.Row="0"
-                  Margin="0,20,0,15"
-                  VerticalAlignment="Bottom"
-                  IsChecked="{Binding PreferPortableLaunchPaths}"
-                  Content="Store launch file paths relative to Retromind data folder (portable)">
-        </CheckBox>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <CheckBox IsChecked="{Binding PreferPortableLaunchPaths}"
+                          Content="Store launch file paths relative to Retromind data folder (portable)" />
+
+                <Button Content="Convert existing launch paths to portable"
+                        Command="{Binding ConvertExistingToPortableCommand}" />
+            </StackPanel>
+        </StackPanel>
         
         <!-- Main Content with Tabs -->
         <TabControl Grid.Row="1">

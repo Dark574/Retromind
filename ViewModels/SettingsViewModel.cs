@@ -149,6 +149,7 @@ public partial class SettingsViewModel : ViewModelBase
     public IRelayCommand RemoveScraperCommand { get; }
     public IRelayCommand SaveCommand { get; }
     public IAsyncRelayCommand BrowsePathCommand { get; }
+    public IAsyncRelayCommand ConvertExistingToPortableCommand { get; }
 
     // Emulator wrapper editor commands
     public IRelayCommand AddEmulatorWrapperCommand { get; }
@@ -157,6 +158,13 @@ public partial class SettingsViewModel : ViewModelBase
     public IRelayCommand<LaunchWrapperRow?> MoveEmulatorWrapperDownCommand { get; }
     
     public event Action? RequestClose;
+    
+    /// <summary>
+    /// Raised when the user explicitly requests to convert existing launch
+    /// file paths under the Retromind folder into portable (DataRoot-relative) paths
+    /// The main window view model is responsible for performing the actual migration
+    /// </summary>
+    public event Func<Task>? RequestPortableMigration;
 
     // Optional dependency injection for file dialogs (better for testing)
     public IStorageProvider? StorageProvider { get; set; }
@@ -185,6 +193,9 @@ public partial class SettingsViewModel : ViewModelBase
         
         SaveCommand = new RelayCommand(Save);
         BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync, () => SelectedEmulator != null);
+        
+        // command to request migration to portable launch paths
+        ConvertExistingToPortableCommand = new AsyncRelayCommand(ConvertExistingToPortableAsync);
         
         // Emulator-wrapper commands
         AddEmulatorWrapperCommand = new RelayCommand(AddEmulatorWrapper);
@@ -347,6 +358,22 @@ public partial class SettingsViewModel : ViewModelBase
             
             Scrapers.Remove(SelectedScraper);
             SelectedScraper = null;
+        }
+    }
+    
+    private async Task ConvertExistingToPortableAsync()
+    {
+        // Forward the request to whoever is listening (typically MainWindowViewModel)
+        if (RequestPortableMigration != null)
+        {
+            try
+            {
+                await RequestPortableMigration.Invoke();
+            }
+            catch
+            {
+                // Best-effort: migration errors are handled by the subscriber
+            }
         }
     }
     
