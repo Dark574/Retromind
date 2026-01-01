@@ -60,6 +60,12 @@ public partial class SearchAreaViewModel : ViewModelBase
     private double _itemWidth = DefaultItemWidth;
 
     /// <summary>
+    /// When true, only items marked as favorites are included in the global search results
+    /// </summary>
+    [ObservableProperty]
+    private bool _onlyFavorites;
+    
+    /// <summary>
     /// Result collection optimized for bulk updates.
     /// </summary>
     public RangeObservableCollection<MediaItem> SearchResults { get; } = new();
@@ -98,6 +104,7 @@ public partial class SearchAreaViewModel : ViewModelBase
 
     partial void OnSearchTextChanged(string value) => RequestSearch();
     partial void OnSearchYearChanged(string value) => RequestSearch();
+    partial void OnOnlyFavoritesChanged(bool value) => RequestSearch();
 
     private void InitializeScopes()
     {
@@ -155,9 +162,12 @@ public partial class SearchAreaViewModel : ViewModelBase
     {
         var query = SearchText?.Trim();
         var yearText = SearchYear?.Trim();
+        var favoritesOnly = OnlyFavorites;
 
-        // If both filters are empty, do not show the entire library (too expensive/noisy).
-        if (string.IsNullOrWhiteSpace(query) && string.IsNullOrWhiteSpace(yearText))
+        // If all filters are empty and "favorites only" is off, do not show the entire library
+        if (string.IsNullOrWhiteSpace(query) &&
+            string.IsNullOrWhiteSpace(yearText) &&
+            !favoritesOnly)
         {
             await UiThreadHelper.InvokeAsync(() =>
             {
@@ -173,7 +183,7 @@ public partial class SearchAreaViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(yearText) && int.TryParse(yearText, out var parsedYear))
             filterYear = parsedYear;
 
-        // Snapshot active scopes (avoid enumerating ObservableCollection from background threads).
+        // Snapshot active scopes (avoid enumerating ObservableCollection from background threads)
         var activeScopes = new List<MediaNode>(capacity: Scopes.Count);
         for (int i = 0; i < Scopes.Count; i++)
         {
@@ -187,7 +197,7 @@ public partial class SearchAreaViewModel : ViewModelBase
         for (int i = 0; i < activeScopes.Count; i++)
         {
             token.ThrowIfCancellationRequested();
-            CollectMatchesRecursive(activeScopes[i], results, query, filterYear, token);
+            CollectMatchesRecursive(activeScopes[i], results, query, filterYear, favoritesOnly, token);
         }
 
         await UiThreadHelper.InvokeAsync(() =>
@@ -207,11 +217,12 @@ public partial class SearchAreaViewModel : ViewModelBase
         List<MediaItem> matches,
         string? query,
         int? filterYear,
+        bool favoritesOnly,
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
 
-        // Scan items in this node.
+        // Scan items in this node
         var items = node.Items;
         for (int i = 0; i < items.Count; i++)
         {
@@ -219,7 +230,7 @@ public partial class SearchAreaViewModel : ViewModelBase
 
             var item = items[i];
 
-            if (!Matches(item, query, filterYear))
+            if (!Matches(item, query, filterYear, favoritesOnly))
                 continue;
 
             matches.Add(item);
@@ -229,13 +240,17 @@ public partial class SearchAreaViewModel : ViewModelBase
         var children = node.Children;
         for (int i = 0; i < children.Count; i++)
         {
-            CollectMatchesRecursive(children[i], matches, query, filterYear, token);
+            CollectMatchesRecursive(children[i], matches, query, filterYear, favoritesOnly, token);
         }
     }
 
-    private static bool Matches(MediaItem item, string? query, int? filterYear)
+    private static bool Matches(MediaItem item, string? query, int? filterYear, bool favoritesOnly)
     {
-        // 1) Text filter
+        // 1) Favorites filter
+        if (favoritesOnly && !item.IsFavorite)
+            return false;
+
+        // 2) Text filter
         if (!string.IsNullOrWhiteSpace(query))
         {
             var title = item.Title;
@@ -243,7 +258,7 @@ public partial class SearchAreaViewModel : ViewModelBase
                 return false;
         }
 
-        // 2) Year filter
+        // 3) Year filter
         if (filterYear.HasValue)
         {
             if (item.ReleaseDate?.Year != filterYear.Value)

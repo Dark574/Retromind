@@ -20,7 +20,7 @@
             <StackPanel Spacing="10">
 
                 <!-- Row 1: Search inputs -->
-                <Grid ColumnDefinitions="Auto, 20, Auto, 10, Auto, 10, Auto, *, Auto">
+                <Grid ColumnDefinitions="Auto, 20, Auto, 10, Auto, 10, Auto, *, Auto, Auto">
                     <TextBlock Grid.Column="0"
                                Text="{x:Static p:Strings.Search_GlobalShort}"
                                FontSize="20"
@@ -55,6 +55,18 @@
                                 Maximum="300"
                                 Width="100"/>
                     </StackPanel>
+                    
+                    <!-- Favorites-only toggle -->
+                    <CheckBox Grid.Column="9"
+                              IsChecked="{Binding OnlyFavorites}"
+                              VerticalAlignment="Center"
+                              Margin="20,0,0,0"
+                              ToolTip.Tip="Search only among favorite items.">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <TextBlock Text="★"/>
+                            <TextBlock Text="Favorites only"/>
+                        </StackPanel>
+                    </CheckBox>
                 </Grid>
 
                 <!-- Row 2: Scopes -->

@@ -53,6 +53,33 @@
                     <PathIcon Data="{StaticResource IconPencilGeometry}"
                             Width="18" Height="18" />
                 </Button>
+                
+                <!-- Favorite toggle (top-left) -->
+                <!-- Simple star toggle bound to MediaItem.IsFavorite -->
+                <ToggleButton Width="30" Height="30"
+                              Padding="0"
+                              Background="Transparent"
+                              BorderThickness="0"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top"
+                              ToolTip.Tip="Mark or unmark this item as a favorite."
+                              IsChecked="{Binding IsFavorite}">
+                    <ToggleButton.Styles>
+                        <!-- Default: gray star -->
+                        <Style Selector="ToggleButton TextBlock#FavoriteStar">
+                            <Setter Property="Foreground" Value="Gray" />
+                        </Style>
+
+                        <!-- When checked: gold star -->
+                        <Style Selector="ToggleButton:checked TextBlock#FavoriteStar">
+                            <Setter Property="Foreground" Value="Gold" />
+                        </Style>
+                    </ToggleButton.Styles>
+
+                    <TextBlock x:Name="FavoriteStar"
+                               Text="★"
+                               FontSize="18" />
+                </ToggleButton>
             </Grid>
 
             <!-- Play button -->

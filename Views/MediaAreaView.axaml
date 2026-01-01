@@ -28,6 +28,16 @@
                     </StackPanel>
                 </Button>
 
+                <!-- Favorites-only toggle -->
+                <CheckBox IsChecked="{Binding OnlyFavorites}"
+                          VerticalAlignment="Center"
+                          ToolTip.Tip="Show only favorite items in this view.">
+                    <StackPanel Orientation="Horizontal" Spacing="3">
+                        <TextBlock Text="★"/>
+                        <TextBlock Text="Favorites only"/>
+                    </StackPanel>
+                </CheckBox>
+                
                 <!-- Search -->
                 <TextBox Text="{Binding SearchText}" 
                          Watermark="{x:Static p:Strings.Search_Search}" 

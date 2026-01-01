@@ -46,6 +46,13 @@ public partial class MediaAreaViewModel : ViewModelBase
     private string _searchText = string.Empty;
 
     /// <summary>
+    /// When true, only items marked as favorites are shown in the list
+    /// This flag is combined with the text search filter
+    /// </summary>
+    [ObservableProperty]
+    private bool _onlyFavorites;
+    
+    /// <summary>
     /// Collection bound to the view. Range updates minimize UI stalls.
     /// </summary>
     public RangeObservableCollection<MediaItem> FilteredItems { get; } = new();
@@ -76,6 +83,12 @@ public partial class MediaAreaViewModel : ViewModelBase
         DebouncedApplyFilter(value);
     }
 
+    partial void OnOnlyFavoritesChanged(bool value)
+    {
+        // Re-apply the current filter when the favorites toggle changes
+        DebouncedApplyFilter(SearchText);
+    }
+    
     private void DebouncedApplyFilter(string querySnapshot)
     {
         _searchDebounceCts?.Cancel();
@@ -115,8 +128,9 @@ public partial class MediaAreaViewModel : ViewModelBase
     private List<MediaItem> BuildMatches(string querySnapshot, CancellationToken token)
     {
         var query = querySnapshot?.Trim();
+        var favoritesOnly = OnlyFavorites;
 
-        if (string.IsNullOrWhiteSpace(query))
+        if (string.IsNullOrWhiteSpace(query) && !favoritesOnly)
         {
             // Return a copy to keep the API consistent (List<MediaItem>),
             // while avoiding enumerating UI-bound collections in the background.
@@ -130,13 +144,22 @@ public partial class MediaAreaViewModel : ViewModelBase
             token.ThrowIfCancellationRequested();
 
             var item = _allItems[i];
+            
+            if (favoritesOnly && !item.IsFavorite)
+                continue;
+            
             var title = item.Title;
 
-            if (!string.IsNullOrEmpty(title) &&
-                title.Contains(query, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(query))
             {
-                matches.Add(item);
+                if (string.IsNullOrEmpty(title) ||
+                    !title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
             }
+
+            matches.Add(item);
         }
 
         return matches;
@@ -146,9 +169,9 @@ public partial class MediaAreaViewModel : ViewModelBase
     {
         var query = querySnapshot?.Trim();
 
-        if (string.IsNullOrWhiteSpace(query))
+        if (string.IsNullOrWhiteSpace(query) && !OnlyFavorites)
         {
-            // Avoid unnecessary resets if we already show all items.
+            // Avoid unnecessary resets if we already show all items
             if (FilteredItems.Count == _allItems.Count)
                 return;
         }
@@ -159,10 +182,11 @@ public partial class MediaAreaViewModel : ViewModelBase
     private void ApplyFilter()
     {
         var query = SearchText?.Trim();
+        var favoritesOnly = OnlyFavorites;
 
-        if (string.IsNullOrWhiteSpace(query))
+        if (string.IsNullOrWhiteSpace(query) && !favoritesOnly)
         {
-            // Avoid unnecessary resets if we already show all items.
+            // Avoid unnecessary resets if we already show all items
             if (FilteredItems.Count == _allItems.Count)
                 return;
 
@@ -170,27 +194,36 @@ public partial class MediaAreaViewModel : ViewModelBase
             return;
         }
 
-        // Allocation-light filtering: one pass, no LINQ iterator chain.
+        // Allocation-light filtering: one pass, no LINQ iterator chain
         var matches = new List<MediaItem>(capacity: Math.Min(_allItems.Count, 256));
 
         for (int i = 0; i < _allItems.Count; i++)
         {
             var item = _allItems[i];
+            
+            if (favoritesOnly && !item.IsFavorite)
+                continue;
+            
             var title = item.Title;
 
-            if (!string.IsNullOrEmpty(title) &&
-                title.Contains(query, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(query))
             {
-                matches.Add(item);
+                if (string.IsNullOrEmpty(title) ||
+                    !title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
             }
+
+            matches.Add(item);
         }
 
         PopulateItems(matches);
     }
 
     /// <summary>
-    /// Repopulates the list efficiently (single Reset notification).
-    /// Also updates command availability without relying on CollectionChanged events.
+    /// Repopulates the list efficiently (single Reset notification)
+    /// Also updates command availability without relying on CollectionChanged events
     /// </summary>
     private void PopulateItems(IEnumerable<MediaItem> items)
     {
@@ -203,7 +236,7 @@ public partial class MediaAreaViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanPlayRandom))]
     private async Task PlayRandom()
     {
-        // Disable immediately to prevent rapid re-triggering.
+        // Disable immediately to prevent rapid re-triggering
         IsPlayRandomEnabled = false;
 
         try
@@ -218,10 +251,10 @@ public partial class MediaAreaViewModel : ViewModelBase
         }
         finally
         {
-            // Small cooldown to avoid accidental double-activation.
+            // Small cooldown to avoid accidental double-activation
             await Task.Delay(PlayRandomCooldown).ConfigureAwait(false);
             
-            // Re-enable on the UI thread so NotifyCanExecuteChanged and bindings are safe.
+            // Re-enable on the UI thread so NotifyCanExecuteChanged and bindings are safe
             await UiThreadHelper.InvokeAsync(
                 () => IsPlayRandomEnabled = true,
                 DispatcherPriority.Background);
