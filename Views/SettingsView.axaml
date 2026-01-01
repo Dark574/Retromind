@@ -146,6 +146,40 @@
                                         </ItemsControl>
                                     </StackPanel>
                                 </StackPanel>
+                                
+                                <!-- Emulator-level environment variables -->
+                                <StackPanel Spacing="8" Margin="0,10,0,0"
+                                            DataContext="{Binding $parent[Window].((vm:SettingsViewModel)DataContext)}">
+                                    <TextBlock Text="Environment Variables (emulator)" FontWeight="Bold" />
+
+                                    <Button Content="+ Add variable"
+                                            Command="{Binding AddEmulatorEnvVarCommand}"
+                                            HorizontalAlignment="Left" />
+
+                                    <ItemsControl ItemsSource="{Binding EmulatorEnvironmentOverrides}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid ColumnDefinitions="*, 10, * , Auto" Margin="0,5,0,0">
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="Key" />
+                                                        <TextBox Text="{Binding Key, Mode=TwoWay}"
+                                                                 Watermark="e.g. PROTONPATH" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2">
+                                                        <TextBlock Text="Value" />
+                                                        <TextBox Text="{Binding Value, Mode=TwoWay}"
+                                                                 Watermark="/path/to/proton" />
+                                                    </StackPanel>
+                                                    <Button Grid.Column="3"
+                                                            Content="✕"
+                                                            Margin="5,18,0,0"
+                                                            Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).RemoveEmulatorEnvVarCommand}"
+                                                            CommandParameter="{Binding .}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </ScrollViewer>

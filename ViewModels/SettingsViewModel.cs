@@ -87,8 +87,18 @@ public partial class SettingsViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Current wrapper mode of the selected emulator (tri-state).
-    /// Direct proxy for SelectedEmulator.NativeWrapperMode, but safe when null.
+    /// Simple UI row for editing a single environment variable (Key/Value)
+    /// on emulator profile level
+    /// </summary>
+    public sealed partial class EnvVarRow : ObservableObject
+    {
+        [ObservableProperty] private string _key = string.Empty;
+        [ObservableProperty] private string _value = string.Empty;
+    }
+    
+    /// <summary>
+    /// Current wrapper mode of the selected emulator (tri-state)
+    /// Direct proxy for SelectedEmulator.NativeWrapperMode, but safe when null
     /// </summary>
     public EmulatorConfig.WrapperMode EmulatorWrapperMode
     {
@@ -107,11 +117,17 @@ public partial class SettingsViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// UI collection bound to the emulator wrapper editor.
-    /// This list is re-synchronized when SelectedEmulator changes.
+    /// UI collection bound to the emulator wrapper editor
+    /// This list is re-synchronized when SelectedEmulator changes
     /// </summary>
     public ObservableCollection<LaunchWrapperRow> EmulatorNativeWrappers { get; } = new();
 
+    /// <summary>
+    /// UI collection for the environment overrides of the selected emulator
+    /// Changes are synchronized back into SelectedEmulator.EnvironmentOverrides on Save()
+    /// </summary>
+    public ObservableCollection<EnvVarRow> EmulatorEnvironmentOverrides { get; } = new();
+    
     public bool IsNativeWrapperInherit
     {
         get => EmulatorWrapperMode == EmulatorConfig.WrapperMode.Inherit;
@@ -157,6 +173,10 @@ public partial class SettingsViewModel : ViewModelBase
     public IRelayCommand<LaunchWrapperRow?> MoveEmulatorWrapperUpCommand { get; }
     public IRelayCommand<LaunchWrapperRow?> MoveEmulatorWrapperDownCommand { get; }
     
+    // Emulator environment editor commands
+    public IRelayCommand AddEmulatorEnvVarCommand { get; }
+    public IRelayCommand<EnvVarRow?> RemoveEmulatorEnvVarCommand { get; }
+
     public event Action? RequestClose;
     
     /// <summary>
@@ -212,6 +232,10 @@ public partial class SettingsViewModel : ViewModelBase
                 var idx = EmulatorNativeWrappers.IndexOf(row);
                 return idx >= 0 && idx < EmulatorNativeWrappers.Count - 1;
             });
+        
+        // Emulator env-var editor commands
+        AddEmulatorEnvVarCommand = new RelayCommand(AddEmulatorEnvVar);
+        RemoveEmulatorEnvVarCommand = new RelayCommand<EnvVarRow?>(RemoveEmulatorEnvVar);
     }
 
     // --- Computed Properties for UI Hints ---
@@ -234,8 +258,9 @@ public partial class SettingsViewModel : ViewModelBase
 
     partial void OnSelectedEmulatorChanged(EmulatorConfig? oldValue, EmulatorConfig? newValue)
     {
-        // Rebuild wrapper UI collection based on the newly selected emulator.
+        // Rebuild wrapper UI collection based on the newly selected emulator
         EmulatorNativeWrappers.Clear();
+        EmulatorEnvironmentOverrides.Clear();
 
         if (newValue?.NativeWrappersOverride == null)
         {
@@ -255,6 +280,19 @@ public partial class SettingsViewModel : ViewModelBase
             }
         }
 
+        // Load environment overrides from the emulator model into the UI list
+        if (newValue?.EnvironmentOverrides is { Count: > 0 })
+        {
+            foreach (var kv in newValue.EnvironmentOverrides)
+            {
+                EmulatorEnvironmentOverrides.Add(new EnvVarRow
+                {
+                    Key = kv.Key,
+                    Value = kv.Value
+                });
+            }
+        }
+        
         OnPropertyChanged(nameof(EmulatorWrapperMode));
         OnPropertyChanged(nameof(IsNativeWrapperInherit));
         OnPropertyChanged(nameof(IsNativeWrapperNone));
@@ -320,6 +358,19 @@ public partial class SettingsViewModel : ViewModelBase
         MoveEmulatorWrapperDownCommand.NotifyCanExecuteChanged();
     }
     
+    // --- Emulator env-var editor actions ---
+
+    private void AddEmulatorEnvVar()
+    {
+        EmulatorEnvironmentOverrides.Add(new EnvVarRow());
+    }
+
+    private void RemoveEmulatorEnvVar(EnvVarRow? row)
+    {
+        if (row == null) return;
+        EmulatorEnvironmentOverrides.Remove(row);
+    }
+    
     // --- Actions ---
 
     private void AddEmulator()
@@ -379,7 +430,7 @@ public partial class SettingsViewModel : ViewModelBase
     
     private void Save()
     {
-        // Persist emulator wrapper configuration from UI into the model
+        // Persist emulator wrapper & env configuration from UI into the selected emulator model
         if (SelectedEmulator != null)
         {
             switch (EmulatorWrapperMode)
@@ -398,6 +449,16 @@ public partial class SettingsViewModel : ViewModelBase
                         .Where(x => !string.IsNullOrWhiteSpace(x.Path))
                         .ToList();
                     break;
+            }
+            
+            // Sync environment overrides back into the model dictionary
+            SelectedEmulator.EnvironmentOverrides.Clear();
+            foreach (var row in EmulatorEnvironmentOverrides)
+            {
+                if (string.IsNullOrWhiteSpace(row.Key))
+                    continue;
+
+                SelectedEmulator.EnvironmentOverrides[row.Key.Trim()] = row.Value ?? string.Empty;
             }
         }
         

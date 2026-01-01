@@ -62,7 +62,7 @@ public partial class EditMediaViewModel : ViewModelBase
     /// </summary>
     public IAsyncRelayCommand ChangePrimaryFileCommand { get; }
     
-    // --- Per-item environment overrides (e.g. UMU_PROTON_PATH, PROTON_LOG) ---
+    // --- Per-item environment overrides (e.g. PROTONPATH, PROTON_LOG) ---
 
     public sealed partial class EnvVarRow : ObservableObject
     {

@@ -25,7 +25,7 @@ public partial class MediaItem : ObservableObject
 
     /// <summary>
     /// Per-item environment variable overrides for the launched process
-    /// Keys are variable names (e.g. "UMU_PROTON_PATH"), values are the desired contents
+    /// Keys are variable names (e.g. "PROTONPATH"), values are the desired contents
     /// These are applied on top of the inherited environment and can be used to tweak
     /// Proton/Wine runners or emulators on a per-game basis
     /// </summary>

@@ -99,7 +99,7 @@ public sealed class LauncherService
             return Process.Start(psi);
         }
 
-        // Otherwise treat as executable command.
+        // Otherwise treat as executable command
         return Process.Start(new ProcessStartInfo
         {
             FileName = target,
@@ -128,10 +128,10 @@ public sealed class LauncherService
 
             startInfo.WorkingDirectory = ResolveWorkingDirectory(fileName, launchFilePath);
 
-            // Linux-only project: WINEPREFIX is only applied when explicitly requested.
+            // Linux-only project: WINEPREFIX is only applied when explicitly requested
             // Rules:
-            // - If the item already has PrefixPath -> always apply (Native wrappers included).
-            // - If launched via an emulator profile with UsesWinePrefix=true -> auto-create/apply.
+            // - If the item already has PrefixPath -> always apply (Native wrappers included)
+            // - If launched via an emulator profile with UsesWinePrefix=true -> auto-create/apply
             var shouldApplyPrefix =
                 !string.IsNullOrWhiteSpace(item.PrefixPath) ||
                 (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
@@ -139,7 +139,19 @@ public sealed class LauncherService
             if (shouldApplyPrefix)
                 ConfigureWinePrefix(item, nodePath, startInfo);
 
-            // Apply per-item environment overrides (e.g. UMU_PROTON_PATH, PROTON_LOG, DXVK_HUD)
+            // Apply emulator-level environment overrides (base layer)
+            if (inheritedConfig?.EnvironmentOverrides is { Count: > 0 })
+            {
+                foreach (var kv in inheritedConfig.EnvironmentOverrides)
+                {
+                    if (string.IsNullOrWhiteSpace(kv.Key))
+                        continue;
+
+                    startInfo.EnvironmentVariables[kv.Key] = kv.Value ?? string.Empty;
+                }
+            }
+            
+            // Apply per-item environment overrides (e.g. PROTONPATH, PROTON_LOG, DXVK_HUD)
             if (item.EnvironmentOverrides is { Count: > 0 })
             {
                 foreach (var kv in item.EnvironmentOverrides)
