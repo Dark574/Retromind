@@ -1054,7 +1054,7 @@ public partial class EditMediaViewModel : ViewModelBase
             AllowMultiple = false,
             FileTypeFilter = new[]
             {
-                // Generic filter: let the user pick anything; launch semantics are defined elsewhere.
+                // Generic filter: let the user pick anything; launch semantics are defined elsewhere
                 FilePickerFileTypes.All
             }
         });
@@ -1067,15 +1067,33 @@ public partial class EditMediaViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(path))
             return;
 
-        // Update the primary file in the item's Files list.
-        // If there is no file yet, add a new entry.
+        // Decide how to store the launch file path based on global settings:
+        // - PreferPortableLaunchPaths == false (default): store absolute paths (classic behavior)
+        // - PreferPortableLaunchPaths == true: store a DataRoot-relative path so Retromind + Games
+        //   can be moved together as a portable bundle
+        string storedPath;
+        MediaFileKind storedKind;
+
+        if (_settings.PreferPortableLaunchPaths)
+        {
+            storedPath = AppPaths.MakeDataRelative(path);
+            storedKind = MediaFileKind.LibraryRelative;
+        }
+        else
+        {
+            storedPath = path;
+            storedKind = MediaFileKind.Absolute;
+        }
+        
+        // Update the primary file in the item's Files list
+        // If there is no file yet, add a new entry
         var primary = _originalItem.GetPrimaryFile();
         if (primary == null)
         {
             primary = new MediaFileRef
             {
-                Kind = MediaFileKind.Absolute,
-                Path = path,
+                Kind = storedKind,
+                Path = storedPath,
                 Index = 1
             };
             var list = _originalItem.Files ?? new List<MediaFileRef>();
@@ -1084,8 +1102,8 @@ public partial class EditMediaViewModel : ViewModelBase
         }
         else
         {
-            primary.Path = path;
-            primary.Kind = MediaFileKind.Absolute;
+            primary.Path = storedPath;
+            primary.Kind = storedKind;
         }
 
         // Notify UI about the change:

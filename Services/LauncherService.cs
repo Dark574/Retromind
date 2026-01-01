@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 using Retromind.Models;
 
 namespace Retromind.Services;
@@ -350,13 +351,29 @@ public sealed class LauncherService
             var lines = new List<string>(capacity: ordered.Count);
             foreach (var f in ordered)
             {
-                if (f.Kind != MediaFileKind.Absolute)
-                    continue;
-
                 if (string.IsNullOrWhiteSpace(f.Path))
                     continue;
 
-                lines.Add(f.Path);
+                // Resolve the file path to an absolute path:
+                // - Absolute   -> use as-is
+                // - LibraryRelative -> resolve relative to DataRoot (portable mode)
+                // Other kinds are currently ignored until a concrete semantics is defined
+                string resolved;
+                switch (f.Kind)
+                {
+                    case MediaFileKind.Absolute:
+                        resolved = f.Path;
+                        break;
+
+                    case MediaFileKind.LibraryRelative:
+                        resolved = AppPaths.ResolveDataPath(f.Path);
+                        break;
+
+                    default:
+                        continue;
+                }
+
+                lines.Add(resolved);
             }
 
             // If we ended up with an invalid playlist, do not create anything.

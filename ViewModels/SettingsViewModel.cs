@@ -15,8 +15,8 @@ using Retromind.Resources;
 namespace Retromind.ViewModels;
 
 /// <summary>
-/// ViewModel for the application settings dialog.
-/// Manages emulator profiles and scraper configurations.
+/// ViewModel for the application settings dialog
+/// Manages emulator profiles and scraper configurations
 /// </summary>
 public partial class SettingsViewModel : ViewModelBase
 {
@@ -42,6 +42,23 @@ public partial class SettingsViewModel : ViewModelBase
     public ObservableCollection<EmulatorConfig> Emulators { get; } = new();
     public ObservableCollection<ScraperConfig> Scrapers { get; } = new();
 
+    /// <summary>
+    /// Controls whether newly selected launch file paths are stored as portable
+    /// DataRoot-relative paths or as absolute file system paths
+    /// </summary>
+    public bool PreferPortableLaunchPaths
+    {
+        get => _appSettings.PreferPortableLaunchPaths;
+        set
+        {
+            if (_appSettings.PreferPortableLaunchPaths == value)
+                return;
+
+            _appSettings.PreferPortableLaunchPaths = value;
+            OnPropertyChanged();
+        }
+    }
+    
     /// <summary>
     /// Lightweight UI row for editing a single wrapper (Path + Args) on emulator level.
     /// Mirrors <see cref="LaunchWrapper"/> but keeps the model decoupled from live editing.
