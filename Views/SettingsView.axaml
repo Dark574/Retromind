@@ -20,7 +20,7 @@
                 <CheckBox IsChecked="{Binding PreferPortableLaunchPaths}"
                           Content="Store launch file paths relative to Retromind data folder (portable)" />
 
-                <Button Content="Convert existing launch paths to portable"
+                <Button Content="Convert existing launch paths"
                         Command="{Binding ConvertExistingToPortableCommand}" />
             </StackPanel>
         </StackPanel>
