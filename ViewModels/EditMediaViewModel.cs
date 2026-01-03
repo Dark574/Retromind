@@ -559,7 +559,7 @@ public partial class EditMediaViewModel : ViewModelBase
         // Prefix
         PrefixPath = _originalItem.PrefixPath ?? string.Empty;
         
-        // Arguments: load exactly what is stored on the item.
+        // Arguments: load exactly what is stored on the item
         LauncherArgs = _originalItem.LauncherArgs ?? string.Empty;
         
         // Assets do not need to be loaded separately because we bind directly to _originalItem.Assets
@@ -578,6 +578,12 @@ public partial class EditMediaViewModel : ViewModelBase
                 LauncherArgs = string.Empty;
             }
 
+            // Reset inherited/profile-based emulator selection when switching to native mode
+            // This ensures that:
+            //  - PreviewText no longer shows emulator-based commands
+            //  - Save() does not persist an EmulatorId for native items
+            SelectedEmulatorProfile = null;
+            
             return;
         }
 
@@ -693,7 +699,9 @@ public partial class EditMediaViewModel : ViewModelBase
             var wrappers = ResolveEffectiveNativeWrappersForPreview();
 
             // --- Emulator via profile ---
-            if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
+            if (MediaType == MediaType.Emulator &&
+                SelectedEmulatorProfile != null &&
+                SelectedEmulatorProfile.Id != null)
             {
                 var baseArgs = SelectedEmulatorProfile.Arguments ?? string.Empty;
                 var itemArgs = LauncherArgs ?? string.Empty;
@@ -1140,9 +1148,11 @@ public partial class EditMediaViewModel : ViewModelBase
         // Prefix: store null when not used
         _originalItem.PrefixPath = string.IsNullOrWhiteSpace(PrefixPath) ? null : PrefixPath.Trim();
         
-        // 2. Write launch configuration back
-        if (SelectedEmulatorProfile != null && SelectedEmulatorProfile.Id != null)
+        if (MediaType == MediaType.Emulator &&
+            SelectedEmulatorProfile != null &&
+            SelectedEmulatorProfile.Id != null)
         {
+            // Only emulator items are allowed to persist an EmulatorId
             _originalItem.EmulatorId = SelectedEmulatorProfile.Id;
         }
         else
