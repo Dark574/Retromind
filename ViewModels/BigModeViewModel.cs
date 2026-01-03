@@ -165,30 +165,30 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Resolved bezel artwork path for the currently selected item in context of the
-    /// active node. Resolution order: item → node. Does not apply theme defaults.
+    /// active node. Resolution order: item → node. Does not apply theme defaults
     /// </summary>
     public string? ActiveBezelPath =>
         ResolveArtworkForSelection(AssetType.Bezel);
 
     /// <summary>
     /// Resolved control panel artwork path for the currently selected item in context of the
-    /// active node. Resolution order: item → node. Does not apply theme defaults.
+    /// active node. Resolution order: item → node. Does not apply theme defaults
     /// </summary>
     public string? ActiveControlPanelPath =>
         ResolveArtworkForSelection(AssetType.ControlPanel);
 
     /// <summary>
     /// Helper that resolves artwork for the currently selected item using the standard
-    /// item → node fallback order. Returns null if no game list or selection is active.
+    /// item → node fallback order. Returns null if no game list or selection is active
     /// Theme-level defaults are intentionally not applied here to keep this ViewModel
-    /// theme-agnostic. Themes can use ThemeProperties for additional fallbacks.
+    /// theme-agnostic. Themes can use ThemeProperties for additional fallbacks
     /// </summary>
     private string? ResolveArtworkForSelection(AssetType type)
     {
         if (!IsGameListActive || SelectedItem is null)
             return null;
 
-        // ThemeContextNode represents the logical node whose items are currently shown.
+        // ThemeContextNode represents the logical node whose items are currently shown
         var node = ThemeContextNode ?? CurrentNode;
 
         return AssetResolver.ResolveAssetPath(
@@ -218,18 +218,18 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Start at root categories.
         CurrentCategories = _rootNodes;
 
-        // Root = no node context -> default/root theme selection logic.
+        // Root = no node context -> default/root theme selection logic
         ThemeContextNode = null;
 
-        // Keep some theme metadata available for bindings/debug overlays.
+        // Keep some theme metadata available for bindings/debug overlays
         CurrentThemeDirectory = _theme.BasePath;
 
-        // Default capability based on the loaded theme (the host may further restrict this based on VideoSlot existence).
+        // Default capability based on the loaded theme (the host may further restrict this based on VideoSlot existence)
         CanShowVideo = _theme.VideoEnabled;
 
         CategoryTitle = Strings.BigMode_MainMenu;
 
-        // Determine the effective hardware decode mode from settings.
+        // Determine the effective hardware decode mode from settings
         // Accepted values are implementation-defined; typical values are:
         //  - "none"  : always use software decoding (safest default)
         //  - "auto"  : let VLC/FFmpeg pick a suitable hardware backend
@@ -237,7 +237,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         var hwMode = (_settings.VlcHardwareDecodeMode ?? "none").Trim().ToLowerInvariant();
         if (hwMode is not ("none" or "auto" or "vaapi"))
         {
-            // Fallback for unknown/typo values to keep startup robust.
+            // Fallback for unknown/typo values to keep startup stable
             hwMode = "none";
         }
 
@@ -257,10 +257,10 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         _libVlc = new LibVLC(enableDebugLogs: false, vlcOptions);
         
-        // Video-Surface für Callback-Rendering – Hauptkanal.
+        // Video surface for callback rendering – main channel
         _videoSurface = new LibVlcVideoSurface();
 
-        // Zweiter Videokanal: Oberfläche vorbereiten (Player-Anbindung folgt später).
+        // Second video channel
         _secondaryVideoSurface = new LibVlcVideoSurface();
         
         MediaPlayer = new MediaPlayer(_libVlc)
@@ -269,7 +269,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             Scale = 0f // 0 = scale to fill the control
         };
 
-        // Videoformat + -Callbacks einrichten (wie in LibVlcVideoPlayer)
+        // Setting up video format and callbacks
         MediaPlayer.SetVideoFormatCallbacks(
             _videoSurface.VideoFormat,
             _videoSurface.VideoCleanup);
@@ -279,13 +279,13 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             _videoSurface.VideoUnlock,
             _videoSurface.VideoDisplay);
         
-        // Loop preview videos by restarting them when they reach the end.
+        // Loop preview videos by restarting them when they reach the end
         MediaPlayer.EndReached += OnPreviewEndReached;
         
-        // Zweiter Player für Hintergrundvideos (z.B. Theme-Wallpaper).
+        // Second player for background videos
         _secondaryPlayer = new MediaPlayer(_libVlc)
         {
-            Volume = 0,  // Wallpaper ohne Ton
+            Volume = 0,  // Wallpaper without sound
             Scale = 0f
         };
         
@@ -302,7 +302,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         ForceExitCommand = new RelayCommand(() => RequestClose?.Invoke());
 
-        // Subscribe to gamepad events (raised on SDL thread; handler methods must marshal if they touch UI state).
+        // Subscribe to gamepad events (raised on SDL thread; handler methods must marshal if they touch UI state)
         _gamepadService.OnUp += OnGamepadUp;
         _gamepadService.OnDown += OnGamepadDown;
         _gamepadService.OnLeft += OnGamepadLeft;
@@ -316,19 +316,19 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         }
         
         // Ensure counters are in a known state even if the restored state
-        // did not activate a game list yet.
+        // did not activate a game list yet
         UpdateGameCounters();
         
-        // Nach Konstruktion: möglichen Hintergrundkanal anhand des aktuellen Themes vorbereiten.
+        // After construction: prepare a possible background channel based on the current theme
         UpdateSecondaryBackgroundVideo();
         
-        // Start attract-mode timer (if configured by the theme).
+        // Start attract-mode timer (if configured by the theme)
         InitializeAttractModeTimer();
     }
 
     /// <summary>
     /// Loads/updates the optional theme background video (secondary channel),
-    /// using <see cref="Theme.SecondaryBackgroundVideoPath"/> resolved against <see cref="Theme.BasePath"/>.
+    /// using <see cref="Theme.SecondaryBackgroundVideoPath"/> resolved against <see cref="Theme.BasePath"/>
     /// </summary>
     private void UpdateSecondaryBackgroundVideo()
     {
@@ -392,14 +392,14 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         }
         catch
         {
-            // If this fails, keep the secondary channel disabled.
+            // If this fails, keep the secondary channel disabled
             SecondaryVideoHasContent = false;
             SecondaryVideoIsPlaying = false;
         }
     }
 
     /// <summary>
-    /// Startet das vorbereitete Hintergrundvideo, falls vorhanden und die View bereit ist.
+    /// Starts the prepared background video, if available and the view is ready
     /// </summary>
     private void EnsureSecondaryBackgroundPlayingIfReady()
     {
@@ -444,7 +444,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Updates game counters (TotalGames, CurrentGameNumber) based on the current
     /// game list and selection. Safe to call from any place that changes Items
-    /// or SelectedItem, or toggles between category and game view.
+    /// or SelectedItem, or toggles between category and game view
     /// </summary>
     private void UpdateGameCounters()
     {
@@ -468,7 +468,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     }
     
     /// <summary>
-    /// Updates the active theme at runtime.
+    /// Updates the active theme at runtime
     /// The host is responsible for swapping the view and calling NotifyViewReady() afterwards
     /// </summary>
     public void UpdateTheme(Theme newTheme)
@@ -493,7 +493,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Background video for the new theme
         UpdateSecondaryBackgroundVideo();
         
-        // Re-evaluate attract-mode configuration for the new theme.
+        // Re-evaluate attract-mode configuration for the new theme
         InitializeAttractModeTimer();
     }
 }
