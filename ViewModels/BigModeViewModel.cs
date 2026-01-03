@@ -134,37 +134,31 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private int _currentGameNumber;
 
     /// <summary>
-    /// Alte API: Oberfläche für das Vorschaubild (wird von BigModeHostView gerendert).
-    /// Entspricht dem Haupt-Videokanal (MainVideoSurface).
-    /// </summary>
-    public IVideoSurface VideoSurface => _videoSurface;
-    
-    /// <summary>
-    /// Hauptkanal für Video-Vorschau. Themes sollten bevorzugt diese Property nutzen.
+    /// Main channel for video previews. Themes should preferably use this property
     /// </summary>
     public IVideoSurface? MainVideoSurface => _videoSurface;
 
     /// <summary>
-    /// Optionaler zweiter Videokanal (z.B. System-Intro, B-Roll).
-    /// Wird in einem späteren Schritt vollständig mit LibVLC verdrahtet.
+    /// Optional second video channel (e.g., system intro, B-roll)
+    /// Will be fully integrated with LibVLC in a later step
     /// </summary>
     public IVideoSurface? SecondaryVideoSurface => _secondaryVideoSurface;
     
     /// <summary>
     /// Release year of the currently selected game, or null if unknown or
-    /// no game is selected. Intended for use in BigMode themes (bottom info bar).
+    /// no game is selected. Intended for use in BigMode themes (bottom info bar)
     /// </summary>
     public int? SelectedYear => SelectedItem?.ReleaseDate?.Year;
 
     /// <summary>
     /// Developer of the currently selected game, or null/empty if unknown or
-    /// no game is selected. Intended for use in BigMode themes (bottom info bar).
+    /// no game is selected. Intended for use in BigMode themes (bottom info bar)
     /// </summary>
     public string? SelectedDeveloper => SelectedItem?.Developer;
 
     /// <summary>
     /// Resolved marquee artwork path for the currently selected item in context of the
-    /// active node. Resolution order: item → node. Does not apply theme defaults.
+    /// active node. Resolution order: item → node. Does not apply theme defaults
     /// </summary>
     public string? ActiveMarqueePath =>
         ResolveArtworkForSelection(AssetType.Marquee);

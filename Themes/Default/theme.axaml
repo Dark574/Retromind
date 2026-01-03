@@ -12,6 +12,7 @@
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.2.0"
              ext:ThemeProperties.VideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="VideoSlot"
              ext:ThemeProperties.FadeDurationMs="1100"
              ext:ThemeProperties.MoveDurationMs="1100"
              ext:ThemeProperties.PrimaryVisualElementName="CoverPanel"

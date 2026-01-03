@@ -16,6 +16,8 @@
              ext:ThemeProperties.UnselectedOpacity="0.75"
              ext:ThemeProperties.SelectedGlowOpacity="0.40"
              ext:ThemeProperties.AccentColor="#00D1FF"
+             ext:ThemeProperties.VideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="VideoSlot"
              ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4"
              ext:ThemeProperties.AttractModeEnabled="True"
              ext:ThemeProperties.AttractModeIdleSeconds="60"
