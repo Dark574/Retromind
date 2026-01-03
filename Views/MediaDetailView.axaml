@@ -56,7 +56,8 @@
                 
                 <!-- Favorite toggle (top-left) -->
                 <!-- Simple star toggle bound to MediaItem.IsFavorite -->
-                <ToggleButton Width="30" Height="30"
+                <ToggleButton x:Name="FavoriteToggle"
+                              Width="30" Height="30"
                               Padding="0"
                               Background="Transparent"
                               BorderThickness="0"
@@ -64,21 +65,34 @@
                               VerticalAlignment="Top"
                               ToolTip.Tip="Mark or unmark this item as a favorite."
                               IsChecked="{Binding IsFavorite}">
+                    <!-- Custom template: no border, no background, just the content -->
+                    <ToggleButton.Template>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <ContentPresenter
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </ControlTemplate>
+                    </ToggleButton.Template>
+
                     <ToggleButton.Styles>
                         <!-- Default: gray star -->
-                        <Style Selector="ToggleButton TextBlock#FavoriteStar">
+                        <Style Selector="ToggleButton#FavoriteToggle TextBlock#FavoriteStar">
                             <Setter Property="Foreground" Value="Gray" />
                         </Style>
 
                         <!-- When checked: gold star -->
-                        <Style Selector="ToggleButton:checked TextBlock#FavoriteStar">
+                        <Style Selector="ToggleButton#FavoriteToggle:checked TextBlock#FavoriteStar">
                             <Setter Property="Foreground" Value="Gold" />
                         </Style>
                     </ToggleButton.Styles>
 
                     <TextBlock x:Name="FavoriteStar"
                                Text="★"
-                               FontSize="18" />
+                               FontSize="22"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center" />
                 </ToggleButton>
             </Grid>
 
