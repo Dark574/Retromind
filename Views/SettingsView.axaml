@@ -23,6 +23,13 @@
                 <Button Content="Convert existing launch paths"
                         Command="{Binding ConvertExistingToPortableCommand}" />
             </StackPanel>
+            <StackPanel Orientation="Vertical" Spacing="4">
+
+                <!-- Toggle: auto-play music on selection in main grid -->
+                <CheckBox Content="Play random music"
+                          IsChecked="{Binding EnableSelectionMusicPreview}"
+                          ToolTip.Tip="When enabled, selecting an item in the main grid automatically plays its music asset (if available)." />
+            </StackPanel>
         </StackPanel>
         
         <!-- Main Content with Tabs -->

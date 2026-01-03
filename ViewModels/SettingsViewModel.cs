@@ -60,8 +60,25 @@ public partial class SettingsViewModel : ViewModelBase
     }
     
     /// <summary>
-    /// Lightweight UI row for editing a single wrapper (Path + Args) on emulator level.
-    /// Mirrors <see cref="LaunchWrapper"/> but keeps the model decoupled from live editing.
+    /// Controls whether selecting an item in the main media grid should
+    /// automatically start playback of its primary music asset (if present)
+    /// </summary>
+    public bool EnableSelectionMusicPreview
+    {
+        get => _appSettings.EnableSelectionMusicPreview;
+        set
+        {
+            if (_appSettings.EnableSelectionMusicPreview == value)
+                return;
+
+            _appSettings.EnableSelectionMusicPreview = value;
+            OnPropertyChanged();
+        }
+    }
+    
+    /// <summary>
+    /// Lightweight UI row for editing a single wrapper (Path + Args) on emulator level
+    /// Mirrors <see cref="LaunchWrapper"/> but keeps the model decoupled from live editing
     /// </summary>
     public sealed partial class LaunchWrapperRow : ObservableObject
     {

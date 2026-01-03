@@ -520,16 +520,20 @@ public partial class MainWindowViewModel : ViewModelBase
             if (SelectedNode != null)
                 UpdateBigModeStateFromCoreSelection(SelectedNode, item);
 
-            var musicPath = item?.GetPrimaryAssetPath(AssetType.Music);
-            if (!string.IsNullOrEmpty(musicPath))
+            // Respect user preference for automatic selection-based music preview
+            if (item != null && _currentSettings.EnableSelectionMusicPreview)
             {
-                var fullPath = AppPaths.ResolveDataPath(musicPath);
-                _ = _audioService.PlayMusicAsync(fullPath);
+                var musicPath = item.GetPrimaryAssetPath(AssetType.Music);
+                if (!string.IsNullOrEmpty(musicPath))
+                {
+                    var fullPath = AppPaths.ResolveDataPath(musicPath);
+                    _ = _audioService.PlayMusicAsync(fullPath);
+                    return;
+                }
             }
-            else
-            {
-                _audioService.StopMusic();
-            }
+
+            // Either no item, no music asset, or preview disabled -> ensure music is stopped
+            _audioService.StopMusic();
         }
     }
     

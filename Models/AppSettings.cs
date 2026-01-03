@@ -47,6 +47,13 @@ public class AppSettings
     /// </summary>
     public string? VlcHardwareDecodeMode { get; set; } = "none";
     
+    /// <summary>
+    /// Controls whether selecting an item in the main media grid should
+    /// automatically start playback of its primary music asset (if any)
+    /// When false, selection never starts background music automatically
+    /// </summary>
+    public bool EnableSelectionMusicPreview { get; set; } = true;
+    
     // --- UI Layout ---
 
     public double TreeColumnWidth { get; set; } = 250;
