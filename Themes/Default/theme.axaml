@@ -56,6 +56,7 @@
     <Grid>
         <!-- Very transparent wallpaper from the current item -->
         <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
+               helpers:AsyncImageHelper.DecodeWidth="1920"
                Stretch="UniformToFill"
                Opacity="0.30"
                HorizontalAlignment="Center"
@@ -89,6 +90,7 @@
                         <Grid>
                             <!-- Game logo (if available) -->
                             <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
+                                   helpers:AsyncImageHelper.DecodeWidth="512"
                                    Height="80"
                                    Stretch="Uniform"
                                    HorizontalAlignment="Left"
@@ -214,6 +216,7 @@
                                     IsVisible="{Binding SelectedItem.PrimaryCoverPath,
                                                         Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
                                 <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
+                                       helpers:AsyncImageHelper.DecodeWidth="600"
                                        Stretch="Uniform"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center" />

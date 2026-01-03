@@ -37,9 +37,9 @@
     </UserControl.Resources>
 
     <Grid>
-        <!-- Hintergrund: Video-Wallpaper + Fallbackbild + dunkler Tint -->
+        <!-- Background: Video wallpaper + fallback image + dark tint -->
         <Grid>
-            <!-- Fallback: statisches Hintergrundbild -->
+            <!-- Fallback: static background image -->
             <Image Source="{Binding Converter={StaticResource ThemeAssetConverter},
                                     ConverterParameter=Images/background.jpg}"
                    Stretch="UniformToFill"
@@ -47,7 +47,7 @@
                    VerticalAlignment="Center"
                    IsHitTestVisible="False" />
             
-            <!-- Video-Hintergrund (Secondary-Kanal) -->
+            <!-- Video background (Secondary channel) -->
             <video:VideoSurfaceControl Surface="{Binding SecondaryVideoSurface}"
                                        Stretch="UniformToFill"
                                        IsVisible="{Binding SecondaryVideoHasContent}"/>
@@ -64,24 +64,24 @@
                   ColumnDefinitions="Auto"
                   RowDefinitions="*">
 
-                <!-- Skalierbare Cabinet-Area: alles darin wird proportional skaliert -->
+                <!-- Scalable Cabinet Area: everything within it scales proportionally -->
                 <Viewbox Stretch="Uniform"
                          StretchDirection="Both"
                          HorizontalAlignment="Left"
                          VerticalAlignment="Bottom"
                          Margin="-120,40,0,0">
-                    <!-- Design-Koordinatensystem: 1400x800 (16:9) -->
+                    <!-- Design coordinate system: 1400x800 (16:9) -->
                     <Grid Width="1400"
                           Height="800">
 
                         <!-- Cabinet composition -->
                         <Grid>
-                            <!-- Overlay-Layer: Marquee + Screen-Bereich -->
+                            <!-- Overlay-Layer: Marquee + Screen-Area -->
                             <Grid Margin="0"
                                   RowDefinitions="Auto,Auto"
                                   HorizontalAlignment="Center">
 
-                                <!-- Marquee (oben im Automaten) -->
+                                <!-- Marquee (at the top of the machine) -->
                                 <Border Grid.Row="0"
                                         Width="620"
                                         Height="180"
@@ -104,7 +104,7 @@
                                         Background="Transparent"
                                         ClipToBounds="True">
                                     <Grid>
-                                        <!-- Video-Slot im Screen -->
+                                        <!-- Video slot in the screen -->
                                         <Border x:Name="VideoSlot"
                                                 Width="520"
                                                 Height="390"
@@ -117,14 +117,14 @@
                                                 BorderThickness="2"
                                                 ClipToBounds="True">
                                             <Grid>
-                                                <!-- Placeholder-Text bei fehlendem Video -->
+                                                <!-- Placeholder text when no video is displayed -->
                                                 <TextBlock Text="Preview"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"
                                                            Foreground="#404040"
                                                            FontSize="20"/>
 
-                                                <!-- Inline-Video: Hauptkanal -->
+                                                <!-- Inline video: Main channe -->
                                                 <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
                                                                            Stretch="Uniform"
                                                                            Opacity="{Binding MainVideoIsPlaying, Converter={StaticResource BoolToOpacity}}"
@@ -172,7 +172,7 @@
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          ScrollViewer.VerticalScrollBarVisibility="Hidden"
                          helpers:ListBoxBehaviors.CenterSelectedItem="True">
-                    <!-- Lokale Styles nur für diese ListBox -->
+                    <!-- Local styles only for this ListBox -->
                     <ListBox.Styles>
                         <Style Selector="ListBoxItem">
                             <Setter Property="Template">
@@ -190,7 +190,7 @@
                                 </Setter.Value>
                             </Setter>
 
-                            <!-- komplett transparenter Container, zentriert -->
+                            <!-- Completely transparent container, centered -->
                             <Setter Property="Background" Value="Transparent"/>
                             <Setter Property="BorderBrush" Value="Transparent"/>
                             <Setter Property="BorderThickness" Value="0"/>
@@ -212,12 +212,12 @@
 
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <!-- Äußerer Container -->
+                            <!-- Outer container -->
                             <Border Margin="0,4"
                                     Padding="0"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center">
-                                <!-- Zoom per LayoutTransformControl, abhängig von IsSelected -->
+                                <!-- Zoom via LayoutTransformControl, dependent on IsSelected -->
                                 <ac:LayoutTransformControl Padding="2"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center">
@@ -234,12 +234,13 @@
                                                 Spacing="2">
                                         <!-- Logo -->
                                         <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
+                                               helpers:AsyncImageHelper.DecodeWidth="256"
                                                Width="150"
                                                Stretch="Uniform"
                                                HorizontalAlignment="Center"
                                                IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
 
-                                        <!-- Fallback: Texttitel wenn kein Logo -->
+                                        <!-- Fallback: Text title if no logo -->
                                         <TextBlock Text="{Binding Title}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold"
