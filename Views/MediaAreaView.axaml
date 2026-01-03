@@ -115,7 +115,7 @@
                                        TextWrapping="Wrap"
                                        TextAlignment="Center"
                                        Margin="5"
-                                       Foreground="Black"
+                                       Foreground="Gold"
                                        IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
 
                             <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
