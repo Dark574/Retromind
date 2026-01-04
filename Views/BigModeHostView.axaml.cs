@@ -94,25 +94,32 @@ public partial class BigModeHostView : UserControl
 
         _themePresenter.Content = themeRoot;
 
+        // Reset previous SystemHost-specific content when switching away
+        if (!_isSystemHostTheme && _systemLayoutHost != null)
+        {
+            _systemLayoutHost.Content = null;
+        }
+        
         // Detect whether this theme is the "System Host" theme by checking for
-        // a named content placeholder "SystemLayoutHost" in the visual tree.
+        // a named content placeholder "SystemLayoutHost" in the visual tree
         _systemLayoutHost = themeRoot.FindControl<ContentControl>("SystemLayoutHost");
         _isSystemHostTheme = _systemLayoutHost != null;
 
-        // Theme-basierte Video-Fähigkeit (kein Slot-basiertes Abschalten mehr).
+        // Theme-based video capability (no more slot-based shutdown)
         if (DataContext is Retromind.ViewModels.BigModeViewModel vm)
         {
+            // Base capability from outer theme
             vm.CanShowVideo = theme.VideoEnabled;
         }
         
         // Apply theme tuning (selection UX, spacing, typography, animation timings)
         ApplyThemeTuning(themeRoot);
 
-        // Initiale PrimaryVisual-Animation für das frisch gesetzte Theme
+        // Initial PrimaryVisual animation for the newly set theme
         ThemeTransitionHelper.AnimatePrimaryVisual(themeRoot);
 
         // If this is the SystemHost theme, initialize the right-hand system layout
-        // immediately for the current SelectedCategory.
+        // immediately for the current SelectedCategory
         if (_isSystemHostTheme)
         {
             UpdateSystemLayoutForSelectedCategory();
@@ -125,7 +132,7 @@ public partial class BigModeHostView : UserControl
     /// <summary>
     /// Updates the right-hand system layout (SystemLayoutHost) when the SystemHost
     /// theme is active. Selects and loads the per-system subtheme based on the
-    /// current node's SystemPreviewThemeId.
+    /// current node's SystemPreviewThemeId
     /// </summary>
     private void UpdateSystemLayoutForSelectedCategory()
     {
@@ -143,59 +150,57 @@ public partial class BigModeHostView : UserControl
             return;
         }
 
-        // Resolve system preview theme id with a safe default.
-        // The id corresponds to a folder under Themes/System (e.g. "Default", "C64").
+        // Resolve system preview theme id with a safe default
+        // The id corresponds to a folder under Themes/System (e.g. "Default", "C64")
         var id = string.IsNullOrWhiteSpace(node.SystemPreviewThemeId)
             ? "Default"
             : node.SystemPreviewThemeId;
         
-        // Always load a fresh instance of the system subtheme to avoid
-        // reusing the same Control instance across different SystemLayoutHosts,
-        // which would cause "already has a visual parent" exceptions.
-        var relativePath = System.IO.Path.Combine("System", id, "theme.axaml");
         Theme systemTheme;
 
-        try
+        // Try cache first to avoid repeated XAML loading/parsing
+        if (!_systemThemeCache.TryGetValue(id, out systemTheme!))
         {
-            systemTheme = ThemeLoader.LoadTheme(relativePath);
-        }
-        catch
-        {
-            // If loading fails for this id, fall back to the Default system layout.
-            if (!string.Equals(id, "Default", StringComparison.OrdinalIgnoreCase))
+            try
             {
-                try
+                var relativePath = System.IO.Path.Combine("System", id, "theme.axaml");
+                systemTheme = ThemeLoader.LoadTheme(relativePath);
+            }
+            catch
+            {
+                if (!string.Equals(id, "Default", StringComparison.OrdinalIgnoreCase))
                 {
-                    var fallbackPath = System.IO.Path.Combine("System", "Default", "theme.axaml");
-                    systemTheme = ThemeLoader.LoadTheme(fallbackPath);
+                    try
+                    {
+                        var fallbackPath = System.IO.Path.Combine("System", "Default", "theme.axaml");
+                        systemTheme = ThemeLoader.LoadTheme(fallbackPath);
+                    }
+                    catch
+                    {
+                        _systemLayoutHost.Content = null;
+                        vm.CanShowVideo = false;
+                        return;
+                    }
                 }
-                catch
+                else
                 {
-                    // As a last resort, clear the host and disable video.
                     _systemLayoutHost.Content = null;
                     vm.CanShowVideo = false;
                     return;
                 }
             }
-            else
-            {
-                _systemLayoutHost.Content = null;
-                vm.CanShowVideo = false;
-                return;
-            }
+
+            _systemThemeCache[id] = systemTheme;
         }
 
+        // Always create a fresh view instance per host from the cached theme definition
         var subView = systemTheme.View;
-
-        // Share the same BigModeViewModel for all subthemes so bindings just work.
         subView.DataContext = vm;
 
         _systemLayoutHost.Content = subView;
 
-        // PrimaryVisual-Animation für das System-Subtheme
         ThemeTransitionHelper.AnimatePrimaryVisual(subView);
-        
-        // Effektive Video-Fähigkeit für das aktuelle System-Subtheme.
+
         vm.CanShowVideo = systemTheme.VideoEnabled;
     }
     
