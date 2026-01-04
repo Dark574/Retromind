@@ -20,32 +20,55 @@
             <StackPanel Spacing="10">
 
                 <!-- Row 1: Search inputs -->
-                <Grid ColumnDefinitions="Auto, 20, Auto, 10, Auto, 10, Auto, *, Auto, Auto">
+                <Grid ColumnDefinitions="Auto, 20, Auto, 10, Auto, 10, Auto, 20, Auto, *, Auto"
+                      VerticalAlignment="Center">
                     <TextBlock Grid.Column="0"
                                Text="{x:Static p:Strings.Search_GlobalShort}"
                                FontSize="20"
                                FontWeight="Bold"
                                VerticalAlignment="Center"/>
 
+                    <!-- Title text -->
                     <TextBox Grid.Column="2"
                              Text="{Binding SearchText}"
                              Watermark="{x:Static p:Strings.Dialog_TitleSearch}"
-                             Width="200"/>
+                             Width="200"
+                             Height="24"
+                             FontSize="12"
+                             VerticalContentAlignment="Center"/>
 
+                    <!-- Year -->
                     <TextBox Grid.Column="4"
                              Text="{Binding SearchYear}"
                              Watermark="{x:Static p:Strings.Common_Year}"
-                             Width="120"/>
+                             Width="80"
+                             Height="24"
+                             FontSize="12"
+                             VerticalContentAlignment="Center"/>
 
-                    <Button Grid.Column="6"
-                            Command="{Binding SearchCommand}"
-                            Classes="accent"
-                            Content="{x:Static p:Strings.Button_Search}"/>
-
+                    <!-- Status filter -->
+                    <ComboBox Grid.Column="6"
+                              ItemsSource="{Binding StatusOptions}"
+                              SelectedItem="{Binding SelectedStatus}"
+                              Width="120"
+                              Height="24"
+                              FontSize="12"
+                              VerticalContentAlignment="Center"
+                              PlaceholderText="Status">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    
+                    <!-- Spacer before zoom -->
+                    <TextBlock Grid.Column="7" Width="1"/>
+                    
                     <!-- Zoom (tile size) -->
                     <StackPanel Grid.Column="8"
                                 Orientation="Horizontal"
-                                Spacing="5"
+                                Spacing="6"
                                 VerticalAlignment="Center">
                         <TextBlock Text="{x:Static p:Strings.Zoom_Zoom}"
                                    VerticalAlignment="Center"
@@ -53,7 +76,10 @@
                         <Slider Value="{Binding ItemWidth}"
                                 Minimum="50"
                                 Maximum="300"
-                                Width="100"/>
+                                Width="110"
+                                Height="36"
+                                VerticalAlignment="Center"
+                                Margin="0,-14,0,0"/>
                     </StackPanel>
                     
                     <!-- Favorites-only toggle -->

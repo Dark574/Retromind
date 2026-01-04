@@ -66,7 +66,19 @@ public partial class SearchAreaViewModel : ViewModelBase
     private bool _onlyFavorites;
     
     /// <summary>
-    /// Result collection optimized for bulk updates.
+    /// Optional status filter. When null, status is ignored
+    /// When set, only items with the given PlayStatus are included
+    /// </summary>
+    [ObservableProperty]
+    private PlayStatus? _selectedStatus;
+
+    /// <summary>
+    /// Available status values for the status filter combo box
+    /// </summary>
+    public IReadOnlyList<PlayStatus> StatusOptions { get; } = Enum.GetValues<PlayStatus>();
+
+    /// <summary>
+    /// Result collection optimized for bulk updates
     /// </summary>
     public RangeObservableCollection<MediaItem> SearchResults { get; } = new();
 
@@ -76,7 +88,6 @@ public partial class SearchAreaViewModel : ViewModelBase
     public ObservableCollection<SearchScope> Scopes { get; } = new();
 
     public ICommand PlayRandomCommand { get; }
-    public ICommand SearchCommand { get; }
     public ICommand PlayCommand { get; }
 
     public event Action<MediaItem>? RequestPlay;
@@ -90,11 +101,10 @@ public partial class SearchAreaViewModel : ViewModelBase
 
         InitializeScopes();
 
-        // Keep the initial state consistent (empty results until user enters criteria).
+        // Keep the initial state consistent (empty results until user enters criteria)
         SearchResults.Clear();
 
         PlayRandomCommand = new RelayCommand(PlayRandom, () => SearchResults.Count > 0);
-        SearchCommand = new RelayCommand(RequestSearch);
 
         PlayCommand = new RelayCommand<MediaItem>(item =>
         {
@@ -105,6 +115,7 @@ public partial class SearchAreaViewModel : ViewModelBase
     partial void OnSearchTextChanged(string value) => RequestSearch();
     partial void OnSearchYearChanged(string value) => RequestSearch();
     partial void OnOnlyFavoritesChanged(bool value) => RequestSearch();
+    partial void OnSelectedStatusChanged(PlayStatus? value) => RequestSearch();
 
     private void InitializeScopes()
     {
@@ -163,11 +174,13 @@ public partial class SearchAreaViewModel : ViewModelBase
         var query = SearchText?.Trim();
         var yearText = SearchYear?.Trim();
         var favoritesOnly = OnlyFavorites;
+        var statusFilter = SelectedStatus;
 
         // If all filters are empty and "favorites only" is off, do not show the entire library
         if (string.IsNullOrWhiteSpace(query) &&
             string.IsNullOrWhiteSpace(yearText) &&
-            !favoritesOnly)
+            !favoritesOnly &&
+            statusFilter == null)
         {
             await UiThreadHelper.InvokeAsync(() =>
             {
@@ -193,11 +206,11 @@ public partial class SearchAreaViewModel : ViewModelBase
 
         var results = new List<MediaItem>(capacity: 256);
 
-        // Evaluate in background; only UI assignment is marshaled.
+        // Evaluate in background; only UI assignment is marshaled
         for (int i = 0; i < activeScopes.Count; i++)
         {
             token.ThrowIfCancellationRequested();
-            CollectMatchesRecursive(activeScopes[i], results, query, filterYear, favoritesOnly, token);
+            CollectMatchesRecursive(activeScopes[i], results, query, filterYear, favoritesOnly, statusFilter, token);
         }
 
         await UiThreadHelper.InvokeAsync(() =>
@@ -207,7 +220,7 @@ public partial class SearchAreaViewModel : ViewModelBase
             OnPropertyChanged(nameof(HasResults));
             OnPropertyChanged(nameof(HasNoResults));
 
-            // Keep "Play random" enabled state accurate.
+            // Keep "Play random" enabled state accurate
             (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
         });
     }
@@ -218,6 +231,7 @@ public partial class SearchAreaViewModel : ViewModelBase
         string? query,
         int? filterYear,
         bool favoritesOnly,
+        PlayStatus? statusFilter,
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -230,7 +244,7 @@ public partial class SearchAreaViewModel : ViewModelBase
 
             var item = items[i];
 
-            if (!Matches(item, query, filterYear, favoritesOnly))
+            if (!Matches(item, query, filterYear, favoritesOnly, statusFilter))
                 continue;
 
             matches.Add(item);
@@ -240,17 +254,26 @@ public partial class SearchAreaViewModel : ViewModelBase
         var children = node.Children;
         for (int i = 0; i < children.Count; i++)
         {
-            CollectMatchesRecursive(children[i], matches, query, filterYear, favoritesOnly, token);
+            CollectMatchesRecursive(children[i], matches, query, filterYear, favoritesOnly, statusFilter, token);
         }
     }
 
-    private static bool Matches(MediaItem item, string? query, int? filterYear, bool favoritesOnly)
+    private static bool Matches(
+        MediaItem item,
+        string? query,
+        int? filterYear,
+        bool favoritesOnly,
+        PlayStatus? statusFilter)
     {
         // 1) Favorites filter
         if (favoritesOnly && !item.IsFavorite)
             return false;
 
-        // 2) Text filter
+        // 2) Status filter
+        if (statusFilter.HasValue && item.Status != statusFilter.Value)
+            return false;
+
+        // 3) Text filter
         if (!string.IsNullOrWhiteSpace(query))
         {
             var title = item.Title;
@@ -258,7 +281,7 @@ public partial class SearchAreaViewModel : ViewModelBase
                 return false;
         }
 
-        // 3) Year filter
+        // 4) Year filter
         if (filterYear.HasValue)
         {
             if (item.ReleaseDate?.Year != filterYear.Value)
