@@ -121,8 +121,8 @@ public partial class SearchAreaViewModel : ViewModelBase
     {
         Scopes.Clear();
 
-        // We keep the scope list shallow (root + direct children) for UI simplicity.
-        // The actual item search is still recursive within each selected scope.
+        // We keep the scope list shallow (root + direct children) for UI simplicity
+        // The actual item search is still recursive within each selected scope
         foreach (var root in _rootNodes)
         {
             if (root.Items.Count > 0)
@@ -146,7 +146,7 @@ public partial class SearchAreaViewModel : ViewModelBase
 
     private void RequestSearch()
     {
-        // Cancel previous pending search (debounce + background evaluation).
+        // Cancel previous pending search (debounce + background evaluation)
         _searchCts?.Cancel();
         _searchCts?.Dispose();
         _searchCts = new CancellationTokenSource();
@@ -164,7 +164,7 @@ public partial class SearchAreaViewModel : ViewModelBase
             }
             catch (OperationCanceledException)
             {
-                // Expected when the user keeps typing or changes scopes quickly.
+                // Expected when the user keeps typing or changes scopes quickly
             }
         }, token);
     }
@@ -213,6 +213,11 @@ public partial class SearchAreaViewModel : ViewModelBase
             CollectMatchesRecursive(activeScopes[i], results, query, filterYear, favoritesOnly, statusFilter, token);
         }
 
+        // Global sort across all scopes, same as main MediaArea view:
+        // alphabetical by Title (case-insensitive)
+        results.Sort(static (a, b) =>
+            string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase));
+        
         await UiThreadHelper.InvokeAsync(() =>
         {
             SearchResults.ReplaceAll(results);
