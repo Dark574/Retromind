@@ -1060,11 +1060,7 @@ public partial class EditMediaViewModel : ViewModelBase
         {
             Title = "Select launch file (main executable / Disc 1)",
             AllowMultiple = false,
-            FileTypeFilter = new[]
-            {
-                // Generic filter: let the user pick anything; launch semantics are defined elsewhere
-                FilePickerFileTypes.All
-            }
+            // No FileTypeFilter on purpose: executables / scripts may have no extension
         });
 
         var file = result?.FirstOrDefault();
