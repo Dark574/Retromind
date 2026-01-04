@@ -698,6 +698,16 @@ public partial class EditMediaViewModel : ViewModelBase
             // Resolve effective wrapper chain once (global/emulator/node/item logic)
             var wrappers = ResolveEffectiveNativeWrappersForPreview();
 
+            // Helper to prepend per-item environment overrides to a final command line
+            string WithEnvPrefix(string command)
+            {
+                var env = BuildEnvironmentPrefixForPreview();
+                if (string.IsNullOrWhiteSpace(env))
+                    return command;
+
+                return $"{env} {command}".Trim();
+            }
+            
             // --- Emulator via profile ---
             if (MediaType == MediaType.Emulator &&
                 SelectedEmulatorProfile != null &&
@@ -723,7 +733,7 @@ public partial class EditMediaViewModel : ViewModelBase
                     ? BuildWrappedCommandLine(inner, wrappers)
                     : inner;
 
-                return $"> {final}".Trim();
+                return $"> {WithEnvPrefix(final)}".Trim();
             }
 
             // --- Manual emulator (no profile selected) ---
@@ -751,7 +761,7 @@ public partial class EditMediaViewModel : ViewModelBase
                     ? BuildWrappedCommandLine(inner, wrappers)
                     : inner;
 
-                return $"> {final}".Trim();
+                return $"> {WithEnvPrefix(final)}".Trim();
             }
 
             // --- Native execution (direct or via wrappers) ---
@@ -768,13 +778,52 @@ public partial class EditMediaViewModel : ViewModelBase
                     ? BuildWrappedCommandLine(inner, wrappers)
                     : inner;
 
-                return $"> {final}".Trim();
+                return $"> {WithEnvPrefix(final)}".Trim();
             }
 
             return string.Empty;
         }
     }
 
+    /// <summary>
+    /// Builds a shell-style environment prefix (e.g. VAR1=value1 VAR2="foo bar")
+    /// from the current per-item EnvironmentOverrides. Returns an empty string
+    /// when no overrides are defined.
+    /// This is only used for the human-readable PreviewText; the real launcher
+    /// uses the strongly-typed EnvironmentOverrides dictionary on MediaItem
+    /// </summary>
+    private string BuildEnvironmentPrefixForPreview()
+    {
+        if (EnvironmentOverrides.Count == 0)
+            return string.Empty;
+
+        var parts = new List<string>(EnvironmentOverrides.Count);
+
+        foreach (var row in EnvironmentOverrides)
+        {
+            if (string.IsNullOrWhiteSpace(row.Key))
+                continue;
+
+            var key = row.Key.Trim();
+            var value = row.Value ?? string.Empty;
+
+            // Simple, shell-like quoting: wrap in "..." if value contains whitespace
+            if (value.Contains(' ', StringComparison.Ordinal) ||
+                value.Contains('\t', StringComparison.Ordinal))
+            {
+                parts.Add($"{key}=\"{value}\"");
+            }
+            else
+            {
+                parts.Add($"{key}={value}");
+            }
+        }
+
+        return parts.Count == 0
+            ? string.Empty
+            : string.Join(' ', parts);
+    }
+    
     /// <summary>
     /// Expands preview argument templates using the same placeholder semantics as the runtime launcher:
     /// {file}     -> full path to the launch file (quoted if necessary)
