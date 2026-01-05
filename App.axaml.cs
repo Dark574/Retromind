@@ -147,6 +147,7 @@ public partial class App : Application
         services.AddSingleton<StoreImportService>();
         services.AddSingleton<SettingsService>();
         services.AddSingleton<MetadataService>();
+        services.AddSingleton<IDocumentService, DocumentService>();
 
         // --- ViewModels ---
         // MainWindowViewModel is the long-lived app coordinator -> singleton is safer.

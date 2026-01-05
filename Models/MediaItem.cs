@@ -238,6 +238,10 @@ public partial class MediaItem : ObservableObject
             OnPropertyChanged(nameof(PrimaryBannerPath));
             OnPropertyChanged(nameof(PrimaryBezelPath));
             OnPropertyChanged(nameof(PrimaryControlPanelPath));
+            
+            // Manuals are exposed via the computed ManualAssets property.
+            // Notify bindings so views like MediaDetailView can refresh their list.
+            OnPropertyChanged(nameof(ManualAssets));
         }
     }
 
@@ -433,6 +437,10 @@ public partial class MediaItem : ObservableObject
         OnPropertyChanged(nameof(PrimaryBannerPath));
         OnPropertyChanged(nameof(PrimaryBezelPath));
         OnPropertyChanged(nameof(PrimaryControlPanelPath));
+        
+        // Manuals are exposed via the computed ManualAssets property.
+        // Notify bindings so views like MediaDetailView can refresh their list.
+        OnPropertyChanged(nameof(ManualAssets));
     }
 }
 

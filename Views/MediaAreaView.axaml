@@ -101,6 +101,10 @@
                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeMediaCommand}"
                                           CommandParameter="{Binding .}" />
                                 <Separator/>
+                                <MenuItem Header="Add manual"
+                                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddManualToMediaCommand}"
+                                          CommandParameter="{Binding .}" />
+                                <Separator/>
                                 <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
                                           CommandParameter="{Binding .}"

@@ -17,6 +17,8 @@
         <Geometry x:Key="IconPencilGeometry">
             M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.83H5v-.92l8.06-8.06.92.92L5.92 20.08zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z
         </Geometry>
+        <!-- Maps file extensions like .pdf / .txt to simple glyph icons -->
+        <helpers:FileExtensionToGlyphConverter x:Key="FileExtensionToGlyphConverter" />
     </UserControl.Resources>
 
     <ScrollViewer>
@@ -112,6 +114,35 @@
                     IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsLaunchIdle}"/>
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
+
+            <!-- Manuals / Documents area -->
+            <!-- Shows one icon per attached manual asset (PDF, TXT, etc.) -->
+            <ItemsControl ItemsSource="{Binding ManualAssets}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:MediaAsset">
+                        <Button Width="32" Height="32"
+                                Margin="0,0,6,0"
+                                Padding="0"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                ToolTip.Tip="{Binding RelativePath}"
+                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenManualCommand}"
+                                CommandParameter="{Binding .}">
+                            <!-- Icon is chosen based on the file extension (pdf, txt, html, ...) -->
+                            <TextBlock Text="{Binding RelativePath, Converter={StaticResource FileExtensionToGlyphConverter}}"
+                                       FontSize="20"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center" />
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
             <!-- 2) Metadata grid -->
             <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,5">

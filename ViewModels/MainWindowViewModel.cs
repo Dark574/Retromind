@@ -13,6 +13,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
@@ -36,6 +37,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly MetadataService _metadataService; 
     private readonly GamepadService _gamepadService;
     private readonly SoundEffectService _soundEffectService;
+    private readonly IDocumentService _documentService;
 
     // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
     private readonly HttpClient _httpClient;
@@ -75,6 +77,9 @@ public partial class MainWindowViewModel : ViewModelBase
     
     // Mockable StorageProvider for Unit Tests
     public IStorageProvider? StorageProvider { get; set; }
+    
+    // Command to open per-item manuals/documents with the system viewer.
+    public IRelayCommand<MediaAsset?> OpenManualCommand { get; private set; } = null!;
 
     private DateTime _lastGuideHandledUtc = DateTime.MinValue;
 
@@ -210,7 +215,8 @@ public partial class MainWindowViewModel : ViewModelBase
         MetadataService metadataService,
         SoundEffectService soundEffectService,
         HttpClient httpClient,
-        AppSettings preloadedSettings) 
+        AppSettings preloadedSettings,
+        IDocumentService documentService)
     {
         _audioService = audioService;
         _dataService = dataService;
@@ -223,6 +229,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _soundEffectService = soundEffectService;
         _httpClient = httpClient;
         _currentSettings = preloadedSettings;
+        _documentService = documentService;
         _fileService.LibraryChanged += MarkLibraryDirty;
         
         // Ensure SDL also reports background events and applies deadzone handling.
@@ -535,6 +542,33 @@ public partial class MainWindowViewModel : ViewModelBase
 
             // Either no item, no music asset, or preview disabled -> ensure music is stopped
             _audioService.StopMusic();
+        }
+    }
+
+    /// <summary>
+    /// Opens the given manual/document asset with the system's default viewer.
+    /// Best-effort only: invalid assets or missing files are ignored silently
+    /// </summary>
+    /// <param name="asset">Manual asset to open (Type must be Manual).</param>
+    private void OpenManual(MediaAsset? asset)
+    {
+        if (asset == null)
+            return;
+
+        if (asset.Type != AssetType.Manual)
+            return;
+
+        if (string.IsNullOrWhiteSpace(asset.RelativePath))
+            return;
+
+        try
+        {
+            var fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
+            _documentService.OpenDocument(fullPath);
+        }
+        catch
+        {
+            // Best-effort: opening manuals must never crash the UI.
         }
     }
     

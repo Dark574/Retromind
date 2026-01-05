@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
@@ -49,11 +50,13 @@ public partial class MainWindowViewModel
 
     // Command to enter the Big Picture / Themed mode
     public IRelayCommand EnterBigModeCommand { get; private set; } = null!;
+    // Command to attach new manuals/documents directly from the main grid context menu
+    public IAsyncRelayCommand<MediaItem?> AddManualToMediaCommand { get; private set; } = null!;
 
     private void InitializeCommands()
     {
         // Replaced RelayCommand with AsyncRelayCommand to handle Tasks properly
-        // and avoid "async void" pitfalls.
+        // and avoid "async void" pitfalls
         
         AddCategoryCommand = new AsyncRelayCommand<MediaNode?>(AddCategoryAsync);
         AddMediaCommand = new AsyncRelayCommand<MediaNode?>(AddMediaAsync);
@@ -69,6 +72,7 @@ public partial class MainWindowViewModel
         PlayCommand = new AsyncRelayCommand<MediaItem?>(PlayMediaAsync);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
+        OpenManualCommand = new RelayCommand<MediaAsset?>(OpenManual);
         EditNodeCommand = new AsyncRelayCommand<MediaNode?>(EditNodeAsync);
         
         ToggleThemeCommand = new RelayCommand(() => IsDarkTheme = !IsDarkTheme);
@@ -82,6 +86,8 @@ public partial class MainWindowViewModel
         OpenSearchCommand = new RelayCommand(OpenIntegratedSearch);
         
         EnterBigModeCommand = new RelayCommand(EnterBigMode);
+        
+        AddManualToMediaCommand = new AsyncRelayCommand<MediaItem?>(AddManualToMediaAsync);
     }
 
     // --- Basic Actions ---
@@ -631,6 +637,83 @@ public partial class MainWindowViewModel
         SaveSettingsOnly();
     }
 
+    /// <summary>
+    /// Lets the user pick one or more document files (PDF, TXT, etc.) and attaches
+    /// them as manual assets to the given media item. Files are copied into the
+    /// library using the same rules as other assets (via FileManagementService).
+    /// </summary>
+    private async Task AddManualToMediaAsync(MediaItem? item)
+    {
+        if (item == null)
+            return;
+
+        // Ensure we have a storage provider. Some host environments may not
+        // have set StorageProvider on the view model explicitly yet.
+        if (StorageProvider == null && CurrentWindow is { StorageProvider: { } winStorage })
+        {
+            StorageProvider = winStorage;
+        }
+
+        if (StorageProvider == null)
+            return;
+
+        // Determine the logical node path for this item so that manuals end up
+        // in a folder that matches the tree structure (e.g. Games/PC/Manuals/...).
+        var parentNode = FindParentNode(RootItems, item) ?? SelectedNode;
+        if (parentNode == null)
+            return;
+
+        var nodePath = PathHelper.GetNodePath(parentNode, RootItems);
+
+        // File type filter for typical manual/document formats
+        var fileTypes = new[]
+        {
+            new FilePickerFileType("Documents")
+            {
+                Patterns = new[] { "*.pdf", "*.txt", "*.md", "*.rtf", "*.html", "*.htm" }
+            }
+        };
+
+        var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import manual(s)",
+            AllowMultiple = true,
+            FileTypeFilter = fileTypes
+        });
+
+        if (result == null || result.Count == 0)
+            return;
+
+        foreach (var file in result)
+        {
+            try
+            {
+                var imported = await _fileService.ImportAssetAsync(
+                    file.Path.LocalPath,
+                    item,
+                    nodePath,
+                    AssetType.Manual);
+
+                if (imported != null)
+                {
+                    await UiThreadHelper.InvokeAsync(() =>
+                    {
+                        item.Assets.Add(imported);
+                    });
+
+                    MarkLibraryDirty();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Assets] Failed to import manual for '{item.Title}': {ex.Message}");
+            }
+        }
+
+        // Persist updated library state (best-effort, debounced by MarkLibraryDirty/SaveData)
+        await SaveData();
+    }
+    
     // --- Tree Helpers ---
     // Note: Recursive operations on ObservableCollections can be slow for very large trees.
     // For 30k ROMs, flat list structures in memory might be better, but for now we optimize just the recursion.

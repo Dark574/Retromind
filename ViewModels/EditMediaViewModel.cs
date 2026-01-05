@@ -627,9 +627,28 @@ public partial class EditMediaViewModel : ViewModelBase
         // Create file type filters based on the selected asset type.
         var fileTypes = type switch
         {
-            AssetType.Music => new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.ogg", "*.wav", "*.flac", "*.sid" } } },
-            AssetType.Video => new[] { new FilePickerFileType("Video") { Patterns = new[] { "*.mp4", "*.mkv", "*.avi", "*.webm" } } },
-            _ => new[] { FilePickerFileTypes.ImageAll } // Default für Cover, Logo, Wallpaper, Marquee
+            AssetType.Music => new[]
+            {
+                new FilePickerFileType("Audio")
+                {
+                    Patterns = new[] { "*.mp3", "*.ogg", "*.wav", "*.flac", "*.sid" }
+                }
+            },
+            AssetType.Video => new[]
+            {
+                new FilePickerFileType("Video")
+                {
+                    Patterns = new[] { "*.mp4", "*.mkv", "*.avi", "*.webm" }
+                }
+            },
+            AssetType.Manual => new[]
+            {
+                new FilePickerFileType("Documents")
+                {
+                    Patterns = new[] { "*.pdf", "*.txt", "*.md", "*.rtf", "*.html", "*.htm" }
+                }
+            },
+            _ => new[] { FilePickerFileTypes.ImageAll } // Default for Cover, Logo, Wallpaper, Marquee, etc
         };
 
         var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -643,7 +662,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
         foreach (var file in result)
         {
-            // The FileManagementService handles copying, renaming, and adding the asset to the list.
+            // The FileManagementService handles copying, renaming, and adding the asset to the list
             var imported = await _fileService.ImportAssetAsync(file.Path.LocalPath, _originalItem, _nodePath, type);
             if (imported != null)
             {
