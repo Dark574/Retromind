@@ -58,7 +58,7 @@
                  ItemsSource="{Binding FilteredItems}"
                  SelectedItem="{Binding SelectedMediaItem}"
                  Background="Transparent"
-                 helpers:ListBoxBehaviors.CenterSelectedItem="True">
+                 helpers:ListBoxBehaviors.CenterSelectedItemOnceOnFirstSelection="True">
 
             <!-- Context menu for the EMPTY area -->
             <ListBox.ContextMenu>
