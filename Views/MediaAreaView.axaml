@@ -58,6 +58,7 @@
                  Grid.Row="1"
                  ItemsSource="{Binding FilteredItems}"
                  SelectedItem="{Binding SelectedMediaItem}"
+                 helpers:ListBoxBehaviors.CenterSelectedItemOnceOnFirstSelection="True"
                  Background="Transparent">
 
             <!-- Context menu for the EMPTY area -->
