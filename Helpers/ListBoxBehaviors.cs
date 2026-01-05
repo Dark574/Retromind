@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.VisualTree;
 using Avalonia.Threading;
 
@@ -41,6 +42,13 @@ public static class ListBoxBehaviors
             "CenterSelectedItemOnceOnFirstSelection",
             typeof(ListBoxBehaviors));
 
+    // IMPORTANT: XAML needs matching Get*/Set* helpers for the attached property name
+    public static void SetCenterSelectedItemOnceOnFirstSelection(AvaloniaObject element, bool value)
+        => element.SetValue(CenterSelectedItemOnceOnFirstSelectionProperty, value);
+
+    public static bool GetCenterSelectedItemOnceOnFirstSelection(AvaloniaObject element)
+        => element.GetValue(CenterSelectedItemOnceOnFirstSelectionProperty);
+    
     // Internal flag to remember whether we already centered once for a given ListBox.
     private static readonly AttachedProperty<bool> HasCenteredOnceProperty =
         AvaloniaProperty.RegisterAttached<ListBox, bool>(
@@ -71,14 +79,14 @@ public static class ListBoxBehaviors
             }
         });
         
-        // One-shot centering: attach/detach a different handler.
+        // One-shot centering: attach/detach a different handler
         CenterSelectedItemOnceOnFirstSelectionProperty.Changed.AddClassHandler<ListBox>((listBox, e) =>
         {
             var enable = (bool)e.NewValue!;
 
             if (enable)
             {
-                // Reset flag whenever the behavior is (re)enabled.
+                // Reset flag whenever the behavior is (re)enabled
                 SetHasCenteredOnce(listBox, false);
                 listBox.SelectionChanged += OnListBoxSelectionChangedOnce;
             }

@@ -54,11 +54,11 @@
 
         <!-- The Media-List -->
         <!-- IMPORTANT: ItemsSource changed to FilteredItems -->
-        <ListBox Grid.Row="1"
+        <ListBox x:Name="MediaList"
+                 Grid.Row="1"
                  ItemsSource="{Binding FilteredItems}"
                  SelectedItem="{Binding SelectedMediaItem}"
-                 Background="Transparent"
-                 helpers:ListBoxBehaviors.CenterSelectedItemOnceOnFirstSelection="True">
+                 Background="Transparent">
 
             <!-- Context menu for the EMPTY area -->
             <ListBox.ContextMenu>
