@@ -10,7 +10,7 @@ using Retromind.Helpers;
 namespace Retromind.Models;
 
 /// <summary>
-/// Represents a single media entry (Game, Movie, Book, etc.) in the library
+/// Represents a single media entry (Game, Movie, Book, etc.) in the library.
 /// Contains all metadata, file references, launch configuration, and statistics
 /// </summary>
 public partial class MediaItem : ObservableObject
@@ -24,8 +24,8 @@ public partial class MediaItem : ObservableObject
     public List<LaunchWrapper>? NativeWrappersOverride { get; set; }
 
     /// <summary>
-    /// Per-item environment variable overrides for the launched process
-    /// Keys are variable names (e.g. "PROTONPATH"), values are the desired contents
+    /// Per-item environment variable overrides for the launched process.
+    /// Keys are variable names (e.g. "PROTONPATH"), values are the desired contents.
     /// These are applied on top of the inherited environment and can be used to tweak
     /// Proton/Wine runners or emulators on a per-game basis
     /// </summary>
@@ -46,7 +46,7 @@ public partial class MediaItem : ObservableObject
     // --- Core Data ---
 
     /// <summary>
-    /// File references for this item (multi-disc, multi-part, etc.)
+    /// File references for this item (multi-disc, multi-part, etc.).
     /// For now we primarily support Absolute paths (portable Retromind, external media)
     /// </summary>
     [ObservableProperty]
@@ -142,6 +142,49 @@ public partial class MediaItem : ObservableObject
     }
 
     /// <summary>
+    /// Returns all manual/document assets associated with this item.
+    /// Each entry is a MediaAsset with Type = Manual and a library-relative path
+    /// </summary>
+    public IReadOnlyList<MediaAsset> ManualAssets =>
+        Assets.Where(a => a.Type == AssetType.Manual).ToList();
+
+    /// <summary>
+    /// Adds a new manual/document asset for this item.
+    /// The path must be stored library-relative (e.g. "Games/PC/Manuals/Game_Manual_01.pdf")
+    /// </summary>
+    /// <param name="relativePath">Relative path under the library root.</param>
+    /// <returns>The created MediaAsset instance.</returns>
+    public MediaAsset AddManualAsset(string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+            throw new ArgumentException("Relative path must not be empty.", nameof(relativePath));
+
+        var asset = new MediaAsset
+        {
+            Type = AssetType.Manual,
+            RelativePath = relativePath
+        };
+
+        Assets.Add(asset);
+        return asset;
+    }
+
+    /// <summary>
+    /// Removes the given manual/document asset from this item (best-effort).
+    /// If the asset is not part of the Assets collection, the call is ignored
+    /// </summary>
+    public void RemoveManualAsset(MediaAsset manualAsset)
+    {
+        if (manualAsset == null)
+            return;
+
+        if (manualAsset.Type != AssetType.Manual)
+            return;
+
+        Assets.Remove(manualAsset);
+    }
+    
+    /// <summary>
     /// Sets an asset explicitly as "active" for display (used by randomization)
     /// </summary>
     public void SetActiveAsset(AssetType type, string relativePath)
@@ -174,6 +217,8 @@ public partial class MediaItem : ObservableObject
             case AssetType.ControlPanel:
                 OnPropertyChanged(nameof(PrimaryControlPanelPath));
                 break;
+            // Manuals are never "active" in the same sense as visual assets,
+            // so they do not participate in the randomization override logic.
         }
     }
 
