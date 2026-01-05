@@ -179,48 +179,6 @@ public partial class MediaAreaViewModel : ViewModelBase
         PopulateItems(matches);
     }
     
-    private void ApplyFilter()
-    {
-        var query = SearchText?.Trim();
-        var favoritesOnly = OnlyFavorites;
-
-        if (string.IsNullOrWhiteSpace(query) && !favoritesOnly)
-        {
-            // Avoid unnecessary resets if we already show all items
-            if (FilteredItems.Count == _allItems.Count)
-                return;
-
-            PopulateItems(_allItems);
-            return;
-        }
-
-        // Allocation-light filtering: one pass, no LINQ iterator chain
-        var matches = new List<MediaItem>(capacity: Math.Min(_allItems.Count, 256));
-
-        for (int i = 0; i < _allItems.Count; i++)
-        {
-            var item = _allItems[i];
-            
-            if (favoritesOnly && !item.IsFavorite)
-                continue;
-            
-            var title = item.Title;
-
-            if (!string.IsNullOrWhiteSpace(query))
-            {
-                if (string.IsNullOrEmpty(title) ||
-                    !title.Contains(query, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-            }
-
-            matches.Add(item);
-        }
-
-        PopulateItems(matches);
-    }
-
     /// <summary>
     /// Repopulates the list efficiently (single Reset notification)
     /// Also updates command availability without relying on CollectionChanged events

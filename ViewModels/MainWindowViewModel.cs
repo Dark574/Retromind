@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
@@ -593,102 +594,28 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             if (token.IsCancellationRequested) return;
 
-            // 1. Collect items (recursive)
-            var itemList = new System.Collections.Generic.List<MediaItem>();
-            CollectItemsRecursive(nodeToLoad, itemList);
-
-            if (token.IsCancellationRequested) return;
-            
-            // Globally sort all collected items by title so aggregated views (root/areas)
-            // are truly alphabetical across all subcategories.
-            itemList.Sort(static (a, b) =>
-                string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase));
-
-            // 2. Randomization Logic (covers/wallpapers/music)
-            bool randomizeMusic = IsRandomizeMusicActive(nodeToLoad);
-            bool randomizeCovers = IsRandomizeActive(nodeToLoad);
-
-            // Compute the randomization winners in the background
-            // Applying Reset/SetActiveAsset happens on the UI thread to avoid cross-thread binding issues
-            var randomizationPlan =
-                new System.Collections.Generic.List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)>(
-                    capacity: itemList.Count);
-
-            if (randomizeCovers || randomizeMusic)
-            {
-                foreach (var item in itemList)
-                {
-                    if (token.IsCancellationRequested) return;
-
-                    System.Collections.Generic.List<MediaAsset>? covers = null;
-                    System.Collections.Generic.List<MediaAsset>? wallpapers = null;
-                    System.Collections.Generic.List<MediaAsset>? music = null;
-
-                    foreach (var asset in item.Assets)
-                    {
-                        if (randomizeCovers)
-                        {
-                            if (asset.Type == AssetType.Cover)
-                                (covers ??= new()).Add(asset);
-                            else if (asset.Type == AssetType.Wallpaper)
-                                (wallpapers ??= new()).Add(asset);
-                        }
-
-                        if (randomizeMusic && asset.Type == AssetType.Music)
-                            (music ??= new()).Add(asset);
-                    }
-
-                    string? coverWinner = null;
-                    string? wallpaperWinner = null;
-                    string? musicWinner = null;
-
-                    if (randomizeCovers)
-                    {
-                        if (covers is { Count: > 1 })
-                            coverWinner = RandomHelper.PickRandom(covers)?.RelativePath;
-
-                        if (wallpapers is { Count: > 1 })
-                            wallpaperWinner = RandomHelper.PickRandom(wallpapers)?.RelativePath;
-                    }
-
-                    if (randomizeMusic && music is { Count: > 1 })
-                        musicWinner = RandomHelper.PickRandom(music)?.RelativePath;
-
-                    randomizationPlan.Add((item, coverWinner, wallpaperWinner, musicWinner));
-                }
-            }
+            // Build a lightweight description of what we want to display:
+            // - the flat item list for this node (including children)
+            // - and the randomization plan for cover/wallpaper/music.
+            var (allItems, randomizationPlan) =
+                BuildDisplayItemsWithRandomization(nodeToLoad, token);
 
             if (token.IsCancellationRequested) return;
 
-            // 3. Prepare display node
-            var allItems = new ObservableCollection<MediaItem>(itemList);
-
+            // Create the display node used by MediaAreaViewModel.
             var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
             {
                 Id = nodeToLoad.Id,
-                Items = allItems
+                Items = new ObservableCollection<MediaItem>(allItems)
             };
 
-            // 4. Switch to UI thread once (apply randomization + build VM)
+            // Switch to UI thread once (apply randomization + build VM)
             await UiThreadHelper.InvokeAsync(() =>
             {
                 if (token.IsCancellationRequested) return;
                 if (SelectedNode != nodeToLoad) return;
 
-                // Apply randomization safely on UI thread
-                foreach (var plan in randomizationPlan)
-                {
-                    plan.Item.ResetActiveAssets();
-
-                    if (!string.IsNullOrEmpty(plan.Cover))
-                        plan.Item.SetActiveAsset(AssetType.Cover, plan.Cover);
-
-                    if (!string.IsNullOrEmpty(plan.Wallpaper))
-                        plan.Item.SetActiveAsset(AssetType.Wallpaper, plan.Wallpaper);
-
-                    if (!string.IsNullOrEmpty(plan.Music))
-                        plan.Item.SetActiveAsset(AssetType.Music, plan.Music);
-                }
+                ApplyRandomizationPlan(randomizationPlan);
 
                 var mediaVm = new MediaAreaViewModel(displayNode, ItemWidth);
 
@@ -698,8 +625,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
                 if (!string.IsNullOrEmpty(_currentSettings.LastSelectedMediaId))
                 {
-                    var itemToSelect = allItems.FirstOrDefault(i => i.Id == _currentSettings.LastSelectedMediaId);
-                    if (itemToSelect != null) mediaVm.SelectedMediaItem = itemToSelect;
+                    var itemToSelect = displayNode.Items
+                        .FirstOrDefault(i => i.Id == _currentSettings.LastSelectedMediaId);
+                    if (itemToSelect != null)
+                        mediaVm.SelectedMediaItem = itemToSelect;
                 }
 
                 SelectedNodeContent = mediaVm;
@@ -713,5 +642,104 @@ public partial class MainWindowViewModel : ViewModelBase
 
             Debug.WriteLine($"[UpdateContent] Background task failed: {t.Exception}");
         }, TaskContinuationOptions.ExecuteSynchronously);
+    }
+    
+    /// <summary>
+    /// Builds the flat item list for the given node and precomputes
+    /// which cover, wallpaper and music assets should be active for
+    /// each item according to the node's randomization flags.
+    /// This method does no UI work and can run off the UI thread.
+    /// </summary>
+    private (List<MediaItem> Items,
+            List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)> RandomizationPlan)
+        BuildDisplayItemsWithRandomization(MediaNode node, CancellationToken token)
+    {
+        // 1. Collect items (recursive)
+        var itemList = new List<MediaItem>();
+        CollectItemsRecursive(node, itemList);
+
+        token.ThrowIfCancellationRequested();
+
+        // Globally sort all collected items by title so aggregated views (root/areas)
+        // are truly alphabetical across all subcategories
+        itemList.Sort(static (a, b) =>
+            string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase));
+
+        // 2. Randomization logic (covers/wallpapers/music)
+        bool randomizeMusic = IsRandomizeMusicActive(node);
+        bool randomizeCovers = IsRandomizeActive(node);
+
+        var randomizationPlan =
+            new List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)>(
+                capacity: itemList.Count);
+
+        if (!randomizeCovers && !randomizeMusic)
+            return (itemList, randomizationPlan);
+
+        foreach (var item in itemList)
+        {
+            token.ThrowIfCancellationRequested();
+
+            List<MediaAsset>? covers = null;
+            List<MediaAsset>? wallpapers = null;
+            List<MediaAsset>? music = null;
+
+            foreach (var asset in item.Assets)
+            {
+                if (randomizeCovers)
+                {
+                    if (asset.Type == AssetType.Cover)
+                        (covers ??= new()).Add(asset);
+                    else if (asset.Type == AssetType.Wallpaper)
+                        (wallpapers ??= new()).Add(asset);
+                }
+
+                if (randomizeMusic && asset.Type == AssetType.Music)
+                    (music ??= new()).Add(asset);
+            }
+
+            string? coverWinner = null;
+            string? wallpaperWinner = null;
+            string? musicWinner = null;
+
+            if (randomizeCovers)
+            {
+                if (covers is { Count: > 1 })
+                    coverWinner = RandomHelper.PickRandom(covers)?.RelativePath;
+
+                if (wallpapers is { Count: > 1 })
+                    wallpaperWinner = RandomHelper.PickRandom(wallpapers)?.RelativePath;
+            }
+
+            if (randomizeMusic && music is { Count: > 1 })
+                musicWinner = RandomHelper.PickRandom(music)?.RelativePath;
+
+            randomizationPlan.Add((item, coverWinner, wallpaperWinner, musicWinner));
+        }
+
+        return (itemList, randomizationPlan);
+    }
+
+    /// <summary>
+    /// Applies the precomputed randomization winners to the given items.
+    /// Must be called on the UI thread because it mutates model objects
+    /// that are bound directly into the view.
+    /// </summary>
+    private static void ApplyRandomizationPlan(
+        List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)> randomizationPlan)
+    {
+        foreach (var plan in randomizationPlan)
+        {
+            plan.Item.ResetActiveAssets();
+
+            if (!string.IsNullOrEmpty(plan.Cover))
+                plan.Item.SetActiveAsset(AssetType.Cover, plan.Cover);
+
+            if (!string.IsNullOrEmpty(plan.Wallpaper))
+                plan.Item.SetActiveAsset(AssetType.Wallpaper, plan.Wallpaper);
+
+            if (!string.IsNullOrEmpty(plan.Music))
+                plan.Item.SetActiveAsset(AssetType.Music, plan.Music);
+        }
     }
 }
