@@ -10,6 +10,61 @@ This guide covers:
 - `ThemeProperties` (metadata, sounds, tuning)
 - Best practices, performance tips, and troubleshooting
 
+## Quick start: creating a new BigMode theme
+
+If you just want to get started quickly:
+
+1. **Copy an existing theme folder**
+    - For example: `Themes/Wheel/`
+    - Duplicate it under a new name, e.g. `Themes/MyTheme/`.
+
+2. **Rename the main file**
+    - Keep the filename `theme.axaml` in your new folder so the loader finds it:
+        - `Themes/MyTheme/theme.axaml`
+
+3. **Update metadata on the root control**
+    - Change `ThemeProperties.Name`, `Author`, `Version` and any tuning values:
+   ```xml
+   <UserControl xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:vm="using:Retromind.ViewModels"
+                xmlns:ext="clr-namespace:Retromind.Extensions"
+                x:DataType="vm:BigModeViewModel"
+                Background="Black"
+                ext:ThemeProperties.Name="MyTheme"
+                ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
+                ext:ThemeProperties.Version="0.1.0">
+       <!-- Your layout -->
+   </UserControl>
+   ```
+
+4. **Keep the DataContext contract**
+    - The theme root must assume `DataContext` is a `BigModeViewModel`:
+        - Use `x:DataType="vm:BigModeViewModel"` for strong-typed bindings.
+
+5. **Place your main video slot**
+    - Add a named element that should host the main video overlay:
+   ```xml
+   <Border x:Name="VideoSlot"
+           Width="800"
+           Height="450"
+           Background="#000000">
+       <!-- Optional fallback visuals (e.g. image or text) -->
+   </Border>
+   ```
+    - Optionally configure `ThemeProperties.VideoSlotName` if you do not want to use `VideoSlot` as the name.
+
+6. **Bind to `BigModeViewModel` properties**
+    - Use `Items`, `SelectedItem`, `CurrentCategories`, `SelectedCategory`, etc.
+    - Show covers, logos and text using the properties exposed by the view model.
+
+7. **Test in Retromind**
+    - Start Retromind with `--bigmode`.
+    - Select your theme in the node settings (“BigMode theme” dropdown).
+    - Adjust spacing, animations and typography via `ThemeProperties` as needed.
+
+For a detailed explanation of all available hooks, video channels and `ThemeProperties`, read the sections below.
+
 ---
 
 ## 1) What is a theme?
