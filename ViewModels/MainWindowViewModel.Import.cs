@@ -272,7 +272,7 @@ public partial class MainWindowViewModel
                 var title = await PromptForName(owner, $"{Strings.Common_Title} '{first.Name}':") ?? rawTitle;
                 if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
 
-                // Build file refs with "smart" disc detection from filenames.
+                // Build file refs with "smart" disc detection from filenames
                 var temp = result
                     .Select(f =>
                     {
@@ -282,7 +282,7 @@ public partial class MainWindowViewModel
                     })
                     .ToList();
 
-                // Stable ordering: Index ascending when available, else by filename.
+                // Stable ordering: Index ascending when available, else by filename
                 var ordered = temp
                     .OrderBy(x => x.Index ?? int.MaxValue)
                     .ThenBy(x => x.File.Name, StringComparer.OrdinalIgnoreCase)
@@ -378,9 +378,13 @@ public partial class MainWindowViewModel
         // 3) Apply on UI thread
         await UiThreadHelper.InvokeAsync(() =>
         {
+            // Track the items that were actually added to this node
+            var newlyAddedItems = new List<MediaItem>();
+            
             foreach (var (item, assets) in scanned)
             {
                 targetNode.Items.Add(item);
+                newlyAddedItems.Add(item);
 
                 item.Assets.Clear();
                 foreach (var asset in assets)
@@ -391,7 +395,19 @@ public partial class MainWindowViewModel
             SortMediaItems(targetNode.Items);
 
             if (IsNodeInCurrentView(targetNode))
+            {
+                // Refresh the grid / detail view
                 UpdateContent();
+
+                // After the content is refreshed, select the last newly added item in the current view
+                if (newlyAddedItems.Count > 0 &&
+                    SelectedNodeContent is MediaAreaViewModel mediaVm &&
+                    mediaVm.Node == targetNode)
+                {
+                    // Selecting the item will typically scroll it into view in the UI
+                    mediaVm.SelectedMediaItem = newlyAddedItems[^1];
+                }
+            }
         });
 
         await SaveData();
