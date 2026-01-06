@@ -665,12 +665,12 @@ public partial class MainWindowViewModel
 
         var nodePath = PathHelper.GetNodePath(parentNode, RootItems);
 
-        // File type filter for typical manual/document formats
+        // File type filter for typical manual/document formats, including image-based maps
         var fileTypes = new[]
         {
             new FilePickerFileType("Documents")
             {
-                Patterns = new[] { "*.pdf", "*.txt", "*.md", "*.rtf", "*.html", "*.htm" }
+                Patterns = new[] { "*.pdf", "*.txt", "*.md", "*.rtf", "*.html", "*.htm", "*.jpg", "*.jpeg", "*.png" }
             }
         };
 
