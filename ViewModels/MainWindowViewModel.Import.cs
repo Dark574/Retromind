@@ -375,12 +375,12 @@ public partial class MainWindowViewModel
             return list;
         });
 
-        // 3) Apply on UI thread
+        // Keep the list of actually inserted items outside the UI callback
+        var newlyAddedItems = new List<MediaItem>(scanned.Count);
+                
+        // 3) Apply on UI thread: add items + assets
         await UiThreadHelper.InvokeAsync(() =>
         {
-            // Track the items that were actually added to this node
-            var newlyAddedItems = new List<MediaItem>();
-            
             foreach (var (item, assets) in scanned)
             {
                 targetNode.Items.Add(item);
@@ -393,23 +393,24 @@ public partial class MainWindowViewModel
 
             MarkLibraryDirty();
             SortMediaItems(targetNode.Items);
-
-            if (IsNodeInCurrentView(targetNode))
-            {
-                // Refresh the grid / detail view
-                UpdateContent();
-
-                // After the content is refreshed, select the last newly added item in the current view
-                if (newlyAddedItems.Count > 0 &&
-                    SelectedNodeContent is MediaAreaViewModel mediaVm &&
-                    mediaVm.Node == targetNode)
-                {
-                    // Selecting the item will typically scroll it into view in the UI
-                    mediaVm.SelectedMediaItem = newlyAddedItems[^1];
-                }
-            }
         });
 
+        // 4) Remember the last created item as the "selectable" ID
+        if (newlyAddedItems.Count > 0)
+        {
+            var lastItem = newlyAddedItems[^1];
+            _currentSettings.LastSelectedMediaId = lastItem.Id;
+            SaveSettingsOnly();
+        }
+        
+        // 5) Refresh the central view only if this node is currently shown
+        if (IsNodeInCurrentView(targetNode))
+        {
+            // Wait until SelectedNodeContent is actually rebuilt
+            await UpdateContentAsync();
+        }
+
+        // 6) Persist to disk (library + settings)
         await SaveData();
     }
 
