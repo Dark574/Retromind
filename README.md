@@ -299,9 +299,16 @@ You can override this behavior for testing:
   dotnet run --project Retromind.csproj -- --avalonia-platform=auto
   ```
 
-
 ## Architecture
 See [`Docs/architecture.md`](Docs/architecture.md).
+
+## Contributing
+
+Contributions are welcome!  
+Before opening issues or pull requests, please have a look at:
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) – contribution guidelines
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) – expected behavior in the project community
 
 ## License
 GPL-3.0-only (see `COPYING`).
