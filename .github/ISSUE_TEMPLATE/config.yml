@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Questions / general discussion
+    url: https://github.com/Dark574/Retromind/discussions
+    about: >
+      For general questions or ideas that are not concrete bug reports,
+      please use GitHub Discussions instead of issues.
