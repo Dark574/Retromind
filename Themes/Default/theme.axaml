@@ -208,7 +208,7 @@
                                     Height="330"
                                     HorizontalAlignment="Left"
                                     VerticalAlignment="Top"
-                                    Margin="-120,28,0,0"
+                                    Margin="-70,28,0,0"
                                     CornerRadius="8"
                                     ClipToBounds="True"
                                     Background="#00000000"

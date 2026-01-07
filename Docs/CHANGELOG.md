@@ -11,7 +11,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Added
 - (planned) More system sub-themes and BigMode layouts.
-- (planned) Additional media types (movies, books, comics, ...).
+- (planned) More extensive search system
 
 ### Changed
 - (planned) General polish for BigMode navigation and theming.
@@ -46,6 +46,27 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
+## [0.0.2-alpha] - 2026-01-07
+
+### Added
+- Use relative paths internally when creating Wine prefixes.
+- Allow changing the primary executable in media settings.
+- Add wrapper support for emulators and native programs.
+- Add per-item environment overrides.
+- Allow marking items as favorites.
+- Allow attaching documents/manuals to media items.
+
+### Changed
+- Optimized themes for better usability on smaller screens.
+- Cleaned up themes.
+- Some small changes to the ui.
+
+### Fixed
+- Correct handling of profiles when switching emulator/native.
+- Theme cleanup after switchting between themes in BigMode.
+
+---
+
 ## Versioning
 
 - `0.0.x` – early alpha versions, APIs and themes may change at any time.
@@ -53,5 +74,6 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
-[Unreleased]: https://github.com/<your-account>/Retromind/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/<your-account>/Retromind/compare/v0.0.2-alpha...HEAD
 [0.0.1]: https://github.com/<your-account>/Retromind/releases/tag/v0.0.1
+[0.0.2-alpha]: https://github.com/<your-account>/Retromind/releases/tag/v0.0.2-alpha
