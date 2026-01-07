@@ -22,6 +22,7 @@
         <Content Include=".github\ISSUE_TEMPLATE\bug_report.md" />
         <Content Include=".github\ISSUE_TEMPLATE\config.yml" />
         <Content Include=".github\ISSUE_TEMPLATE\feature_request.md" />
+        <Content Include=".github\pull_request_template.md" />
         <Content Include="Themes\**">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <CopyToPublishDirectory>Always</CopyToPublishDirectory>
