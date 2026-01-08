@@ -222,8 +222,8 @@
                         <!-- Native wrapper chain (Linux) - item-level override -->
                         <StackPanel Spacing="8"
                                     Margin="0,15,0,0"
-                                    IsVisible="{Binding IsNativeMode}">
-                            <TextBlock Text="Native Wrapper (Linux)" FontWeight="Bold" />
+                                    IsVisible="{Binding IsWrapperEditorVisible}">
+                            <TextBlock Text="Wrapper chain (Linux)" FontWeight="Bold" />
 
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <RadioButton Content="Inherit"
@@ -249,7 +249,7 @@
 
                                                     <TextBox Grid.Row="1" Grid.Column="0"
                                                              Text="{Binding Path, Mode=TwoWay}"
-                                                             Watermark="gamemoderun / mangohud / env" />
+                                                             Watermark="gamemoderun / mangohud / env / gamescope" />
 
                                                     <TextBox Grid.Row="1" Grid.Column="2"
                                                              Text="{Binding Args, Mode=TwoWay}" />

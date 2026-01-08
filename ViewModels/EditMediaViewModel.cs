@@ -337,6 +337,7 @@ public partial class EditMediaViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsManualEmulator))]
     [NotifyPropertyChangedFor(nameof(IsCustomLauncherVisible))]
     [NotifyPropertyChangedFor(nameof(IsNativeMode))]
+    [NotifyPropertyChangedFor(nameof(IsWrapperEditorVisible))]
     [NotifyPropertyChangedFor(nameof(PreviewText))]
     private MediaType _mediaType;
 
@@ -374,6 +375,15 @@ public partial class EditMediaViewModel : ViewModelBase
     public bool IsCustomLauncherVisible => IsManualEmulator;
     
     public bool IsNativeMode => MediaType == MediaType.Native;
+    
+    /// <summary>
+    /// Controls visibility of the wrapper editor section in the UI.
+    /// Wrappers are meaningful for both Native and Emulator items,
+    /// but not for pure Command-type entries.
+    /// </summary>
+    public bool IsWrapperEditorVisible =>
+        MediaType == MediaType.Native ||
+        MediaType == MediaType.Emulator;
     
     // --- Asset Management ---
     

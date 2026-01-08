@@ -21,7 +21,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
-## [0.0.1] - 2025-01-xx
+## [0.0.1] - 2025-01-01
 
 ### Added
 - Initial **BigMode** implementation with:
