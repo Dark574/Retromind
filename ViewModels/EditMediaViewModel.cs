@@ -1222,31 +1222,40 @@ public partial class EditMediaViewModel : ViewModelBase
         // Prefix: store null when not used
         _originalItem.PrefixPath = string.IsNullOrWhiteSpace(PrefixPath) ? null : PrefixPath.Trim();
         
+        // Always store per-item launcher arguments (used for both Native and Emulator modes)
+        _originalItem.LauncherArgs = LauncherArgs;
+
+        // Always store process monitor override (null when empty)
+        _originalItem.OverrideWatchProcess = string.IsNullOrWhiteSpace(OverrideWatchProcess)
+            ? null
+            : OverrideWatchProcess;
+        
+        // 2. Emulator / launcher path handling
         if (MediaType == MediaType.Emulator &&
             SelectedEmulatorProfile != null &&
             SelectedEmulatorProfile.Id != null)
         {
-            // Only emulator items are allowed to persist an EmulatorId
+            // Emulator via profile:
+            // - persist EmulatorId
+            // - do NOT persist a per-item LauncherPath (comes from profile)
             _originalItem.EmulatorId = SelectedEmulatorProfile.Id;
+            _originalItem.LauncherPath = null;
+        }
+        else if (MediaType == MediaType.Emulator)
+        {
+            // Manual emulator:
+            // - no EmulatorId
+            // - per-item LauncherPath is the tool/emulator path
+            _originalItem.EmulatorId = null;
+            _originalItem.LauncherPath = LauncherPath;
         }
         else
         {
+            // Native:
+            // - no EmulatorId
+            // - LauncherPath is deprecated (wrapper chain handles launching)
             _originalItem.EmulatorId = null;
-
-            // Manual emulator only: LauncherPath is the tool/emulator path
-            if (MediaType == MediaType.Emulator)
-            {
-                _originalItem.LauncherPath = LauncherPath;
-                _originalItem.LauncherArgs = LauncherArgs;
-            }
-            else
-            {
-                // Native: LauncherPath is deprecated (wrapper chain handles launching)
-                _originalItem.LauncherPath = null;
-                _originalItem.LauncherArgs = LauncherArgs;
-            }
-
-            _originalItem.OverrideWatchProcess = OverrideWatchProcess;
+            _originalItem.LauncherPath = null;
         }
         
         // 3. Native wrapper override (tri-state, item-level)
