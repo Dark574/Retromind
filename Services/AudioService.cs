@@ -63,32 +63,56 @@ public class AudioService
                 {
                     var startInfo = new ProcessStartInfo
                     {
-                        FileName = PlayerExecutable,
                         UseShellExecute = false,
                         CreateNoWindow = true,
-                        RedirectStandardOutput = false,
-                        RedirectStandardError = false
+                        // Redirect stdout/stderr so player logs don't pollute the host terminal.
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
                     };
 
-                    // Construct arguments using the safer ArgumentList
-                    startInfo.ArgumentList.Add("-nodisp");       // No graphical window
-                    startInfo.ArgumentList.Add("-autoexit");     // Close when done
-                    startInfo.ArgumentList.Add("-loop");         // Loop count
-                    startInfo.ArgumentList.Add("0");             // 0 = infinite
-                    startInfo.ArgumentList.Add("-loglevel");     // Log level
-                    startInfo.ArgumentList.Add("quiet");         // Suppress output
-                    startInfo.ArgumentList.Add("-volume");       // Volume control
-                    startInfo.ArgumentList.Add(DefaultVolume.ToString()); 
-                    
-                    // The file path is added last
-                    startInfo.ArgumentList.Add(filePath);
+                    // Simple SID detection by extension
+                    var isSid = filePath.EndsWith(".sid", StringComparison.OrdinalIgnoreCase);
+
+                    if (isSid)
+                    {
+                        startInfo.FileName = "sidplayfp";
+                        startInfo.ArgumentList.Clear();
+
+                        // Quiet mode (-q) to minimize console/log noise
+                        startInfo.ArgumentList.Add("-q");
+                        
+                        // SID file path
+                        startInfo.ArgumentList.Add(filePath);
+                        
+                        Debug.WriteLine($"[AudioService] Playing SID via sidplayfp: {filePath}");
+                    }
+                    else
+                    {
+                        // Default path: ffplay for "normal" audio formats (mp3, ogg, flac, wav, ...)
+                        startInfo.FileName = PlayerExecutable;
+
+                        // Construct arguments using the safer ArgumentList
+                        startInfo.ArgumentList.Add("-nodisp");       // No graphical window
+                        startInfo.ArgumentList.Add("-autoexit");     // Close when done
+                        startInfo.ArgumentList.Add("-loop");         // Loop count
+                        startInfo.ArgumentList.Add("0");             // 0 = infinite
+                        startInfo.ArgumentList.Add("-loglevel");     // Log level
+                        startInfo.ArgumentList.Add("quiet");         // Suppress output
+                        startInfo.ArgumentList.Add("-volume");       // Volume control
+                        startInfo.ArgumentList.Add(DefaultVolume.ToString()); 
+                        
+                        // The file path is added last
+                        startInfo.ArgumentList.Add(filePath);
+
+                        Debug.WriteLine($"[AudioService] Playing via ffplay: {filePath}");
+                    }
 
                     _currentProcess = Process.Start(startInfo);
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[AudioService] Failed to start '{PlayerExecutable}': {ex.Message}");
-                    Debug.WriteLine("[AudioService] Ensure ffmpeg/ffplay is installed and in your PATH.");
+                    Debug.WriteLine($"[AudioService] Failed to start audio player: {ex.Message}");
+                    Debug.WriteLine("[AudioService] Ensure ffmpeg/ffplay (and sidplayfp for SID files) is installed and in your PATH.");
                 }
             }
         }, token);

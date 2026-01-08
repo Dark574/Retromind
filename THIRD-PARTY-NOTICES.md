@@ -74,6 +74,18 @@ See: `Licenses/Silk.NET.MIT.txt`
 
 ---
 
+## Sidplayfp (SID player)
+
+**Component** Commodore 64 SID player
+**Repository:** https://github.com/libsidplayfp/sidplayfp/
+**License:** GNU GPL-2.0
+
+Used for sid music playback.
+
+See `Licenses/Sidplayfp.GPL-2.0.txt`
+
+---
+
 ## Other NuGet Packages
 
 Retromind may use additional NuGet packages (e.g. helpers and small utilities), typically under permissive licenses such as MIT or BSD.

@@ -59,6 +59,17 @@ chmod +x "$APPDIR/AppRun"
 cp "$PUBLISH_DIR/Retromind" "$APPDIR/usr/bin/Retromind"
 chmod +x "$APPDIR/usr/bin/Retromind"
 
+# Try to bundle sidplayfp (SID player) for SID music playback.
+# If sidplayfp is not available on the build host, we just log a notice and continue.
+if command -v sidplayfp >/dev/null 2>&1; then
+  SIDPLAY_PATH="$(command -v sidplayfp)"
+  echo "Bundling sidplayfp from: $SIDPLAY_PATH"
+  cp "$SIDPLAY_PATH" "$APPDIR/usr/bin/sidplayfp"
+  chmod +x "$APPDIR/usr/bin/sidplayfp"
+else
+  echo "Notice: sidplayfp not found on build host (no SID playback in AppImage)."
+fi
+
 # Copy themes so that the AppImage has the same layout as the publish folder.
 if [ -d "$PUBLISH_DIR/Themes" ]; then
   echo "Copying themes into AppDir..."
