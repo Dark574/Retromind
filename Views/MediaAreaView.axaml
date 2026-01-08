@@ -44,6 +44,41 @@
                          Width="200"
                          VerticalAlignment="Center"/>
 
+                <!-- Status filter + clear -->
+                <StackPanel Orientation="Horizontal"
+                            Spacing="4"
+                            VerticalAlignment="Center"
+                            Margin="5,0,0,0">
+                    <ComboBox ItemsSource="{Binding StatusOptions}"
+                              SelectedItem="{Binding SelectedStatus, Mode=TwoWay}"
+                              Width="130"
+                              Height="28"
+                              VerticalAlignment="Center"
+                              PlaceholderText="Status">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <!-- Clear status filter -->
+                    <Button Width="22"
+                            Height="22"
+                            Padding="0"
+                            Margin="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Command="{Binding ClearStatusFilterCommand}"
+                            ToolTip.Tip="Reset status filter">
+                        <TextBlock Text="✕"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Button>
+                </StackPanel>
+                
                 <!-- Zoom Slider -->
                 <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                     <TextBlock Text="{x:Static p:Strings.Zoom_Zoom}" VerticalAlignment="Center" />

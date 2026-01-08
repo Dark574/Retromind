@@ -90,6 +90,11 @@ public partial class SearchAreaViewModel : ViewModelBase
     public ICommand PlayRandomCommand { get; }
     public ICommand PlayCommand { get; }
 
+    /// <summary>
+    /// Command to clear the status filter (SelectedStatus = null).
+    /// </summary>
+    public IRelayCommand ClearStatusFilterCommand { get; }
+    
     public event Action<MediaItem>? RequestPlay;
     
     public bool HasResults => SearchResults.Count > 0;
@@ -110,6 +115,9 @@ public partial class SearchAreaViewModel : ViewModelBase
         {
             if (item != null) RequestPlay?.Invoke(item);
         });
+        
+        // Allow resetting the status filter back to "no filter"
+        ClearStatusFilterCommand = new RelayCommand(() => SelectedStatus = null);
     }
 
     partial void OnSearchTextChanged(string value) => RequestSearch();

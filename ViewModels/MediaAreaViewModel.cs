@@ -53,10 +53,26 @@ public partial class MediaAreaViewModel : ViewModelBase
     private bool _onlyFavorites;
     
     /// <summary>
+    /// Optional status filter. When null, status is ignored.
+    /// </summary>
+    [ObservableProperty]
+    private PlayStatus? _selectedStatus;
+
+    /// <summary>
+    /// Available status values for the status filter combo box.
+    /// </summary>
+    public IReadOnlyList<PlayStatus> StatusOptions { get; } = Enum.GetValues<PlayStatus>();
+
+    /// <summary>
     /// Collection bound to the view. Range updates minimize UI stalls.
     /// </summary>
     public RangeObservableCollection<MediaItem> FilteredItems { get; } = new();
 
+    /// <summary>
+    /// Command to clear the status filter (SelectedStatus = null).
+    /// </summary>
+    public IRelayCommand ClearStatusFilterCommand { get; }
+    
     public MediaAreaViewModel(MediaNode node, double initialItemWidth)
     {
         Node = node ?? throw new ArgumentNullException(nameof(node));
@@ -68,6 +84,9 @@ public partial class MediaAreaViewModel : ViewModelBase
         PopulateItems(_allItems);
 
         DoubleClickCommand = new RelayCommand(OnDoubleClick);
+        
+        // Allow resetting the status filter back to "no filter"
+        ClearStatusFilterCommand = new RelayCommand(() => SelectedStatus = null);
     }
 
     public ICommand DoubleClickCommand { get; }
@@ -86,6 +105,12 @@ public partial class MediaAreaViewModel : ViewModelBase
     partial void OnOnlyFavoritesChanged(bool value)
     {
         // Re-apply the current filter when the favorites toggle changes
+        DebouncedApplyFilter(SearchText);
+    }
+    
+    partial void OnSelectedStatusChanged(PlayStatus? value)
+    {
+        // Re-apply when status filter changes
         DebouncedApplyFilter(SearchText);
     }
     
@@ -129,8 +154,9 @@ public partial class MediaAreaViewModel : ViewModelBase
     {
         var query = querySnapshot?.Trim();
         var favoritesOnly = OnlyFavorites;
+        var statusFilter = SelectedStatus;
 
-        if (string.IsNullOrWhiteSpace(query) && !favoritesOnly)
+        if (string.IsNullOrWhiteSpace(query) && !favoritesOnly && statusFilter == null)
         {
             // Return a copy to keep the API consistent (List<MediaItem>),
             // while avoiding enumerating UI-bound collections in the background.
@@ -146,6 +172,9 @@ public partial class MediaAreaViewModel : ViewModelBase
             var item = _allItems[i];
             
             if (favoritesOnly && !item.IsFavorite)
+                continue;
+            
+            if (statusFilter.HasValue && item.Status != statusFilter.Value)
                 continue;
             
             var title = item.Title;
@@ -169,7 +198,14 @@ public partial class MediaAreaViewModel : ViewModelBase
     {
         var query = querySnapshot?.Trim();
 
-        if (string.IsNullOrWhiteSpace(query) && !OnlyFavorites)
+        // Only skip updates when:
+        //  - no text query,
+        //  - no favorites filter,
+        //  - no status filter,
+        //  - and we already show all items.
+        if (string.IsNullOrWhiteSpace(query) &&
+            !OnlyFavorites &&
+            SelectedStatus == null)
         {
             // Avoid unnecessary resets if we already show all items
             if (FilteredItems.Count == _allItems.Count)
