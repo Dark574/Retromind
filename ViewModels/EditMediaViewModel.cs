@@ -447,7 +447,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
     // --- Commands ---
     public IAsyncRelayCommand<AssetType> ImportAssetCommand { get; }
-    public IRelayCommand DeleteAssetCommand { get; }
+    public IAsyncRelayCommand DeleteAssetCommand { get; }
     
     public IAsyncRelayCommand BrowseLauncherCommand { get; }
     public IRelayCommand<Window?> SaveAndCloseCommand { get; }
@@ -500,7 +500,7 @@ public partial class EditMediaViewModel : ViewModelBase
         
         // Generic asset commands
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
-        DeleteAssetCommand = new RelayCommand(DeleteSelectedAsset, () => SelectedAsset != null);
+        DeleteAssetCommand = new AsyncRelayCommand(DeleteSelectedAssetAsync, () => SelectedAsset != null);
 
         // Native wrapper editor commands
         AddNativeWrapperCommand = new RelayCommand(AddNativeWrapper);
@@ -765,9 +765,10 @@ public partial class EditMediaViewModel : ViewModelBase
         }
     }
 
-    private async void DeleteSelectedAsset()
+    private async Task DeleteSelectedAssetAsync()
     {
-        if (SelectedAsset == null) return;
+        if (SelectedAsset == null) 
+            return;
 
         var asset = SelectedAsset;
 
@@ -776,9 +777,11 @@ public partial class EditMediaViewModel : ViewModelBase
 
         try
         {
-            // 2) Delete file (IO)
+            // 2) Delete file (IO-bound)
             _fileService.DeleteAssetFile(asset);
             HasAssetChanges = true;
+
+            // Clear selection so the delete button hides/updates correctly
             SelectedAsset = null;
         }
         catch
