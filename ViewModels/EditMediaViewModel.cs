@@ -269,6 +269,35 @@ public partial class EditMediaViewModel : ViewModelBase
         }
     }
     
+    /// <summary>
+    /// Attach change tracking to an environment override row so that
+    /// edits to Key/Value immediately refresh the launch preview.
+    /// </summary>
+    private void WireEnvRow(EnvVarRow row)
+    {
+        row.PropertyChanged += OnEnvRowPropertyChanged;
+    }
+
+    /// <summary>
+    /// Detach change tracking from an environment override row.
+    /// </summary>
+    private void UnwireEnvRow(EnvVarRow row)
+    {
+        row.PropertyChanged -= OnEnvRowPropertyChanged;
+    }
+
+    private void OnEnvRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Only rebuild the preview for changes that actually affect the
+        // environment prefix (Key/Value). This keeps updates lean
+        if (e.PropertyName == nameof(EnvVarRow.Key) ||
+            e.PropertyName == nameof(EnvVarRow.Value))
+        {
+            OnPropertyChanged(nameof(PreviewText));
+            CopyPreviewCommand.NotifyCanExecuteChanged();
+        }
+    }
+    
     partial void OnNativeWrapperModeChanged(WrapperMode value)
     {
         OnPropertyChanged(nameof(IsNativeWrapperInherit));
@@ -502,6 +531,23 @@ public partial class EditMediaViewModel : ViewModelBase
             OnPropertyChanged(nameof(PreviewText));
         };
         
+        // Keep environment overrides in sync with the preview. Whenever rows
+        // are added/removed, we attach/detach change tracking so that edits
+        // to Key/Value immediately refresh the preview prefix.
+        EnvironmentOverrides.CollectionChanged += (_, e) =>
+        {
+            if (e.OldItems != null)
+                foreach (var oldItem in e.OldItems.OfType<EnvVarRow>())
+                    UnwireEnvRow(oldItem);
+
+            if (e.NewItems != null)
+                foreach (var newItem in e.NewItems.OfType<EnvVarRow>())
+                    WireEnvRow(newItem);
+
+            OnPropertyChanged(nameof(PreviewText));
+            CopyPreviewCommand.NotifyCanExecuteChanged();
+        };
+        
         // Dialog closes itself (less window manager / modal noise)
         SaveAndCloseCommand = new RelayCommand<Window?>(win =>
         {
@@ -536,11 +582,15 @@ public partial class EditMediaViewModel : ViewModelBase
         {
             foreach (var kv in _originalItem.EnvironmentOverrides)
             {
-                EnvironmentOverrides.Add(new EnvVarRow
+                var row = new EnvVarRow
                 {
                     Key = kv.Key,
                     Value = kv.Value
-                });
+                };
+
+                // Ensure preview reacts to changes in pre-existing rows as well.
+                WireEnvRow(row);
+                EnvironmentOverrides.Add(row);
             }
         }
         
