@@ -356,6 +356,27 @@ public partial class EditMediaViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(PreviewText))]
     private string? _launcherArgs;
     
+    /// <summary>
+    /// Ensures that switching from "manual emulator" defaults to a proper
+    /// emulator profile does not accidentally shadow the profile's own
+    /// default arguments. If the current per-item arguments are still
+    /// trivial (empty / "{file}"), they are cleared so the profile template
+    /// can act alone.
+    /// </summary>
+    partial void OnSelectedEmulatorProfileChanged(EmulatorConfig? value)
+    {
+        if (MediaType == MediaType.Emulator &&
+            value is { Id: not null } &&
+            IsTrivialLauncherArgs(LauncherArgs))
+        {
+            LauncherArgs = string.Empty;
+        }
+
+        // Keep preview and "Copy" button state in sync with the new profile
+        OnPropertyChanged(nameof(PreviewText));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
+    
     // hard guarantee that PreviewText updates when LauncherArgs changes
     partial void OnLauncherArgsChanged(string? value)
     {
@@ -497,6 +518,18 @@ public partial class EditMediaViewModel : ViewModelBase
         InitializeEmulators(settings);
         InitializeNativeWrapperUiFromItem();
 
+        // If this item starts in Emulator mode with a real profile selected
+        // (e.g. inherited from the node) and the current per-item arguments
+        // are still trivial (empty / "{file}"), clear them so the profile's
+        // default arguments can be used as-is (e.g. MAME:
+        // "run org.mamedev.MAME {fileBase}").
+        if (MediaType == MediaType.Emulator &&
+            SelectedEmulatorProfile is { Id: not null } &&
+            IsTrivialLauncherArgs(LauncherArgs))
+        {
+            LauncherArgs = string.Empty;
+        }
+        
         // Initialize environment overrides from the original item
         EnvironmentOverrides.Clear();
         if (_originalItem.EnvironmentOverrides is { Count: > 0 })
@@ -1127,6 +1160,21 @@ public partial class EditMediaViewModel : ViewModelBase
         }
 
         return length <= 0 ? string.Empty : new string(buffer.Slice(start, length));
+    }
+    
+    /// <summary>
+    /// Returns true when a launcher argument string is effectively "trivial",
+    /// i.e. empty or just the simple "{file}" placeholder. This is used to
+    /// distinguish between auto-generated defaults and real user overrides.
+    /// </summary>
+    private static bool IsTrivialLauncherArgs(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
+
+        var trimmed = value.Trim();
+        return string.Equals(trimmed, "{file}", StringComparison.Ordinal) ||
+               string.Equals(trimmed, "\"{file}\"", StringComparison.Ordinal);
     }
     
     private async Task ChangePrimaryFileAsync()
