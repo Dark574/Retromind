@@ -8,7 +8,7 @@ Retromind is a **Linux-first**, portable media and game launcher
 for organizing and starting your library:
 
 - ROM collections
-- DRM-free PC games (e.g. GOG)
+- Games (e.g. GOG, Steam)
 - Movies
 - Books
 - Comics
