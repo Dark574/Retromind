@@ -54,12 +54,12 @@ Retromind focuses on:
 
 ### Main library view
 
-![Retromind main view](./docs/images/retromind-main.png)
+![Retromind main view](./images/retromind-main.png)
 
 ### BigMode (controller-friendly UI)
 
-![Retromind BigMode](./docs/images/retromind-bigmode-default.png)
-![Retromind BigMode](./docs/images/retromind-bigmode-arcade.png)
+![Retromind BigMode](./images/retromind-bigmode-default.png)
+![Retromind BigMode](./images/retromind-bigmode-arcade.png)
 
 ---
 
@@ -68,7 +68,7 @@ Retromind focuses on:
 The latest builds are available on GitHub Releases:
 
 - **Releases:**  
-  https://github.com/Dark574/Retromind/releases
+  [https://github.com/Dark574/Retromind/releases](https://github.com/Dark574/Retromind/releases)
 
 Look for the `Retromind-x86_64.AppImage` asset for the portable Linux build.
 
