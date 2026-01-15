@@ -30,7 +30,7 @@ Work in progress. Expect breaking changes while features and data formats evolve
 
 ### Main library view
 
-![Retromind main view](./Docs/images/retromind-main.png)
+![Retromind main view](./docs/images/retromind-main.png)
 
 - Library tree on the left (areas / categories)
 - Cover grid in the center
@@ -38,8 +38,8 @@ Work in progress. Expect breaking changes while features and data formats evolve
 
 ### BigMode (controller-friendly UI)
 
-![Retromind BigMode](./Docs/images/retromind-bigmode-default.png)
-![Retromind BigMode](./Docs/images/retromind-bigmode-arcade.png)
+![Retromind BigMode](./docs/images/retromind-bigmode-default.png)
+![Retromind BigMode](./docs/images/retromind-bigmode-arcade.png)
 
 - Large, readable layout for couch / TV usage
 - Gamepad input support
@@ -321,7 +321,7 @@ You can override this behavior for testing:
   ```
 
 ## Architecture
-See [`Docs/architecture.md`](Docs/architecture.md).
+See [`docs/architecture.md`](docs/architecture.md).
 
 ## Contributing
 

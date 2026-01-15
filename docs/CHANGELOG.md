@@ -74,6 +74,6 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
-[Unreleased]: https://github.com/<your-account>/Retromind/compare/v0.0.2-alpha...HEAD
-[0.0.1]: https://github.com/<your-account>/Retromind/releases/tag/v0.0.1
-[0.0.2-alpha]: https://github.com/<your-account>/Retromind/releases/tag/v0.0.2-alpha
+[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.0.2-alpha...HEAD
+[0.0.1]: https://github.com/Dark574/Retromind/releases/tag/v0.0.1
+[0.0.2-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.0.2-alpha

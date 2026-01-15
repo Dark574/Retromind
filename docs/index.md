@@ -54,12 +54,12 @@ Retromind focuses on:
 
 ### Main library view
 
-![Retromind main view](./Docs/images/retromind-main.png)
+![Retromind main view](./docs/images/retromind-main.png)
 
 ### BigMode (controller-friendly UI)
 
-![Retromind BigMode](./Docs/images/retromind-bigmode-default.png)
-![Retromind BigMode](./Docs/images/retromind-bigmode-arcade.png)
+![Retromind BigMode](./docs/images/retromind-bigmode-default.png)
+![Retromind BigMode](./docs/images/retromind-bigmode-arcade.png)
 
 ---
 
@@ -84,7 +84,8 @@ Requirements:
 
 Basic usage:
 ```bash
-dotnet restore dotnet run --project Retromind.csproj
+dotnet restore 
+dotnet run --project Retromind.csproj
 ```
 
 Start directly in BigMode:
