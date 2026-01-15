@@ -9,6 +9,12 @@ Retromind is a Linux-first, portable media manager for organizing and launching 
 
 Built with **C#** + **Avalonia**.
 
+## Website
+
+Project homepage (GitHub Pages):
+
+- <https://dark574.github.io/Retromind/>
+
 ## Status
 IMPORTANT:
 
