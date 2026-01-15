@@ -23,6 +23,27 @@ Work in progress. Expect breaking changes while features and data formats evolve
 - Metadata scraping (depends on your API keys)
 - Optional BigMode / controller-friendly UI
 
+## Screenshots
+
+> Note: The screenshots are for demonstration purposes only.  
+> All product names, logos, and brands shown are property of their respective owners.
+
+### Main library view
+
+![Retromind main view](./Docs/images/retromind-main.png)
+
+- Library tree on the left (areas / categories)
+- Cover grid in the center
+- Details panel on the right
+
+### BigMode (controller-friendly UI)
+
+![Retromind BigMode](./Docs/images/retromind-bigmode-default.png)
+![Retromind BigMode](./Docs/images/retromind-bigmode-arcade.png)
+
+- Large, readable layout for couch / TV usage
+- Gamepad input support
+
 ## Requirements
 - Linux (primary target)
 - .NET SDK 10.0
