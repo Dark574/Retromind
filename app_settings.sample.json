@@ -1,50 +1,22 @@
 {
   "Version": 1,
 
-  // When true, Retromind prefers to store launch paths relative to the
-  // portable data root (recommended for USB/external drive setups).
   "PreferPortableLaunchPaths": true,
-
-  // Global default native wrapper chain for Linux (applied to native items
-  // that inherit the default). Example: gamemoderun + mangohud.
-  // You can leave this empty or add entries like:
-  //
-  // { "Path": "gamemoderun", "Args": "{file}" }
-  // { "Path": "mangohud",    "Args": "{file}" }
-  //
-  // The wrapper chain is applied outermost → innermost in the given order.
   "DefaultNativeWrappers": [],
-
-  // Legacy fields kept for backward compatibility. They are ignored when
-  // DefaultNativeWrappers is used.
-  "DefaultNativeWrapperPath": null,
-  "DefaultNativeWrapperArgs": null,
-
-  // LibVLC hardware decode mode for BigMode video previews.
-  // Supported: "none", "auto", "vaapi" (Linux).
   "VlcHardwareDecodeMode": "none",
-
-  // When true, moving the selection can trigger short music previews
-  // (if media items have music assets attached).
   "EnableSelectionMusicPreview": true,
 
-  // UI layout defaults (these values are only initial hints; the running
-  // app will overwrite them with the user's layout).
   "TreeColumnWidth": 260,
   "DetailColumnWidth": 380,
   "ItemWidth": 200.0,
   "IsDarkTheme": true,
 
-  // Last selection / navigation state is intentionally omitted in the
-  // sample file. The app will populate these fields at runtime.
   "LastSelectedNodeId": null,
   "LastSelectedMediaId": null,
   "LastBigModeNavigationPath": [],
   "LastBigModeSelectedNodeId": null,
   "LastBigModeWasItemView": true,
 
-  // Emulator profiles (can be configured via Settings dialog).
-  // The sample includes a few typical Linux setups with relative paths.
   "Emulators": [
     {
       "Id": "00000000-0000-0000-0000-000000000001",
@@ -53,18 +25,8 @@
       "Arguments": "{file}",
       "UsePlaylistForMultiDisc": false,
       "UsesWinePrefix": true,
-
-      // How this emulator handles native wrapper chains:
-      // 0 = Inherit from global defaults (DefaultNativeWrappers)
-      // 1 = None (explicitly no wrappers)
-      // 2 = Override (use NativeWrappersOverride below)
       "NativeWrapperMode": 0,
-
-      // Optional per-emulator wrapper override (used when NativeWrapperMode = 2).
       "NativeWrappersOverride": [],
-
-      // Optional environment overrides (e.g. PROTONPATH for UMU/Proton setups).
-      // Keys are environment variable names, values are strings.
       "EnvironmentOverrides": {
         "PROTONPATH": "Emulators/ProtonVersions/Proton-10.0"
       }
@@ -103,14 +65,11 @@
       "EnvironmentOverrides": {}
     }
   ],
-
-  // Scraper configurations. API keys are intentionally left empty in the
-  // sample; users must configure their own credentials.
   "Scrapers": [
     {
       "Id": "00000000-0000-0000-0000-000000000101",
       "Name": "IGDB",
-      "Type": 2,                  // 1 = TMDB, 2 = IGDB, etc. (depends on your enum)
+      "Type": 2,
       "Language": "en-US",
 
       "ClientId": "",

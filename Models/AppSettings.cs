@@ -29,18 +29,6 @@ public class AppSettings
     public List<LaunchWrapper> DefaultNativeWrappers { get; set; } = new();
     
     /// <summary>
-    /// Optional global wrapper for native launches (Linux examples: gamemoderun, mangohud, prime-run, env)
-    /// If set, native items will be launched via this wrapper unless overridden by node/item settings
-    /// </summary>
-    public string? DefaultNativeWrapperPath { get; set; }
-
-    /// <summary>
-    /// Optional wrapper arguments template. Use "{file}" as placeholder for the native executable path
-    /// If empty/null and a wrapper is set, "{file}" is assumed
-    /// </summary>
-    public string? DefaultNativeWrapperArgs { get; set; }
-    
-    /// <summary>
     /// Preferred LibVLC/FFmpeg hardware decoding mode for BigMode preview videos
     /// Valid values are implementation-defined (e.g. "none", "auto", "vaapi")
     /// Default is "none" for maximum compatibility on unknown systems

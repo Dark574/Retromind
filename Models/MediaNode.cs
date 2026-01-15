@@ -22,20 +22,6 @@ public partial class MediaNode : ObservableObject
     public List<LaunchWrapper>? NativeWrappersOverride { get; set; }
     
     /// <summary>
-    /// Optional wrapper path for native launches in this node (inherits to children).
-    /// If set, overrides the global default.
-    /// Examples: "gamemoderun", "mangohud", "prime-run", "env".
-    /// </summary>
-    public string? DefaultNativeWrapperPath { get; set; }
-
-    /// <summary>
-    /// Optional wrapper args template for native launches in this node (inherits to children).
-    /// Use "{file}" as placeholder for the native executable path.
-    /// If empty/null and a wrapper is set, "{file}" is assumed.
-    /// </summary>
-    public string? DefaultNativeWrapperArgs { get; set; }
-    
-    /// <summary>
     /// Optionales System-Preview-Theme für diesen Node (System-Auswahl in BigMode).
     /// Entspricht dem Ordnernamen unter Themes/System (z.B. "C64", "SNES").
     /// Wenn null/leer, verwendet der System-Browser das Standardlayout ("Default").
