@@ -8,18 +8,34 @@ namespace Retromind.Extensions;
 public partial class ThemeProperties
 {
     /// <summary>
-    /// If false, the host will disable the video overlay even if a video slot exists.
+    /// Per-channel flag for the primary preview video channel (MainVideoSurface).
+    /// When not set explicitly, the host falls back to VideoEnabled.
     /// </summary>
-    public static readonly AttachedProperty<bool> VideoEnabledProperty =
-        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
-            "VideoEnabled",
-            defaultValue: true);
+    public static readonly AttachedProperty<bool?> PrimaryVideoEnabledProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool?>(
+            "PrimaryVideoEnabled");
 
-    public static bool GetVideoEnabled(AvaloniaObject element) =>
-        element.GetValue(VideoEnabledProperty);
+    public static bool? GetPrimaryVideoEnabled(AvaloniaObject element) =>
+        element.GetValue(PrimaryVideoEnabledProperty);
 
-    public static void SetVideoEnabled(AvaloniaObject element, bool value) =>
-        element.SetValue(VideoEnabledProperty, value);
+    public static void SetPrimaryVideoEnabled(AvaloniaObject element, bool? value) =>
+        element.SetValue(PrimaryVideoEnabledProperty, value);
+
+    /// <summary>
+    /// Per-channel flag for the secondary video channel (SecondaryVideoSurface),
+    /// typically background loops / B-roll. When not set explicitly, the host
+    /// falls back to VideoEnabled or treats it as enabled if a background video
+    /// is configured.
+    /// </summary>
+    public static readonly AttachedProperty<bool?> SecondaryVideoEnabledProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool?>(
+            "SecondaryVideoEnabled");
+
+    public static bool? GetSecondaryVideoEnabled(AvaloniaObject element) =>
+        element.GetValue(SecondaryVideoEnabledProperty);
+
+    public static void SetSecondaryVideoEnabled(AvaloniaObject element, bool? value) =>
+        element.SetValue(SecondaryVideoEnabledProperty, value);
 
     /// <summary>
     /// Logical name of the video slot element in the theme XAML.
@@ -92,4 +108,19 @@ public partial class ThemeProperties
 
     public static void SetSecondaryBackgroundVideoPath(AvaloniaObject element, string? value) =>
         element.SetValue(SecondaryBackgroundVideoPathProperty, value);
+    
+    /// <summary>
+    /// Logical name of the secondary video slot element in the theme XAML.
+    /// This is intended for the second video channel (e.g. background loops,
+    /// system-specific B-roll), separate from the main preview slot.
+    /// </summary>
+    public static readonly AttachedProperty<string?> SecondaryVideoSlotNameProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, string?>(
+            "SecondaryVideoSlotName");
+
+    public static string? GetSecondaryVideoSlotName(AvaloniaObject element) =>
+        element.GetValue(SecondaryVideoSlotNameProperty);
+
+    public static void SetSecondaryVideoSlotName(AvaloniaObject element, string? value) =>
+        element.SetValue(SecondaryVideoSlotNameProperty, value);
 }

@@ -7,6 +7,7 @@ using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -14,6 +15,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Retromind.Extensions;
 using Retromind.Helpers;
+using Retromind.Helpers.Video;
 using Retromind.Services;
 
 namespace Retromind.Views;
@@ -36,6 +38,12 @@ public partial class BigModeHostView : UserControl
     // on demand, so we never reuse the same UserControl across different parents.
     private readonly Dictionary<string, Theme> _systemThemeCache = new(StringComparer.OrdinalIgnoreCase);
 
+    // Shared primary video control for the main preview channel.
+    private readonly VideoSurfaceControl _primaryVideoControl;
+
+    // Shared secondary video control for the background / B-roll channel.
+    private readonly VideoSurfaceControl _secondaryVideoControl;
+    
     // Track ViewModel notifications so we can react to SelectedCategory changes
     // while the SystemHost theme is active.
     private INotifyPropertyChanged? _vmNotifications;
@@ -50,6 +58,29 @@ public partial class BigModeHostView : UserControl
         _themePresenter = this.FindControl<ContentPresenter>("ThemePresenter")
                           ?? throw new InvalidOperationException("ThemePresenter control not found in BigModeHostView.");
 
+        // Shared primary video control: main preview channel
+        _primaryVideoControl = new VideoSurfaceControl
+        {
+            Stretch = Stretch.Uniform
+        };
+
+        // Bind video surface and basic visibility to the main preview properties.
+        // We keep the bindings simple and let the theme handle additional styling.
+        _primaryVideoControl.Bind(VideoSurfaceControl.SurfaceProperty,
+            new Binding("MainVideoSurface"));
+        _primaryVideoControl.Bind(IsVisibleProperty,
+            new Binding("MainVideoHasContent"));
+        
+        // Shared secondary video control: background / B-roll channel.
+        _secondaryVideoControl = new VideoSurfaceControl
+        {
+            Stretch = Stretch.Uniform
+        };
+        _secondaryVideoControl.Bind(VideoSurfaceControl.SurfaceProperty,
+            new Binding("SecondaryVideoSurface"));
+        _secondaryVideoControl.Bind(IsVisibleProperty,
+            new Binding("SecondaryVideoHasContent"));
+        
         // React when BigModeViewModel is swapped so we can subscribe to property changes.
         DataContextChanged += OnDataContextChanged;
     }
@@ -110,12 +141,18 @@ public partial class BigModeHostView : UserControl
         if (DataContext is Retromind.ViewModels.BigModeViewModel vm)
         {
             // Base capability from outer theme
-            vm.CanShowVideo = theme.VideoEnabled;
+            vm.CanShowVideo = theme.PrimaryVideoEnabled;
         }
         
         // Apply theme tuning (selection UX, spacing, typography, animation timings)
         ApplyThemeTuning(themeRoot);
 
+        // Primary video slot (main preview).
+        AttachPrimaryVideoToSlot(themeRoot, theme);
+
+        // Secondary video slot (background / B-roll), if configured by the theme.
+        AttachSecondaryVideoToSlot(themeRoot);
+        
         // Initial PrimaryVisual animation for the newly set theme
         ThemeTransitionHelper.AnimatePrimaryVisual(themeRoot);
 
@@ -128,6 +165,99 @@ public partial class BigModeHostView : UserControl
         
         // Layout settles asynchronously; schedule VM "view ready" after render ticks
         NotifyViewReadyAfterRender(DataContext!);
+    }
+
+    /// <summary>
+    /// Attaches the shared primary video control to the active theme's video slot.
+    /// Uses Theme.PrimaryVideoEnabled and Theme.VideoSlotName to decide whether and where
+    /// to place the control. This avoids creating multiple VideoSurfaceControls
+    /// bound to the same MainVideoSurface.
+    /// </summary>
+    private void AttachPrimaryVideoToSlot(Control themeRoot, Theme theme)
+    {
+        // Only attach primary video when the theme explicitly enables it
+        if (!theme.PrimaryVideoEnabled)
+            return;
+
+        if (DataContext is not Retromind.ViewModels.BigModeViewModel)
+            return;
+
+        var slotName = theme.VideoSlotName;
+        if (string.IsNullOrWhiteSpace(slotName))
+            return;
+
+        var slot = themeRoot.FindControl<Control>(slotName);
+        if (slot is null)
+            return;
+
+        DetachFromParent(_primaryVideoControl);
+        AttachToSlot(slot, _primaryVideoControl);
+    }
+
+    /// <summary>
+    /// Attaches the shared secondary video control to the active theme's
+    /// secondary video slot (if any). The slot name is provided via
+    /// ThemeProperties.SecondaryVideoSlotName on the theme root.
+    /// </summary>
+    private void AttachSecondaryVideoToSlot(Control themeRoot)
+    {
+        if (DataContext is not Retromind.ViewModels.BigModeViewModel)
+            return;
+
+        var slotName = ThemeProperties.GetSecondaryVideoSlotName(themeRoot);
+        if (string.IsNullOrWhiteSpace(slotName))
+            return;
+
+        var slot = themeRoot.FindControl<Control>(slotName);
+        if (slot is null)
+            return;
+
+        DetachFromParent(_secondaryVideoControl);
+        AttachToSlot(slot, _secondaryVideoControl);
+    }
+
+    /// <summary>
+    /// Helper to detach a control from its current parent, if any.
+    /// Supports Panel, ContentControl and Decorator.
+    /// </summary>
+    private static void DetachFromParent(Control control)
+    {
+        var parent = control.Parent;
+        switch (parent)
+        {
+            case Panel oldPanel:
+                oldPanel.Children.Remove(control);
+                break;
+            case ContentControl oldContent:
+                if (ReferenceEquals(oldContent.Content, control))
+                    oldContent.Content = null;
+                break;
+            case Decorator decorator:
+                if (ReferenceEquals(decorator.Child, control))
+                    decorator.Child = null;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Helper to attach a control to a generic slot. Supports Panel,
+    /// ContentControl and Decorator (e.g. Border).
+    /// </summary>
+    private static void AttachToSlot(Control slot, Control child)
+    {
+        switch (slot)
+        {
+            case Panel panel:
+                panel.Children.Clear();
+                panel.Children.Add(child);
+                break;
+            case ContentControl cc:
+                cc.Content = child;
+                break;
+            case Decorator decorator:
+                decorator.Child = child;
+                break;
+        }
     }
 
     /// <summary>
@@ -164,7 +294,7 @@ public partial class BigModeHostView : UserControl
         
         Theme systemTheme;
 
-        // Use cached Theme (with cached XAML and factory) when available.
+        // Use cached Theme (with cached XAML and factory) when available
         if (!_systemThemeCache.TryGetValue(id, out systemTheme!))
         {
             try
@@ -174,7 +304,7 @@ public partial class BigModeHostView : UserControl
             }
             catch
             {
-                // Try fallback to the "Default" system theme.
+                // Try fallback to the "Default" system theme
                 if (!string.Equals(id, "Default", StringComparison.OrdinalIgnoreCase))
                 {
                     try
@@ -210,7 +340,19 @@ public partial class BigModeHostView : UserControl
 
         ThemeTransitionHelper.AnimatePrimaryVisual(subView);
 
-        vm.CanShowVideo = systemTheme.VideoEnabled;
+        // When we are inside the SystemHost theme, the per-system subtheme
+        // can define its own primary video slot. Attach the shared primary
+        // video control here so the system view uses the main channel.
+        AttachPrimaryVideoToSlot(subView, systemTheme);
+
+        // Attach the secondary video control to the system subtheme, if it exposes
+        // a secondary video slot name (e.g. via SecondaryVideoSlotName)
+        AttachSecondaryVideoToSlot(subView);
+        
+        // Update the VM flag so higher-level logic knows whether video can be shown.
+        // For system view we allow video when either the outer host theme or the
+        // per-system subtheme enables the primary channel.
+        vm.CanShowVideo = vm.CanShowVideo || systemTheme.PrimaryVideoEnabled;
     }
     
     private void UnhookThemeTuning()

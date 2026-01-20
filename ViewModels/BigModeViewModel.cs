@@ -225,7 +225,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         CurrentThemeDirectory = _theme.BasePath;
 
         // Default capability based on the loaded theme (the host may further restrict this based on VideoSlot existence)
-        CanShowVideo = _theme.VideoEnabled;
+        CanShowVideo = _theme.PrimaryVideoEnabled || _theme.SecondaryVideoEnabled;
 
         CategoryTitle = Strings.BigMode_MainMenu;
 
@@ -484,7 +484,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         StopVideo();
 
         // Update default capability (host may still disable based on missing slot)
-        CanShowVideo = _theme.VideoEnabled;
+        CanShowVideo = _theme.PrimaryVideoEnabled || _theme.SecondaryVideoEnabled;
         
         // Theme swap may change how many items are visible or how they are
         // interpreted by the theme; keep counters consistent

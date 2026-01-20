@@ -36,10 +36,15 @@ public class Theme
     public string? SecondaryBackgroundVideoPath { get; }
 
     /// <summary>
-    /// If false, the host should disable any video overlay/preview even if the theme contains a video slot.
-    /// Defaults to true when not specified by the theme.
+    /// Whether the theme intends to show the primary preview channel (MainVideoSurface).
     /// </summary>
-    public bool VideoEnabled { get; }
+    public bool PrimaryVideoEnabled { get; }
+
+    /// <summary>
+    /// Whether the theme intends to show the secondary video channel
+    /// (SecondaryVideoSurface), typically used for background loops / B-roll.
+    /// </summary>
+    public bool SecondaryVideoEnabled { get; }
     
     /// <summary>
     /// Name of the control that acts as the placement slot for the video overlay.
@@ -77,7 +82,8 @@ public class Theme
         ThemeSounds sounds,
         string basePath,
         string? secondaryBackgroundVideoPath = null,
-        bool videoEnabled = true,
+        bool primaryVideoEnabled = true,
+        bool secondaryVideoEnabled = true,
         string? videoSlotName = null,
         string? name = null,
         string? author = null,
@@ -92,7 +98,20 @@ public class Theme
         Sounds = sounds ?? throw new ArgumentNullException(nameof(sounds));
         BasePath = basePath ?? throw new ArgumentNullException(nameof(basePath));
         SecondaryBackgroundVideoPath = secondaryBackgroundVideoPath;
-        VideoEnabled = videoEnabled;
+        
+        // Per-channel flags
+        PrimaryVideoEnabled = primaryVideoEnabled;
+
+        // Secondary: if a background video path is set, default to enabled
+        // unless explicitly disabled.
+        if (!secondaryVideoEnabled && !string.IsNullOrWhiteSpace(secondaryBackgroundVideoPath))
+        {
+            SecondaryVideoEnabled = true;
+        }
+        else
+        {
+            SecondaryVideoEnabled = secondaryVideoEnabled;
+        }
 
         VideoSlotName = string.IsNullOrWhiteSpace(videoSlotName) ? "VideoSlot" : videoSlotName;
 

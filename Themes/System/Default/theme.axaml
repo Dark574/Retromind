@@ -10,7 +10,9 @@
              ext:ThemeProperties.Name="Default System Layout"
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.1.0"
-             ext:ThemeProperties.VideoEnabled="True">
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
+             ext:ThemeProperties.SecondaryVideoEnabled="False">
 
     <!-- Very simple, neutral system layout:
          - large system title on the left
@@ -45,7 +47,7 @@
                                                        Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
         </StackPanel>
 
-        <!-- RIGHT: logo / title + simple "monitor" with video preview -->
+        <!-- RIGHT: simple "monitor" reserved for the secondary video channel -->
         <Grid Grid.Row="0"
               Grid.Column="1"
               HorizontalAlignment="Center"
@@ -61,11 +63,12 @@
                 <!-- Split into: left = logo/name, right = screen -->
                 <Grid ColumnDefinitions="Auto,*"
                       RowDefinitions="*">
-                    <!-- RIGHT SIDE: monitor with video -->
+                    <!-- RIGHT SIDE: monitor with secondary video slot -->
                     <Grid Grid.Column="1"
                           RowDefinitions="*,Auto">
                         <!-- "Screen" area with video + fallback text -->
-                        <Border Grid.Row="0"
+                        <Border x:Name="SystemPrimaryVideoSlot"
+                                Grid.Row="0"
                                 Width="640"
                                 Height="360"
                                 Background="#181818"
@@ -75,19 +78,11 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center">
                             <Grid>
-                                <!-- Fallback text (visible when no video is present) -->
-                                <TextBlock Text="No preview video"
+                                <TextBlock Text="No system video"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
                                            Foreground="#505050"
                                            FontSize="18" />
-
-                                <!-- Video area -->
-                                <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
-                                                           Stretch="Uniform"
-                                                           HorizontalAlignment="Stretch"
-                                                           VerticalAlignment="Stretch"
-                                                           IsVisible="{Binding MainVideoHasContent}" />
                             </Grid>
                         </Border>
 

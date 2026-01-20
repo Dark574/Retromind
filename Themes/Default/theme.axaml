@@ -11,7 +11,7 @@
              ext:ThemeProperties.Name="Default"
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.2.0"
-             ext:ThemeProperties.VideoEnabled="True"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
              ext:ThemeProperties.FadeDurationMs="1100"
              ext:ThemeProperties.MoveDurationMs="1100"
@@ -188,17 +188,12 @@
                                     HorizontalAlignment="Stretch"
                                     VerticalAlignment="Stretch">
                                 <Grid>
+                                    <!-- Optional fallback text while no video is playing -->
                                     <TextBlock Text="No preview video"
                                                Foreground="#606060"
                                                FontSize="18"
                                                HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               IsVisible="{Binding MainVideoHasContent, Converter={x:Static helpers:ObjectConverters.IsNull}}" />
-
-                                    <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
-                                                               Stretch="Uniform"
-                                                               Opacity="{Binding MainVideoIsPlaying, Converter={StaticResource BoolToOpacity}}"
-                                                               IsVisible="{Binding MainVideoHasContent}" />
+                                               VerticalAlignment="Center" />
                                 </Grid>
                             </Border>
 

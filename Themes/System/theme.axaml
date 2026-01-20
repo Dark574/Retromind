@@ -8,6 +8,8 @@
              ext:ThemeProperties.Name="System Host"
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.1.0">
+             <!-- ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"> -->
 
     <Grid ColumnDefinitions="0.20*,0.80*"
           Margin="40,30">
@@ -48,15 +50,37 @@
             </Grid>
         </Border>
 
-        <!-- RIGHT: keep SystemLayoutHost, but match Default right panel feel a bit -->
+        <!-- RIGHT: host layout + primary system preview -->
         <Border Grid.Column="1"
                 Background="#181A20"
                 Margin="28,0,0,0"
                 CornerRadius="8"
                 Padding="16">
-            <ContentControl x:Name="SystemLayoutHost"
-                            HorizontalAlignment="Stretch"
-                            VerticalAlignment="Stretch" />
+            <Grid>
+                <!-- System-specific sublayout (Default/C64/...) -->
+                <ContentControl x:Name="SystemLayoutHost"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch" />
+
+                <!-- Primary system preview (shared primary video channel).
+                     BigModeHostView will attach _primaryVideoControl here.
+                     Size/position matches the monitor in Default System Layout. -->
+                <!-- <Border x:Name="SystemPrimaryVideoSlot"
+                        Width="640"
+                        Height="360"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Background="#181818"
+                        CornerRadius="8">
+                    <Grid>
+                        <TextBlock Text="System preview video"
+                                   Foreground="#505050"
+                                   FontSize="18"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                </Border>-->
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

@@ -34,7 +34,7 @@ public static class ThemeLoader
         if (string.IsNullOrWhiteSpace(filePath))
         {
             var errorView = CreateErrorView(Strings.Theme_Error_InvalidPath);
-            return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, videoEnabled: false);
+            return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, primaryVideoEnabled: false, secondaryVideoEnabled: false);
         }
 
         var themeDir = Path.GetDirectoryName(filePath);
@@ -45,7 +45,7 @@ public static class ThemeLoader
             // In error mode we reset ThemeBasePath to avoid pointing to a stale directory.
             ThemeProperties.ThemeBasePath = null;
             
-            return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, videoEnabled: false);
+            return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, primaryVideoEnabled: false, secondaryVideoEnabled: false);
         }
 
         try
@@ -66,9 +66,18 @@ public static class ThemeLoader
                 Confirm = ThemeProperties.GetConfirmSound(view),
                 Cancel = ThemeProperties.GetCancelSound(view)
             };
-
-            var videoEnabled = ThemeProperties.GetVideoEnabled(view);
+            
             var secondaryBackgroundVideoPath = ThemeProperties.GetSecondaryBackgroundVideoPath(view);
+            
+            var primaryEnabledRaw = ThemeProperties.GetPrimaryVideoEnabled(view);
+            var secondaryEnabledRaw = ThemeProperties.GetSecondaryVideoEnabled(view);
+
+            // Default behaviour if not specified:
+            //  - Primary: enabled
+            //  - Secondary: enabled when a background path is set, otherwise disabled
+            var primaryEnabled = primaryEnabledRaw ?? true;
+            var secondaryEnabled = secondaryEnabledRaw
+                                   ?? (!string.IsNullOrWhiteSpace(secondaryBackgroundVideoPath));
 
             var videoSlotName = ThemeProperties.GetVideoSlotName(view);
 
@@ -98,9 +107,10 @@ public static class ThemeLoader
                 view,
                 sounds,
                 themeDir,
-                videoEnabled: videoEnabled,
-                videoSlotName: videoSlotName,
                 secondaryBackgroundVideoPath: secondaryBackgroundVideoPath,
+                primaryVideoEnabled: primaryEnabled,
+                secondaryVideoEnabled: secondaryEnabled,
+                videoSlotName: videoSlotName,
                 name: themeName,
                 author: themeAuthor,
                 version: themeVersion,
@@ -113,7 +123,8 @@ public static class ThemeLoader
         catch (Exception ex)
         {
             var errorView = CreateErrorView(string.Format(Strings.Theme_Error_LoadFailedFormat, ex.Message));
-            return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, videoEnabled: false);
+            return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, primaryVideoEnabled: false,
+                secondaryVideoEnabled: false);
         }
     }
 
