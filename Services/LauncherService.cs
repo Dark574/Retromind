@@ -628,17 +628,13 @@ public sealed class LauncherService
         EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
         
         var libraryRoot = _libraryRootPath;                        // .../Library
-        var rootDir     = Directory.GetParent(libraryRoot)?.FullName;
-        if (!string.IsNullOrEmpty(rootDir))
-        {
-            var gamesRoot = Path.Combine(rootDir, "Games");
-            Directory.CreateDirectory(gamesRoot);
-        }
+        var gamesRoot   = Path.Combine(libraryRoot, "Games");
+        Directory.CreateDirectory(gamesRoot);
         
         // From: <Root>/Library/Prefixes/<prefix>/dosdevices
         // To:   <Root>/Games
         // => ../../../../Games
-        EnsureDosDeviceMapping(dosDevicesDir, "d:", "../../../../Games");
+        EnsureDosDeviceMapping(dosDevicesDir, "d:", "../../../Games");
         
         // Apply WINEPREFIX to the launched process
         startInfo.EnvironmentVariables["WINEPREFIX"] = prefixPath;
