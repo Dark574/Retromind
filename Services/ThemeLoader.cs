@@ -56,6 +56,7 @@ public static class ThemeLoader
             
             var xamlContent = ReadXamlWithCache(filePath);
 
+            // Parse the initial view instance for host usage.
             var view = AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent)
                        ?? CreateErrorView(Strings.Theme_Error_LoadedNullOrInvalid);
 
@@ -85,6 +86,13 @@ public static class ThemeLoader
             {
                 attractInterval = TimeSpan.FromSeconds(attractIdleSeconds);
             }
+
+            // Factory that creates fresh view instances from the cached XAML string.
+            // This is used for scenarios where the same theme needs to be instantiated
+            // multiple times (e.g. system subthemes in BigMode).
+            Control ViewFactory() =>
+                AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent)
+                ?? CreateErrorView(Strings.Theme_Error_LoadedNullOrInvalid);
             
             return new Theme(
                 view,
@@ -99,7 +107,8 @@ public static class ThemeLoader
                 websiteUrl: themeWebsiteUrl,
                 attractModeEnabled: attractEnabled,
                 attractModeIdleInterval: attractInterval,
-                attractModeSoundPath: attractSound);
+                attractModeSoundPath: attractSound,
+                viewFactory: ViewFactory);
         }
         catch (Exception ex)
         {

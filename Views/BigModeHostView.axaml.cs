@@ -14,7 +14,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Retromind.Extensions;
 using Retromind.Helpers;
-using Retromind.Helpers.Video;
 using Retromind.Services;
 
 namespace Retromind.Views;
@@ -33,6 +32,8 @@ public partial class BigModeHostView : UserControl
     
     // Cache of loaded system subthemes (e.g. Themes/System/C64/theme.axaml).
     // Key = SystemPreviewThemeId / folder name ("Default", "C64", ...).
+    // The cached Theme contains a factory that can create fresh view instances
+    // on demand, so we never reuse the same UserControl across different parents.
     private readonly Dictionary<string, Theme> _systemThemeCache = new(StringComparer.OrdinalIgnoreCase);
 
     // Track ViewModel notifications so we can react to SelectedCategory changes
@@ -132,7 +133,12 @@ public partial class BigModeHostView : UserControl
     /// <summary>
     /// Updates the right-hand system layout (SystemLayoutHost) when the SystemHost
     /// theme is active. Selects and loads the per-system subtheme based on the
-    /// current node's SystemPreviewThemeId
+    /// current node's SystemPreviewThemeId.
+    ///
+    /// The Theme itself (metadata + cached XAML) is reused from _systemThemeCache,
+    /// but a fresh view instance is created on each call via Theme.CreateView().
+    /// This keeps category switching fast while avoiding "already has a visual parent"
+    /// crashes from reusing the same UserControl instance.
     /// </summary>
     private void UpdateSystemLayoutForSelectedCategory()
     {
@@ -158,7 +164,7 @@ public partial class BigModeHostView : UserControl
         
         Theme systemTheme;
 
-        // Try cache first to avoid repeated XAML loading/parsing
+        // Use cached Theme (with cached XAML and factory) when available.
         if (!_systemThemeCache.TryGetValue(id, out systemTheme!))
         {
             try
@@ -168,6 +174,7 @@ public partial class BigModeHostView : UserControl
             }
             catch
             {
+                // Try fallback to the "Default" system theme.
                 if (!string.Equals(id, "Default", StringComparison.OrdinalIgnoreCase))
                 {
                     try
@@ -193,8 +200,10 @@ public partial class BigModeHostView : UserControl
             _systemThemeCache[id] = systemTheme;
         }
 
-        // Always create a fresh view instance per host from the cached theme definition
-        var subView = systemTheme.View;
+        // Always create a fresh view instance for the system layout host.
+        // The underlying XAML content is cached by ThemeLoader/XamlCache, so this
+        // avoids both disk I/O and reusing a single control instance.
+        var subView = systemTheme.CreateView();
         subView.DataContext = vm;
 
         _systemLayoutHost.Content = subView;

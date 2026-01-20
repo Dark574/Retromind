@@ -10,14 +10,28 @@ namespace Retromind.Services;
 /// </summary>
 public class Theme
 {
+    /// <summary>
+    /// Pre-created view instance for this theme. For host-level themes (main BigMode),
+    /// this is typically used once and kept alive as long as the theme is active.
+    /// For system subthemes, prefer <see cref="CreateView"/> instead to avoid
+    /// reusing a single control across different parents.
+    /// </summary>
     public Control View { get; }
+    
+    /// <summary>
+    /// Optional factory that can create new view instances for this theme.
+    /// This is especially useful for system subthemes in BigMode where we want
+    /// fast switching between categories without reusing the same UserControl
+    /// instance (which would cause "already has a visual parent" crashes).
+    /// </summary>
+    private readonly Func<Control>? _viewFactory;
+    
     public ThemeSounds Sounds { get; }
     public string BasePath { get; }
 
     /// <summary>
-    /// Optionaler, theme-lokaler Pfad zu einem Hintergrundvideo für den
-    /// zweiten Videokanal (z.B. "Video/bkg_anim.mp4").
-    /// Wird mit BasePath kombiniert.
+    /// Optional theme-local path to a background video for the secondary
+    /// video channel (e.g. "Video/bkg_anim.mp4"), resolved against BasePath.
     /// </summary>
     public string? SecondaryBackgroundVideoPath { get; }
 
@@ -71,11 +85,12 @@ public class Theme
         string? websiteUrl = null,
         bool attractModeEnabled = false,
         TimeSpan? attractModeIdleInterval = null,
-        string? attractModeSoundPath = null)
+        string? attractModeSoundPath = null,
+        Func<Control>? viewFactory = null)
     {
-        View = view;
-        Sounds = sounds;
-        BasePath = basePath;
+        View = view ?? throw new ArgumentNullException(nameof(view));
+        Sounds = sounds ?? throw new ArgumentNullException(nameof(sounds));
+        BasePath = basePath ?? throw new ArgumentNullException(nameof(basePath));
         SecondaryBackgroundVideoPath = secondaryBackgroundVideoPath;
         VideoEnabled = videoEnabled;
 
@@ -89,5 +104,27 @@ public class Theme
         AttractModeEnabled = attractModeEnabled;
         AttractModeIdleInterval = attractModeIdleInterval;
         AttractModeSoundPath = attractModeSoundPath;
+        
+        _viewFactory = viewFactory;
+    }
+    
+    /// <summary>
+    /// Creates a new view instance for this theme. When a factory has been
+    /// provided (e.g. by ThemeLoader), it is used to build a fresh control.
+    /// Otherwise, this falls back to the original <see cref="View"/> instance.
+    ///
+    /// For host-level themes (main BigMode), using View directly is fine
+    /// because the theme view is only attached once. For system subthemes,
+    /// hosts should always call CreateView() to avoid reusing the same
+    /// UserControl across different ContentControls.
+    /// </summary>
+    public Control CreateView()
+    {
+        if (_viewFactory != null)
+        {
+            return _viewFactory();
+        }
+
+        return View;
     }
 }
