@@ -35,7 +35,7 @@ public partial class App : Application
     public override void Initialize()
     {
         // For testing specific cultures, uncomment the following:
-        System.Threading.Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo("en-US");
+        //System.Threading.Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo("en-US");
         AvaloniaXamlLoader.Load(this);
     }
 
