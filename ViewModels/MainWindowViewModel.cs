@@ -294,6 +294,12 @@ public partial class MainWindowViewModel : ViewModelBase
             DetailPaneWidth = new GridLength(_currentSettings.DetailColumnWidth);
             ItemWidth = _currentSettings.ItemWidth;
 
+            // Clean up persisted selection state if it points to deleted/moved nodes or items.
+            // This prevents invalid IDs from crashing the UI on startup.
+            var settingsChanged = SanitizeSelectionState();
+            if (settingsChanged)
+                SaveSettingsOnly();
+
             if (!string.IsNullOrEmpty(_currentSettings.LastSelectedNodeId))
             {
                 var node = FindNodeById(RootItems, _currentSettings.LastSelectedNodeId);
@@ -306,6 +312,107 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             Debug.WriteLine($"[ViewModel] LoadData Error: {ex}");
         }
+    }
+
+    private bool SanitizeSelectionState()
+    {
+        bool changed = false;
+
+        MediaNode? selectedNode = null;
+        if (!string.IsNullOrWhiteSpace(_currentSettings.LastSelectedNodeId))
+        {
+            selectedNode = FindNodeById(RootItems, _currentSettings.LastSelectedNodeId);
+            if (selectedNode == null)
+            {
+                _currentSettings.LastSelectedNodeId = null;
+                changed = true;
+            }
+        }
+
+        if (selectedNode == null)
+        {
+            if (!string.IsNullOrWhiteSpace(_currentSettings.LastSelectedMediaId))
+            {
+                _currentSettings.LastSelectedMediaId = null;
+                changed = true;
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(_currentSettings.LastSelectedMediaId))
+        {
+            if (!IsMediaIdInNodeSubtree(selectedNode, _currentSettings.LastSelectedMediaId!))
+            {
+                _currentSettings.LastSelectedMediaId = null;
+                changed = true;
+            }
+        }
+
+        if (_currentSettings.LastBigModeNavigationPath is { Count: > 0 } path)
+        {
+            if (!IsBigModePathValid(path, out var pathEndNode, out var currentLevel))
+            {
+                _currentSettings.LastBigModeNavigationPath = null;
+                _currentSettings.LastBigModeSelectedNodeId = null;
+                _currentSettings.LastBigModeWasItemView = false;
+                changed = true;
+            }
+            else
+            {
+                if (_currentSettings.LastBigModeWasItemView)
+                {
+                    var itemId = _currentSettings.LastBigModeSelectedNodeId;
+                    if (pathEndNode == null || string.IsNullOrWhiteSpace(itemId) ||
+                        !pathEndNode.Items.Any(i => i.Id == itemId))
+                    {
+                        _currentSettings.LastBigModeWasItemView = false;
+                        _currentSettings.LastBigModeSelectedNodeId = pathEndNode?.Id;
+                        changed = true;
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(_currentSettings.LastBigModeSelectedNodeId))
+                {
+                    if (!currentLevel.Any(n => n.Id == _currentSettings.LastBigModeSelectedNodeId))
+                    {
+                        _currentSettings.LastBigModeSelectedNodeId = null;
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        return changed;
+    }
+
+    private bool IsMediaIdInNodeSubtree(MediaNode node, string mediaId)
+    {
+        if (node.Items.Any(i => i.Id == mediaId))
+            return true;
+
+        foreach (var child in node.Children)
+        {
+            if (IsMediaIdInNodeSubtree(child, mediaId))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsBigModePathValid(IReadOnlyList<string> path, out MediaNode? pathEndNode,
+        out ObservableCollection<MediaNode> currentLevel)
+    {
+        pathEndNode = null;
+        currentLevel = RootItems;
+
+        foreach (var nodeId in path)
+        {
+            var next = currentLevel.FirstOrDefault(n => n.Id == nodeId);
+            if (next == null)
+                return false;
+
+            pathEndNode = next;
+            currentLevel = next.Children;
+        }
+
+        return true;
     }
 
     // Helper to make UpdateContent awaitable (wraps the background task in an awaitable Task).

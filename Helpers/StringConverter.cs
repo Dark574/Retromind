@@ -16,11 +16,19 @@ public static class StringConverters
     /// Typical usage: IsVisible bindings in themes.
     /// </summary>
     public static readonly IValueConverter IsNotNullOrEmpty =
-        new FuncValueConverter<string?, bool>(s => !string.IsNullOrWhiteSpace(s));
+        new FuncValueConverter<object?, bool>(value =>
+        {
+            if (value is not string s) return false;
+            return !string.IsNullOrWhiteSpace(s);
+        });
 
     /// <summary>
     /// Returns true if the input is null or an empty/whitespace-only string.
     /// </summary>
     public static readonly IValueConverter IsNullOrEmpty =
-        new FuncValueConverter<string?, bool>(s => string.IsNullOrWhiteSpace(s));
+        new FuncValueConverter<object?, bool>(value =>
+        {
+            if (value is not string s) return true;
+            return string.IsNullOrWhiteSpace(s);
+        });
 }

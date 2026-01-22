@@ -7,7 +7,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 
 namespace Retromind.Helpers;
 
@@ -37,6 +39,9 @@ public class AsyncImageHelper : AvaloniaObject
     private static readonly Dictionary<string, (Bitmap Bitmap, LinkedListNode<string> Node)> Cache = new();
     private static readonly LinkedList<string> LruList = new();
     private static readonly object CacheLock = new();
+    
+    // Transparent 1x1 fallback to avoid null Image.Source crashes during measure.
+    private static readonly IImage PlaceholderImage = CreatePlaceholderImage();
 
     static AsyncImageHelper()
     {
@@ -83,7 +88,7 @@ public class AsyncImageHelper : AvaloniaObject
         var oldCts = image.GetValue(CurrentLoadCtsProperty);
         oldCts?.Cancel();
         oldCts?.Dispose();
-        image.Source = null;
+        image.Source = PlaceholderImage;
         image.SetValue(CurrentLoadCtsProperty, null);
     }
     
@@ -174,6 +179,25 @@ public class AsyncImageHelper : AvaloniaObject
         }
         return new Bitmap(stream);
     }
+    
+    private static IImage CreatePlaceholderImage()
+    {
+        var bitmap = new WriteableBitmap(
+            new PixelSize(1, 1),
+            new Vector(96, 96),
+            PixelFormat.Bgra8888,
+            AlphaFormat.Premul);
+
+        using (var fb = bitmap.Lock())
+        {
+            unsafe
+            {
+                *((uint*)fb.Address) = 0; // transparent
+            }
+        }
+
+        return bitmap;
+    }
 
     // --- Cache Helpers ---
 
@@ -192,7 +216,7 @@ public class AsyncImageHelper : AvaloniaObject
             {
                 if (Cache.TryGetValue(key, out var entry))
                 {
-                    entry.Bitmap.Dispose();
+                    // Do not dispose here: cached bitmaps can still be in use by UI elements.
                     LruList.Remove(entry.Node);
                     Cache.Remove(key);
                 }
@@ -244,11 +268,8 @@ public class AsyncImageHelper : AvaloniaObject
                 var lruKey = LruList.First?.Value;
                 if (lruKey != null)
                 {
-                    if (Cache.TryGetValue(lruKey, out var entry))
-                    {
-                        // Explicitly dispose to free unmanaged resources immediately (performance boost for large caches)
-                        entry.Bitmap.Dispose();
-                    }
+                    // Do not dispose here: the bitmap might still be referenced by an Image.Source.
+                    // Disposing a live bitmap can crash layout/measure in Avalonia.
                     Cache.Remove(lruKey);
                     LruList.RemoveFirst();
                 }

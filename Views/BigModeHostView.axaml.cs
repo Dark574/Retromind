@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using Avalonia;
@@ -16,6 +17,7 @@ using Avalonia.VisualTree;
 using Retromind.Extensions;
 using Retromind.Helpers;
 using Retromind.Helpers.Video;
+using Retromind.Models;
 using Retromind.Services;
 
 namespace Retromind.Views;
@@ -137,8 +139,27 @@ public partial class BigModeHostView : UserControl
         _systemLayoutHost = themeRoot.FindControl<ContentControl>("SystemLayoutHost");
         _isSystemHostTheme = _systemLayoutHost != null;
 
+        var vm = DataContext as Retromind.ViewModels.BigModeViewModel;
+
+        // System Host theme is category-first; avoid being stuck in game list mode.
+        if (_isSystemHostTheme && vm != null)
+        {
+            if (vm.CurrentCategories.Count > 0)
+            {
+                if (vm.IsGameListActive)
+                {
+                    vm.IsGameListActive = false;
+                    vm.Items = new ObservableCollection<MediaItem>();
+                    vm.SelectedItem = null;
+                }
+
+                if (vm.SelectedCategory == null || !vm.CurrentCategories.Contains(vm.SelectedCategory))
+                    vm.SelectedCategory = vm.CurrentCategories[0];
+            }
+        }
+
         // Theme-based video capability (no more slot-based shutdown)
-        if (DataContext is Retromind.ViewModels.BigModeViewModel vm)
+        if (vm != null)
         {
             // Base capability from outer theme
             vm.CanShowVideo = theme.PrimaryVideoEnabled;
