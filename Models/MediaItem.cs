@@ -311,45 +311,8 @@ public partial class MediaItem : ObservableObject
                 return AppPaths.ResolveDataPath(primary.Path);
 
             case MediaFileKind.Absolute:
-            {
-                // Auto-migrate: if the absolute path points inside our portable DataRoot
-                // (e.g. ROMs on the same USB stick as the AppImage),
-                // convert it once to a LibraryRelative path. This makes the entry
-                // robust across different users/mount points as long as DataRoot
-                // (the AppImage directory) moves together with the ROMs
-                var absolutePath = primary.Path;
-
-                if (Path.IsPathRooted(absolutePath))
-                {
-                    try
-                    {
-                        var dataRoot = AppPaths.DataRoot;
-                        var normalizedAbsolute = Path.GetFullPath(absolutePath);
-                        var normalizedRoot = Path.GetFullPath(dataRoot);
-
-                        if (normalizedAbsolute.StartsWith(normalizedRoot + Path.DirectorySeparatorChar,
-                                StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(normalizedAbsolute, normalizedRoot, StringComparison.OrdinalIgnoreCase))
-                        {
-                            // Compute relative path from DataRoot to the ROM file
-                            var relative = Path.GetRelativePath(normalizedRoot, normalizedAbsolute);
-
-                            primary.Kind = MediaFileKind.LibraryRelative;
-                            primary.Path = relative;
-
-                            return AppPaths.ResolveDataPath(relative);
-                        }
-                    }
-                    catch
-                    {
-                        // Best-effort: if anything goes wrong, fall back to the original absolute path
-                        return absolutePath;
-                    }
-                }
-
-                // Outside of DataRoot: keep absolute as-is (classic behavior)
-                return absolutePath;
-            }
+                // Return the stored absolute path as-is.
+                return primary.Path;
 
             case MediaFileKind.MountRelative:
                 // Future: implement mount-root based resolution here

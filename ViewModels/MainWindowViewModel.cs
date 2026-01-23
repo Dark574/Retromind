@@ -489,6 +489,18 @@ public partial class MainWindowViewModel : ViewModelBase
         if (expectedVersion.HasValue && expectedVersion.Value != _libraryDirtyVersion)
             return;
 
+        if (_currentSettings.PreferPortableLaunchPaths)
+        {
+            var migrated = 0;
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                migrated = LibraryMigrationHelper.MigrateLaunchFilePathsToLibraryRelative(RootItems);
+            }).ConfigureAwait(false);
+
+            if (migrated > 0)
+                Debug.WriteLine($"[Library] Migrated {migrated} launch paths to LibraryRelative.");
+        }
+
         try
         {
             await _dataService.SaveAsync(RootItems).ConfigureAwait(false);
