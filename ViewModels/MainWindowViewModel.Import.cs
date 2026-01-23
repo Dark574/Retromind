@@ -721,6 +721,9 @@ public partial class MainWindowViewModel
 
     private void OpenIntegratedSearch()
     {
+        // Ensure any previous media-area handlers are detached before switching views.
+        DetachMediaAreaHandlers();
+
         _selectedNode = null;
         // Force refresh of selection
         OnPropertyChanged(nameof(SelectedNode));
