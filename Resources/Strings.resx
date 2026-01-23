@@ -207,9 +207,13 @@
   
     <!-- SETTINGS -->
     <data name="Settings.AddProfile" xml:space="preserve"><value>Add Profile</value></data>
+    <data name="Settings.ConvertExistingLaunchPaths" xml:space="preserve"><value>Convert existing launch paths</value></data>
     <data name="Settings.DefaultArguments" xml:space="preserve"><value>Default Arguments</value></data>
     <data name="Settings.ExecutablePath" xml:space="preserve"><value>Executable Path</value></data>
     <data name="Settings.GlobalSettingsHint" xml:space="preserve"><value>Define emulators and metadata sources here to use them quickly in your library.</value></data>
+    <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Play random music</value></data>
+    <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>When enabled, selecting an item in the main grid automatically plays its music asset (if available).</value></data>
+    <data name="Settings.PortableLaunchPaths" xml:space="preserve"><value>Store launch file paths relative to Retromind data folder (portable)</value></data>
     <data name="Settings.ProfileName" xml:space="preserve"><value>Profile Name</value></data>
     <data name="Settings.SectionEmulators" xml:space="preserve"><value>Emulator Profiles</value></data>
     <data name="Settings.TabEmulators" xml:space="preserve"><value>Emulators</value></data>

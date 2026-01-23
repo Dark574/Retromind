@@ -932,6 +932,30 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Settings.GlobalSettingsHint", resourceCulture);
             }
         }
+
+        public static string Settings_PlayRandomMusic {
+            get {
+                return ResourceManager.GetString("Settings.PlayRandomMusic", resourceCulture);
+            }
+        }
+
+        public static string Settings_PlayRandomMusic_Hint {
+            get {
+                return ResourceManager.GetString("Settings.PlayRandomMusic.Hint", resourceCulture);
+            }
+        }
+
+        public static string Settings_PortableLaunchPaths {
+            get {
+                return ResourceManager.GetString("Settings.PortableLaunchPaths", resourceCulture);
+            }
+        }
+
+        public static string Settings_ConvertExistingLaunchPaths {
+            get {
+                return ResourceManager.GetString("Settings.ConvertExistingLaunchPaths", resourceCulture);
+            }
+        }
         
         public static string Settings_ProfileName {
             get {

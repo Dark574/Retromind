@@ -18,17 +18,17 @@
 
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <CheckBox IsChecked="{Binding PreferPortableLaunchPaths}"
-                          Content="Store launch file paths relative to Retromind data folder (portable)" />
+                          Content="{x:Static p:Strings.Settings_PortableLaunchPaths}" />
 
-                <Button Content="Convert existing launch paths"
+                <Button Content="{x:Static p:Strings.Settings_ConvertExistingLaunchPaths}"
                         Command="{Binding ConvertExistingToPortableCommand}" />
             </StackPanel>
             <StackPanel Orientation="Vertical" Spacing="4">
 
                 <!-- Toggle: auto-play music on selection in main grid -->
-                <CheckBox Content="Play random music"
+                <CheckBox Content="{x:Static p:Strings.Settings_PlayRandomMusic}"
                           IsChecked="{Binding EnableSelectionMusicPreview}"
-                          ToolTip.Tip="When enabled, selecting an item in the main grid automatically plays its music asset (if available)." />
+                          ToolTip.Tip="{x:Static p:Strings.Settings_PlayRandomMusic_Hint}" />
             </StackPanel>
         </StackPanel>
         
