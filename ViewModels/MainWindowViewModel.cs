@@ -503,7 +503,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            await _dataService.SaveAsync(RootItems).ConfigureAwait(false);
+            var json = await UiThreadHelper.InvokeAsync(() => _dataService.Serialize(RootItems))
+                .ConfigureAwait(false);
+            await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
 
             // Only mark the library as clean if no new changes happened during this save.
             if (expectedVersion.HasValue)
@@ -711,7 +713,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             Debug.WriteLine($"[Migration] Converted {migrated} launch file paths to LibraryRelative.");
-            await _dataService.SaveAsync(RootItems);
+            var json = await UiThreadHelper.InvokeAsync(() => _dataService.Serialize(RootItems));
+            await _dataService.SaveJsonAsync(json);
         }
         catch (Exception ex)
         {

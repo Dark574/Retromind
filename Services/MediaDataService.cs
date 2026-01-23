@@ -40,12 +40,8 @@ public class MediaDataService
         
         try
         {
-            #if DEBUG
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            #else
-            var options = new JsonSerializerOptions { WriteIndented = false };
-            #endif
-            
+            var options = CreateSerializerOptions();
+
             // 1. Write to a temporary file first
             using (var stream = File.Create(TempPath))
             {
@@ -84,6 +80,81 @@ public class MediaDataService
             }
 
             // Optional: Try to restore backup if the main file got lost during the move (rare edge case)
+            try
+            {
+                if (!File.Exists(FilePath) && File.Exists(BackupPath))
+                {
+                    File.Copy(BackupPath, FilePath, overwrite: true);
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Serializes the given nodes to JSON using the same options as SaveAsync.
+    /// Call this on the UI thread if you want to avoid cross-thread enumeration issues.
+    /// </summary>
+    public string Serialize(ObservableCollection<MediaNode> nodes)
+    {
+        var options = CreateSerializerOptions();
+        return JsonSerializer.Serialize(nodes, options);
+    }
+
+    /// <summary>
+    /// Saves a pre-serialized JSON snapshot to disk asynchronously using
+    /// the same atomic write strategy as SaveAsync.
+    /// </summary>
+    public async Task SaveJsonAsync(string json)
+    {
+        if (json == null) throw new ArgumentNullException(nameof(json));
+
+        await _ioGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            Directory.CreateDirectory(AppPaths.DataRoot);
+
+            // 1) Write to temp first
+            await File.WriteAllTextAsync(TempPath, json).ConfigureAwait(false);
+
+            // 2) Backup current file (best effort)
+            if (File.Exists(FilePath))
+            {
+                try
+                {
+                    File.Copy(FilePath, BackupPath, overwrite: true);
+                }
+                catch
+                {
+                    // best effort
+                }
+            }
+
+            // 3) Atomic replace
+            File.Move(TempPath, FilePath, overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[MediaDataService] Save failed: {ex.Message}");
+
+            // Cleanup temp file if something went wrong
+            try
+            {
+                if (File.Exists(TempPath)) File.Delete(TempPath);
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // Optional: Try to restore backup if the main file got lost during the move
             try
             {
                 if (!File.Exists(FilePath) && File.Exists(BackupPath))
@@ -195,5 +266,14 @@ public class MediaDataService
             Console.Error.WriteLine($"[MediaDataService] Failed to load from {path}: {ex.Message}");
             return null;
         }
+    }
+
+    private static JsonSerializerOptions CreateSerializerOptions()
+    {
+        #if DEBUG
+        return new JsonSerializerOptions { WriteIndented = true };
+        #else
+        return new JsonSerializerOptions { WriteIndented = false };
+        #endif
     }
 }
