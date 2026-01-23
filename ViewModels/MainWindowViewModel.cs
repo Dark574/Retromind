@@ -506,9 +506,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            // Serialize on UI thread to avoid cross-thread collection access.
-            var json = await UiThreadHelper.InvokeAsync(() => _dataService.Serialize(RootItems))
+            // Snapshot on UI thread, serialize in background.
+            var snapshot = await UiThreadHelper.InvokeAsync(() => _dataService.CreateSnapshot(RootItems))
                 .ConfigureAwait(false);
+            var json = await Task.Run(() => _dataService.Serialize(snapshot)).ConfigureAwait(false);
             await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
 
             // Only mark the library as clean if no new changes happened during this save.
@@ -715,7 +716,16 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var migrated = LibraryMigrationHelper.MigrateLaunchFilePathsToLibraryRelative(RootItems);
+            int migrated = 0;
+            ObservableCollection<MediaNode>? snapshot = null;
+
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                migrated = LibraryMigrationHelper.MigrateLaunchFilePathsToLibraryRelative(RootItems);
+                if (migrated > 0)
+                    snapshot = _dataService.CreateSnapshot(RootItems);
+            });
+
             if (migrated <= 0)
             {
                 Debug.WriteLine("[Migration] No launch file paths needed conversion.");
@@ -723,9 +733,8 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             Debug.WriteLine($"[Migration] Converted {migrated} launch file paths to LibraryRelative.");
-            // Serialize on UI thread to avoid cross-thread collection access.
-            var json = await UiThreadHelper.InvokeAsync(() => _dataService.Serialize(RootItems));
-            await _dataService.SaveJsonAsync(json);
+            var json = await Task.Run(() => _dataService.Serialize(snapshot!)).ConfigureAwait(false);
+            await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

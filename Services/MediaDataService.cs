@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
@@ -100,12 +101,27 @@ public class MediaDataService
 
     /// <summary>
     /// Serializes the given nodes to JSON using the same options as SaveAsync.
-    /// Call this on the UI thread to avoid cross-thread collection access.
+    /// Call this on a snapshot to avoid cross-thread collection access.
     /// </summary>
     public string Serialize(ObservableCollection<MediaNode> nodes)
     {
         var options = CreateSerializerOptions();
         return JsonSerializer.Serialize(nodes, options);
+    }
+
+    /// <summary>
+    /// Creates a detached snapshot of the library tree.
+    /// This should be called on the UI thread to avoid cross-thread access.
+    /// </summary>
+    public ObservableCollection<MediaNode> CreateSnapshot(ObservableCollection<MediaNode> nodes)
+    {
+        var snapshot = new ObservableCollection<MediaNode>();
+        if (nodes == null) return snapshot;
+
+        foreach (var node in nodes)
+            snapshot.Add(CloneNode(node));
+
+        return snapshot;
     }
 
     /// <summary>
@@ -266,6 +282,156 @@ public class MediaDataService
             Console.Error.WriteLine($"[MediaDataService] Failed to load from {path}: {ex.Message}");
             return null;
         }
+    }
+
+    private static MediaNode CloneNode(MediaNode node)
+    {
+        var clone = new MediaNode
+        {
+            Id = node.Id,
+            Name = node.Name,
+            Type = node.Type,
+            IsExpanded = node.IsExpanded,
+            RandomizeCovers = node.RandomizeCovers,
+            RandomizeMusic = node.RandomizeMusic,
+            DefaultEmulatorId = node.DefaultEmulatorId,
+            ThemePath = node.ThemePath,
+            Description = node.Description,
+            SystemPreviewThemeId = node.SystemPreviewThemeId,
+            NativeWrappersOverride = CloneWrappers(node.NativeWrappersOverride)
+        };
+
+        var assets = new ObservableCollection<MediaAsset>();
+        if (node.Assets != null)
+        {
+            foreach (var asset in node.Assets)
+                assets.Add(CloneAsset(asset));
+        }
+        clone.Assets = assets;
+
+        var items = new ObservableCollection<MediaItem>();
+        if (node.Items != null)
+        {
+            foreach (var item in node.Items)
+                items.Add(CloneItem(item));
+        }
+        clone.Items = items;
+
+        var children = new ObservableCollection<MediaNode>();
+        if (node.Children != null)
+        {
+            foreach (var child in node.Children)
+                children.Add(CloneNode(child));
+        }
+        clone.Children = children;
+
+        return clone;
+    }
+
+    private static MediaItem CloneItem(MediaItem item)
+    {
+        var clone = new MediaItem
+        {
+            Id = item.Id,
+            Title = item.Title,
+            Files = CloneFiles(item.Files),
+            MediaType = item.MediaType,
+            Description = item.Description,
+            Developer = item.Developer,
+            Genre = item.Genre,
+            Series = item.Series,
+            Players = item.Players,
+            ReleaseDate = item.ReleaseDate,
+            Rating = item.Rating,
+            Status = item.Status,
+            IsFavorite = item.IsFavorite,
+            EmulatorId = item.EmulatorId,
+            LauncherPath = item.LauncherPath,
+            LauncherArgs = item.LauncherArgs,
+            PrefixPath = item.PrefixPath,
+            OverrideWatchProcess = item.OverrideWatchProcess,
+            LastPlayed = item.LastPlayed,
+            PlayCount = item.PlayCount,
+            TotalPlayTime = item.TotalPlayTime,
+            NativeWrappersOverride = CloneWrappers(item.NativeWrappersOverride),
+            EnvironmentOverrides = CloneEnvironmentOverrides(item.EnvironmentOverrides)
+        };
+
+        var tags = new ObservableCollection<string>();
+        if (item.Tags != null)
+        {
+            foreach (var tag in item.Tags)
+                tags.Add(tag);
+        }
+        clone.Tags = tags;
+
+        var assets = new ObservableCollection<MediaAsset>();
+        if (item.Assets != null)
+        {
+            foreach (var asset in item.Assets)
+                assets.Add(CloneAsset(asset));
+        }
+        clone.Assets = assets;
+
+        return clone;
+    }
+
+    private static MediaAsset CloneAsset(MediaAsset asset)
+    {
+        return new MediaAsset
+        {
+            Id = asset.Id,
+            Type = asset.Type,
+            RelativePath = asset.RelativePath
+        };
+    }
+
+    private static List<MediaFileRef> CloneFiles(List<MediaFileRef>? files)
+    {
+        var cloned = new List<MediaFileRef>();
+        if (files == null) return cloned;
+
+        foreach (var file in files)
+        {
+            if (file == null) continue;
+            cloned.Add(new MediaFileRef
+            {
+                Kind = file.Kind,
+                Path = file.Path,
+                Label = file.Label,
+                Index = file.Index
+            });
+        }
+
+        return cloned;
+    }
+
+    private static List<LaunchWrapper>? CloneWrappers(List<LaunchWrapper>? wrappers)
+    {
+        if (wrappers == null) return null;
+
+        var cloned = new List<LaunchWrapper>(wrappers.Count);
+        foreach (var wrapper in wrappers)
+        {
+            if (wrapper == null) continue;
+            cloned.Add(new LaunchWrapper
+            {
+                Path = wrapper.Path,
+                Args = wrapper.Args
+            });
+        }
+
+        return cloned;
+    }
+
+    private static Dictionary<string, string> CloneEnvironmentOverrides(Dictionary<string, string>? overrides)
+    {
+        var cloned = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (overrides == null) return cloned;
+
+        foreach (var kv in overrides)
+            cloned[kv.Key] = kv.Value;
+        return cloned;
     }
 
     private static JsonSerializerOptions CreateSerializerOptions()
