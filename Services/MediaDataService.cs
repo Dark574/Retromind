@@ -100,7 +100,7 @@ public class MediaDataService
 
     /// <summary>
     /// Serializes the given nodes to JSON using the same options as SaveAsync.
-    /// Call this on the UI thread if you want to avoid cross-thread enumeration issues.
+    /// Call this on the UI thread to avoid cross-thread collection access.
     /// </summary>
     public string Serialize(ObservableCollection<MediaNode> nodes)
     {

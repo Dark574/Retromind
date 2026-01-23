@@ -34,77 +34,8 @@ public class SettingsService
     /// </summary>
     public async Task SaveAsync(AppSettings settings)
     {
-        await _ioGate.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            // Ensure settings directory exists (portable installs may start from a fresh folder).
-            Directory.CreateDirectory(SettingsFolder);
-
-            // Encrypt sensitive data before serializing (in-place).
-            ProtectSensitiveData(settings);
-
-            #if DEBUG
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            #else
-            var options = new JsonSerializerOptions { WriteIndented = false };
-            #endif
-
-            // 1) Write to temp first
-            await using (var stream = File.Create(TempPath))
-            {
-                await JsonSerializer.SerializeAsync(stream, settings, options).ConfigureAwait(false);
-            }
-
-            // 2) Backup current file (best effort)
-            if (File.Exists(FilePath))
-            {
-                try
-                {
-                    File.Copy(FilePath, BackupPath, overwrite: true);
-                }
-                catch
-                {
-                    // Best effort: backup must not block saving.
-                }
-            }
-
-            // 3) Atomic replace (no "delete then move" gap)
-            File.Move(TempPath, FilePath, overwrite: true);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            Debug.WriteLine("[SettingsService] Write permission denied. Run as Admin or move app to a user-writable folder.");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[SettingsService] Critical error saving settings: {ex.Message}");
-
-            // Best effort cleanup of temp
-            try
-            {
-                if (File.Exists(TempPath))
-                    File.Delete(TempPath);
-            }
-            catch
-            {
-                // ignore
-            }
-
-            // Optional: if the main file is missing but we have a backup, restore it
-            try
-            {
-                if (!File.Exists(FilePath) && File.Exists(BackupPath))
-                    File.Copy(BackupPath, FilePath, overwrite: true);
-            }
-            catch
-            {
-                // ignore
-            }
-        }
-        finally
-        {
-            _ioGate.Release();
-        }
+        var json = Serialize(settings);
+        await SaveJsonAsync(json).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -243,6 +174,90 @@ public class SettingsService
             return new AppSettings();
         }
     }
+
+    /// <summary>
+    /// Serializes the settings using the same options as SaveAsync.
+    /// Call this on the UI thread to avoid cross-thread collection access.
+    /// </summary>
+    public string Serialize(AppSettings settings)
+    {
+        if (settings == null) throw new ArgumentNullException(nameof(settings));
+
+        // Encrypt sensitive data before serializing (in-place).
+        ProtectSensitiveData(settings);
+
+        var options = CreateSerializerOptions();
+        return JsonSerializer.Serialize(settings, options);
+    }
+
+    /// <summary>
+    /// Saves a pre-serialized JSON snapshot to disk asynchronously using
+    /// the same atomic write strategy as SaveAsync.
+    /// </summary>
+    public async Task SaveJsonAsync(string json)
+    {
+        if (json == null) throw new ArgumentNullException(nameof(json));
+
+        await _ioGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            // Ensure settings directory exists (portable installs may start from a fresh folder).
+            Directory.CreateDirectory(SettingsFolder);
+
+            // 1) Write to temp first
+            await File.WriteAllTextAsync(TempPath, json).ConfigureAwait(false);
+
+            // 2) Backup current file (best effort)
+            if (File.Exists(FilePath))
+            {
+                try
+                {
+                    File.Copy(FilePath, BackupPath, overwrite: true);
+                }
+                catch
+                {
+                    // Best effort: backup must not block saving.
+                }
+            }
+
+            // 3) Atomic replace (no "delete then move" gap)
+            File.Move(TempPath, FilePath, overwrite: true);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Debug.WriteLine("[SettingsService] Write permission denied. Run as Admin or move app to a user-writable folder.");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[SettingsService] Critical error saving settings: {ex.Message}");
+
+            // Best effort cleanup of temp
+            try
+            {
+                if (File.Exists(TempPath))
+                    File.Delete(TempPath);
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // Optional: if the main file is missing but we have a backup, restore it
+            try
+            {
+                if (!File.Exists(FilePath) && File.Exists(BackupPath))
+                    File.Copy(BackupPath, FilePath, overwrite: true);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
     
     private void ProtectSensitiveData(AppSettings settings)
     {
@@ -262,5 +277,14 @@ public class SettingsService
             scraper.Password = SecurityHelper.Decrypt(scraper.EncryptedPassword ?? "");
             scraper.ClientSecret = SecurityHelper.Decrypt(scraper.EncryptedClientSecret ?? "");
         }
+    }
+
+    private static JsonSerializerOptions CreateSerializerOptions()
+    {
+        #if DEBUG
+        return new JsonSerializerOptions { WriteIndented = true };
+        #else
+        return new JsonSerializerOptions { WriteIndented = false };
+        #endif
     }
 }

@@ -439,8 +439,11 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         // SaveData is a “strong” save: when someone calls it explicitly,
         // we persist the library (if dirty) + settings (immediately).
+        // Serialization happens on the UI thread to avoid cross-thread collection access.
         await SaveLibraryIfDirtyAsync(force: false).ConfigureAwait(false);
-        await _settingsService.SaveAsync(_currentSettings).ConfigureAwait(false);
+        var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
+            .ConfigureAwait(false);
+        await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
     }
 
     private void MarkLibraryDirty()
@@ -503,6 +506,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
+            // Serialize on UI thread to avoid cross-thread collection access.
             var json = await UiThreadHelper.InvokeAsync(() => _dataService.Serialize(RootItems))
                 .ConfigureAwait(false);
             await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
@@ -542,7 +546,10 @@ public partial class MainWindowViewModel : ViewModelBase
                 await Task.Delay(_saveSettingsDebounce, token);
                 if (token.IsCancellationRequested) return;
 
-                await _settingsService.SaveAsync(_currentSettings);
+                // Serialize on UI thread to avoid cross-thread collection access.
+                var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
+                    .ConfigureAwait(false);
+                await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -571,7 +578,10 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             await SaveLibraryIfDirtyAsync(force: true).ConfigureAwait(false);
-            await _settingsService.SaveAsync(_currentSettings).ConfigureAwait(false);
+            // Serialize on UI thread to avoid cross-thread collection access.
+            var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
+                .ConfigureAwait(false);
+            await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -713,6 +723,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             Debug.WriteLine($"[Migration] Converted {migrated} launch file paths to LibraryRelative.");
+            // Serialize on UI thread to avoid cross-thread collection access.
             var json = await UiThreadHelper.InvokeAsync(() => _dataService.Serialize(RootItems));
             await _dataService.SaveJsonAsync(json);
         }
