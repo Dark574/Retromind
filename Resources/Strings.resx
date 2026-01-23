@@ -207,6 +207,7 @@
   
     <!-- SETTINGS -->
     <data name="Settings.AddProfile" xml:space="preserve"><value>Add Profile</value></data>
+    <data name="Settings.ConfirmConvertLaunchPaths" xml:space="preserve"><value>Convert existing launch paths to portable (relative) paths?</value></data>
     <data name="Settings.ConvertExistingLaunchPaths" xml:space="preserve"><value>Convert existing launch paths</value></data>
     <data name="Settings.DefaultArguments" xml:space="preserve"><value>Default Arguments</value></data>
     <data name="Settings.ExecutablePath" xml:space="preserve"><value>Executable Path</value></data>

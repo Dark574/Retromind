@@ -914,6 +914,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Settings.AddProfile", resourceCulture);
             }
         }
+
+        public static string Settings_ConfirmConvertLaunchPaths {
+            get {
+                return ResourceManager.GetString("Settings.ConfirmConvertLaunchPaths", resourceCulture);
+            }
+        }
         
         public static string Settings_DefaultArguments {
             get {

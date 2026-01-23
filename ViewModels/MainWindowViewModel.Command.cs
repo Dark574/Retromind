@@ -630,6 +630,10 @@ public partial class MainWindowViewModel
         // Allow the settings dialog to request a one-time portable migration
         settingsVm.RequestPortableMigration += async () =>
         {
+            var confirmed = await ShowConfirmDialog(owner, Strings.Settings_ConfirmConvertLaunchPaths);
+            if (!confirmed)
+                return;
+
             await ConvertLaunchPathsToPortableAsync();
         };
         

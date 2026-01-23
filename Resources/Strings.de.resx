@@ -209,6 +209,7 @@
 
     <!-- SETTINGS -->
     <data name="Settings.AddProfile" xml:space="preserve"><value>Profil hinzufügen</value></data>
+    <data name="Settings.ConfirmConvertLaunchPaths" xml:space="preserve"><value>Bestehende Startpfade in portable (relative) Pfade umwandeln?</value></data>
     <data name="Settings.ConvertExistingLaunchPaths" xml:space="preserve"><value>Startpfade konvertieren</value></data>
     <data name="Settings.DefaultArguments" xml:space="preserve"><value>Standardargumente</value></data>
     <data name="Settings.ExecutablePath" xml:space="preserve"><value>Ausführungsdatei-Pfad</value></data>
