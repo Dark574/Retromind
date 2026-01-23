@@ -24,6 +24,9 @@ public static class PathHelper
         while (sanitized.Contains("__"))
             sanitized = sanitized.Replace("__", "_");
 
+        if (string.IsNullOrWhiteSpace(sanitized))
+            return "Unknown";
+
         return sanitized;
     }
 
