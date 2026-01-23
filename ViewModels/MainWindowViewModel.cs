@@ -197,9 +197,13 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    public IBrush PanelBackground => IsDarkTheme ? new SolidColorBrush(Color.Parse("#CC252526")) : new SolidColorBrush(Color.Parse("#CCF5F5F5"));
-    public IBrush TextColor => IsDarkTheme ? Brushes.White : Brushes.Black;
-    public IBrush WindowBackground => IsDarkTheme ? new SolidColorBrush(Color.Parse("#252526")) : Brushes.WhiteSmoke;
+    public IBrush PanelBackground => IsDarkTheme
+        ? new SolidColorBrush(Color.Parse("#CC252526"))
+        : new SolidColorBrush(Color.Parse("#CCC8C8C8"));
+    public IBrush TextColor => IsDarkTheme ? Brushes.White : new SolidColorBrush(Color.Parse("#1A1A1A"));
+    public IBrush WindowBackground => IsDarkTheme
+        ? new SolidColorBrush(Color.Parse("#252526"))
+        : new SolidColorBrush(Color.Parse("#D6D6D6"));
 
     private readonly Action _onGuidePressed;
     
