@@ -53,7 +53,7 @@ public class FileManagementService
         if (!File.Exists(sourceFilePath)) return null;
 
         string entityName = entity is MediaItem item ? item.Title : (entity as MediaNode)?.Name ?? "Unknown";
-        string nodeFolder = Path.Combine(libraryRootPath, Path.Combine(nodePathStack.ToArray()));
+        string nodeFolder = ResolveNodeFolder(nodePathStack);
 
         string extension = Path.GetExtension(sourceFilePath);
         string fullDestPath = GetNextAssetFileName(nodeFolder, entityName, type, extension);
@@ -117,7 +117,7 @@ public class FileManagementService
         var results = new List<MediaAsset>();
         if (item == null) return results;
 
-        string nodeFolder = Path.Combine(libraryRootPath, Path.Combine(nodePathStack.ToArray()));
+        string nodeFolder = ResolveNodeFolder(nodePathStack);
         if (!Directory.Exists(nodeFolder)) return results;
 
         var sanitizedTitle = SanitizeForFilename(item.Title);
@@ -154,6 +154,24 @@ public class FileManagementService
     
 
     // --- Private Helpers ---
+    private string ResolveNodeFolder(List<string> nodePathStack)
+    {
+        var rawPath = Path.Combine(libraryRootPath, Path.Combine(nodePathStack.ToArray()));
+
+        var sanitizedStack = nodePathStack
+            .Select(PathHelper.SanitizePathSegment)
+            .ToArray();
+        var sanitizedPath = Path.Combine(libraryRootPath, Path.Combine(sanitizedStack));
+
+        if (string.Equals(rawPath, sanitizedPath, StringComparison.Ordinal))
+            return rawPath;
+
+        // Prefer existing raw paths for backward compatibility.
+        if (Directory.Exists(rawPath))
+            return rawPath;
+
+        return sanitizedPath;
+    }
 
     /// <summary>
     /// Determines the next available filename according to convention: Title_Type_XX.ext

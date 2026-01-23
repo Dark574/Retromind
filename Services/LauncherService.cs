@@ -337,7 +337,7 @@ public sealed class LauncherService
     {
         try
         {
-            var nodeFolder = Path.Combine(_libraryRootPath, Path.Combine(nodePath.ToArray()));
+            var nodeFolder = ResolveNodeFolder(nodePath);
             var playlistsFolder = Path.Combine(nodeFolder, "Playlists");
             Directory.CreateDirectory(playlistsFolder);
 
@@ -400,6 +400,27 @@ public sealed class LauncherService
             Debug.WriteLine($"[Launcher] Failed to create playlist: {ex.Message}");
             return null;
         }
+    }
+
+    private string ResolveNodeFolder(List<string> nodePath)
+    {
+        var rawPath = Path.Combine(_libraryRootPath, Path.Combine(nodePath.ToArray()));
+
+        var sanitizedStack = new string[nodePath.Count];
+        for (var i = 0; i < nodePath.Count; i++)
+        {
+            sanitizedStack[i] = PathHelper.SanitizePathSegment(nodePath[i]);
+        }
+        var sanitizedPath = Path.Combine(_libraryRootPath, Path.Combine(sanitizedStack));
+
+        if (string.Equals(rawPath, sanitizedPath, StringComparison.Ordinal))
+            return rawPath;
+
+        // Prefer existing raw paths for backward compatibility.
+        if (Directory.Exists(rawPath))
+            return rawPath;
+
+        return sanitizedPath;
     }
 
     private static string SanitizeForFilename(string input)

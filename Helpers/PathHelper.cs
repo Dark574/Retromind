@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using Retromind.Models;
 
 namespace Retromind.Helpers;
@@ -9,6 +10,23 @@ namespace Retromind.Helpers;
 /// </summary>
 public static class PathHelper
 {
+    public static string SanitizePathSegment(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return "Unknown";
+
+        var sanitized = input.Replace(" ", "_");
+
+        foreach (var c in Path.GetInvalidFileNameChars())
+        {
+            sanitized = sanitized.Replace(c.ToString(), "");
+        }
+
+        while (sanitized.Contains("__"))
+            sanitized = sanitized.Replace("__", "_");
+
+        return sanitized;
+    }
+
     /// <summary>
     /// Traverses the tree from the roots to find the path to the specified target node.
     /// Returns a list of logical node names (e.g., ["Games", "SNES", "RPG"]).
