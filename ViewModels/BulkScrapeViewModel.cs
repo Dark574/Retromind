@@ -100,7 +100,7 @@ public partial class BulkScrapeViewModel : ViewModelBase
         // Using a HashSet or checking for duplicates might be useful here if one item is in multiple categories,
         // but for now, we assume tree nodes are unique instances.
         var allItems = new List<MediaItem>();
-        CollectItemsRecursive(_rootNode, allItems);
+        await CollectItemsRecursiveSnapshotAsync(_rootNode, allItems);
         
         AppendLog($"Found {allItems.Count} media items in total.");
         ProgressValue = 0;
@@ -221,19 +221,22 @@ public partial class BulkScrapeViewModel : ViewModelBase
     /// <summary>
     /// Recursively collects all MediaItems from the node tree.
     /// </summary>
-    private void CollectItemsRecursive(MediaNode node, List<MediaItem> list)
+    private async Task CollectItemsRecursiveSnapshotAsync(MediaNode node, List<MediaItem> list)
     {
-        if (node.Items != null)
+        List<MediaItem> items = new();
+        List<MediaNode> children = new();
+
+        await UiThreadHelper.InvokeAsync(() =>
         {
-            list.AddRange(node.Items);
-        }
-        
-        if (node.Children != null)
+            items = node.Items.ToList();
+            children = node.Children.ToList();
+        });
+
+        list.AddRange(items);
+
+        foreach (var child in children)
         {
-            foreach (var child in node.Children)
-            {
-                CollectItemsRecursive(child, list);
-            }
+            await CollectItemsRecursiveSnapshotAsync(child, list);
         }
     }
 
