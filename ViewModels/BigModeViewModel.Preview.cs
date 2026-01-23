@@ -48,6 +48,8 @@ public partial class BigModeViewModel
     // Tracks the expected frame generation so we can hide stale frames until the first new frame arrives.
     private int _expectedPreviewFrameGeneration;
     private int _mainVideoFrameReadyGeneration;
+
+    private bool _suspendPreviewDuringScroll;
     
     /// <summary>
     /// Forces the main MediaPlayer instance to be recreated on the next playback start.
@@ -244,6 +246,12 @@ public partial class BigModeViewModel
 
         if (!_isViewReady || _isLaunching)
             return;
+
+        if (_suspendPreviewDuringScroll)
+        {
+            StopVideo();
+            return;
+        }
 
         // Theme capability: if video is not allowed, ensure preview is stopped.
         if (!CanShowVideo)

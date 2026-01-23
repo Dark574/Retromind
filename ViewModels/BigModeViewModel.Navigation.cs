@@ -276,14 +276,12 @@ public partial class BigModeViewModel
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
             return;
 
-        _gamepadService.OnUp -= OnGamepadUp;
-        _gamepadService.OnDown -= OnGamepadDown;
-        _gamepadService.OnLeft -= OnGamepadLeft;
-        _gamepadService.OnRight -= OnGamepadRight;
+        _gamepadService.OnDirectionStateChanged -= OnGamepadDirectionStateChanged;
         _gamepadService.OnSelect -= OnGamepadSelect;
         _gamepadService.OnBack -= OnGamepadBack;
 
         _videoSurface.FrameReady -= OnMainVideoFrameReady;
+        StopGamepadRepeatTimer();
 
         // Stop attract timer early so it can't fire while we tear down VLC
         try

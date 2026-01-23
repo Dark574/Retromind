@@ -307,10 +307,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         ForceExitCommand = new RelayCommand(() => RequestClose?.Invoke());
 
         // Subscribe to gamepad events (raised on SDL thread; handler methods must marshal if they touch UI state)
-        _gamepadService.OnUp += OnGamepadUp;
-        _gamepadService.OnDown += OnGamepadDown;
-        _gamepadService.OnLeft += OnGamepadLeft;
-        _gamepadService.OnRight += OnGamepadRight;
+        _gamepadService.OnDirectionStateChanged += OnGamepadDirectionStateChanged;
         _gamepadService.OnSelect += OnGamepadSelect;
         _gamepadService.OnBack += OnGamepadBack;
 

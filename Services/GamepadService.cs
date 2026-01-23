@@ -13,6 +13,14 @@ namespace Retromind.Services;
 /// </summary>
 public sealed class GamepadService : IDisposable
 {
+    public enum GamepadDirection
+    {
+        Up,
+        Down,
+        Left,
+        Right
+    }
+
     // Events (raised on the SDL polling thread; subscribers should marshal to UI thread if needed).
     public event Action? OnUp;
     public event Action? OnDown;
@@ -23,6 +31,7 @@ public sealed class GamepadService : IDisposable
     public event Action? OnGuide;    // Guide / Home
     public event Action? OnPrevTab;  // L1 / LB
     public event Action? OnNextTab;  // R1 / RB
+    public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
 
     private readonly Sdl _sdl = Sdl.GetApi();
 
@@ -163,6 +172,9 @@ public sealed class GamepadService : IDisposable
             case EventType.Controllerbuttondown:
                 HandleButtonDown(sdlEvent.Cbutton);
                 break;
+            case EventType.Controllerbuttonup:
+                HandleButtonUp(sdlEvent.Cbutton);
+                break;
 
             case EventType.Controlleraxismotion:
                 HandleAxisMotion(sdlEvent.Caxis);
@@ -236,19 +248,19 @@ public sealed class GamepadService : IDisposable
                 break;
 
             case GameControllerButton.DpadUp:
-                OnUp?.Invoke();
+                RaiseDirectionState(GamepadDirection.Up, true);
                 break;
 
             case GameControllerButton.DpadDown:
-                OnDown?.Invoke();
+                RaiseDirectionState(GamepadDirection.Down, true);
                 break;
 
             case GameControllerButton.DpadLeft:
-                OnLeft?.Invoke();
+                RaiseDirectionState(GamepadDirection.Left, true);
                 break;
 
             case GameControllerButton.DpadRight:
-                OnRight?.Invoke();
+                RaiseDirectionState(GamepadDirection.Right, true);
                 break;
 
             case GameControllerButton.Leftshoulder:
@@ -257,6 +269,27 @@ public sealed class GamepadService : IDisposable
 
             case GameControllerButton.Rightshoulder:
                 OnNextTab?.Invoke();
+                break;
+        }
+    }
+
+    private void HandleButtonUp(ControllerButtonEvent e)
+    {
+        var button = (GameControllerButton)e.Button;
+
+        switch (button)
+        {
+            case GameControllerButton.DpadUp:
+                RaiseDirectionState(GamepadDirection.Up, false);
+                break;
+            case GameControllerButton.DpadDown:
+                RaiseDirectionState(GamepadDirection.Down, false);
+                break;
+            case GameControllerButton.DpadLeft:
+                RaiseDirectionState(GamepadDirection.Left, false);
+                break;
+            case GameControllerButton.DpadRight:
+                RaiseDirectionState(GamepadDirection.Right, false);
                 break;
         }
     }
@@ -273,8 +306,11 @@ public sealed class GamepadService : IDisposable
             if (newState == _lastAxisXState)
                 return;
 
-            if (newState == -1) OnLeft?.Invoke();
-            if (newState == 1) OnRight?.Invoke();
+            if (_lastAxisXState == -1) RaiseDirectionState(GamepadDirection.Left, false);
+            if (_lastAxisXState == 1) RaiseDirectionState(GamepadDirection.Right, false);
+
+            if (newState == -1) RaiseDirectionState(GamepadDirection.Left, true);
+            if (newState == 1) RaiseDirectionState(GamepadDirection.Right, true);
 
             _lastAxisXState = newState;
             return;
@@ -287,10 +323,37 @@ public sealed class GamepadService : IDisposable
             if (newState == _lastAxisYState)
                 return;
 
-            if (newState == -1) OnUp?.Invoke();
-            if (newState == 1) OnDown?.Invoke();
+            if (_lastAxisYState == -1) RaiseDirectionState(GamepadDirection.Up, false);
+            if (_lastAxisYState == 1) RaiseDirectionState(GamepadDirection.Down, false);
+
+            if (newState == -1) RaiseDirectionState(GamepadDirection.Up, true);
+            if (newState == 1) RaiseDirectionState(GamepadDirection.Down, true);
 
             _lastAxisYState = newState;
+        }
+    }
+
+    private void RaiseDirectionState(GamepadDirection direction, bool isPressed)
+    {
+        OnDirectionStateChanged?.Invoke(direction, isPressed);
+
+        if (!isPressed)
+            return;
+
+        switch (direction)
+        {
+            case GamepadDirection.Up:
+                OnUp?.Invoke();
+                break;
+            case GamepadDirection.Down:
+                OnDown?.Invoke();
+                break;
+            case GamepadDirection.Left:
+                OnLeft?.Invoke();
+                break;
+            case GamepadDirection.Right:
+                OnRight?.Invoke();
+                break;
         }
     }
 

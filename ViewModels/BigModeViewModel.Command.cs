@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -7,11 +8,36 @@ using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
+    private static readonly TimeSpan GamepadRepeatInitialDelay = TimeSpan.FromMilliseconds(350);
+    private static readonly TimeSpan GamepadRepeatInterval = TimeSpan.FromMilliseconds(80);
+
+    private DispatcherTimer? _gamepadRepeatTimer;
+    private GamepadService.GamepadDirection? _gamepadRepeatDirection;
+    private bool _gamepadRepeatInitialPhase;
+
+    private void OnGamepadDirectionStateChanged(GamepadService.GamepadDirection direction, bool isPressed)
+        => DispatchGamepadAction(() =>
+        {
+            if (isPressed)
+            {
+                if (_gamepadRepeatDirection == direction && _gamepadRepeatTimer?.IsEnabled == true)
+                    return;
+
+                SuspendPreviewForScroll();
+                NavigateForDirection(direction, playSound: true);
+                StartGamepadRepeat(direction);
+                return;
+            }
+
+            StopGamepadRepeat(direction);
+        });
+
     private void OnGamepadUp()
         => DispatchGamepadAction(() =>
         {
@@ -85,6 +111,106 @@ public partial class BigModeViewModel
         // Gamepad callbacks arrive on the SDL thread.
         // All UI-bound state changes must be marshaled to the UI thread.
         UiThreadHelper.Post(action, DispatcherPriority.Input);
+    }
+
+    private void StartGamepadRepeat(GamepadService.GamepadDirection direction)
+    {
+        EnsureGamepadRepeatTimer();
+
+        _gamepadRepeatDirection = direction;
+        _gamepadRepeatInitialPhase = true;
+        _gamepadRepeatTimer!.Interval = GamepadRepeatInitialDelay;
+        _gamepadRepeatTimer.IsEnabled = true;
+    }
+
+    private void EnsureGamepadRepeatTimer()
+    {
+        if (_gamepadRepeatTimer != null)
+            return;
+
+        _gamepadRepeatTimer = new DispatcherTimer
+        {
+            IsEnabled = false
+        };
+
+        _gamepadRepeatTimer.Tick += (_, _) =>
+        {
+            if (_gamepadRepeatDirection == null)
+            {
+                _gamepadRepeatTimer.IsEnabled = false;
+                return;
+            }
+
+            if (_gamepadRepeatInitialPhase)
+            {
+                _gamepadRepeatInitialPhase = false;
+                _gamepadRepeatTimer.Interval = GamepadRepeatInterval;
+            }
+
+            NavigateForDirection(_gamepadRepeatDirection.Value, playSound: false);
+        };
+    }
+
+    private void StopGamepadRepeat(GamepadService.GamepadDirection direction)
+    {
+        if (_gamepadRepeatDirection != direction)
+            return;
+
+        StopGamepadRepeatTimer();
+        ResumePreviewAfterScroll();
+    }
+
+    private void StopGamepadRepeatTimer()
+    {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(StopGamepadRepeatTimer, DispatcherPriority.Background);
+            return;
+        }
+
+        _gamepadRepeatDirection = null;
+        _gamepadRepeatInitialPhase = false;
+
+        if (_gamepadRepeatTimer != null)
+            _gamepadRepeatTimer.IsEnabled = false;
+    }
+
+    private void SuspendPreviewForScroll()
+    {
+        if (_suspendPreviewDuringScroll)
+            return;
+
+        _suspendPreviewDuringScroll = true;
+        StopVideo();
+    }
+
+    private void ResumePreviewAfterScroll()
+    {
+        if (!_suspendPreviewDuringScroll)
+            return;
+
+        _suspendPreviewDuringScroll = false;
+        TriggerPreviewPlaybackWithDebounce();
+    }
+
+    private void NavigateForDirection(GamepadService.GamepadDirection direction, bool playSound)
+    {
+        ResetAttractIdleTimer();
+
+        if (playSound)
+            PlaySound(_theme.Sounds.Navigate);
+
+        switch (direction)
+        {
+            case GamepadService.GamepadDirection.Up:
+            case GamepadService.GamepadDirection.Left:
+                SelectPrevious();
+                break;
+            case GamepadService.GamepadDirection.Down:
+            case GamepadService.GamepadDirection.Right:
+                SelectNext();
+                break;
+        }
     }
 
     private void PlaySound(string? relativeSoundPath)
