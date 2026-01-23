@@ -66,15 +66,16 @@ public partial class NodeSettingsViewModel : ViewModelBase
     [ObservableProperty] private string? _nodeWallpaperPath;
     [ObservableProperty] private string? _nodeVideoPath;
     
-    // System-theme selection is only meaningful if the BigMode theme is NOT the SystemHost itself.
-    public bool IsSystemThemeSelectionEnabled =>
-        !string.Equals(SelectedTheme, "SystemHost/theme.axaml", StringComparison.OrdinalIgnoreCase);
+    // System-theme selection is always available because it is used by SystemHost
+    // when this node is selected in a parent host.
+    public bool IsSystemThemeSelectionEnabled => true;
     
     partial void OnSelectedThemeChanged(string? value)
     {
         OnPropertyChanged(nameof(IsThemeExplicitlySelected));
         OnPropertyChanged(nameof(IsSystemThemeSelectionEnabled));
     }
+
     
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
