@@ -20,7 +20,7 @@ public class FileManagementService
     // Group 2: Type (e.g., "Wallpaper", "Manual")
     // Group 3: Number (e.g., "01")
     private static readonly Regex AssetRegex = new Regex(
-        @"^(.+)_(Wallpaper|Cover|Logo|Video|Marquee|Music|Bezel|ControlPanel|Manual)_(\d+)\..*$",
+        @"^(.+)_(Wallpaper|Cover|Logo|Video|Marquee|Music|Banner|Bezel|ControlPanel|Manual)_(\d+)\..*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private readonly string libraryRootPath; // Readonly for immutability
