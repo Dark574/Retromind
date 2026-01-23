@@ -767,10 +767,16 @@ public partial class MainWindowViewModel
 
     private async Task RescanAllAssetsAsync()
     {
+        List<MediaNode> rootNodes = new();
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            rootNodes = RootItems.ToList();
+        });
+
         // Offload recursion and filesystem scanning to a background thread.
         await Task.Run(async () => 
         { 
-            foreach (var rootNode in RootItems) 
+            foreach (var rootNode in rootNodes) 
             {
                 await RescanNodeRecursive(rootNode); 
             }
@@ -779,14 +785,23 @@ public partial class MainWindowViewModel
 
     private async Task RescanNodeRecursive(MediaNode node)
     {
-        var nodePath = PathHelper.GetNodePath(node, RootItems);
+        List<string> nodePath = new();
+        List<MediaItem> items = new();
+        List<MediaNode> children = new();
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            nodePath = PathHelper.GetNodePath(node, RootItems);
+            items = node.Items.ToList();
+            children = node.Children.ToList();
+        });
         
         // 1) Scan assets off the UI thread (filesystem only).
         var scanned = await Task.Run(() =>
         {
-            var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(node.Items.Count);
+            var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(items.Count);
 
-            foreach (var item in node.Items)
+            foreach (var item in items)
             {
                 var assets = _fileService.ScanItemAssets(item, nodePath);
                 list.Add((item, assets));
@@ -819,7 +834,7 @@ public partial class MainWindowViewModel
         }
 
         // 3) Recurse children
-        foreach (var child in node.Children)
+        foreach (var child in children)
         {
             await RescanNodeRecursive(child);
         }

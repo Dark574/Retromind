@@ -751,7 +751,7 @@ public partial class MainWindowViewModel : ViewModelBase
             // - the flat item list for this node (including children)
             // - and the randomization plan for cover/wallpaper/music.
             var (allItems, randomizationPlan) =
-                BuildDisplayItemsWithRandomization(nodeToLoad, token);
+                await BuildDisplayItemsWithRandomizationAsync(nodeToLoad, token);
 
             if (token.IsCancellationRequested) return;
 
@@ -803,13 +803,15 @@ public partial class MainWindowViewModel : ViewModelBase
     /// each item according to the node's randomization flags.
     /// This method does no UI work and can run off the UI thread.
     /// </summary>
-    private (List<MediaItem> Items,
-            List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)> RandomizationPlan)
-        BuildDisplayItemsWithRandomization(MediaNode node, CancellationToken token)
+    private sealed record AssetSnapshot(AssetType Type, string RelativePath);
+
+    private async Task<(List<MediaItem> Items,
+            List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)> RandomizationPlan)>
+        BuildDisplayItemsWithRandomizationAsync(MediaNode node, CancellationToken token)
     {
-        // 1. Collect items (recursive)
+        // 1. Collect items (recursive) using UI-thread snapshots for safety.
         var itemList = new List<MediaItem>();
-        CollectItemsRecursive(node, itemList);
+        await CollectItemsRecursiveSnapshotAsync(node, itemList, token);
 
         token.ThrowIfCancellationRequested();
 
@@ -819,8 +821,28 @@ public partial class MainWindowViewModel : ViewModelBase
             string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase));
 
         // 2. Randomization logic (covers/wallpapers/music)
-        bool randomizeMusic = IsRandomizeMusicActive(node);
-        bool randomizeCovers = IsRandomizeActive(node);
+        bool randomizeMusic = false;
+        bool randomizeCovers = false;
+
+        // Snapshot assets on the UI thread so background work never enumerates UI-bound collections.
+        var assetSnapshots = new List<(MediaItem Item, List<AssetSnapshot> Assets)>(itemList.Count);
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            randomizeMusic = IsRandomizeMusicActive(node);
+            randomizeCovers = IsRandomizeActive(node);
+
+            if (!randomizeCovers && !randomizeMusic)
+                return;
+
+            foreach (var item in itemList)
+            {
+                var assets = item.Assets
+                    .Select(a => new AssetSnapshot(a.Type, a.RelativePath))
+                    .ToList();
+
+                assetSnapshots.Add((item, assets));
+            }
+        });
 
         var randomizationPlan =
             new List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)>(
@@ -829,15 +851,18 @@ public partial class MainWindowViewModel : ViewModelBase
         if (!randomizeCovers && !randomizeMusic)
             return (itemList, randomizationPlan);
 
-        foreach (var item in itemList)
+        foreach (var snapshot in assetSnapshots)
         {
             token.ThrowIfCancellationRequested();
 
-            List<MediaAsset>? covers = null;
-            List<MediaAsset>? wallpapers = null;
-            List<MediaAsset>? music = null;
+            var item = snapshot.Item;
+            var assets = snapshot.Assets;
 
-            foreach (var asset in item.Assets)
+            List<AssetSnapshot>? covers = null;
+            List<AssetSnapshot>? wallpapers = null;
+            List<AssetSnapshot>? music = null;
+
+            foreach (var asset in assets)
             {
                 if (randomizeCovers)
                 {
@@ -871,6 +896,28 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         return (itemList, randomizationPlan);
+    }
+
+    private async Task CollectItemsRecursiveSnapshotAsync(MediaNode node, List<MediaItem> targetList, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+
+        List<MediaItem> items = new();
+        List<MediaNode> children = new();
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            items = node.Items.ToList();
+            children = node.Children.ToList();
+        });
+
+        targetList.AddRange(items);
+
+        foreach (var child in children)
+        {
+            token.ThrowIfCancellationRequested();
+            await CollectItemsRecursiveSnapshotAsync(child, targetList, token);
+        }
     }
 
     /// <summary>

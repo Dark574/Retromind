@@ -204,13 +204,16 @@ public partial class SearchAreaViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(yearText) && int.TryParse(yearText, out var parsedYear))
             filterYear = parsedYear;
 
-        // Snapshot active scopes (avoid enumerating ObservableCollection from background threads)
-        var activeScopes = new List<MediaNode>(capacity: Scopes.Count);
-        for (int i = 0; i < Scopes.Count; i++)
+        // Snapshot active scopes on the UI thread (avoid cross-thread collection access).
+        var activeScopes = new List<MediaNode>();
+        await UiThreadHelper.InvokeAsync(() =>
         {
-            if (Scopes[i].IsSelected)
-                activeScopes.Add(Scopes[i].Node);
-        }
+            for (int i = 0; i < Scopes.Count; i++)
+            {
+                if (Scopes[i].IsSelected)
+                    activeScopes.Add(Scopes[i].Node);
+            }
+        });
 
         var results = new List<MediaItem>(capacity: 256);
 
@@ -218,7 +221,7 @@ public partial class SearchAreaViewModel : ViewModelBase
         for (int i = 0; i < activeScopes.Count; i++)
         {
             token.ThrowIfCancellationRequested();
-            CollectMatchesRecursive(activeScopes[i], results, query, filterYear, favoritesOnly, statusFilter, token);
+            await CollectMatchesRecursiveAsync(activeScopes[i], results, query, filterYear, favoritesOnly, statusFilter, token);
         }
 
         // Global sort across all scopes, same as main MediaArea view:
@@ -238,7 +241,7 @@ public partial class SearchAreaViewModel : ViewModelBase
         });
     }
 
-    private static void CollectMatchesRecursive(
+    private static async Task CollectMatchesRecursiveAsync(
         MediaNode node,
         List<MediaItem> matches,
         string? query,
@@ -250,7 +253,15 @@ public partial class SearchAreaViewModel : ViewModelBase
         token.ThrowIfCancellationRequested();
 
         // Scan items in this node
-        var items = node.Items;
+        List<MediaItem> items = new();
+        List<MediaNode> children = new();
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            items = node.Items.ToList();
+            children = node.Children.ToList();
+        });
+
         for (int i = 0; i < items.Count; i++)
         {
             token.ThrowIfCancellationRequested();
@@ -264,10 +275,9 @@ public partial class SearchAreaViewModel : ViewModelBase
         }
 
         // Recurse into child nodes.
-        var children = node.Children;
         for (int i = 0; i < children.Count; i++)
         {
-            CollectMatchesRecursive(children[i], matches, query, filterYear, favoritesOnly, statusFilter, token);
+            await CollectMatchesRecursiveAsync(children[i], matches, query, filterYear, favoritesOnly, statusFilter, token);
         }
     }
 
