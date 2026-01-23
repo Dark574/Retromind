@@ -17,137 +17,139 @@
                 Margin="0,0,0,10"
                 CornerRadius="0,0,5,5">
 
-            <StackPanel Spacing="10">
-
+            <Grid ColumnDefinitions="Auto, *, Auto">
                 <!-- Titelzeile -->
-                <TextBlock Text="{x:Static p:Strings.Search_GlobalShort}"
+                <TextBlock Grid.Column="0"
+                           Text="{x:Static p:Strings.Search_GlobalShort}"
                            FontSize="20"
                            FontWeight="Bold"
                            VerticalAlignment="Center"/>
 
-                <!-- Row 1: Unified search bar -->
-                <Grid ColumnDefinitions="Auto, 10, Auto, 10, Auto, 10, Auto, 10, Auto, 10, Auto, 10, Auto"
-                      VerticalAlignment="Center">
+                <!-- Right aligned: filters and scopes -->
+                <StackPanel Grid.Column="2"
+                            Spacing="10"
+                            HorizontalAlignment="Right">
 
-                    <!-- Random item from results -->
-                    <Button Grid.Column="0"
-                            Command="{Binding PlayRandomCommand}"
-                            IsEnabled="{Binding HasResults}"
-                            HorizontalAlignment="Left"
-                            Padding="10,5">
-                        <StackPanel Orientation="Horizontal" Spacing="5">
-                            <TextBlock Text="🎲"/>
-                            <TextBlock Text="{x:Static p:Strings.RandomMatch_Start}"/>
-                        </StackPanel>
-                    </Button>
+                    <!-- Row 1: Unified search bar -->
+                    <Grid ColumnDefinitions="Auto, 20, Auto, 20, Auto, 20, Auto, 20, Auto, 20, Auto, 20, Auto"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Right">
 
-                    <!-- Favorites-only toggle -->
-                    <CheckBox Grid.Column="2"
-                              IsChecked="{Binding OnlyFavorites}"
-                              VerticalAlignment="Center"
-                              ToolTip.Tip="Search only among favorite items.">
-                        <StackPanel Orientation="Horizontal" Spacing="3">
-                            <TextBlock Text="★"/>
-                            <TextBlock Text="Favorites only"/>
-                        </StackPanel>
-                    </CheckBox>
-
-                    <!-- Search title -->
-                    <TextBox Grid.Column="4"
-                             Text="{Binding SearchText}"
-                             Watermark="{x:Static p:Strings.Dialog_TitleSearch}"
-                             Width="200"
-                             Height="24"
-                             FontSize="12"
-                             VerticalContentAlignment="Center"/>
-
-                    <!-- Year -->
-                    <TextBox Grid.Column="6"
-                             Text="{Binding SearchYear}"
-                             Watermark="{x:Static p:Strings.Common_Year}"
-                             Width="80"
-                             Height="24"
-                             FontSize="12"
-                             VerticalContentAlignment="Center"/>
-
-                    <!-- Status filter + clear -->
-                    <StackPanel Grid.Column="8"
-                                Orientation="Horizontal"
-                                Spacing="4"
-                                VerticalAlignment="Center">
-                        <ComboBox ItemsSource="{Binding StatusOptions}"
-                                  SelectedItem="{Binding SelectedStatus, Mode=TwoWay}"
-                                  Width="120"
-                                  Height="24"
-                                  FontSize="12"
-                                  VerticalContentAlignment="Center"
-                                  PlaceholderText="Status">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-
-                        <!-- Clear status filter -->
-                        <Button Width="22"
-                                Height="22"
-                                Padding="0"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Command="{Binding ClearStatusFilterCommand}"
-                                ToolTip.Tip="Reset status filter">
-                            <TextBlock Text="✕"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"/>
+                        <!-- Random item from results -->
+                        <Button Grid.Column="0"
+                                Command="{Binding PlayRandomCommand}"
+                                IsEnabled="{Binding HasResults}"
+                                HorizontalAlignment="Left"
+                                Padding="10,5">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <TextBlock Text="🎲"/>
+                                <TextBlock Text="{x:Static p:Strings.Button_Random}"/>
+                            </StackPanel>
                         </Button>
-                    </StackPanel>
-                    
-                    <!-- Zoom (tile size) -->
-                    <StackPanel Grid.Column="10"
-                                Orientation="Horizontal"
-                                Spacing="6"
-                                VerticalAlignment="Center">
-                        <TextBlock Text="{x:Static p:Strings.Zoom_Zoom}"
-                                   VerticalAlignment="Center"
-                                   FontSize="10"/>
-                        <Slider Value="{Binding ItemWidth}"
-                                Minimum="50"
-                                Maximum="300"
-                                Width="110"
-                                Height="36"
+
+                        <!-- Favorites-only toggle -->
+                        <CheckBox Grid.Column="2"
+                                  IsChecked="{Binding OnlyFavorites}"
+                                  VerticalAlignment="Center"
+                                  ToolTip.Tip="Search only among favorite items.">
+                            <StackPanel Orientation="Horizontal" Spacing="3">
+                                <TextBlock Text="★"/>
+                                <TextBlock Text="Favorites only"/>
+                            </StackPanel>
+                        </CheckBox>
+
+                        <!-- Search title -->
+                        <TextBox Grid.Column="4"
+                                 Text="{Binding SearchText}"
+                                 Watermark="{x:Static p:Strings.Dialog_TitleSearch}"
+                                 Width="200"
+                                 Height="28"
+                                 VerticalContentAlignment="Center"/>
+
+                        <!-- Year -->
+                        <TextBox Grid.Column="6"
+                                 Text="{Binding SearchYear}"
+                                 Watermark="{x:Static p:Strings.Common_Year}"
+                                 Width="80"
+                                 Height="28"
+                                 VerticalContentAlignment="Center"/>
+
+                        <!-- Status filter + clear -->
+                        <StackPanel Grid.Column="8"
+                                    Orientation="Horizontal"
+                                    Spacing="4"
+                                    VerticalAlignment="Center">
+                            <ComboBox ItemsSource="{Binding StatusOptions}"
+                                      SelectedItem="{Binding SelectedStatus, Mode=TwoWay}"
+                                      Width="130"
+                                      Height="28"
+                                      VerticalContentAlignment="Center"
+                                      PlaceholderText="Status">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <!-- Clear status filter -->
+                            <Button Width="22"
+                                    Height="22"
+                                    Padding="0"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Command="{Binding ClearStatusFilterCommand}"
+                                    ToolTip.Tip="Reset status filter">
+                                <TextBlock Text="✕"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Button>
+                        </StackPanel>
+                        
+                        <!-- Zoom (tile size) -->
+                        <StackPanel Grid.Column="10"
+                                    Orientation="Horizontal"
+                                    Spacing="6"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="{x:Static p:Strings.Zoom_Zoom}"
+                                       VerticalAlignment="Center"/>
+                            <Slider Value="{Binding ItemWidth}"
+                                    Minimum="50"
+                                    Maximum="300"
+                                    Width="150"
+                                    VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Row 2: Scopes -->
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="5"
                                 VerticalAlignment="Center"
-                                Margin="0,-14,0,0"/>
+                                HorizontalAlignment="Right">
+                        <TextBlock Text="{x:Static p:Strings.Common_Area}"
+                                   VerticalAlignment="Center"
+                                   FontWeight="Bold"
+                                   Margin="0,0,5,0"/>
+
+                        <ItemsControl ItemsSource="{Binding Scopes}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="10"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Node.Name}"
+                                              IsChecked="{Binding IsSelected}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
-                </Grid>
-
-                <!-- Row 2: Scopes -->
-                <StackPanel Orientation="Horizontal"
-                            Spacing="5"
-                            VerticalAlignment="Center">
-                    <TextBlock Text="{x:Static p:Strings.Common_Area}"
-                               VerticalAlignment="Center"
-                               FontWeight="Bold"
-                               Margin="0,0,5,0"/>
-
-                    <ItemsControl ItemsSource="{Binding Scopes}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="10"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <CheckBox Content="{Binding Node.Name}"
-                                          IsChecked="{Binding IsSelected}"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
                 </StackPanel>
-            </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Results -->
