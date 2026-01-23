@@ -721,7 +721,7 @@ public partial class MainWindowViewModel : ViewModelBase
         // Any time we rebuild content, detach handlers from the previous VM.
         DetachMediaAreaHandlers();
         
-        if (SelectedNode is null || SelectedNode.Type == NodeType.Area)
+        if (SelectedNode is null)
         {
             SelectedNodeContent = null;
             return;
