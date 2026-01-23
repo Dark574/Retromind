@@ -71,7 +71,7 @@ public partial class BigModeHostView : UserControl
         _primaryVideoControl.Bind(VideoSurfaceControl.SurfaceProperty,
             new Binding("MainVideoSurface"));
         _primaryVideoControl.Bind(IsVisibleProperty,
-            new Binding("MainVideoHasContent"));
+            new Binding("MainVideoHasFrame"));
         
         // Shared secondary video control: background / B-roll channel.
         _secondaryVideoControl = new VideoSurfaceControl

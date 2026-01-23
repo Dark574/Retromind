@@ -100,6 +100,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private bool _mainVideoHasContent;
 
     [ObservableProperty]
+    private bool _mainVideoHasFrame;
+
+    [ObservableProperty]
     private bool _mainVideoIsPlaying;
 
     [ObservableProperty]
@@ -259,6 +262,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         
         // Video surface for callback rendering – main channel
         _videoSurface = new LibVlcVideoSurface();
+        _videoSurface.FrameReady += OnMainVideoFrameReady;
 
         // Second video channel
         _secondaryVideoSurface = new LibVlcVideoSurface();

@@ -38,8 +38,16 @@ public partial class BigModeViewModel
     // Prevent old fade tasks from hiding the overlay after a new playback started.
     private int _overlayFadeGeneration;
 
+    // Avoid duplicate restarts while a start is already pending for the same video.
+    private string? _pendingPreviewVideoPath;
+    private int _pendingPreviewGeneration;
+
     // IMPORTANT: Keep Media alive while VLC is using it, otherwise playback can freeze.
     private Media? _currentPreviewMedia;
+
+    // Tracks the expected frame generation so we can hide stale frames until the first new frame arrives.
+    private int _expectedPreviewFrameGeneration;
+    private int _mainVideoFrameReadyGeneration;
     
     /// <summary>
     /// Forces the main MediaPlayer instance to be recreated on the next playback start.
@@ -138,6 +146,27 @@ public partial class BigModeViewModel
             {
                 // best-effort only
             }
+        }, DispatcherPriority.Background);
+    }
+
+    private void OnMainVideoFrameReady()
+    {
+        var expected = Volatile.Read(ref _expectedPreviewFrameGeneration);
+        if (expected == 0)
+            return;
+
+        if (expected != Volatile.Read(ref _previewPlayGeneration))
+            return;
+
+        if (Interlocked.CompareExchange(ref _mainVideoFrameReadyGeneration, expected, 0) != 0)
+            return;
+
+        UiThreadHelper.Post(() =>
+        {
+            if (expected != Volatile.Read(ref _previewPlayGeneration))
+                return;
+
+            MainVideoHasFrame = true;
         }, DispatcherPriority.Background);
     }
 
@@ -492,8 +521,12 @@ public partial class BigModeViewModel
             return;
         }
 
-        if (string.Equals(_currentPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase) && MediaPlayer.IsPlaying)
-            return;
+        if (string.Equals(_currentPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase))
+        {
+            if (MediaPlayer.IsPlaying ||
+                string.Equals(_pendingPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase))
+                return;
+        }
 
         _currentPreviewVideoPath = videoPath;
 
@@ -502,6 +535,11 @@ public partial class BigModeViewModel
         IsVideoVisible = false;
 
         var gen = Interlocked.Increment(ref _previewPlayGeneration);
+        MainVideoHasFrame = false;
+        Volatile.Write(ref _mainVideoFrameReadyGeneration, 0);
+        Volatile.Write(ref _expectedPreviewFrameGeneration, gen);
+        _pendingPreviewVideoPath = videoPath;
+        Volatile.Write(ref _pendingPreviewGeneration, gen);
         _ = StartPlaybackAfterRenderAsync(videoPath, gen);
 
         // Fade in after the next render tick to avoid one-frame flashes.
@@ -519,13 +557,22 @@ public partial class BigModeViewModel
         await Task.Delay(VideoStartSettleDelay).ConfigureAwait(false);
 
         if (generation != Volatile.Read(ref _previewPlayGeneration))
+        {
+            ClearPendingPreviewStart(generation);
             return;
+        }
 
         if (!_isViewReady || _isLaunching)
+        {
+            ClearPendingPreviewStart(generation);
             return;
+        }
 
         if (!string.Equals(_currentPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase))
+        {
+            ClearPendingPreviewStart(generation);
             return;
+        }
 
         try
         {
@@ -556,6 +603,10 @@ public partial class BigModeViewModel
             // Best-effort: preview must never crash the UI.
             MainVideoIsPlaying = false;
         }
+        finally
+        {
+            ClearPendingPreviewStart(generation);
+        }
     }
 
     private void StopVideo()
@@ -570,11 +621,15 @@ public partial class BigModeViewModel
 
         CancelPreviewDebounce();
 
+        ClearPendingPreviewStart();
         IsVideoVisible = false;
 
         // Main channel: Reset status
         MainVideoIsPlaying = false;
         MainVideoHasContent = false;
+        MainVideoHasFrame = false;
+        Volatile.Write(ref _expectedPreviewFrameGeneration, 0);
+        Volatile.Write(ref _mainVideoFrameReadyGeneration, 0);
         
         var fadeGen = Interlocked.Increment(ref _overlayFadeGeneration);
         _ = HideOverlayAfterFadeAsync(fadeGen);
@@ -608,6 +663,20 @@ public partial class BigModeViewModel
         }
 
         _currentPreviewVideoPath = null;
+    }
+
+    private void ClearPendingPreviewStart(int generation)
+    {
+        if (generation != Volatile.Read(ref _pendingPreviewGeneration))
+            return;
+
+        _pendingPreviewVideoPath = null;
+    }
+
+    private void ClearPendingPreviewStart()
+    {
+        _pendingPreviewVideoPath = null;
+        Volatile.Write(ref _pendingPreviewGeneration, 0);
     }
 
     private async Task HideOverlayAfterFadeAsync(int generation)

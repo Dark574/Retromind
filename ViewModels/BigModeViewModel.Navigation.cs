@@ -283,6 +283,8 @@ public partial class BigModeViewModel
         _gamepadService.OnSelect -= OnGamepadSelect;
         _gamepadService.OnBack -= OnGamepadBack;
 
+        _videoSurface.FrameReady -= OnMainVideoFrameReady;
+
         // Stop attract timer early so it can't fire while we tear down VLC
         try
         {
