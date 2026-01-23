@@ -102,7 +102,7 @@ public partial class BigModeHostView : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // 1) Item-Wechsel: PrimaryVisual-Animation auslösen (für alle Themes)
+        // 1) Item change: trigger the PrimaryVisual animation (for all themes)
         if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedItem))
         {
             if (_themePresenter.Content is Control currentThemeRoot)
@@ -111,7 +111,7 @@ public partial class BigModeHostView : UserControl
             }
         }
 
-        // 2) Nur im SystemHost-Theme: System-Layout bei Category-Wechsel aktualisieren
+        // 2) SystemHost theme only: refresh the system layout on category change
         if (_isSystemHostTheme &&
             e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedCategory))
         {
@@ -415,7 +415,7 @@ public partial class BigModeHostView : UserControl
             if (lb is not ListBox listBox)
                 continue;
 
-            // Themes können den generischen Host-Effekt explizit abschalten.
+            // Themes can explicitly disable the generic host effect.
             if (!ThemeProperties.GetUseHostSelectionEffects(listBox))
                 continue;
             
@@ -571,17 +571,17 @@ public partial class BigModeHostView : UserControl
 
     public async void NotifyViewReadyAfterRender(object viewModel)
     {
-        // Ein paar Render-Ticks abwarten, damit das Theme komplett aufgebaut ist,
-        // bevor LibVLC mit der Wiedergabe startet.
+        // Wait a few render ticks so the theme is fully built
+        // before LibVLC starts playback.
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
 
-        // Nach dem initialen Layout explizit Keyboard-Fokus in den Theme-Inhalt setzen,
-        // damit die erste Pfeiltaste nicht nur den Fokus "ins Fenster holt".
+        // After the initial layout, explicitly set keyboard focus into the theme content
+        // so the first arrow key does not just move focus into the window.
         if (_themePresenter.Content is Control themeRoot)
         {
-            // Bevorzugt die erste ListBox im Theme (Hauptnavigation).
+            // Prefer the first ListBox in the theme (main navigation).
             var focusTarget =
                 themeRoot.GetVisualDescendants().OfType<ListBox>().FirstOrDefault()
                 ?? themeRoot as IInputElement;

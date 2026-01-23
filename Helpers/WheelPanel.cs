@@ -55,8 +55,8 @@ public class WheelPanel : Panel
         var offsetX = GetOffsetX(this);
         
         // Center of the wheel
-        // Y-axis ist in der Mitte.
-        // X-axis wird um den Radius nach links verschoben, sodass der Kreisrand bei x=0 startet.
+        // Y axis is centered.
+        // X axis is shifted left by the radius so the circle edge starts at x=0.
         var wheelCenterX = -radius + offsetX;
         var wheelCenterY = finalSize.Height / 2;
 

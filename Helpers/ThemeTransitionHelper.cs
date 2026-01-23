@@ -12,7 +12,7 @@ namespace Retromind.Helpers;
 
 public static class ThemeTransitionHelper
 {
-    // Öffentliche Convenience-Methoden für die drei Slots
+    // Public convenience methods for the three slots
 
     public static void AnimatePrimaryVisual(Control? themeRoot)
         => AnimateVisualSlot(
@@ -38,7 +38,7 @@ public static class ThemeTransitionHelper
             ThemeProperties.GetBackgroundVisualEnterOffsetX,
             ThemeProperties.GetBackgroundVisualEnterOffsetY);
 
-    // --- Gemeinsame Implementierung ---
+    // --- Shared implementation ---
 
     private static void AnimateVisualSlot(
         Control? themeRoot,
@@ -65,7 +65,7 @@ public static class ThemeTransitionHelper
 
         EnsureTransitions(target, fadeDuration, moveDuration);
 
-        // Aktuelle Transitions sichern; wir deaktivieren sie kurz für das Setzen des Startzustands.
+        // Backup current transitions; temporarily disable them to set the start state.
         var transitionsBackup = target.Transitions;
 
         // Use a stable "base margin" that does not drift across animations.
@@ -85,7 +85,7 @@ public static class ThemeTransitionHelper
         
         Thickness startMargin = baseMargin;
 
-        // Für Zoom/Pulse sorgen wir für einen ScaleTransform
+        // For Zoom/Pulse, ensure a ScaleTransform.
         ScaleTransform? scaleTransform = null;
         if (mode is "ZoomIn" or "Pulse")
         {
@@ -161,11 +161,11 @@ public static class ThemeTransitionHelper
                 if (scaleTransform is null)
                     return;
 
-                // etwas kleiner starten
+                // Start slightly smaller.
                 scaleTransform.ScaleX = 0.8;
                 scaleTransform.ScaleY = 0.8;
                 target.Opacity = 0;
-                startMargin = baseMargin; // keine Verschiebung
+                startMargin = baseMargin; // No offset.
                 break;
             }
 
@@ -174,7 +174,7 @@ public static class ThemeTransitionHelper
                 if (scaleTransform is null)
                     return;
 
-                // leicht kleiner starten, Ziel leicht größer als 1.0
+                // Start slightly smaller, target slightly larger than 1.0.
                 scaleTransform.ScaleX = 0.9;
                 scaleTransform.ScaleY = 0.9;
                 target.Opacity = 0;
@@ -187,7 +187,7 @@ public static class ThemeTransitionHelper
                 return;
         }
 
-        // Debug: protokolliere Animationsstart (nur für PrimaryVisual/CoverPanel interessant)
+        // Debug: log animation start (only relevant for PrimaryVisual/CoverPanel).
         try
         {
             System.Diagnostics.Debug.WriteLine(
@@ -197,24 +197,24 @@ public static class ThemeTransitionHelper
         }
         catch
         {
-            // Debug-Output darf keine Exceptions werfen
+            // Debug output must not throw exceptions.
         }
 
-        // 1) Startzustand OHNE Transitions setzen (sofortiger Sprung nach links + Opacity 0)
+        // 1) Set start state without transitions (instant jump + opacity 0).
         target.Transitions = null;
         target.Margin = startMargin;
         target.Opacity = 0;
 
-        // 2) Danach (nächster Render-Tick) Transitions wieder aktivieren und zum Ziel animieren
+        // 2) Then (next render tick) re-enable transitions and animate to target.
         Dispatcher.UIThread.Post(() =>
         {
             if (themeRoot.FindControl<Control>(elementName) != target)
                 return;
 
-            // Transitions wieder herstellen (oder neu setzen, falls der Host sie in der Zwischenzeit geändert hat)
+            // Restore transitions (or set new ones if the host changed them in the meantime).
             target.Transitions = transitionsBackup;
 
-            // Ziel: Basis-Margin + volle Opacity
+            // Target: base margin + full opacity.
             target.Margin = baseMargin;
             target.Opacity = 1;
 
@@ -225,7 +225,7 @@ public static class ThemeTransitionHelper
             }
             else if (mode is "Pulse" && target.RenderTransform is ScaleTransform stPulse)
             {
-                // Kleiner „Pop“ nach vorne
+                // Small pop forward.
                 stPulse.ScaleX = 1.05;
                 stPulse.ScaleY = 1.05;
             }
@@ -265,7 +265,7 @@ public static class ThemeTransitionHelper
             opacityTransition.Easing ??= new CubicEaseOut();
         }
 
-        // Margin (für Slide-Modi)
+        // Margin (for slide modes)
         ThicknessTransition? marginTransition = null;
         foreach (var t in transitions)
         {
@@ -292,7 +292,7 @@ public static class ThemeTransitionHelper
             marginTransition.Easing ??= new CubicEaseOut();
         }
 
-        // RenderTransform (für ZoomIn/Pulse – gesamte Transform wird animiert)
+        // RenderTransform (for ZoomIn/Pulse - the whole transform is animated)
         TransformOperationsTransition? transformTransition = null;
         foreach (var t in transitions)
         {

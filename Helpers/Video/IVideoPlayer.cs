@@ -3,8 +3,8 @@ using System;
 namespace Retromind.Helpers.Video;
 
 /// <summary>
-/// Abstrakter Videoplayer, der eine IVideoSurface füttert.
-/// Konkrete Implementierungen können LibVLC, mpv oder etwas Eigenes sein.
+/// Abstract video player that feeds an IVideoSurface.
+/// Implementations can use LibVLC, mpv, or a custom backend.
 /// </summary>
 public interface IVideoPlayer : IDisposable
 {

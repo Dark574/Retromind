@@ -3,8 +3,8 @@ using System;
 namespace Retromind.Helpers.Video;
 
 /// <summary>
-/// Stellt einen Rohbild-Puffer für Videoframes bereit.
-/// Wird später von LibVLC (oder mpv, ffmpeg, …) beschrieben.
+/// Provides a raw image buffer for video frames.
+/// Filled by LibVLC (or mpv, ffmpeg, etc.).
 /// </summary>
 public interface IVideoSurface : IDisposable
 {
@@ -12,14 +12,14 @@ public interface IVideoSurface : IDisposable
     int Height { get; }
 
     /// <summary>
-    /// Wird ausgelöst, wenn ein neuer Frame verfügbar ist.
-    /// Das UI kann sich dann den Puffer holen und neu zeichnen.
+    /// Raised when a new frame is available.
+    /// The UI can fetch the buffer and redraw.
     /// </summary>
     event Action? FrameReady;
 
     /// <summary>
-    /// Liefert einen Pointer auf die aktuellen Pixel (z.B. BGRA32).
-    /// Lebensdauer: gültig bis zum nächsten FrameReady.
+    /// Returns a pointer to the current pixels (e.g. BGRA32).
+    /// Lifetime: valid until the next FrameReady.
     /// </summary>
     IntPtr GetCurrentFrame();
 }

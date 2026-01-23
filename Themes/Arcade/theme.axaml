@@ -30,7 +30,7 @@
         <helpers:PathToBitmapConverter x:Key="PathToBitmapConverter" />
         <!-- Opacity helper for pointer visibility -->
         <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1.0" FalseOpacity="0.0" />
-        <!-- Logo-Scale-Converter: lokales Zoom für die ArcadeLogoList -->
+        <!-- Logo scale converter: local zoom for the ArcadeLogoList -->
         <helpers:BoolToScaleConverter x:Key="LogoScaleConverter"
                                       NormalScale="1.0"
                                       SelectedScale="1.75" />

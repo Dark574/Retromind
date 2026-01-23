@@ -27,8 +27,8 @@ public class VideoSurfaceControl : Control
     }
 
     /// <summary>
-    /// Steuert, wie das Video in die Bounds skaliert wird.
-    /// Fill (Standard), Uniform, UniformToFill.
+    /// Controls how the video is scaled into the bounds.
+    /// Fill (default), Uniform, UniformToFill.
     /// </summary>
     public Stretch Stretch
     {
@@ -54,8 +54,8 @@ public class VideoSurfaceControl : Control
         if (newSurface != null)
         {
             newSurface.FrameReady += OnFrameReady;
-            // Bitmap wird dynamisch in CopyFrameAndInvalidate erstellt,
-            // sobald Width/Height vom Video-Callback bekannt sind.
+            // Bitmap is created dynamically in CopyFrameAndInvalidate
+            // once Width/Height are known from the video callback.
         }
 
         InvalidateVisual();
@@ -63,8 +63,8 @@ public class VideoSurfaceControl : Control
 
     private void OnFrameReady()
     {
-        // Wird vermutlich von einem Hintergrundthread (Timer, LibVLC, ...) aufgerufen.
-        // Die eigentliche Arbeit MUSS auf dem UI-Thread passieren.
+        // Likely called from a background thread (timer, LibVLC, ...).
+        // The actual work MUST run on the UI thread.
         Dispatcher.UIThread.Post(CopyFrameAndInvalidate);
     }
 
@@ -74,8 +74,7 @@ public class VideoSurfaceControl : Control
         if (surface == null)
             return;
 
-        // Falls wir noch kein Bitmap haben oder die Größe sich geändert hat,
-        // hier neu erzeugen.
+        // If we do not have a bitmap yet or the size changed, create it here.
         if (surface.Width > 0 && surface.Height > 0)
         {
             if (_bitmap == null ||
@@ -102,10 +101,10 @@ public class VideoSurfaceControl : Control
         {
             unsafe
             {
-                // Ziel- und Quellgröße berechnen
+                // Compute destination and source size.
                 var destSize = fb.RowBytes * fb.Size.Height;
 
-                // Pufferlänge der Quelle bestimmen (Width * Height * 4 für BGRA32)
+                // Compute source buffer size (Width * Height * 4 for BGRA32).
                 var srcSize = surface.Width * surface.Height * 4;
 
                 var bytesToCopy = (long)Math.Min(destSize, srcSize);
@@ -149,7 +148,7 @@ public class VideoSurfaceControl : Control
         {
             case Stretch.Uniform:
             {
-                // Ganzes Video sichtbar, letterboxing/pillarboxing erlaubt, zentriert
+                // Entire video visible, letterboxing/pillarboxing allowed, centered.
                 bool fitWidth = destAspect <= srcAspect;
                 double scale = fitWidth
                     ? destBounds.Width / source.Width
@@ -164,7 +163,7 @@ public class VideoSurfaceControl : Control
 
             case Stretch.UniformToFill:
             {
-                // Video füllt den Slot, überschüssige Teile werden abgeschnitten, zentriert
+                // Video fills the slot, overflow clipped, centered.
                 bool fillWidth = destAspect >= srcAspect;
                 double scale = fillWidth
                     ? destBounds.Width / source.Width
@@ -179,7 +178,7 @@ public class VideoSurfaceControl : Control
 
             case Stretch.Fill:
             default:
-                // Einfach an die Bounds stretchen
+                // Stretch to bounds.
                 return destBounds;
         }
     }

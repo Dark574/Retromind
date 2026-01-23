@@ -22,9 +22,9 @@ public partial class MediaNode : ObservableObject
     public List<LaunchWrapper>? NativeWrappersOverride { get; set; }
     
     /// <summary>
-    /// Optionales System-Preview-Theme für diesen Node (System-Auswahl in BigMode).
-    /// Entspricht dem Ordnernamen unter Themes/System (z.B. "C64", "SNES").
-    /// Wenn null/leer, verwendet der System-Browser das Standardlayout ("Default").
+    /// Optional system preview theme for this node (system selection in BigMode).
+    /// Matches the folder name under Themes/System (e.g. "C64", "SNES").
+    /// If null/empty, the system browser uses the default layout ("Default").
     /// </summary>
     public string? SystemPreviewThemeId { get; set; }
     
@@ -77,7 +77,7 @@ public partial class MediaNode : ObservableObject
     public string? DefaultEmulatorId { get; set; }
 
     /// <summary>
-    /// Optional: Pfad zu einer Theme-Datei (.axaml), die für diesen Bereich genutzt werden soll.
+    /// Optional path to a theme file (.axaml) used for this area.
     /// </summary>
     public string? ThemePath { get; set; }
     

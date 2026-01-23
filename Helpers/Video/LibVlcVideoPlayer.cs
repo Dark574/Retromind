@@ -4,8 +4,8 @@ using LibVLCSharp.Shared;
 namespace Retromind.Helpers.Video;
 
 /// <summary>
-/// IVideoPlayer-Implementierung auf Basis von LibVLC.
-/// Nutzt Video-Callbacks, um Frames in eine LibVlcVideoSurface zu schreiben.
+/// IVideoPlayer implementation based on LibVLC.
+/// Uses video callbacks to write frames into a LibVlcVideoSurface.
 /// </summary>
 public sealed class LibVlcVideoPlayer : IVideoPlayer
 {
@@ -52,7 +52,7 @@ public sealed class LibVlcVideoPlayer : IVideoPlayer
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("Video path must not be empty.", nameof(path));
 
-        // Media NICHT sofort disposen – Player hält die Referenz.
+        // Do NOT dispose the media immediately; the player holds the reference.
         var media = new Media(_libVlc, path, FromType.FromPath);
         _mediaPlayer.Media = media;
     }

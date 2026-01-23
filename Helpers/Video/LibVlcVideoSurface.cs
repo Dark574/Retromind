@@ -5,8 +5,8 @@ using LibVLCSharp.Shared;
 namespace Retromind.Helpers.Video;
 
 /// <summary>
-/// IVideoSurface-Implementierung, die von LibVLC-Video-Callbacks befüllt wird.
-/// Erwartetes Format: BGRA32.
+/// IVideoSurface implementation that is fed by LibVLC video callbacks.
+/// Expected format: BGRA32.
 /// </summary>
 public sealed class LibVlcVideoSurface : IVideoSurface
 {
@@ -20,8 +20,8 @@ public sealed class LibVlcVideoSurface : IVideoSurface
     public event Action? FrameReady;
 
     /// <summary>
-    /// VideoFormat-Callback für LibVLC.
-    /// Signatur muss LibVLCVideoFormatCb entsprechen.
+    /// VideoFormat callback for LibVLC.
+    /// Signature must match LibVLCVideoFormatCb.
     /// </summary>
     internal uint VideoFormat(
         ref IntPtr opaque,
@@ -31,12 +31,12 @@ public sealed class LibVlcVideoSurface : IVideoSurface
         ref uint pitches,
         ref uint lines)
     {
-        // BGRA32 als FourCC "RV32"
+        // BGRA32 as FourCC "RV32"
         var rv32 = BitConverter.ToUInt32(new byte[] { (byte)'R', (byte)'V', (byte)'3', (byte)'2' }, 0);
 
         unsafe
         {
-            // chroma zeigt auf 4 Bytes, die wir überschreiben
+            // chroma points to 4 bytes that we overwrite
             var p = (uint*)chroma;
             *p = rv32;
         }
@@ -59,11 +59,11 @@ public sealed class LibVlcVideoSurface : IVideoSurface
             _buffer = Marshal.AllocHGlobal(size);
         }
 
-        return 1; // Anzahl der Video-Planes
+        return 1; // Number of video planes
     }
 
     /// <summary>
-    /// VideoCleanup-Callback für LibVLC.
+    /// VideoCleanup callback for LibVLC.
     /// </summary>
     internal void VideoCleanup(ref IntPtr opaque)
     {
@@ -71,39 +71,39 @@ public sealed class LibVlcVideoSurface : IVideoSurface
     }
 
     /// <summary>
-    /// VideoLock-Callback für LibVLC.
-    /// Signatur muss LibVLCVideoLockCb(IntPtr opaque, IntPtr planes) entsprechen.
-    /// planes ist ein Pointer auf ein von LibVLC allokiertes void*[].
+    /// VideoLock callback for LibVLC.
+    /// Signature must match LibVLCVideoLockCb(IntPtr opaque, IntPtr planes).
+    /// planes is a pointer to a void*[] allocated by LibVLC.
     /// </summary>
     internal IntPtr VideoLock(IntPtr opaque, IntPtr planes)
     {
         lock (_sync)
         {
-            // planes zeigt auf ein Array von void*-Einträgen (für jede Plane).
-            // Wir haben nur eine Plane -> ersten Eintrag auf unseren Buffer setzen.
+            // planes points to an array of void* entries (one per plane).
+            // We only have one plane, so set the first entry to our buffer.
             unsafe
             {
                 var pPlanes = (IntPtr*)planes;
                 pPlanes[0] = _buffer;
             }
 
-            // Rückgabewert ist ein "picture handle", den Unlock/Display wieder bekommen.
-            // Wir brauchen ihn nicht -> IntPtr.Zero reicht.
+            // The return value is a "picture handle" passed to Unlock/Display.
+            // We do not need it, so IntPtr.Zero is fine.
             return IntPtr.Zero;
         }
     }
 
     /// <summary>
-    /// VideoUnlock-Callback für LibVLC.
+    /// VideoUnlock callback for LibVLC.
     /// </summary>
     internal void VideoUnlock(IntPtr opaque, IntPtr picture, IntPtr planes)
     {
-        // Für unser einfaches Setup nichts zu tun.
+        // Nothing to do for this simple setup.
     }
 
     /// <summary>
-    /// VideoDisplay-Callback für LibVLC.
-    /// Wird aufgerufen, wenn ein Frame fertig ist.
+    /// VideoDisplay callback for LibVLC.
+    /// Called when a frame is ready.
     /// </summary>
     internal void VideoDisplay(IntPtr opaque, IntPtr picture)
     {
