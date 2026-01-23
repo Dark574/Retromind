@@ -270,10 +270,6 @@ public class MediaDataService
 
     private static JsonSerializerOptions CreateSerializerOptions()
     {
-        #if DEBUG
         return new JsonSerializerOptions { WriteIndented = true };
-        #else
-        return new JsonSerializerOptions { WriteIndented = false };
-        #endif
     }
 }
