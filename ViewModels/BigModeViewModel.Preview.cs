@@ -12,6 +12,33 @@ namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
+    private static readonly string[] VideoExtensionOrder =
+    {
+        ".mp4",
+        ".mkv",
+        ".avi",
+        ".mov",
+        ".wmv",
+        ".webm",
+        ".m4v",
+        ".mpg",
+        ".mpeg"
+    };
+
+    private static readonly System.Collections.Generic.HashSet<string> VideoExtensions =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".mp4",
+            ".mkv",
+            ".avi",
+            ".mov",
+            ".wmv",
+            ".webm",
+            ".m4v",
+            ".mpg",
+            ".mpeg"
+        };
+
     // --- Timing knobs ---
     private static readonly TimeSpan PreviewDebounceSmall = TimeSpan.FromMilliseconds(150);
     private static readonly TimeSpan PreviewDebounceMedium = TimeSpan.FromMilliseconds(200);
@@ -452,7 +479,8 @@ public partial class BigModeViewModel
                 videoPath = candidate;
         }
 
-        // Fallback: "<romname>.mp4" next to the primary launch file (only if it is a real local file path).
+        // Fallback: use the launch file if it is already a video; otherwise try
+        // a same-name video next to the launch file (local file path only).
         if (videoPath == null)
         {
             var primary = item.GetPrimaryLaunchPath();
@@ -463,13 +491,27 @@ public partial class BigModeViewModel
             {
                 try
                 {
-                    var dir = Path.GetDirectoryName(primary);
-                    var name = Path.GetFileNameWithoutExtension(primary);
-                    if (dir != null)
+                    var primaryExt = Path.GetExtension(primary);
+                    if (!string.IsNullOrEmpty(primaryExt) && VideoExtensions.Contains(primaryExt))
                     {
-                        var candidate = Path.Combine(dir, name + ".mp4");
-                        if (File.Exists(candidate))
-                            videoPath = candidate;
+                        videoPath = primary;
+                    }
+                    else
+                    {
+                        var dir = Path.GetDirectoryName(primary);
+                        var name = Path.GetFileNameWithoutExtension(primary);
+                        if (dir != null)
+                        {
+                            foreach (var ext in VideoExtensionOrder)
+                            {
+                                var candidate = Path.Combine(dir, name + ext);
+                                if (File.Exists(candidate))
+                                {
+                                    videoPath = candidate;
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
                 catch
