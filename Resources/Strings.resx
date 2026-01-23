@@ -60,6 +60,8 @@
     <data name="Common.Area" xml:space="preserve"><value>Areas:</value></data>
     <data name="Common.Description" xml:space="preserve"><value>Description:</value></data>
     <data name="Common.Developer" xml:space="preserve"><value>Developer</value></data>
+    <data name="Common.FavoritesOnly" xml:space="preserve"><value>Favorites only</value></data>
+    <data name="Common.FavoritesOnlyHint" xml:space="preserve"><value>Only show favorite items.</value></data>
     <data name="Common.Genre" xml:space="preserve"><value>Genre</value></data>
     <data name="Common.Name" xml:space="preserve"><value>Name:</value></data>
     <data name="Common.Options" xml:space="preserve"><value>Options:</value></data>

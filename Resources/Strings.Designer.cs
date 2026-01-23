@@ -212,6 +212,18 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Common.Developer", resourceCulture);
             }
         }
+
+        public static string Common_FavoritesOnly {
+            get {
+                return ResourceManager.GetString("Common.FavoritesOnly", resourceCulture);
+            }
+        }
+
+        public static string Common_FavoritesOnlyHint {
+            get {
+                return ResourceManager.GetString("Common.FavoritesOnlyHint", resourceCulture);
+            }
+        }
         
         public static string Common_Genre {
             get {

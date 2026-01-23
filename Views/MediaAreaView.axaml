@@ -31,10 +31,10 @@
                 <!-- Favorites-only toggle -->
                 <CheckBox IsChecked="{Binding OnlyFavorites}"
                           VerticalAlignment="Center"
-                          ToolTip.Tip="Show only favorite items in this view.">
+                          ToolTip.Tip="{x:Static p:Strings.Common_FavoritesOnlyHint}">
                     <StackPanel Orientation="Horizontal" Spacing="3">
                         <TextBlock Text="★"/>
-                        <TextBlock Text="Favorites only"/>
+                        <TextBlock Text="{x:Static p:Strings.Common_FavoritesOnly}"/>
                     </StackPanel>
                 </CheckBox>
                 
