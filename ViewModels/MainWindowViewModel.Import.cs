@@ -257,8 +257,36 @@ public partial class MainWindowViewModel
 
         var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
 
+        static bool TryMakeDataRelativeIfInsideDataRoot(string absolutePath, out string relativePath)
+        {
+            relativePath = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(absolutePath))
+                return false;
+
+            if (!Path.IsPathRooted(absolutePath))
+                return false;
+
+            var dataRoot = Path.GetFullPath(AppPaths.DataRoot);
+            var dataRootWithSep = dataRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? dataRoot
+                : dataRoot + Path.DirectorySeparatorChar;
+            var fullPath = Path.GetFullPath(absolutePath);
+
+            if (string.Equals(fullPath, dataRoot, StringComparison.Ordinal) ||
+                fullPath.StartsWith(dataRootWithSep, StringComparison.Ordinal))
+            {
+                relativePath = Path.GetRelativePath(dataRoot, fullPath);
+                return true;
+            }
+
+            return false;
+        }
+
         // 1) Build new items (UI-free)
         var itemsToAdd = new List<MediaItem>(result.Count);
+
+        var usePortablePaths = _currentSettings.PreferPortableLaunchPaths;
 
         if (result.Count > 1)
         {
@@ -292,11 +320,21 @@ public partial class MainWindowViewModel
                 for (int i = 0; i < ordered.Count; i++)
                 {
                     var fallbackIndex = i + 1;
+                    var rawPath = ordered[i].File.Path.LocalPath;
+                    var storedPath = rawPath;
+                    var storedKind = MediaFileKind.Absolute;
+
+                    if (usePortablePaths &&
+                        TryMakeDataRelativeIfInsideDataRoot(rawPath, out var relativePath))
+                    {
+                        storedPath = relativePath;
+                        storedKind = MediaFileKind.LibraryRelative;
+                    }
 
                     files.Add(new MediaFileRef
                     {
-                        Kind = MediaFileKind.Absolute,
-                        Path = ordered[i].File.Path.LocalPath,
+                        Kind = storedKind,
+                        Path = storedPath,
                         Index = ordered[i].Index ?? fallbackIndex,
                         Label = ordered[i].Label ?? $"Disc {fallbackIndex}"
                     });
@@ -316,6 +354,16 @@ public partial class MainWindowViewModel
                     var rawTitle = Path.GetFileNameWithoutExtension(file.Name);
                     var title = await PromptForName(owner, $"{Strings.Common_Title} '{file.Name}':") ?? rawTitle;
                     if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
+                    var rawPath = file.Path.LocalPath;
+                    var storedPath = rawPath;
+                    var storedKind = MediaFileKind.Absolute;
+
+                    if (usePortablePaths &&
+                        TryMakeDataRelativeIfInsideDataRoot(rawPath, out var relativePath))
+                    {
+                        storedPath = relativePath;
+                        storedKind = MediaFileKind.LibraryRelative;
+                    }
 
                     itemsToAdd.Add(new MediaItem
                     {
@@ -324,8 +372,8 @@ public partial class MainWindowViewModel
                         {
                             new()
                             {
-                                Kind = MediaFileKind.Absolute,
-                                Path = file.Path.LocalPath,
+                                Kind = storedKind,
+                                Path = storedPath,
                                 Index = 1,
                                 Label = "Disc 1"
                             }
@@ -341,6 +389,16 @@ public partial class MainWindowViewModel
             var rawTitle = Path.GetFileNameWithoutExtension(file.Name);
             var title = await PromptForName(owner, $"{Strings.Common_Title} '{file.Name}':") ?? rawTitle;
             if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
+            var rawPath = file.Path.LocalPath;
+            var storedPath = rawPath;
+            var storedKind = MediaFileKind.Absolute;
+
+            if (usePortablePaths &&
+                TryMakeDataRelativeIfInsideDataRoot(rawPath, out var relativePath))
+            {
+                storedPath = relativePath;
+                storedKind = MediaFileKind.LibraryRelative;
+            }
 
             itemsToAdd.Add(new MediaItem
             {
@@ -349,8 +407,8 @@ public partial class MainWindowViewModel
                 {
                     new()
                     {
-                        Kind = MediaFileKind.Absolute,
-                        Path = file.Path.LocalPath,
+                        Kind = storedKind,
+                        Path = storedPath,
                         Index = 1,
                         Label = "Disc 1"
                     }
