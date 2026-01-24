@@ -24,6 +24,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 {
     // --- Dependencies (constructor-injected / core) ---
     private readonly LibVLC _libVlc;
+    private readonly LibVLC _secondaryLibVlc;
     private readonly AppSettings _settings;
     private Theme _theme;
     private readonly SoundEffectService _soundEffectService;
@@ -259,6 +260,17 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         };
 
         _libVlc = new LibVLC(enableDebugLogs: false, vlcOptions);
+
+        // Secondary channel uses an isolated LibVLC instance to avoid cross-player interference.
+        string[] secondaryVlcOptions =
+        {
+            "--no-osd",
+            "--no-audio",
+            $"--avcodec-hw={hwMode}",
+            "--quiet"
+        };
+
+        _secondaryLibVlc = new LibVLC(enableDebugLogs: false, secondaryVlcOptions);
         
         // Video surface for callback rendering – main channel
         _videoSurface = new LibVlcVideoSurface();
@@ -287,7 +299,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         MediaPlayer.EndReached += OnPreviewEndReached;
         
         // Second player for background videos
-        _secondaryPlayer = new MediaPlayer(_libVlc)
+        _secondaryPlayer = new MediaPlayer(_secondaryLibVlc)
         {
             Volume = 0,  // Wallpaper without sound
             Scale = 0f
@@ -383,7 +395,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             if (!System.IO.File.Exists(candidate))
                 return;
 
-            var media = new Media(_libVlc, new Uri(candidate));
+            var media = new Media(_secondaryLibVlc, new Uri(candidate));
             _secondaryBackgroundMedia = media;
             _secondaryPlayer.Media = media;
 
@@ -431,15 +443,22 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         if (!SecondaryVideoHasContent || _secondaryPlayer == null)
             return;
 
-        try
+        UiThreadHelper.Post(() =>
         {
-            _secondaryPlayer.Stop();
-            _secondaryPlayer.Play();
-        }
-        catch
-        {
-            SecondaryVideoIsPlaying = false;
-        }
+            if (!SecondaryVideoHasContent || _secondaryPlayer == null)
+                return;
+
+            try
+            {
+                _secondaryPlayer.Stop();
+                _secondaryPlayer.Play();
+                SecondaryVideoIsPlaying = true;
+            }
+            catch
+            {
+                SecondaryVideoIsPlaying = false;
+            }
+        }, DispatcherPriority.Background);
     }
     
     /// <summary>

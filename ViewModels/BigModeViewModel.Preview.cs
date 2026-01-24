@@ -175,6 +175,9 @@ public partial class BigModeViewModel
             {
                 // best-effort only
             }
+
+            // Defensive: ensure the background channel keeps running.
+            EnsureSecondaryBackgroundPlayingIfReady();
         }, DispatcherPriority.Background);
     }
 
@@ -647,6 +650,9 @@ public partial class BigModeViewModel
             player.Play();
 
             MainVideoIsPlaying = true;
+
+            // Defensive: keep the background channel alive after preview changes.
+            EnsureSecondaryBackgroundPlayingIfReady();
         }
         catch
         {
@@ -713,6 +719,9 @@ public partial class BigModeViewModel
         }
 
         _currentPreviewVideoPath = null;
+
+        // Main stop should not impact the background channel.
+        EnsureSecondaryBackgroundPlayingIfReady();
     }
 
     private void ClearPendingPreviewStart(int generation)

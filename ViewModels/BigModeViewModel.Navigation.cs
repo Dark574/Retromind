@@ -316,6 +316,7 @@ public partial class BigModeViewModel
         var mainPlayer = MediaPlayer;
         var secondaryPlayer = _secondaryPlayer;
         var vlc = _libVlc;
+        var secondaryVlc = _secondaryLibVlc;
 
         MediaPlayer = null;
         _secondaryPlayer = null;
@@ -390,6 +391,15 @@ public partial class BigModeViewModel
                 try
                 {
                     vlc.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    secondaryVlc.Dispose();
                 }
                 catch
                 {
