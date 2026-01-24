@@ -931,12 +931,15 @@ public partial class MainWindowViewModel
         {
             UpdateAssetPaths(item.Assets, oldPrefix, newPrefix);
 
-            foreach (var file in item.Files)
+            if (item.Files != null)
             {
-                if (file.Kind != MediaFileKind.LibraryRelative)
-                    continue;
+                foreach (var file in item.Files)
+                {
+                    if (file.Kind != MediaFileKind.LibraryRelative)
+                        continue;
 
-                file.Path = ReplaceRelativePrefix(file.Path, oldPrefix, newPrefix);
+                    file.Path = ReplaceRelativePrefix(file.Path, oldPrefix, newPrefix);
+                }
             }
 
             item.ResetActiveAssets();
