@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Retromind.Helpers;
@@ -31,7 +32,7 @@ public class TmdbProvider : IMetadataProvider
         return _config.ApiKey;
     }
     
-    public Task<bool> ConnectAsync()
+    public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -45,7 +46,7 @@ public class TmdbProvider : IMetadataProvider
         }
     }
 
-    public async Task<List<ScraperSearchResult>> SearchAsync(string query)
+    public async Task<List<ScraperSearchResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
         var apiKey = GetApiKey();
 
@@ -67,10 +68,10 @@ public class TmdbProvider : IMetadataProvider
 
             var url = $"{BaseUrl}/search/multi?api_key={apiKey}&query={encodedQuery}&language={lang}";
 
-            var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
+            var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             var doc = JsonNode.Parse(json);
 
             var items = doc?["results"]?.AsArray();
@@ -120,6 +121,10 @@ public class TmdbProvider : IMetadataProvider
             }
 
             return results;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

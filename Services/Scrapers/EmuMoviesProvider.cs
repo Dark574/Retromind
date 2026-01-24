@@ -5,6 +5,7 @@ using System.Linq; // For Debug.WriteLine
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web; 
 using Retromind.Models;
@@ -45,7 +46,7 @@ public class EmuMoviesProvider : IMetadataProvider
     /// Authenticates with EmuMovies using the credentials from settings.
     /// Stores the Session ID for subsequent requests.
     /// </summary>
-    public async Task<bool> ConnectAsync()
+    public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (!string.IsNullOrEmpty(_sessionId)) return true;
 
@@ -58,10 +59,10 @@ public class EmuMoviesProvider : IMetadataProvider
             var url = $"https://api.emumovies.com/api/login?username={user}&password={pass}";
         
             using var request = CreateRequest(url);
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
             var doc = JsonNode.Parse(json);
         
             var resultInfo = doc?["Result"]?.ToString();
@@ -81,7 +82,7 @@ public class EmuMoviesProvider : IMetadataProvider
         }
     }
 
-    public async Task<List<ScraperSearchResult>> SearchAsync(string query)
+    public async Task<List<ScraperSearchResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
         // Validate config
         if (string.IsNullOrWhiteSpace(_config.Username) || string.IsNullOrWhiteSpace(_config.Password))
@@ -92,7 +93,7 @@ public class EmuMoviesProvider : IMetadataProvider
         // Ensure connection
         if (string.IsNullOrEmpty(_sessionId))
         {
-            if (!await ConnectAsync()) 
+            if (!await ConnectAsync(cancellationToken)) 
                 throw new Exception("EmuMovies Login failed. Please check your credentials.");
         }
 
@@ -108,20 +109,20 @@ public class EmuMoviesProvider : IMetadataProvider
                 try 
                 {
                     using var request = CreateRequest(url);
-                    response = await _httpClient.SendAsync(request);
+                    response = await _httpClient.SendAsync(request, cancellationToken);
                     if (response.IsSuccessStatusCode) break;
                 }
                 catch (HttpRequestException) 
                 {
                     if (i == 2) throw; // throw at the last try
-                    await Task.Delay(1000); // wait for a short time
+                    await Task.Delay(1000, cancellationToken); // wait for a short time
                 }
             }
             
             if (response == null) throw new Exception("EmuMovies Connection failed.");
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
             var doc = JsonNode.Parse(json);
         
             var games = doc?["Games"]?.AsArray();
@@ -135,7 +136,7 @@ public class EmuMoviesProvider : IMetadataProvider
             foreach (var game in games)
             {
                 // local function for processing of one item
-                scraperTasks.Add(ProcessGameAsync(game));
+                scraperTasks.Add(ProcessGameAsync(game, cancellationToken));
             }
 
             // wait for all task results. This reduces the waiting time from (20 * request time) to (1 * request time)
@@ -144,6 +145,10 @@ public class EmuMoviesProvider : IMetadataProvider
 
             return results;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             throw new Exception($"EmuMovies search failed: {ex.Message}", ex);
@@ -151,10 +156,11 @@ public class EmuMoviesProvider : IMetadataProvider
     }
 
     // New helper method for parallel processing
-    private async Task<ScraperSearchResult?> ProcessGameAsync(JsonNode? game)
+    private async Task<ScraperSearchResult?> ProcessGameAsync(JsonNode? game, CancellationToken cancellationToken)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var id = game?["ID"]?.ToString() ?? "";
             var system = game?["System"]?.ToString() ?? "";
             var title = game?["Name"]?.ToString() ?? "Unknown";
@@ -168,9 +174,13 @@ public class EmuMoviesProvider : IMetadataProvider
             };
 
             // Load media (Async Call)
-            await EnrichWithMedia(res, id, system);
+            await EnrichWithMedia(res, id, system, cancellationToken);
                 
             return res;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -182,15 +192,15 @@ public class EmuMoviesProvider : IMetadataProvider
     /// <summary>
     /// Fetches specific media URLs (Cover, Wallpaper, Logo) for a game result.
     /// </summary>
-    private async Task EnrichWithMedia(ScraperSearchResult item, string gameId, string system)
+    private async Task EnrichWithMedia(ScraperSearchResult item, string gameId, string system, CancellationToken cancellationToken)
     {
         try 
         {
             var url = $"https://api.emumovies.com/api/get-game-media?session={_sessionId}&id={gameId}&system={HttpUtility.UrlEncode(system)}";
-            var response = await _httpClient.GetAsync(url);
+            var response = await _httpClient.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode) return;
         
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
             var doc = JsonNode.Parse(json);
         
             var medias = doc?["Medias"]?.AsArray();
@@ -241,6 +251,10 @@ public class EmuMoviesProvider : IMetadataProvider
                         break;
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

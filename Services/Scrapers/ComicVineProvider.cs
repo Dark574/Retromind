@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Retromind.Models;
@@ -21,12 +22,12 @@ public class ComicVineProvider : IMetadataProvider
         // Do not mutate shared HttpClient.DefaultRequestHeaders here (HttpClient is a singleton in DI).
     }
 
-    public Task<bool> ConnectAsync()
+    public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(!string.IsNullOrEmpty(_config.ApiKey));
     }
 
-    public async Task<List<ScraperSearchResult>> SearchAsync(string query)
+    public async Task<List<ScraperSearchResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -44,10 +45,10 @@ public class ComicVineProvider : IMetadataProvider
             // ComicVine blocks requests without a clear User-Agent.
             request.Headers.UserAgent.ParseAdd("Retromind-MediaManager/1.0");
 
-            var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+            var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             var doc = JsonNode.Parse(json);
 
             var results = new List<ScraperSearchResult>();
@@ -98,6 +99,10 @@ public class ComicVineProvider : IMetadataProvider
             }
 
             return results;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

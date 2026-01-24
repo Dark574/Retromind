@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Retromind.Models;
@@ -21,13 +22,13 @@ public class OpenLibraryProvider : IMetadataProvider
         // Do not mutate shared HttpClient.DefaultRequestHeaders here (HttpClient is a singleton in DI).
     }
 
-    public Task<bool> ConnectAsync()
+    public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         // no authentication required
         return Task.FromResult(true);
     }
 
-    public async Task<List<ScraperSearchResult>> SearchAsync(string query)
+    public async Task<List<ScraperSearchResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -38,10 +39,10 @@ public class OpenLibraryProvider : IMetadataProvider
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.UserAgent.ParseAdd("Retromind/1.0 (OpenSource Media Manager)");
 
-            var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+            var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             var doc = JsonNode.Parse(json);
 
             var docs = doc?["docs"]?.AsArray();
@@ -90,6 +91,10 @@ public class OpenLibraryProvider : IMetadataProvider
             // Optionally, you could load the Work details (including description) when the
             // user selects a result, but the Work API is rate-limited and slower.
             return results;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

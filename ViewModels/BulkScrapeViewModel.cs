@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.Scrapers;
 
 namespace Retromind.ViewModels;
 
@@ -88,11 +89,26 @@ public partial class BulkScrapeViewModel : ViewModelBase
         ClearLog();
         AppendLog($"Starting bulk scrape with {SelectedScraper.Name}...");
 
-        var provider = await _metadataService.GetProviderAsync(SelectedScraper.Id, _cancellationTokenSource.Token);
+        IMetadataProvider? provider;
+        try
+        {
+            provider = await _metadataService.GetProviderAsync(SelectedScraper.Id, _cancellationTokenSource.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            AppendLog("Scraping operation cancelled by user.");
+            IsBusy = false;
+            _cancellationTokenSource.Dispose();
+            _cancellationTokenSource = null;
+            return;
+        }
+
         if (provider == null)
         {
             AppendLog("Error: Could not load provider.");
             IsBusy = false;
+            _cancellationTokenSource.Dispose();
+            _cancellationTokenSource = null;
             return;
         }
 
@@ -138,7 +154,7 @@ public partial class BulkScrapeViewModel : ViewModelBase
                         });
                     }
 
-                    var results = await provider.SearchAsync(item.Title);
+                    var results = await provider.SearchAsync(item.Title, token);
 
                     // Heuristic: Exact match (Case Insensitive)
                     var match = results.FirstOrDefault(r => 

@@ -93,14 +93,14 @@ public partial class ScrapeDialogViewModel : ViewModelBase
 
         try
         {
-            var provider = _metadataService.GetProvider(SelectedScraper.Id);
+            var provider = await _metadataService.GetProviderAsync(SelectedScraper.Id, token);
             if (provider == null)
             {
                 StatusMessage = Strings.Metadata_Error_ProviderNotAvailable;
                 return;
             }
 
-            var results = await provider.SearchAsync(SearchQuery).ConfigureAwait(false);
+            var results = await provider.SearchAsync(SearchQuery, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
 
             if (results.Count == 0)

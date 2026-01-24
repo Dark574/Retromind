@@ -73,7 +73,7 @@ public class MetadataService
             // We intentionally do not cache the "connected" flag here because provider implementations
             // may reconnect internally. ConnectAsync should be idempotent or cheap after the first run.
             // If a provider returns false, we treat it as unusable for this session.
-            var ok = await provider.ConnectAsync().ConfigureAwait(false);
+            var ok = await provider.ConnectAsync(cancellationToken).ConfigureAwait(false);
             return ok ? provider : null;
         }
         finally

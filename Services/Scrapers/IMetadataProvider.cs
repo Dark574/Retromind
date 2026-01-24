@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Models;
 
@@ -14,12 +15,12 @@ public interface IMetadataProvider
     /// Should be called before SearchAsync.
     /// </summary>
     /// <returns>True if connection/authentication was successful.</returns>
-    Task<bool> ConnectAsync();
+    Task<bool> ConnectAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Searches for media based on a text query.
     /// </summary>
     /// <param name="query">The search term (title, keyword).</param>
     /// <returns>A list of standardized search results.</returns>
-    Task<List<ScraperSearchResult>> SearchAsync(string query);
+    Task<List<ScraperSearchResult>> SearchAsync(string query, CancellationToken cancellationToken = default);
 }

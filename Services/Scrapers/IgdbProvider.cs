@@ -57,13 +57,13 @@ public class IgdbProvider : IMetadataProvider
     /// Authenticates with IGDB via Twitch API if not already connected.
     /// Returns true if connected successfully.
     /// </summary>
-    public async Task<bool> ConnectAsync()
+    public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         // Fast path: token still valid.
         if (!string.IsNullOrEmpty(_accessToken) && DateTime.Now < _tokenExpiry)
             return true;
 
-        await _connectGate.WaitAsync().ConfigureAwait(false);
+        await _connectGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             // Re-check after acquiring the gate (another caller may have refreshed already).
@@ -74,10 +74,10 @@ public class IgdbProvider : IMetadataProvider
 
             // Build token request URL
             var url = $"{TwitchTokenUrl}?client_id={creds.ClientId}&client_secret={creds.ClientSecret}&grant_type=client_credentials";
-            var response = await _httpClient.PostAsync(url, null).ConfigureAwait(false);
+            var response = await _httpClient.PostAsync(url, null, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             var doc = JsonNode.Parse(json);
 
             _accessToken = doc?["access_token"]?.ToString() ?? "";
@@ -85,6 +85,10 @@ public class IgdbProvider : IMetadataProvider
             _tokenExpiry = DateTime.Now.AddSeconds(seconds - TokenExpiryBufferSeconds);
 
             return !string.IsNullOrEmpty(_accessToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -101,10 +105,10 @@ public class IgdbProvider : IMetadataProvider
     /// Searches IGDB for games matching the query.
     /// Returns up to 20 results with metadata.
     /// </summary>
-    public async Task<List<ScraperSearchResult>> SearchAsync(string query)
+    public async Task<List<ScraperSearchResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
         // Ensure we are logged in
-        var connected = await ConnectAsync().ConfigureAwait(false);
+        var connected = await ConnectAsync(cancellationToken).ConfigureAwait(false);
         if (!connected)
             throw new Exception("IGDB login failed.");
 
@@ -117,19 +121,19 @@ public class IgdbProvider : IMetadataProvider
                 $"search \"{query}\"; fields name, summary, first_release_date, total_rating, cover.url, artworks.url, screenshots.url, genres.name, involved_companies.company.name, platforms.name; limit 20;";
 
             // Send request with retry logic
-            var response = await SendWithRetryAsync(async () =>
+            var response = await SendWithRetryAsync(async token =>
             {
                 var request = new HttpRequestMessage(HttpMethod.Post, IgdbApiUrl);
                 request.Headers.Add("Client-ID", creds.ClientId);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
                 request.Content = new StringContent(igdbQuery, Encoding.UTF8, "text/plain");
-                return await _httpClient.SendAsync(request).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+                return await _httpClient.SendAsync(request, token).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
 
             if (response == null) throw new Exception("No response from IGDB.");
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             var items = JsonNode.Parse(json)?.AsArray();
 
             var results = new List<ScraperSearchResult>();
@@ -203,6 +207,10 @@ public class IgdbProvider : IMetadataProvider
 
             return results;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             throw new Exception($"IGDB search error: {ex.Message}", ex);
@@ -221,16 +229,18 @@ public class IgdbProvider : IMetadataProvider
     /// <summary>
     /// Sends an HTTP request with retry logic for rate limits.
     /// </summary>
-    private async Task<HttpResponseMessage?> SendWithRetryAsync(Func<Task<HttpResponseMessage>> sendAction)
+    private async Task<HttpResponseMessage?> SendWithRetryAsync(
+        Func<CancellationToken, Task<HttpResponseMessage>> sendAction,
+        CancellationToken cancellationToken)
     {
         HttpResponseMessage? response = null;
         for (int retry = 0; retry <= MaxRetries; retry++)
         {
-            response = await sendAction().ConfigureAwait(false);
+            response = await sendAction(cancellationToken).ConfigureAwait(false);
 
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
             {
-                await Task.Delay(1000 * (retry + 1)).ConfigureAwait(false); // Exponential backoff
+                await Task.Delay(1000 * (retry + 1), cancellationToken).ConfigureAwait(false); // Exponential backoff
                 continue;
             }
 
