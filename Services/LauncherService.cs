@@ -279,6 +279,8 @@ public sealed class LauncherService
         IReadOnlyList<LaunchWrapper> wrappers)
     {
         var current = innerExecutable;
+        string? outerFileName = null;
+        string outerArgs = string.Empty;
 
         // We interpret wrapper order as "outer -> inner".
         // Example: [gamemoderun, mangohud] -> gamemoderun mangohud <inner>
@@ -293,23 +295,39 @@ public sealed class LauncherService
                 ? template.Replace("{file}", current, StringComparison.Ordinal)
                 : $"{template} {current}";
 
-            current = $"{w.Path} {NormalizeWhitespace(argsWithChild)}".Trim();
+            outerFileName = w.Path.Trim();
+            outerArgs = NormalizeWhitespace(argsWithChild);
+            current = string.IsNullOrWhiteSpace(outerArgs)
+                ? outerFileName
+                : $"{outerFileName} {outerArgs}";
         }
 
-        // Split final command into FileName + Args in a simple way: first token = FileName, rest = Args.
-        // For our use-case (simple wrapper chains) this is sufficient.
-        var parts = current.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        var fileName = parts.Length > 0 ? parts[0] : string.Empty;
-        var args = parts.Length > 1 ? parts[1] : string.Empty;
+        if (string.IsNullOrWhiteSpace(outerFileName))
+        {
+            // No valid wrapper path found; fall back to a best-effort split of the inner command.
+            var parts = current.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var fallbackFileName = parts.Length > 0 ? parts[0] : string.Empty;
+            var fallbackArgs = parts.Length > 1 ? parts[1] : string.Empty;
 
+            var fallbackUseShellExecute = true;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
+                fallbackFileName.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
+            {
+                fallbackUseShellExecute = false;
+            }
+
+            return (fallbackFileName, fallbackArgs, fallbackUseShellExecute);
+        }
+
+        // Avoid splitting by space: wrapper paths may contain spaces.
         var useShellExecute = true;
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
-            fileName.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
+            outerFileName.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
         {
             useShellExecute = false;
         }
 
-        return (fileName, args, useShellExecute);
+        return (outerFileName, outerArgs, useShellExecute);
     }
     
     private string? ResolveLaunchFilePath(MediaItem item, List<string>? nodePath, bool usePlaylistForMultiDisc)
