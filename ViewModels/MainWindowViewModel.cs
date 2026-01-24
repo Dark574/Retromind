@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
@@ -90,6 +91,16 @@ public partial class MainWindowViewModel : ViewModelBase
     // --- Library Dirty Tracking + Debounced Library Save (NEW) ---
     private bool _isLibraryDirty;
     private int _libraryDirtyVersion;
+
+    // Tracks items/nodes for in-place edits that should persist immediately.
+    private readonly HashSet<MediaItem> _dirtyTrackedItems = new();
+    private readonly HashSet<MediaNode> _dirtyTrackedNodes = new();
+    private ObservableCollection<MediaNode>? _dirtyTrackedRoots;
+
+    private static readonly HashSet<string> DirtyTrackedItemProperties = new(StringComparer.Ordinal)
+    {
+        nameof(MediaItem.IsFavorite)
+    };
     
     // ensure Cleanup() is executed at most once (Exit + Closing can both fire)
     private int _cleanupOnce;
@@ -282,6 +293,7 @@ public partial class MainWindowViewModel : ViewModelBase
         
             _isLibraryDirty = false;
             _libraryDirtyVersion = 0;
+            ResetLibraryChangeTracking();
             
             OnPropertyChanged(nameof(IsDarkTheme));
             OnPropertyChanged(nameof(PanelBackground));
@@ -458,6 +470,13 @@ public partial class MainWindowViewModel : ViewModelBase
         DebouncedSaveLibrary();
     }
 
+    private void MarkLibraryDirtyAndSaveSoon()
+    {
+        MarkLibraryDirty();
+        var version = _libraryDirtyVersion;
+        _ = SaveLibraryIfDirtyAsync(force: false, expectedVersion: version);
+    }
+
     private void DebouncedSaveLibrary()
     {
         _saveLibraryCts?.Cancel();
@@ -528,6 +547,159 @@ public partial class MainWindowViewModel : ViewModelBase
             Debug.WriteLine($"[Library] Save failed: {ex.Message}");
             // Keep dirty=true so a later attempt can retry the save.
             _isLibraryDirty = true;
+        }
+    }
+
+    private void ResetLibraryChangeTracking()
+    {
+        if (_dirtyTrackedRoots != null)
+        {
+            _dirtyTrackedRoots.CollectionChanged -= OnRootItemsChanged;
+            foreach (var node in _dirtyTrackedRoots)
+                UntrackNodeRecursive(node);
+        }
+
+        _dirtyTrackedRoots = RootItems;
+        if (_dirtyTrackedRoots == null)
+            return;
+
+        _dirtyTrackedRoots.CollectionChanged += OnRootItemsChanged;
+        foreach (var node in _dirtyTrackedRoots)
+            TrackNodeRecursive(node);
+    }
+
+    private void StopLibraryChangeTracking()
+    {
+        if (_dirtyTrackedRoots != null)
+        {
+            _dirtyTrackedRoots.CollectionChanged -= OnRootItemsChanged;
+            foreach (var node in _dirtyTrackedRoots)
+                UntrackNodeRecursive(node);
+        }
+
+        _dirtyTrackedRoots = null;
+        _dirtyTrackedItems.Clear();
+        _dirtyTrackedNodes.Clear();
+    }
+
+    private void TrackNodeRecursive(MediaNode node)
+    {
+        if (!_dirtyTrackedNodes.Add(node))
+            return;
+
+        node.Items.CollectionChanged += OnNodeItemsChanged;
+        node.Children.CollectionChanged += OnNodeChildrenChanged;
+
+        foreach (var item in node.Items)
+            TrackItem(item);
+
+        foreach (var child in node.Children)
+            TrackNodeRecursive(child);
+    }
+
+    private void UntrackNodeRecursive(MediaNode node)
+    {
+        if (!_dirtyTrackedNodes.Remove(node))
+            return;
+
+        node.Items.CollectionChanged -= OnNodeItemsChanged;
+        node.Children.CollectionChanged -= OnNodeChildrenChanged;
+
+        foreach (var item in node.Items)
+            UntrackItem(item);
+
+        foreach (var child in node.Children)
+            UntrackNodeRecursive(child);
+    }
+
+    private void TrackItem(MediaItem item)
+    {
+        if (!_dirtyTrackedItems.Add(item))
+            return;
+
+        item.PropertyChanged += OnItemPropertyChanged;
+    }
+
+    private void UntrackItem(MediaItem item)
+    {
+        if (!_dirtyTrackedItems.Remove(item))
+            return;
+
+        item.PropertyChanged -= OnItemPropertyChanged;
+    }
+
+    private void OnRootItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+        {
+            foreach (var oldItem in e.OldItems)
+            {
+                if (oldItem is MediaNode node)
+                    UntrackNodeRecursive(node);
+            }
+        }
+
+        if (e.NewItems != null)
+        {
+            foreach (var newItem in e.NewItems)
+            {
+                if (newItem is MediaNode node)
+                    TrackNodeRecursive(node);
+            }
+        }
+    }
+
+    private void OnNodeItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+        {
+            foreach (var oldItem in e.OldItems)
+            {
+                if (oldItem is MediaItem item)
+                    UntrackItem(item);
+            }
+        }
+
+        if (e.NewItems != null)
+        {
+            foreach (var newItem in e.NewItems)
+            {
+                if (newItem is MediaItem item)
+                    TrackItem(item);
+            }
+        }
+    }
+
+    private void OnNodeChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+        {
+            foreach (var oldItem in e.OldItems)
+            {
+                if (oldItem is MediaNode node)
+                    UntrackNodeRecursive(node);
+            }
+        }
+
+        if (e.NewItems != null)
+        {
+            foreach (var newItem in e.NewItems)
+            {
+                if (newItem is MediaNode node)
+                    TrackNodeRecursive(node);
+            }
+        }
+    }
+
+    private void OnItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is not MediaItem)
+            return;
+
+        if (string.IsNullOrWhiteSpace(e.PropertyName) ||
+            DirtyTrackedItemProperties.Contains(e.PropertyName))
+        {
+            MarkLibraryDirtyAndSaveSoon();
         }
     }
     
@@ -605,6 +777,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _audioService.StopMusic();
         
         _fileService.LibraryChanged -= MarkLibraryDirty;
+        StopLibraryChangeTracking();
         
         // Detach content VM handlers to avoid leaks.
         DetachMediaAreaHandlers();
