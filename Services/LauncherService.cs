@@ -676,14 +676,26 @@ public sealed class LauncherService
         //   c: -> ../drive_c
         EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
         
-        var libraryRoot = _libraryRootPath;                        // .../Library
-        var gamesRoot   = Path.Combine(libraryRoot, "Games");
-        Directory.CreateDirectory(gamesRoot);
-        
-        // From: <Root>/Library/Prefixes/<prefix>/dosdevices
-        // To:   <Root>/Games
-        // => ../../../../Games
-        EnsureDosDeviceMapping(dosDevicesDir, "d:", "../../../Games");
+        var libraryRoot = Path.GetFullPath(_libraryRootPath); // .../Library
+        var prefixFull = Path.GetFullPath(prefixPath);
+        var libraryRootWithSep = libraryRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? libraryRoot
+            : libraryRoot + Path.DirectorySeparatorChar;
+
+        var isPrefixInsideLibrary =
+            prefixFull.StartsWith(libraryRootWithSep, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(prefixFull, libraryRoot, StringComparison.OrdinalIgnoreCase);
+
+        if (isPrefixInsideLibrary)
+        {
+            var gamesRoot = Path.Combine(libraryRoot, "Games");
+            Directory.CreateDirectory(gamesRoot);
+
+            // From: <Root>/Library/Prefixes/<prefix>/dosdevices
+            // To:   <Root>/Games
+            // => ../../../../Games
+            EnsureDosDeviceMapping(dosDevicesDir, "d:", "../../../Games");
+        }
         
         // Apply WINEPREFIX to the launched process
         startInfo.EnvironmentVariables["WINEPREFIX"] = prefixPath;
