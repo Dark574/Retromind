@@ -39,6 +39,7 @@ public sealed class LauncherService
 
         Process? process = null;
         var stopwatch = Stopwatch.StartNew();
+        var shouldRecordSession = false;
 
         try
         {
@@ -52,11 +53,19 @@ public sealed class LauncherService
             // C) If neither is available (typical for URL commands), we cannot track duration reliably.
             if (!string.IsNullOrWhiteSpace(item.OverrideWatchProcess))
             {
-                await WatchProcessByNameAsync(item.OverrideWatchProcess, cancellationToken).ConfigureAwait(false);
+                shouldRecordSession = await WatchProcessByNameAsync(item.OverrideWatchProcess, cancellationToken)
+                    .ConfigureAwait(false);
             }
             else if (process is { HasExited: false })
             {
+                shouldRecordSession = true;
                 await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else if (process != null)
+            {
+                // Process started but already exited (very fast failure or immediate exit).
+                // Still count as a launch attempt.
+                shouldRecordSession = true;
             }
         }
         catch (OperationCanceledException)
@@ -70,7 +79,8 @@ public sealed class LauncherService
         finally
         {
             stopwatch.Stop();
-            EvaluateSession(item, stopwatch.Elapsed);
+            if (shouldRecordSession)
+                EvaluateSession(item, stopwatch.Elapsed);
         }
     }
 
@@ -809,7 +819,7 @@ public sealed class LauncherService
         return result.Replace("{file}", quotedPath, StringComparison.Ordinal);
     }
 
-    private static async Task WatchProcessByNameAsync(string processName, CancellationToken cancellationToken)
+    private static async Task<bool> WatchProcessByNameAsync(string processName, CancellationToken cancellationToken)
     {
         var cleanName = Path.GetFileNameWithoutExtension(processName);
 
@@ -829,7 +839,7 @@ public sealed class LauncherService
 
         // If not found in time, we cannot track.
         if (Process.GetProcessesByName(cleanName).Length == 0)
-            return;
+            return false;
 
         // Phase 2: wait for process to disappear.
         while (true)
@@ -841,6 +851,8 @@ public sealed class LauncherService
             if (Process.GetProcessesByName(cleanName).Length == 0)
                 break;
         }
+
+        return true;
     }
 
     private static void EvaluateSession(MediaItem item, TimeSpan elapsed)
