@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 
 namespace Retromind.Helpers;
 
@@ -36,7 +35,7 @@ public static class AppPaths
 
     /// <summary>
     /// Ensures Themes exist in DataRoot (portable).
-    /// Copies shipped Themes from AppContext.BaseDirectory ONLY if target is empty.
+    /// Copies missing shipped Themes from AppContext.BaseDirectory.
     /// Never overwrites user themes.
     /// </summary>
     public static void EnsurePortableThemes()
@@ -46,16 +45,34 @@ public static class AppPaths
             if (!Directory.Exists(ThemesRoot))
                 Directory.CreateDirectory(ThemesRoot);
 
-            // If the target already contains anything, do nothing (user may have customized themes).
-            if (Directory.EnumerateFileSystemEntries(ThemesRoot).Any())
-                return;
-
             // Copy defaults shipped with the app (build output).
             var shippedThemesRoot = Path.Combine(AppContext.BaseDirectory, "Themes");
             if (!Directory.Exists(shippedThemesRoot))
                 return;
 
-            CopyDirectoryRecursive(shippedThemesRoot, ThemesRoot);
+            foreach (var entry in Directory.EnumerateFileSystemEntries(shippedThemesRoot))
+            {
+                var name = Path.GetFileName(entry);
+                if (string.IsNullOrWhiteSpace(name))
+                    continue;
+
+                var target = Path.Combine(ThemesRoot, name);
+
+                if (Directory.Exists(entry))
+                {
+                    if (Directory.Exists(target))
+                        continue;
+
+                    CopyDirectoryRecursive(entry, target);
+                }
+                else if (File.Exists(entry))
+                {
+                    if (File.Exists(target))
+                        continue;
+
+                    File.Copy(entry, target, overwrite: false);
+                }
+            }
         }
         catch
         {
