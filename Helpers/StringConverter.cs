@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.IO;
 using Avalonia.Data.Converters;
 
 namespace Retromind.Helpers;
@@ -30,5 +31,25 @@ public static class StringConverters
         {
             if (value is not string s) return true;
             return string.IsNullOrWhiteSpace(s);
+        });
+
+    /// <summary>
+    /// Converts a theme path like "Default/theme.axaml" to "Default" for display.
+    /// </summary>
+    public static readonly IValueConverter ThemePathToFolderName =
+        new FuncValueConverter<object?, string?>(value =>
+        {
+            if (value is not string s || string.IsNullOrWhiteSpace(s))
+                return string.Empty;
+
+            var trimmed = s.Trim();
+            if (trimmed.EndsWith("theme.axaml", StringComparison.OrdinalIgnoreCase))
+            {
+                var dir = Path.GetDirectoryName(trimmed);
+                return string.IsNullOrWhiteSpace(dir) ? trimmed : Path.GetFileName(dir);
+            }
+
+            var parent = Path.GetDirectoryName(trimmed);
+            return string.IsNullOrWhiteSpace(parent) ? trimmed : Path.GetFileName(parent);
         });
 }

@@ -243,7 +243,13 @@
                     <TextBlock Text="{x:Static p:Strings.NodeSettings_BigModeThemeHint}"/>
                     <ComboBox ItemsSource="{Binding AvailableThemes}"
                               SelectedItem="{Binding SelectedTheme}"
-                              HorizontalAlignment="Stretch"/>
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={x:Static helpers:StringConverters.ThemePathToFolderName}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
 
                     <Button Content="{x:Static p:Strings.NodeSettings_ThemeAuto}"
                             HorizontalAlignment="Left"
