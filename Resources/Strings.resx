@@ -191,6 +191,7 @@
     <data name="NodeSettings_VideoSnap" xml:space="preserve"><value>Video snap</value></data>
     <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Show random images in this folder</value></data>
     <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Play random music from this folder</value></data>
+    <data name="NodeSettings_RenameFailed" xml:space="preserve"><value>Could not rename folder; name was not saved.</value></data>
     
     <!-- PROFILE -->
     <data name="Profile.New" xml:space="preserve"><value>New Profile</value></data>

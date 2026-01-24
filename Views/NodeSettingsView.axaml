@@ -25,6 +25,10 @@
                     <StackPanel Spacing="5">
                         <TextBlock Text="{x:Static p:Strings.Common_Name}"/>
                         <TextBox Text="{Binding Name}"/>
+                        <TextBlock Text="{Binding SaveErrorMessage}"
+                                   FontSize="12"
+                                   Foreground="Tomato"
+                                   IsVisible="{Binding SaveErrorMessage, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
                     </StackPanel>
 
                     <StackPanel Spacing="5">

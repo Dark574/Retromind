@@ -56,6 +56,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
     [ObservableProperty] private bool? _randomizeCovers;
     [ObservableProperty] private bool? _randomizeMusic;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSaveError))]
+    private string? _saveErrorMessage;
+
+    public bool HasSaveError => !string.IsNullOrWhiteSpace(SaveErrorMessage);
+
     [ObservableProperty] private EmulatorConfig? _selectedEmulator;
 
     [ObservableProperty] private string? _selectedTheme;
@@ -450,7 +456,19 @@ public partial class NodeSettingsViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(Name))
             return;
 
-        _node.Name = Name;
+        var oldName = _node.Name;
+        var newName = Name.Trim();
+
+        if (!TryRenameNodeFolderIfNeeded(oldName, newName))
+        {
+            newName = oldName;
+            Name = oldName;
+            SaveErrorMessage = Strings.NodeSettings_RenameFailed;
+            return;
+        }
+
+        SaveErrorMessage = null;
+        _node.Name = newName;
         _node.Description = Description;
         _node.RandomizeCovers = RandomizeCovers;
         _node.RandomizeMusic = RandomizeMusic;
@@ -496,6 +514,55 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         RequestClose?.Invoke(true);
     }
+
+    private bool TryRenameNodeFolderIfNeeded(string oldName, string newName)
+    {
+        if (string.Equals(oldName, newName, StringComparison.Ordinal))
+            return true;
+
+        if (_nodePath.Count == 0)
+            return true;
+
+        var oldSegments = new List<string>(_nodePath);
+        var newSegments = new List<string>(_nodePath);
+        newSegments[^1] = newName;
+
+        var oldFolder = ResolveNodeFolder(oldSegments);
+        var newFolder = ResolveNodeFolder(newSegments);
+
+        if (string.Equals(oldFolder, newFolder, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (Directory.Exists(newFolder))
+            return false;
+
+        if (!Directory.Exists(oldFolder))
+            return true;
+
+        try
+        {
+            var newParentDir = Path.GetDirectoryName(newFolder);
+            if (!string.IsNullOrWhiteSpace(newParentDir) && !Directory.Exists(newParentDir))
+                Directory.CreateDirectory(newParentDir);
+
+            Directory.Move(oldFolder, newFolder);
+
+            var oldRelativePrefix = Path.GetRelativePath(AppPaths.DataRoot, oldFolder);
+            var newRelativePrefix = Path.GetRelativePath(AppPaths.DataRoot, newFolder);
+
+            UpdateAssetPathsRecursive(_node, oldRelativePrefix, newRelativePrefix);
+
+            NodeLogoPath = _node.PrimaryLogoPath;
+            NodeWallpaperPath = _node.PrimaryWallpaperPath;
+            NodeVideoPath = _node.PrimaryVideoPath;
+        }
+        catch
+        {
+            return false;
+        }
+
+        return true;
+    }
     
     /// <summary>
     /// Updates the node's MediaAsset list for a given asset type.
@@ -526,5 +593,109 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         _node.Assets.Add(assetModel);
         _node.SetActiveAsset(type, trimmed);
+    }
+
+    private static string ResolveNodeFolder(List<string> nodePathSegments)
+    {
+        var rawPath = Path.Combine(AppPaths.LibraryRoot, Path.Combine(nodePathSegments.ToArray()));
+
+        var sanitizedStack = nodePathSegments
+            .Select(PathHelper.SanitizePathSegment)
+            .ToArray();
+        var sanitizedPath = Path.Combine(AppPaths.LibraryRoot, Path.Combine(sanitizedStack));
+
+        if (string.Equals(rawPath, sanitizedPath, StringComparison.Ordinal))
+            return rawPath;
+
+        if (Directory.Exists(rawPath))
+            return rawPath;
+
+        return sanitizedPath;
+    }
+
+    private static void UpdateAssetPathsRecursive(MediaNode node, string oldPrefix, string newPrefix)
+    {
+        UpdateNodeAssetPaths(node, oldPrefix, newPrefix);
+
+        foreach (var item in node.Items)
+        {
+            UpdateAssetPaths(item.Assets, oldPrefix, newPrefix);
+
+            foreach (var file in item.Files)
+            {
+                if (file.Kind != MediaFileKind.LibraryRelative)
+                    continue;
+
+                file.Path = ReplaceRelativePrefix(file.Path, oldPrefix, newPrefix);
+            }
+
+            item.ResetActiveAssets();
+            item.NotifyAssetPathsChanged();
+        }
+
+        foreach (var child in node.Children)
+        {
+            UpdateAssetPathsRecursive(child, oldPrefix, newPrefix);
+        }
+    }
+
+    private static void UpdateNodeAssetPaths(MediaNode node, string oldPrefix, string newPrefix)
+    {
+        var activeByType = new Dictionary<AssetType, string?>();
+        foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
+        {
+            if (type == AssetType.Unknown)
+                continue;
+
+            activeByType[type] = node.GetPrimaryAssetPath(type);
+        }
+
+        UpdateAssetPaths(node.Assets, oldPrefix, newPrefix);
+
+        foreach (var kvp in activeByType)
+        {
+            var activePath = kvp.Value;
+            if (string.IsNullOrWhiteSpace(activePath))
+                continue;
+
+            var updated = ReplaceRelativePrefix(activePath, oldPrefix, newPrefix);
+            if (!string.Equals(updated, activePath, StringComparison.OrdinalIgnoreCase))
+                node.SetActiveAsset(kvp.Key, updated);
+        }
+    }
+
+    private static void UpdateAssetPaths(IEnumerable<MediaAsset> assets, string oldPrefix, string newPrefix)
+    {
+        foreach (var asset in assets)
+        {
+            if (string.IsNullOrWhiteSpace(asset.RelativePath))
+                continue;
+
+            asset.RelativePath = ReplaceRelativePrefix(asset.RelativePath, oldPrefix, newPrefix);
+        }
+    }
+
+    private static string ReplaceRelativePrefix(string path, string oldPrefix, string newPrefix)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return path;
+
+        var normalizedPath = NormalizeRelativePath(path);
+        var normalizedOld = NormalizeRelativePath(oldPrefix);
+        var normalizedNew = NormalizeRelativePath(newPrefix);
+
+        if (string.Equals(normalizedPath, normalizedOld, StringComparison.OrdinalIgnoreCase))
+            return normalizedNew;
+
+        var oldWithSlash = normalizedOld.EndsWith("/", StringComparison.Ordinal) ? normalizedOld : normalizedOld + "/";
+        if (normalizedPath.StartsWith(oldWithSlash, StringComparison.OrdinalIgnoreCase))
+            return normalizedNew + normalizedPath.Substring(oldWithSlash.Length);
+
+        return path;
+    }
+
+    private static string NormalizeRelativePath(string path)
+    {
+        return path.Replace('\\', '/').Trim();
     }
 }

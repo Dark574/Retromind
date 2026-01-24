@@ -878,6 +878,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("NodeSettings_RandomizeMusic", resourceCulture);
             }
         }
+
+        public static string NodeSettings_RenameFailed {
+            get {
+                return ResourceManager.GetString("NodeSettings_RenameFailed", resourceCulture);
+            }
+        }
         
         public static string Profile_New {
             get {

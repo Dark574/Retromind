@@ -192,6 +192,7 @@
     <data name="NodeSettings_VideoSnap" xml:space="preserve"><value>Video Snap</value></data>
     <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Zufällige Grafiken in diesem Ordner anzeigen</value></data>
     <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Zufällige Musik aus diesem Ordner abspielen</value></data>
+    <data name="NodeSettings_RenameFailed" xml:space="preserve"><value>Ordner konnte nicht umbenannt werden; Name wurde nicht gespeichert.</value></data>
     
     
     <!-- PROFILE -->
