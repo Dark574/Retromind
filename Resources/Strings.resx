@@ -95,6 +95,7 @@
     <data name="Dialog.EnterName.Message" xml:space="preserve"><value>Please enter a name:</value></data>
     <data name="Dialog.LoadMetadata" xml:space="preserve"><value>Load metadata...</value></data>
     <data name="Dialog.MsgConfirmDelete" xml:space="preserve"><value>Do you really want to delete this?</value></data>
+    <data name="Dialog.ConfirmMoveNodeAssetsFormat" xml:space="preserve"><value>Move all assets for '{0}' to the new location on disk? This may take a moment.</value></data>
     <data name="Dialog.NoResult" xml:space="preserve"><value>No results found (or filters empty).</value></data>
     <data name="Dialog.SearchTerm" xml:space="preserve"><value>Search term</value></data>
     <data name="Dialog.Select.Cover" xml:space="preserve"><value>Select Cover</value></data>

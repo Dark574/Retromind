@@ -1,18 +1,32 @@
+using System;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Retromind.Helpers;
+using Retromind.Models;
 using Retromind.ViewModels;
 
 namespace Retromind;
 
 public partial class MainWindow : Window
 {
+    private const double DragThreshold = 6.0;
+    private const string DropBeforeClass = "drop-before";
+    private const string DropAfterClass = "drop-after";
+    private const string DropInsideClass = "drop-inside";
+
     // Flag to check if we have already performed the final save/cleanup.
     private bool _canClose = false;
     
     // Prevents re-entry (e.g., duplicate Close/Alt+F4 while Flush is still running).
     private bool _closeInProgress = false;
+
+    private MediaNode? _draggedNode;
+    private Point? _dragStartPoint;
+    private bool _dragInProgress;
+    private Control? _dropIndicatorTarget;
+    private MainWindowViewModel.NodeDropPosition? _dropIndicatorPosition;
     
     public MainWindow()
     {
@@ -116,6 +130,207 @@ public partial class MainWindow : Window
     private void OnResizeDrag(object? sender, PointerPressedEventArgs e)
     {
         if (sender is Control control && control.Tag is WindowEdge edge) BeginResizeDrag(edge, e);
+    }
+
+    private void OnTreeNodePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control control)
+            return;
+
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            return;
+
+        if (control.DataContext is not MediaNode node)
+            return;
+
+        _draggedNode = node;
+        _dragStartPoint = e.GetPosition(this);
+    }
+
+    private async void OnTreeNodePointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_dragInProgress || _draggedNode == null || _dragStartPoint == null)
+            return;
+
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            return;
+
+        var currentPos = e.GetPosition(this);
+        var delta = currentPos - _dragStartPoint.Value;
+
+        if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold)
+            return;
+
+        _dragInProgress = true;
+
+        var data = new DataTransfer();
+        data.Add(DataTransferItem.CreateText(_draggedNode.Id));
+
+        try
+        {
+            await DragDrop.DoDragDropAsync(e, data, DragDropEffects.Move);
+        }
+        finally
+        {
+            ResetDragState();
+        }
+    }
+
+    private void OnTreeNodePointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_dragInProgress)
+            return;
+
+        ResetDragState();
+    }
+
+    private void OnTreeNodeDragOver(object? sender, DragEventArgs e)
+    {
+        if (sender is not Control targetControl)
+            return;
+
+        if (_draggedNode == null)
+        {
+            e.DragEffects = DragDropEffects.None;
+            ClearDropIndicator();
+            return;
+        }
+
+        if (targetControl.DataContext is not MediaNode targetNode)
+        {
+            e.DragEffects = DragDropEffects.None;
+            ClearDropIndicator();
+            return;
+        }
+
+        var sourceNode = _draggedNode;
+        if (sourceNode == null || ReferenceEquals(sourceNode, targetNode))
+        {
+            e.DragEffects = DragDropEffects.None;
+            ClearDropIndicator();
+            return;
+        }
+
+        if (IsDescendant(sourceNode, targetNode))
+        {
+            e.DragEffects = DragDropEffects.None;
+            ClearDropIndicator();
+            return;
+        }
+
+        var dropPosition = GetDropPosition(targetControl, e);
+        ApplyDropIndicator(targetControl, dropPosition);
+
+        e.DragEffects = DragDropEffects.Move;
+        e.Handled = true;
+    }
+
+    private void OnTreeNodeDragLeave(object? sender, DragEventArgs e)
+    {
+        if (sender == _dropIndicatorTarget)
+            ClearDropIndicator();
+    }
+
+    private async void OnTreeNodeDrop(object? sender, DragEventArgs e)
+    {
+        if (sender is not Control targetControl)
+            return;
+
+        if (_draggedNode == null)
+            return;
+
+        if (targetControl.DataContext is not MediaNode targetNode)
+            return;
+
+        var sourceNode = _draggedNode;
+        if (sourceNode == null || ReferenceEquals(sourceNode, targetNode))
+            return;
+
+        if (IsDescendant(sourceNode, targetNode))
+            return;
+
+        if (DataContext is not MainWindowViewModel vm)
+            return;
+
+        var dropPosition = GetDropPosition(targetControl, e);
+        await vm.TryMoveNodeAsync(sourceNode, targetNode, dropPosition);
+        ClearDropIndicator();
+    }
+
+    private static MainWindowViewModel.NodeDropPosition GetDropPosition(Control targetControl, DragEventArgs e)
+    {
+        var height = targetControl.Bounds.Height;
+        if (height <= 0)
+            return MainWindowViewModel.NodeDropPosition.Inside;
+
+        var position = e.GetPosition(targetControl);
+        var upperBand = height * 0.25;
+        var lowerBand = height * 0.75;
+
+        if (position.Y <= upperBand)
+            return MainWindowViewModel.NodeDropPosition.Before;
+
+        if (position.Y >= lowerBand)
+            return MainWindowViewModel.NodeDropPosition.After;
+
+        return MainWindowViewModel.NodeDropPosition.Inside;
+    }
+
+    private static bool IsDescendant(MediaNode parent, MediaNode potentialChild)
+    {
+        foreach (var child in parent.Children)
+        {
+            if (ReferenceEquals(child, potentialChild))
+                return true;
+
+            if (IsDescendant(child, potentialChild))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void ResetDragState()
+    {
+        _draggedNode = null;
+        _dragStartPoint = null;
+        _dragInProgress = false;
+        ClearDropIndicator();
+    }
+
+    private void ApplyDropIndicator(Control target, MainWindowViewModel.NodeDropPosition position)
+    {
+        if (_dropIndicatorTarget != null && !ReferenceEquals(_dropIndicatorTarget, target))
+            ClearDropIndicator();
+
+        if (ReferenceEquals(_dropIndicatorTarget, target) && _dropIndicatorPosition == position)
+            return;
+
+        ClearDropIndicator();
+
+        _dropIndicatorTarget = target;
+        _dropIndicatorPosition = position;
+
+        var className = position switch
+        {
+            MainWindowViewModel.NodeDropPosition.Before => DropBeforeClass,
+            MainWindowViewModel.NodeDropPosition.After => DropAfterClass,
+            _ => DropInsideClass
+        };
+
+        target.Classes.Add(className);
+    }
+
+    private void ClearDropIndicator()
+    {
+        if (_dropIndicatorTarget == null)
+            return;
+
+        _dropIndicatorTarget.Classes.Remove(DropBeforeClass);
+        _dropIndicatorTarget.Classes.Remove(DropAfterClass);
+        _dropIndicatorTarget.Classes.Remove(DropInsideClass);
+        _dropIndicatorTarget = null;
+        _dropIndicatorPosition = null;
     }
     
     private void OnKeyDown(object? sender, KeyEventArgs e)

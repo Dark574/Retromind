@@ -405,6 +405,23 @@ public partial class MediaItem : ObservableObject
         // Notify bindings so views like MediaDetailView can refresh their list.
         OnPropertyChanged(nameof(ManualAssets));
     }
+
+    /// <summary>
+    /// Forces UI bindings to refresh asset path-dependent properties
+    /// after in-place path updates (RelativePath changes without collection updates).
+    /// </summary>
+    public void NotifyAssetPathsChanged()
+    {
+        OnPropertyChanged(nameof(PrimaryCoverPath));
+        OnPropertyChanged(nameof(PrimaryWallpaperPath));
+        OnPropertyChanged(nameof(PrimaryLogoPath));
+        OnPropertyChanged(nameof(PrimaryVideoPath));
+        OnPropertyChanged(nameof(PrimaryMarqueePath));
+        OnPropertyChanged(nameof(PrimaryBannerPath));
+        OnPropertyChanged(nameof(PrimaryBezelPath));
+        OnPropertyChanged(nameof(PrimaryControlPanelPath));
+        OnPropertyChanged(nameof(ManualAssets));
+    }
 }
 
 /// <summary>

@@ -19,6 +19,13 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
+    public enum NodeDropPosition
+    {
+        Before,
+        Inside,
+        After
+    }
+
     // --- Commands ---
     // Using IAsyncRelayCommand allows the UI to bind to IsRunning properties if needed
     public IAsyncRelayCommand<MediaNode?> AddCategoryCommand { get; private set; } = null!;
@@ -765,6 +772,241 @@ public partial class MainWindowViewModel
                 items.Move(oldIndex, i);
             }
         }
+    }
+
+    public async Task<bool> TryMoveNodeAsync(MediaNode sourceNode, MediaNode targetNode, NodeDropPosition dropPosition)
+    {
+        if (sourceNode == null || targetNode == null)
+            return false;
+
+        if (ReferenceEquals(sourceNode, targetNode))
+            return false;
+
+        if (IsChildOf(sourceNode, targetNode))
+            return false;
+
+        var sourceChain = GetNodeChain(sourceNode, RootItems);
+        if (sourceChain.Count == 0)
+            return false;
+
+        var targetChain = GetNodeChain(targetNode, RootItems);
+        if (targetChain.Count == 0)
+            return false;
+
+        var sourceParent = sourceChain.Count > 1 ? sourceChain[^2] : null;
+        var targetParent = targetChain.Count > 1 ? targetChain[^2] : null;
+
+        var newParent = dropPosition == NodeDropPosition.Inside ? targetNode : targetParent;
+        var parentChanged = !ReferenceEquals(sourceParent, newParent);
+
+        if (parentChanged)
+        {
+            if (CurrentWindow is not { } owner)
+                return false;
+
+            var confirmMessage = string.Format(Strings.Dialog_ConfirmMoveNodeAssetsFormat, sourceNode.Name);
+            if (!await ShowConfirmDialog(owner, confirmMessage))
+                return false;
+        }
+
+        var sourceCollection = sourceParent == null ? RootItems : sourceParent.Children;
+        var targetCollection = targetParent == null ? RootItems : targetParent.Children;
+
+        var sourceIndex = sourceCollection.IndexOf(sourceNode);
+        var targetIndex = targetCollection.IndexOf(targetNode);
+
+        if (sourceIndex < 0 || targetIndex < 0)
+            return false;
+
+        if (parentChanged)
+        {
+            var oldPathSegments = PathHelper.GetNodePath(sourceNode, RootItems);
+            var newPathSegments = BuildNodePathSegments(newParent, sourceNode.Name);
+
+            var oldFolder = ResolveNodeFolder(oldPathSegments);
+            var newFolder = ResolveNodeFolder(newPathSegments);
+
+            if (!string.Equals(oldFolder, newFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                if (Directory.Exists(newFolder))
+                    return false;
+
+                try
+                {
+                    var newParentDir = Path.GetDirectoryName(newFolder);
+                    if (!string.IsNullOrWhiteSpace(newParentDir) && !Directory.Exists(newParentDir))
+                        Directory.CreateDirectory(newParentDir);
+
+                    if (Directory.Exists(oldFolder))
+                        Directory.Move(oldFolder, newFolder);
+
+                    var oldRelativePrefix = Path.GetRelativePath(AppPaths.DataRoot, oldFolder);
+                    var newRelativePrefix = Path.GetRelativePath(AppPaths.DataRoot, newFolder);
+
+                    UpdateAssetPathsRecursive(sourceNode, oldRelativePrefix, newRelativePrefix);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[DragDrop] Failed to move node assets: {ex.Message}");
+                    return false;
+                }
+            }
+        }
+
+        if (dropPosition == NodeDropPosition.Inside)
+        {
+            if (ReferenceEquals(sourceParent, targetNode))
+                return false;
+
+            if (sourceCollection == targetNode.Children)
+                return false;
+
+            sourceCollection.RemoveAt(sourceIndex);
+            targetNode.Children.Add(sourceNode);
+            targetNode.IsExpanded = true;
+        }
+        else
+        {
+            if (ReferenceEquals(sourceCollection, targetCollection))
+            {
+                if (sourceIndex == targetIndex && dropPosition == NodeDropPosition.Before)
+                    return false;
+
+                if (sourceIndex == targetIndex + 1 && dropPosition == NodeDropPosition.After)
+                    return false;
+
+                if (sourceIndex < targetIndex)
+                    targetIndex -= 1;
+            }
+
+            sourceCollection.RemoveAt(sourceIndex);
+
+            var insertIndex = dropPosition == NodeDropPosition.Before ? targetIndex : targetIndex + 1;
+            if (insertIndex < 0) insertIndex = 0;
+            if (insertIndex > targetCollection.Count) insertIndex = targetCollection.Count;
+
+            targetCollection.Insert(insertIndex, sourceNode);
+        }
+
+        SelectedNode = sourceNode;
+        MarkLibraryDirty();
+        if (parentChanged)
+            await SaveLibraryIfDirtyAsync(force: true).ConfigureAwait(false);
+        return true;
+    }
+
+    private List<string> BuildNodePathSegments(MediaNode? parent, string nodeName)
+    {
+        var segments = new List<string>();
+        if (parent != null)
+            segments.AddRange(PathHelper.GetNodePath(parent, RootItems));
+
+        segments.Add(nodeName);
+        return segments;
+    }
+
+    private static string ResolveNodeFolder(List<string> nodePathSegments)
+    {
+        var rawPath = Path.Combine(AppPaths.LibraryRoot, Path.Combine(nodePathSegments.ToArray()));
+
+        var sanitizedStack = nodePathSegments
+            .Select(PathHelper.SanitizePathSegment)
+            .ToArray();
+        var sanitizedPath = Path.Combine(AppPaths.LibraryRoot, Path.Combine(sanitizedStack));
+
+        if (string.Equals(rawPath, sanitizedPath, StringComparison.Ordinal))
+            return rawPath;
+
+        if (Directory.Exists(rawPath))
+            return rawPath;
+
+        return sanitizedPath;
+    }
+
+    private static void UpdateAssetPathsRecursive(MediaNode node, string oldPrefix, string newPrefix)
+    {
+        UpdateNodeAssetPaths(node, oldPrefix, newPrefix);
+
+        foreach (var item in node.Items)
+        {
+            UpdateAssetPaths(item.Assets, oldPrefix, newPrefix);
+
+            foreach (var file in item.Files)
+            {
+                if (file.Kind != MediaFileKind.LibraryRelative)
+                    continue;
+
+                file.Path = ReplaceRelativePrefix(file.Path, oldPrefix, newPrefix);
+            }
+
+            item.ResetActiveAssets();
+            item.NotifyAssetPathsChanged();
+        }
+
+        foreach (var child in node.Children)
+        {
+            UpdateAssetPathsRecursive(child, oldPrefix, newPrefix);
+        }
+    }
+
+    private static void UpdateNodeAssetPaths(MediaNode node, string oldPrefix, string newPrefix)
+    {
+        var activeByType = new Dictionary<AssetType, string?>();
+        foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
+        {
+            if (type == AssetType.Unknown)
+                continue;
+
+            activeByType[type] = node.GetPrimaryAssetPath(type);
+        }
+
+        UpdateAssetPaths(node.Assets, oldPrefix, newPrefix);
+
+        foreach (var kvp in activeByType)
+        {
+            var activePath = kvp.Value;
+            if (string.IsNullOrWhiteSpace(activePath))
+                continue;
+
+            var updated = ReplaceRelativePrefix(activePath, oldPrefix, newPrefix);
+            if (!string.Equals(updated, activePath, StringComparison.OrdinalIgnoreCase))
+                node.SetActiveAsset(kvp.Key, updated);
+        }
+    }
+
+    private static void UpdateAssetPaths(IEnumerable<MediaAsset> assets, string oldPrefix, string newPrefix)
+    {
+        foreach (var asset in assets)
+        {
+            if (string.IsNullOrWhiteSpace(asset.RelativePath))
+                continue;
+
+            asset.RelativePath = ReplaceRelativePrefix(asset.RelativePath, oldPrefix, newPrefix);
+        }
+    }
+
+    private static string ReplaceRelativePrefix(string path, string oldPrefix, string newPrefix)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return path;
+
+        var normalizedPath = NormalizeRelativePath(path);
+        var normalizedOld = NormalizeRelativePath(oldPrefix);
+        var normalizedNew = NormalizeRelativePath(newPrefix);
+
+        if (string.Equals(normalizedPath, normalizedOld, StringComparison.OrdinalIgnoreCase))
+            return normalizedNew;
+
+        var oldWithSlash = normalizedOld.EndsWith("/", StringComparison.Ordinal) ? normalizedOld : normalizedOld + "/";
+        if (normalizedPath.StartsWith(oldWithSlash, StringComparison.OrdinalIgnoreCase))
+            return normalizedNew + normalizedPath.Substring(oldWithSlash.Length);
+
+        return path;
+    }
+
+    private static string NormalizeRelativePath(string path)
+    {
+        return path.Replace('\\', '/').Trim();
     }
 
     private bool RemoveNodeRecursive(ObservableCollection<MediaNode> nodes, MediaNode nodeToDelete)

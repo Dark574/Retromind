@@ -399,6 +399,12 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Dialog_ConfirmMoveNodeAssetsFormat {
+            get {
+                return ResourceManager.GetString("Dialog.ConfirmMoveNodeAssetsFormat", resourceCulture);
+            }
+        }
+        
         public static string Dialog_NoResult {
             get {
                 return ResourceManager.GetString("Dialog.NoResult", resourceCulture);
