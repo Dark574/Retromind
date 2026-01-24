@@ -1312,7 +1312,20 @@ public partial class EditMediaViewModel : ViewModelBase
     private void Save()
     {
         // 1. Write metadata back to the original item
-        _originalItem.Title = Title;
+        var oldTitle = _originalItem.Title;
+        var newTitle = Title;
+
+        if (!string.Equals(oldTitle, newTitle, StringComparison.Ordinal))
+        {
+            var renamed = _fileService.RenameItemAssets(_originalItem, oldTitle, newTitle, _nodePath);
+            if (renamed)
+            {
+                _originalItem.ResetActiveAssets();
+                _originalItem.NotifyAssetPathsChanged();
+            }
+        }
+
+        _originalItem.Title = newTitle;
         _originalItem.Developer = Developer;
         _originalItem.Genre = Genre;
         _originalItem.ReleaseDate = ReleaseDate?.DateTime;

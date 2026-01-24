@@ -107,6 +107,87 @@ public class FileManagementService
 
         RaiseLibraryChanged();
     }
+
+    public bool RenameItemAssets(MediaItem item, string oldTitle, string newTitle, List<string> nodePathStack)
+    {
+        if (item == null) return false;
+
+        if (string.Equals(oldTitle, newTitle, StringComparison.Ordinal))
+            return false;
+
+        var oldSafeTitle = SanitizeForFilename(oldTitle);
+        var newSafeTitle = SanitizeForFilename(newTitle);
+        if (string.Equals(oldSafeTitle, newSafeTitle, StringComparison.Ordinal))
+            return false;
+
+        var nodeFolder = ResolveNodeFolder(nodePathStack);
+        if (!Directory.Exists(nodeFolder))
+            return false;
+
+        bool anyRenamed = false;
+        var assetsSnapshot = item.Assets.ToList();
+
+        foreach (var asset in assetsSnapshot)
+        {
+            if (asset == null || string.IsNullOrWhiteSpace(asset.RelativePath))
+                continue;
+
+            var fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
+            if (!File.Exists(fullPath))
+                continue;
+
+            var extension = Path.GetExtension(fullPath);
+            if (string.IsNullOrEmpty(extension))
+                extension = ".bin";
+
+            var fileName = Path.GetFileName(fullPath);
+            var match = AssetRegex.Match(fileName);
+
+            string targetFileName;
+            if (match.Success)
+            {
+                var number = match.Groups[3].Value;
+                targetFileName = $"{newSafeTitle}_{asset.Type}_{number}{extension}";
+            }
+            else
+            {
+                targetFileName = Path.GetFileName(GetNextAssetFileName(nodeFolder, newTitle, asset.Type, extension));
+            }
+
+            var targetFolder = Path.Combine(nodeFolder, asset.Type.ToString());
+            var targetFullPath = Path.Combine(targetFolder, targetFileName);
+
+            if (string.Equals(fullPath, targetFullPath, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (File.Exists(targetFullPath))
+            {
+                targetFullPath = GetNextAssetFileName(nodeFolder, newTitle, asset.Type, extension);
+            }
+
+            try
+            {
+                var targetDir = Path.GetDirectoryName(targetFullPath);
+                if (!string.IsNullOrWhiteSpace(targetDir) && !Directory.Exists(targetDir))
+                    Directory.CreateDirectory(targetDir);
+
+                AsyncImageHelper.InvalidateCache(fullPath);
+                File.Move(fullPath, targetFullPath);
+
+                asset.RelativePath = Path.GetRelativePath(AppPaths.DataRoot, targetFullPath);
+                anyRenamed = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error renaming asset: {ex.Message}");
+            }
+        }
+
+        if (anyRenamed)
+            RaiseLibraryChanged();
+
+        return anyRenamed;
+    }
     
     /// <summary>
     /// Scans the filesystem for assets of a given item and returns the current list.

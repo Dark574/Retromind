@@ -68,5 +68,16 @@ public class MediaAsset
     /// <summary>
     /// Stores the RELATIVE path (e.g., "Games/SNES/Cover/Mario_Cover_01.jpg")
     /// </summary>
-    public string RelativePath { get; set; } = string.Empty;
+    private string _relativePath = string.Empty;
+
+    public string RelativePath
+    {
+        get => _relativePath;
+        set
+        {
+            if (_relativePath == value) return;
+            _relativePath = value ?? string.Empty;
+            _absolutePath = null;
+        }
+    }
 }
