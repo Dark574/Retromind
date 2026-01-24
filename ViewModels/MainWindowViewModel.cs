@@ -496,6 +496,9 @@ public partial class MainWindowViewModel : ViewModelBase
         if (expectedVersion.HasValue && expectedVersion.Value != _libraryDirtyVersion)
             return;
 
+        // Capture the version we are about to save; if it changes during IO we keep the library dirty.
+        var saveVersion = expectedVersion ?? _libraryDirtyVersion;
+
         if (_currentSettings.PreferPortableLaunchPaths)
         {
             var migrated = 0;
@@ -517,16 +520,8 @@ public partial class MainWindowViewModel : ViewModelBase
             await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
 
             // Only mark the library as clean if no new changes happened during this save.
-            if (expectedVersion.HasValue)
-            {
-                if (expectedVersion.Value == _libraryDirtyVersion)
-                    _isLibraryDirty = false;
-            }
-            else
-            {
-                // Force/normal path: after a successful save we are clean.
+            if (_libraryDirtyVersion == saveVersion)
                 _isLibraryDirty = false;
-            }
         }
         catch (Exception ex)
         {
