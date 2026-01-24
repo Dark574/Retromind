@@ -80,14 +80,14 @@
                                     Spacing="4"
                                     VerticalAlignment="Center">
                             <ComboBox ItemsSource="{Binding StatusOptions}"
-                                      SelectedItem="{Binding SelectedStatus, Mode=TwoWay}"
+                                      SelectedItem="{Binding SelectedStatusOption, Mode=TwoWay}"
                                       Width="130"
                                       Height="28"
                                       VerticalContentAlignment="Center"
                                       PlaceholderText="Status">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding}" />
+                                        <TextBlock Text="{Binding Label}" />
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
@@ -100,8 +100,8 @@
                                     BorderThickness="0"
                                     HorizontalContentAlignment="Center"
                                     VerticalContentAlignment="Center"
-                                    Command="{Binding ClearStatusFilterCommand}"
-                                    ToolTip.Tip="Reset status filter">
+                                    Command="{Binding ResetFiltersCommand}"
+                                    ToolTip.Tip="Reset all filters">
                                 <TextBlock Text="✕"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"/>

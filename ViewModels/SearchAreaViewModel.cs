@@ -75,7 +75,10 @@ public partial class SearchAreaViewModel : ViewModelBase
     /// <summary>
     /// Available status values for the status filter combo box
     /// </summary>
-    public IReadOnlyList<PlayStatus> StatusOptions { get; } = Enum.GetValues<PlayStatus>();
+    public IReadOnlyList<StatusFilterOption> StatusOptions { get; } = StatusFilterOption.CreateDefault();
+
+    [ObservableProperty]
+    private StatusFilterOption? _selectedStatusOption;
 
     /// <summary>
     /// Result collection optimized for bulk updates
@@ -91,9 +94,9 @@ public partial class SearchAreaViewModel : ViewModelBase
     public ICommand PlayCommand { get; }
 
     /// <summary>
-    /// Command to clear the status filter (SelectedStatus = null).
+    /// Command to reset all filters to defaults.
     /// </summary>
-    public IRelayCommand ClearStatusFilterCommand { get; }
+    public IRelayCommand ResetFiltersCommand { get; }
     
     public event Action<MediaItem>? RequestPlay;
     
@@ -116,14 +119,27 @@ public partial class SearchAreaViewModel : ViewModelBase
             if (item != null) RequestPlay?.Invoke(item);
         });
         
-        // Allow resetting the status filter back to "no filter"
-        ClearStatusFilterCommand = new RelayCommand(() => SelectedStatus = null);
+        // Allow resetting all filters back to defaults
+        ResetFiltersCommand = new RelayCommand(ResetFilters);
+        SelectedStatusOption = StatusOptions[0];
     }
 
     partial void OnSearchTextChanged(string value) => RequestSearch();
     partial void OnSearchYearChanged(string value) => RequestSearch();
     partial void OnOnlyFavoritesChanged(bool value) => RequestSearch();
-    partial void OnSelectedStatusChanged(PlayStatus? value) => RequestSearch();
+    partial void OnSelectedStatusChanged(PlayStatus? value)
+    {
+        var option = StatusOptions.FirstOrDefault(o => o.Value == value) ?? StatusOptions[0];
+        if (!ReferenceEquals(SelectedStatusOption, option))
+            SelectedStatusOption = option;
+
+        RequestSearch();
+    }
+    partial void OnSelectedStatusOptionChanged(StatusFilterOption? value)
+    {
+        if (SelectedStatus != value?.Value)
+            SelectedStatus = value?.Value;
+    }
 
     private void InitializeScopes()
     {
@@ -329,5 +345,19 @@ public partial class SearchAreaViewModel : ViewModelBase
     {
         if (SelectedMediaItem != null)
             RequestPlay?.Invoke(SelectedMediaItem);
+    }
+
+    private void ResetFilters()
+    {
+        SearchText = string.Empty;
+        SearchYear = string.Empty;
+        OnlyFavorites = false;
+        SelectedStatusOption = StatusOptions[0];
+
+        for (int i = 0; i < Scopes.Count; i++)
+        {
+            if (!Scopes[i].IsSelected)
+                Scopes[i].IsSelected = true;
+        }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Linq;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -58,10 +59,13 @@ public partial class MediaAreaViewModel : ViewModelBase
     [ObservableProperty]
     private PlayStatus? _selectedStatus;
 
+    [ObservableProperty]
+    private StatusFilterOption? _selectedStatusOption;
+
     /// <summary>
     /// Available status values for the status filter combo box.
     /// </summary>
-    public IReadOnlyList<PlayStatus> StatusOptions { get; } = Enum.GetValues<PlayStatus>();
+    public IReadOnlyList<StatusFilterOption> StatusOptions { get; } = StatusFilterOption.CreateDefault();
 
     /// <summary>
     /// Collection bound to the view. Range updates minimize UI stalls.
@@ -69,9 +73,9 @@ public partial class MediaAreaViewModel : ViewModelBase
     public RangeObservableCollection<MediaItem> FilteredItems { get; } = new();
 
     /// <summary>
-    /// Command to clear the status filter (SelectedStatus = null).
+    /// Command to reset all filters to defaults.
     /// </summary>
-    public IRelayCommand ClearStatusFilterCommand { get; }
+    public IRelayCommand ResetFiltersCommand { get; }
     
     public MediaAreaViewModel(MediaNode node, double initialItemWidth)
     {
@@ -85,8 +89,9 @@ public partial class MediaAreaViewModel : ViewModelBase
 
         DoubleClickCommand = new RelayCommand(OnDoubleClick);
         
-        // Allow resetting the status filter back to "no filter"
-        ClearStatusFilterCommand = new RelayCommand(() => SelectedStatus = null);
+        // Allow resetting all filters back to defaults
+        ResetFiltersCommand = new RelayCommand(ResetFilters);
+        SelectedStatusOption = StatusOptions[0];
     }
 
     public ICommand DoubleClickCommand { get; }
@@ -110,8 +115,18 @@ public partial class MediaAreaViewModel : ViewModelBase
     
     partial void OnSelectedStatusChanged(PlayStatus? value)
     {
+        var option = StatusOptions.FirstOrDefault(o => o.Value == value) ?? StatusOptions[0];
+        if (!ReferenceEquals(SelectedStatusOption, option))
+            SelectedStatusOption = option;
+
         // Re-apply when status filter changes
         DebouncedApplyFilter(SearchText);
+    }
+
+    partial void OnSelectedStatusOptionChanged(StatusFilterOption? value)
+    {
+        if (SelectedStatus != value?.Value)
+            SelectedStatus = value?.Value;
     }
     
     private void DebouncedApplyFilter(string querySnapshot)
@@ -148,6 +163,13 @@ public partial class MediaAreaViewModel : ViewModelBase
                 // expected during debounce
             }
         }, token);
+    }
+
+    private void ResetFilters()
+    {
+        SearchText = string.Empty;
+        OnlyFavorites = false;
+        SelectedStatusOption = StatusOptions[0];
     }
 
     private List<MediaItem> BuildMatches(string querySnapshot, CancellationToken token)
