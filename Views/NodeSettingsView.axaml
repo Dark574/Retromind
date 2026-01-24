@@ -178,6 +178,10 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
+                    <TextBlock Text="{Binding InheritedEmulatorInfo}"
+                               IsVisible="{Binding IsEmulatorInherited}"
+                               FontSize="11"
+                               Foreground="#888888" />
                 </StackPanel>
 
                 <!-- Native wrapper chain (Linux) -->

@@ -26,6 +26,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private const string InheritEmulatorId = "";
 
     private readonly MediaNode _node;
+    private readonly ObservableCollection<MediaNode> _rootNodes;
     private readonly AppSettings _settings;
 
     /// <summary>
@@ -60,6 +61,25 @@ public partial class NodeSettingsViewModel : ViewModelBase
     [ObservableProperty] private string? _selectedTheme;
 
     public bool IsThemeExplicitlySelected => !string.IsNullOrWhiteSpace(SelectedTheme);
+
+    private string? _inheritedEmulatorName;
+    private string? _inheritedEmulatorSourceName;
+
+    public bool IsEmulatorInherited => SelectedEmulator?.Id == InheritEmulatorId;
+
+    public string InheritedEmulatorInfo
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_inheritedEmulatorName))
+                return Strings.NodeSettings_InheritedEmulatorNone;
+
+            return string.Format(
+                Strings.NodeSettings_InheritedEmulatorInfoFormat,
+                _inheritedEmulatorName,
+                _inheritedEmulatorSourceName);
+        }
+    }
     
     // Node-level artwork for BigMode / System themes
     [ObservableProperty] private string? _nodeLogoPath;
@@ -74,6 +94,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsThemeExplicitlySelected));
         OnPropertyChanged(nameof(IsSystemThemeSelectionEnabled));
+    }
+
+    partial void OnSelectedEmulatorChanged(EmulatorConfig? value)
+    {
+        OnPropertyChanged(nameof(IsEmulatorInherited));
+        OnPropertyChanged(nameof(InheritedEmulatorInfo));
     }
 
     
@@ -124,17 +150,20 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     public NodeSettingsViewModel(
         MediaNode node,
+        ObservableCollection<MediaNode> rootNodes,
         AppSettings settings,
         FileManagementService fileService,
         List<string> nodePath)
     {
         _node = node ?? throw new ArgumentNullException(nameof(node));
+        _rootNodes = rootNodes ?? throw new ArgumentNullException(nameof(rootNodes));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
         _nodePath = nodePath ?? throw new ArgumentNullException(nameof(nodePath));
 
         InitializeFromNode();
         InitializeEmulators();
+        ResolveInheritedEmulatorInfo();
         LoadAvailableThemes();
         LoadSystemThemes();
         InitializeSystemThemeSelection();
@@ -344,6 +373,48 @@ public partial class NodeSettingsViewModel : ViewModelBase
         }
 
         SelectedEmulator ??= AvailableEmulators.FirstOrDefault();
+    }
+
+    private void ResolveInheritedEmulatorInfo()
+    {
+        _inheritedEmulatorName = null;
+        _inheritedEmulatorSourceName = null;
+
+        var chain = GetNodeChain(_node, _rootNodes);
+        if (chain.Count <= 1)
+            return;
+
+        for (var i = chain.Count - 2; i >= 0; i--)
+        {
+            var parent = chain[i];
+            if (string.IsNullOrWhiteSpace(parent.DefaultEmulatorId))
+                continue;
+
+            var emulator = _settings.Emulators.FirstOrDefault(e => e.Id == parent.DefaultEmulatorId);
+            _inheritedEmulatorName = emulator?.Name ?? parent.DefaultEmulatorId;
+            _inheritedEmulatorSourceName = parent.Name;
+            break;
+        }
+
+        OnPropertyChanged(nameof(InheritedEmulatorInfo));
+    }
+
+    private static List<MediaNode> GetNodeChain(MediaNode target, ObservableCollection<MediaNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (node == target)
+                return new List<MediaNode> { node };
+
+            var chain = GetNodeChain(target, node.Children);
+            if (chain.Count > 0)
+            {
+                chain.Insert(0, node);
+                return chain;
+            }
+        }
+
+        return new List<MediaNode>();
     }
 
     private void LoadAvailableThemes()

@@ -788,6 +788,18 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("NodeSettings_DefaultEmulatorForFolder", resourceCulture);
             }
         }
+
+        public static string NodeSettings_InheritedEmulatorInfoFormat {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedEmulatorInfoFormat", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_InheritedEmulatorNone {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedEmulatorNone", resourceCulture);
+            }
+        }
         
         public static string NodeSettings_BigModeThemeHint {
             get {

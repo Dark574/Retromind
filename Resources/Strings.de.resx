@@ -177,6 +177,8 @@
     <data name="NodeSettings_Title" xml:space="preserve"><value>Kategorie Einstellungen</value></data>
     <data name="NodeSettings_DescriptionForBigMode" xml:space="preserve"><value>Beschreibung (für BigMode)</value></data>
     <data name="NodeSettings_DefaultEmulatorForFolder" xml:space="preserve"><value>Standard Emulator (für diesen Ordner)</value></data>
+    <data name="NodeSettings_InheritedEmulatorInfoFormat" xml:space="preserve"><value>Geerbter Emulator: {0} (von {1})</value></data>
+    <data name="NodeSettings_InheritedEmulatorNone" xml:space="preserve"><value>Geerbter Emulator: keiner</value></data>
     <data name="NodeSettings_BigModeThemeHint" xml:space="preserve"><value>BigMode Theme (Themes/&lt;Theme&gt;/theme.axaml)</value></data>
     <data name="NodeSettings_ThemeAuto" xml:space="preserve"><value>Auto (Konvention/Default)</value></data>
     <data name="NodeSettings_PresentationAndAssets" xml:space="preserve"><value>Darstellung &amp; Assets</value></data>

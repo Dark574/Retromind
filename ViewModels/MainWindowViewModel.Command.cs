@@ -362,6 +362,7 @@ public partial class MainWindowViewModel
         
         var vm = new NodeSettingsViewModel(
             node,
+            RootItems,
             _currentSettings,
             _fileService,
             nodePath);
