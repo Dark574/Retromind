@@ -100,9 +100,14 @@ public class FileManagementService
 
         Helpers.AsyncImageHelper.InvalidateCache(fullPath);
 
-        if (File.Exists(fullPath))
+        try
         {
-            File.Delete(fullPath);
+            if (File.Exists(fullPath))
+                File.Delete(fullPath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting asset: {ex.Message}");
         }
 
         RaiseLibraryChanged();

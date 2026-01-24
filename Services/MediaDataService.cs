@@ -43,6 +43,8 @@ public class MediaDataService
         {
             var options = CreateSerializerOptions();
 
+            Directory.CreateDirectory(AppPaths.DataRoot);
+
             // 1. Write to a temporary file first
             using (var stream = File.Create(TempPath))
             {

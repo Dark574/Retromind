@@ -148,6 +148,32 @@ public partial class EditMediaViewModel : ViewModelBase
 
         return safe;
     }
+
+    private static bool TryMakeDataRelativeIfInsideDataRoot(string absolutePath, out string relativePath)
+    {
+        relativePath = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(absolutePath))
+            return false;
+
+        if (!Path.IsPathRooted(absolutePath))
+            return false;
+
+        var dataRoot = Path.GetFullPath(AppPaths.DataRoot);
+        var dataRootWithSep = dataRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? dataRoot
+            : dataRoot + Path.DirectorySeparatorChar;
+        var fullPath = Path.GetFullPath(absolutePath);
+
+        if (string.Equals(fullPath, dataRoot, StringComparison.Ordinal) ||
+            fullPath.StartsWith(dataRootWithSep, StringComparison.Ordinal))
+        {
+            relativePath = Path.GetRelativePath(dataRoot, fullPath);
+            return true;
+        }
+
+        return false;
+    }
     
     public enum WrapperMode
     {
@@ -1259,8 +1285,16 @@ public partial class EditMediaViewModel : ViewModelBase
 
         if (_settings.PreferPortableLaunchPaths)
         {
-            storedPath = AppPaths.MakeDataRelative(path);
-            storedKind = MediaFileKind.LibraryRelative;
+            if (TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
+            {
+                storedPath = relativePath;
+                storedKind = MediaFileKind.LibraryRelative;
+            }
+            else
+            {
+                storedPath = path;
+                storedKind = MediaFileKind.Absolute;
+            }
         }
         else
         {
