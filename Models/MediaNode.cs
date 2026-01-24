@@ -89,7 +89,26 @@ public partial class MediaNode : ObservableObject
     [ObservableProperty] 
     private string _description = string.Empty;
 
-    public ObservableCollection<MediaAsset> Assets { get; set; } = new();
+    private ObservableCollection<MediaAsset> _assets = new();
+
+    public ObservableCollection<MediaAsset> Assets
+    {
+        get => _assets;
+        set
+        {
+            if (ReferenceEquals(_assets, value))
+                return;
+
+            if (_assets != null)
+                _assets.CollectionChanged -= OnAssetsChanged;
+
+            _assets = value ?? new ObservableCollection<MediaAsset>();
+            _assets.CollectionChanged += OnAssetsChanged;
+            OnPropertyChanged();
+
+            OnAssetsChanged(_assets, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+        }
+    }
     
     private readonly Dictionary<AssetType, string> _activeAssets = new();
     
@@ -135,7 +154,7 @@ public partial class MediaNode : ObservableObject
 
     public MediaNode()
     {
-        Assets.CollectionChanged += OnAssetsChanged;
+        _assets.CollectionChanged += OnAssetsChanged;
     } // For JSON Deserializer
 
     public MediaNode(string name, NodeType type)
@@ -143,7 +162,7 @@ public partial class MediaNode : ObservableObject
         Name = name;
         Type = type;
         IsExpanded = true; // Expand new nodes by default for better UX
-        Assets.CollectionChanged += OnAssetsChanged;
+        _assets.CollectionChanged += OnAssetsChanged;
     }
     
     private void OnAssetsChanged(object? sender, NotifyCollectionChangedEventArgs e)
