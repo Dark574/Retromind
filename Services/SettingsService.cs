@@ -59,7 +59,7 @@ public class SettingsService
                     try
                     {
                         File.Copy(BackupPath, FilePath, overwrite: true);
-                        var settings = await LoadFromFileAsync(FilePath).ConfigureAwait(false);
+                        var settings = await LoadFromFileAsync(FilePath, throwOnJsonError: false).ConfigureAwait(false);
                         if (settings != null)
                             return settings;
                     }
@@ -75,10 +75,11 @@ public class SettingsService
             // 1) Try main file
             try
             {
-                var settings = await LoadFromFileAsync(FilePath).ConfigureAwait(false);
+                var settings = await LoadFromFileAsync(FilePath, throwOnJsonError: true).ConfigureAwait(false);
                 if (settings != null) return settings;
 
-                return new AppSettings();
+                // Treat a null result as a failure so we still try the backup path.
+                throw new IOException("Settings file could not be read.");
             }
             catch (JsonException jsonEx)
             {
@@ -100,7 +101,7 @@ public class SettingsService
                 if (File.Exists(BackupPath))
                 {
                     Debug.WriteLine("[SettingsService] Attempting to restore settings from .bak ...");
-                    var restored = await LoadFromFileAsync(BackupPath).ConfigureAwait(false);
+                    var restored = await LoadFromFileAsync(BackupPath, throwOnJsonError: false).ConfigureAwait(false);
                     if (restored != null)
                     {
                         // Best effort: restore backup to main file so next start is clean
@@ -126,7 +127,7 @@ public class SettingsService
                 // As a last resort, try backup
                 if (File.Exists(BackupPath))
                 {
-                    var restored = await LoadFromFileAsync(BackupPath).ConfigureAwait(false);
+                    var restored = await LoadFromFileAsync(BackupPath, throwOnJsonError: false).ConfigureAwait(false);
                     if (restored != null) return restored;
                 }
 
@@ -152,26 +153,27 @@ public class SettingsService
         }
     }
 
-    private async Task<AppSettings?> LoadFromFileAsync(string path)
+    private async Task<AppSettings?> LoadFromFileAsync(string path, bool throwOnJsonError)
     {
         try
         {
             using var stream = File.OpenRead(path);
             var settings = await JsonSerializer.DeserializeAsync<AppSettings>(stream).ConfigureAwait(false);
-            settings ??= new AppSettings();
+            if (settings == null)
+                return null;
 
             UnprotectSensitiveData(settings);
             return settings;
         }
         catch (JsonException)
         {
-            // Corrupt/invalid JSON -> treat as "no settings" and fall back to defaults.
-            return new AppSettings();
+            if (throwOnJsonError)
+                throw;
+            return null;
         }
         catch
         {
-            // IO or other unexpected error -> also return defaults.
-            return new AppSettings();
+            return null;
         }
     }
 
