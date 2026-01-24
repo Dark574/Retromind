@@ -399,6 +399,29 @@ Not every theme must use every value; many are intended as shared knobs.
 - `ThemeProperties.BodyFontSize` (double, default: `18`)
 - `ThemeProperties.CaptionFontSize` (double, default: `14`)
 
+Optional font families (system name or theme-relative file path):
+
+- `ThemeProperties.TitleFontFamily` (string?, optional)
+- `ThemeProperties.BodyFontFamily` (string?, optional)
+- `ThemeProperties.CaptionFontFamily` (string?, optional)
+- `ThemeProperties.MonoFontFamily` (string?, optional)
+
+Font family notes:
+- Use system font names like `IBM Plex Sans`, or theme-relative file paths like `Fonts/IBMPlexSans-Regular.ttf`.
+- Supported file extensions: `.ttf`, `.otf`, `.ttc`.
+- Fonts apply to `TextBlock` elements using the matching classes (see Section 7.2).
+
+Example:
+```xml
+<UserControl xmlns:ext="clr-namespace:Retromind.Extensions"
+             ext:ThemeProperties.TitleFontFamily="Fonts/Fraunces-SemiBold.ttf"
+             ext:ThemeProperties.BodyFontFamily="Fonts/IBMPlexSans-Regular.ttf"
+             ext:ThemeProperties.CaptionFontFamily="Fonts/IBMPlexSans-SemiBold.ttf"
+             ext:ThemeProperties.MonoFontFamily="Fonts/IBMPlexMono-Regular.ttf">
+    <!-- layout -->
+</UserControl>
+```
+
 ### 6.8 Attract Mode (auto-random selection on idle)
 
 Some BigMode themes (especially arcade-style layouts) may want to automatically
@@ -595,12 +618,13 @@ Example:
 
 ### 7.2 Typography
 
-#### `rm-title`, `rm-body`, `rm-caption`
-Apply default font sizes to `TextBlock` elements:
+#### `rm-title`, `rm-body`, `rm-caption`, `rm-mono`
+Apply default font sizes and optional font families to `TextBlock` elements:
 
 - `rm-title` → `TitleFontSize`
 - `rm-body` → `BodyFontSize`
 - `rm-caption` → `CaptionFontSize`
+- `rm-mono` → `MonoFontFamily` (family only)
 
 Example:
 ```xml
@@ -614,6 +638,9 @@ Example:
 
 <TextBlock Classes="rm-caption"
            Text="Press A to start"/>
+
+<TextBlock Classes="rm-mono"
+           Text="ROM: MegaManX.smc"/>
 ```
 
 ---

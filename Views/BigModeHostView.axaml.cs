@@ -404,6 +404,15 @@ public partial class BigModeHostView : UserControl
         var bodyFontSize = ThemeProperties.GetBodyFontSize(themeRoot);
         var captionFontSize = ThemeProperties.GetCaptionFontSize(themeRoot);
 
+        var titleFontFamily = ThemeFontFamilyConverter.ResolveFontFamily(
+            ThemeProperties.GetTitleFontFamily(themeRoot));
+        var bodyFontFamily = ThemeFontFamilyConverter.ResolveFontFamily(
+            ThemeProperties.GetBodyFontFamily(themeRoot));
+        var captionFontFamily = ThemeFontFamilyConverter.ResolveFontFamily(
+            ThemeProperties.GetCaptionFontFamily(themeRoot));
+        var monoFontFamily = ThemeFontFamilyConverter.ResolveFontFamily(
+            ThemeProperties.GetMonoFontFamily(themeRoot));
+
         var accent = ThemeProperties.GetAccentColor(themeRoot);
 
         var fadeDuration = TimeSpan.FromMilliseconds(Math.Clamp(fadeMs, 0, 5000));
@@ -452,18 +461,35 @@ public partial class BigModeHostView : UserControl
             }
         }
 
-        // Typography defaults: opt-in via classes (rm-title/rm-body/rm-caption)
+        // Typography defaults: opt-in via classes (rm-title/rm-body/rm-caption/rm-mono)
         foreach (var v in themeRoot.GetVisualDescendants())
         {
             if (v is not TextBlock tb)
                 continue;
 
             if (tb.Classes.Contains("rm-title"))
+            {
                 tb.FontSize = titleFontSize;
+                if (titleFontFamily != null)
+                    tb.FontFamily = titleFontFamily;
+            }
             else if (tb.Classes.Contains("rm-body"))
+            {
                 tb.FontSize = bodyFontSize;
+                if (bodyFontFamily != null)
+                    tb.FontFamily = bodyFontFamily;
+            }
             else if (tb.Classes.Contains("rm-caption"))
+            {
                 tb.FontSize = captionFontSize;
+                if (captionFontFamily != null)
+                    tb.FontFamily = captionFontFamily;
+            }
+            else if (tb.Classes.Contains("rm-mono"))
+            {
+                if (monoFontFamily != null)
+                    tb.FontFamily = monoFontFamily;
+            }
         }
     }
 

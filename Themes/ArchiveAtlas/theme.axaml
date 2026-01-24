@@ -1,0 +1,364 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions"
+             xmlns:helpers="using:Retromind.Helpers"
+             x:DataType="vm:BigModeViewModel"
+             Background="#F3EEE4"
+
+             ext:ThemeProperties.Name="Archive Atlas"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.SecondaryVideoEnabled="True"
+             ext:ThemeProperties.SecondaryVideoSlotName="BackgroundVideoSlot"
+             ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/background_loop.mp4"
+             ext:ThemeProperties.SelectedScale="1.03"
+             ext:ThemeProperties.UnselectedOpacity="0.72"
+             ext:ThemeProperties.AccentColor="#1E6F70"
+             ext:ThemeProperties.TitleFontFamily="Fonts/Fraunces-SemiBold.ttf"
+             ext:ThemeProperties.BodyFontFamily="Fonts/IBMPlexSans-Regular.ttf"
+             ext:ThemeProperties.CaptionFontFamily="Fonts/IBMPlexSans-SemiBold.ttf"
+             ext:ThemeProperties.MonoFontFamily="Fonts/IBMPlexMono-Regular.ttf"
+             ext:ThemeProperties.FadeDurationMs="950"
+             ext:ThemeProperties.MoveDurationMs="950"
+             ext:ThemeProperties.PrimaryVisualElementName="CoverCard"
+             ext:ThemeProperties.PrimaryVisualEnterMode="SlideFromBottom"
+             ext:ThemeProperties.PrimaryVisualEnterOffsetY="140"
+             ext:ThemeProperties.BackgroundDimOpacity="0.15"
+             ext:ThemeProperties.PanelBackgroundOpacity="0.20">
+
+    <UserControl.Resources>
+        <helpers:ThemeFontFamilyConverter x:Key="ThemeFontConverter" />
+        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1.0" FalseOpacity="0.0" />
+        <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
+
+        <SolidColorBrush x:Key="InkBrush" Color="#1E1A16" />
+        <SolidColorBrush x:Key="MutedInkBrush" Color="#5C534C" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#1E6F70" />
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#CFE3DD" />
+        <SolidColorBrush x:Key="RustBrush" Color="#B64A32" />
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#D6CAB8" />
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#F8F2E7" />
+
+        <LinearGradientBrush x:Key="PaperGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#F7F2E8" Offset="0" />
+            <GradientStop Color="#EFE7D7" Offset="0.52" />
+            <GradientStop Color="#E7DDCB" Offset="1" />
+        </LinearGradientBrush>
+
+        <RadialGradientBrush x:Key="AtlasGlow" Center="0.65,0.25" RadiusX="0.85" RadiusY="0.85">
+            <GradientStop Color="#FFFFFF" Offset="0" />
+            <GradientStop Color="#F2E9DA" Offset="0.45" />
+            <GradientStop Color="#E6DCC9" Offset="1" />
+        </RadialGradientBrush>
+
+        <DrawingBrush x:Key="DotPatternBrush"
+                      TileMode="Tile"
+                      Stretch="None"
+                      DestinationRect="0,0,0.008,0.008">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#2A221C" Geometry="M 2,2 h 1 v 1 h -1 z" />
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
+            <Setter Property="FontFamily"
+                    Value="{Binding RelativeSource={RelativeSource AncestorType=UserControl},
+                                    Path=(ext:ThemeProperties.BodyFontFamily),
+                                    Converter={StaticResource ThemeFontConverter}}" />
+        </Style>
+
+        <Style Selector="TextBlock.Muted">
+            <Setter Property="Foreground" Value="{DynamicResource MutedInkBrush}" />
+        </Style>
+
+        <Style Selector="TextBlock.Mono">
+            <Setter Property="FontFamily"
+                    Value="{Binding RelativeSource={RelativeSource AncestorType=UserControl},
+                                    Path=(ext:ThemeProperties.MonoFontFamily),
+                                    Converter={StaticResource ThemeFontConverter}}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="LetterSpacing" Value="1.2" />
+        </Style>
+
+        <Style Selector="TextBlock.Title">
+            <Setter Property="FontFamily"
+                    Value="{Binding RelativeSource={RelativeSource AncestorType=UserControl},
+                                    Path=(ext:ThemeProperties.TitleFontFamily),
+                                    Converter={StaticResource ThemeFontConverter}}" />
+            <Setter Property="FontSize" Value="40" />
+        </Style>
+
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected Border#ItemFrame">
+            <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <!-- Background layers -->
+        <Rectangle Fill="{DynamicResource PaperGradient}" />
+        <Rectangle Fill="{DynamicResource AtlasGlow}" Opacity="0.45" />
+
+        <!-- Optional background video (secondary channel) -->
+        <Border x:Name="BackgroundVideoSlot"
+                Opacity="0.14"
+                ClipToBounds="True"
+                IsVisible="{Binding SecondaryVideoHasContent}" />
+
+        <!-- Low-opacity wallpaper for item or category -->
+        <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
+               helpers:AsyncImageHelper.DecodeWidth="1920"
+               Stretch="UniformToFill"
+               Opacity="0.10"
+               IsVisible="{Binding SelectedItem.PrimaryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+        <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}"
+               helpers:AsyncImageHelper.DecodeWidth="1920"
+               Stretch="UniformToFill"
+               Opacity="0.08"
+               IsVisible="{Binding SelectedCategory.PrimaryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+        <Rectangle Fill="{DynamicResource DotPatternBrush}" Opacity="0.06" />
+
+        <!-- Content grid -->
+        <Grid ColumnDefinitions="0.25*,0.45*,0.30*" Margin="36,28">
+            <!-- Left column: Index -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource CardBackgroundBrush}"
+                    BorderBrush="{DynamicResource CardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="18,20">
+                <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="10">
+                    <TextBlock Grid.Row="0"
+                               Classes="Mono"
+                               Text="INDEX" />
+
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding CategoryTitle}"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentBrush}"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <Border Grid.Row="2"
+                            Height="1"
+                            Background="#D8CBB9" />
+
+                    <!-- Category list -->
+                    <ListBox Grid.Row="3"
+                             ItemsSource="{Binding CurrentCategories}"
+                             SelectedItem="{Binding SelectedCategory}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                             IsVisible="{Binding IsCategorySelectionActive}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="ItemFrame"
+                                        CornerRadius="10"
+                                        Padding="8,6"
+                                        Margin="0,3">
+                                    <TextBlock Text="{Binding Name}"
+                                               FontSize="15"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- Game list -->
+                    <ListBox Grid.Row="3"
+                             ItemsSource="{Binding Items}"
+                             SelectedItem="{Binding SelectedItem}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                             IsVisible="{Binding IsGameListActive}"
+                             helpers:ListBoxBehaviors.CenterSelectedItem="True">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="ItemFrame"
+                                        CornerRadius="10"
+                                        Padding="8,6"
+                                        Margin="0,3">
+                                    <TextBlock Text="{Binding Title}"
+                                               FontSize="15"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock Grid.Row="4"
+                               Classes="Mono"
+                               Foreground="{DynamicResource MutedInkBrush}">
+                        <Run Text="ITEM " />
+                        <Run Text="{Binding CurrentGameNumber}" />
+                        <Run Text=" OF " />
+                        <Run Text="{Binding TotalGames}" />
+                    </TextBlock>
+                </Grid>
+            </Border>
+
+            <!-- Center column: Preview + cover -->
+            <Grid Grid.Column="1" Margin="20,0">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Row="0" Spacing="6">
+                        <TextBlock Classes="Title"
+                                   Text="{Binding SelectedItem.Title}"
+                                   TextWrapping="Wrap"
+                                   MaxLines="2"
+                                   IsVisible="{Binding IsGameListActive}" />
+                        <TextBlock FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   Text="{Binding SelectedCategory.Name}"
+                                   IsVisible="{Binding IsCategorySelectionActive}" />
+                    </StackPanel>
+
+                    <Border Grid.Row="1"
+                            x:Name="VideoSlot"
+                            Background="#EDE4D7"
+                            BorderBrush="#D8CBB9"
+                            BorderThickness="1"
+                            CornerRadius="18"
+                            ClipToBounds="True"
+                            Margin="0,12,0,0">
+                        <Grid>
+                            <TextBlock Text="No preview video"
+                                       Classes="Muted"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Cover card overlay -->
+                    <Border Grid.Row="1"
+                            x:Name="CoverCard"
+                            Width="210"
+                            Height="320"
+                            Background="#F5EEE0"
+                            BorderBrush="#CABBA7"
+                            BorderThickness="1"
+                            CornerRadius="14"
+                            Margin="-40,40,0,0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            ClipToBounds="True"
+                            IsVisible="{Binding SelectedItem.PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
+                               helpers:AsyncImageHelper.DecodeWidth="700"
+                               Stretch="UniformToFill" />
+                    </Border>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
+                        <Border Background="{DynamicResource AccentBrush}" CornerRadius="6" Padding="8,4">
+                            <TextBlock Foreground="#F7F2E8"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding SelectedYear, StringFormat=YEAR {0}}" />
+                        </Border>
+                        <Border Background="#1F1A17"
+                                CornerRadius="6"
+                                Padding="8,4"
+                                IsVisible="{Binding SelectedDeveloper, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                            <TextBlock Foreground="#E8DFC9"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding SelectedDeveloper, StringFormat=BY {0}}" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- Right column: Details -->
+            <Border Grid.Column="2"
+                    Background="{DynamicResource CardBackgroundBrush}"
+                    BorderBrush="{DynamicResource CardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="18,20"
+                    Margin="10,0,0,0">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="DETAILS" Classes="Mono" />
+
+                    <StackPanel IsVisible="{Binding IsGameListActive}" Spacing="8">
+                        <TextBlock Classes="Title"
+                                   FontSize="28"
+                                   Text="{Binding SelectedItem.Title}"
+                                   TextWrapping="Wrap" />
+
+                        <TextBlock Text="{Binding SelectedItem.Description}"
+                                   Classes="Muted"
+                                   FontSize="13"
+                                   TextWrapping="Wrap"
+                                   MaxHeight="180" />
+
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="6">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="Mono" Text="GENRE" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedItem.Genre}" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="Mono" Text="PLAYERS" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedItem.Players}" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="Mono" Text="RATING" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedItem.Rating}" />
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="Mono" Text="STATUS" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedItem.Status}" />
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel IsVisible="{Binding IsCategorySelectionActive}" Spacing="8">
+                        <TextBlock Classes="Title"
+                                   FontSize="28"
+                                   Text="{Binding SelectedCategory.Name}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding SelectedCategory.Description}"
+                                   Classes="Muted"
+                                   FontSize="13"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <Border Height="1" Background="#D8CBB9" Margin="0,6" IsVisible="{Binding IsGameListActive}" />
+
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6" IsVisible="{Binding IsGameListActive}">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="Mono" Text="PLAY COUNT" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Classes="Mono" Text="LAST PLAYED" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding SelectedItem.PlayCount}" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedItem.LastPlayed}" />
+                    </Grid>
+
+                    <StackPanel Spacing="4" IsVisible="{Binding IsGameListActive}">
+                        <TextBlock Classes="Mono" Text="TOTAL PLAY TIME" />
+                        <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
