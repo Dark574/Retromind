@@ -366,6 +366,7 @@ public partial class MainWindowViewModel
         // Determine the logical node path (from root to this node),
         // so node-level assets end up in the same folder structure as media items.
         var nodePath = PathHelper.GetNodePath(node, RootItems);
+        var wasSelected = SelectedNode == node;
         
         var vm = new NodeSettingsViewModel(
             node,
@@ -376,13 +377,31 @@ public partial class MainWindowViewModel
         
         var dialog = new NodeSettingsView { DataContext = vm };
         
-        vm.RequestClose += _ => { dialog.Close(); };
+        var saved = false;
+        vm.RequestClose += result =>
+        {
+            saved = result;
+            dialog.Close();
+        };
         
         await dialog.ShowDialog(owner);
         
         // NodeSettings can change properties/assets -> mark as dirty
-        MarkLibraryDirty();
-        await SaveData();
+        if (saved)
+        {
+            MarkLibraryDirty();
+            await SaveData();
+            
+            if (wasSelected)
+            {
+                SelectedNode = node;
+                UpdateContent();
+            }
+            else if (IsNodeInCurrentView(node))
+            {
+                UpdateContent();
+            }
+        }
     }
 
     private const string DefaultThemeFolderName = "Default";
@@ -1002,7 +1021,12 @@ public partial class MainWindowViewModel
 
         var oldWithSlash = normalizedOld.EndsWith("/", StringComparison.Ordinal) ? normalizedOld : normalizedOld + "/";
         if (normalizedPath.StartsWith(oldWithSlash, StringComparison.OrdinalIgnoreCase))
-            return normalizedNew + normalizedPath.Substring(oldWithSlash.Length);
+        {
+            var normalizedNewWithSlash = normalizedNew.EndsWith("/", StringComparison.Ordinal)
+                ? normalizedNew
+                : normalizedNew + "/";
+            return normalizedNewWithSlash + normalizedPath.Substring(oldWithSlash.Length);
+        }
 
         return path;
     }

@@ -621,12 +621,15 @@ public partial class NodeSettingsViewModel : ViewModelBase
         {
             UpdateAssetPaths(item.Assets, oldPrefix, newPrefix);
 
-            foreach (var file in item.Files)
+            if (item.Files != null)
             {
-                if (file.Kind != MediaFileKind.LibraryRelative)
-                    continue;
+                foreach (var file in item.Files)
+                {
+                    if (file.Kind != MediaFileKind.LibraryRelative)
+                        continue;
 
-                file.Path = ReplaceRelativePrefix(file.Path, oldPrefix, newPrefix);
+                    file.Path = ReplaceRelativePrefix(file.Path, oldPrefix, newPrefix);
+                }
             }
 
             item.ResetActiveAssets();
@@ -689,7 +692,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         var oldWithSlash = normalizedOld.EndsWith("/", StringComparison.Ordinal) ? normalizedOld : normalizedOld + "/";
         if (normalizedPath.StartsWith(oldWithSlash, StringComparison.OrdinalIgnoreCase))
-            return normalizedNew + normalizedPath.Substring(oldWithSlash.Length);
+        {
+            var normalizedNewWithSlash = normalizedNew.EndsWith("/", StringComparison.Ordinal)
+                ? normalizedNew
+                : normalizedNew + "/";
+            return normalizedNewWithSlash + normalizedPath.Substring(oldWithSlash.Length);
+        }
 
         return path;
     }
