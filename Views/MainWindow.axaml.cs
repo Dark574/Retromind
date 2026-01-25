@@ -1,10 +1,13 @@
 using System;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Views;
 using Retromind.ViewModels;
 
 namespace Retromind;
@@ -27,6 +30,10 @@ public partial class MainWindow : Window
     private bool _dragInProgress;
     private Control? _dropIndicatorTarget;
     private MainWindowViewModel.NodeDropPosition? _dropIndicatorPosition;
+
+    private static readonly TimeSpan TypeSearchResetDelay = TimeSpan.FromMilliseconds(800);
+    private string _typeSearchBuffer = string.Empty;
+    private DateTime _typeSearchLastUtc = DateTime.MinValue;
     
     public MainWindow()
     {
@@ -331,6 +338,101 @@ public partial class MainWindow : Window
         _dropIndicatorTarget.Classes.Remove(DropInsideClass);
         _dropIndicatorTarget = null;
         _dropIndicatorPosition = null;
+    }
+
+    private void OnTextInput(object? sender, TextInputEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm)
+            return;
+
+        if (vm.FullScreenContent != null)
+            return;
+
+        if (IsTextInputFocused())
+            return;
+
+        var input = e.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(input))
+            return;
+
+        if (vm.SelectedNodeContent is not MediaAreaViewModel mediaVm)
+            return;
+
+        if (mediaVm.FilteredItems.Count == 0)
+            return;
+
+        var now = DateTime.UtcNow;
+        if (now - _typeSearchLastUtc > TypeSearchResetDelay)
+            _typeSearchBuffer = input;
+        else
+            _typeSearchBuffer += input;
+
+        _typeSearchLastUtc = now;
+
+        if (!TrySelectMediaByPrefix(mediaVm, _typeSearchBuffer) && _typeSearchBuffer.Length > input.Length)
+        {
+            _typeSearchBuffer = input;
+            TrySelectMediaByPrefix(mediaVm, _typeSearchBuffer);
+        }
+
+        e.Handled = true;
+    }
+
+    private bool TrySelectMediaByPrefix(MediaAreaViewModel mediaVm, string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(prefix))
+            return false;
+
+        MediaItem? match = null;
+        for (var i = 0; i < mediaVm.FilteredItems.Count; i++)
+        {
+            var item = mediaVm.FilteredItems[i];
+            var title = item.Title;
+
+            if (string.IsNullOrWhiteSpace(title))
+                continue;
+
+            if (title.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                match = item;
+                break;
+            }
+        }
+
+        if (match == null)
+            return false;
+
+        mediaVm.SelectedMediaItem = match;
+        ScrollMediaItemIntoView(mediaVm, match);
+        return true;
+    }
+
+    private void ScrollMediaItemIntoView(MediaAreaViewModel mediaVm, MediaItem item)
+    {
+        var mediaView = this.GetVisualDescendants()
+            .OfType<MediaAreaView>()
+            .FirstOrDefault(view => ReferenceEquals(view.DataContext, mediaVm));
+
+        if (mediaView?.MediaList == null)
+            return;
+
+        Dispatcher.UIThread.Post(
+            () => mediaView.MediaList.ScrollIntoView(item),
+            DispatcherPriority.Background);
+    }
+
+    private bool IsTextInputFocused()
+    {
+        var focusManager = TopLevel.GetTopLevel(this)?.FocusManager;
+        var focused = focusManager?.GetFocusedElement();
+
+        if (focused is TextBox)
+            return true;
+
+        if (focused is Visual visual)
+            return visual.GetVisualAncestors().OfType<TextBox>().Any();
+
+        return false;
     }
     
     private void OnKeyDown(object? sender, KeyEventArgs e)

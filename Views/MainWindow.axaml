@@ -19,7 +19,8 @@
         ExtendClientAreaToDecorationsHint="False"
         ExtendClientAreaTitleBarHeightHint="-1"
         
-        KeyDown="OnKeyDown" >
+        KeyDown="OnKeyDown"
+        TextInput="OnTextInput" >
 
     <Window.DataTemplates>
         <DataTemplate DataType="{x:Type vm:MediaAreaViewModel}">
