@@ -459,8 +459,12 @@ public partial class EditMediaViewModel : ViewModelBase
             }
             else
             {
+                var pfxPath = Path.Combine(prefixRoot, "pfx");
+                var rootInitialized = IsWinePrefixInitialized(prefixRoot);
+                var pfxInitialized = IsWinePrefixInitialized(pfxPath);
+
                 compatRoot = prefixRoot;
-                winePrefix = Path.Combine(prefixRoot, "pfx");
+                winePrefix = rootInitialized && !pfxInitialized ? prefixRoot : pfxPath;
             }
 
             return (compatRoot, winePrefix);

@@ -156,7 +156,7 @@ together with your ROMs and native games. The core idea:
 
 A practical layout might look like this:
 ```text
-Retromind/ Retromind-x86_64.AppImage Library/ ROMs/ SNES/ PSX/ NativeGames/ MyPortedGame/ WinePrefixes/ 123e4567-..._Some_Wine_Game/ Themes/
+Retromind/ Retromind-x86_64.AppImage Library/ ROMs/ SNES/ PSX/ NativeGames/ MyPortedGame/ Prefixes/ 123e4567-..._Some_Wine_Game/ Themes/
 ```
 
 If you add ROMs or native games from anywhere *inside* the `Retromind/` folder:

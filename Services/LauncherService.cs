@@ -705,7 +705,9 @@ public sealed class LauncherService
 
         if (isProton)
         {
-            // Proton/UMU expect the real WINEPREFIX under "<prefix>/pfx".
+            // Proton/UMU typically use "<prefix>/pfx" as the actual Wine prefix.
+            // For legacy prefixes that already have a root drive_c (and no pfx),
+            // keep using the root to avoid "losing" settings/installations.
             if (string.Equals(Path.GetFileName(prefixPath), "pfx", StringComparison.OrdinalIgnoreCase))
             {
                 winePrefixPath = prefixPath;
@@ -715,7 +717,18 @@ public sealed class LauncherService
             }
             else
             {
-                winePrefixPath = Path.Combine(prefixPath, "pfx");
+                var pfxPath = Path.Combine(prefixPath, "pfx");
+                var rootInitialized = IsWinePrefixInitialized(prefixPath);
+                var pfxInitialized = IsWinePrefixInitialized(pfxPath);
+
+                if (rootInitialized && !pfxInitialized)
+                {
+                    winePrefixPath = prefixPath;
+                }
+                else
+                {
+                    winePrefixPath = pfxPath;
+                }
             }
         }
         else
