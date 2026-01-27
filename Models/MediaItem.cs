@@ -348,6 +348,12 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private string? _prefixPath;
 
     /// <summary>
+    /// Optional: Force prefix architecture on creation ("win32" or "win64").
+    /// Only used when a new prefix is created.
+    /// </summary>
+    [ObservableProperty] private string? _wineArchOverride;
+
+    /// <summary>
     /// Optional: Name of the process to watch for playtime tracking (e.g. "hl2_linux")
     /// Useful if the launcher exits immediately (like Steam)
     /// </summary>

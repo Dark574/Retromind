@@ -351,6 +351,7 @@ public class MediaDataService
             LauncherPath = item.LauncherPath,
             LauncherArgs = item.LauncherArgs,
             PrefixPath = item.PrefixPath,
+            WineArchOverride = item.WineArchOverride,
             OverrideWatchProcess = item.OverrideWatchProcess,
             LastPlayed = item.LastPlayed,
             PlayCount = item.PlayCount,

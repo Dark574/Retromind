@@ -173,6 +173,22 @@
                                              Watermark="Prefixes/itemId_Title" />
                                 </StackPanel>
 
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Prefix architecture" FontWeight="Bold" />
+                                    <ComboBox ItemsSource="{Binding WineArchOptions}"
+                                              SelectedItem="{Binding WineArchSelection}" />
+                                    <TextBlock Text="Auto = no WINEARCH override (uses runner default, usually win64)."
+                                               Opacity="0.7"
+                                               FontSize="11" />
+                                    <TextBlock Text="Applies only when creating a new prefix."
+                                               Opacity="0.7"
+                                               FontSize="11" />
+                                    <TextBlock Text="Note: change will not convert an existing prefix. Delete/rename the prefix folder to apply."
+                                               Opacity="0.7"
+                                               FontSize="11"
+                                               IsVisible="{Binding ShowWineArchExistingPrefixWarning}" />
+                                </StackPanel>
+
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Button Content="Generate"
                                             Command="{Binding GeneratePrefixCommand}" />
@@ -182,6 +198,24 @@
                                     <Button Content="Clear"
                                             Command="{Binding ClearPrefixCommand}"
                                             IsEnabled="{Binding HasPrefix}" />
+                                </StackPanel>
+
+                                <!-- Winetricks runner -->
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Winetricks verbs" FontWeight="Bold" />
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <TextBox Grid.Column="0"
+                                                 Text="{Binding WinetricksVerbs, Mode=TwoWay}"
+                                                 Watermark="dotnet48 xna40 d3dx9" />
+                                        <Button Grid.Column="1"
+                                                Content="Run Winetricks"
+                                                Command="{Binding RunWinetricksCommand}"
+                                                CommandParameter="{Binding $parent[Window]}"
+                                                Margin="8,0,0,0" />
+                                    </Grid>
+                                    <TextBlock Text="Runs winetricks inside this item's prefix."
+                                               Opacity="0.7"
+                                               FontSize="11" />
                                 </StackPanel>
                             </StackPanel>
                         </Expander>
