@@ -147,10 +147,11 @@ public sealed class LauncherService
                 !string.IsNullOrWhiteSpace(item.PrefixPath) ||
                 (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
 
+            var prefixInitialized = true;
             if (shouldApplyPrefix)
             {
                 var isProton = IsProtonBased(item, inheritedConfig);
-                ConfigureWinePrefix(item, nodePath, startInfo, isProton);
+                prefixInitialized = ConfigureWinePrefix(item, nodePath, startInfo, isProton);
             }
 
             // Apply emulator-level environment overrides (base layer)
@@ -179,7 +180,8 @@ public sealed class LauncherService
                 }
             }
 
-            ApplyWineArchOverride(startInfo, item.WineArchOverride);
+            if (shouldApplyPrefix && !prefixInitialized)
+                ApplyWineArchOverride(startInfo, item.WineArchOverride);
             
             startInfo.Arguments = args ?? string.Empty;
             LogIfEnvSet(startInfo, "PROTONPATH");
@@ -665,7 +667,7 @@ public sealed class LauncherService
         return length <= 0 ? string.Empty : new string(buffer.Slice(start, length));
     }
 
-    private void ConfigureWinePrefix(MediaItem item, List<string>? nodePath, ProcessStartInfo startInfo, bool isProton)
+    private bool ConfigureWinePrefix(MediaItem item, List<string>? nodePath, ProcessStartInfo startInfo, bool isProton)
     {
         string? prefixPath = null;
         string? relativePrefixPathToSave = null;
@@ -696,7 +698,7 @@ public sealed class LauncherService
         }
 
         if (string.IsNullOrWhiteSpace(prefixPath))
-            return;
+            return true;
 
         var prefixRoot = prefixPath;
         var winePrefixPath = prefixPath;
@@ -738,6 +740,8 @@ public sealed class LauncherService
                 }
             }
         }
+
+        var prefixInitialized = IsWinePrefixInitialized(winePrefixPath);
 
         // Ensure basic prefix structure
         Directory.CreateDirectory(prefixRoot);
@@ -782,6 +786,8 @@ public sealed class LauncherService
         // Persist generated relative path (portable).
         if (relativePrefixPathToSave != null)
             item.PrefixPath = relativePrefixPathToSave;
+
+        return prefixInitialized;
     }
 
     private static bool IsProtonBased(MediaItem item, EmulatorConfig? inheritedConfig)
@@ -805,6 +811,22 @@ public sealed class LauncherService
         => env != null && env.Keys.Any(k =>
             string.Equals(k, "PROTONPATH", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(k, "STEAM_COMPAT_DATA_PATH", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsWinePrefixInitialized(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        if (!Directory.Exists(path))
+            return false;
+
+        var systemReg = Path.Combine(path, "system.reg");
+        if (File.Exists(systemReg))
+            return true;
+
+        var driveC = Path.Combine(path, "drive_c");
+        return Directory.Exists(driveC);
+    }
 
     /// <summary>
     /// Ensures a dosdevices mapping like "d:" -> "../../Games" exists.

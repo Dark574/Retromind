@@ -188,12 +188,15 @@ public partial class EditMediaViewModel : ViewModelBase
 
         try
         {
-            var env = BuildEffectiveEnvironmentOverrides();
-            var isProton = IsProtonBased(env);
-            var (compatRoot, winePrefix) = ResolvePrefixPathsForWinetricks(prefixRoot, isProton);
+        var env = BuildEffectiveEnvironmentOverrides();
+        var isProton = IsProtonBased(env);
+        var (compatRoot, winePrefix) = ResolvePrefixPathsForWinetricks(prefixRoot, isProton);
 
-            foreach (var key in env.Keys.ToList())
-                env[key] = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(key, env[key]);
+        if (!IsWinePrefixInitialized(winePrefix))
+            ApplyWineArchOverride(env, WineArchSelection);
+
+        foreach (var key in env.Keys.ToList())
+            env[key] = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(key, env[key]);
 
             var useUmu = isProton;
             string? protonPathValue = null;
@@ -359,7 +362,6 @@ public partial class EditMediaViewModel : ViewModelBase
             env[row.Key.Trim()] = row.Value ?? string.Empty;
         }
 
-        ApplyWineArchOverride(env, WineArchSelection);
         return env;
     }
 
@@ -490,6 +492,22 @@ public partial class EditMediaViewModel : ViewModelBase
 
         var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         return string.Equals(Path.GetFileName(trimmed), "pfx", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsWinePrefixInitialized(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        if (!Directory.Exists(path))
+            return false;
+
+        var systemReg = Path.Combine(path, "system.reg");
+        if (File.Exists(systemReg))
+            return true;
+
+        var driveC = Path.Combine(path, "drive_c");
+        return Directory.Exists(driveC);
     }
 
     private static string GetParentOrSelf(string path)
