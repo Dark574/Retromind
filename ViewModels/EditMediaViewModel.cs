@@ -128,7 +128,7 @@ public partial class EditMediaViewModel : ViewModelBase
         // Only generate if not already set (user might have a custom path)
         if (HasPrefix) return;
 
-        var safeTitle = SanitizeForPathSegment(Title);
+        var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(Title);
         var folderName = $"{_originalItem.Id}_{safeTitle}";
         PrefixPath = Path.Combine("Prefixes", folderName);
     }
@@ -189,18 +189,19 @@ public partial class EditMediaViewModel : ViewModelBase
         try
         {
         var env = BuildEffectiveEnvironmentOverrides();
-        var isProton = IsProtonBased(env);
-        var (compatRoot, winePrefix) = ResolvePrefixPathsForWinetricks(prefixRoot, isProton);
+        var isUmu = IsUmuBased(env);
+        var isProton = isUmu || IsProtonBased(env);
+        var (compatRoot, winePrefix) = ResolvePrefixPathsForWinetricks(prefixRoot, isProton, isUmu);
 
-        if (!IsWinePrefixInitialized(winePrefix))
+        if (!PrefixPathHelper.IsWinePrefixInitialized(winePrefix))
             ApplyWineArchOverride(env, WineArchSelection);
 
         foreach (var key in env.Keys.ToList())
             env[key] = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(key, env[key]);
 
-            var useUmu = isProton;
-            string? protonPathValue = null;
-            string? protonWinetricksPath = null;
+        var useUmu = isUmu;
+        string? protonPathValue = null;
+        string? protonWinetricksPath = null;
 
             if (isProton && env.TryGetValue("PROTONPATH", out protonPathValue) &&
                 !string.IsNullOrWhiteSpace(protonPathValue))
@@ -445,14 +446,33 @@ public partial class EditMediaViewModel : ViewModelBase
         }
     }
 
-    private static (string CompatRoot, string WinePrefix) ResolvePrefixPathsForWinetricks(string prefixRoot, bool isProton)
+    private static (string CompatRoot, string WinePrefix) ResolvePrefixPathsForWinetricks(
+        string prefixRoot,
+        bool isProton,
+        bool isUmu)
     {
         var compatRoot = prefixRoot;
         var winePrefix = prefixRoot;
 
+        if (isUmu)
+        {
+            if (PrefixPathHelper.IsPfxPath(prefixRoot))
+            {
+                compatRoot = GetParentOrSelf(prefixRoot);
+                winePrefix = compatRoot;
+            }
+            else
+            {
+                compatRoot = prefixRoot;
+                winePrefix = prefixRoot;
+            }
+
+            return (compatRoot, winePrefix);
+        }
+
         if (isProton)
         {
-            if (IsPfxPath(prefixRoot))
+            if (PrefixPathHelper.IsPfxPath(prefixRoot))
             {
                 winePrefix = prefixRoot;
                 compatRoot = GetParentOrSelf(prefixRoot);
@@ -460,8 +480,8 @@ public partial class EditMediaViewModel : ViewModelBase
             else
             {
                 var pfxPath = Path.Combine(prefixRoot, "pfx");
-                var rootInitialized = IsWinePrefixInitialized(prefixRoot);
-                var pfxInitialized = IsWinePrefixInitialized(pfxPath);
+                var rootInitialized = PrefixPathHelper.IsWinePrefixInitialized(prefixRoot);
+                var pfxInitialized = PrefixPathHelper.IsWinePrefixInitialized(pfxPath);
 
                 compatRoot = prefixRoot;
                 winePrefix = rootInitialized && !pfxInitialized ? prefixRoot : pfxPath;
@@ -470,7 +490,7 @@ public partial class EditMediaViewModel : ViewModelBase
             return (compatRoot, winePrefix);
         }
 
-        if (IsPfxPath(prefixRoot))
+        if (PrefixPathHelper.IsPfxPath(prefixRoot))
         {
             winePrefix = prefixRoot;
             compatRoot = GetParentOrSelf(prefixRoot);
@@ -489,30 +509,6 @@ public partial class EditMediaViewModel : ViewModelBase
         return (compatRoot, winePrefix);
     }
 
-    private static bool IsPfxPath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return false;
-
-        var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return string.Equals(Path.GetFileName(trimmed), "pfx", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsWinePrefixInitialized(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return false;
-
-        if (!Directory.Exists(path))
-            return false;
-
-        var systemReg = Path.Combine(path, "system.reg");
-        if (File.Exists(systemReg))
-            return true;
-
-        var driveC = Path.Combine(path, "drive_c");
-        return Directory.Exists(driveC);
-    }
 
     private static string GetParentOrSelf(string path)
     {
@@ -598,7 +594,7 @@ public partial class EditMediaViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(candidate))
             return "umu-run";
 
-        if (!ContainsUmuOrProtonToken(candidate))
+        if (!ContainsUmuToken(candidate))
             return "umu-run";
 
         return ResolveExecutablePath(candidate);
@@ -638,7 +634,7 @@ public partial class EditMediaViewModel : ViewModelBase
         if (MediaType == MediaType.Emulator && IsManualEmulator && !string.IsNullOrWhiteSpace(LauncherPath))
             pathCandidate = LauncherPath;
 
-        return !string.IsNullOrWhiteSpace(pathCandidate) && ContainsUmuOrProtonToken(pathCandidate);
+        return !string.IsNullOrWhiteSpace(pathCandidate) && ContainsProtonToken(pathCandidate);
     }
 
     private static bool ContainsProtonHints(Dictionary<string, string> env)
@@ -646,9 +642,27 @@ public partial class EditMediaViewModel : ViewModelBase
             string.Equals(k, "PROTONPATH", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(k, "STEAM_COMPAT_DATA_PATH", StringComparison.OrdinalIgnoreCase));
 
-    private static bool ContainsUmuOrProtonToken(string path)
-        => path.Contains("umu", StringComparison.OrdinalIgnoreCase) ||
-           path.Contains("proton", StringComparison.OrdinalIgnoreCase);
+    private bool IsUmuBased(Dictionary<string, string> env)
+    {
+        if (ContainsUmuHints(env))
+            return true;
+
+        var pathCandidate = SelectedEmulatorProfile?.Path;
+
+        if (MediaType == MediaType.Emulator && IsManualEmulator && !string.IsNullOrWhiteSpace(LauncherPath))
+            pathCandidate = LauncherPath;
+
+        return !string.IsNullOrWhiteSpace(pathCandidate) && ContainsUmuToken(pathCandidate);
+    }
+
+    private static bool ContainsUmuHints(Dictionary<string, string> env)
+        => env.Keys.Any(k => k.StartsWith("UMU_", StringComparison.OrdinalIgnoreCase));
+
+    private static bool ContainsUmuToken(string path)
+        => path.Contains("umu", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ContainsProtonToken(string path)
+        => path.Contains("proton", StringComparison.OrdinalIgnoreCase);
 
     private static List<string> SplitArgs(string input)
     {
@@ -702,27 +716,6 @@ public partial class EditMediaViewModel : ViewModelBase
     }
     
     // --- Native wrapper chain (Tri-state; item-level) ---
-
-    private static string SanitizeForPathSegment(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return "Unknown";
-
-        var safe = input.Replace(' ', '_');
-
-        foreach (var c in Path.GetInvalidFileNameChars())
-            safe = safe.Replace(c.ToString(), string.Empty);
-
-        while (safe.Contains("__", StringComparison.Ordinal))
-            safe = safe.Replace("__", "_", StringComparison.Ordinal);
-
-        // Keep it readable, but avoid pathological lengths in folder names.
-        const int maxLen = 80;
-        if (safe.Length > maxLen)
-            safe = safe[..maxLen];
-
-        return safe;
-    }
 
     private static bool TryMakeDataRelativeIfInsideDataRoot(string absolutePath, out string relativePath)
     {

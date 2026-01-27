@@ -150,8 +150,9 @@ public sealed class LauncherService
             var prefixInitialized = true;
             if (shouldApplyPrefix)
             {
-                var isProton = IsProtonBased(item, inheritedConfig);
-                prefixInitialized = ConfigureWinePrefix(item, nodePath, startInfo, isProton);
+                var isUmu = IsUmuBased(item, inheritedConfig, nativeWrappers);
+                var isProton = isUmu || IsProtonBased(item, inheritedConfig, nativeWrappers);
+                prefixInitialized = ConfigureWinePrefix(item, nodePath, startInfo, isProton, isUmu);
             }
 
             // Apply emulator-level environment overrides (base layer)
@@ -327,10 +328,8 @@ public sealed class LauncherService
 
         if (string.IsNullOrWhiteSpace(outerFileName))
         {
-            // No valid wrapper path found; fall back to a best-effort split of the inner command.
-            var parts = current.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-            var fallbackFileName = parts.Length > 0 ? parts[0] : string.Empty;
-            var fallbackArgs = parts.Length > 1 ? parts[1] : string.Empty;
+            // No valid wrapper path found; fall back to a best-effort split that respects quotes.
+            var (fallbackFileName, fallbackArgs) = SplitCommandLinePreservingArgs(current);
 
             var fallbackUseShellExecute = true;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
@@ -539,54 +538,63 @@ public sealed class LauncherService
         startInfo.EnvironmentVariables["WINEARCH"] = normalized;
     }
 
-    private static (string FileName, string Args, bool UseShellExecute) FoldWrappers(
-        string executablePath,
-        string nativeArgs,
-        IReadOnlyList<LaunchWrapper> wrappers)
-    {
-        // We interpret wrapper order as "outer -> inner".
-        // Example: [gamemoderun, mangohud] -> gamemoderun mangohud <exe> <args>
-        var currentFile = executablePath;
-        var currentArgs = nativeArgs;
-
-        for (int i = wrappers.Count - 1; i >= 0; i--)
-        {
-            var w = wrappers[i];
-            if (string.IsNullOrWhiteSpace(w.Path))
-                continue;
-
-            var template = string.IsNullOrWhiteSpace(w.Args) ? "{file}" : w.Args!;
-            var child = QuoteIfNeeded(currentFile);
-
-            var argsWithChild = template.Contains("{file}", StringComparison.Ordinal)
-                ? template.Replace("{file}", child, StringComparison.Ordinal)
-                : $"{template} {child}";
-
-            if (!string.IsNullOrWhiteSpace(currentArgs))
-                argsWithChild = $"{argsWithChild} {currentArgs}";
-
-            currentFile = w.Path;
-            currentArgs = NormalizeWhitespace(argsWithChild);
-        }
-
-        // Wrappers are almost always "native-like"; UseShellExecute true is fine in many cases.
-        // For safety on Linux, disable shell execute for .sh wrappers.
-        var useShellExecute = true;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
-            currentFile.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
-        {
-            useShellExecute = false;
-        }
-
-        return (currentFile, currentArgs, useShellExecute);
-    }
-
     private static string QuoteIfNeeded(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
             return string.Empty;
 
         return path.Contains(' ', StringComparison.Ordinal) ? $"\"{path}\"" : path;
+    }
+
+    private static (string FileName, string Args) SplitCommandLinePreservingArgs(string commandLine)
+    {
+        if (string.IsNullOrWhiteSpace(commandLine))
+            return (string.Empty, string.Empty);
+
+        int i = 0;
+        while (i < commandLine.Length && char.IsWhiteSpace(commandLine[i]))
+            i++;
+
+        if (i >= commandLine.Length)
+            return (string.Empty, string.Empty);
+
+        bool inQuotes = false;
+        char quoteChar = '"';
+        var fileName = new System.Text.StringBuilder();
+
+        for (; i < commandLine.Length; i++)
+        {
+            var c = commandLine[i];
+            if (inQuotes)
+            {
+                if (c == quoteChar)
+                {
+                    inQuotes = false;
+                    continue;
+                }
+
+                fileName.Append(c);
+                continue;
+            }
+
+            if (c == '"' || c == '\'')
+            {
+                inQuotes = true;
+                quoteChar = c;
+                continue;
+            }
+
+            if (char.IsWhiteSpace(c))
+                break;
+
+            fileName.Append(c);
+        }
+
+        var args = i < commandLine.Length
+            ? commandLine[i..].TrimStart()
+            : string.Empty;
+
+        return (fileName.ToString(), args);
     }
 
     private static string CombineTemplateArguments(string? baseArgs, string? itemArgs)
@@ -667,7 +675,12 @@ public sealed class LauncherService
         return length <= 0 ? string.Empty : new string(buffer.Slice(start, length));
     }
 
-    private bool ConfigureWinePrefix(MediaItem item, List<string>? nodePath, ProcessStartInfo startInfo, bool isProton)
+    private bool ConfigureWinePrefix(
+        MediaItem item,
+        List<string>? nodePath,
+        ProcessStartInfo startInfo,
+        bool isProton,
+        bool isUmu)
     {
         string? prefixPath = null;
         string? relativePrefixPathToSave = null;
@@ -687,7 +700,7 @@ public sealed class LauncherService
         else
         {
             // Priority 2: Stable, human-friendly per-item folder.
-            var safeTitle = SanitizeForPathSegment(item.Title);
+            var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(item.Title);
 
             // Keep both: stable id + readable title
             // Example: Prefixes/123e4567-e89b-12d3-a456-426614174000_My_Game
@@ -703,12 +716,29 @@ public sealed class LauncherService
         var prefixRoot = prefixPath;
         var winePrefixPath = prefixPath;
 
-        if (isProton)
+        if (isUmu)
+        {
+            // UMU expects WINEPREFIX to be the compat root; it will create <root>/pfx as a symlink.
+            if (PrefixPathHelper.IsPfxPath(prefixPath))
+            {
+                var parent = Directory.GetParent(prefixPath)?.FullName;
+                if (!string.IsNullOrWhiteSpace(parent))
+                {
+                    prefixRoot = parent;
+                    winePrefixPath = parent;
+                }
+            }
+            else
+            {
+                winePrefixPath = prefixPath;
+            }
+        }
+        else if (isProton)
         {
             // Proton/UMU typically use "<prefix>/pfx" as the actual Wine prefix.
             // For legacy prefixes that already have a root drive_c (and no pfx),
             // keep using the root to avoid "losing" settings/installations.
-            if (string.Equals(Path.GetFileName(prefixPath), "pfx", StringComparison.OrdinalIgnoreCase))
+            if (PrefixPathHelper.IsPfxPath(prefixPath))
             {
                 winePrefixPath = prefixPath;
                 var parent = Directory.GetParent(prefixPath)?.FullName;
@@ -718,8 +748,8 @@ public sealed class LauncherService
             else
             {
                 var pfxPath = Path.Combine(prefixPath, "pfx");
-                var rootInitialized = IsWinePrefixInitialized(prefixPath);
-                var pfxInitialized = IsWinePrefixInitialized(pfxPath);
+                var rootInitialized = PrefixPathHelper.IsWinePrefixInitialized(prefixPath);
+                var pfxInitialized = PrefixPathHelper.IsWinePrefixInitialized(pfxPath);
 
                 if (rootInitialized && !pfxInitialized)
                 {
@@ -734,7 +764,7 @@ public sealed class LauncherService
         else
         {
             // Wine: prefer an existing root prefix, but fall back to "<prefix>/pfx" if present.
-            if (string.Equals(Path.GetFileName(prefixPath), "pfx", StringComparison.OrdinalIgnoreCase))
+            if (PrefixPathHelper.IsPfxPath(prefixPath))
             {
                 winePrefixPath = prefixPath;
                 var parent = Directory.GetParent(prefixPath)?.FullName;
@@ -754,7 +784,7 @@ public sealed class LauncherService
             }
         }
 
-        var prefixInitialized = IsWinePrefixInitialized(winePrefixPath);
+        var prefixInitialized = PrefixPathHelper.IsWinePrefixInitialized(winePrefixPath);
 
         // Ensure basic prefix structure
         Directory.CreateDirectory(prefixRoot);
@@ -803,7 +833,10 @@ public sealed class LauncherService
         return prefixInitialized;
     }
 
-    private static bool IsProtonBased(MediaItem item, EmulatorConfig? inheritedConfig)
+    private static bool IsProtonBased(
+        MediaItem item,
+        EmulatorConfig? inheritedConfig,
+        IReadOnlyList<LaunchWrapper>? nativeWrappers)
     {
         if (HasProtonHints(inheritedConfig?.EnvironmentOverrides) ||
             HasProtonHints(item.EnvironmentOverrides))
@@ -811,13 +844,14 @@ public sealed class LauncherService
             return true;
         }
 
-        var pathCandidate = item.LauncherPath;
-        if (string.IsNullOrWhiteSpace(pathCandidate))
-            pathCandidate = inheritedConfig?.Path;
+        if (ContainsProtonToken(item.LauncherPath) ||
+            ContainsProtonToken(inheritedConfig?.Path))
+        {
+            return true;
+        }
 
-        return !string.IsNullOrWhiteSpace(pathCandidate) &&
-               (pathCandidate.Contains("umu", StringComparison.OrdinalIgnoreCase) ||
-                pathCandidate.Contains("proton", StringComparison.OrdinalIgnoreCase));
+        return nativeWrappers != null &&
+               nativeWrappers.Any(w => ContainsProtonToken(w.Path));
     }
 
     private static bool HasProtonHints(IReadOnlyDictionary<string, string>? env)
@@ -825,21 +859,41 @@ public sealed class LauncherService
             string.Equals(k, "PROTONPATH", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(k, "STEAM_COMPAT_DATA_PATH", StringComparison.OrdinalIgnoreCase));
 
-    private static bool IsWinePrefixInitialized(string path)
+    private static bool IsUmuBased(
+        MediaItem item,
+        EmulatorConfig? inheritedConfig,
+        IReadOnlyList<LaunchWrapper>? nativeWrappers)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            return false;
-
-        if (!Directory.Exists(path))
-            return false;
-
-        var systemReg = Path.Combine(path, "system.reg");
-        if (File.Exists(systemReg))
+        if (HasUmuHints(inheritedConfig?.EnvironmentOverrides) ||
+            HasUmuHints(item.EnvironmentOverrides))
+        {
             return true;
+        }
 
-        var driveC = Path.Combine(path, "drive_c");
-        return Directory.Exists(driveC);
+        if (ContainsUmuToken(item.LauncherPath) ||
+            ContainsUmuToken(inheritedConfig?.Path))
+        {
+            return true;
+        }
+
+        return nativeWrappers != null &&
+               nativeWrappers.Any(w => ContainsUmuToken(w.Path));
     }
+
+    private static bool HasUmuHints(IReadOnlyDictionary<string, string>? env)
+        => env != null && env.Keys.Any(k =>
+            k.StartsWith("UMU_", StringComparison.OrdinalIgnoreCase));
+
+    private static bool ContainsUmuToken(string? path)
+        => !string.IsNullOrWhiteSpace(path) &&
+           path.Contains("umu", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ContainsProtonToken(string? path)
+        => !string.IsNullOrWhiteSpace(path) &&
+           path.Contains("proton", StringComparison.OrdinalIgnoreCase);
+
+
+    
 
     /// <summary>
     /// Ensures a dosdevices mapping like "d:" -> "../../Games" exists.
@@ -894,26 +948,6 @@ public sealed class LauncherService
         }
     }
     
-    private static string SanitizeForPathSegment(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return "Unknown";
-
-        var safe = input.Replace(' ', '_');
-
-        foreach (var c in Path.GetInvalidFileNameChars())
-            safe = safe.Replace(c.ToString(), string.Empty);
-
-        while (safe.Contains("__", StringComparison.Ordinal))
-            safe = safe.Replace("__", "_", StringComparison.Ordinal);
-
-        // Avoid absurdly long folder names (portable FS sanity).
-        const int maxLen = 80;
-        if (safe.Length > maxLen)
-            safe = safe[..maxLen];
-
-        return safe;
-    }
 
     private static string BuildArgumentsString(string? filePath, string? templateArgs)
     {
