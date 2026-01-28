@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace Retromind.Helpers.Video;
 
@@ -49,6 +50,7 @@ public class VideoSurfaceControl : Control
         if (oldSurface != null)
             oldSurface.FrameReady -= OnFrameReady;
 
+        _bitmap?.Dispose();
         _bitmap = null;
 
         if (newSurface != null)
@@ -59,6 +61,29 @@ public class VideoSurfaceControl : Control
         }
 
         InvalidateVisual();
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        if (Surface != null)
+        {
+            // Avoid double subscription if we're reattached with the same surface.
+            Surface.FrameReady -= OnFrameReady;
+            Surface.FrameReady += OnFrameReady;
+        }
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        if (Surface != null)
+            Surface.FrameReady -= OnFrameReady;
+
+        _bitmap?.Dispose();
+        _bitmap = null;
+
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void OnFrameReady()
