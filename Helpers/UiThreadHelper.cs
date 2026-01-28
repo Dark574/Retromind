@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 
@@ -60,7 +61,26 @@ public static class UiThreadHelper
         }
 
         // Execute the async delegate on the UI thread, then await its completion.
-        await Dispatcher.UIThread.InvokeAsync(func, priority);
+        Task? innerTask = null;
+        Exception? dispatchException = null;
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            try
+            {
+                innerTask = func();
+            }
+            catch (Exception ex)
+            {
+                dispatchException = ex;
+            }
+        }, priority);
+
+        if (dispatchException != null)
+            ExceptionDispatchInfo.Capture(dispatchException).Throw();
+
+        if (innerTask != null)
+            await innerTask.ConfigureAwait(false);
     }
     
     public static Task<T> InvokeAsync<T>(Func<T> func)
