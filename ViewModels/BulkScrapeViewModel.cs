@@ -17,7 +17,7 @@ namespace Retromind.ViewModels;
 /// <summary>
 /// ViewModel handling the bulk scraping process for a collection of media items.
 /// </summary>
-public partial class BulkScrapeViewModel : ViewModelBase
+public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
 {
     private const int MaxConcurrentRequests = 4;
     private const int RequestDelayMs = 250;
@@ -26,6 +26,7 @@ public partial class BulkScrapeViewModel : ViewModelBase
     private readonly MediaNode _rootNode;
     private readonly AppSettings _settings;
     private CancellationTokenSource? _cancellationTokenSource;
+    private bool _disposed;
 
     // Buffer for logs to prevent UI flooding
     private readonly StringBuilder _logBuffer = new();
@@ -82,6 +83,9 @@ public partial class BulkScrapeViewModel : ViewModelBase
 
     private async Task StartScrapingAsync()
     {
+        if (_disposed)
+            return;
+
         if (SelectedScraper == null) return;
 
         IsBusy = true;
@@ -227,6 +231,9 @@ public partial class BulkScrapeViewModel : ViewModelBase
 
     private void CancelOperation()
     {
+        if (_disposed)
+            return;
+
         if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
         {
             _cancellationTokenSource.Cancel();
@@ -296,6 +303,9 @@ public partial class BulkScrapeViewModel : ViewModelBase
     /// </summary>
     private void FlushLogBufferToUi()
     {
+        if (_disposed)
+            return;
+
         string newLogChunk = "";
         lock (_logLock)
         {
@@ -317,5 +327,24 @@ public partial class BulkScrapeViewModel : ViewModelBase
 
             LogText += newLogChunk;
         });
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+
+        if (_cancellationTokenSource != null)
+        {
+            _cancellationTokenSource.Cancel();
+
+            if (!IsBusy)
+            {
+                _cancellationTokenSource.Dispose();
+                _cancellationTokenSource = null;
+            }
+        }
     }
 }

@@ -16,7 +16,7 @@ namespace Retromind.ViewModels;
 /// ViewModel handling the manual scraping dialog for a single item.
 /// Allows the user to select a scraper service, enter a query, and pick a result.
 /// </summary>
-public partial class ScrapeDialogViewModel : ViewModelBase
+public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
 {
     private const int MaxResults = 200;
 
@@ -25,6 +25,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase
     private readonly AppSettings _settings;
 
     private CancellationTokenSource? _searchCts;
+    private bool _disposed;
 
     [ObservableProperty]
     private string _searchQuery = string.Empty;
@@ -77,6 +78,9 @@ public partial class ScrapeDialogViewModel : ViewModelBase
 
     private async Task SearchAsync()
     {
+        if (_disposed)
+            return;
+
         if (SelectedScraper == null || string.IsNullOrWhiteSpace(SearchQuery))
             return;
 
@@ -123,12 +127,17 @@ public partial class ScrapeDialogViewModel : ViewModelBase
         finally
         {
             IsBusy = false;
+            if (_disposed)
+            {
+                _searchCts?.Dispose();
+                _searchCts = null;
+            }
         }
     }
 
     private async Task ApplyAsync()
     {
-        if (SelectedResult == null)
+        if (_disposed || SelectedResult == null)
             return;
 
         var handler = OnResultSelectedAsync;
@@ -139,6 +148,24 @@ public partial class ScrapeDialogViewModel : ViewModelBase
         {
             if (subscriber is Func<ScraperSearchResult, Task> callback)
                 await callback(SelectedResult);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+
+        if (_searchCts != null)
+        {
+            _searchCts.Cancel();
+            if (!IsBusy)
+            {
+                _searchCts.Dispose();
+                _searchCts = null;
+            }
         }
     }
 }
