@@ -1023,6 +1023,11 @@ public sealed class LauncherService
         var startupTimeout = TimeSpan.FromMinutes(3);
         var startWatch = Stopwatch.StartNew();
 
+        // If the process is already running, do not block waiting for it to exit.
+        // This avoids hanging the launch flow when watching long-running launchers (e.g. Steam).
+        if (Process.GetProcessesByName(cleanName).Length > 0)
+            return false;
+
         // Phase 1: wait for process to appear.
         while (startWatch.Elapsed < startupTimeout)
         {
