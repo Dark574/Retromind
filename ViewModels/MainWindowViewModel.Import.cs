@@ -843,17 +843,23 @@ public partial class MainWindowViewModel
             rootNodes = RootItems.ToList();
         });
 
+        var anyChanged = false;
+
         // Offload recursion and filesystem scanning to a background thread.
         await Task.Run(async () => 
         { 
             foreach (var rootNode in rootNodes) 
             {
-                await RescanNodeRecursive(rootNode); 
+                if (await RescanNodeRecursive(rootNode))
+                    anyChanged = true;
             }
         });
+
+        if (anyChanged)
+            MarkLibraryDirty();
     }
 
-    private async Task RescanNodeRecursive(MediaNode node)
+    private async Task<bool> RescanNodeRecursive(MediaNode node)
     {
         List<string> nodePath = new();
         List<MediaItem> items = new();
@@ -880,6 +886,8 @@ public partial class MainWindowViewModel
             return list;
         });
 
+        var changed = false;
+
         // 2) Apply results on UI thread in batches to keep the UI responsive for very large nodes.
         const int batchSize = 500;
         for (int i = 0; i < scanned.Count; i += batchSize)
@@ -892,6 +900,11 @@ public partial class MainWindowViewModel
                 for (int j = start; j < start + count; j++)
                 {
                     var (item, assets) = scanned[j];
+
+                    if (AssetsMatch(item.Assets, assets))
+                        continue;
+
+                    changed = true;
 
                     item.Assets.Clear();
                     foreach (var asset in assets)
@@ -906,8 +919,33 @@ public partial class MainWindowViewModel
         // 3) Recurse children
         foreach (var child in children)
         {
-            await RescanNodeRecursive(child);
+            if (await RescanNodeRecursive(child))
+                changed = true;
         }
+
+        return changed;
+    }
+
+    private static bool AssetsMatch(IList<MediaAsset> existing, List<MediaAsset> scanned)
+    {
+        if (existing.Count != scanned.Count)
+            return false;
+
+        var set = new HashSet<(AssetType Type, string Path)>(existing.Count);
+        foreach (var asset in existing)
+        {
+            var path = asset.RelativePath ?? string.Empty;
+            set.Add((asset.Type, path));
+        }
+
+        foreach (var asset in scanned)
+        {
+            var path = asset.RelativePath ?? string.Empty;
+            if (!set.Contains((asset.Type, path)))
+                return false;
+        }
+
+        return true;
     }
     
     private async Task SetAssetAsync(MediaItem? item, string title, AssetType type)
