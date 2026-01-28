@@ -74,7 +74,7 @@ public class IgdbProvider : IMetadataProvider
 
             // Build token request URL
             var url = $"{TwitchTokenUrl}?client_id={creds.ClientId}&client_secret={creds.ClientSecret}&grant_type=client_credentials";
-            var response = await _httpClient.PostAsync(url, null, cancellationToken).ConfigureAwait(false);
+            using var response = await _httpClient.PostAsync(url, null, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -121,9 +121,9 @@ public class IgdbProvider : IMetadataProvider
                 $"search \"{query}\"; fields name, summary, first_release_date, total_rating, cover.url, artworks.url, screenshots.url, genres.name, involved_companies.company.name, platforms.name; limit 20;";
 
             // Send request with retry logic
-            var response = await SendWithRetryAsync(async token =>
+            using var response = await SendWithRetryAsync(async token =>
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, IgdbApiUrl);
+                using var request = new HttpRequestMessage(HttpMethod.Post, IgdbApiUrl);
                 request.Headers.Add("Client-ID", creds.ClientId);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
                 request.Content = new StringContent(igdbQuery, Encoding.UTF8, "text/plain");
@@ -233,19 +233,21 @@ public class IgdbProvider : IMetadataProvider
         Func<CancellationToken, Task<HttpResponseMessage>> sendAction,
         CancellationToken cancellationToken)
     {
-        HttpResponseMessage? response = null;
         for (int retry = 0; retry <= MaxRetries; retry++)
         {
-            response = await sendAction(cancellationToken).ConfigureAwait(false);
+            var response = await sendAction(cancellationToken).ConfigureAwait(false);
 
-            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests &&
+                retry < MaxRetries)
             {
+                response.Dispose();
                 await Task.Delay(1000 * (retry + 1), cancellationToken).ConfigureAwait(false); // Exponential backoff
                 continue;
             }
 
-            break;
+            return response;
         }
-        return response;
+
+        return null;
     }
 }

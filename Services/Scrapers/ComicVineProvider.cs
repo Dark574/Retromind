@@ -45,7 +45,7 @@ public class ComicVineProvider : IMetadataProvider
             // ComicVine blocks requests without a clear User-Agent.
             request.Headers.UserAgent.ParseAdd("Retromind-MediaManager/1.0");
 
-            var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);

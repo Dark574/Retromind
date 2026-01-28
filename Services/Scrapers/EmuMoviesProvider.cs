@@ -59,7 +59,7 @@ public class EmuMoviesProvider : IMetadataProvider
             var url = $"https://api.emumovies.com/api/login?username={user}&password={pass}";
         
             using var request = CreateRequest(url);
-            var response = await _httpClient.SendAsync(request, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -109,8 +109,14 @@ public class EmuMoviesProvider : IMetadataProvider
                 try 
                 {
                     using var request = CreateRequest(url);
-                    response = await _httpClient.SendAsync(request, cancellationToken);
-                    if (response.IsSuccessStatusCode) break;
+                    var candidate = await _httpClient.SendAsync(request, cancellationToken);
+                    if (candidate.IsSuccessStatusCode || i == 2)
+                    {
+                        response = candidate;
+                        break;
+                    }
+
+                    candidate.Dispose();
                 }
                 catch (HttpRequestException) 
                 {
@@ -120,30 +126,33 @@ public class EmuMoviesProvider : IMetadataProvider
             }
             
             if (response == null) throw new Exception("EmuMovies Connection failed.");
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
-            var doc = JsonNode.Parse(json);
-        
-            var games = doc?["Games"]?.AsArray();
-            var results = new List<ScraperSearchResult>();
-
-            if (games == null) return results;
-
-            // create a list of tasks, instead of waiting
-            var scraperTasks = new List<Task<ScraperSearchResult?>>();
-
-            foreach (var game in games)
+            using (response)
             {
-                // local function for processing of one item
-                scraperTasks.Add(ProcessGameAsync(game, cancellationToken));
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                var doc = JsonNode.Parse(json);
+        
+                var games = doc?["Games"]?.AsArray();
+                var results = new List<ScraperSearchResult>();
+
+                if (games == null) return results;
+
+                // create a list of tasks, instead of waiting
+                var scraperTasks = new List<Task<ScraperSearchResult?>>();
+
+                foreach (var game in games)
+                {
+                    // local function for processing of one item
+                    scraperTasks.Add(ProcessGameAsync(game, cancellationToken));
+                }
+
+                // wait for all task results. This reduces the waiting time from (20 * request time) to (1 * request time)
+                var processedResults = await Task.WhenAll(scraperTasks);
+                results.AddRange(processedResults.Where(r => r != null)!);
+
+                return results;
             }
-
-            // wait for all task results. This reduces the waiting time from (20 * request time) to (1 * request time)
-            var processedResults = await Task.WhenAll(scraperTasks);
-            results.AddRange(processedResults.Where(r => r != null)!);
-
-            return results;
         }
         catch (OperationCanceledException)
         {
@@ -197,7 +206,7 @@ public class EmuMoviesProvider : IMetadataProvider
         try 
         {
             var url = $"https://api.emumovies.com/api/get-game-media?session={_sessionId}&id={gameId}&system={HttpUtility.UrlEncode(system)}";
-            var response = await _httpClient.GetAsync(url, cancellationToken);
+            using var response = await _httpClient.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode) return;
         
             var json = await response.Content.ReadAsStringAsync(cancellationToken);

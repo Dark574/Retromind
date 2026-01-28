@@ -45,7 +45,7 @@ public class GoogleBooksProvider : IMetadataProvider
                 url += $"&key={apiKey}";
             }
 
-            var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
