@@ -463,7 +463,7 @@ public partial class MainWindowViewModel
 
     private async Task PlayMediaAsync(MediaItem? item)
     {
-        if (item == null || SelectedNode == null) return;
+        if (item == null) return;
 
         // Global launch guard: ignore additional requests while one is in progress.
         if (IsLaunchInProgress)
@@ -483,6 +483,8 @@ public partial class MainWindowViewModel
             }
 
             var trueParent = FindParentNode(RootItems, item) ?? SelectedNode;
+            if (trueParent == null) return;
+
             var nodePath = PathHelper.GetNodePath(trueParent, RootItems);
 
             if (emulator == null)
