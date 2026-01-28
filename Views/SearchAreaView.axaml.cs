@@ -1,3 +1,5 @@
+using System;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Retromind.Models;
@@ -7,9 +9,28 @@ namespace Retromind.Views;
 
 public partial class SearchAreaView : UserControl
 {
+    private SearchAreaViewModel? _currentViewModel;
+
     public SearchAreaView()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_currentViewModel != null && !ReferenceEquals(_currentViewModel, DataContext))
+            _currentViewModel.Dispose();
+
+        _currentViewModel = DataContext as SearchAreaViewModel;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+
+        _currentViewModel?.Dispose();
+        _currentViewModel = null;
     }
 
     // Triggered by XAML "DoubleTapped" on a result tile.

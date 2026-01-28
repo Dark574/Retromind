@@ -548,7 +548,7 @@ public partial class MainWindowViewModel
     
         var vm = new ScrapeDialogViewModel(item, _currentSettings, _metadataService);
         
-        vm.OnResultSelected += async (result) => 
+        vm.OnResultSelectedAsync += async (result) => 
         {
             // Simple Conflict Resolution with User Confirmation
             bool updateDesc = true;

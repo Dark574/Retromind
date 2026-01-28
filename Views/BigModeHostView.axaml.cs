@@ -100,6 +100,19 @@ public partial class BigModeHostView : UserControl
             _vmNotifications.PropertyChanged += OnViewModelPropertyChanged;
     }
 
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+
+        if (_vmNotifications != null)
+        {
+            _vmNotifications.PropertyChanged -= OnViewModelPropertyChanged;
+            _vmNotifications = null;
+        }
+
+        UnhookThemeTuning();
+    }
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         // 1) Item change: trigger the PrimaryVisual animation (for all themes)

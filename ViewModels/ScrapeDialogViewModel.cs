@@ -48,9 +48,9 @@ public partial class ScrapeDialogViewModel : ViewModelBase
     public RangeObservableCollection<ScraperSearchResult> SearchResults { get; } = new();
 
     public IAsyncRelayCommand SearchCommand { get; }
-    public IRelayCommand ApplyCommand { get; }
+    public IAsyncRelayCommand ApplyCommand { get; }
 
-    public event Action<ScraperSearchResult>? OnResultSelected;
+    public event Func<ScraperSearchResult, Task>? OnResultSelectedAsync;
 
     public ScrapeDialogViewModel(MediaItem item, AppSettings settings, MetadataService metadataService)
     {
@@ -61,7 +61,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase
         InitializeData();
 
         SearchCommand = new AsyncRelayCommand(SearchAsync);
-        ApplyCommand = new RelayCommand(Apply, () => SelectedResult != null);
+        ApplyCommand = new AsyncRelayCommand(ApplyAsync, () => SelectedResult != null);
     }
 
     private void InitializeData()
@@ -126,9 +126,19 @@ public partial class ScrapeDialogViewModel : ViewModelBase
         }
     }
 
-    private void Apply()
+    private async Task ApplyAsync()
     {
-        if (SelectedResult != null)
-            OnResultSelected?.Invoke(SelectedResult);
+        if (SelectedResult == null)
+            return;
+
+        var handler = OnResultSelectedAsync;
+        if (handler == null)
+            return;
+
+        foreach (var subscriber in handler.GetInvocationList())
+        {
+            if (subscriber is Func<ScraperSearchResult, Task> callback)
+                await callback(SelectedResult);
+        }
     }
 }

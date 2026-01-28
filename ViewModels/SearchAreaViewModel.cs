@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,16 +41,19 @@ public class SearchScope : ObservableObject
 /// - background evaluation
 /// - single UI update (ReplaceAll)
 /// </summary>
-public partial class SearchAreaViewModel : ViewModelBase
+public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 {
     private const double DefaultItemWidth = 150.0;
 
     // Debounce typing/checkbox toggles to avoid re-scanning the entire library per keystroke.
     private static readonly TimeSpan SearchDebounceDelay = TimeSpan.FromMilliseconds(250);
 
-    private readonly IReadOnlyList<MediaNode> _rootNodes;
+    private readonly IReadOnlyList<MediaNode> _rootNodesSnapshot;
+    private readonly ObservableCollection<MediaNode>? _rootNodesObservable;
+    private readonly HashSet<MediaNode> _trackedRootNodes = new();
 
     private CancellationTokenSource? _searchCts;
+    private bool _disposed;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -105,7 +110,17 @@ public partial class SearchAreaViewModel : ViewModelBase
 
     public SearchAreaViewModel(IEnumerable<MediaNode> rootNodes)
     {
-        _rootNodes = (rootNodes ?? throw new ArgumentNullException(nameof(rootNodes))).ToList();
+        if (rootNodes == null)
+            throw new ArgumentNullException(nameof(rootNodes));
+
+        _rootNodesSnapshot = rootNodes.ToList();
+        _rootNodesObservable = rootNodes as ObservableCollection<MediaNode>;
+        if (_rootNodesObservable != null)
+        {
+            _rootNodesObservable.CollectionChanged += OnRootNodesChanged;
+            foreach (var node in _rootNodesObservable)
+                TrackRootNode(node);
+        }
 
         InitializeScopes();
 
@@ -141,35 +156,119 @@ public partial class SearchAreaViewModel : ViewModelBase
             SelectedStatus = value?.Value;
     }
 
+    private IEnumerable<MediaNode> RootNodes => _rootNodesObservable ?? _rootNodesSnapshot;
+
     private void InitializeScopes()
     {
+        var selectionByNode = new Dictionary<MediaNode, bool>();
+        foreach (var existing in Scopes)
+        {
+            selectionByNode[existing.Node] = existing.IsSelected;
+            existing.PropertyChanged -= OnScopePropertyChanged;
+        }
+
         Scopes.Clear();
 
         // We keep the scope list shallow (root + direct children) for UI simplicity
         // The actual item search is still recursive within each selected scope
-        foreach (var root in _rootNodes)
+        foreach (var root in RootNodes)
         {
             if (root.Items.Count > 0)
-                AddScope(root);
+                AddScope(root, selectionByNode);
 
             foreach (var child in root.Children)
-                AddScope(child);
+                AddScope(child, selectionByNode);
         }
 
-        void AddScope(MediaNode node)
+    }
+
+    private void AddScope(MediaNode node, IDictionary<MediaNode, bool> selectionByNode)
+    {
+        var scope = new SearchScope(node);
+        if (selectionByNode.TryGetValue(node, out var isSelected))
+            scope.IsSelected = isSelected;
+
+        scope.PropertyChanged += OnScopePropertyChanged;
+        Scopes.Add(scope);
+    }
+
+    private void OnScopePropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(SearchScope.IsSelected))
+            RequestSearch();
+    }
+
+    private void TrackRootNode(MediaNode node)
+    {
+        if (!_trackedRootNodes.Add(node))
+            return;
+
+        node.Children.CollectionChanged += OnRootChildrenChanged;
+    }
+
+    private void UntrackRootNode(MediaNode node)
+    {
+        if (!_trackedRootNodes.Remove(node))
+            return;
+
+        node.Children.CollectionChanged -= OnRootChildrenChanged;
+    }
+
+    private void OnRootNodesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (!UiThreadHelper.CheckAccess())
         {
-            var scope = new SearchScope(node);
-            scope.PropertyChanged += (_, args) =>
-            {
-                if (args.PropertyName == nameof(SearchScope.IsSelected))
-                    RequestSearch();
-            };
-            Scopes.Add(scope);
+            UiThreadHelper.Post(() => OnRootNodesChanged(sender, e));
+            return;
+        }
+
+        if (e.OldItems != null)
+        {
+            foreach (var oldItem in e.OldItems.OfType<MediaNode>())
+                UntrackRootNode(oldItem);
+        }
+
+        if (e.NewItems != null)
+        {
+            foreach (var newItem in e.NewItems.OfType<MediaNode>())
+                TrackRootNode(newItem);
+        }
+
+        RefreshScopesAndSearch();
+    }
+
+    private void OnRootChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(() => OnRootChildrenChanged(sender, e));
+            return;
+        }
+
+        RefreshScopesAndSearch();
+    }
+
+    private void RefreshScopesAndSearch()
+    {
+        if (_disposed)
+            return;
+
+        InitializeScopes();
+
+        if (!string.IsNullOrWhiteSpace(SearchText) ||
+            !string.IsNullOrWhiteSpace(SearchYear) ||
+            OnlyFavorites ||
+            SelectedStatus != null)
+        {
+            RequestSearch();
         }
     }
 
     private void RequestSearch()
     {
+        if (_disposed)
+            return;
+
         // Cancel previous pending search (debounce + background evaluation)
         _searchCts?.Cancel();
         _searchCts?.Dispose();
@@ -196,6 +295,9 @@ public partial class SearchAreaViewModel : ViewModelBase
 
     private async Task ExecuteSearchAsync(CancellationToken token, CancellationTokenSource cts)
     {
+        if (_disposed)
+            return;
+
         var query = SearchText?.Trim();
         var yearText = SearchYear?.Trim();
         var favoritesOnly = OnlyFavorites;
@@ -262,6 +364,27 @@ public partial class SearchAreaViewModel : ViewModelBase
             // Keep "Play random" enabled state accurate
             (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
         });
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = null;
+
+        if (_rootNodesObservable != null)
+            _rootNodesObservable.CollectionChanged -= OnRootNodesChanged;
+
+        foreach (var node in _trackedRootNodes.ToList())
+            UntrackRootNode(node);
+
+        foreach (var scope in Scopes)
+            scope.PropertyChanged -= OnScopePropertyChanged;
     }
 
     private static async Task CollectMatchesRecursiveAsync(
