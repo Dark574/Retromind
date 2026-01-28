@@ -802,6 +802,7 @@ public partial class MainWindowViewModel : ViewModelBase
         // Unsubscribe events to avoid repeated invocations after content switches.
         _currentMediaAreaVm.RequestPlay -= OnMediaAreaRequestPlay;
         _currentMediaAreaVm.PropertyChanged -= OnMediaAreaPropertyChanged;
+        _currentMediaAreaVm.Dispose();
 
         _currentMediaAreaVm = null;
     }
@@ -925,6 +926,13 @@ public partial class MainWindowViewModel : ViewModelBase
         _updateContentCts = new CancellationTokenSource();
         var token = _updateContentCts.Token;
 
+        // Capture current filters before we dispose the old VM (so edits don't reset UI filters).
+        var previousVm = _currentMediaAreaVm;
+        var previousNodeId = previousVm?.Node?.Id;
+        var previousSearchText = previousVm?.SearchText ?? string.Empty;
+        var previousOnlyFavorites = previousVm?.OnlyFavorites ?? false;
+        var previousStatus = previousVm?.SelectedStatus;
+
         // Any time we rebuild content, detach handlers from the previous VM.
         DetachMediaAreaHandlers();
         
@@ -966,6 +974,13 @@ public partial class MainWindowViewModel : ViewModelBase
                 ApplyRandomizationPlan(randomizationPlan);
 
                 var mediaVm = new MediaAreaViewModel(displayNode, ItemWidth);
+
+                if (previousVm != null && previousNodeId == nodeToLoad.Id)
+                {
+                    mediaVm.OnlyFavorites = previousOnlyFavorites;
+                    mediaVm.SelectedStatus = previousStatus;
+                    mediaVm.SearchText = previousSearchText;
+                }
 
                 _currentMediaAreaVm = mediaVm;
                 mediaVm.RequestPlay += OnMediaAreaRequestPlay;

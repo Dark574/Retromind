@@ -16,7 +16,7 @@ namespace Retromind.ViewModels;
 /// ViewModel for the main content area (grid/list of items).
 /// Focuses on fast filtering and lightweight user interactions.
 /// </summary>
-public partial class MediaAreaViewModel : ViewModelBase
+public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 {
     private const double DefaultItemWidth = 150.0;
 
@@ -29,6 +29,7 @@ public partial class MediaAreaViewModel : ViewModelBase
     private readonly List<MediaItem> _allItems;
 
     private CancellationTokenSource? _searchDebounceCts;
+    private bool _isDisposed;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(PlayRandomCommand))]
@@ -84,6 +85,8 @@ public partial class MediaAreaViewModel : ViewModelBase
 
         // Snapshot items for filtering. (If you later support live updates, we can sync this list.)
         _allItems = new List<MediaItem>(node.Items);
+        foreach (var item in _allItems)
+            item.PropertyChanged += OnItemPropertyChanged;
 
         PopulateItems(_allItems);
 
@@ -236,6 +239,20 @@ public partial class MediaAreaViewModel : ViewModelBase
 
         PopulateItems(matches);
     }
+
+    private void OnItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MediaItem.IsFavorite) &&
+            e.PropertyName != nameof(MediaItem.Status))
+        {
+            return;
+        }
+
+        if (!OnlyFavorites && SelectedStatus == null)
+            return;
+
+        DebouncedApplyFilter(SearchText);
+    }
     
     /// <summary>
     /// Repopulates the list efficiently (single Reset notification)
@@ -281,5 +298,20 @@ public partial class MediaAreaViewModel : ViewModelBase
     {
         if (SelectedMediaItem != null)
             RequestPlay?.Invoke(SelectedMediaItem);
+    }
+
+    public void Dispose()
+    {
+        if (_isDisposed)
+            return;
+
+        _isDisposed = true;
+
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+        _searchDebounceCts = null;
+
+        foreach (var item in _allItems)
+            item.PropertyChanged -= OnItemPropertyChanged;
     }
 }
