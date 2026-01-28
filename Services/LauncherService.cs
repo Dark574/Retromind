@@ -1016,6 +1016,20 @@ public sealed class LauncherService
         return result.Replace("{file}", quotedPath, StringComparison.Ordinal);
     }
 
+    private static bool IsProcessRunning(string processName)
+    {
+        var processes = Process.GetProcessesByName(processName);
+        try
+        {
+            return processes.Length > 0;
+        }
+        finally
+        {
+            foreach (var process in processes)
+                process.Dispose();
+        }
+    }
+
     private static async Task<bool> WatchProcessByNameAsync(string processName, CancellationToken cancellationToken)
     {
         var cleanName = Path.GetFileNameWithoutExtension(processName);
@@ -1025,7 +1039,7 @@ public sealed class LauncherService
 
         // If the process is already running, do not block waiting for it to exit.
         // This avoids hanging the launch flow when watching long-running launchers (e.g. Steam).
-        if (Process.GetProcessesByName(cleanName).Length > 0)
+        if (IsProcessRunning(cleanName))
             return false;
 
         // Phase 1: wait for process to appear.
@@ -1033,14 +1047,14 @@ public sealed class LauncherService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (Process.GetProcessesByName(cleanName).Length > 0)
+            if (IsProcessRunning(cleanName))
                 break;
 
             await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
         }
 
         // If not found in time, we cannot track.
-        if (Process.GetProcessesByName(cleanName).Length == 0)
+        if (!IsProcessRunning(cleanName))
             return false;
 
         // Phase 2: wait for process to disappear.
@@ -1050,7 +1064,7 @@ public sealed class LauncherService
 
             await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
 
-            if (Process.GetProcessesByName(cleanName).Length == 0)
+            if (!IsProcessRunning(cleanName))
                 break;
         }
 
