@@ -817,12 +817,18 @@ public partial class MainWindowViewModel
             if (e.PropertyName == nameof(SearchAreaViewModel.SelectedMediaItem))
             {
                 var item = searchVm.SelectedMediaItem;
-                 
+
+                if (!_currentSettings.EnableSelectionMusicPreview)
+                {
+                    _audioService.StopMusic();
+                    return;
+                }
+
                 // Music logic with helper and assets
                 var musicAsset = item?.GetPrimaryAssetPath(AssetType.Music);
                 if (!string.IsNullOrEmpty(musicAsset))
                     _ = _audioService.PlayMusicAsync(AppPaths.ResolveDataPath(musicAsset));
-                else 
+                else
                     _audioService.StopMusic();
             }
         };
