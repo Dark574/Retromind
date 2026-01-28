@@ -380,15 +380,20 @@ public partial class BigModeViewModel
 
         _isLaunching = true;
 
-        StopVideo();
+        try
+        {
+            StopVideo();
 
-        if (RequestPlay != null)
-            await RequestPlay(SelectedItem);
+            if (RequestPlay != null)
+                await RequestPlay(SelectedItem);
+        }
+        finally
+        {
+            _isLaunching = false;
 
-        _isLaunching = false;
-
-        // Resume preview once the game returns.
-        TriggerPreviewPlaybackWithDebounce();
+            // Resume preview once the game returns (or if launch failed).
+            TriggerPreviewPlaybackWithDebounce();
+        }
     }
 
     [RelayCommand]
