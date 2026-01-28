@@ -3,8 +3,6 @@ title: Retromind – Linux-first media & game launcher
 description: Retromind is a Linux-first, portable media and game launcher for ROMs, PC games, movies, books and comics, built with C# and Avalonia.
 ---
 
-# Retromind
-
 Retromind is a **Linux-first**, portable media and game launcher
 for organizing and starting your library:
 
@@ -96,7 +94,7 @@ dotnet run --project Retromind.csproj -- --bigmode
 
 For more details, see the README in the repository:
 
-- https://github.com/Dark574/Retromind
+[https://github.com/Dark574/Retromind](https://github.com/Dark574/Retromind)
 
 ---
 
