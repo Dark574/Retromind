@@ -146,6 +146,9 @@ public class AudioService
             {
                 _currentProcess.Kill();
             }
+
+            // Best-effort wait to avoid leaving a zombie process on Linux.
+            _currentProcess.WaitForExit(500);
         }
         catch (Exception ex)
         {
