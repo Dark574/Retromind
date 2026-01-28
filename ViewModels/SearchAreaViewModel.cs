@@ -351,12 +351,21 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         });
 
         var results = new List<MediaItem>(capacity: 256);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
 
         // Evaluate in background; only UI assignment is marshaled
         for (int i = 0; i < activeScopes.Count; i++)
         {
             token.ThrowIfCancellationRequested();
-            await CollectMatchesRecursiveAsync(activeScopes[i], results, query, filterYear, favoritesOnly, statusFilter, token);
+            await CollectMatchesRecursiveAsync(
+                activeScopes[i],
+                results,
+                seen,
+                query,
+                filterYear,
+                favoritesOnly,
+                statusFilter,
+                token);
         }
 
         // Global sort across all scopes, same as main MediaArea view:
@@ -403,6 +412,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     private static async Task CollectMatchesRecursiveAsync(
         MediaNode node,
         List<MediaItem> matches,
+        HashSet<string> seen,
         string? query,
         int? filterYear,
         bool favoritesOnly,
@@ -430,13 +440,28 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             if (!Matches(item, query, filterYear, favoritesOnly, statusFilter))
                 continue;
 
-            matches.Add(item);
+            if (string.IsNullOrWhiteSpace(item.Id))
+            {
+                matches.Add(item);
+            }
+            else if (seen.Add(item.Id))
+            {
+                matches.Add(item);
+            }
         }
 
         // Recurse into child nodes.
         for (int i = 0; i < children.Count; i++)
         {
-            await CollectMatchesRecursiveAsync(children[i], matches, query, filterYear, favoritesOnly, statusFilter, token);
+            await CollectMatchesRecursiveAsync(
+                children[i],
+                matches,
+                seen,
+                query,
+                filterYear,
+                favoritesOnly,
+                statusFilter,
+                token);
         }
     }
 
