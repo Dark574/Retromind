@@ -64,7 +64,7 @@ public partial class BulkScrapeViewModel : ViewModelBase
     public IRelayCommand CancelCommand { get; }
 
     // Event raised when an item has been successfully scraped/matched.
-    public Action<MediaItem, ScraperSearchResult>? OnItemScraped;
+    public Func<MediaItem, ScraperSearchResult, Task>? OnItemScrapedAsync;
 
     private void InitializeScrapers()
     {
@@ -172,9 +172,10 @@ public partial class BulkScrapeViewModel : ViewModelBase
                         AppendLogBuffer($"[MATCH] {item.Title} -> {match.Title}");
 
                         // Apply scraping result on UI thread (likely touches bound objects)
-                        await UiThreadHelper.InvokeAsync(() =>
+                        await UiThreadHelper.InvokeAsync(async () =>
                         {
-                            OnItemScraped?.Invoke(item, match);
+                            if (OnItemScrapedAsync != null)
+                                await OnItemScrapedAsync(item, match);
                         });
                     }
                     else

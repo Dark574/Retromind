@@ -309,14 +309,16 @@ public partial class BigModeViewModel
             IsEnabled = false
         };
 
-        _previewDebounceTimer.Tick += (_, _) =>
-        {
-            // One-shot timer behavior
-            if (_previewDebounceTimer != null)
-                _previewDebounceTimer.IsEnabled = false;
+        _previewDebounceTimer.Tick += OnPreviewDebounceTimerTick;
+    }
 
-            TriggerPreviewPlayback();
-        };
+    private void OnPreviewDebounceTimerTick(object? sender, EventArgs e)
+    {
+        // One-shot timer behavior
+        if (_previewDebounceTimer != null)
+            _previewDebounceTimer.IsEnabled = false;
+
+        TriggerPreviewPlayback();
     }
 
     private void CancelPreviewDebounce()
@@ -329,6 +331,23 @@ public partial class BigModeViewModel
 
         if (_previewDebounceTimer != null)
             _previewDebounceTimer.IsEnabled = false;
+    }
+
+    private void DisposePreviewDebounceTimer()
+    {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(DisposePreviewDebounceTimer, DispatcherPriority.Background);
+            return;
+        }
+
+        if (_previewDebounceTimer != null)
+        {
+            _previewDebounceTimer.Tick -= OnPreviewDebounceTimerTick;
+            _previewDebounceTimer.Stop();
+            _previewDebounceTimer.IsEnabled = false;
+            _previewDebounceTimer = null;
+        }
     }
 
     private TimeSpan GetAdaptivePreviewDebounceDelay()

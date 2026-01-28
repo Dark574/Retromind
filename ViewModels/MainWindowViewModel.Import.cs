@@ -624,7 +624,7 @@ public partial class MainWindowViewModel
         if (node == null || CurrentWindow is not { } owner) return;
 
         var vm = new BulkScrapeViewModel(node, _currentSettings, _metadataService);
-        vm.OnItemScraped = async (item, result) =>
+        vm.OnItemScrapedAsync = async (item, result) =>
         {
             var parent = FindParentNode(RootItems, item);
             if (parent == null) return;

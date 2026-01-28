@@ -653,6 +653,7 @@ public partial class MainWindowViewModel
         };
 
         settingsVm.RequestClose += () => { dialog.Close(); };
+        dialog.Closed += (_, _) => settingsVm.Dispose();
     
         // Allow the settings dialog to request a one-time portable migration
         settingsVm.RequestPortableMigration += async () =>

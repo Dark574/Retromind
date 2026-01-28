@@ -133,22 +133,25 @@ public partial class BigModeViewModel
             IsEnabled = false
         };
 
-        _gamepadRepeatTimer.Tick += (_, _) =>
+        _gamepadRepeatTimer.Tick += OnGamepadRepeatTimerTick;
+    }
+
+    private void OnGamepadRepeatTimerTick(object? sender, EventArgs e)
+    {
+        if (_gamepadRepeatDirection == null)
         {
-            if (_gamepadRepeatDirection == null)
-            {
+            if (_gamepadRepeatTimer != null)
                 _gamepadRepeatTimer.IsEnabled = false;
-                return;
-            }
+            return;
+        }
 
-            if (_gamepadRepeatInitialPhase)
-            {
-                _gamepadRepeatInitialPhase = false;
-                _gamepadRepeatTimer.Interval = GamepadRepeatInterval;
-            }
+        if (_gamepadRepeatInitialPhase)
+        {
+            _gamepadRepeatInitialPhase = false;
+            _gamepadRepeatTimer!.Interval = GamepadRepeatInterval;
+        }
 
-            NavigateForDirection(_gamepadRepeatDirection.Value, playSound: false);
-        };
+        NavigateForDirection(_gamepadRepeatDirection.Value, playSound: false);
     }
 
     private void StopGamepadRepeat(GamepadService.GamepadDirection direction)
@@ -173,6 +176,26 @@ public partial class BigModeViewModel
 
         if (_gamepadRepeatTimer != null)
             _gamepadRepeatTimer.IsEnabled = false;
+    }
+
+    private void DisposeGamepadRepeatTimer()
+    {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(DisposeGamepadRepeatTimer, DispatcherPriority.Background);
+            return;
+        }
+
+        _gamepadRepeatDirection = null;
+        _gamepadRepeatInitialPhase = false;
+
+        if (_gamepadRepeatTimer != null)
+        {
+            _gamepadRepeatTimer.Tick -= OnGamepadRepeatTimerTick;
+            _gamepadRepeatTimer.Stop();
+            _gamepadRepeatTimer.IsEnabled = false;
+            _gamepadRepeatTimer = null;
+        }
     }
 
     private void SuspendPreviewForScroll()

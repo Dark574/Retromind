@@ -13,6 +13,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
@@ -475,6 +476,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void MarkLibraryDirty()
     {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(MarkLibraryDirty, DispatcherPriority.Background);
+            return;
+        }
+
         _isLibraryDirty = true;
         _libraryDirtyVersion++;
 
@@ -483,6 +490,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void MarkLibraryDirtyAndSaveSoon()
     {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(MarkLibraryDirtyAndSaveSoon, DispatcherPriority.Background);
+            return;
+        }
+
         MarkLibraryDirty();
         var version = _libraryDirtyVersion;
         _ = SaveLibraryIfDirtyAsync(force: false, expectedVersion: version);

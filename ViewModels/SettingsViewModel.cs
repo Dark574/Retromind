@@ -18,9 +18,10 @@ namespace Retromind.ViewModels;
 /// ViewModel for the application settings dialog
 /// Manages emulator profiles and scraper configurations
 /// </summary>
-public partial class SettingsViewModel : ViewModelBase
+public partial class SettingsViewModel : ViewModelBase, IDisposable
 {
     private readonly AppSettings _appSettings;
+    private bool _disposed;
 
     // Currently selected emulator profile
     [ObservableProperty] 
@@ -515,5 +516,16 @@ public partial class SettingsViewModel : ViewModelBase
         {
             SelectedEmulator.Path = result[0].Path.LocalPath;
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+
+        if (SelectedScraper != null)
+            SelectedScraper.PropertyChanged -= OnScraperPropertyChanged;
     }
 }

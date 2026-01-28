@@ -281,7 +281,7 @@ public partial class BigModeViewModel
         _gamepadService.OnBack -= OnGamepadBack;
 
         _videoSurface.FrameReady -= OnMainVideoFrameReady;
-        StopGamepadRepeatTimer();
+        DisposeGamepadRepeatTimer();
 
         // Stop attract timer early so it can't fire while we tear down VLC
         try
@@ -302,11 +302,7 @@ public partial class BigModeViewModel
         // Stop preview debounce timer (new UI-thread debounce, replaces the old CTS/Task.Run approach)
         try
         {
-            if (_previewDebounceTimer != null)
-            {
-                _previewDebounceTimer.IsEnabled = false;
-                _previewDebounceTimer = null;
-            }
+            DisposePreviewDebounceTimer();
         }
         catch
         {
