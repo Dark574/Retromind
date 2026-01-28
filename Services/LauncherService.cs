@@ -137,8 +137,7 @@ public sealed class LauncherService
 
             var startInfo = new ProcessStartInfo
             {
-                FileName = fileName,
-                UseShellExecute = useShellExecute
+                FileName = fileName
             };
 
             startInfo.WorkingDirectory = ResolveWorkingDirectory(fileName, launchFilePath);
@@ -150,6 +149,18 @@ public sealed class LauncherService
             var shouldApplyPrefix =
                 !string.IsNullOrWhiteSpace(item.PrefixPath) ||
                 (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
+
+            var hasEnvOverrides =
+                (inheritedConfig?.EnvironmentOverrides?.Count ?? 0) > 0 ||
+                (item.EnvironmentOverrides?.Count ?? 0) > 0;
+
+            // Ensure env vars + wrapper arguments are honored (shell exec can drop env vars).
+            var requiresDirectExec = shouldApplyPrefix ||
+                                     hasEnvOverrides ||
+                                     (nativeWrappers is { Count: > 0 }) ||
+                                     !string.IsNullOrWhiteSpace(args);
+
+            startInfo.UseShellExecute = requiresDirectExec ? false : useShellExecute;
 
             var prefixInitialized = true;
             if (shouldApplyPrefix)

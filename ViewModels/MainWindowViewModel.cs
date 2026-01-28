@@ -1108,7 +1108,13 @@ public partial class MainWindowViewModel : ViewModelBase
                 capacity: itemList.Count);
 
         if (!randomizeCovers && !randomizeMusic)
+        {
+            // Ensure any previous randomization overrides are cleared.
+            for (int i = 0; i < itemList.Count; i++)
+                randomizationPlan.Add((itemList[i], null, null, null));
+
             return (itemList, randomizationPlan);
+        }
 
         foreach (var snapshot in assetSnapshots)
         {

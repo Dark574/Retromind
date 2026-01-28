@@ -173,9 +173,10 @@ public partial class SearchAreaViewModel : ViewModelBase
         // Cancel previous pending search (debounce + background evaluation)
         _searchCts?.Cancel();
         _searchCts?.Dispose();
-        _searchCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();
+        _searchCts = cts;
 
-        var token = _searchCts.Token;
+        var token = cts.Token;
 
         _ = Task.Run(async () =>
         {
@@ -184,7 +185,7 @@ public partial class SearchAreaViewModel : ViewModelBase
                 await Task.Delay(SearchDebounceDelay, token).ConfigureAwait(false);
                 if (token.IsCancellationRequested) return;
 
-                await ExecuteSearchAsync(token).ConfigureAwait(false);
+                await ExecuteSearchAsync(token, cts).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -193,7 +194,7 @@ public partial class SearchAreaViewModel : ViewModelBase
         }, token);
     }
 
-    private async Task ExecuteSearchAsync(CancellationToken token)
+    private async Task ExecuteSearchAsync(CancellationToken token, CancellationTokenSource cts)
     {
         var query = SearchText?.Trim();
         var yearText = SearchYear?.Trim();
@@ -208,6 +209,9 @@ public partial class SearchAreaViewModel : ViewModelBase
         {
             await UiThreadHelper.InvokeAsync(() =>
             {
+                if (!ReferenceEquals(_searchCts, cts) || token.IsCancellationRequested)
+                    return;
+
                 SearchResults.Clear();
                 OnPropertyChanged(nameof(HasResults));
                 OnPropertyChanged(nameof(HasNoResults));
@@ -247,6 +251,9 @@ public partial class SearchAreaViewModel : ViewModelBase
         
         await UiThreadHelper.InvokeAsync(() =>
         {
+            if (!ReferenceEquals(_searchCts, cts) || token.IsCancellationRequested)
+                return;
+
             SearchResults.ReplaceAll(results);
 
             OnPropertyChanged(nameof(HasResults));

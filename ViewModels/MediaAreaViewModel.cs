@@ -136,9 +136,10 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     {
         _searchDebounceCts?.Cancel();
         _searchDebounceCts?.Dispose();
-        _searchDebounceCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();
+        _searchDebounceCts = cts;
 
-        var token = _searchDebounceCts.Token;
+        var token = cts.Token;
 
         _ = Task.Run(async () =>
         {
@@ -156,7 +157,8 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
                 UiThreadHelper.Post(() =>
                 {
                     // If a newer search has started, ignore this result
-                    if (_searchDebounceCts == null || _searchDebounceCts.IsCancellationRequested) return;
+                    if (!ReferenceEquals(_searchDebounceCts, cts) || token.IsCancellationRequested)
+                        return;
 
                     ApplyMatchesToUi(querySnapshot, matches);
                 });
