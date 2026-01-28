@@ -803,6 +803,13 @@ public partial class MainWindowViewModel
         
         searchVm.PropertyChanged += (s, e) => 
         {
+            if (e.PropertyName == nameof(SearchAreaViewModel.ItemWidth))
+            {
+                ItemWidth = searchVm.ItemWidth;
+                SaveSettingsOnly();
+                return;
+            }
+
             if (e.PropertyName == nameof(SearchAreaViewModel.SelectedMediaItem))
             {
                 var item = searchVm.SelectedMediaItem;
