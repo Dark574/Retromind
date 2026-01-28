@@ -37,6 +37,8 @@ public class AsyncImageHelper : AvaloniaObject
 
     // --- Cache State ---
     private static readonly Dictionary<string, (Bitmap Bitmap, LinkedListNode<string> Node)> Cache = new();
+    private static readonly Dictionary<string, int> CacheRefCounts = new(StringComparer.Ordinal);
+    private static readonly HashSet<string> InvalidatedKeys = new(StringComparer.Ordinal);
     private static readonly LinkedList<string> LruList = new();
     private static readonly object CacheLock = new();
     
@@ -47,6 +49,7 @@ public class AsyncImageHelper : AvaloniaObject
     {
         UrlProperty.Changed.AddClassHandler<Image>((image, args) =>
         {
+            EnsureDetachHandler(image);
             var url = args.NewValue as string;
             var width = GetDecodeWidth(image);
             _ = LoadImageAsync(image, url, width);
@@ -54,6 +57,7 @@ public class AsyncImageHelper : AvaloniaObject
 
         DecodeWidthProperty.Changed.AddClassHandler<Image>((image, args) =>
         {
+            EnsureDetachHandler(image);
             var url = GetUrl(image);
             var width = args.NewValue as int?;
             _ = LoadImageAsync(image, url, width);
@@ -78,6 +82,14 @@ public class AsyncImageHelper : AvaloniaObject
     private static readonly AttachedProperty<CancellationTokenSource?> CurrentLoadCtsProperty =
         AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, CancellationTokenSource?>("CurrentLoadCts");
 
+    // Private property to track the current cache key used by an Image control
+    private static readonly AttachedProperty<string?> CurrentCacheKeyProperty =
+        AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, string?>("CurrentCacheKey");
+
+    // Tracks whether we've attached a Detach handler for this Image instance
+    private static readonly AttachedProperty<bool> DetachHandlerAttachedProperty =
+        AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, bool>("DetachHandlerAttached");
+
     // --- Core Logic ---
 
     /// <summary>
@@ -88,6 +100,7 @@ public class AsyncImageHelper : AvaloniaObject
         var oldCts = image.GetValue(CurrentLoadCtsProperty);
         oldCts?.Cancel();
         oldCts?.Dispose();
+        ReleaseImageCacheKey(image);
         image.Source = PlaceholderImage;
         image.SetValue(CurrentLoadCtsProperty, null);
     }
@@ -109,7 +122,7 @@ public class AsyncImageHelper : AvaloniaObject
             UiThreadHelper.Post(() =>
             {
                 if (image.GetValue(CurrentLoadCtsProperty) != cts) return;
-                image.Source = cachedBitmap;
+                AssignImageSource(image, cachedBitmap, cacheKey);
             });
             return;
         }
@@ -157,7 +170,7 @@ public class AsyncImageHelper : AvaloniaObject
             UiThreadHelper.Post(() =>
             {
                 if (image.GetValue(CurrentLoadCtsProperty) != cts) return;
-                image.Source = loadedBitmap;
+                AssignImageSource(image, loadedBitmap, cacheKey);
             });
         }
         catch (OperationCanceledException)
@@ -216,9 +229,17 @@ public class AsyncImageHelper : AvaloniaObject
             {
                 if (Cache.TryGetValue(key, out var entry))
                 {
-                    // Do not dispose here: cached bitmaps can still be in use by UI elements.
-                    LruList.Remove(entry.Node);
-                    Cache.Remove(key);
+                    if (GetCacheRefCount(key) == 0)
+                    {
+                        LruList.Remove(entry.Node);
+                        Cache.Remove(key);
+                        InvalidatedKeys.Remove(key);
+                        entry.Bitmap.Dispose();
+                    }
+                    else
+                    {
+                        InvalidatedKeys.Add(key);
+                    }
                 }
             }
         }
@@ -230,6 +251,9 @@ public class AsyncImageHelper : AvaloniaObject
         {
             if (Cache.TryGetValue(key, out var entry))
             {
+                if (InvalidatedKeys.Contains(key))
+                    return null;
+
                 LruList.Remove(entry.Node);
                 LruList.AddLast(entry.Node); // Move to MRU position
                 return entry.Bitmap;
@@ -248,6 +272,9 @@ public class AsyncImageHelper : AvaloniaObject
                 var key = node.Value;
                 if (key == url || key.StartsWith(url + "_", StringComparison.Ordinal))
                 {
+                    if (InvalidatedKeys.Contains(key))
+                        continue;
+
                     return Cache.TryGetValue(key, out var entry) ? entry.Bitmap : null;
                 }
             }
@@ -264,20 +291,140 @@ public class AsyncImageHelper : AvaloniaObject
 
             if (Cache.Count >= MaxCacheSize)
             {
-                // Remove LRU item
-                var lruKey = LruList.First?.Value;
-                if (lruKey != null)
-                {
-                    // Do not dispose here: the bitmap might still be referenced by an Image.Source.
-                    // Disposing a live bitmap can crash layout/measure in Avalonia.
-                    Cache.Remove(lruKey);
-                    LruList.RemoveFirst();
-                }
+                TryEvictOne();
             }
+
+            InvalidatedKeys.Remove(key);
 
             var node = LruList.AddLast(key);
             Cache[key] = (bitmap, node);
         }
+    }
+
+    private static void AssignImageSource(Image image, Bitmap bitmap, string cacheKey)
+    {
+        var oldKey = image.GetValue(CurrentCacheKeyProperty);
+        if (!string.Equals(oldKey, cacheKey, StringComparison.Ordinal))
+        {
+            if (!string.IsNullOrEmpty(oldKey))
+                ReleaseImageCacheKey(image);
+
+            IncrementCacheRef(cacheKey);
+            image.SetValue(CurrentCacheKeyProperty, cacheKey);
+        }
+
+        image.Source = bitmap;
+    }
+
+    private static void ReleaseImageCacheKey(Image image)
+    {
+        var oldKey = image.GetValue(CurrentCacheKeyProperty);
+        if (string.IsNullOrEmpty(oldKey))
+            return;
+
+        image.SetValue(CurrentCacheKeyProperty, null);
+        DecrementCacheRef(oldKey);
+    }
+
+    private static int GetCacheRefCount(string key)
+        => CacheRefCounts.TryGetValue(key, out var count) ? count : 0;
+
+    private static void IncrementCacheRef(string key)
+    {
+        lock (CacheLock)
+        {
+            CacheRefCounts[key] = CacheRefCounts.TryGetValue(key, out var count)
+                ? count + 1
+                : 1;
+        }
+    }
+
+    private static void DecrementCacheRef(string key)
+    {
+        lock (CacheLock)
+        {
+            if (!CacheRefCounts.TryGetValue(key, out var count))
+                return;
+
+            count--;
+            if (count <= 0)
+            {
+                CacheRefCounts.Remove(key);
+
+                if (InvalidatedKeys.Contains(key) && Cache.TryGetValue(key, out var entry))
+                {
+                    Cache.Remove(key);
+                    LruList.Remove(entry.Node);
+                    InvalidatedKeys.Remove(key);
+                    entry.Bitmap.Dispose();
+                }
+            }
+            else
+            {
+                CacheRefCounts[key] = count;
+            }
+        }
+    }
+
+    private static void TryEvictOne()
+    {
+        var node = LruList.First;
+        while (node != null)
+        {
+            var key = node.Value;
+            var next = node.Next;
+
+            if (GetCacheRefCount(key) > 0)
+            {
+                node = next;
+                continue;
+            }
+
+            if (Cache.TryGetValue(key, out var entry))
+            {
+                Cache.Remove(key);
+                LruList.Remove(node);
+                InvalidatedKeys.Remove(key);
+                entry.Bitmap.Dispose();
+            }
+
+            break;
+        }
+    }
+
+    private static void EnsureDetachHandler(Image image)
+    {
+        if (image.GetValue(DetachHandlerAttachedProperty))
+            return;
+
+        image.SetValue(DetachHandlerAttachedProperty, true);
+        image.AttachedToVisualTree += OnImageAttached;
+        image.DetachedFromVisualTree += OnImageDetached;
+    }
+
+    private static void OnImageAttached(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is not Image image)
+            return;
+
+        if (image.GetValue(CurrentLoadCtsProperty) != null)
+            return;
+
+        var url = GetUrl(image);
+        if (string.IsNullOrEmpty(url))
+            return;
+
+        if (image.Source != null && !ReferenceEquals(image.Source, PlaceholderImage))
+            return;
+
+        var width = GetDecodeWidth(image);
+        _ = LoadImageAsync(image, url, width);
+    }
+
+    private static void OnImageDetached(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is Image image)
+            ResetImage(image);
     }
 
     /// <summary>

@@ -45,6 +45,7 @@ public partial class MainWindowViewModel : ViewModelBase
     
     // Token Source for cancelling old content loading tasks
     private CancellationTokenSource? _updateContentCts;
+    private TaskCompletionSource<bool>? _updateContentTcs;
     
     // --- State ---
     private AppSettings _currentSettings;
@@ -435,19 +436,29 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task UpdateContentAsync()
     {
         UpdateContent();  // Start the existing background task.
-    
-        // Wait until SelectedNodeContent is set (simple polling with timeout).
-        int timeout = 5000;  // 5 seconds max wait.
-        int delay = 100;
-        while (SelectedNodeContent == null && timeout > 0)
+
+        var tcs = _updateContentTcs;
+        if (tcs == null) return;
+
+        var timeoutTask = Task.Delay(5000);
+        var completed = await Task.WhenAny(tcs.Task, timeoutTask).ConfigureAwait(false);
+        if (completed == timeoutTask)
         {
-            await Task.Delay(delay);
-            timeout -= delay;
+            Debug.WriteLine("[DEBUG] UpdateContentAsync: Timeout - content update not completed.");
+            return;
         }
-    
-        if (SelectedNodeContent == null)
+
+        try
         {
-            Debug.WriteLine("[DEBUG] UpdateContentAsync: Timeout - SelectedNodeContent not set.");
+            await tcs.Task.ConfigureAwait(false);
+        }
+        catch (TaskCanceledException)
+        {
+            // Expected when a newer UpdateContent call supersedes this one.
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[DEBUG] UpdateContentAsync: Failed - {ex.Message}");
         }
     }
     
@@ -926,6 +937,10 @@ public partial class MainWindowViewModel : ViewModelBase
         _updateContentCts = new CancellationTokenSource();
         var token = _updateContentCts.Token;
 
+        _updateContentTcs?.TrySetCanceled();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _updateContentTcs = tcs;
+
         // Capture current filters before we dispose the old VM (so edits don't reset UI filters).
         var previousVm = _currentMediaAreaVm;
         var previousNodeId = previousVm?.Node?.Id;
@@ -939,6 +954,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (SelectedNode is null)
         {
             SelectedNodeContent = null;
+            tcs.TrySetResult(true);
             return;
         }
 
@@ -948,54 +964,75 @@ public partial class MainWindowViewModel : ViewModelBase
         // Run the heavy collection logic in a background task
         var updateTask = Task.Run(async () =>
         {
-            if (token.IsCancellationRequested) return;
-
-            // Build a lightweight description of what we want to display:
-            // - the flat item list for this node (including children)
-            // - and the randomization plan for cover/wallpaper/music.
-            var (allItems, randomizationPlan) =
-                await BuildDisplayItemsWithRandomizationAsync(nodeToLoad, token);
-
-            if (token.IsCancellationRequested) return;
-
-            // Create the display node used by MediaAreaViewModel.
-            var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
-            {
-                Id = nodeToLoad.Id,
-                Items = new ObservableCollection<MediaItem>(allItems)
-            };
-
-            // Switch to UI thread once (apply randomization + build VM)
-            await UiThreadHelper.InvokeAsync(() =>
+            try
             {
                 if (token.IsCancellationRequested) return;
-                if (SelectedNode != nodeToLoad) return;
 
-                ApplyRandomizationPlan(randomizationPlan);
+                // Build a lightweight description of what we want to display:
+                // - the flat item list for this node (including children)
+                // - and the randomization plan for cover/wallpaper/music.
+                var (allItems, randomizationPlan) =
+                    await BuildDisplayItemsWithRandomizationAsync(nodeToLoad, token);
 
-                var mediaVm = new MediaAreaViewModel(displayNode, ItemWidth);
+                if (token.IsCancellationRequested) return;
 
-                if (previousVm != null && previousNodeId == nodeToLoad.Id)
+                // Create the display node used by MediaAreaViewModel.
+                var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
                 {
-                    mediaVm.OnlyFavorites = previousOnlyFavorites;
-                    mediaVm.SelectedStatus = previousStatus;
-                    mediaVm.SearchText = previousSearchText;
-                }
+                    Id = nodeToLoad.Id,
+                    Items = new ObservableCollection<MediaItem>(allItems)
+                };
 
-                _currentMediaAreaVm = mediaVm;
-                mediaVm.RequestPlay += OnMediaAreaRequestPlay;
-                mediaVm.PropertyChanged += OnMediaAreaPropertyChanged;
-
-                if (!string.IsNullOrEmpty(_currentSettings.LastSelectedMediaId))
+                // Switch to UI thread once (apply randomization + build VM)
+                await UiThreadHelper.InvokeAsync(() =>
                 {
-                    var itemToSelect = displayNode.Items
-                        .FirstOrDefault(i => i.Id == _currentSettings.LastSelectedMediaId);
-                    if (itemToSelect != null)
-                        mediaVm.SelectedMediaItem = itemToSelect;
-                }
+                    if (token.IsCancellationRequested)
+                    {
+                        tcs.TrySetCanceled();
+                        return;
+                    }
+                    if (SelectedNode != nodeToLoad)
+                    {
+                        tcs.TrySetCanceled();
+                        return;
+                    }
 
-                SelectedNodeContent = mediaVm;
-            });
+                    ApplyRandomizationPlan(randomizationPlan);
+
+                    var mediaVm = new MediaAreaViewModel(displayNode, ItemWidth);
+
+                    if (previousVm != null && previousNodeId == nodeToLoad.Id)
+                    {
+                        mediaVm.OnlyFavorites = previousOnlyFavorites;
+                        mediaVm.SelectedStatus = previousStatus;
+                        mediaVm.SearchText = previousSearchText;
+                    }
+
+                    _currentMediaAreaVm = mediaVm;
+                    mediaVm.RequestPlay += OnMediaAreaRequestPlay;
+                    mediaVm.PropertyChanged += OnMediaAreaPropertyChanged;
+
+                    if (!string.IsNullOrEmpty(_currentSettings.LastSelectedMediaId))
+                    {
+                        var itemToSelect = displayNode.Items
+                            .FirstOrDefault(i => i.Id == _currentSettings.LastSelectedMediaId);
+                        if (itemToSelect != null)
+                            mediaVm.SelectedMediaItem = itemToSelect;
+                    }
+
+                    SelectedNodeContent = mediaVm;
+                    tcs.TrySetResult(true);
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                tcs.TrySetCanceled();
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+                throw;
+            }
         }, token);
         
         updateTask.ContinueWith(t =>

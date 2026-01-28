@@ -36,6 +36,7 @@ public class AudioService
         lock (_processLock)
         {
             _playbackCts?.Cancel();
+            _playbackCts?.Dispose();
             _playbackCts = new CancellationTokenSource();
             
             // Immediately stop current music to make UI feel responsive
@@ -126,6 +127,8 @@ public class AudioService
         lock (_processLock)
         {
             _playbackCts?.Cancel(); // Cancel pending starts
+            _playbackCts?.Dispose();
+            _playbackCts = null;
             StopMusicInternal();
         }
     }
