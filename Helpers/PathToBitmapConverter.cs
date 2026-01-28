@@ -20,8 +20,26 @@ namespace Retromind.Helpers;
 /// </summary>
 public class PathToBitmapConverter : IValueConverter
 {
-    // Simple cache to store loaded Bitmaps and avoid repeated IO (key: full path)
-    private static readonly Dictionary<string, Bitmap> BitmapCache = new();
+    private const int MaxCacheSize = 200;
+
+    // Cache to store loaded Bitmaps and avoid repeated IO (key: full path).
+    // Uses weak references so images can be collected when no longer in use.
+    private sealed class CacheEntry
+    {
+        public CacheEntry(WeakReference<Bitmap> bitmapRef, LinkedListNode<string> node)
+        {
+            BitmapRef = bitmapRef;
+            Node = node;
+        }
+
+        public WeakReference<Bitmap> BitmapRef { get; }
+        public LinkedListNode<string> Node { get; }
+    }
+
+    private static readonly Dictionary<string, CacheEntry> BitmapCache =
+        new(StringComparer.OrdinalIgnoreCase);
+    private static readonly LinkedList<string> LruList = new();
+    private static readonly object CacheLock = new();
     
     // Placeholder for unsupported cases (e.g., web URLs)
     private static readonly Bitmap? PlaceholderBitmap = null; // Load a default image if needed, e.g., new Bitmap("avares://Assets/placeholder.png");
@@ -38,10 +56,9 @@ public class PathToBitmapConverter : IValueConverter
                 if (string.IsNullOrEmpty(fullPath)) return PlaceholderBitmap;
                 
                 // Check cache first for performance
-                if (BitmapCache.TryGetValue(fullPath, out var cachedBitmap))
-                {
+                var cachedBitmap = GetFromCache(fullPath);
+                if (cachedBitmap != null)
                     return cachedBitmap;
-                }
                 
                 // Handle web links (unsupported in sync converter)
                 if (fullPath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
@@ -53,7 +70,7 @@ public class PathToBitmapConverter : IValueConverter
                 if (System.IO.File.Exists(fullPath))
                 {
                     var bitmap = new Bitmap(fullPath);
-                    BitmapCache[fullPath] = bitmap; // Cache for future use
+                    AddToCache(fullPath, bitmap);
                     return bitmap;
                 }
 
@@ -61,8 +78,9 @@ public class PathToBitmapConverter : IValueConverter
                 if (fullPath.StartsWith("avares://"))
                 {
                     var uri = new Uri(fullPath);
-                    var bitmap = new Bitmap(AssetLoader.Open(uri));
-                    BitmapCache[fullPath] = bitmap;
+                    using var stream = AssetLoader.Open(uri);
+                    var bitmap = new Bitmap(stream);
+                    AddToCache(fullPath, bitmap);
                     return bitmap;
                 }
                 
@@ -83,6 +101,68 @@ public class PathToBitmapConverter : IValueConverter
             }
         }
         return PlaceholderBitmap;
+    }
+
+    private static Bitmap? GetFromCache(string key)
+    {
+        lock (CacheLock)
+        {
+            if (!BitmapCache.TryGetValue(key, out var entry))
+                return null;
+
+            if (!entry.BitmapRef.TryGetTarget(out var bitmap))
+            {
+                BitmapCache.Remove(key);
+                LruList.Remove(entry.Node);
+                return null;
+            }
+
+            // Refresh LRU position
+            LruList.Remove(entry.Node);
+            LruList.AddLast(entry.Node);
+            return bitmap;
+        }
+    }
+
+    private static void AddToCache(string key, Bitmap bitmap)
+    {
+        lock (CacheLock)
+        {
+            if (BitmapCache.ContainsKey(key))
+                return;
+
+            TrimCacheIfNeeded();
+
+            var node = LruList.AddLast(key);
+            BitmapCache[key] = new CacheEntry(new WeakReference<Bitmap>(bitmap), node);
+        }
+    }
+
+    private static void TrimCacheIfNeeded()
+    {
+        if (BitmapCache.Count < MaxCacheSize)
+            return;
+
+        // Drop any dead entries first.
+        var node = LruList.First;
+        while (node != null)
+        {
+            var next = node.Next;
+            if (BitmapCache.TryGetValue(node.Value, out var entry) &&
+                !entry.BitmapRef.TryGetTarget(out _))
+            {
+                BitmapCache.Remove(node.Value);
+                LruList.Remove(node);
+            }
+            node = next;
+        }
+
+        while (BitmapCache.Count >= MaxCacheSize && LruList.First != null)
+        {
+            var oldestKey = LruList.First.Value;
+            BitmapCache.Remove(oldestKey);
+            LruList.RemoveFirst();
+        }
     }
 
     /// <summary>

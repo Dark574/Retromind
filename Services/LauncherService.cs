@@ -82,6 +82,7 @@ public sealed class LauncherService
         {
             stopwatch.Stop();
             elapsed = stopwatch.Elapsed;
+            process?.Dispose();
         }
 
         if (shouldRecordSession)

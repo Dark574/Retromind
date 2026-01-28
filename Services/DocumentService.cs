@@ -39,7 +39,8 @@ public sealed class DocumentService : IDocumentService
                 CreateNoWindow = true
             };
 
-            Process.Start(psi);
+            var process = Process.Start(psi);
+            process?.Dispose();
         }
         catch (Exception ex)
         {

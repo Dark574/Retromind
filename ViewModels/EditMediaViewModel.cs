@@ -147,7 +147,7 @@ public partial class EditMediaViewModel : ViewModelBase
                 FileName = "xdg-open",
                 UseShellExecute = false,
                 ArgumentList = { folder }
-            });
+            })?.Dispose();
         }
         catch
         {

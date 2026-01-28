@@ -52,7 +52,8 @@ public class SoundEffectService
 
                 // We start the process but don't hold a reference to it.
                 // It will live and die on its own. "Fire and forget".
-                Process.Start(startInfo);
+                var process = Process.Start(startInfo);
+                process?.Dispose();
             }
             catch (Exception ex)
             {
