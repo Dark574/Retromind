@@ -508,7 +508,9 @@ public partial class MainWindowViewModel
     private async Task SetMusicAsync(MediaItem? item) 
     {
         if (item == null || CurrentWindow is not { } owner) return;
-        if (SelectedNode == null) return;
+        
+        var parentNode = FindParentNode(RootItems, item) ?? SelectedNode;
+        if (parentNode == null) return;
 
         var storageProvider = StorageProvider ?? owner.StorageProvider;
         var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -522,7 +524,7 @@ public partial class MainWindowViewModel
         {
             _audioService.StopMusic();
             var sourceFile = result[0].Path.LocalPath;
-            var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
+            var nodePath = PathHelper.GetNodePath(parentNode, RootItems);
             
             // Use AssetType.Music instead of a media file kind enum.
             var asset = await _fileService.ImportAssetAsync(sourceFile, item, nodePath, AssetType.Music);
@@ -960,7 +962,9 @@ public partial class MainWindowViewModel
     private async Task SetAssetAsync(MediaItem? item, string title, AssetType type)
     {
         if (item == null || CurrentWindow is not { } owner) return;
-        if (SelectedNode == null) return;
+        
+        var parentNode = FindParentNode(RootItems, item) ?? SelectedNode;
+        if (parentNode == null) return;
         
         var result = await (StorageProvider ?? owner.StorageProvider).OpenFilePickerAsync(new FilePickerOpenOptions 
         { 
@@ -974,7 +978,7 @@ public partial class MainWindowViewModel
             var asset = await _fileService.ImportAssetAsync(
                 result[0].Path.LocalPath,
                 item,
-                PathHelper.GetNodePath(SelectedNode, RootItems),
+                PathHelper.GetNodePath(parentNode, RootItems),
                 type);
 
             if (asset != null)
