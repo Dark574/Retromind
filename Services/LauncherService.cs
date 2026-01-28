@@ -41,6 +41,7 @@ public sealed class LauncherService
         Process? process = null;
         var stopwatch = Stopwatch.StartNew();
         var shouldRecordSession = false;
+        var elapsed = TimeSpan.Zero;
 
         try
         {
@@ -80,9 +81,11 @@ public sealed class LauncherService
         finally
         {
             stopwatch.Stop();
-            if (shouldRecordSession)
-                EvaluateSession(item, stopwatch.Elapsed);
+            elapsed = stopwatch.Elapsed;
         }
+
+        if (shouldRecordSession)
+            await EvaluateSessionAsync(item, elapsed).ConfigureAwait(false);
     }
 
     private static Process? LaunchCommand(MediaItem item)
@@ -1037,7 +1040,7 @@ public sealed class LauncherService
         return true;
     }
 
-    private static void EvaluateSession(MediaItem item, TimeSpan elapsed)
+    private static async Task EvaluateSessionAsync(MediaItem item, TimeSpan elapsed)
     {
         var seconds = elapsed.TotalSeconds;
 
@@ -1052,7 +1055,8 @@ public sealed class LauncherService
             ? elapsed
             : TimeSpan.Zero;
 
-        UpdateStats(item, effectiveSessionTime);
+        await UiThreadHelper.InvokeAsync(() => UpdateStats(item, effectiveSessionTime))
+            .ConfigureAwait(false);
     }
 
     private static void UpdateStats(MediaItem item, TimeSpan sessionTime)
