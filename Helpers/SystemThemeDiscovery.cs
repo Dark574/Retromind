@@ -20,6 +20,7 @@ public static class SystemThemeDiscovery
     public static List<SystemThemeOption> GetAvailableSystemThemes()
     {
         var result = new List<SystemThemeOption>();
+        var originalThemeBasePath = ThemeProperties.ThemeBasePath;
 
         // Base directory: .../Themes/System
         var systemRoot = Path.Combine(AppPaths.ThemesRoot, "System");
@@ -49,6 +50,11 @@ public static class SystemThemeDiscovery
             catch
             {
                 // Best-effort only: if loading fails, fall back to the folder name.
+            }
+            finally
+            {
+                // ThemeLoader mutates the global base path; restore it to avoid side effects.
+                ThemeProperties.ThemeBasePath = originalThemeBasePath;
             }
 
             result.Add(new SystemThemeOption
