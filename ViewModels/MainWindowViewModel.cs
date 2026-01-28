@@ -502,7 +502,7 @@ public partial class MainWindowViewModel : ViewModelBase
             try
             {
                 await Task.Delay(_saveLibraryDebounce, token).ConfigureAwait(false);
-                if (token.IsCancellationRequested) return;
+                token.ThrowIfCancellationRequested();
 
                 await SaveLibraryIfDirtyAsync(force: false, expectedVersion: myVersion).ConfigureAwait(false);
             }
@@ -727,7 +727,7 @@ public partial class MainWindowViewModel : ViewModelBase
             try
             {
                 await Task.Delay(_saveSettingsDebounce, token);
-                if (token.IsCancellationRequested) return;
+                token.ThrowIfCancellationRequested();
 
                 // Serialize on UI thread to avoid cross-thread collection access.
                 var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
@@ -800,6 +800,12 @@ public partial class MainWindowViewModel : ViewModelBase
         _saveLibraryCts?.Cancel();
         _saveLibraryCts?.Dispose();
         _saveLibraryCts = null;
+
+        _updateContentCts?.Cancel();
+        _updateContentCts?.Dispose();
+        _updateContentCts = null;
+        _updateContentTcs?.TrySetCanceled();
+        _updateContentTcs = null;
         
         _gamepadService.OnGuide -= _onGuidePressed;
         _gamepadService.StopMonitoring();
@@ -1037,9 +1043,15 @@ public partial class MainWindowViewModel : ViewModelBase
         
         updateTask.ContinueWith(t =>
         {
-            if (t.IsCanceled) return;
+            if (t.IsCanceled)
+            {
+                tcs.TrySetCanceled();
+                return;
+            }
+
             if (t.Exception == null) return;
 
+            tcs.TrySetException(t.Exception);
             Debug.WriteLine($"[UpdateContent] Background task failed: {t.Exception}");
         }, TaskContinuationOptions.ExecuteSynchronously);
     }

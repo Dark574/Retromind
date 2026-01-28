@@ -729,12 +729,13 @@ public partial class MainWindowViewModel
 
     private async Task DownloadAndSetAsset(string url, MediaItem item, List<string> nodePath, AssetType type)
     {
+        string? tempPathWithExt = null;
         try
         {
             var tempFile = Path.GetTempFileName();
             var ext = Path.GetExtension(url).Split('?')[0];
             if (string.IsNullOrEmpty(ext)) ext = ".jpg";
-            var tempPathWithExt = Path.ChangeExtension(tempFile, ext);
+            tempPathWithExt = Path.ChangeExtension(tempFile, ext);
             
             if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
             File.Move(tempFile, tempPathWithExt);
@@ -769,11 +770,22 @@ public partial class MainWindowViewModel
                     MarkLibraryDirty();
                 }
             }
-            if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
         }
         catch (Exception ex) 
         { 
             Debug.WriteLine($"Critical Download Error: {ex.Message}"); 
+        }
+        finally
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(tempPathWithExt) && File.Exists(tempPathWithExt))
+                    File.Delete(tempPathWithExt);
+            }
+            catch
+            {
+                // best effort cleanup
+            }
         }
     }
 
