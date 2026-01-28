@@ -315,10 +315,14 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         var yearText = SearchYear?.Trim();
         var favoritesOnly = OnlyFavorites;
         var statusFilter = SelectedStatus;
+        var hasQuery = !string.IsNullOrWhiteSpace(query);
+        var hasYearText = !string.IsNullOrWhiteSpace(yearText);
+        var parsedYear = 0;
+        var hasValidYear = hasYearText && int.TryParse(yearText, out parsedYear);
 
         // If all filters are empty and "favorites only" is off, do not show the entire library
-        if (string.IsNullOrWhiteSpace(query) &&
-            string.IsNullOrWhiteSpace(yearText) &&
+        if (!hasQuery &&
+            !hasValidYear &&
             !favoritesOnly &&
             statusFilter == null)
         {
@@ -335,9 +339,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        int? filterYear = null;
-        if (!string.IsNullOrWhiteSpace(yearText) && int.TryParse(yearText, out var parsedYear))
-            filterYear = parsedYear;
+        int? filterYear = hasValidYear ? parsedYear : null;
 
         // Snapshot active scopes on the UI thread (avoid cross-thread collection access).
         var activeScopes = new List<MediaNode>();
