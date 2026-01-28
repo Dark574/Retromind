@@ -544,8 +544,12 @@ public partial class MainWindowViewModel
     private async Task ScrapeMediaAsync(MediaItem? item)
     {
         if (item == null || CurrentWindow is not { } owner) return;
-        if (SelectedNode == null) return; 
-    
+
+        var parentNode = FindParentNode(RootItems, item) ?? SelectedNode;
+        if (parentNode == null) return;
+
+        var nodePath = PathHelper.GetNodePath(parentNode, RootItems);
+
         var vm = new ScrapeDialogViewModel(item, _currentSettings, _metadataService);
         
         vm.OnResultSelectedAsync += async (result) => 
@@ -582,8 +586,6 @@ public partial class MainWindowViewModel
 
             // Changes to the item -> dirty
             MarkLibraryDirty();
-            
-            var nodePath = PathHelper.GetNodePath(SelectedNode, RootItems);
             
             // Move Downloads, Imports and Save to a background task (fire-and-forget)
             _ = Task.Run(async () =>
