@@ -204,6 +204,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             return;
 
         node.Children.CollectionChanged += OnRootChildrenChanged;
+        node.Items.CollectionChanged += OnRootItemsChanged;
     }
 
     private void UntrackRootNode(MediaNode node)
@@ -212,6 +213,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             return;
 
         node.Children.CollectionChanged -= OnRootChildrenChanged;
+        node.Items.CollectionChanged -= OnRootItemsChanged;
     }
 
     private void OnRootNodesChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -242,6 +244,17 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         if (!UiThreadHelper.CheckAccess())
         {
             UiThreadHelper.Post(() => OnRootChildrenChanged(sender, e));
+            return;
+        }
+
+        RefreshScopesAndSearch();
+    }
+
+    private void OnRootItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(() => OnRootItemsChanged(sender, e));
             return;
         }
 
