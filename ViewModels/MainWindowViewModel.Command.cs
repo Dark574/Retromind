@@ -576,6 +576,9 @@ public partial class MainWindowViewModel
             if (SelectedNodeContent is MediaAreaViewModel vm &&
                 vm.SelectedMediaItem == item)
             {
+                if (!_currentSettings.EnableSelectionMusicPreview)
+                    return;
+
                 var relativeMusicPath = item.GetPrimaryAssetPath(AssetType.Music);
 
                 if (!string.IsNullOrEmpty(relativeMusicPath))
