@@ -1,4 +1,5 @@
 using System;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Helpers;
 
 namespace Retromind.Models;
@@ -35,7 +36,7 @@ public enum AssetType
 /// Represents a media asset with type and path information.
 /// Uses relative paths for portability across systems (e.g., Linux)
 /// </summary>
-public class MediaAsset
+public partial class MediaAsset : ObservableObject
 {
     /// <summary>
     /// Unique identifier for the asset. Generated automatically if not set
@@ -75,9 +76,12 @@ public class MediaAsset
         get => _relativePath;
         set
         {
-            if (_relativePath == value) return;
-            _relativePath = value ?? string.Empty;
+            var normalized = value ?? string.Empty;
+            if (!SetProperty(ref _relativePath, normalized))
+                return;
+
             _absolutePath = null;
+            OnPropertyChanged(nameof(AbsolutePath));
         }
     }
 }

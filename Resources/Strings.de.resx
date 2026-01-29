@@ -97,6 +97,7 @@
     <data name="Dialog.LoadMetadata" xml:space="preserve"><value>Metadaten laden...</value></data>
     <data name="Dialog.MsgConfirmDelete" xml:space="preserve"><value>Möchten Sie dies wirklich löschen?</value></data>
     <data name="Dialog.ConfirmMoveNodeAssetsFormat" xml:space="preserve"><value>Alle Assets für '{0}' auf den neuen Speicherort verschieben? Das kann einen Moment dauern.</value></data>
+    <data name="Dialog.ConfirmMergeNodeAssetsFormat" xml:space="preserve"><value>Ziel-Assets für '{0}' existieren bereits. Zusammenführen und bei Konflikten automatisch umnummerieren?</value></data>
     <data name="Dialog.NoResult" xml:space="preserve"><value>Keine Ergebnisse gefunden (oder Filter leer).</value></data>
     <data name="Dialog.SearchTerm" xml:space="preserve"><value>Suchbegriff</value></data>
     <data name="Dialog.Select.Cover" xml:space="preserve"><value>Cover auswählen</value></data>
