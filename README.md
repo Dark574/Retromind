@@ -18,16 +18,19 @@ Project homepage (GitHub Pages):
 ## Status
 IMPORTANT:
 
-Retromind is currently at version 0.0.2-alpha. Data formats (retromind_tree.json, app_settings.json) can change between releases without a migration path. Therefore, use this version more for testing than for a large, long-term library.
+Retromind is early alpha. Data formats (retromind_tree.json, app_settings.json) can change between releases without a migration path. Therefore, use this version more for testing than for a large, long-term library.
 
 Work in progress. Expect breaking changes while features and data formats evolve.
+See `docs/CHANGELOG.md` for version history.
 
 ## Key features (high-level)
 - Library tree (areas/categories) on the left
 - Cover/grid view in the center
 - Details view on the right
+- Global search across the library with filters (year, favorites, status)
 - Metadata scraping (depends on your API keys)
-- Optional BigMode / controller-friendly UI
+- Optional BigMode / controller-friendly UI with runtime themes
+- Per-item manuals/documents and launcher wrappers
 
 ## Screenshots
 
@@ -53,7 +56,7 @@ Work in progress. Expect breaking changes while features and data formats evolve
 ## Requirements
 - Linux (primary target)
 - .NET SDK 10.0
-- Optional: VLC (LibVLCSharp) for video playback
+- LibVLC runtime (required for this build; AppImage bundles it)
 
 ## Build AppImage (portable release, includes VLC)
 This project ships a build script that creates a portable **AppImage** containing:
@@ -98,12 +101,15 @@ Or (if you run the built app directly):
 ```
 
 ## Getting started (first run)
-1. Build and run once (see “Build & Run”). Retromind will create `app_settings.json` in the app directory (portable).
+1. Build and run once (see “Build & Run”). Retromind will create `app_settings.json` under the portable data root (see below).
 2. If you want to preconfigure settings, copy `app_settings.sample.json` to `app_settings.json` and adjust values.
 3. For metadata scraping, configure API keys (see “API keys / Secrets”).
 
 ## Configuration (portable)
-Retromind stores data in/near the application directory for portability.
+Retromind stores data under its portable data root for portability:
+- AppImage: directory of the AppImage file (ENV: `APPIMAGE`)
+- Otherwise: app base directory (build output folder)
+
 Make sure the folder is writable.
 
 Ignored runtime files (not committed):
@@ -153,6 +159,11 @@ together with your ROMs and native games. The core idea:
 - Any files *inside* this directory (or subdirectories) are stored as **relative paths** in the library.
 - On another Linux system, as long as you copy/mount the entire directory tree, Retromind will
   resolve these relative paths correctly, regardless of the exact mountpoint or user name.
+
+To enable relative launch paths, turn on **Prefer portable launch paths** in settings.
+This will store new imports under the data root as `LibraryRelative` paths and migrate
+existing items during library saves. You can also trigger a one-time migration from
+the settings dialog.
 
 A practical layout might look like this:
 ```text
