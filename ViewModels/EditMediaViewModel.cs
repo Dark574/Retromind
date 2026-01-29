@@ -13,6 +13,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Views;
 
@@ -947,7 +948,10 @@ public partial class EditMediaViewModel : ViewModelBase
     }
     
     // --- Metadata Properties (Temporary Buffer) ---
-    [ObservableProperty] private string _title = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AssetFilePrefix))]
+    [NotifyPropertyChangedFor(nameof(AssetFileExample))]
+    private string _title = "";
     [ObservableProperty] private string _description = "";
     [ObservableProperty] private string? _developer;
     [ObservableProperty] private string? _genre;
@@ -1013,6 +1017,11 @@ public partial class EditMediaViewModel : ViewModelBase
         OnPropertyChanged(nameof(PreviewText));
         CopyPreviewCommand.NotifyCanExecuteChanged();
     }
+
+    partial void OnTitleChanged(string value)
+    {
+        CopyAssetPrefixCommand.NotifyCanExecuteChanged();
+    }
     
     [ObservableProperty] private string _overrideWatchProcess = string.Empty;
 
@@ -1034,6 +1043,10 @@ public partial class EditMediaViewModel : ViewModelBase
     // We bind directly to the item's Assets collection.
     // Since FileService updates the list live, the UI immediately reflects all changes.
     public ObservableCollection<MediaAsset> Assets => _originalItem.Assets;
+
+    public string AssetFilePrefix => FileManagementService.BuildItemAssetPrefix(Title, _originalItem.Id);
+
+    public string AssetFileExample => string.Format(Strings.EditMedia_AssetsPrefixExampleFormat, AssetFilePrefix);
 
     [ObservableProperty] 
     [NotifyCanExecuteChangedFor(nameof(DeleteAssetCommand))]
@@ -1058,6 +1071,7 @@ public partial class EditMediaViewModel : ViewModelBase
     public List<PlayStatus> StatusOptions { get; } = Enum.GetValues<PlayStatus>().ToList();
 
     public IAsyncRelayCommand<Window?> CopyPreviewCommand { get; }
+    public IAsyncRelayCommand<Window?> CopyAssetPrefixCommand { get; }
     
     public EditMediaViewModel(
         MediaItem item,
@@ -1109,6 +1123,7 @@ public partial class EditMediaViewModel : ViewModelBase
             row => row != null && NativeWrappers.IndexOf(row) >= 0 && NativeWrappers.IndexOf(row) < NativeWrappers.Count - 1);
 
         CopyPreviewCommand = new AsyncRelayCommand<Window?>(CopyPreviewAsync, CanCopyPreview);
+        CopyAssetPrefixCommand = new AsyncRelayCommand<Window?>(CopyAssetPrefixAsync, CanCopyAssetPrefix);
         
         NativeWrappers.CollectionChanged += (_, e) =>
         {
@@ -1200,6 +1215,9 @@ public partial class EditMediaViewModel : ViewModelBase
 
     private bool CanCopyPreview(Window? _)
         => !string.IsNullOrWhiteSpace(PreviewText);
+
+    private bool CanCopyAssetPrefix(Window? _)
+        => !string.IsNullOrWhiteSpace(AssetFilePrefix);
     
     private async Task CopyPreviewAsync(Window? win)
     {
@@ -1222,6 +1240,23 @@ public partial class EditMediaViewModel : ViewModelBase
             
             if (win?.Clipboard != null)
                 await win.Clipboard.SetTextAsync(text);
+        }
+        catch
+        {
+            // best-effort: clipboard should never break the dialog
+        }
+    }
+
+    private async Task CopyAssetPrefixAsync(Window? win)
+    {
+        try
+        {
+            var text = AssetFilePrefix ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+
+            if (win?.Clipboard != null)
+                await win.Clipboard.SetTextAsync(text.Trim());
         }
         catch
         {

@@ -11,12 +11,15 @@ namespace Retromind.Services;
 
 /// <summary>
 /// Central service for file operations.
-/// Enforces naming convention (Name_Type_Number) and manages physical files.
+/// Enforces naming convention (Title__Id_Type_Number) and manages physical files.
 /// </summary>
 public class FileManagementService
 {
-    // Regex for: Name_Type_Number.Extension
-    // Group 1: Name (e.g., "Super_Mario")
+    private const int ItemIdTokenLength = 8;
+    private const string ItemIdSeparator = "__";
+
+    // Regex for: Title__Id_Type_Number.Extension
+    // Group 1: Prefix (e.g., "Super_Mario__A1B2C3D4")
     // Group 2: Type (e.g., "Wallpaper", "Manual")
     // Group 3: Number (e.g., "01")
     private static readonly Regex AssetRegex = new Regex(
@@ -43,6 +46,33 @@ public class FileManagementService
             // Event handlers should never cause file operations to crash
         }
     }
+
+    public static string BuildItemAssetPrefix(MediaItem item)
+    {
+        return BuildItemAssetPrefix(item?.Title, item?.Id);
+    }
+
+    public static string BuildItemAssetPrefix(string? title, string? itemId)
+    {
+        var cleanTitle = SanitizeForFilename(title ?? string.Empty);
+        var token = GetItemIdToken(itemId);
+        return $"{cleanTitle}{ItemIdSeparator}{token}";
+    }
+
+    private static string GetItemIdToken(string? itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return "00000000";
+
+        var cleaned = itemId.Replace("-", "", StringComparison.Ordinal).Trim();
+        if (string.IsNullOrWhiteSpace(cleaned))
+            return "00000000";
+
+        if (cleaned.Length <= ItemIdTokenLength)
+            return cleaned.ToUpperInvariant();
+
+        return cleaned.Substring(0, ItemIdTokenLength).ToUpperInvariant();
+    }
     /// <summary>
     /// Imports a file, renames it according to convention, and copies it to the correct folder.
     /// NOTE: This method is UI-agnostic and does NOT modify any ObservableCollections.
@@ -52,11 +82,16 @@ public class FileManagementService
     {
         if (!File.Exists(sourceFilePath)) return null;
 
-        string entityName = entity is MediaItem item ? item.Title : (entity as MediaNode)?.Name ?? "Unknown";
+        string assetPrefix = entity switch
+        {
+            MediaItem item => BuildItemAssetPrefix(item),
+            MediaNode node => SanitizeForFilename(node.Name),
+            _ => "Unknown"
+        };
         string nodeFolder = ResolveNodeFolder(nodePathStack);
 
         string extension = Path.GetExtension(sourceFilePath);
-        string fullDestPath = GetNextAssetFileName(nodeFolder, entityName, type, extension);
+        string fullDestPath = GetNextAssetFileName(nodeFolder, assetPrefix, type, extension, prefixIsSanitized: true);
         
         try
         {
@@ -120,9 +155,9 @@ public class FileManagementService
         if (string.Equals(oldTitle, newTitle, StringComparison.Ordinal))
             return false;
 
-        var oldSafeTitle = SanitizeForFilename(oldTitle);
-        var newSafeTitle = SanitizeForFilename(newTitle);
-        if (string.Equals(oldSafeTitle, newSafeTitle, StringComparison.Ordinal))
+        var oldPrefix = BuildItemAssetPrefix(oldTitle, item.Id);
+        var newPrefix = BuildItemAssetPrefix(newTitle, item.Id);
+        if (string.Equals(oldPrefix, newPrefix, StringComparison.OrdinalIgnoreCase))
             return false;
 
         var nodeFolder = ResolveNodeFolder(nodePathStack);
@@ -152,11 +187,11 @@ public class FileManagementService
             if (match.Success)
             {
                 var number = match.Groups[3].Value;
-                targetFileName = $"{newSafeTitle}_{asset.Type}_{number}{extension}";
+                targetFileName = $"{newPrefix}_{asset.Type}_{number}{extension}";
             }
             else
             {
-                targetFileName = Path.GetFileName(GetNextAssetFileName(nodeFolder, newTitle, asset.Type, extension));
+                targetFileName = Path.GetFileName(GetNextAssetFileName(nodeFolder, newPrefix, asset.Type, extension, prefixIsSanitized: true));
             }
 
             var targetFolder = Path.Combine(nodeFolder, asset.Type.ToString());
@@ -166,9 +201,7 @@ public class FileManagementService
                 continue;
 
             if (File.Exists(targetFullPath))
-            {
-                targetFullPath = GetNextAssetFileName(nodeFolder, newTitle, asset.Type, extension);
-            }
+                targetFullPath = GetNextAssetFileName(nodeFolder, newPrefix, asset.Type, extension, prefixIsSanitized: true);
 
             try
             {
@@ -206,7 +239,7 @@ public class FileManagementService
         string nodeFolder = ResolveNodeFolder(nodePathStack);
         if (!Directory.Exists(nodeFolder)) return results;
 
-        var sanitizedTitle = SanitizeForFilename(item.Title);
+        var assetPrefix = BuildItemAssetPrefix(item);
 
         foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
         {
@@ -216,14 +249,13 @@ public class FileManagementService
             if (!Directory.Exists(typeFolder)) continue;
 
             var files = Directory.EnumerateFiles(typeFolder)
-                .Where(file => AssetRegex.IsMatch(Path.GetFileName(file)) &&
-                               Path.GetFileName(file).StartsWith(sanitizedTitle + "_", StringComparison.OrdinalIgnoreCase));
+                .Where(file => AssetRegex.IsMatch(Path.GetFileName(file)));
 
             foreach (var file in files)
             {
                 var match = AssetRegex.Match(Path.GetFileName(file));
                 if (match.Success &&
-                    match.Groups[1].Value.Equals(sanitizedTitle, StringComparison.OrdinalIgnoreCase) &&
+                    match.Groups[1].Value.Equals(assetPrefix, StringComparison.OrdinalIgnoreCase) &&
                     match.Groups[2].Value.Equals(type.ToString(), StringComparison.OrdinalIgnoreCase))
                 {
                     results.Add(new MediaAsset
@@ -236,6 +268,97 @@ public class FileManagementService
         }
 
         return results;
+    }
+
+    public bool MigrateLegacyItemAssetsForNode(IReadOnlyList<MediaItem> items, List<string> nodePathStack)
+    {
+        if (items == null || items.Count == 0)
+            return false;
+
+        var nodeFolder = ResolveNodeFolder(nodePathStack);
+        if (!Directory.Exists(nodeFolder))
+            return false;
+
+        bool anyChanged = false;
+
+        var groups = items
+            .GroupBy(item => SanitizeForFilename(item.Title), StringComparer.OrdinalIgnoreCase)
+            .Where(group => !string.IsNullOrWhiteSpace(group.Key))
+            .ToList();
+
+        foreach (var group in groups)
+        {
+            var legacyPrefix = group.Key;
+            var itemList = group.ToList();
+            var isDuplicate = itemList.Count > 1;
+
+            foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
+            {
+                if (type == AssetType.Unknown)
+                    continue;
+
+                var typeFolder = Path.Combine(nodeFolder, type.ToString());
+                if (!Directory.Exists(typeFolder))
+                    continue;
+
+                var legacyFiles = Directory.EnumerateFiles(typeFolder)
+                    .Select(path => (Path: path, Name: Path.GetFileName(path)))
+                    .Where(entry => !string.IsNullOrWhiteSpace(entry.Name) && AssetRegex.IsMatch(entry.Name))
+                    .ToList();
+
+                foreach (var entry in legacyFiles)
+                {
+                    var match = AssetRegex.Match(entry.Name!);
+                    if (!match.Success)
+                        continue;
+
+                    if (!string.Equals(match.Groups[1].Value, legacyPrefix, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    var number = match.Groups[3].Value;
+                    var extension = Path.GetExtension(entry.Name);
+
+                    if (!isDuplicate)
+                    {
+                        var item = itemList[0];
+                        var newPrefix = BuildItemAssetPrefix(item);
+                        var targetPath = BuildTargetAssetPath(nodeFolder, typeFolder, newPrefix, type, number, extension);
+                        if (string.Equals(entry.Path, targetPath, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        if (TryMoveAssetFile(entry.Path, targetPath))
+                            anyChanged = true;
+
+                        continue;
+                    }
+
+                    var primaryItem = itemList[0];
+                    var primaryPrefix = BuildItemAssetPrefix(primaryItem);
+                    var primaryTarget = BuildTargetAssetPath(nodeFolder, typeFolder, primaryPrefix, type, number, extension);
+
+                    if (!TryMoveAssetFile(entry.Path, primaryTarget))
+                        continue;
+
+                    anyChanged = true;
+
+                    foreach (var item in itemList.Skip(1))
+                    {
+                        var itemPrefix = BuildItemAssetPrefix(item);
+                        var targetPath = BuildTargetAssetPath(nodeFolder, typeFolder, itemPrefix, type, number, extension);
+                        if (File.Exists(targetPath))
+                            targetPath = GetNextAssetFileName(nodeFolder, itemPrefix, type, extension, prefixIsSanitized: true);
+
+                        if (TryCopyAssetFile(primaryTarget, targetPath))
+                            anyChanged = true;
+                    }
+                }
+            }
+        }
+
+        if (anyChanged)
+            RaiseLibraryChanged();
+
+        return anyChanged;
     }
     
 
@@ -260,16 +383,21 @@ public class FileManagementService
     }
 
     /// <summary>
-    /// Determines the next available filename according to convention: Title_Type_XX.ext
+    /// Determines the next available filename according to convention: Prefix_Type_XX.ext
     /// </summary>
-    private string GetNextAssetFileName(string nodeBaseFolder, string mediaTitle, AssetType type, string extension)
+    private string GetNextAssetFileName(
+        string nodeBaseFolder,
+        string assetPrefix,
+        AssetType type,
+        string extension,
+        bool prefixIsSanitized = false)
     {
         string typeFolder = Path.Combine(nodeBaseFolder, type.ToString());
     
         if (!Directory.Exists(typeFolder))
             Directory.CreateDirectory(typeFolder);
 
-        string cleanTitle = SanitizeForFilename(mediaTitle); 
+        string cleanTitle = prefixIsSanitized ? assetPrefix : SanitizeForFilename(assetPrefix);
         string suffix = type.ToString(); 
 
         // Collect existing counters for efficiency (instead of loop checks)
@@ -284,6 +412,61 @@ public class FileManagementService
         string fileName = $"{cleanTitle}_{suffix}_{number}{extension}";
 
         return Path.Combine(typeFolder, fileName);
+    }
+
+    private string BuildTargetAssetPath(
+        string nodeBaseFolder,
+        string typeFolder,
+        string assetPrefix,
+        AssetType type,
+        string number,
+        string extension)
+    {
+        if (!string.IsNullOrWhiteSpace(number))
+        {
+            var candidateName = $"{assetPrefix}_{type}_{number}{extension}";
+            var candidatePath = Path.Combine(typeFolder, candidateName);
+            if (!File.Exists(candidatePath))
+                return candidatePath;
+        }
+
+        return GetNextAssetFileName(nodeBaseFolder, assetPrefix, type, extension, prefixIsSanitized: true);
+    }
+
+    private static bool TryMoveAssetFile(string sourcePath, string targetPath)
+    {
+        try
+        {
+            var targetDir = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrWhiteSpace(targetDir) && !Directory.Exists(targetDir))
+                Directory.CreateDirectory(targetDir);
+
+            File.Move(sourcePath, targetPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error moving legacy asset: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool TryCopyAssetFile(string sourcePath, string targetPath)
+    {
+        try
+        {
+            var targetDir = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrWhiteSpace(targetDir) && !Directory.Exists(targetDir))
+                Directory.CreateDirectory(targetDir);
+
+            File.Copy(sourcePath, targetPath, overwrite: false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error copying legacy asset: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>

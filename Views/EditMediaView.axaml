@@ -24,7 +24,8 @@
     <!-- Main grid filling the window -->
     <Grid RowDefinitions="*, Auto" Margin="10">
 
-        <TabControl Grid.Row="0">
+        <TabControl Grid.Row="0"
+                    HorizontalContentAlignment="Stretch">
             <!-- TAB 1: METADATA -->
             <TabItem Header="{x:Static p:Strings.EditMedia_Tab_General}" FontSize="16">
                 <!-- Removed extra padding from ScrollViewer for a tighter layout -->
@@ -342,45 +343,75 @@
                     
                     <!-- Top toolbar: import buttons for different asset types -->
                     <Border Grid.Row="0" Background="#10000000" CornerRadius="4" Padding="5" Margin="0,0,0,10">
-                        <WrapPanel Orientation="Horizontal">
-                            <!-- Use CommandParameter to distinguish asset types -->
-                            <Button Content="{x:Static p:Strings.Button_Cover}"
-                                    Command="{Binding ImportAssetCommand}"
-                                    CommandParameter="{x:Static m:AssetType.Cover}"
-                                    Margin="0,0,5,5"/>
-                            <Button Content="{x:Static p:Strings.Button_Wall}"
-                                    Command="{Binding ImportAssetCommand}"
-                                    CommandParameter="{x:Static m:AssetType.Wallpaper}"
-                                    Margin="0,0,5,5"/>
-                            <Button Content="{x:Static p:Strings.Button_Logo}"
-                                    Command="{Binding ImportAssetCommand}"
-                                    CommandParameter="{x:Static m:AssetType.Logo}"
-                                    Margin="0,0,5,5"/>
-                            <Button Content="{x:Static p:Strings.FileType_Videos}"
-                                    Command="{Binding ImportAssetCommand}"
-                                    CommandParameter="{x:Static m:AssetType.Video}"
-                                    Margin="0,0,5,5"/>
-                            <Button Content="{x:Static p:Strings.Media_AddMusic}"
-                                    Command="{Binding ImportAssetCommand}"
-                                    CommandParameter="{x:Static m:AssetType.Music}"
-                                    Margin="0,0,5,5"/>
-                            <Button Content="Marquee"
-                                    Command="{Binding ImportAssetCommand}"
-                                    CommandParameter="{x:Static m:AssetType.Marquee}"
-                                    Margin="0,0,5,5"/>
-                            <Button Content="{x:Static p:Strings.Button_Bezel}"
-                                    Command="{Binding ImportAssetCommand}"
-                                    CommandParameter="{x:Static m:AssetType.Bezel}"
-                                    Margin="0,0,5,5"/>
-                            <Button Content="{x:Static p:Strings.Button_ControlPanel}"
-                                    Command="{Binding ImportAssetCommand}"
-                                    CommandParameter="{x:Static m:AssetType.ControlPanel}"
-                                    Margin="0,0,5,5"/>
-                            <Button Content="Manuals"
-                                    Command="{Binding ImportAssetCommand}"
-                                    CommandParameter="{x:Static m:AssetType.Manual}"
-                                    Margin="0,0,5,5"/>
-                        </WrapPanel>
+                        <Grid RowDefinitions="Auto, Auto">
+                            <Grid Grid.Row="0"
+                                  ColumnDefinitions="Auto, Auto">
+                                <TextBlock Grid.Column="0"
+                                           VerticalAlignment="Center"
+                                           TextWrapping="NoWrap"
+                                           TextTrimming="CharacterEllipsis">
+                                    <Run Text="{x:Static p:Strings.EditMedia_AssetsPrefixLabel}" />
+                                    <Run Text=" " />
+                                    <Run Text="{Binding AssetFilePrefix}" FontFamily="Consolas, Monospace" />
+                                </TextBlock>
+                                <Button Grid.Column="1"
+                                        Content="Copy"
+                                        Command="{Binding CopyAssetPrefixCommand}"
+                                        CommandParameter="{Binding $parent[Window]}"
+                                        Padding="10,2"
+                                        Margin="8,0,0,0"
+                                        HorizontalAlignment="Left">
+                                    <ToolTip.Tip>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{Binding AssetFileExample}" />
+                                            <TextBlock Text="{x:Static p:Strings.EditMedia_AssetsPrefixHint}" />
+                                        </StackPanel>
+                                    </ToolTip.Tip>
+                                </Button>
+                            </Grid>
+
+                            <WrapPanel Grid.Row="1"
+                                       Orientation="Horizontal"
+                                       Margin="0,6,0,0">
+                                <!-- Use CommandParameter to distinguish asset types -->
+                                <Button Content="{x:Static p:Strings.Button_Cover}"
+                                        Command="{Binding ImportAssetCommand}"
+                                        CommandParameter="{x:Static m:AssetType.Cover}"
+                                        Margin="0,0,5,5"/>
+                                <Button Content="{x:Static p:Strings.Button_Wall}"
+                                        Command="{Binding ImportAssetCommand}"
+                                        CommandParameter="{x:Static m:AssetType.Wallpaper}"
+                                        Margin="0,0,5,5"/>
+                                <Button Content="{x:Static p:Strings.Button_Logo}"
+                                        Command="{Binding ImportAssetCommand}"
+                                        CommandParameter="{x:Static m:AssetType.Logo}"
+                                        Margin="0,0,5,5"/>
+                                <Button Content="{x:Static p:Strings.FileType_Videos}"
+                                        Command="{Binding ImportAssetCommand}"
+                                        CommandParameter="{x:Static m:AssetType.Video}"
+                                        Margin="0,0,5,5"/>
+                                <Button Content="{x:Static p:Strings.Media_AddMusic}"
+                                        Command="{Binding ImportAssetCommand}"
+                                        CommandParameter="{x:Static m:AssetType.Music}"
+                                        Margin="0,0,5,5"/>
+                                <Button Content="Marquee"
+                                        Command="{Binding ImportAssetCommand}"
+                                        CommandParameter="{x:Static m:AssetType.Marquee}"
+                                        Margin="0,0,5,5"/>
+                                <Button Content="{x:Static p:Strings.Button_Bezel}"
+                                        Command="{Binding ImportAssetCommand}"
+                                        CommandParameter="{x:Static m:AssetType.Bezel}"
+                                        Margin="0,0,5,5"/>
+                                <Button Content="{x:Static p:Strings.Button_ControlPanel}"
+                                        Command="{Binding ImportAssetCommand}"
+                                        CommandParameter="{x:Static m:AssetType.ControlPanel}"
+                                        Margin="0,0,5,5"/>
+                                <Button Content="Manuals"
+                                        Command="{Binding ImportAssetCommand}"
+                                        CommandParameter="{x:Static m:AssetType.Manual}"
+                                        Margin="0,0,5,5"/>
+                            </WrapPanel>
+                        </Grid>
                     </Border>
                     
                     <!-- Asset list -->

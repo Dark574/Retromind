@@ -116,6 +116,9 @@
     <data name="EditMedia.Tab_General" xml:space="preserve"><value>General</value></data>
     <data name="EditMedia.Tab_MediaAssets" xml:space="preserve"><value>Media (Assets)</value></data>
     <data name="EditMedia.Tab_Prefix" xml:space="preserve"><value>Prefix (Wine/Proton/UMU)</value></data>
+    <data name="EditMedia.AssetsPrefixLabel" xml:space="preserve"><value>Asset prefix:</value></data>
+    <data name="EditMedia.AssetsPrefixHint" xml:space="preserve"><value>Use this prefix when adding files manually in the Library folder.</value></data>
+    <data name="EditMedia.AssetsPrefixExampleFormat" xml:space="preserve"><value>Example: {0}_Cover_01.jpg</value></data>
     
     <!-- FILETYPE -->
     <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>
