@@ -6,6 +6,8 @@ This document gives contributors a quick overview of how Retromind is structured
 - UI: Avalonia (MVVM style)
 - Language: C# (net10.0)
 - Services: custom services + DI (Microsoft.Extensions.DependencyInjection)
+- MVVM: CommunityToolkit.Mvvm
+- Video previews: LibVLCSharp (BigMode)
 
 ## Folder structure
 - `Views/`  
@@ -18,6 +20,12 @@ This document gives contributors a quick overview of how Retromind is structured
   IO and system integration: persistence (JSON), import, scraping, audio, launcher, controller, themes.
 - `Helpers/`  
   Utilities: converters, randomization helpers, image loading/caching, layout panels.
+- `Themes/`  
+  Runtime-loadable themes (`*.axaml` + assets). Copied to the portable data root.
+- `Extensions/`  
+  Theme metadata helpers (ThemeProperties) for runtime themes.
+- `Resources/`  
+  Localized UI strings.
 
 ## UI layout (3 columns)
 Retromind uses a classic three-pane layout:
@@ -29,10 +37,16 @@ Retromind uses a classic three-pane layout:
 2) Center: Media list / cover grid
 - Bound to `MainWindowViewModel.SelectedNodeContent`
 - Typically a `MediaAreaViewModel` that exposes a list of `MediaItem` and a `SelectedMediaItem`
+- In global search mode, this switches to `SearchAreaViewModel`
 
 3) Right: Details
 - Bound to `SelectedNodeContent.SelectedMediaItem`
 - Displays metadata and assets for the currently selected item
+
+The main window is layered:
+- Background + optional wallpaper image
+- Main 3-column grid
+- Full-screen overlay (`FullScreenContent`) for BigMode
 
 ## Data flow: selection -> content
 1. User selects a node in the tree.
@@ -40,38 +54,49 @@ Retromind uses a classic three-pane layout:
 3. `UpdateContent()` runs:
     - Collects items recursively for the selected node
     - Applies optional randomization (covers/wallpapers/music)
-    - Creates a new `MediaAreaViewModel`
+    - Creates a new `MediaAreaViewModel` on the UI thread
 4. UI updates:
     - Center pane shows the cover/grid view
     - Right pane shows the details for `SelectedMediaItem`
 
+## Global search
+- `OpenSearchCommand` swaps `SelectedNodeContent` to `SearchAreaViewModel`.
+- Search uses debounced, background evaluation and updates the UI in a single bulk replace.
+- `SelectedMediaItem` is still used for the right-hand details pane.
+
 ## Persistence
 ### Library tree
-- Stored as JSON in the app directory (portable):
+- Stored as JSON under `AppPaths.DataRoot` (portable root: AppImage dir or app base dir):
     - `retromind_tree.json` (+ backup/temp)
 - Service: `Services/MediaDataService`
 - Write strategy: temp write -> atomic replace + backup (reduces corruption risk)
+- Saves are debounced in `MainWindowViewModel` via dirty tracking.
 
 ### Settings
-- Stored as JSON in the app directory:
+- Stored as JSON under `AppPaths.DataRoot`:
     - `app_settings.json`
 - Service: `Services/SettingsService`
 - Some sensitive fields are stored encrypted (portable, not “high security”)
+- Settings saves are debounced to reduce disk IO.
 
 ## Assets (images/music/video)
 - Each `MediaItem` and `MediaNode` can have a list of `MediaAsset`
-- Paths are typically stored relative to the app directory to remain portable
+- Paths are typically stored relative to `AppPaths.DataRoot` to remain portable
 - Image loading uses an async helper with caching to keep scrolling smooth
 
 ## BigMode
 - BigMode is an overlay mode (full-screen content on top of the normal UI)
 - It can be entered via a command or started via `--bigmode`
+- `BigModeHostView` hosts runtime themes loaded by `ThemeLoader`
+- Themes are external `.axaml` files with metadata provided via `ThemeProperties`
+- LibVLC provides primary + secondary video channels for previews/backgrounds
+- Per-node theme overrides: `MediaNode.ThemePath` and `MediaNode.SystemPreviewThemeId`
 
 ## Contributing tips
 - Keep view code-behind minimal (UI-only). Put logic into ViewModels/Services.
 - Avoid committing runtime data (`Library/`, `app_settings.json`, `retromind_tree.json`, secrets).
 - Prefer small PRs: one behavior/change per PR with a short explanation and screenshots for UI changes.
-- UI thread: do not call `Dispatcher.UIThread.*` directly; use `Helpers/UiThreadHelper` to keep UI-thread marshalling centralized and Models UI-agnostic.
+- UI thread: prefer `Helpers/UiThreadHelper` in ViewModels/Services; direct `Dispatcher.UIThread.*` use is fine for UI-only controls/behaviors.
 
 ## How to add a new media type (overview)
 
