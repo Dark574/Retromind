@@ -52,7 +52,8 @@ public class AsyncImageHelper : AvaloniaObject
             EnsureDetachHandler(image);
             var url = args.NewValue as string;
             var width = GetDecodeWidth(image);
-            _ = LoadImageAsync(image, url, width);
+            var disableCache = GetDisableCache(image);
+            _ = LoadImageAsync(image, url, width, disableCache);
         });
 
         DecodeWidthProperty.Changed.AddClassHandler<Image>((image, args) =>
@@ -60,7 +61,17 @@ public class AsyncImageHelper : AvaloniaObject
             EnsureDetachHandler(image);
             var url = GetUrl(image);
             var width = args.NewValue as int?;
-            _ = LoadImageAsync(image, url, width);
+            var disableCache = GetDisableCache(image);
+            _ = LoadImageAsync(image, url, width, disableCache);
+        });
+
+        DisableCacheProperty.Changed.AddClassHandler<Image>((image, args) =>
+        {
+            EnsureDetachHandler(image);
+            var url = GetUrl(image);
+            var width = GetDecodeWidth(image);
+            var disableCache = args.NewValue is bool b && b;
+            _ = LoadImageAsync(image, url, width, disableCache);
         });
     }
 
@@ -78,6 +89,12 @@ public class AsyncImageHelper : AvaloniaObject
     public static int? GetDecodeWidth(Image element) => element.GetValue(DecodeWidthProperty);
     public static void SetDecodeWidth(Image element, int? value) => element.SetValue(DecodeWidthProperty, value);
 
+    public static readonly AttachedProperty<bool> DisableCacheProperty =
+        AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, bool>("DisableCache");
+
+    public static bool GetDisableCache(Image element) => element.GetValue(DisableCacheProperty);
+    public static void SetDisableCache(Image element, bool value) => element.SetValue(DisableCacheProperty, value);
+
     // Private property to store the Cancellation Token Source for the current load operation on this Image control
     private static readonly AttachedProperty<CancellationTokenSource?> CurrentLoadCtsProperty =
         AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, CancellationTokenSource?>("CurrentLoadCts");
@@ -85,6 +102,10 @@ public class AsyncImageHelper : AvaloniaObject
     // Private property to track the current cache key used by an Image control
     private static readonly AttachedProperty<string?> CurrentCacheKeyProperty =
         AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, string?>("CurrentCacheKey");
+
+    // Tracks the current uncached bitmap to dispose it when replaced.
+    private static readonly AttachedProperty<Bitmap?> CurrentUncachedBitmapProperty =
+        AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, Bitmap?>("CurrentUncachedBitmap");
 
     // Tracks whether we've attached a Detach handler for this Image instance
     private static readonly AttachedProperty<bool> DetachHandlerAttachedProperty =
@@ -101,11 +122,12 @@ public class AsyncImageHelper : AvaloniaObject
         oldCts?.Cancel();
         oldCts?.Dispose();
         ReleaseImageCacheKey(image);
+        DisposeUncachedBitmap(image);
         image.Source = PlaceholderImage;
         image.SetValue(CurrentLoadCtsProperty, null);
     }
     
-    private static async Task LoadImageAsync(Image image, string? url, int? decodeWidth)
+    private static async Task LoadImageAsync(Image image, string? url, int? decodeWidth, bool disableCache)
     {
         ResetImage(image);
 
@@ -114,17 +136,21 @@ public class AsyncImageHelper : AvaloniaObject
         var cts = new CancellationTokenSource();
         image.SetValue(CurrentLoadCtsProperty, cts);
 
-        var cacheKey = decodeWidth.HasValue ? $"{url}_{decodeWidth}" : url;
-        var cachedBitmap = GetFromCache(cacheKey);
-
-        if (cachedBitmap != null)
+        string? cacheKey = null;
+        if (!disableCache)
         {
-            UiThreadHelper.Post(() =>
+            cacheKey = decodeWidth.HasValue ? $"{url}_{decodeWidth}" : url;
+            var cachedBitmap = GetFromCache(cacheKey);
+
+            if (cachedBitmap != null)
             {
-                if (image.GetValue(CurrentLoadCtsProperty) != cts) return;
-                AssignImageSource(image, cachedBitmap, cacheKey);
-            });
-            return;
+                UiThreadHelper.Post(() =>
+                {
+                    if (image.GetValue(CurrentLoadCtsProperty) != cts) return;
+                    AssignImageSource(image, cachedBitmap, cacheKey, disableCache: false);
+                });
+                return;
+            }
         }
 
         try
@@ -165,12 +191,19 @@ public class AsyncImageHelper : AvaloniaObject
 
             if (loadedBitmap == null) return;
 
-            AddToCache(cacheKey, loadedBitmap);
+            if (!disableCache && cacheKey != null)
+                AddToCache(cacheKey, loadedBitmap);
 
             UiThreadHelper.Post(() =>
             {
-                if (image.GetValue(CurrentLoadCtsProperty) != cts) return;
-                AssignImageSource(image, loadedBitmap, cacheKey);
+                if (image.GetValue(CurrentLoadCtsProperty) != cts)
+                {
+                    if (disableCache)
+                        loadedBitmap.Dispose();
+                    return;
+                }
+
+                AssignImageSource(image, loadedBitmap, cacheKey, disableCache);
             });
         }
         catch (OperationCanceledException)
@@ -301,16 +334,29 @@ public class AsyncImageHelper : AvaloniaObject
         }
     }
 
-    private static void AssignImageSource(Image image, Bitmap bitmap, string cacheKey)
+    private static void AssignImageSource(Image image, Bitmap bitmap, string? cacheKey, bool disableCache)
     {
+        if (disableCache)
+        {
+            DisposeUncachedBitmap(image);
+            image.Source = bitmap;
+            image.SetValue(CurrentUncachedBitmapProperty, bitmap);
+            return;
+        }
+
+        DisposeUncachedBitmap(image);
+
         var oldKey = image.GetValue(CurrentCacheKeyProperty);
         if (!string.Equals(oldKey, cacheKey, StringComparison.Ordinal))
         {
             if (!string.IsNullOrEmpty(oldKey))
                 ReleaseImageCacheKey(image);
 
-            IncrementCacheRef(cacheKey);
-            image.SetValue(CurrentCacheKeyProperty, cacheKey);
+            if (!string.IsNullOrEmpty(cacheKey))
+            {
+                IncrementCacheRef(cacheKey);
+                image.SetValue(CurrentCacheKeyProperty, cacheKey);
+            }
         }
 
         image.Source = bitmap;
@@ -324,6 +370,16 @@ public class AsyncImageHelper : AvaloniaObject
 
         image.SetValue(CurrentCacheKeyProperty, null);
         DecrementCacheRef(oldKey);
+    }
+
+    private static void DisposeUncachedBitmap(Image image)
+    {
+        var oldBitmap = image.GetValue(CurrentUncachedBitmapProperty);
+        if (oldBitmap == null)
+            return;
+
+        image.SetValue(CurrentUncachedBitmapProperty, null);
+        oldBitmap.Dispose();
     }
 
     private static int GetCacheRefCount(string key)
@@ -418,7 +474,8 @@ public class AsyncImageHelper : AvaloniaObject
             return;
 
         var width = GetDecodeWidth(image);
-        _ = LoadImageAsync(image, url, width);
+        var disableCache = GetDisableCache(image);
+        _ = LoadImageAsync(image, url, width, disableCache);
     }
 
     private static void OnImageDetached(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)

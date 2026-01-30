@@ -37,6 +37,7 @@
                     <!-- Primary: logo image (downsample to reduce memory usage) -->
                     <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
                            helpers:AsyncImageHelper.DecodeWidth="400"
+                           helpers:AsyncImageHelper.DisableCache="True"
                            Stretch="Uniform" MaxHeight="150"
                            HorizontalAlignment="Center"
                            IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
