@@ -345,6 +345,12 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Ctx_Media_AddManual {
+            get {
+                return ResourceManager.GetString("Ctx.Media.AddManual", resourceCulture);
+            }
+        }
+        
         public static string Ctx_ChangeCover {
             get {
                 return ResourceManager.GetString("Ctx.ChangeCover", resourceCulture);

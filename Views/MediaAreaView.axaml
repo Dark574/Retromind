@@ -192,12 +192,10 @@
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditMediaCommand}"
                                                       CommandParameter="{Binding .}" 
                                                       FontWeight="Bold"/>
-                                            <Separator/>
                                             <MenuItem Header="{x:Static p:Strings.Dialog_LoadMetadata}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeMediaCommand}"
                                                       CommandParameter="{Binding .}" />
-                                            <Separator/>
-                                            <MenuItem Header="Add manual"
+                                            <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddManual}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddManualToMediaCommand}"
                                                       CommandParameter="{Binding .}" />
                                             <Separator/>
@@ -205,6 +203,13 @@
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
                                                       CommandParameter="{Binding .}"
                                                       Foreground="Red" />
+                                            <Separator/>
+                                            <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
+                                                      CommandParameter="{Binding DataContext.Node, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                            <MenuItem Header="{x:Static p:Strings.Import_Folder}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
+                                                      CommandParameter="{Binding DataContext.Node, RelativeSource={RelativeSource AncestorType=UserControl}}" />
                                         </ContextMenu>
                                     </Border.ContextMenu>
 

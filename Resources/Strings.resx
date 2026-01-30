@@ -84,6 +84,7 @@
     <data name="Ctx.Category.Add" xml:space="preserve"><value>Add Category</value></data>
     <data name="Ctx.ImportRoms" xml:space="preserve"><value>Import ROMs...</value></data>
     <data name="Ctx.Media.Add" xml:space="preserve"><value>Add Media</value></data>
+    <data name="Ctx.Media.AddManual" xml:space="preserve"><value>Add manual</value></data>
     <data name="Ctx.ChangeCover" xml:space="preserve"><value>Change Cover...</value></data>
   
     <!-- DIALOG -->
