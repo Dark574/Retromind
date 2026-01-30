@@ -102,6 +102,13 @@ public partial class MediaAreaView : UserControl
             _mediaList ??= this.FindControl<ListBox>("MediaList");
             if (_mediaList != null)
                 vm.ViewportWidth = _mediaList.Bounds.Width;
+
+            if (vm.SelectedMediaItem != null)
+            {
+                Dispatcher.UIThread.Post(
+                    () => ScrollItemIntoView(vm.SelectedMediaItem),
+                    DispatcherPriority.Background);
+            }
         }
     }
 

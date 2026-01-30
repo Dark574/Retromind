@@ -468,6 +468,7 @@ public partial class MainWindowViewModel
         {
             var lastItem = newlyAddedItems[^1];
             _currentSettings.LastSelectedMediaId = lastItem.Id;
+            _lastSelectedMediaByNodeId[targetNode.Id] = lastItem.Id;
             SaveSettingsOnly();
         }
         

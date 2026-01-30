@@ -99,6 +99,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly HashSet<MediaNode> _dirtyTrackedNodes = new();
     private ObservableCollection<MediaNode>? _dirtyTrackedRoots;
 
+    // Per-node selection memory for quick return after switching nodes.
+    private readonly Dictionary<string, string> _lastSelectedMediaByNodeId = new(StringComparer.Ordinal);
+
     private static readonly HashSet<string> DirtyTrackedItemProperties = new(StringComparer.Ordinal)
     {
         nameof(MediaItem.IsFavorite)
@@ -860,6 +863,9 @@ public partial class MainWindowViewModel : ViewModelBase
             _currentSettings.LastSelectedMediaId = item?.Id;
             SaveSettingsOnly();
 
+            if (item != null)
+                _lastSelectedMediaByNodeId[mediaVm.Node.Id] = item.Id;
+
             if (SelectedNode != null)
                 UpdateBigModeStateFromCoreSelection(SelectedNode, item);
 
@@ -1031,12 +1037,31 @@ public partial class MainWindowViewModel : ViewModelBase
                     mediaVm.RequestPlay += OnMediaAreaRequestPlay;
                     mediaVm.PropertyChanged += OnMediaAreaPropertyChanged;
 
-                    if (!string.IsNullOrEmpty(_currentSettings.LastSelectedMediaId))
+                    string? itemIdToSelect = null;
+                    var hadNodeSelection = false;
+
+                    if (_lastSelectedMediaByNodeId.TryGetValue(nodeToLoad.Id, out var cachedId))
+                    {
+                        itemIdToSelect = cachedId;
+                        hadNodeSelection = true;
+                    }
+                    else if (!string.IsNullOrEmpty(_currentSettings.LastSelectedMediaId))
+                    {
+                        itemIdToSelect = _currentSettings.LastSelectedMediaId;
+                    }
+
+                    if (!string.IsNullOrEmpty(itemIdToSelect))
                     {
                         var itemToSelect = displayNode.Items
-                            .FirstOrDefault(i => i.Id == _currentSettings.LastSelectedMediaId);
+                            .FirstOrDefault(i => i.Id == itemIdToSelect);
                         if (itemToSelect != null)
+                        {
                             mediaVm.SelectedMediaItem = itemToSelect;
+                        }
+                        else if (hadNodeSelection)
+                        {
+                            _lastSelectedMediaByNodeId.Remove(nodeToLoad.Id);
+                        }
                     }
 
                     SelectedNodeContent = mediaVm;
