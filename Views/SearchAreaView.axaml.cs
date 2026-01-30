@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -75,6 +77,7 @@ public partial class SearchAreaView : UserControl
             return;
 
         vm.SelectedMediaItem = item;
+        _resultsList?.Focus();
         e.Handled = true;
     }
 
@@ -96,5 +99,94 @@ public partial class SearchAreaView : UserControl
             if (_resultsList != null)
                 vm.ViewportWidth = _resultsList.Bounds.Width;
         }
+    }
+
+    private void OnResultsListKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not SearchAreaViewModel vm)
+            return;
+
+        var items = vm.SearchResults;
+        if (items.Count == 0)
+            return;
+
+        if (e.Key == Key.Enter)
+        {
+            var item = vm.SelectedMediaItem;
+            if (item != null && vm.PlayCommand.CanExecute(item))
+            {
+                vm.PlayCommand.Execute(item);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        var columnCount = Math.Max(1, vm.ColumnCount);
+        var selectedIndex = FindSelectedIndex(items, vm.SelectedMediaItem);
+        var targetIndex = selectedIndex;
+
+        switch (e.Key)
+        {
+            case Key.Left:
+                targetIndex = selectedIndex <= 0 ? 0 : selectedIndex - 1;
+                break;
+            case Key.Right:
+                targetIndex = selectedIndex < 0 ? 0 : Math.Min(selectedIndex + 1, items.Count - 1);
+                break;
+            case Key.Up:
+                targetIndex = selectedIndex < 0 ? 0 : Math.Max(selectedIndex - columnCount, 0);
+                break;
+            case Key.Down:
+                targetIndex = selectedIndex < 0 ? 0 : Math.Min(selectedIndex + columnCount, items.Count - 1);
+                break;
+            case Key.Home:
+                targetIndex = 0;
+                break;
+            case Key.End:
+                targetIndex = items.Count - 1;
+                break;
+            default:
+                return;
+        }
+
+        var next = items[targetIndex];
+        vm.SelectedMediaItem = next;
+        ScrollItemIntoView(next);
+        e.Handled = true;
+    }
+
+    private static int FindSelectedIndex(IList<MediaItem> items, MediaItem? selected)
+    {
+        if (selected == null)
+            return -1;
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            if (ReferenceEquals(item, selected) ||
+                string.Equals(item.Id, selected.Id, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private void ScrollItemIntoView(MediaItem item)
+    {
+        if (DataContext is not SearchAreaViewModel vm)
+            return;
+
+        _resultsList ??= this.FindControl<ListBox>("ResultsList");
+        if (_resultsList is null)
+            return;
+
+        var row = vm.ItemRows.FirstOrDefault(r => r.Items.Contains(item));
+        if (row == null)
+            return;
+
+        _resultsList.ScrollIntoView(row);
     }
 }

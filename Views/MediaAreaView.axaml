@@ -94,7 +94,9 @@
                  Grid.Row="1"
                  ItemsSource="{Binding ItemRows}"
                  Padding="0"
-                 Background="Transparent">
+                 Background="Transparent"
+                 Focusable="True"
+                 KeyDown="OnMediaListKeyDown">
             <ListBox.Styles>
                 <Style Selector="ListBoxItem">
                     <Setter Property="Template">

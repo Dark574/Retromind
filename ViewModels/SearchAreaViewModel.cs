@@ -47,6 +47,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     private const double ItemSpacing = 0.0;
     private const double ViewportPadding = 0.0;
 
+    private int _columnCount = 1;
+
     // Debounce typing/checkbox toggles to avoid re-scanning the entire library per keystroke.
     private static readonly TimeSpan SearchDebounceDelay = TimeSpan.FromMilliseconds(250);
 
@@ -112,6 +114,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     /// Row grouping for a virtualized tile view.
     /// </summary>
     public RangeObservableCollection<MediaItemRow> ItemRows { get; } = new();
+
+    public int ColumnCount => _columnCount;
 
     [ObservableProperty]
     private MediaItem? _selectedMediaItem;
@@ -360,6 +364,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
                 SearchResults.Clear();
                 ItemRows.Clear();
+                SelectedMediaItem = null;
                 OnPropertyChanged(nameof(HasResults));
                 OnPropertyChanged(nameof(HasNoResults));
                 (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
@@ -409,6 +414,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 return;
 
             SearchResults.ReplaceAll(results);
+            EnsureSelectionIsValid(SearchResults);
             RebuildRows();
 
             OnPropertyChanged(nameof(HasResults));
@@ -423,6 +429,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     {
         var columnCount = ComputeColumnCount();
         if (columnCount < 1) columnCount = 1;
+        _columnCount = columnCount;
 
         EffectiveItemWidth = ComputeEffectiveItemWidth(columnCount);
 
@@ -444,6 +451,31 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         }
 
         ItemRows.ReplaceAll(rows);
+    }
+
+    private void EnsureSelectionIsValid(IList<MediaItem> items)
+    {
+        if (items.Count == 0)
+        {
+            SelectedMediaItem = null;
+            return;
+        }
+
+        var selected = SelectedMediaItem;
+        if (selected == null)
+            return;
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            if (ReferenceEquals(item, selected) ||
+                string.Equals(item.Id, selected.Id, StringComparison.Ordinal))
+            {
+                return;
+            }
+        }
+
+        SelectedMediaItem = null;
     }
 
     private int ComputeColumnCount()

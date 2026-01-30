@@ -159,7 +159,9 @@
                  ItemsSource="{Binding ItemRows}"
                  Padding="0"
                  Background="Transparent"
-                 IsVisible="{Binding HasResults}">
+                 IsVisible="{Binding HasResults}"
+                 Focusable="True"
+                 KeyDown="OnResultsListKeyDown">
             <ListBox.Styles>
                 <Style Selector="ListBoxItem">
                     <Setter Property="Template">

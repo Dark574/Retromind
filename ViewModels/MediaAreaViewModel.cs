@@ -22,6 +22,8 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     private const double ItemSpacing = 0.0;
     private const double ViewportPadding = 0.0;
 
+    private int _columnCount = 1;
+
     // Debounce to avoid re-filtering 30k items on every key stroke.
     private static readonly TimeSpan SearchDebounceDelay = TimeSpan.FromMilliseconds(200);
 
@@ -95,6 +97,8 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     /// Row grouping for a virtualized tile view.
     /// </summary>
     public RangeObservableCollection<MediaItemRow> ItemRows { get; } = new();
+
+    public int ColumnCount => _columnCount;
 
     /// <summary>
     /// Command to reset all filters to defaults.
@@ -290,6 +294,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     private void PopulateItems(IEnumerable<MediaItem> items)
     {
         FilteredItems.ReplaceAll(items);
+        EnsureSelectionIsValid(FilteredItems);
         RebuildRows();
         PlayRandomCommand.NotifyCanExecuteChanged();
     }
@@ -298,6 +303,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     {
         var columnCount = ComputeColumnCount();
         if (columnCount < 1) columnCount = 1;
+        _columnCount = columnCount;
 
         EffectiveItemWidth = ComputeEffectiveItemWidth(columnCount);
 
@@ -319,6 +325,31 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         }
 
         ItemRows.ReplaceAll(rows);
+    }
+
+    private void EnsureSelectionIsValid(IList<MediaItem> items)
+    {
+        if (items.Count == 0)
+        {
+            SelectedMediaItem = null;
+            return;
+        }
+
+        var selected = SelectedMediaItem;
+        if (selected == null)
+            return;
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            if (ReferenceEquals(item, selected) ||
+                string.Equals(item.Id, selected.Id, StringComparison.Ordinal))
+            {
+                return;
+            }
+        }
+
+        SelectedMediaItem = null;
     }
 
     private int ComputeColumnCount()

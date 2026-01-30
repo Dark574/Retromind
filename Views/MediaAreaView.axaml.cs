@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -52,6 +53,7 @@ public partial class MediaAreaView : UserControl
             return;
 
         vm.SelectedMediaItem = item;
+        _mediaList?.Focus();
         e.Handled = true;
     }
     
@@ -101,6 +103,78 @@ public partial class MediaAreaView : UserControl
             if (_mediaList != null)
                 vm.ViewportWidth = _mediaList.Bounds.Width;
         }
+    }
+
+    private void OnMediaListKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not MediaAreaViewModel vm)
+            return;
+
+        var items = vm.FilteredItems;
+        if (items.Count == 0)
+            return;
+
+        if (e.Key == Key.Enter)
+        {
+            if (vm.SelectedMediaItem != null && vm.DoubleClickCommand.CanExecute(null))
+            {
+                vm.DoubleClickCommand.Execute(null);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        var columnCount = Math.Max(1, vm.ColumnCount);
+        var selectedIndex = FindSelectedIndex(items, vm.SelectedMediaItem);
+        var targetIndex = selectedIndex;
+
+        switch (e.Key)
+        {
+            case Key.Left:
+                targetIndex = selectedIndex <= 0 ? 0 : selectedIndex - 1;
+                break;
+            case Key.Right:
+                targetIndex = selectedIndex < 0 ? 0 : Math.Min(selectedIndex + 1, items.Count - 1);
+                break;
+            case Key.Up:
+                targetIndex = selectedIndex < 0 ? 0 : Math.Max(selectedIndex - columnCount, 0);
+                break;
+            case Key.Down:
+                targetIndex = selectedIndex < 0 ? 0 : Math.Min(selectedIndex + columnCount, items.Count - 1);
+                break;
+            case Key.Home:
+                targetIndex = 0;
+                break;
+            case Key.End:
+                targetIndex = items.Count - 1;
+                break;
+            default:
+                return;
+        }
+
+        var item = items[targetIndex];
+        vm.SelectedMediaItem = item;
+        ScrollItemIntoView(item);
+        e.Handled = true;
+    }
+
+    private static int FindSelectedIndex(IList<MediaItem> items, MediaItem? selected)
+    {
+        if (selected == null)
+            return -1;
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            if (ReferenceEquals(item, selected) ||
+                string.Equals(item.Id, selected.Id, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     public void ScrollItemIntoView(MediaItem item)
