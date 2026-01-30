@@ -413,11 +413,11 @@ public partial class MainWindow : Window
             .OfType<MediaAreaView>()
             .FirstOrDefault(view => ReferenceEquals(view.DataContext, mediaVm));
 
-        if (mediaView?.MediaList == null)
+        if (mediaView == null)
             return;
 
         Dispatcher.UIThread.Post(
-            () => mediaView.MediaList.ScrollIntoView(item),
+            () => mediaView.ScrollItemIntoView(item),
             DispatcherPriority.Background);
     }
 

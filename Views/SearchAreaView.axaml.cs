@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Retromind.Models;
 using Retromind.ViewModels;
 
@@ -10,11 +11,16 @@ namespace Retromind.Views;
 public partial class SearchAreaView : UserControl
 {
     private SearchAreaViewModel? _currentViewModel;
+    private ListBox? _resultsList;
 
     public SearchAreaView()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        Loaded += OnLoaded;
+        _resultsList = this.FindControl<ListBox>("ResultsList");
+        if (_resultsList != null)
+            _resultsList.SizeChanged += OnResultsSizeChanged;
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -23,6 +29,12 @@ public partial class SearchAreaView : UserControl
             _currentViewModel.Dispose();
 
         _currentViewModel = DataContext as SearchAreaViewModel;
+        if (_currentViewModel != null)
+        {
+            _resultsList ??= this.FindControl<ListBox>("ResultsList");
+            if (_resultsList != null)
+                _currentViewModel.ViewportWidth = _resultsList.Bounds.Width;
+        }
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -49,5 +61,40 @@ public partial class SearchAreaView : UserControl
         // Execute play request via command (keeps the ViewModel as the single source of truth).
         if (vm.PlayCommand.CanExecute(item))
             vm.PlayCommand.Execute(item);
+    }
+
+    private void OnItemPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is not SearchAreaViewModel vm)
+            return;
+
+        if (sender is not Control { DataContext: MediaItem item })
+            return;
+
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            return;
+
+        vm.SelectedMediaItem = item;
+        e.Handled = true;
+    }
+
+    private void OnLoaded(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is SearchAreaViewModel vm)
+        {
+            _resultsList ??= this.FindControl<ListBox>("ResultsList");
+            if (_resultsList != null)
+                vm.ViewportWidth = _resultsList.Bounds.Width;
+        }
+    }
+
+    private void OnResultsSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (DataContext is SearchAreaViewModel vm)
+        {
+            _resultsList ??= this.FindControl<ListBox>("ResultsList");
+            if (_resultsList != null)
+                vm.ViewportWidth = _resultsList.Bounds.Width;
+        }
     }
 }

@@ -25,6 +25,7 @@
                            FontWeight="Bold"
                            VerticalAlignment="Center"/>
 
+
                 <!-- Right aligned: filters and scopes -->
                 <StackPanel Grid.Column="2"
                             Spacing="10"
@@ -153,52 +154,113 @@
         </Border>
 
         <!-- Results -->
-        <ListBox Grid.Row="1"
-                 ItemsSource="{Binding SearchResults}"
-                 SelectedItem="{Binding SelectedMediaItem}"
+        <ListBox x:Name="ResultsList"
+                 Grid.Row="1"
+                 ItemsSource="{Binding ItemRows}"
+                 Padding="0"
                  Background="Transparent"
                  IsVisible="{Binding HasResults}">
+            <ListBox.Styles>
+                <Style Selector="ListBoxItem">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <ContentPresenter Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0" />
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderBrush" Value="Transparent" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Focusable" Value="False" />
+                </Style>
+                <Style Selector="ListBoxItem:pointerover">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderBrush" Value="Transparent" />
+                    <Setter Property="BorderThickness" Value="0" />
+                </Style>
+                <Style Selector="ListBoxItem:selected">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderBrush" Value="Transparent" />
+                    <Setter Property="BorderThickness" Value="0" />
+                </Style>
+                <Style Selector="ListBoxItem:focus">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderBrush" Value="Transparent" />
+                    <Setter Property="BorderThickness" Value="0" />
+                </Style>
+            </ListBox.Styles>
 
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <WrapPanel />
+                    <VirtualizingStackPanel />
                 </ItemsPanelTemplate>
             </ListBox.ItemsPanel>
 
             <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="models:MediaItem">
-                    <Border Width="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).ItemWidth}"
-                            Height="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).ItemWidth}"
-                            Margin="5"
-                            CornerRadius="5"
-                            ClipToBounds="True"
-                            Background="Transparent"
-                            DoubleTapped="OnItemDoubleTapped">
+                <DataTemplate x:CompileBindings="False">
+                    <ItemsControl ItemsSource="{Binding Items}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
 
-                        <Border.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="{x:Static p:Strings.Button_Launch}"
-                                          Command="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).PlayCommand, ElementName=Root}"
-                                          CommandParameter="{Binding .}"/>
-                            </ContextMenu>
-                        </Border.ContextMenu>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:CompileBindings="False">
+                                <Border Width="{Binding DataContext.EffectiveItemWidth, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        Height="{Binding DataContext.EffectiveItemWidth, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        Margin="0,10"
+                                        Padding="0,10"
+                                        CornerRadius="0"
+                                        ClipToBounds="True"
+                                        PointerPressed="OnItemPointerPressed"
+                                        DoubleTapped="OnItemDoubleTapped">
 
-                        <Grid>
-                            <!-- Fallback title if no cover is available -->
-                            <TextBlock Text="{Binding Title}"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       TextWrapping="Wrap"
-                                       TextAlignment="Center"
-                                       Margin="5"
-                                       IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                                    <Border.Background>
+                                        <MultiBinding Converter="{x:Static helpers:ObjectConverters.TileBackground}">
+                                            <Binding />
+                                            <Binding Path="DataContext.SelectedMediaItem"
+                                                     RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                            <Binding Path="IsPointerOver"
+                                                     RelativeSource="{RelativeSource Self}" />
+                                        </MultiBinding>
+                                    </Border.Background>
+                                    <Border.BorderThickness>0</Border.BorderThickness>
 
-                            <!-- Async image loading for smoother scrolling with large result sets -->
-                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
-                                   Stretch="Uniform"
-                                   IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                        </Grid>
-                    </Border>
+                                    <Border.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="{x:Static p:Strings.Button_Launch}"
+                                                      Command="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).PlayCommand, ElementName=Root}"
+                                                      CommandParameter="{Binding .}"/>
+                                        </ContextMenu>
+                                    </Border.ContextMenu>
+
+                                    <Grid>
+                                        <!-- Fallback title if no cover is available -->
+                                        <TextBlock Text="{Binding Title}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   TextWrapping="Wrap"
+                                                   TextAlignment="Center"
+                                                   Margin="5"
+                                                   IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+
+                                        <!-- Async image loading for smoother scrolling with large result sets -->
+                                        <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
+                                               helpers:AsyncImageHelper.DecodeWidth="300"
+                                               Stretch="Uniform"
+                                               IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>

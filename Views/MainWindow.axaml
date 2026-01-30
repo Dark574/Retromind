@@ -39,6 +39,7 @@
        <!-- LAYER 0: Wallpaper (lies over it) -->
        <Image x:CompileBindings="False"
               helpers:AsyncImageHelper.Url="{Binding SelectedNodeContent.SelectedMediaItem.PrimaryWallpaperPath}"
+              helpers:AsyncImageHelper.DecodeWidth="1920"
               Stretch="UniformToFill"
               Opacity="0.4"
               IsHitTestVisible="False"

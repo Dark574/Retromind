@@ -19,6 +19,8 @@ namespace Retromind.ViewModels;
 public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 {
     private const double DefaultItemWidth = 150.0;
+    private const double ItemSpacing = 0.0;
+    private const double ViewportPadding = 0.0;
 
     // Debounce to avoid re-filtering 30k items on every key stroke.
     private static readonly TimeSpan SearchDebounceDelay = TimeSpan.FromMilliseconds(200);
@@ -37,6 +39,12 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private double _itemWidth = DefaultItemWidth;
+
+    [ObservableProperty]
+    private double _effectiveItemWidth = DefaultItemWidth;
+
+    [ObservableProperty]
+    private double _viewportWidth;
 
     [ObservableProperty]
     private MediaNode _node;
@@ -72,6 +80,21 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     /// Collection bound to the view. Range updates minimize UI stalls.
     /// </summary>
     public RangeObservableCollection<MediaItem> FilteredItems { get; } = new();
+
+    public sealed class MediaItemRow
+    {
+        public IReadOnlyList<MediaItem> Items { get; }
+
+        public MediaItemRow(IReadOnlyList<MediaItem> items)
+        {
+            Items = items ?? throw new ArgumentNullException(nameof(items));
+        }
+    }
+
+    /// <summary>
+    /// Row grouping for a virtualized tile view.
+    /// </summary>
+    public RangeObservableCollection<MediaItemRow> ItemRows { get; } = new();
 
     /// <summary>
     /// Command to reset all filters to defaults.
@@ -131,6 +154,10 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         if (SelectedStatus != value?.Value)
             SelectedStatus = value?.Value;
     }
+
+    partial void OnItemWidthChanged(double value) => RebuildRows();
+
+    partial void OnViewportWidthChanged(double value) => RebuildRows();
     
     private void DebouncedApplyFilter(string querySnapshot)
     {
@@ -263,7 +290,65 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     private void PopulateItems(IEnumerable<MediaItem> items)
     {
         FilteredItems.ReplaceAll(items);
+        RebuildRows();
         PlayRandomCommand.NotifyCanExecuteChanged();
+    }
+
+    private void RebuildRows()
+    {
+        var columnCount = ComputeColumnCount();
+        if (columnCount < 1) columnCount = 1;
+
+        EffectiveItemWidth = ComputeEffectiveItemWidth(columnCount);
+
+        if (FilteredItems.Count == 0)
+        {
+            ItemRows.Clear();
+            return;
+        }
+
+        var rows = new List<MediaItemRow>();
+        for (var i = 0; i < FilteredItems.Count; i += columnCount)
+        {
+            var rowCount = Math.Min(columnCount, FilteredItems.Count - i);
+            var row = new List<MediaItem>(rowCount);
+            for (var j = 0; j < rowCount; j++)
+                row.Add(FilteredItems[i + j]);
+
+            rows.Add(new MediaItemRow(row));
+        }
+
+        ItemRows.ReplaceAll(rows);
+    }
+
+    private int ComputeColumnCount()
+    {
+        var availableWidth = ViewportWidth - ViewportPadding;
+        if (availableWidth <= 0 || ItemWidth <= 0)
+            return 1;
+
+        var totalItemWidth = ItemWidth + ItemSpacing;
+        if (totalItemWidth <= 0)
+            return 1;
+
+        return Math.Max(1, (int)Math.Floor((availableWidth + ItemSpacing) / totalItemWidth));
+    }
+
+    private double ComputeEffectiveItemWidth(int columnCount)
+    {
+        if (columnCount < 1)
+            return ItemWidth;
+
+        var availableWidth = ViewportWidth - ViewportPadding;
+        if (availableWidth <= 0)
+            return ItemWidth;
+
+        var totalSpacing = ItemSpacing * (columnCount - 1);
+        var width = (availableWidth - totalSpacing) / columnCount;
+        if (double.IsNaN(width) || double.IsInfinity(width) || width <= 0)
+            return ItemWidth;
+
+        return width;
     }
 
     private bool CanPlayRandom() => IsPlayRandomEnabled && FilteredItems.Count > 0;
@@ -315,5 +400,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
         foreach (var item in _allItems)
             item.PropertyChanged -= OnItemPropertyChanged;
+
+        ItemRows.Clear();
     }
 }

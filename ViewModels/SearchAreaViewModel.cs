@@ -44,6 +44,8 @@ public class SearchScope : ObservableObject
 public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 {
     private const double DefaultItemWidth = 150.0;
+    private const double ItemSpacing = 0.0;
+    private const double ViewportPadding = 0.0;
 
     // Debounce typing/checkbox toggles to avoid re-scanning the entire library per keystroke.
     private static readonly TimeSpan SearchDebounceDelay = TimeSpan.FromMilliseconds(250);
@@ -63,6 +65,12 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private double _itemWidth = DefaultItemWidth;
+
+    [ObservableProperty]
+    private double _effectiveItemWidth = DefaultItemWidth;
+
+    [ObservableProperty]
+    private double _viewportWidth;
 
     /// <summary>
     /// When true, only items marked as favorites are included in the global search results
@@ -89,6 +97,21 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     /// Result collection optimized for bulk updates
     /// </summary>
     public RangeObservableCollection<MediaItem> SearchResults { get; } = new();
+
+    public sealed class MediaItemRow
+    {
+        public IReadOnlyList<MediaItem> Items { get; }
+
+        public MediaItemRow(IReadOnlyList<MediaItem> items)
+        {
+            Items = items ?? throw new ArgumentNullException(nameof(items));
+        }
+    }
+
+    /// <summary>
+    /// Row grouping for a virtualized tile view.
+    /// </summary>
+    public RangeObservableCollection<MediaItemRow> ItemRows { get; } = new();
 
     [ObservableProperty]
     private MediaItem? _selectedMediaItem;
@@ -155,6 +178,10 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         if (SelectedStatus != value?.Value)
             SelectedStatus = value?.Value;
     }
+
+    partial void OnItemWidthChanged(double value) => RebuildRows();
+
+    partial void OnViewportWidthChanged(double value) => RebuildRows();
 
     private IEnumerable<MediaNode> RootNodes => _rootNodesObservable ?? _rootNodesSnapshot;
 
@@ -332,6 +359,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                     return;
 
                 SearchResults.Clear();
+                ItemRows.Clear();
                 OnPropertyChanged(nameof(HasResults));
                 OnPropertyChanged(nameof(HasNoResults));
                 (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
@@ -381,6 +409,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 return;
 
             SearchResults.ReplaceAll(results);
+            RebuildRows();
 
             OnPropertyChanged(nameof(HasResults));
             OnPropertyChanged(nameof(HasNoResults));
@@ -388,6 +417,63 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             // Keep "Play random" enabled state accurate
             (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
         });
+    }
+
+    private void RebuildRows()
+    {
+        var columnCount = ComputeColumnCount();
+        if (columnCount < 1) columnCount = 1;
+
+        EffectiveItemWidth = ComputeEffectiveItemWidth(columnCount);
+
+        if (SearchResults.Count == 0)
+        {
+            ItemRows.Clear();
+            return;
+        }
+
+        var rows = new List<MediaItemRow>();
+        for (var i = 0; i < SearchResults.Count; i += columnCount)
+        {
+            var rowCount = Math.Min(columnCount, SearchResults.Count - i);
+            var row = new List<MediaItem>(rowCount);
+            for (var j = 0; j < rowCount; j++)
+                row.Add(SearchResults[i + j]);
+
+            rows.Add(new MediaItemRow(row));
+        }
+
+        ItemRows.ReplaceAll(rows);
+    }
+
+    private int ComputeColumnCount()
+    {
+        var availableWidth = ViewportWidth - ViewportPadding;
+        if (availableWidth <= 0 || ItemWidth <= 0)
+            return 1;
+
+        var totalItemWidth = ItemWidth + ItemSpacing;
+        if (totalItemWidth <= 0)
+            return 1;
+
+        return Math.Max(1, (int)Math.Floor((availableWidth + ItemSpacing) / totalItemWidth));
+    }
+
+    private double ComputeEffectiveItemWidth(int columnCount)
+    {
+        if (columnCount < 1)
+            return ItemWidth;
+
+        var availableWidth = ViewportWidth - ViewportPadding;
+        if (availableWidth <= 0)
+            return ItemWidth;
+
+        var totalSpacing = ItemSpacing * (columnCount - 1);
+        var width = (availableWidth - totalSpacing) / columnCount;
+        if (double.IsNaN(width) || double.IsInfinity(width) || width <= 0)
+            return ItemWidth;
+
+        return width;
     }
 
     public void Dispose()
@@ -409,6 +495,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
         foreach (var scope in Scopes)
             scope.PropertyChanged -= OnScopePropertyChanged;
+
+        ItemRows.Clear();
     }
 
     private static async Task CollectMatchesRecursiveAsync(
