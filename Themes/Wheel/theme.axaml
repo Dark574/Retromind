@@ -60,6 +60,8 @@
         <!-- Wallpaper for Games-View -->
         <Image Name="GameWallpaper"
                helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
+               helpers:AsyncImageHelper.DecodeWidth="1920"
+               helpers:AsyncImageHelper.DisableCache="True"
                Stretch="UniformToFill"
                IsVisible="{Binding IsGameListActive}"
                Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />
@@ -67,6 +69,8 @@
         <!-- Wallpaper for Categories-View -->
         <Image Name="CategoryWallpaper"
                helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}"
+               helpers:AsyncImageHelper.DecodeWidth="1920"
+               helpers:AsyncImageHelper.DisableCache="True"
                Stretch="UniformToFill"
                IsVisible="{Binding IsCategorySelectionActive}"
                Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />

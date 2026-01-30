@@ -57,6 +57,7 @@
         <!-- Very transparent wallpaper from the current item -->
         <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
                helpers:AsyncImageHelper.DecodeWidth="1920"
+               helpers:AsyncImageHelper.DisableCache="True"
                Stretch="UniformToFill"
                Opacity="0.30"
                HorizontalAlignment="Center"
@@ -91,6 +92,7 @@
                             <!-- Game logo (if available) -->
                             <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
                                    helpers:AsyncImageHelper.DecodeWidth="512"
+                                   helpers:AsyncImageHelper.DisableCache="True"
                                    Height="80"
                                    Stretch="Uniform"
                                    HorizontalAlignment="Left"
@@ -212,6 +214,7 @@
                                                         Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
                                 <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
                                        helpers:AsyncImageHelper.DecodeWidth="600"
+                                       helpers:AsyncImageHelper.DisableCache="True"
                                        Stretch="Uniform"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center" />

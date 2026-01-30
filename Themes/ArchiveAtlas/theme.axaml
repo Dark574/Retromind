@@ -128,12 +128,14 @@
         <!-- Low-opacity wallpaper for item or category -->
         <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
                helpers:AsyncImageHelper.DecodeWidth="1920"
+               helpers:AsyncImageHelper.DisableCache="True"
                Stretch="UniformToFill"
                Opacity="0.10"
                IsVisible="{Binding SelectedItem.PrimaryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
         <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}"
                helpers:AsyncImageHelper.DecodeWidth="1920"
+               helpers:AsyncImageHelper.DisableCache="True"
                Stretch="UniformToFill"
                Opacity="0.08"
                IsVisible="{Binding SelectedCategory.PrimaryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
@@ -271,6 +273,7 @@
                             IsVisible="{Binding SelectedItem.PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
                         <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
                                helpers:AsyncImageHelper.DecodeWidth="700"
+                               helpers:AsyncImageHelper.DisableCache="True"
                                Stretch="UniformToFill" />
                     </Border>
 

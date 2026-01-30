@@ -21,7 +21,7 @@ public class AsyncImageHelper : AvaloniaObject
 {
     // --- Configuration ---
 
-    private const int MaxCacheSize = 250;
+    private const int MaxCacheSize = 200;
 
     // Shared HttpClient to prevent socket exhaustion (used only if DI is not available)
     private static readonly HttpClient FallbackHttpClient = new();

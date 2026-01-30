@@ -221,6 +221,9 @@ public partial class BigModeViewModel
             if (idx >= 0) SelectedItemIndex = idx;
         }
 
+        // Stop current preview immediately on selection change to avoid stale playback while scrolling.
+        StopVideo();
+
         // Selection changed -> update counters before triggering preview logic.
         UpdateGameCounters();
         
@@ -242,6 +245,9 @@ public partial class BigModeViewModel
             // O(n) only for external selection changes (mouse/touch).
             SelectedCategoryIndex = CurrentCategories.IndexOf(value);
         }
+
+        // Stop current preview immediately on selection change to avoid stale playback while scrolling.
+        StopVideo();
 
         TriggerPreviewPlaybackWithDebounce();
     }
