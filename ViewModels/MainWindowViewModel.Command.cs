@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Threading;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -113,8 +114,46 @@ public partial class MainWindowViewModel
     {
         Debug.WriteLine("[CoreApp] EnterBigMode requested.");
 
+        if (!_loadDataTcs.Task.IsCompleted)
+        {
+            if (Interlocked.Exchange(ref _pendingBigModeEntry, 1) == 1)
+                return;
+
+            _ = EnterBigModeAfterLoadAsync();
+            return;
+        }
+
+        EnterBigModeCore();
+    }
+
+    private async Task EnterBigModeAfterLoadAsync()
+    {
+        try
+        {
+            await _loadDataTcs.Task.ConfigureAwait(false);
+        }
+        catch
+        {
+            // best-effort: still attempt to enter BigMode
+        }
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            Interlocked.Exchange(ref _pendingBigModeEntry, 0);
+            EnterBigModeCore();
+        });
+    }
+
+    private void EnterBigModeCore()
+    {
+        Debug.WriteLine("[CoreApp] EnterBigMode starting.");
+
         // Stop music immediately to avoid overlap and to keep the UI responsive.
         _audioService.StopMusic();
+
+        // Ensure we have a valid node selection once the library is loaded.
+        if (SelectedNode == null && RootItems.Count > 0)
+            SelectedNode = RootItems[0];
 
         // Switch main window to fullscreen while BigMode is active.
         var window = CurrentWindow;

@@ -90,6 +90,11 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource? _saveSettingsCts;
     private readonly TimeSpan _saveSettingsDebounce = TimeSpan.FromMilliseconds(500);
 
+    private readonly TaskCompletionSource<bool> _loadDataTcs =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private int _pendingBigModeEntry;
+
     // --- Library Dirty Tracking + Debounced Library Save (NEW) ---
     private bool _isLibraryDirty;
     private int _libraryDirtyVersion;
@@ -332,6 +337,10 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (Exception ex)
         {
             Debug.WriteLine($"[ViewModel] LoadData Error: {ex}");
+        }
+        finally
+        {
+            _loadDataTcs.TrySetResult(true);
         }
     }
 
