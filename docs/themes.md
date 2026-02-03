@@ -367,12 +367,40 @@ These values are used by the host to produce consistent “TV-like” selection 
 - `ThemeProperties.UnselectedOpacity` (double, default: `0.75`)
 - `ThemeProperties.SelectedGlowOpacity` (double, default: `0.35`)
 - `ThemeProperties.AccentColor` (Color?) — used for the glow color when set (fallback: gold)
+- `ThemeProperties.CircularWindowSize` (int, default: `9`)
 
 Recommended ranges:
 
 - `SelectedScale`: 1.05–1.15
 - `UnselectedOpacity`: 0.45–0.80
 - `SelectedGlowOpacity`: 0.20–0.70
+
+#### Circular list windows (wrap-around)
+
+Some themes use a "circular window" list that always keeps the selected item in
+the middle and wraps around at the ends (so the last items appear above the first
+item).
+
+How to enable it:
+
+1) Set the window size on the theme root:
+```xml
+<UserControl xmlns:ext="clr-namespace:Retromind.Extensions"
+             ext:ThemeProperties.CircularWindowSize="9">
+</UserControl>
+```
+
+2) Bind your list to `CircularItems` instead of `Items`:
+```xml
+<ListBox ItemsSource="{Binding CircularItems}"
+         SelectedItem="{Binding SelectedItem, Mode=OneWay}" />
+```
+
+Notes:
+- `CircularWindowSize <= 0` shows the full list (no windowing).
+- Keep the size odd so the selected item can be centered.
+- If you need mouse selection in that list, you can use `Mode=TwoWay`
+  but controller-driven navigation should keep the selection in the view model.
 
 ### 6.5 Tuning: animations
 

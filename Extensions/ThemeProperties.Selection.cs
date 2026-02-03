@@ -55,4 +55,19 @@ public partial class ThemeProperties
 
     public static void SetUseHostSelectionEffects(AvaloniaObject element, bool value) =>
         element.SetValue(UseHostSelectionEffectsProperty, value);
+
+    /// <summary>
+    /// Controls the size of circular list windows used by themes that bind to
+    /// BigModeViewModel.CircularItems. Values <= 0 will show the full list.
+    /// </summary>
+    public static readonly AttachedProperty<int> CircularWindowSizeProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, int>(
+            "CircularWindowSize",
+            defaultValue: 9);
+
+    public static int GetCircularWindowSize(AvaloniaObject element) =>
+        element.GetValue(CircularWindowSizeProperty);
+
+    public static void SetCircularWindowSize(AvaloniaObject element, int value) =>
+        element.SetValue(CircularWindowSizeProperty, value);
 }

@@ -406,6 +406,7 @@ public partial class BigModeHostView : UserControl
         var selectedScale = ThemeProperties.GetSelectedScale(themeRoot);
         var unselectedOpacity = ThemeProperties.GetUnselectedOpacity(themeRoot);
         var selectedGlowOpacity = ThemeProperties.GetSelectedGlowOpacity(themeRoot);
+        var circularWindowSize = ThemeProperties.GetCircularWindowSize(themeRoot);
 
         var fadeMs = ThemeProperties.GetFadeDurationMs(themeRoot);
         var moveMs = ThemeProperties.GetMoveDurationMs(themeRoot);
@@ -429,6 +430,9 @@ public partial class BigModeHostView : UserControl
         var accent = ThemeProperties.GetAccentColor(themeRoot);
 
         var fadeDuration = TimeSpan.FromMilliseconds(Math.Clamp(fadeMs, 0, 5000));
+
+        if (DataContext is Retromind.ViewModels.BigModeViewModel vm)
+            vm.CircularWindowSize = circularWindowSize;
         
         // Selection UX: apply to ALL ListBoxes in the theme visual tree.
         // We use ContainerPrepared + SelectionChanged so it works with virtualization.

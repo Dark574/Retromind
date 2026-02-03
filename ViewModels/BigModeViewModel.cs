@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibVLCSharp.Shared;
 using Retromind.Helpers;
+using Retromind.Extensions;
 using Retromind.Helpers.Video;
 using Retromind.Models;
 using Retromind.Resources;
@@ -81,10 +82,25 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private ObservableCollection<MediaItem> _items = new();
 
-    private const int CircularLogoWindowSize = 9;
+    private const int DefaultCircularWindowSize = 9;
+    private int _circularWindowSize = DefaultCircularWindowSize;
     private readonly ObservableCollection<MediaItem> _circularItems = new();
 
     public ObservableCollection<MediaItem> CircularItems => _circularItems;
+
+    public int CircularWindowSize
+    {
+        get => _circularWindowSize;
+        set
+        {
+            var normalized = value;
+            if (normalized < 0)
+                normalized = 0;
+
+            if (SetProperty(ref _circularWindowSize, normalized))
+                UpdateCircularItems();
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
@@ -499,35 +515,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         if (!IsGameListActive || Items.Count == 0)
             return;
 
-        var count = Items.Count;
-        var windowSize = Math.Min(CircularLogoWindowSize, count);
-        if (windowSize <= 0)
-            return;
-
-        if (windowSize % 2 == 0)
-            windowSize--;
-
-        if (windowSize <= 0)
-        {
-            foreach (var item in Items)
-                _circularItems.Add(item);
-            return;
-        }
-
-        var selectedIndex = SelectedItem != null ? Items.IndexOf(SelectedItem) : 0;
-        if (selectedIndex < 0)
-            selectedIndex = 0;
-
-        var half = windowSize / 2;
-
-        for (int i = -half; i <= half; i++)
-        {
-            var idx = (selectedIndex + i) % count;
-            if (idx < 0)
-                idx += count;
-
-            _circularItems.Add(Items[idx]);
-        }
+        CircularWindowHelper.BuildCircularWindow(
+            Items,
+            SelectedItem,
+            _circularWindowSize,
+            _circularItems);
     }
     
     /// <summary>
