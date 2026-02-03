@@ -49,6 +49,10 @@ public partial class BigModeViewModel
     private static readonly TimeSpan VideoStartSettleDelay = TimeSpan.FromMilliseconds(75);
     private static readonly TimeSpan StopWaitTimeout = TimeSpan.FromMilliseconds(750);
     
+    // AppImage-specific: some bundled LibVLC builds can lose audio after Stop/Play cycles.
+    private static readonly bool IsAppImage =
+        !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPIMAGE"));
+    
     // Cache limits (soft caps) to avoid unbounded growth in very large libraries.
     private const int MaxItemVideoCacheEntries = 10_000;
     private const int MaxNodeVideoCacheEntries = 2_000;
@@ -711,6 +715,11 @@ public partial class BigModeViewModel
         MainVideoHasFrame = false;
         Volatile.Write(ref _expectedPreviewFrameGeneration, 0);
         Volatile.Write(ref _mainVideoFrameReadyGeneration, 0);
+
+        // AppImage workaround: force a fresh MediaPlayer on the next preview start
+        // to avoid LibVLC losing audio after frequent Stop/Play cycles.
+        if (IsAppImage)
+            _forceRecreateMediaPlayerNextTime = true;
         
         var fadeGen = Interlocked.Increment(ref _overlayFadeGeneration);
         _ = HideOverlayAfterFadeAsync(fadeGen);
