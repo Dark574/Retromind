@@ -252,24 +252,34 @@ public partial class BigModeViewModel
         _stateSaved = true;
 
         _settings.LastBigModeNavigationPath = _navigationPath.Reverse().Select(n => n.Id).ToList();
-        _settings.LastBigModeWasItemView = IsGameListActive;
 
-        if (IsGameListActive)
+        // Some themes (e.g. Arcade/Wheel) can end up showing items even if IsGameListActive is false.
+        // Treat "item view" as active when we still have a valid selected item and a populated items list.
+        var isItemView = IsGameListActive || (SelectedItem != null && Items.Count > 0);
+        _settings.LastBigModeWasItemView = isItemView;
+
+        var nodeForState = SelectedCategory
+            ?? (_navigationPath.Count > 0 ? _navigationPath.Peek() : null)
+            ?? ThemeContextNode
+            ?? CurrentNode;
+
+        if (isItemView)
         {
             _settings.LastBigModeSelectedNodeId = SelectedItem?.Id;
 
             // Mirror to CoreApp
-            _settings.LastSelectedNodeId = SelectedCategory?.Id;
+            _settings.LastSelectedNodeId = nodeForState?.Id;
             _settings.LastSelectedMediaId = SelectedItem?.Id;
         }
         else
         {
-            _settings.LastBigModeSelectedNodeId = SelectedCategory?.Id;
+            _settings.LastBigModeSelectedNodeId = nodeForState?.Id;
 
             // Mirror to CoreApp
-            _settings.LastSelectedNodeId = SelectedCategory?.Id;
+            _settings.LastSelectedNodeId = nodeForState?.Id;
             _settings.LastSelectedMediaId = null;
         }
+
     }
 
     public void Dispose()

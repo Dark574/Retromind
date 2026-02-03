@@ -242,6 +242,9 @@ public partial class MainWindowViewModel
                     if (themeChangedHandler != null)
                         bigVm.PropertyChanged -= themeChangedHandler;
 
+                    // Capture BigMode selection before the visual tree is torn down.
+                    bigVm.SaveState();
+
                     // Ensure VLC playback (preview + background video) is fully stopped
                     // before tearing down the visual tree and returning to the core UI.
                     await bigVm.PrepareForThemeSwapAsync();
@@ -312,44 +315,87 @@ public partial class MainWindowViewModel
         {
             if (RootItems.Count == 0) return;
 
-            // 1) Determine target node: last entry in the BigMode navigation path
-            var targetNodeId = _currentSettings.LastBigModeNavigationPath?.LastOrDefault();
-            if (string.IsNullOrWhiteSpace(targetNodeId))
+            // 1) Determine target node: prefer explicit last selected node, then item id fallback, then BigMode path.
+            var targetNodeId = _currentSettings.LastSelectedNodeId;
+
+            MediaNode? node = null;
+            if (!string.IsNullOrWhiteSpace(targetNodeId))
+                node = FindNodeById(RootItems, targetNodeId);
+
+            if (node == null && !string.IsNullOrWhiteSpace(_currentSettings.LastSelectedMediaId))
+            {
+                if (TryFindNodeByMediaId(RootItems, _currentSettings.LastSelectedMediaId!, out var nodeByItem)
+                    && nodeByItem is not null)
+                {
+                    node = nodeByItem;
+                    targetNodeId = nodeByItem.Id;
+                }
+            }
+
+            if (node == null && _currentSettings.LastBigModeNavigationPath is { Count: > 0 })
+            {
+                var fallbackId = _currentSettings.LastBigModeNavigationPath.LastOrDefault();
+                if (!string.IsNullOrWhiteSpace(fallbackId))
+                    node = FindNodeById(RootItems, fallbackId);
+            }
+
+            if (node == null)
                 return;
 
-            var node = FindNodeById(RootItems, targetNodeId);
-            if (node == null) return;
+            // Capture the intended item selection BEFORE UpdateContent may overwrite settings.
+            var desiredItemId = _currentSettings.LastSelectedMediaId;
+            if (string.IsNullOrWhiteSpace(desiredItemId))
+                desiredItemId = _currentSettings.LastBigModeSelectedNodeId;
 
             // 2) Tree select + expand (UI Thread)
             await UiThreadHelper.InvokeAsync(() =>
             {
                 ExpandPathToNode(RootItems, node);
                 SelectedNode = node;
+
+                if (!string.IsNullOrWhiteSpace(desiredItemId))
+                    _lastSelectedMediaByNodeId[node.Id] = desiredItemId;
             });
 
             // 3) Wait until the grid (SelectedNodeContent) is actually there.
             await UpdateContentAsync();
 
-            // 4) If BigMode was in Item View: Select item in the grid
-            if (_currentSettings.LastBigModeWasItemView &&
-                !string.IsNullOrWhiteSpace(_currentSettings.LastBigModeSelectedNodeId))
+            // 4) Select item in the grid if we have a concrete item id.
+            // Do not rely on LastBigModeWasItemView alone; some themes can end up desyncing it.
+            if (string.IsNullOrWhiteSpace(desiredItemId))
+                return;
+
+            await UiThreadHelper.InvokeAsync(() =>
             {
-                var itemId = _currentSettings.LastBigModeSelectedNodeId;
+                if (SelectedNodeContent is not MediaAreaViewModel mediaVm) return;
 
-                await UiThreadHelper.InvokeAsync(() =>
-                {
-                    if (SelectedNodeContent is not MediaAreaViewModel mediaVm) return;
-
-                    var item = mediaVm.Node?.Items?.FirstOrDefault(i => i.Id == itemId);
-                    if (item != null)
-                        mediaVm.SelectedMediaItem = item;
-                });
-            }
+                var item = mediaVm.Node?.Items?.FirstOrDefault(i => i.Id == desiredItemId);
+                if (item != null)
+                    mediaVm.SelectedMediaItem = item;
+            });
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[CoreApp] SyncSelectionFromBigModeAsync failed: {ex}");
         }
+    }
+
+    private static bool TryFindNodeByMediaId(IEnumerable<MediaNode> nodes, string mediaId, out MediaNode? node)
+    {
+        foreach (var current in nodes)
+        {
+            if (current.Items.Any(i => i.Id == mediaId))
+            {
+                node = current;
+                return true;
+            }
+
+            if (current.Children is { Count: > 0 } && TryFindNodeByMediaId(current.Children, mediaId, out node))
+                return true;
+        }
+
+        node = null;
+        return false;
     }
     
     private async Task AddCategoryAsync(MediaNode? parentNode)
