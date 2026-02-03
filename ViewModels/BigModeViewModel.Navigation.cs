@@ -212,6 +212,7 @@ public partial class BigModeViewModel
         
         // Keep game counters in sync with the new item collection.
         UpdateGameCounters();
+        UpdateCircularItems();
     }
 
     /// <summary>

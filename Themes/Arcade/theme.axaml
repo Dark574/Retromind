@@ -160,13 +160,13 @@
                     MaxWidth="340">
                 <ListBox x:Name="ArcadeLogoList"
                          ext:ThemeProperties.UseHostSelectionEffects="False"
-                         ItemsSource="{Binding Items}"
-                         SelectedItem="{Binding SelectedItem}"
+                         ItemsSource="{Binding CircularItems}"
+                         SelectedItem="{Binding SelectedItem, Mode=OneWay}"
                          Background="Transparent"
                          BorderThickness="0"
+                         VerticalAlignment="Center"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ScrollViewer.VerticalScrollBarVisibility="Hidden"
-                         helpers:ListBoxBehaviors.CenterSelectedItem="True">
+                         ScrollViewer.VerticalScrollBarVisibility="Hidden">
                     <!-- Local styles only for this ListBox -->
                     <ListBox.Styles>
                         <Style Selector="ListBoxItem">

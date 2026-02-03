@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.VisualTree;
 using Avalonia.Threading;
@@ -13,6 +14,28 @@ namespace Retromind.Helpers;
 /// </summary>
 public static class ListBoxBehaviors
 {
+    private sealed class ActionObserver<T> : IObserver<T>
+    {
+        private readonly Action<T> _onNext;
+
+        public ActionObserver(Action<T> onNext)
+        {
+            _onNext = onNext ?? throw new ArgumentNullException(nameof(onNext));
+        }
+
+        public void OnNext(T value) => _onNext(value);
+
+        public void OnError(Exception error)
+        {
+            // best-effort: selection changes should never throw
+        }
+
+        public void OnCompleted()
+        {
+            // no-op
+        }
+    }
+
     /// <summary>
     /// When set to true on a ListBox, automatically scrolls the selected item
     /// into view and tries to keep it vertically centered in the viewport.
@@ -48,6 +71,28 @@ public static class ListBoxBehaviors
 
     public static bool GetCenterSelectedItemOnceOnFirstSelection(AvaloniaObject element)
         => element.GetValue(CenterSelectedItemOnceOnFirstSelectionProperty);
+
+    private static readonly AttachedProperty<IDisposable?> CenterSelectedItemSubscriptionProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, IDisposable?>(
+            "CenterSelectedItemSubscription",
+            typeof(ListBoxBehaviors));
+
+    private static void SetCenterSelectedItemSubscription(AvaloniaObject element, IDisposable? value)
+        => element.SetValue(CenterSelectedItemSubscriptionProperty, value);
+
+    private static IDisposable? GetCenterSelectedItemSubscription(AvaloniaObject element)
+        => element.GetValue(CenterSelectedItemSubscriptionProperty);
+
+    private static readonly AttachedProperty<IDisposable?> CenterSelectedItemOnceSubscriptionProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, IDisposable?>(
+            "CenterSelectedItemOnceSubscription",
+            typeof(ListBoxBehaviors));
+
+    private static void SetCenterSelectedItemOnceSubscription(AvaloniaObject element, IDisposable? value)
+        => element.SetValue(CenterSelectedItemOnceSubscriptionProperty, value);
+
+    private static IDisposable? GetCenterSelectedItemOnceSubscription(AvaloniaObject element)
+        => element.GetValue(CenterSelectedItemOnceSubscriptionProperty);
     
     // Internal flag to remember whether we already centered once for a given ListBox.
     private static readonly AttachedProperty<bool> HasCenteredOnceProperty =
@@ -69,13 +114,18 @@ public static class ListBoxBehaviors
             // NewValue is boxed -> cast to bool
             var enable = (bool)e.NewValue!;
 
+            var existing = GetCenterSelectedItemSubscription(listBox);
+            existing?.Dispose();
+            SetCenterSelectedItemSubscription(listBox, null);
+
             if (enable)
             {
-                listBox.SelectionChanged += OnListBoxSelectionChanged;
-            }
-            else
-            {
-                listBox.SelectionChanged -= OnListBoxSelectionChanged;
+                var subscription = listBox
+                    .GetObservable(SelectingItemsControl.SelectedItemProperty)
+                    .Subscribe(new ActionObserver<object?>(_ => QueueCenterCurrentSelection(listBox)));
+
+                SetCenterSelectedItemSubscription(listBox, subscription);
+                QueueCenterCurrentSelection(listBox);
             }
         });
         
@@ -84,53 +134,46 @@ public static class ListBoxBehaviors
         {
             var enable = (bool)e.NewValue!;
 
+            var existing = GetCenterSelectedItemOnceSubscription(listBox);
+            existing?.Dispose();
+            SetCenterSelectedItemOnceSubscription(listBox, null);
+
             if (enable)
             {
                 // Reset flag whenever the behavior is (re)enabled
                 SetHasCenteredOnce(listBox, false);
-                listBox.SelectionChanged += OnListBoxSelectionChangedOnce;
-            }
-            else
-            {
-                listBox.SelectionChanged -= OnListBoxSelectionChangedOnce;
+
+                IDisposable? subscription = null;
+                subscription = listBox
+                    .GetObservable(SelectingItemsControl.SelectedItemProperty)
+                    .Subscribe(new ActionObserver<object?>(_ =>
+                    {
+                        if (GetHasCenteredOnce(listBox))
+                            return;
+
+                        if (listBox.SelectedItem == null)
+                            return;
+
+                        SetHasCenteredOnce(listBox, true);
+                        QueueCenterCurrentSelection(listBox);
+
+                        subscription?.Dispose();
+                        SetCenterSelectedItemOnceSubscription(listBox, null);
+                    }));
+
+                SetCenterSelectedItemOnceSubscription(listBox, subscription);
             }
         });
     }
 
-    private static void OnListBoxSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private static void QueueCenterCurrentSelection(ListBox listBox)
     {
-        if (sender is not ListBox listBox)
-            return;
+        if (listBox.SelectedItem != null)
+            listBox.ScrollIntoView(listBox.SelectedItem);
 
         // Delay the centering until after layout has updated; otherwise
         // container positions and viewport size may be outdated.
-        Dispatcher.UIThread.Post(() => CenterCurrentSelection(listBox), DispatcherPriority.Background);
-    }
-
-    private static void OnListBoxSelectionChangedOnce(object? sender, SelectionChangedEventArgs e)
-    {
-        if (sender is not ListBox listBox)
-            return;
-
-        // If we already centered once, detach and ignore further events
-        if (GetHasCenteredOnce(listBox))
-        {
-            listBox.SelectionChanged -= OnListBoxSelectionChangedOnce;
-            return;
-        }
-
-        if (listBox.SelectedItem == null)
-            return;
-
-        // Mark as done and schedule centering once
-        SetHasCenteredOnce(listBox, true);
-
-        Dispatcher.UIThread.Post(() =>
-        {
-            CenterCurrentSelection(listBox);
-            // After the first successful centering, detach the handler
-            listBox.SelectionChanged -= OnListBoxSelectionChangedOnce;
-        }, DispatcherPriority.Background);
+        Dispatcher.UIThread.Post(() => CenterCurrentSelection(listBox), DispatcherPriority.Render);
     }
     
     private static void CenterCurrentSelection(ListBox listBox)

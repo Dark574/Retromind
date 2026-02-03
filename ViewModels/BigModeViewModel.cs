@@ -81,6 +81,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private ObservableCollection<MediaItem> _items = new();
 
+    private const int CircularLogoWindowSize = 9;
+    private readonly ObservableCollection<MediaItem> _circularItems = new();
+
+    public ObservableCollection<MediaItem> CircularItems => _circularItems;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
     [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
@@ -485,6 +490,44 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         var index = Items.IndexOf(SelectedItem);
         CurrentGameNumber = index >= 0 ? index + 1 : 0;
+    }
+
+    private void UpdateCircularItems()
+    {
+        _circularItems.Clear();
+
+        if (!IsGameListActive || Items.Count == 0)
+            return;
+
+        var count = Items.Count;
+        var windowSize = Math.Min(CircularLogoWindowSize, count);
+        if (windowSize <= 0)
+            return;
+
+        if (windowSize % 2 == 0)
+            windowSize--;
+
+        if (windowSize <= 0)
+        {
+            foreach (var item in Items)
+                _circularItems.Add(item);
+            return;
+        }
+
+        var selectedIndex = SelectedItem != null ? Items.IndexOf(SelectedItem) : 0;
+        if (selectedIndex < 0)
+            selectedIndex = 0;
+
+        var half = windowSize / 2;
+
+        for (int i = -half; i <= half; i++)
+        {
+            var idx = (selectedIndex + i) % count;
+            if (idx < 0)
+                idx += count;
+
+            _circularItems.Add(Items[idx]);
+        }
     }
     
     /// <summary>

@@ -230,6 +230,7 @@ public partial class BigModeViewModel
 
         // Selection changed -> update counters before triggering preview logic.
         UpdateGameCounters();
+        UpdateCircularItems();
         
         // Notify dependent computed properties used by themes.
         OnPropertyChanged(nameof(SelectedYear));
@@ -264,6 +265,7 @@ public partial class BigModeViewModel
         
         // View mode changed (categories vs. games) -> counters may need to reset.
         UpdateGameCounters();
+        UpdateCircularItems();
         
         TriggerPreviewPlaybackWithDebounce();
     }
