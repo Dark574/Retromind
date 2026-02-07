@@ -22,6 +22,8 @@ namespace Retromind.ViewModels;
 public partial class EditMediaViewModel : ViewModelBase
 {
     private readonly EmulatorConfig? _inheritedEmulator;
+    private EmulatorConfig? _resolvedInheritedEmulator;
+    private string? _resolvedInheritedEmulatorSource;
     private readonly MediaItem _originalItem;
     private readonly FileManagementService _fileService;
     private readonly List<string> _nodePath;
@@ -83,6 +85,28 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         [ObservableProperty] private string _key = string.Empty;
         [ObservableProperty] private string _value = string.Empty;
+    }
+
+    public sealed class EmulatorProfileOption
+    {
+        public enum OptionKind
+        {
+            Inherit,
+            Native,
+            Manual,
+            Emulator
+        }
+
+        public EmulatorProfileOption(OptionKind kind, string name, EmulatorConfig? emulator = null)
+        {
+            Kind = kind;
+            Name = name ?? string.Empty;
+            Emulator = emulator;
+        }
+
+        public OptionKind Kind { get; }
+        public string Name { get; }
+        public EmulatorConfig? Emulator { get; }
     }
 
     /// <summary>
@@ -345,9 +369,10 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         var env = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        if (SelectedEmulatorProfile?.EnvironmentOverrides is { Count: > 0 })
+        var emulator = ResolveSelectedEmulatorConfig();
+        if (emulator?.EnvironmentOverrides is { Count: > 0 })
         {
-            foreach (var kv in SelectedEmulatorProfile.EnvironmentOverrides)
+            foreach (var kv in emulator.EnvironmentOverrides)
             {
                 if (string.IsNullOrWhiteSpace(kv.Key))
                     continue;
@@ -587,7 +612,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
     private string ResolveUmuRunnerPath()
     {
-        var candidate = SelectedEmulatorProfile?.Path;
+        var candidate = ResolveSelectedEmulatorConfig()?.Path;
 
         if (MediaType == MediaType.Emulator && IsManualEmulator && !string.IsNullOrWhiteSpace(LauncherPath))
             candidate = LauncherPath;
@@ -630,7 +655,7 @@ public partial class EditMediaViewModel : ViewModelBase
         if (ContainsProtonHints(env))
             return true;
 
-        var pathCandidate = SelectedEmulatorProfile?.Path;
+        var pathCandidate = ResolveSelectedEmulatorConfig()?.Path;
 
         if (MediaType == MediaType.Emulator && IsManualEmulator && !string.IsNullOrWhiteSpace(LauncherPath))
             pathCandidate = LauncherPath;
@@ -648,7 +673,7 @@ public partial class EditMediaViewModel : ViewModelBase
         if (ContainsUmuHints(env))
             return true;
 
-        var pathCandidate = SelectedEmulatorProfile?.Path;
+        var pathCandidate = ResolveSelectedEmulatorConfig()?.Path;
 
         if (MediaType == MediaType.Emulator && IsManualEmulator && !string.IsNullOrWhiteSpace(LauncherPath))
             pathCandidate = LauncherPath;
@@ -972,7 +997,7 @@ public partial class EditMediaViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsManualEmulator))]
     [NotifyPropertyChangedFor(nameof(IsCustomLauncherVisible))]
     [NotifyPropertyChangedFor(nameof(PreviewText))]
-    private EmulatorConfig? _selectedEmulatorProfile;
+    private EmulatorProfileOption? _selectedEmulatorProfile;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCustomLauncherVisible))]
@@ -990,13 +1015,41 @@ public partial class EditMediaViewModel : ViewModelBase
     /// trivial (empty / "{file}"), they are cleared so the profile template
     /// can act alone.
     /// </summary>
-    partial void OnSelectedEmulatorProfileChanged(EmulatorConfig? value)
+    partial void OnSelectedEmulatorProfileChanged(EmulatorProfileOption? value)
     {
-        if (MediaType == MediaType.Emulator &&
-            value is { Id: not null } &&
+        if (value == null)
+            return;
+
+        switch (value.Kind)
+        {
+            case EmulatorProfileOption.OptionKind.Native:
+                MediaType = MediaType.Native;
+                break;
+
+            case EmulatorProfileOption.OptionKind.Inherit:
+            case EmulatorProfileOption.OptionKind.Manual:
+            case EmulatorProfileOption.OptionKind.Emulator:
+                MediaType = MediaType.Emulator;
+                break;
+        }
+
+        if (value.Kind == EmulatorProfileOption.OptionKind.Emulator &&
             IsTrivialLauncherArgs(LauncherArgs))
         {
             LauncherArgs = string.Empty;
+        }
+
+        if (value.Kind == EmulatorProfileOption.OptionKind.Inherit &&
+            ResolveInheritedEmulator() != null &&
+            IsTrivialLauncherArgs(LauncherArgs))
+        {
+            LauncherArgs = string.Empty;
+        }
+
+        if (value.Kind == EmulatorProfileOption.OptionKind.Manual &&
+            string.IsNullOrWhiteSpace(LauncherArgs))
+        {
+            LauncherArgs = "{file}";
         }
 
         // Keep preview and "Copy" button state in sync with the new profile
@@ -1066,8 +1119,7 @@ public partial class EditMediaViewModel : ViewModelBase
     public bool HasAssetChanges { get; private set; }
 
     // --- UI Lists ---
-    public ObservableCollection<EmulatorConfig> AvailableEmulators { get; } = new();
-    public List<MediaType> MediaTypeOptions { get; } = new() { MediaType.Native, MediaType.Emulator };
+    public ObservableCollection<EmulatorProfileOption> AvailableEmulators { get; } = new();
     public List<PlayStatus> StatusOptions { get; } = Enum.GetValues<PlayStatus>().ToList();
 
     public IAsyncRelayCommand<Window?> CopyPreviewCommand { get; }
@@ -1174,18 +1226,6 @@ public partial class EditMediaViewModel : ViewModelBase
         InitializeEmulators(settings);
         InitializeNativeWrapperUiFromItem();
 
-        // If this item starts in Emulator mode with a real profile selected
-        // (e.g. inherited from the node) and the current per-item arguments
-        // are still trivial (empty / "{file}"), clear them so the profile's
-        // default arguments can be used as-is (e.g. MAME:
-        // "run org.mamedev.MAME {fileBase}").
-        if (MediaType == MediaType.Emulator &&
-            SelectedEmulatorProfile is { Id: not null } &&
-            IsTrivialLauncherArgs(LauncherArgs))
-        {
-            LauncherArgs = string.Empty;
-        }
-        
         // Initialize environment overrides from the original item
         EnvironmentOverrides.Clear();
         if (_originalItem.EnvironmentOverrides is { Count: > 0 })
@@ -1301,14 +1341,6 @@ public partial class EditMediaViewModel : ViewModelBase
             {
                 LauncherArgs = string.Empty;
             }
-
-            // Reset inherited/profile-based emulator selection when switching to native mode
-            // This ensures that:
-            //  - PreviewText no longer shows emulator-based commands
-            //  - Save() does not persist an EmulatorId for native items
-            SelectedEmulatorProfile = null;
-            
-            return;
         }
 
         // When switching to Emulator and we are in manual-emulator mode (no profile selected),
@@ -1323,23 +1355,114 @@ public partial class EditMediaViewModel : ViewModelBase
     private void InitializeEmulators(AppSettings settings)
     {
         AvailableEmulators.Clear();
-        AvailableEmulators.Add(new EmulatorConfig { Name = "Custom / Manual", Id = null! });
-        
-        foreach (var emu in settings.Emulators) 
-            AvailableEmulators.Add(emu);
+        ResolveInheritedEmulatorInfo();
+
+        var inheritedEmulatorName = _resolvedInheritedEmulator != null
+            ? (string.IsNullOrWhiteSpace(_resolvedInheritedEmulator.Name)
+                ? _resolvedInheritedEmulator.Id
+                : _resolvedInheritedEmulator.Name)
+            : null;
+
+        var inheritedLabel = !string.IsNullOrWhiteSpace(inheritedEmulatorName) &&
+                             !string.IsNullOrWhiteSpace(_resolvedInheritedEmulatorSource)
+            ? string.Format(Strings.NodeSettings_InheritedEmulatorInfoFormat, inheritedEmulatorName, _resolvedInheritedEmulatorSource)
+            : $"{Strings.NodeSettings_InheritedEmulatorNone} {Strings.EditMedia_InheritedEmulatorFallbackHint}";
+
+        AvailableEmulators.Add(new EmulatorProfileOption(
+            EmulatorProfileOption.OptionKind.Inherit,
+            inheritedLabel,
+            _resolvedInheritedEmulator));
+
+        AvailableEmulators.Add(new EmulatorProfileOption(
+            EmulatorProfileOption.OptionKind.Native,
+            Strings.Type_Native));
+
+        AvailableEmulators.Add(new EmulatorProfileOption(
+            EmulatorProfileOption.OptionKind.Manual,
+            "Custom / Manual"));
+
+        foreach (var emu in settings.Emulators)
+        {
+            AvailableEmulators.Add(new EmulatorProfileOption(
+                EmulatorProfileOption.OptionKind.Emulator,
+                emu.Name,
+                emu));
+        }
 
         if (!string.IsNullOrEmpty(_originalItem.EmulatorId))
         {
-            SelectedEmulatorProfile = settings.Emulators.FirstOrDefault(e => e.Id == _originalItem.EmulatorId);
+            SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(
+                e => e.Kind == EmulatorProfileOption.OptionKind.Emulator &&
+                     string.Equals(e.Emulator?.Id, _originalItem.EmulatorId, StringComparison.Ordinal));
         }
-        else if (_originalItem.MediaType == MediaType.Native && _inheritedEmulator != null)
+        else if (_originalItem.MediaType == MediaType.Emulator)
         {
-            MediaType = MediaType.Emulator;
-            SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(e => e.Id == _inheritedEmulator.Id);
+            if (!string.IsNullOrWhiteSpace(_originalItem.LauncherPath))
+            {
+                SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(
+                    e => e.Kind == EmulatorProfileOption.OptionKind.Manual);
+            }
+            else
+            {
+                SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(
+                    e => e.Kind == EmulatorProfileOption.OptionKind.Inherit);
+            }
+        }
+        else
+        {
+            SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(
+                e => e.Kind == EmulatorProfileOption.OptionKind.Native);
         }
 
-        if (SelectedEmulatorProfile == null && MediaType == MediaType.Emulator)
-            SelectedEmulatorProfile = AvailableEmulators.FirstOrDefault(e => e.Id == null!);
+        SelectedEmulatorProfile ??= AvailableEmulators.FirstOrDefault();
+    }
+
+    private void ResolveInheritedEmulatorInfo()
+    {
+        _resolvedInheritedEmulator = null;
+        _resolvedInheritedEmulatorSource = null;
+
+        if (_parentNode != null && _rootNodes.Count > 0)
+        {
+            var chain = GetNodeChain(_parentNode, _rootNodes);
+            chain.Reverse();
+
+            foreach (var node in chain)
+            {
+                if (string.IsNullOrWhiteSpace(node.DefaultEmulatorId))
+                    continue;
+
+                _resolvedInheritedEmulator = _settings.Emulators
+                    .FirstOrDefault(e => e.Id == node.DefaultEmulatorId);
+                _resolvedInheritedEmulatorSource = node.Name;
+                break;
+            }
+        }
+
+        if (_resolvedInheritedEmulator == null && _inheritedEmulator != null)
+            _resolvedInheritedEmulator = _inheritedEmulator;
+    }
+
+    private EmulatorConfig? ResolveInheritedEmulator()
+    {
+        if (_resolvedInheritedEmulator == null && _resolvedInheritedEmulatorSource == null)
+            ResolveInheritedEmulatorInfo();
+
+        return _resolvedInheritedEmulator;
+    }
+
+    private EmulatorConfig? ResolveSelectedEmulatorConfig()
+    {
+        var selection = SelectedEmulatorProfile;
+        if (selection == null)
+            return null;
+
+        return selection.Kind switch
+        {
+            EmulatorProfileOption.OptionKind.Emulator => selection.Emulator,
+            EmulatorProfileOption.OptionKind.Inherit => ResolveInheritedEmulator(),
+            _ => null
+        };
     }
 
     // --- Asset Actions ---
@@ -1424,8 +1547,8 @@ public partial class EditMediaViewModel : ViewModelBase
 
     // --- Computed Properties & Helpers ---
 
-    public bool IsManualEmulator => IsEmulatorMode &&
-                                    (SelectedEmulatorProfile == null || SelectedEmulatorProfile.Id == null);
+    public bool IsManualEmulator =>
+        SelectedEmulatorProfile?.Kind == EmulatorProfileOption.OptionKind.Manual;
 
     public bool IsEmulatorMode => MediaType == MediaType.Emulator;
 
@@ -1454,12 +1577,12 @@ public partial class EditMediaViewModel : ViewModelBase
                 return $"{env} {command}".Trim();
             }
             
-            // --- Emulator via profile ---
-            if (MediaType == MediaType.Emulator &&
-                SelectedEmulatorProfile != null &&
-                SelectedEmulatorProfile.Id != null)
+            var selectedEmulator = ResolveSelectedEmulatorConfig();
+
+            // --- Emulator via profile or inherited profile ---
+            if (MediaType == MediaType.Emulator && selectedEmulator != null)
             {
-                var baseArgs = SelectedEmulatorProfile.Arguments ?? string.Empty;
+                var baseArgs = selectedEmulator.Arguments ?? string.Empty;
                 var itemArgs = LauncherArgs ?? string.Empty;
 
                 // Keep the combination logic in sync with LauncherService.CombineTemplateArguments(...)
@@ -1470,9 +1593,9 @@ public partial class EditMediaViewModel : ViewModelBase
                 // Inner command: emulator binary + expanded args + file
                 string inner;
                 if (string.IsNullOrWhiteSpace(expandedArgs))
-                    inner = $"{SelectedEmulatorProfile.Path} {realFileQuoted}".Trim();
+                    inner = $"{selectedEmulator.Path} {realFileQuoted}".Trim();
                 else
-                    inner = $"{SelectedEmulatorProfile.Path} {expandedArgs}".Trim();
+                    inner = $"{selectedEmulator.Path} {expandedArgs}".Trim();
 
                 // If there is a wrapper chain, wrap it; otherwise return inner directly
                 var final = wrappers.Count > 0
@@ -1511,7 +1634,7 @@ public partial class EditMediaViewModel : ViewModelBase
             }
 
             // --- Native execution (direct or via wrappers) ---
-            if (MediaType == MediaType.Native)
+            if (MediaType == MediaType.Native || MediaType == MediaType.Emulator)
             {
                 var nativeArgs = BuildNativeArgumentsForPreview(LauncherArgs);
 
@@ -1640,34 +1763,13 @@ public partial class EditMediaViewModel : ViewModelBase
                 break;
         }
 
-        // 2) Emulator-level base (matches PlayMediaAsync semantics for MediaType.Native)
+        // 2) Emulator-level base
         List<LaunchWrapper>? wrappers = null;
 
         EmulatorConfig? effectiveEmulator = null;
-
-        // 2a) If the item has an explicit emulator assigned, use it.
-        if (!string.IsNullOrWhiteSpace(_originalItem.EmulatorId))
+        if (MediaType == MediaType.Emulator)
         {
-            effectiveEmulator = _settings.Emulators
-                .FirstOrDefault(e => e.Id == _originalItem.EmulatorId);
-        }
-        else if (_parentNode != null)
-        {
-            // 2b) Otherwise traverse node chain upwards to find a DefaultEmulatorId.
-            var chain = GetNodeChain(_parentNode, _rootNodes);
-            chain.Reverse(); // Leaf first (nearest wins)
-
-            foreach (var node in chain)
-            {
-                if (string.IsNullOrWhiteSpace(node.DefaultEmulatorId))
-                    continue;
-
-                effectiveEmulator = _settings.Emulators
-                    .FirstOrDefault(e => e.Id == node.DefaultEmulatorId);
-
-                if (effectiveEmulator != null)
-                    break;
-            }
+            effectiveEmulator = ResolveSelectedEmulatorConfig();
         }
 
         if (effectiveEmulator != null)
@@ -1970,7 +2072,6 @@ public partial class EditMediaViewModel : ViewModelBase
         _originalItem.ReleaseDate = ReleaseDate?.DateTime;
         _originalItem.Status = Status;
         _originalItem.Description = Description;
-        _originalItem.MediaType = MediaType;
 
         // Prefix: store null when not used
         _originalItem.PrefixPath = string.IsNullOrWhiteSpace(PrefixPath) ? null : PrefixPath.Trim();
@@ -1989,32 +2090,38 @@ public partial class EditMediaViewModel : ViewModelBase
             ? null
             : OverrideWatchProcess;
         
-        // 2. Emulator / launcher path handling
-        if (MediaType == MediaType.Emulator &&
-            SelectedEmulatorProfile != null &&
-            SelectedEmulatorProfile.Id != null)
+        // 2. Emulator / launcher path handling (selection-driven)
+        switch (SelectedEmulatorProfile?.Kind)
         {
-            // Emulator via profile:
-            // - persist EmulatorId
-            // - do NOT persist a per-item LauncherPath (comes from profile)
-            _originalItem.EmulatorId = SelectedEmulatorProfile.Id;
-            _originalItem.LauncherPath = null;
-        }
-        else if (MediaType == MediaType.Emulator)
-        {
-            // Manual emulator:
-            // - no EmulatorId
-            // - per-item LauncherPath is the tool/emulator path
-            _originalItem.EmulatorId = null;
-            _originalItem.LauncherPath = LauncherPath;
-        }
-        else
-        {
-            // Native:
-            // - no EmulatorId
-            // - LauncherPath is deprecated (wrapper chain handles launching)
-            _originalItem.EmulatorId = null;
-            _originalItem.LauncherPath = null;
+            case EmulatorProfileOption.OptionKind.Emulator:
+                _originalItem.MediaType = MediaType.Emulator;
+                _originalItem.EmulatorId = SelectedEmulatorProfile.Emulator?.Id;
+                _originalItem.LauncherPath = null;
+                break;
+
+            case EmulatorProfileOption.OptionKind.Manual:
+                _originalItem.MediaType = MediaType.Emulator;
+                _originalItem.EmulatorId = null;
+                _originalItem.LauncherPath = LauncherPath;
+                break;
+
+            case EmulatorProfileOption.OptionKind.Inherit:
+                _originalItem.MediaType = MediaType.Emulator;
+                _originalItem.EmulatorId = null;
+                _originalItem.LauncherPath = null;
+                break;
+
+            case EmulatorProfileOption.OptionKind.Native:
+                _originalItem.MediaType = MediaType.Native;
+                _originalItem.EmulatorId = null;
+                _originalItem.LauncherPath = null;
+                break;
+
+            default:
+                _originalItem.MediaType = MediaType;
+                _originalItem.EmulatorId = null;
+                _originalItem.LauncherPath = null;
+                break;
         }
         
         // 3. Native wrapper override (tri-state, item-level)

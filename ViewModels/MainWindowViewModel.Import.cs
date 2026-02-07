@@ -108,6 +108,9 @@ public partial class MainWindowViewModel
         
         // Snapshot node path once (stable, avoids repeated computation)
         var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
+        var defaultMediaType = string.IsNullOrWhiteSpace(targetNode.DefaultEmulatorId)
+            ? MediaType.Native
+            : MediaType.Emulator;
 
         // 1) Decide what to add (no UI mutations)
         var itemsToAdd = importedItems
@@ -123,6 +126,12 @@ public partial class MainWindowViewModel
             .ToList();
 
         if (itemsToAdd.Count == 0) return;
+
+        if (defaultMediaType == MediaType.Emulator)
+        {
+            foreach (var item in itemsToAdd)
+                item.MediaType = MediaType.Emulator;
+        }
 
         var existingItems = targetNode.Items.ToList();
 
@@ -261,6 +270,9 @@ public partial class MainWindowViewModel
         if (result == null || result.Count == 0) return;
 
         var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
+        var defaultMediaType = string.IsNullOrWhiteSpace(targetNode.DefaultEmulatorId)
+            ? MediaType.Native
+            : MediaType.Emulator;
 
         static bool TryMakeDataRelativeIfInsideDataRoot(string absolutePath, out string relativePath)
         {
@@ -349,7 +361,7 @@ public partial class MainWindowViewModel
                 {
                     Title = title,
                     Files = files,
-                    MediaType = MediaType.Native
+                    MediaType = defaultMediaType
                 });
             }
             else
@@ -383,7 +395,7 @@ public partial class MainWindowViewModel
                                 Label = "Disc 1"
                             }
                         },
-                        MediaType = MediaType.Native
+                        MediaType = defaultMediaType
                     });
                 }
             }
@@ -418,7 +430,7 @@ public partial class MainWindowViewModel
                         Label = "Disc 1"
                     }
                 },
-                MediaType = MediaType.Native
+                MediaType = defaultMediaType
             });
         }
 

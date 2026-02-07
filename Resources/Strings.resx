@@ -120,6 +120,7 @@
     <data name="EditMedia.AssetsPrefixLabel" xml:space="preserve"><value>Asset prefix:</value></data>
     <data name="EditMedia.AssetsPrefixHint" xml:space="preserve"><value>Use this prefix when adding files manually in the Library folder.</value></data>
     <data name="EditMedia.AssetsPrefixExampleFormat" xml:space="preserve"><value>Example: {0}_Cover_01.jpg</value></data>
+    <data name="EditMedia.InheritedEmulatorFallbackHint" xml:space="preserve"><value>(falls back to native)</value></data>
     
     <!-- FILETYPE -->
     <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>
@@ -142,8 +143,7 @@
     <data name="Launch.ArgumentsHintLong" xml:space="preserve"><value>-fullscreen {file}</value></data>
     <data name="Launch.Config" xml:space="preserve"><value>Launch Configuration</value></data>
     <data name="Launch.LauncherPath" xml:space="preserve"><value>Emulator / Tool Path</value></data>
-    <data name="Launch.LauncherPathHint" xml:space="preserve"><value>/usr/bin/snes9x or leave empty for native</value></data>
-    <data name="Launch.Mode" xml:space="preserve"><value>Start Method</value></data>
+    <data name="Launch.LauncherPathHint" xml:space="preserve"><value>e.g. /usr/bin/snes9x</value></data>
   
     <!-- MEDIA -->
     <data name="Media.AddMusic" xml:space="preserve"><value>+ Music</value></data>

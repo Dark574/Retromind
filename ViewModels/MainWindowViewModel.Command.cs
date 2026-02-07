@@ -573,7 +573,7 @@ public partial class MainWindowViewModel
         try
         {
             EmulatorConfig? emulator = null;
-            if (!string.IsNullOrEmpty(item.EmulatorId))
+            if (item.MediaType == MediaType.Emulator && !string.IsNullOrEmpty(item.EmulatorId))
             {
                 emulator = _currentSettings.Emulators.FirstOrDefault(e => e.Id == item.EmulatorId);
             }
@@ -583,7 +583,9 @@ public partial class MainWindowViewModel
 
             var nodePath = PathHelper.GetNodePath(trueParent, RootItems);
 
-            if (emulator == null)
+            if (item.MediaType == MediaType.Emulator &&
+                emulator == null &&
+                string.IsNullOrWhiteSpace(item.LauncherPath))
             {
                 // Traverse up the tree to find inherited emulator config
                 var nodeChain = GetNodeChain(trueParent, RootItems);

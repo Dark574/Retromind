@@ -536,6 +536,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("EditMedia.AssetsPrefixExampleFormat", resourceCulture);
             }
         }
+
+        public static string EditMedia_InheritedEmulatorFallbackHint {
+            get {
+                return ResourceManager.GetString("EditMedia.InheritedEmulatorFallbackHint", resourceCulture);
+            }
+        }
         
         public static string FileType_Videos {
             get {
