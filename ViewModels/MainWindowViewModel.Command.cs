@@ -614,7 +614,9 @@ public partial class MainWindowViewModel
                     {
                         case EmulatorConfig.WrapperMode.Inherit:
                             // Inherit from global defaults (may be null)
-                            wrappers = _currentSettings.DefaultNativeWrappers;
+                            wrappers = _currentSettings.DefaultNativeWrappers != null
+                                ? new List<LaunchWrapper>(_currentSettings.DefaultNativeWrappers)
+                                : new List<LaunchWrapper>();
                             break;
 
                         case EmulatorConfig.WrapperMode.None:
@@ -633,10 +635,14 @@ public partial class MainWindowViewModel
                 else
                 {
                     // No emulator: only global defaults as a basis
-                    wrappers = _currentSettings.DefaultNativeWrappers;
+                    wrappers = _currentSettings.DefaultNativeWrappers != null
+                        ? new List<LaunchWrapper>(_currentSettings.DefaultNativeWrappers)
+                        : new List<LaunchWrapper>();
                 }
 
                 // 2) Node level (nearest node in chain; tri-state over null/empty/non-empty)
+                List<LaunchWrapper>? nodeWrappers = null;
+                bool nodeOverrideFound = false;
                 var chain = GetNodeChain(trueParent, RootItems);
                 chain.Reverse(); // Leaf (trueParent) zuerst
 
@@ -648,10 +654,23 @@ public partial class MainWindowViewModel
                         continue;
                     }
 
-                    // Empty list => explicitly "no wrappers" at the node level
+                    nodeOverrideFound = true;
+
+                    // Empty list => explicitly "no node wrappers" (but keep emulator/global)
                     // Non-empty => Override
-                    wrappers = node.NativeWrappersOverride;
+                    nodeWrappers = node.NativeWrappersOverride.Count == 0
+                        ? new List<LaunchWrapper>()
+                        : new List<LaunchWrapper>(node.NativeWrappersOverride);
                     break;
+                }
+
+                if (nodeOverrideFound && nodeWrappers != null && nodeWrappers.Count > 0)
+                {
+                    var baseWrappers = wrappers ?? new List<LaunchWrapper>();
+                    var merged = new List<LaunchWrapper>(nodeWrappers.Count + baseWrappers.Count);
+                    merged.AddRange(nodeWrappers);
+                    merged.AddRange(baseWrappers);
+                    wrappers = merged;
                 }
 
                 // 3) Item level (always wins, tri-state over zero/empty/non-empty)

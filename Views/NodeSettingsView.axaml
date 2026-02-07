@@ -10,14 +10,14 @@
         x:Class="Retromind.Views.NodeSettingsView"
         x:DataType="vm:NodeSettingsViewModel"
         Title="{x:Static p:Strings.NodeSettings_Title}"
-        Width="550" SizeToContent="Height"
+        Width="640" Height="720" MinHeight="480" MaxHeight="900" SizeToContent="Width"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="True">
 
     <Border Padding="20">
         <!-- Wrap all content in a ScrollViewer to keep the dialog usable
              even with many native wrappers or small screens. -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,12,0">
             <StackPanel Spacing="20">
 
                 <!-- NAME & DESCRIPTION -->
@@ -41,16 +41,16 @@
                 <Border BorderBrush="#444444"
                         BorderThickness="1"
                         CornerRadius="6"
-                        Padding="8"
+                        Padding="6"
                         Background="#11000000">
-                    <StackPanel Spacing="10">
+                    <StackPanel Spacing="6">
                         <TextBlock Text="BigMode Artwork (per category)"
                                    FontWeight="SemiBold" />
 
                         <!-- Logo -->
-                        <StackPanel Spacing="4">
+                        <StackPanel Spacing="2">
                             <!-- Row 1: Label + Buttons + Preview -->
-                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="8">
+                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="6">
                                 <TextBlock Grid.Column="0"
                                            Text="Logo"
                                            VerticalAlignment="Center" />
@@ -91,9 +91,9 @@
                         </StackPanel>
 
                         <!-- Wallpaper -->
-                        <StackPanel Spacing="4">
+                        <StackPanel Spacing="2">
                             <!-- Row 1: Label + Buttons + Preview -->
-                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="8">
+                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="6">
                                 <TextBlock Grid.Column="0"
                                            Text="Wallpaper"
                                            VerticalAlignment="Center" />
@@ -134,9 +134,9 @@
                         </StackPanel>
 
                         <!-- Video -->
-                        <StackPanel Spacing="4">
+                        <StackPanel Spacing="2">
                             <!-- Row 1: Label + Buttons -->
-                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="8">
+                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="6">
                                 <TextBlock Grid.Column="0"
                                            Text="Video"
                                            VerticalAlignment="Center" />
@@ -199,6 +199,28 @@
                                      IsChecked="{Binding IsNativeWrapperNone, Mode=TwoWay}" />
                         <RadioButton Content="Override"
                                      IsChecked="{Binding IsNativeWrapperOverride, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding InheritedWrappersInfo}"
+                                   FontSize="11"
+                                   Foreground="#888888" />
+                        <ItemsControl ItemsSource="{Binding InheritedWrappers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto, 8, *" Margin="0,2,0,0">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding Path}"
+                                                   FontSize="11"
+                                                   Foreground="#888888" />
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding Args}"
+                                                   FontSize="11"
+                                                   Foreground="#888888" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
 
                     <StackPanel IsVisible="{Binding IsNativeWrapperOverride}">

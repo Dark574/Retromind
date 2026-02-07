@@ -114,25 +114,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         [ObservableProperty] private string _value = string.Empty;
     }
     
-    /// <summary>
-    /// Current wrapper mode of the selected emulator (tri-state)
-    /// Direct proxy for SelectedEmulator.NativeWrapperMode, but safe when null
-    /// </summary>
-    public EmulatorConfig.WrapperMode EmulatorWrapperMode
-    {
-        get => SelectedEmulator?.NativeWrapperMode ?? EmulatorConfig.WrapperMode.Inherit;
-        set
-        {
-            if (SelectedEmulator == null) return;
-            if (SelectedEmulator.NativeWrapperMode == value) return;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsEmulatorWrapperListEnabled))]
+    private bool _useGlobalWrapperDefaults;
 
-            SelectedEmulator.NativeWrapperMode = value;
-            OnPropertyChanged(nameof(EmulatorWrapperMode));
-            OnPropertyChanged(nameof(IsNativeWrapperInherit));
-            OnPropertyChanged(nameof(IsNativeWrapperNone));
-            OnPropertyChanged(nameof(IsNativeWrapperOverride));
-        }
-    }
+    public bool IsEmulatorWrapperListEnabled => !UseGlobalWrapperDefaults;
 
     /// <summary>
     /// UI collection bound to the emulator wrapper editor
@@ -145,36 +131,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     /// Changes are synchronized back into SelectedEmulator.EnvironmentOverrides on Save()
     /// </summary>
     public ObservableCollection<EnvVarRow> EmulatorEnvironmentOverrides { get; } = new();
-    
-    public bool IsNativeWrapperInherit
-    {
-        get => EmulatorWrapperMode == EmulatorConfig.WrapperMode.Inherit;
-        set
-        {
-            if (!value) return;
-            EmulatorWrapperMode = EmulatorConfig.WrapperMode.Inherit;
-        }
-    }
-
-    public bool IsNativeWrapperNone
-    {
-        get => EmulatorWrapperMode == EmulatorConfig.WrapperMode.None;
-        set
-        {
-            if (!value) return;
-            EmulatorWrapperMode = EmulatorConfig.WrapperMode.None;
-        }
-    }
-
-    public bool IsNativeWrapperOverride
-    {
-        get => EmulatorWrapperMode == EmulatorConfig.WrapperMode.Override;
-        set
-        {
-            if (!value) return;
-            EmulatorWrapperMode = EmulatorConfig.WrapperMode.Override;
-        }
-    }
     
     // Commands
     public IRelayCommand AddEmulatorCommand { get; }
@@ -280,22 +236,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         EmulatorNativeWrappers.Clear();
         EmulatorEnvironmentOverrides.Clear();
 
-        if (newValue?.NativeWrappersOverride == null)
-        {
-            EmulatorWrapperMode = newValue?.NativeWrapperMode ?? EmulatorConfig.WrapperMode.Inherit;
-        }
-        else if (newValue.NativeWrappersOverride.Count == 0)
-        {
-            EmulatorWrapperMode = EmulatorConfig.WrapperMode.None;
-        }
-        else
-        {
-            EmulatorWrapperMode = EmulatorConfig.WrapperMode.Override;
+        UseGlobalWrapperDefaults = newValue?.NativeWrapperMode == EmulatorConfig.WrapperMode.Inherit;
 
+        if (newValue?.NativeWrappersOverride != null)
+        {
             foreach (var w in newValue.NativeWrappersOverride)
-            {
                 EmulatorNativeWrappers.Add(new LaunchWrapperRow(w));
-            }
         }
 
         // Load environment overrides from the emulator model into the UI list
@@ -311,11 +257,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             }
         }
         
-        OnPropertyChanged(nameof(EmulatorWrapperMode));
-        OnPropertyChanged(nameof(IsNativeWrapperInherit));
-        OnPropertyChanged(nameof(IsNativeWrapperNone));
-        OnPropertyChanged(nameof(IsNativeWrapperOverride));
-
         MoveEmulatorWrapperUpCommand.NotifyCanExecuteChanged();
         MoveEmulatorWrapperDownCommand.NotifyCanExecuteChanged();
     }
@@ -451,22 +392,22 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         // Persist emulator wrapper & env configuration from UI into the selected emulator model
         if (SelectedEmulator != null)
         {
-            switch (EmulatorWrapperMode)
+            if (UseGlobalWrapperDefaults)
             {
-                case EmulatorConfig.WrapperMode.Inherit:
-                    SelectedEmulator.NativeWrappersOverride = null;
-                    break;
+                SelectedEmulator.NativeWrapperMode = EmulatorConfig.WrapperMode.Inherit;
+                SelectedEmulator.NativeWrappersOverride = null;
+            }
+            else
+            {
+                var wrappers = EmulatorNativeWrappers
+                    .Select(x => x.ToModel())
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Path))
+                    .ToList();
 
-                case EmulatorConfig.WrapperMode.None:
-                    SelectedEmulator.NativeWrappersOverride = new System.Collections.Generic.List<LaunchWrapper>();
-                    break;
-
-                case EmulatorConfig.WrapperMode.Override:
-                    SelectedEmulator.NativeWrappersOverride = EmulatorNativeWrappers
-                        .Select(x => x.ToModel())
-                        .Where(x => !string.IsNullOrWhiteSpace(x.Path))
-                        .ToList();
-                    break;
+                SelectedEmulator.NativeWrappersOverride = wrappers;
+                SelectedEmulator.NativeWrapperMode = wrappers.Count == 0
+                    ? EmulatorConfig.WrapperMode.None
+                    : EmulatorConfig.WrapperMode.Override;
             }
             
             // Sync environment overrides back into the model dictionary

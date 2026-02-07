@@ -121,6 +121,12 @@
     <data name="EditMedia.AssetsPrefixHint" xml:space="preserve"><value>Use this prefix when adding files manually in the Library folder.</value></data>
     <data name="EditMedia.AssetsPrefixExampleFormat" xml:space="preserve"><value>Example: {0}_Cover_01.jpg</value></data>
     <data name="EditMedia.InheritedEmulatorFallbackHint" xml:space="preserve"><value>(falls back to native)</value></data>
+    <data name="EditMedia.InheritedWrappersNone" xml:space="preserve"><value>No inherited wrappers</value></data>
+    <data name="EditMedia.InheritedWrappersInfoFormat" xml:space="preserve"><value>Inherited wrappers ({0}): {1}</value></data>
+    <data name="EditMedia.InheritedWrappersSourceNodeFormat" xml:space="preserve"><value>Node: {0}</value></data>
+    <data name="EditMedia.InheritedWrappersSourceEmulatorFormat" xml:space="preserve"><value>Emulator: {0}</value></data>
+    <data name="EditMedia.InheritedWrappersSourceGlobal" xml:space="preserve"><value>Global defaults</value></data>
+    <data name="EditMedia.InheritedWrappersSourceGlobalViaEmulatorFormat" xml:space="preserve"><value>Global defaults (via {0})</value></data>
     
     <!-- FILETYPE -->
     <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>
@@ -198,6 +204,9 @@
     <data name="NodeSettings_RandomizeCoversHint" xml:space="preserve"><value>Inherit (blue box) · Off (empty box) · On (checkmark)</value></data>
     <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Play random music from this folder</value></data>
     <data name="NodeSettings_RandomizeMusicHint" xml:space="preserve"><value>Inherit (blue box) · Off (empty box) · On (checkmark)</value></data>
+    <data name="NodeSettings_InheritedWrappersNone" xml:space="preserve"><value>No inherited wrappers</value></data>
+    <data name="NodeSettings_InheritedWrappersEmptyFormat" xml:space="preserve"><value>Inherited from {0}: no wrappers</value></data>
+    <data name="NodeSettings_InheritedWrappersInfoFormat" xml:space="preserve"><value>Inherited from {0}: {1} wrapper(s)</value></data>
     <data name="NodeSettings_RenameFailed" xml:space="preserve"><value>Could not rename folder; name was not saved.</value></data>
     
     <!-- PROFILE -->
@@ -225,6 +234,7 @@
     <data name="Settings.GlobalSettingsHint" xml:space="preserve"><value>Define emulators and metadata sources here to use them quickly in your library.</value></data>
     <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Play random music</value></data>
     <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>When enabled, selecting an item in the main grid automatically plays its music asset (if available).</value></data>
+    <data name="Settings.UseGlobalWrapperDefaults" xml:space="preserve"><value>Use global defaults</value></data>
     <data name="Settings.PortableLaunchPaths" xml:space="preserve"><value>Store launch file paths relative to Retromind data folder (portable)</value></data>
     <data name="Settings.ProfileName" xml:space="preserve"><value>Profile Name</value></data>
     <data name="Settings.SectionEmulators" xml:space="preserve"><value>Emulator Profiles</value></data>

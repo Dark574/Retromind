@@ -803,6 +803,12 @@ public partial class EditMediaViewModel : ViewModelBase
     private WrapperMode _nativeWrapperMode = WrapperMode.Inherit;
 
     public ObservableCollection<LaunchWrapperRow> NativeWrappers { get; } = new();
+    public ObservableCollection<LaunchWrapperRow> InheritedWrappers { get; } = new();
+
+    private string _inheritedWrappersInfo = Strings.EditMedia_InheritedWrappersNone;
+
+    public bool HasInheritedWrappers => InheritedWrappers.Count > 0;
+    public string InheritedWrappersInfo => _inheritedWrappersInfo;
 
     public IRelayCommand AddNativeWrapperCommand { get; }
     public IRelayCommand<LaunchWrapperRow?> RemoveNativeWrapperCommand { get; }
@@ -925,6 +931,18 @@ public partial class EditMediaViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsNativeWrapperOverride));
         OnPropertyChanged(nameof(PreviewText));
         CopyPreviewCommand.NotifyCanExecuteChanged();
+
+        if (value == WrapperMode.Override &&
+            NativeWrappers.Count == 0 &&
+            InheritedWrappers.Count > 0)
+        {
+            foreach (var wrapper in InheritedWrappers)
+            {
+                var row = new LaunchWrapperRow(wrapper.ToModel());
+                WireWrapperRow(row);
+                NativeWrappers.Add(row);
+            }
+        }
     }
 
     private void AddNativeWrapper()
@@ -1055,6 +1073,8 @@ public partial class EditMediaViewModel : ViewModelBase
         // Keep preview and "Copy" button state in sync with the new profile
         OnPropertyChanged(nameof(PreviewText));
         CopyPreviewCommand.NotifyCanExecuteChanged();
+
+        RefreshInheritedWrappers();
     }
     
     // hard guarantee that PreviewText updates when LauncherArgs changes
@@ -1225,6 +1245,7 @@ public partial class EditMediaViewModel : ViewModelBase
         LoadItemData();
         InitializeEmulators(settings);
         InitializeNativeWrapperUiFromItem();
+        RefreshInheritedWrappers();
 
         // Initialize environment overrides from the original item
         EnvironmentOverrides.Clear();
@@ -1350,6 +1371,8 @@ public partial class EditMediaViewModel : ViewModelBase
             if (string.IsNullOrWhiteSpace(LauncherArgs))
                 LauncherArgs = "{file}";
         }
+
+        RefreshInheritedWrappers();
     }
     
     private void InitializeEmulators(AppSettings settings)
@@ -1806,6 +1829,9 @@ public partial class EditMediaViewModel : ViewModelBase
             var chain = GetNodeChain(_parentNode, _rootNodes);
             chain.Reverse(); // Leaf (parent) first
 
+            List<LaunchWrapper>? nodeWrappers = null;
+            bool nodeOverrideFound = false;
+
             foreach (var node in chain)
             {
                 if (node.NativeWrappersOverride == null)
@@ -1814,10 +1840,20 @@ public partial class EditMediaViewModel : ViewModelBase
                     continue;
                 }
 
-                // Empty list => explicit "none" at node level.
-                // Non-empty   => node-level override.
-                wrappers = node.NativeWrappersOverride;
+                nodeOverrideFound = true;
+                nodeWrappers = node.NativeWrappersOverride.Count == 0
+                    ? new List<LaunchWrapper>()
+                    : new List<LaunchWrapper>(node.NativeWrappersOverride);
                 break;
+            }
+
+            if (nodeOverrideFound && nodeWrappers != null && nodeWrappers.Count > 0)
+            {
+                var baseWrappers = wrappers ?? new List<LaunchWrapper>();
+                var merged = new List<LaunchWrapper>(nodeWrappers.Count + baseWrappers.Count);
+                merged.AddRange(nodeWrappers);
+                merged.AddRange(baseWrappers);
+                wrappers = merged;
             }
         }
 
@@ -1827,12 +1863,114 @@ public partial class EditMediaViewModel : ViewModelBase
             : new List<LaunchWrapper>();
     }
 
+    private void RefreshInheritedWrappers()
+    {
+        var (wrappers, sources) = ResolveInheritedNativeWrappersForDisplay();
+
+        InheritedWrappers.Clear();
+        foreach (var wrapper in wrappers)
+            InheritedWrappers.Add(new LaunchWrapperRow(wrapper));
+
+        _inheritedWrappersInfo = wrappers.Count == 0
+            ? Strings.EditMedia_InheritedWrappersNone
+            : string.Format(Strings.EditMedia_InheritedWrappersInfoFormat, wrappers.Count, string.Join(" + ", sources));
+
+        OnPropertyChanged(nameof(HasInheritedWrappers));
+        OnPropertyChanged(nameof(InheritedWrappersInfo));
+    }
+
+    private (List<LaunchWrapper> Wrappers, List<string> Sources) ResolveInheritedNativeWrappersForDisplay()
+    {
+        List<LaunchWrapper>? wrappers = null;
+        var sources = new List<string>();
+
+        EmulatorConfig? effectiveEmulator = null;
+        if (MediaType == MediaType.Emulator)
+            effectiveEmulator = ResolveSelectedEmulatorConfig();
+
+        if (effectiveEmulator != null)
+        {
+            var emulatorName = string.IsNullOrWhiteSpace(effectiveEmulator.Name)
+                ? effectiveEmulator.Id
+                : effectiveEmulator.Name;
+
+            switch (effectiveEmulator.NativeWrapperMode)
+            {
+                case EmulatorConfig.WrapperMode.Inherit:
+                    wrappers = _settings.DefaultNativeWrappers;
+                    if (wrappers is { Count: > 0 })
+                        sources.Add(string.Format(Strings.EditMedia_InheritedWrappersSourceGlobalViaEmulatorFormat, emulatorName));
+                    break;
+                case EmulatorConfig.WrapperMode.None:
+                    wrappers = new List<LaunchWrapper>();
+                    break;
+                case EmulatorConfig.WrapperMode.Override:
+                    wrappers = effectiveEmulator.NativeWrappersOverride != null
+                        ? new List<LaunchWrapper>(effectiveEmulator.NativeWrappersOverride)
+                        : new List<LaunchWrapper>();
+                    if (wrappers.Count > 0)
+                        sources.Add(string.Format(Strings.EditMedia_InheritedWrappersSourceEmulatorFormat, emulatorName));
+                    break;
+            }
+        }
+        else
+        {
+            wrappers = _settings.DefaultNativeWrappers;
+            if (wrappers is { Count: > 0 })
+                sources.Add(Strings.EditMedia_InheritedWrappersSourceGlobal);
+        }
+
+        if (_parentNode != null && _rootNodes.Count > 0)
+        {
+            var chain = GetNodeChain(_parentNode, _rootNodes);
+            chain.Reverse(); // Leaf (parent) first
+
+            List<LaunchWrapper>? nodeWrappers = null;
+            bool nodeOverrideFound = false;
+            string? nodeSourceName = null;
+
+            foreach (var node in chain)
+            {
+                if (node.NativeWrappersOverride == null)
+                    continue;
+
+                nodeOverrideFound = true;
+                nodeSourceName = node.Name;
+                nodeWrappers = node.NativeWrappersOverride.Count == 0
+                    ? new List<LaunchWrapper>()
+                    : new List<LaunchWrapper>(node.NativeWrappersOverride);
+                break;
+            }
+
+            if (nodeOverrideFound && nodeWrappers != null && nodeWrappers.Count > 0)
+            {
+                var baseWrappers = wrappers ?? new List<LaunchWrapper>();
+                var merged = new List<LaunchWrapper>(nodeWrappers.Count + baseWrappers.Count);
+                merged.AddRange(nodeWrappers);
+                merged.AddRange(baseWrappers);
+                wrappers = merged;
+                if (!string.IsNullOrWhiteSpace(nodeSourceName))
+                {
+                    sources.Insert(0,
+                        string.Format(Strings.EditMedia_InheritedWrappersSourceNodeFormat, nodeSourceName));
+                }
+            }
+        }
+
+        var resolved = wrappers != null
+            ? wrappers.ToList()
+            : new List<LaunchWrapper>();
+
+        return (resolved, sources);
+    }
+
     private static string BuildWrappedCommandLine(string innerCommand, IReadOnlyList<LaunchWrapper> wrappers)
     {
         var current = innerCommand;
 
-        foreach (var wrapper in wrappers)
+        for (var i = wrappers.Count - 1; i >= 0; i--)
         {
+            var wrapper = wrappers[i];
             if (string.IsNullOrWhiteSpace(wrapper.Path))
                 continue;
 

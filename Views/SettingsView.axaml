@@ -104,16 +104,10 @@
                                             DataContext="{Binding $parent[Window].((vm:SettingsViewModel)DataContext)}">
                                     <TextBlock Text="Native Wrapper (Linux)" FontWeight="Bold" />
 
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <RadioButton Content="Inherit"
-                                                     IsChecked="{Binding IsNativeWrapperInherit, Mode=TwoWay}" />
-                                        <RadioButton Content="None"
-                                                     IsChecked="{Binding IsNativeWrapperNone, Mode=TwoWay}" />
-                                        <RadioButton Content="Override"
-                                                     IsChecked="{Binding IsNativeWrapperOverride, Mode=TwoWay}" />
-                                    </StackPanel>
+                                    <CheckBox Content="{x:Static p:Strings.Settings_UseGlobalWrapperDefaults}"
+                                              IsChecked="{Binding UseGlobalWrapperDefaults}" />
 
-                                    <StackPanel IsVisible="{Binding IsNativeWrapperOverride}">
+                                    <StackPanel IsEnabled="{Binding IsEmulatorWrapperListEnabled}">
                                         <Button Content="+ Add wrapper"
                                                 Command="{Binding AddEmulatorWrapperCommand}"
                                                 HorizontalAlignment="Left" />

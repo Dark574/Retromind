@@ -38,6 +38,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private readonly MediaNode _node;
     private readonly ObservableCollection<MediaNode> _rootNodes;
     private readonly AppSettings _settings;
+    private string? _inheritedWrappersSourceName;
 
     /// <summary>
     /// Central file management service used to import/copy node artwork
@@ -159,6 +160,26 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private WrapperMode _nativeWrapperMode = WrapperMode.Inherit;
 
     public ObservableCollection<LaunchWrapperRow> NativeWrappers { get; } = new();
+    public ObservableCollection<LaunchWrapperRow> InheritedWrappers { get; } = new();
+
+    public bool HasInheritedWrappers => InheritedWrappers.Count > 0;
+
+    public string InheritedWrappersInfo
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_inheritedWrappersSourceName))
+                return Strings.NodeSettings_InheritedWrappersNone;
+
+            if (InheritedWrappers.Count == 0)
+                return string.Format(Strings.NodeSettings_InheritedWrappersEmptyFormat, _inheritedWrappersSourceName);
+
+            return string.Format(
+                Strings.NodeSettings_InheritedWrappersInfoFormat,
+                _inheritedWrappersSourceName,
+                InheritedWrappers.Count);
+        }
+    }
 
     public IRelayCommand AddNativeWrapperCommand { get; }
     public IRelayCommand<LaunchWrapperRow?> RemoveNativeWrapperCommand { get; }
@@ -183,6 +204,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         InitializeFromNode();
         InitializeEmulators();
         ResolveInheritedEmulatorInfo();
+        ResolveInheritedWrappers();
         LoadAvailableThemes();
         LoadSystemThemes();
         InitializeSystemThemeSelection();
@@ -316,12 +338,51 @@ public partial class NodeSettingsViewModel : ViewModelBase
             NativeWrappers.Add(new LaunchWrapperRow(w));
     }
 
+    private void ResolveInheritedWrappers()
+    {
+        InheritedWrappers.Clear();
+        _inheritedWrappersSourceName = null;
+
+        var chain = GetNodeChain(_node, _rootNodes);
+        if (chain.Count <= 1)
+        {
+            OnPropertyChanged(nameof(HasInheritedWrappers));
+            OnPropertyChanged(nameof(InheritedWrappersInfo));
+            return;
+        }
+
+        for (var i = chain.Count - 2; i >= 0; i--)
+        {
+            var parent = chain[i];
+            if (parent.NativeWrappersOverride == null)
+                continue;
+
+            _inheritedWrappersSourceName = parent.Name;
+
+            foreach (var wrapper in parent.NativeWrappersOverride)
+                InheritedWrappers.Add(new LaunchWrapperRow(wrapper));
+
+            break;
+        }
+
+        OnPropertyChanged(nameof(HasInheritedWrappers));
+        OnPropertyChanged(nameof(InheritedWrappersInfo));
+    }
+
     // Keep RadioButtons and IsVisible in sync if NativeWrapperMode changes in code (e.g. InitializeNativeWrapperUiFromNode)
     partial void OnNativeWrapperModeChanged(WrapperMode value)
     {
         OnPropertyChanged(nameof(IsNativeWrapperInherit));
         OnPropertyChanged(nameof(IsNativeWrapperNone));
         OnPropertyChanged(nameof(IsNativeWrapperOverride));
+
+        if (value == WrapperMode.Override &&
+            NativeWrappers.Count == 0 &&
+            InheritedWrappers.Count > 0)
+        {
+            foreach (var wrapper in InheritedWrappers)
+                NativeWrappers.Add(new LaunchWrapperRow(wrapper.ToModel()));
+        }
     }
     
     private void AddNativeWrapper()

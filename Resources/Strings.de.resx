@@ -122,6 +122,12 @@
     <data name="EditMedia.AssetsPrefixHint" xml:space="preserve"><value>Dieses Präfix verwenden, wenn du Dateien manuell im Library-Ordner hinzufügst.</value></data>
     <data name="EditMedia.AssetsPrefixExampleFormat" xml:space="preserve"><value>Beispiel: {0}_Cover_01.jpg</value></data>
     <data name="EditMedia.InheritedEmulatorFallbackHint" xml:space="preserve"><value>(startet nativ als Fallback)</value></data>
+    <data name="EditMedia.InheritedWrappersNone" xml:space="preserve"><value>Keine geerbten Wrapper</value></data>
+    <data name="EditMedia.InheritedWrappersInfoFormat" xml:space="preserve"><value>Geerbte Wrapper ({0}): {1}</value></data>
+    <data name="EditMedia.InheritedWrappersSourceNodeFormat" xml:space="preserve"><value>Node: {0}</value></data>
+    <data name="EditMedia.InheritedWrappersSourceEmulatorFormat" xml:space="preserve"><value>Emulator: {0}</value></data>
+    <data name="EditMedia.InheritedWrappersSourceGlobal" xml:space="preserve"><value>Globale Defaults</value></data>
+    <data name="EditMedia.InheritedWrappersSourceGlobalViaEmulatorFormat" xml:space="preserve"><value>Globale Defaults (über {0})</value></data>
 
     <!-- FILETYPE -->
     <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>
@@ -199,6 +205,9 @@
     <data name="NodeSettings_RandomizeCoversHint" xml:space="preserve"><value>Vererbt (blaues Kästchen) · Aus (leeres Kästchen) · An (Häkchen)</value></data>
     <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Zufällige Musik aus diesem Ordner abspielen</value></data>
     <data name="NodeSettings_RandomizeMusicHint" xml:space="preserve"><value>Vererbt (blaues Kästchen) · Aus (leeres Kästchen) · An (Häkchen)</value></data>
+    <data name="NodeSettings_InheritedWrappersNone" xml:space="preserve"><value>Keine vererbten Wrapper</value></data>
+    <data name="NodeSettings_InheritedWrappersEmptyFormat" xml:space="preserve"><value>Vererbt von {0}: keine Wrapper</value></data>
+    <data name="NodeSettings_InheritedWrappersInfoFormat" xml:space="preserve"><value>Vererbt von {0}: {1} Wrapper</value></data>
     <data name="NodeSettings_RenameFailed" xml:space="preserve"><value>Ordner konnte nicht umbenannt werden; Name wurde nicht gespeichert.</value></data>
     
     
@@ -227,6 +236,7 @@
     <data name="Settings.GlobalSettingsHint" xml:space="preserve"><value>Hier Emulatoren und Metadaten-Quellen definieren, um sie in der Bibliothek schnell zu nutzen.</value></data>
     <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Zufällige Musik abspielen</value></data>
     <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>Wenn aktiviert, spielt die Auswahl im Hauptgrid automatisch die Musik (falls vorhanden).</value></data>
+    <data name="Settings.UseGlobalWrapperDefaults" xml:space="preserve"><value>Globale Defaults verwenden</value></data>
     <data name="Settings.PortableLaunchPaths" xml:space="preserve"><value>Startpfade relativ zum Retromind-Datenordner speichern (portabel)</value></data>
     <data name="Settings.ProfileName" xml:space="preserve"><value>Profilname</value></data>
     <data name="Settings.SectionEmulators" xml:space="preserve"><value>Emulator-Profile</value></data>

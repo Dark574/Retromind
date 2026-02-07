@@ -254,6 +254,28 @@
                                              IsChecked="{Binding IsNativeWrapperOverride, Mode=TwoWay}" />
                             </StackPanel>
 
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding InheritedWrappersInfo}"
+                                           FontSize="11"
+                                           Foreground="#888888" />
+                                <ItemsControl ItemsSource="{Binding InheritedWrappers}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid ColumnDefinitions="Auto, 8, *" Margin="0,2,0,0">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Path}"
+                                                           FontSize="11"
+                                                           Foreground="#888888" />
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding Args}"
+                                                           FontSize="11"
+                                                           Foreground="#888888" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
                             <StackPanel IsVisible="{Binding IsNativeWrapperOverride}">
                                 <Button Content="+ Add wrapper"
                                         Command="{Binding AddNativeWrapperCommand}"

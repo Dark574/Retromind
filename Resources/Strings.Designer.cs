@@ -542,6 +542,42 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("EditMedia.InheritedEmulatorFallbackHint", resourceCulture);
             }
         }
+
+        public static string EditMedia_InheritedWrappersNone {
+            get {
+                return ResourceManager.GetString("EditMedia.InheritedWrappersNone", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_InheritedWrappersInfoFormat {
+            get {
+                return ResourceManager.GetString("EditMedia.InheritedWrappersInfoFormat", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_InheritedWrappersSourceNodeFormat {
+            get {
+                return ResourceManager.GetString("EditMedia.InheritedWrappersSourceNodeFormat", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_InheritedWrappersSourceEmulatorFormat {
+            get {
+                return ResourceManager.GetString("EditMedia.InheritedWrappersSourceEmulatorFormat", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_InheritedWrappersSourceGlobal {
+            get {
+                return ResourceManager.GetString("EditMedia.InheritedWrappersSourceGlobal", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_InheritedWrappersSourceGlobalViaEmulatorFormat {
+            get {
+                return ResourceManager.GetString("EditMedia.InheritedWrappersSourceGlobalViaEmulatorFormat", resourceCulture);
+            }
+        }
         
         public static string FileType_Videos {
             get {
@@ -921,6 +957,24 @@ namespace Retromind.Resources {
             }
         }
 
+        public static string NodeSettings_InheritedWrappersNone {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedWrappersNone", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_InheritedWrappersEmptyFormat {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedWrappersEmptyFormat", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_InheritedWrappersInfoFormat {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedWrappersInfoFormat", resourceCulture);
+            }
+        }
+
         public static string NodeSettings_RandomizeMusicHint {
             get {
                 return ResourceManager.GetString("NodeSettings_RandomizeMusicHint", resourceCulture);
@@ -1020,6 +1074,12 @@ namespace Retromind.Resources {
         public static string Settings_PlayRandomMusic_Hint {
             get {
                 return ResourceManager.GetString("Settings.PlayRandomMusic.Hint", resourceCulture);
+            }
+        }
+
+        public static string Settings_UseGlobalWrapperDefaults {
+            get {
+                return ResourceManager.GetString("Settings.UseGlobalWrapperDefaults", resourceCulture);
             }
         }
 
