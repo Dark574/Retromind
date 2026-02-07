@@ -603,7 +603,7 @@ public partial class MainWindowViewModel
             // C) Native wrapper resolution (global -> node -> item)
             IReadOnlyList<LaunchWrapper>? effectiveWrappers = null;
 
-            if (item.MediaType == MediaType.Native)
+            if (item.MediaType == MediaType.Native || item.MediaType == MediaType.Emulator)
             {
                 List<LaunchWrapper>? wrappers = null;
 
@@ -661,6 +661,15 @@ public partial class MainWindowViewModel
                 }
 
                 effectiveWrappers = wrappers;
+            }
+
+            if (effectiveWrappers is { Count: > 0 })
+            {
+                var wrapperText = string.Join(" -> ", effectiveWrappers.Select(w =>
+                    string.IsNullOrWhiteSpace(w.Args)
+                        ? w.Path
+                        : $"{w.Path} {w.Args}"));
+                Debug.WriteLine($"[Launch] Wrappers: {wrapperText}");
             }
 
             await _launcherService.LaunchAsync(
