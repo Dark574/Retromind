@@ -908,10 +908,22 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("NodeSettings_RandomizeCovers", resourceCulture);
             }
         }
+
+        public static string NodeSettings_RandomizeCoversHint {
+            get {
+                return ResourceManager.GetString("NodeSettings_RandomizeCoversHint", resourceCulture);
+            }
+        }
         
         public static string NodeSettings_RandomizeMusic {
             get {
                 return ResourceManager.GetString("NodeSettings_RandomizeMusic", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_RandomizeMusicHint {
+            get {
+                return ResourceManager.GetString("NodeSettings_RandomizeMusicHint", resourceCulture);
             }
         }
 

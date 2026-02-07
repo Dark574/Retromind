@@ -195,7 +195,9 @@
     <data name="NodeSettings_BackgroundHint" xml:space="preserve"><value>For BigMode wallpaper</value></data>
     <data name="NodeSettings_VideoSnap" xml:space="preserve"><value>Video snap</value></data>
     <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Show random images in this folder</value></data>
+    <data name="NodeSettings_RandomizeCoversHint" xml:space="preserve"><value>Inherit (blue box) · Off (empty box) · On (checkmark)</value></data>
     <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Play random music from this folder</value></data>
+    <data name="NodeSettings_RandomizeMusicHint" xml:space="preserve"><value>Inherit (blue box) · Off (empty box) · On (checkmark)</value></data>
     <data name="NodeSettings_RenameFailed" xml:space="preserve"><value>Could not rename folder; name was not saved.</value></data>
     
     <!-- PROFILE -->

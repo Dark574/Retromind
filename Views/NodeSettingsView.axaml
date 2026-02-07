@@ -278,8 +278,14 @@
 
                 <!-- OPTIONS -->
                 <StackPanel Spacing="10">
-                    <CheckBox Content="{x:Static p:Strings.NodeSettings_RandomizeCovers}" IsChecked="{Binding RandomizeCovers}"/>
-                    <CheckBox Content="{x:Static p:Strings.NodeSettings_RandomizeMusic}" IsChecked="{Binding RandomizeMusic}"/>
+                    <CheckBox Content="{x:Static p:Strings.NodeSettings_RandomizeCovers}"
+                              IsChecked="{Binding RandomizeCovers}"
+                              IsThreeState="True"
+                              ToolTip.Tip="{x:Static p:Strings.NodeSettings_RandomizeCoversHint}"/>
+                    <CheckBox Content="{x:Static p:Strings.NodeSettings_RandomizeMusic}"
+                              IsChecked="{Binding RandomizeMusic}"
+                              IsThreeState="True"
+                              ToolTip.Tip="{x:Static p:Strings.NodeSettings_RandomizeMusicHint}"/>
                 </StackPanel>
 
                 <!-- BUTTONS -->
