@@ -300,7 +300,8 @@ public class MediaDataService
             ThemePath = node.ThemePath,
             Description = node.Description,
             SystemPreviewThemeId = node.SystemPreviewThemeId,
-            NativeWrappersOverride = CloneWrappers(node.NativeWrappersOverride)
+            NativeWrappersOverride = CloneWrappers(node.NativeWrappersOverride),
+            EnvironmentOverrides = CloneEnvironmentOverridesOrNull(node.EnvironmentOverrides)
         };
 
         var assets = new ObservableCollection<MediaAsset>();
@@ -432,6 +433,17 @@ public class MediaDataService
         var cloned = new Dictionary<string, string>(StringComparer.Ordinal);
         if (overrides == null) return cloned;
 
+        foreach (var kv in overrides)
+            cloned[kv.Key] = kv.Value;
+        return cloned;
+    }
+
+    private static Dictionary<string, string>? CloneEnvironmentOverridesOrNull(Dictionary<string, string>? overrides)
+    {
+        if (overrides == null)
+            return null;
+
+        var cloned = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var kv in overrides)
             cloned[kv.Key] = kv.Value;
         return cloned;

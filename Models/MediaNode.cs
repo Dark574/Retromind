@@ -20,6 +20,12 @@ public partial class MediaNode : ObservableObject
     /// null = inherit, empty list = explicit "no wrappers", non-empty list = override.
     /// </summary>
     public List<LaunchWrapper>? NativeWrappersOverride { get; set; }
+
+    /// <summary>
+    /// Environment variable overrides for this node (inherits to children).
+    /// null = inherit, empty dictionary = explicit "no node-level overrides", non-empty = override.
+    /// </summary>
+    public Dictionary<string, string>? EnvironmentOverrides { get; set; }
     
     /// <summary>
     /// Optional system preview theme for this node (system selection in BigMode).

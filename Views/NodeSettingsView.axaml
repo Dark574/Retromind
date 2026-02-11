@@ -263,6 +263,72 @@
                         </ItemsControl>
                     </StackPanel>
                 </StackPanel>
+
+                <!-- Node-level environment variables -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{x:Static p:Strings.NodeSettings_EnvOverridesTitle}" FontWeight="Bold" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <RadioButton Content="Inherit"
+                                     IsChecked="{Binding IsEnvironmentOverrideInherit, Mode=TwoWay}" />
+                        <RadioButton Content="None"
+                                     IsChecked="{Binding IsEnvironmentOverrideNone, Mode=TwoWay}" />
+                        <RadioButton Content="Override"
+                                     IsChecked="{Binding IsEnvironmentOverrideOverride, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding InheritedEnvironmentOverridesInfo}"
+                                   FontSize="11"
+                                   Foreground="#888888" />
+                        <ItemsControl ItemsSource="{Binding InheritedEnvironmentOverrides}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto, 8, *" Margin="0,2,0,0">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding Key}"
+                                                   FontSize="11"
+                                                   Foreground="#888888" />
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding Value}"
+                                                   FontSize="11"
+                                                   Foreground="#888888" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <StackPanel IsVisible="{Binding IsEnvironmentOverrideOverride}">
+                        <Button Content="+ Add variable"
+                                Command="{Binding AddEnvironmentOverrideCommand}"
+                                HorizontalAlignment="Left" />
+
+                        <ItemsControl ItemsSource="{Binding EnvironmentOverrides}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#10000000" CornerRadius="4" Padding="8" Margin="0,5,0,0">
+                                        <Grid ColumnDefinitions="*, 10, *, 10, Auto" RowDefinitions="Auto, Auto">
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Key" />
+                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Value" />
+
+                                            <TextBox Grid.Row="1" Grid.Column="0"
+                                                     Text="{Binding Key, Mode=TwoWay}"
+                                                     Watermark="PROTONPATH" />
+
+                                            <TextBox Grid.Row="1" Grid.Column="2"
+                                                     Text="{Binding Value, Mode=TwoWay}" />
+
+                                            <Button Grid.Row="1" Grid.Column="4" Content="✕"
+                                                    Command="{Binding $parent[Window].((vm:NodeSettingsViewModel)DataContext).RemoveEnvironmentOverrideCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
             
                 <!-- BIGMODE THEME -->
                 <StackPanel Spacing="5">

@@ -33,6 +33,7 @@ public sealed class LauncherService
         EmulatorConfig? inheritedConfig = null,
         List<string>? nodePath = null,
         IReadOnlyList<LaunchWrapper>? nativeWrappers = null,
+        IReadOnlyDictionary<string, string>? environmentOverrides = null,
         bool usePlaylistForMultiDisc = false,
         CancellationToken cancellationToken = default)
     {
@@ -46,8 +47,8 @@ public sealed class LauncherService
         try
         {
             process = item.MediaType == MediaType.Command
-                ? LaunchCommand(item)
-                : LaunchNativeOrEmulator(item, inheritedConfig, nodePath, nativeWrappers, usePlaylistForMultiDisc);
+                ? LaunchCommand(item, environmentOverrides)
+                : LaunchNativeOrEmulator(item, inheritedConfig, nodePath, nativeWrappers, usePlaylistForMultiDisc, environmentOverrides);
 
             // Tracking strategy:
             // A) If OverrideWatchProcess is set, we track by process name (for launchers like Steam).
@@ -89,7 +90,9 @@ public sealed class LauncherService
             await EvaluateSessionAsync(item, elapsed).ConfigureAwait(false);
     }
 
-    private static Process? LaunchCommand(MediaItem item)
+    private static Process? LaunchCommand(
+        MediaItem item,
+        IReadOnlyDictionary<string, string>? environmentOverrides)
     {
         // Command media: can be either
         // A) a URL/protocol (steam://, heroic://, https://, …) -> open via xdg-open on Linux
@@ -110,17 +113,21 @@ public sealed class LauncherService
 
             // xdg-open expects the URI as a single argument
             psi.ArgumentList.Add(target);
+            ApplyEnvironmentOverrides(psi, environmentOverrides);
 
             return Process.Start(psi);
         }
 
         // Otherwise treat as executable command
-        return Process.Start(new ProcessStartInfo
+        var hasEnvOverrides = environmentOverrides is { Count: > 0 };
+        var startInfo = new ProcessStartInfo
         {
             FileName = target,
             Arguments = item.LauncherArgs ?? string.Empty,
-            UseShellExecute = true
-        });
+            UseShellExecute = !hasEnvOverrides
+        };
+        ApplyEnvironmentOverrides(startInfo, environmentOverrides);
+        return Process.Start(startInfo);
     }
 
     private Process? LaunchNativeOrEmulator(
@@ -128,7 +135,8 @@ public sealed class LauncherService
         EmulatorConfig? inheritedConfig,
         List<string>? nodePath,
         IReadOnlyList<LaunchWrapper>? nativeWrappers,
-        bool usePlaylistForMultiDisc)
+        bool usePlaylistForMultiDisc,
+        IReadOnlyDictionary<string, string>? environmentOverrides)
     {
         try
         {
@@ -151,8 +159,10 @@ public sealed class LauncherService
                 (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
 
             var hasEnvOverrides =
-                (inheritedConfig?.EnvironmentOverrides?.Count ?? 0) > 0 ||
-                (item.EnvironmentOverrides?.Count ?? 0) > 0;
+                (environmentOverrides?.Count ?? 0) > 0 ||
+                ((environmentOverrides == null) &&
+                 ((inheritedConfig?.EnvironmentOverrides?.Count ?? 0) > 0 ||
+                  (item.EnvironmentOverrides?.Count ?? 0) > 0));
 
             // Ensure env vars + wrapper arguments are honored (shell exec can drop env vars).
             var requiresDirectExec = shouldApplyPrefix ||
@@ -165,35 +175,25 @@ public sealed class LauncherService
             var prefixInitialized = true;
             if (shouldApplyPrefix)
             {
-                var isUmu = IsUmuBased(item, inheritedConfig, nativeWrappers);
-                var isProton = isUmu || IsProtonBased(item, inheritedConfig, nativeWrappers);
+                var isUmu = IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
+                var isProton = isUmu || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
                 prefixInitialized = ConfigureWinePrefix(item, nodePath, startInfo, isProton, isUmu);
             }
 
-            // Apply emulator-level environment overrides (base layer)
-            if (inheritedConfig?.EnvironmentOverrides is { Count: > 0 })
+            // Apply environment overrides (node/emulator/item merged by caller when provided).
+            if (environmentOverrides is { Count: > 0 })
             {
-                foreach (var kv in inheritedConfig.EnvironmentOverrides)
-                {
-                    if (string.IsNullOrWhiteSpace(kv.Key))
-                        continue;
-
-                    var value = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(kv.Key, kv.Value);
-                    startInfo.EnvironmentVariables[kv.Key] = value ?? string.Empty;
-                }
+                ApplyEnvironmentOverrides(startInfo, environmentOverrides);
             }
-            
-            // Apply per-item environment overrides (e.g. PROTONPATH, PROTON_LOG, DXVK_HUD)
-            if (item.EnvironmentOverrides is { Count: > 0 })
+            else
             {
-                foreach (var kv in item.EnvironmentOverrides)
-                {
-                    if (string.IsNullOrWhiteSpace(kv.Key))
-                        continue;
+                // Apply emulator-level environment overrides (base layer)
+                if (inheritedConfig?.EnvironmentOverrides is { Count: > 0 })
+                    ApplyEnvironmentOverrides(startInfo, inheritedConfig.EnvironmentOverrides);
 
-                    var value = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(kv.Key, kv.Value);
-                    startInfo.EnvironmentVariables[kv.Key] = value ?? string.Empty;
-                }
+                // Apply per-item environment overrides (e.g. PROTONPATH, PROTON_LOG, DXVK_HUD)
+                if (item.EnvironmentOverrides is { Count: > 0 })
+                    ApplyEnvironmentOverrides(startInfo, item.EnvironmentOverrides);
             }
 
             if (shouldApplyPrefix && !prefixInitialized)
@@ -531,6 +531,24 @@ public sealed class LauncherService
         return true;
     }
 
+    private static void ApplyEnvironmentOverrides(
+        ProcessStartInfo startInfo,
+        IReadOnlyDictionary<string, string>? overrides)
+    {
+        if (overrides == null || overrides.Count == 0)
+            return;
+
+        foreach (var kv in overrides)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key))
+                continue;
+
+            var key = kv.Key.Trim();
+            var value = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(key, kv.Value);
+            startInfo.EnvironmentVariables[key] = value ?? string.Empty;
+        }
+    }
+
     private static void LogIfEnvSet(ProcessStartInfo startInfo, string key)
     {
         if (startInfo.EnvironmentVariables.ContainsKey(key))
@@ -851,10 +869,15 @@ public sealed class LauncherService
     private static bool IsProtonBased(
         MediaItem item,
         EmulatorConfig? inheritedConfig,
-        IReadOnlyList<LaunchWrapper>? nativeWrappers)
+        IReadOnlyList<LaunchWrapper>? nativeWrappers,
+        IReadOnlyDictionary<string, string>? environmentOverrides)
     {
-        if (HasProtonHints(inheritedConfig?.EnvironmentOverrides) ||
-            HasProtonHints(item.EnvironmentOverrides))
+        if (environmentOverrides is { Count: > 0 } && HasProtonHints(environmentOverrides))
+            return true;
+
+        if (environmentOverrides == null &&
+            (HasProtonHints(inheritedConfig?.EnvironmentOverrides) ||
+             HasProtonHints(item.EnvironmentOverrides)))
         {
             return true;
         }
@@ -877,10 +900,15 @@ public sealed class LauncherService
     private static bool IsUmuBased(
         MediaItem item,
         EmulatorConfig? inheritedConfig,
-        IReadOnlyList<LaunchWrapper>? nativeWrappers)
+        IReadOnlyList<LaunchWrapper>? nativeWrappers,
+        IReadOnlyDictionary<string, string>? environmentOverrides)
     {
-        if (HasUmuHints(inheritedConfig?.EnvironmentOverrides) ||
-            HasUmuHints(item.EnvironmentOverrides))
+        if (environmentOverrides is { Count: > 0 } && HasUmuHints(environmentOverrides))
+            return true;
+
+        if (environmentOverrides == null &&
+            (HasUmuHints(inheritedConfig?.EnvironmentOverrides) ||
+             HasUmuHints(item.EnvironmentOverrides)))
         {
             return true;
         }

@@ -691,11 +691,14 @@ public partial class MainWindowViewModel
                 Debug.WriteLine($"[Launch] Wrappers: {wrapperText}");
             }
 
+            var effectiveEnvironment = ResolveEffectiveEnvironmentOverrides(item, emulator, trueParent);
+
             await _launcherService.LaunchAsync(
                 item,
                 emulator,
                 nodePath,
                 nativeWrappers: effectiveWrappers,
+                environmentOverrides: effectiveEnvironment,
                 usePlaylistForMultiDisc: emulator?.UsePlaylistForMultiDisc == true);
 
             // Resume background music after game exit (if applicable)
@@ -725,6 +728,61 @@ public partial class MainWindowViewModel
         {
             IsLaunchInProgress = false;
         }
+    }
+
+    private Dictionary<string, string>? ResolveEffectiveEnvironmentOverrides(
+        MediaItem item,
+        EmulatorConfig? emulator,
+        MediaNode parentNode)
+    {
+        var env = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        if (emulator?.EnvironmentOverrides is { Count: > 0 })
+        {
+            foreach (var kv in emulator.EnvironmentOverrides)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key))
+                    continue;
+
+                env[kv.Key.Trim()] = kv.Value ?? string.Empty;
+            }
+        }
+
+        // Node-level inheritance (nearest override wins, tri-state via null/empty/non-empty).
+        var chain = GetNodeChain(parentNode, RootItems);
+        chain.Reverse(); // Leaf (parent) first
+
+        foreach (var node in chain)
+        {
+            if (node.EnvironmentOverrides == null)
+                continue;
+
+            if (node.EnvironmentOverrides.Count > 0)
+            {
+                foreach (var kv in node.EnvironmentOverrides)
+                {
+                    if (string.IsNullOrWhiteSpace(kv.Key))
+                        continue;
+
+                    env[kv.Key.Trim()] = kv.Value ?? string.Empty;
+                }
+            }
+
+            break;
+        }
+
+        if (item.EnvironmentOverrides is { Count: > 0 })
+        {
+            foreach (var kv in item.EnvironmentOverrides)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key))
+                    continue;
+
+                env[kv.Key.Trim()] = kv.Value ?? string.Empty;
+            }
+        }
+
+        return env.Count > 0 ? env : null;
     }
 
     private async Task DeleteMediaAsync(MediaItem? item)

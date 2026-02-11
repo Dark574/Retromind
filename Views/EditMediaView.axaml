@@ -211,12 +211,14 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Optional key/value pairs applied to the launched process."
                                            Opacity="0.7" FontSize="11"/>
+                                <TextBlock Text="{x:Static p:Strings.EditMedia_EnvInheritedHint}"
+                                           Opacity="0.7" FontSize="11"/>
 
                                 <ItemsControl ItemsSource="{Binding EnvironmentOverrides}"
                                               HorizontalAlignment="Stretch">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid ColumnDefinitions="2*, 3*, Auto" Margin="0,2,0,2" HorizontalAlignment="Stretch">
+                                            <Grid ColumnDefinitions="2*, 3*, Auto, Auto" Margin="0,2,0,2" HorizontalAlignment="Stretch">
                                                 <TextBox Grid.Column="0"
                                                          Text="{Binding Key, Mode=TwoWay}"
                                                          Watermark="VAR_NAME (e.g. PROTONPATH)" />
@@ -224,7 +226,13 @@
                                                          Text="{Binding Value, Mode=TwoWay}"
                                                          Margin="4,0,4,0"
                                                          Watermark="value" />
-                                                <Button Grid.Column="2"
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding Source}"
+                                                           FontSize="11"
+                                                           Foreground="#888888"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,6,0" />
+                                                <Button Grid.Column="3"
                                                         Content="✕"
                                                         Command="{Binding $parent[Window].((vm:EditMediaViewModel)DataContext).RemoveEnvironmentVariableCommand}"
                                                         CommandParameter="{Binding .}" />
@@ -261,13 +269,17 @@
                                 <ItemsControl ItemsSource="{Binding InheritedWrappers}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid ColumnDefinitions="Auto, 8, *" Margin="0,2,0,0">
+                                            <Grid ColumnDefinitions="Auto, 8, *, 8, Auto" Margin="0,2,0,0">
                                                 <TextBlock Grid.Column="0"
                                                            Text="{Binding Path}"
                                                            FontSize="11"
                                                            Foreground="#888888" />
                                                 <TextBlock Grid.Column="2"
                                                            Text="{Binding Args}"
+                                                           FontSize="11"
+                                                           Foreground="#888888" />
+                                                <TextBlock Grid.Column="4"
+                                                           Text="{Binding Source}"
                                                            FontSize="11"
                                                            Foreground="#888888" />
                                             </Grid>
@@ -285,9 +297,11 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="#10000000" CornerRadius="4" Padding="8" Margin="0,5,0,0">
-                                                <Grid ColumnDefinitions="*, 10, *, 10, Auto" RowDefinitions="Auto, Auto">
+                                                <Grid ColumnDefinitions="*, 10, *, 10, Auto, Auto" RowDefinitions="Auto, Auto">
                                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Path" />
                                                     <TextBlock Grid.Row="0" Grid.Column="2" Text="Args" />
+                                                    <TextBlock Grid.Row="0" Grid.Column="4"
+                                                               Text="{x:Static p:Strings.Common_Source}" />
 
                                                     <TextBox Grid.Row="1" Grid.Column="0"
                                                              Text="{Binding Path, Mode=TwoWay}"
@@ -296,7 +310,14 @@
                                                     <TextBox Grid.Row="1" Grid.Column="2"
                                                              Text="{Binding Args, Mode=TwoWay}" />
 
-                                                    <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="5">
+                                                    <TextBlock Grid.Row="1" Grid.Column="4"
+                                                               Text="{Binding Source}"
+                                                               FontSize="11"
+                                                               Foreground="#888888"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,6,0" />
+
+                                                    <StackPanel Grid.Row="1" Grid.Column="5" Orientation="Horizontal" Spacing="5">
                                                         <Button Content="↑"
                                                                 ToolTip.Tip="Move up"
                                                                 Command="{Binding $parent[Window].((vm:EditMediaViewModel)DataContext).MoveNativeWrapperUpCommand}"

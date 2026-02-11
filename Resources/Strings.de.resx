@@ -72,6 +72,10 @@
     <data name="Common.Status" xml:space="preserve"><value>Status</value></data>
     <data name="Common.Summary" xml:space="preserve"><value>Zusammenfassung</value></data>
     <data name="Common.Title" xml:space="preserve"><value>Titel</value></data>
+    <data name="Common.Source" xml:space="preserve"><value>Quelle</value></data>
+    <data name="Common.SourceItem" xml:space="preserve"><value>Eintrag</value></data>
+    <data name="Common.SourceNodeFormat" xml:space="preserve"><value>Ordner: {0}</value></data>
+    <data name="Common.SourceEmulatorFormat" xml:space="preserve"><value>Emulator: {0}</value></data>
     <data name="Common.Year" xml:space="preserve"><value>Jahr (z.B. 1998)</value></data>
     <data name="Common.CoverURL" xml:space="preserve"><value>Cover-URL:</value></data>
     <data name="Common.TitleEx" xml:space="preserve"><value>Titel:</value></data>
@@ -128,6 +132,7 @@
     <data name="EditMedia.InheritedWrappersSourceEmulatorFormat" xml:space="preserve"><value>Emulator: {0}</value></data>
     <data name="EditMedia.InheritedWrappersSourceGlobal" xml:space="preserve"><value>Globale Defaults</value></data>
     <data name="EditMedia.InheritedWrappersSourceGlobalViaEmulatorFormat" xml:space="preserve"><value>Globale Defaults (über {0})</value></data>
+    <data name="EditMedia.EnvInheritedHint" xml:space="preserve"><value>Geerbte Werte sind vorbefüllt; Quelle zeigt die Herkunft.</value></data>
 
     <!-- FILETYPE -->
     <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>
@@ -208,6 +213,10 @@
     <data name="NodeSettings_InheritedWrappersNone" xml:space="preserve"><value>Keine vererbten Wrapper</value></data>
     <data name="NodeSettings_InheritedWrappersEmptyFormat" xml:space="preserve"><value>Vererbt von {0}: keine Wrapper</value></data>
     <data name="NodeSettings_InheritedWrappersInfoFormat" xml:space="preserve"><value>Vererbt von {0}: {1} Wrapper</value></data>
+    <data name="NodeSettings_EnvOverridesTitle" xml:space="preserve"><value>Umgebungsvariablen (Ordner)</value></data>
+    <data name="NodeSettings_InheritedEnvNone" xml:space="preserve"><value>Keine vererbten Umgebungsvariablen</value></data>
+    <data name="NodeSettings_InheritedEnvEmptyFormat" xml:space="preserve"><value>Vererbt von {0}: keine Umgebungsvariablen</value></data>
+    <data name="NodeSettings_InheritedEnvInfoFormat" xml:space="preserve"><value>Vererbt von {0}: {1} Variablen</value></data>
     <data name="NodeSettings_RenameFailed" xml:space="preserve"><value>Ordner konnte nicht umbenannt werden; Name wurde nicht gespeichert.</value></data>
     
     

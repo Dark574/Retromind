@@ -39,6 +39,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private readonly ObservableCollection<MediaNode> _rootNodes;
     private readonly AppSettings _settings;
     private string? _inheritedWrappersSourceName;
+    private string? _inheritedEnvironmentOverridesSourceName;
 
     /// <summary>
     /// Central file management service used to import/copy node artwork
@@ -137,6 +138,13 @@ public partial class NodeSettingsViewModel : ViewModelBase
         Override
     }
 
+    public enum EnvironmentOverrideState
+    {
+        Inherit,
+        None,
+        Override
+    }
+
     public sealed partial class LaunchWrapperRow : ObservableObject
     {
         [ObservableProperty] private string _path = string.Empty;
@@ -156,11 +164,23 @@ public partial class NodeSettingsViewModel : ViewModelBase
             => new LaunchWrapper { Path = Path?.Trim() ?? string.Empty, Args = string.IsNullOrWhiteSpace(Args) ? null : Args };
     }
 
+    public sealed partial class EnvVarRow : ObservableObject
+    {
+        [ObservableProperty] private string _key = string.Empty;
+        [ObservableProperty] private string _value = string.Empty;
+    }
+
     [ObservableProperty]
     private WrapperMode _nativeWrapperMode = WrapperMode.Inherit;
 
     public ObservableCollection<LaunchWrapperRow> NativeWrappers { get; } = new();
     public ObservableCollection<LaunchWrapperRow> InheritedWrappers { get; } = new();
+
+    [ObservableProperty]
+    private EnvironmentOverrideState _environmentOverrideMode = EnvironmentOverrideState.Inherit;
+
+    public ObservableCollection<EnvVarRow> EnvironmentOverrides { get; } = new();
+    public ObservableCollection<EnvVarRow> InheritedEnvironmentOverrides { get; } = new();
 
     public bool HasInheritedWrappers => InheritedWrappers.Count > 0;
 
@@ -181,10 +201,31 @@ public partial class NodeSettingsViewModel : ViewModelBase
         }
     }
 
+    public bool HasInheritedEnvironmentOverrides => InheritedEnvironmentOverrides.Count > 0;
+
+    public string InheritedEnvironmentOverridesInfo
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_inheritedEnvironmentOverridesSourceName))
+                return Strings.NodeSettings_InheritedEnvNone;
+
+            if (InheritedEnvironmentOverrides.Count == 0)
+                return string.Format(Strings.NodeSettings_InheritedEnvEmptyFormat, _inheritedEnvironmentOverridesSourceName);
+
+            return string.Format(Strings.NodeSettings_InheritedEnvInfoFormat,
+                _inheritedEnvironmentOverridesSourceName,
+                InheritedEnvironmentOverrides.Count);
+        }
+    }
+
     public IRelayCommand AddNativeWrapperCommand { get; }
     public IRelayCommand<LaunchWrapperRow?> RemoveNativeWrapperCommand { get; }
     public IRelayCommand<LaunchWrapperRow?> MoveNativeWrapperUpCommand { get; }
     public IRelayCommand<LaunchWrapperRow?> MoveNativeWrapperDownCommand { get; }
+
+    public IRelayCommand AddEnvironmentOverrideCommand { get; }
+    public IRelayCommand<EnvVarRow?> RemoveEnvironmentOverrideCommand { get; }
 
     public NodeSettingsViewModel(
         MediaNode node,
@@ -205,6 +246,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         InitializeEmulators();
         ResolveInheritedEmulatorInfo();
         ResolveInheritedWrappers();
+        ResolveInheritedEnvironmentOverrides();
         LoadAvailableThemes();
         LoadSystemThemes();
         InitializeSystemThemeSelection();
@@ -231,7 +273,11 @@ public partial class NodeSettingsViewModel : ViewModelBase
             MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
         };
 
+        AddEnvironmentOverrideCommand = new RelayCommand(AddEnvironmentOverride);
+        RemoveEnvironmentOverrideCommand = new RelayCommand<EnvVarRow?>(RemoveEnvironmentOverride);
+
         InitializeNativeWrapperUiFromNode();
+        InitializeEnvironmentOverridesFromNode();
         
         // Update once after initialization
         MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
@@ -314,6 +360,36 @@ public partial class NodeSettingsViewModel : ViewModelBase
         {
             if (!value) return;
             NativeWrapperMode = WrapperMode.Override;
+        }
+    }
+
+    public bool IsEnvironmentOverrideInherit
+    {
+        get => EnvironmentOverrideMode == EnvironmentOverrideState.Inherit;
+        set
+        {
+            if (!value) return;
+            EnvironmentOverrideMode = EnvironmentOverrideState.Inherit;
+        }
+    }
+
+    public bool IsEnvironmentOverrideNone
+    {
+        get => EnvironmentOverrideMode == EnvironmentOverrideState.None;
+        set
+        {
+            if (!value) return;
+            EnvironmentOverrideMode = EnvironmentOverrideState.None;
+        }
+    }
+
+    public bool IsEnvironmentOverrideOverride
+    {
+        get => EnvironmentOverrideMode == EnvironmentOverrideState.Override;
+        set
+        {
+            if (!value) return;
+            EnvironmentOverrideMode = EnvironmentOverrideState.Override;
         }
     }
     
@@ -418,6 +494,102 @@ public partial class NodeSettingsViewModel : ViewModelBase
         NativeWrappers.Move(idx, idx + 1);
         MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
         MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+    }
+
+    private void InitializeEnvironmentOverridesFromNode()
+    {
+        EnvironmentOverrides.Clear();
+
+        if (_node.EnvironmentOverrides == null)
+        {
+            EnvironmentOverrideMode = EnvironmentOverrideState.Inherit;
+            return;
+        }
+
+        if (_node.EnvironmentOverrides.Count == 0)
+        {
+            EnvironmentOverrideMode = EnvironmentOverrideState.None;
+            return;
+        }
+
+        EnvironmentOverrideMode = EnvironmentOverrideState.Override;
+        foreach (var kv in _node.EnvironmentOverrides)
+        {
+            EnvironmentOverrides.Add(new EnvVarRow
+            {
+                Key = kv.Key,
+                Value = kv.Value
+            });
+        }
+    }
+
+    private void ResolveInheritedEnvironmentOverrides()
+    {
+        InheritedEnvironmentOverrides.Clear();
+        _inheritedEnvironmentOverridesSourceName = null;
+
+        var chain = GetNodeChain(_node, _rootNodes);
+        if (chain.Count <= 1)
+        {
+            OnPropertyChanged(nameof(HasInheritedEnvironmentOverrides));
+            OnPropertyChanged(nameof(InheritedEnvironmentOverridesInfo));
+            return;
+        }
+
+        for (var i = chain.Count - 2; i >= 0; i--)
+        {
+            var parent = chain[i];
+            if (parent.EnvironmentOverrides == null)
+                continue;
+
+            _inheritedEnvironmentOverridesSourceName = parent.Name;
+
+            foreach (var kv in parent.EnvironmentOverrides)
+            {
+                InheritedEnvironmentOverrides.Add(new EnvVarRow
+                {
+                    Key = kv.Key,
+                    Value = kv.Value
+                });
+            }
+
+            break;
+        }
+
+        OnPropertyChanged(nameof(HasInheritedEnvironmentOverrides));
+        OnPropertyChanged(nameof(InheritedEnvironmentOverridesInfo));
+    }
+
+    partial void OnEnvironmentOverrideModeChanged(EnvironmentOverrideState value)
+    {
+        OnPropertyChanged(nameof(IsEnvironmentOverrideInherit));
+        OnPropertyChanged(nameof(IsEnvironmentOverrideNone));
+        OnPropertyChanged(nameof(IsEnvironmentOverrideOverride));
+
+        if (value == EnvironmentOverrideState.Override &&
+            EnvironmentOverrides.Count == 0 &&
+            InheritedEnvironmentOverrides.Count > 0)
+        {
+            foreach (var row in InheritedEnvironmentOverrides)
+            {
+                EnvironmentOverrides.Add(new EnvVarRow
+                {
+                    Key = row.Key,
+                    Value = row.Value
+                });
+            }
+        }
+    }
+
+    private void AddEnvironmentOverride()
+    {
+        EnvironmentOverrides.Add(new EnvVarRow());
+    }
+
+    private void RemoveEnvironmentOverride(EnvVarRow? row)
+    {
+        if (row == null) return;
+        EnvironmentOverrides.Remove(row);
     }
     
     private void InitializeFromNode()
@@ -585,6 +757,30 @@ public partial class NodeSettingsViewModel : ViewModelBase
                     .Select(x => x.ToModel())
                     .Where(x => !string.IsNullOrWhiteSpace(x.Path))
                     .ToList();
+                break;
+        }
+
+        switch (EnvironmentOverrideMode)
+        {
+            case EnvironmentOverrideState.Inherit:
+                _node.EnvironmentOverrides = null;
+                break;
+
+            case EnvironmentOverrideState.None:
+                _node.EnvironmentOverrides = new Dictionary<string, string>(StringComparer.Ordinal);
+                break;
+
+            case EnvironmentOverrideState.Override:
+                var overrides = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var row in EnvironmentOverrides)
+                {
+                    if (string.IsNullOrWhiteSpace(row.Key))
+                        continue;
+
+                    overrides[row.Key.Trim()] = row.Value ?? string.Empty;
+                }
+
+                _node.EnvironmentOverrides = overrides;
                 break;
         }
 

@@ -1238,5 +1238,59 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Media.PlayTime", resourceCulture);
             }
         }
+
+        public static string Common_Source {
+            get {
+                return ResourceManager.GetString("Common.Source", resourceCulture);
+            }
+        }
+        
+        public static string Common_SourceItem {
+            get {
+                return ResourceManager.GetString("Common.SourceItem", resourceCulture);
+            }
+        }
+        
+        public static string Common_SourceNodeFormat {
+            get {
+                return ResourceManager.GetString("Common.SourceNodeFormat", resourceCulture);
+            }
+        }
+        
+        public static string Common_SourceEmulatorFormat {
+            get {
+                return ResourceManager.GetString("Common.SourceEmulatorFormat", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_EnvInheritedHint {
+            get {
+                return ResourceManager.GetString("EditMedia.EnvInheritedHint", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_EnvOverridesTitle {
+            get {
+                return ResourceManager.GetString("NodeSettings_EnvOverridesTitle", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_InheritedEnvNone {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedEnvNone", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_InheritedEnvEmptyFormat {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedEnvEmptyFormat", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_InheritedEnvInfoFormat {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedEnvInfoFormat", resourceCulture);
+            }
+        }
     }
 }

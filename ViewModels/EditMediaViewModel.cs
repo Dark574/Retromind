@@ -85,6 +85,8 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         [ObservableProperty] private string _key = string.Empty;
         [ObservableProperty] private string _value = string.Empty;
+        [ObservableProperty] private string _source = string.Empty;
+        [ObservableProperty] private bool _isInherited;
     }
 
     public sealed class EmulatorProfileOption
@@ -138,7 +140,11 @@ public partial class EditMediaViewModel : ViewModelBase
 
     private void AddEnvironmentVariable()
     {
-        EnvironmentOverrides.Add(new EnvVarRow());
+        EnvironmentOverrides.Add(new EnvVarRow
+        {
+            IsInherited = false,
+            Source = Strings.Common_SourceItem
+        });
     }
 
     private void RemoveEnvironmentVariable(EnvVarRow? row)
@@ -381,8 +387,36 @@ public partial class EditMediaViewModel : ViewModelBase
             }
         }
 
+        if (_parentNode != null && _rootNodes.Count > 0)
+        {
+            var chain = GetNodeChain(_parentNode, _rootNodes);
+            chain.Reverse(); // Leaf (parent) first
+
+            foreach (var node in chain)
+            {
+                if (node.EnvironmentOverrides == null)
+                    continue;
+
+                if (node.EnvironmentOverrides.Count > 0)
+                {
+                    foreach (var kv in node.EnvironmentOverrides)
+                    {
+                        if (string.IsNullOrWhiteSpace(kv.Key))
+                            continue;
+
+                        env[kv.Key.Trim()] = kv.Value ?? string.Empty;
+                    }
+                }
+
+                break;
+            }
+        }
+
         foreach (var row in EnvironmentOverrides)
         {
+            if (row.IsInherited)
+                continue;
+
             if (string.IsNullOrWhiteSpace(row.Key))
                 continue;
 
@@ -780,15 +814,17 @@ public partial class EditMediaViewModel : ViewModelBase
     {
         [ObservableProperty] private string _path = string.Empty;
         [ObservableProperty] private string _args = string.Empty;
+        [ObservableProperty] private string _source = string.Empty;
 
         public LaunchWrapperRow()
         {
         }
 
-        public LaunchWrapperRow(LaunchWrapper wrapper)
+        public LaunchWrapperRow(LaunchWrapper wrapper, string? source = null)
         {
             Path = wrapper.Path ?? string.Empty;
             Args = wrapper.Args ?? string.Empty;
+            Source = source ?? string.Empty;
         }
 
         public LaunchWrapper ToModel()
@@ -868,7 +904,7 @@ public partial class EditMediaViewModel : ViewModelBase
         NativeWrapperMode = WrapperMode.Override;
         foreach (var w in _originalItem.NativeWrappersOverride)
         {
-            var row = new LaunchWrapperRow(w);
+            var row = new LaunchWrapperRow(w, Strings.Common_SourceItem);
             WireWrapperRow(row);
             NativeWrappers.Add(row);
         }
@@ -890,6 +926,9 @@ public partial class EditMediaViewModel : ViewModelBase
         if (e.PropertyName == nameof(LaunchWrapperRow.Path) ||
             e.PropertyName == nameof(LaunchWrapperRow.Args))
         {
+            if (sender is LaunchWrapperRow row && !string.Equals(row.Source, Strings.Common_SourceItem, StringComparison.Ordinal))
+                row.Source = Strings.Common_SourceItem;
+
             OnPropertyChanged(nameof(PreviewText));
             CopyPreviewCommand.NotifyCanExecuteChanged();
         }
@@ -919,9 +958,158 @@ public partial class EditMediaViewModel : ViewModelBase
         if (e.PropertyName == nameof(EnvVarRow.Key) ||
             e.PropertyName == nameof(EnvVarRow.Value))
         {
+            if (sender is EnvVarRow row && row.IsInherited)
+            {
+                row.IsInherited = false;
+                row.Source = Strings.Common_SourceItem;
+            }
+
             OnPropertyChanged(nameof(PreviewText));
             CopyPreviewCommand.NotifyCanExecuteChanged();
         }
+    }
+
+    private void InitializeEnvironmentOverridesFromItem()
+    {
+        var overrides = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (_originalItem.EnvironmentOverrides is { Count: > 0 })
+        {
+            foreach (var kv in _originalItem.EnvironmentOverrides)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key))
+                    continue;
+
+                overrides[kv.Key.Trim()] = kv.Value ?? string.Empty;
+            }
+        }
+
+        RebuildEnvironmentOverridesFromInheritance(overrides);
+    }
+
+    private Dictionary<string, string> CaptureCurrentEnvironmentOverrides()
+    {
+        var overrides = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var row in EnvironmentOverrides)
+        {
+            if (row.IsInherited)
+                continue;
+
+            if (string.IsNullOrWhiteSpace(row.Key))
+                continue;
+
+            overrides[row.Key.Trim()] = row.Value ?? string.Empty;
+        }
+
+        return overrides;
+    }
+
+    private void RebuildEnvironmentOverridesFromInheritance(Dictionary<string, string> itemOverrides)
+    {
+        var (inheritedEnv, inheritedSources) = ResolveInheritedEnvironmentOverridesWithSources();
+
+        EnvironmentOverrides.Clear();
+        var rowsByKey = new Dictionary<string, EnvVarRow>(StringComparer.Ordinal);
+
+        foreach (var kv in inheritedEnv)
+        {
+            var source = inheritedSources.TryGetValue(kv.Key, out var label) ? label : string.Empty;
+            var row = new EnvVarRow
+            {
+                Key = kv.Key,
+                Value = kv.Value,
+                IsInherited = true,
+                Source = source
+            };
+
+            rowsByKey[kv.Key] = row;
+        }
+
+        foreach (var kv in itemOverrides)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key))
+                continue;
+
+            var key = kv.Key.Trim();
+            var value = kv.Value ?? string.Empty;
+
+            if (rowsByKey.TryGetValue(key, out var row))
+            {
+                row.Value = value;
+                row.IsInherited = false;
+                row.Source = Strings.Common_SourceItem;
+            }
+            else
+            {
+                row = new EnvVarRow
+                {
+                    Key = key,
+                    Value = value,
+                    IsInherited = false,
+                    Source = Strings.Common_SourceItem
+                };
+                rowsByKey[key] = row;
+            }
+        }
+
+        foreach (var row in rowsByKey.Values.OrderBy(r => r.Key, StringComparer.OrdinalIgnoreCase))
+            EnvironmentOverrides.Add(row);
+    }
+
+    private (Dictionary<string, string> Env, Dictionary<string, string> Sources) ResolveInheritedEnvironmentOverridesWithSources()
+    {
+        var env = new Dictionary<string, string>(StringComparer.Ordinal);
+        var sources = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        EmulatorConfig? effectiveEmulator = null;
+        if (MediaType == MediaType.Emulator)
+            effectiveEmulator = ResolveSelectedEmulatorConfig();
+
+        if (effectiveEmulator?.EnvironmentOverrides is { Count: > 0 })
+        {
+            var emulatorName = string.IsNullOrWhiteSpace(effectiveEmulator.Name)
+                ? effectiveEmulator.Id
+                : effectiveEmulator.Name;
+
+            foreach (var kv in effectiveEmulator.EnvironmentOverrides)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key))
+                    continue;
+
+                var key = kv.Key.Trim();
+                env[key] = kv.Value ?? string.Empty;
+                sources[key] = string.Format(Strings.Common_SourceEmulatorFormat, emulatorName);
+            }
+        }
+
+        if (_parentNode != null && _rootNodes.Count > 0)
+        {
+            var chain = GetNodeChain(_parentNode, _rootNodes);
+            chain.Reverse(); // Leaf (parent) first
+
+            foreach (var node in chain)
+            {
+                if (node.EnvironmentOverrides == null)
+                    continue;
+
+                if (node.EnvironmentOverrides.Count > 0)
+                {
+                    foreach (var kv in node.EnvironmentOverrides)
+                    {
+                        if (string.IsNullOrWhiteSpace(kv.Key))
+                            continue;
+
+                        var key = kv.Key.Trim();
+                        env[key] = kv.Value ?? string.Empty;
+                        sources[key] = string.Format(Strings.Common_SourceNodeFormat, node.Name);
+                    }
+                }
+
+                break;
+            }
+        }
+
+        return (env, sources);
     }
     
     partial void OnNativeWrapperModeChanged(WrapperMode value)
@@ -938,7 +1126,7 @@ public partial class EditMediaViewModel : ViewModelBase
         {
             foreach (var wrapper in InheritedWrappers)
             {
-                var row = new LaunchWrapperRow(wrapper.ToModel());
+                var row = new LaunchWrapperRow(wrapper.ToModel(), wrapper.Source);
                 WireWrapperRow(row);
                 NativeWrappers.Add(row);
             }
@@ -948,6 +1136,7 @@ public partial class EditMediaViewModel : ViewModelBase
     private void AddNativeWrapper()
     {
         var row = new LaunchWrapperRow();
+        row.Source = Strings.Common_SourceItem;
         WireWrapperRow(row);
         NativeWrappers.Add(row);
 
@@ -1075,6 +1264,7 @@ public partial class EditMediaViewModel : ViewModelBase
         CopyPreviewCommand.NotifyCanExecuteChanged();
 
         RefreshInheritedWrappers();
+        RebuildEnvironmentOverridesFromInheritance(CaptureCurrentEnvironmentOverrides());
     }
     
     // hard guarantee that PreviewText updates when LauncherArgs changes
@@ -1246,24 +1436,7 @@ public partial class EditMediaViewModel : ViewModelBase
         InitializeEmulators(settings);
         InitializeNativeWrapperUiFromItem();
         RefreshInheritedWrappers();
-
-        // Initialize environment overrides from the original item
-        EnvironmentOverrides.Clear();
-        if (_originalItem.EnvironmentOverrides is { Count: > 0 })
-        {
-            foreach (var kv in _originalItem.EnvironmentOverrides)
-            {
-                var row = new EnvVarRow
-                {
-                    Key = kv.Key,
-                    Value = kv.Value
-                };
-
-                // Ensure preview reacts to changes in pre-existing rows as well.
-                WireEnvRow(row);
-                EnvironmentOverrides.Add(row);
-            }
-        }
+        InitializeEnvironmentOverridesFromItem();
         
         // After initialization, ensure commands reflect the current list state
         MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
@@ -1373,6 +1546,7 @@ public partial class EditMediaViewModel : ViewModelBase
         }
 
         RefreshInheritedWrappers();
+        RebuildEnvironmentOverridesFromInheritance(CaptureCurrentEnvironmentOverrides());
     }
     
     private void InitializeEmulators(AppSettings settings)
@@ -1679,25 +1853,26 @@ public partial class EditMediaViewModel : ViewModelBase
 
     /// <summary>
     /// Builds a shell-style environment prefix (e.g. VAR1=value1 VAR2="foo bar")
-    /// from the current per-item EnvironmentOverrides. Returns an empty string
+    /// from the effective EnvironmentOverrides (emulator + node + item). Returns an empty string
     /// when no overrides are defined.
     /// This is only used for the human-readable PreviewText; the real launcher
-    /// uses the strongly-typed EnvironmentOverrides dictionary on MediaItem
+    /// uses typed EnvironmentOverrides dictionaries at runtime.
     /// </summary>
     private string BuildEnvironmentPrefixForPreview()
     {
-        if (EnvironmentOverrides.Count == 0)
+        var env = BuildEffectiveEnvironmentOverrides();
+        if (env.Count == 0)
             return string.Empty;
 
-        var parts = new List<string>(EnvironmentOverrides.Count);
+        var parts = new List<string>(env.Count);
 
-        foreach (var row in EnvironmentOverrides)
+        foreach (var kv in env)
         {
-            if (string.IsNullOrWhiteSpace(row.Key))
+            if (string.IsNullOrWhiteSpace(kv.Key))
                 continue;
 
-            var key = row.Key.Trim();
-            var value = row.Value ?? string.Empty;
+            var key = kv.Key.Trim();
+            var value = kv.Value ?? string.Empty;
 
             // Simple, shell-like quoting: wrap in "..." if value contains whitespace
             if (value.Contains(' ', StringComparison.Ordinal) ||
@@ -1869,7 +2044,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
         InheritedWrappers.Clear();
         foreach (var wrapper in wrappers)
-            InheritedWrappers.Add(new LaunchWrapperRow(wrapper));
+            InheritedWrappers.Add(new LaunchWrapperRow(wrapper.Wrapper, wrapper.Source));
 
         _inheritedWrappersInfo = wrappers.Count == 0
             ? Strings.EditMedia_InheritedWrappersNone
@@ -1879,9 +2054,10 @@ public partial class EditMediaViewModel : ViewModelBase
         OnPropertyChanged(nameof(InheritedWrappersInfo));
     }
 
-    private (List<LaunchWrapper> Wrappers, List<string> Sources) ResolveInheritedNativeWrappersForDisplay()
+    private (List<(LaunchWrapper Wrapper, string Source)> Wrappers, List<string> Sources) ResolveInheritedNativeWrappersForDisplay()
     {
-        List<LaunchWrapper>? wrappers = null;
+        List<LaunchWrapper> baseWrappers = new();
+        string? baseSource = null;
         var sources = new List<string>();
 
         EmulatorConfig? effectiveEmulator = null;
@@ -1897,28 +2073,43 @@ public partial class EditMediaViewModel : ViewModelBase
             switch (effectiveEmulator.NativeWrapperMode)
             {
                 case EmulatorConfig.WrapperMode.Inherit:
-                    wrappers = _settings.DefaultNativeWrappers;
-                    if (wrappers is { Count: > 0 })
-                        sources.Add(string.Format(Strings.EditMedia_InheritedWrappersSourceGlobalViaEmulatorFormat, emulatorName));
+                    baseWrappers = _settings.DefaultNativeWrappers != null
+                        ? new List<LaunchWrapper>(_settings.DefaultNativeWrappers)
+                        : new List<LaunchWrapper>();
+                    if (baseWrappers.Count > 0)
+                    {
+                        baseSource = string.Format(Strings.EditMedia_InheritedWrappersSourceGlobalViaEmulatorFormat, emulatorName);
+                        sources.Add(baseSource);
+                    }
                     break;
                 case EmulatorConfig.WrapperMode.None:
-                    wrappers = new List<LaunchWrapper>();
+                    baseWrappers = new List<LaunchWrapper>();
                     break;
                 case EmulatorConfig.WrapperMode.Override:
-                    wrappers = effectiveEmulator.NativeWrappersOverride != null
+                    baseWrappers = effectiveEmulator.NativeWrappersOverride != null
                         ? new List<LaunchWrapper>(effectiveEmulator.NativeWrappersOverride)
                         : new List<LaunchWrapper>();
-                    if (wrappers.Count > 0)
-                        sources.Add(string.Format(Strings.EditMedia_InheritedWrappersSourceEmulatorFormat, emulatorName));
+                    if (baseWrappers.Count > 0)
+                    {
+                        baseSource = string.Format(Strings.EditMedia_InheritedWrappersSourceEmulatorFormat, emulatorName);
+                        sources.Add(baseSource);
+                    }
                     break;
             }
         }
         else
         {
-            wrappers = _settings.DefaultNativeWrappers;
-            if (wrappers is { Count: > 0 })
-                sources.Add(Strings.EditMedia_InheritedWrappersSourceGlobal);
+            baseWrappers = _settings.DefaultNativeWrappers != null
+                ? new List<LaunchWrapper>(_settings.DefaultNativeWrappers)
+                : new List<LaunchWrapper>();
+            if (baseWrappers.Count > 0)
+            {
+                baseSource = Strings.EditMedia_InheritedWrappersSourceGlobal;
+                sources.Add(baseSource);
+            }
         }
+
+        var resolved = new List<(LaunchWrapper Wrapper, string Source)>();
 
         if (_parentNode != null && _rootNodes.Count > 0)
         {
@@ -1944,22 +2135,21 @@ public partial class EditMediaViewModel : ViewModelBase
 
             if (nodeOverrideFound && nodeWrappers != null && nodeWrappers.Count > 0)
             {
-                var baseWrappers = wrappers ?? new List<LaunchWrapper>();
-                var merged = new List<LaunchWrapper>(nodeWrappers.Count + baseWrappers.Count);
-                merged.AddRange(nodeWrappers);
-                merged.AddRange(baseWrappers);
-                wrappers = merged;
+                var nodeSource = string.Format(Strings.EditMedia_InheritedWrappersSourceNodeFormat, nodeSourceName);
+                foreach (var wrapper in nodeWrappers)
+                    resolved.Add((wrapper, nodeSource));
+
                 if (!string.IsNullOrWhiteSpace(nodeSourceName))
-                {
-                    sources.Insert(0,
-                        string.Format(Strings.EditMedia_InheritedWrappersSourceNodeFormat, nodeSourceName));
-                }
+                    sources.Insert(0, nodeSource);
             }
         }
 
-        var resolved = wrappers != null
-            ? wrappers.ToList()
-            : new List<LaunchWrapper>();
+        if (baseWrappers.Count > 0)
+        {
+            var source = baseSource ?? string.Empty;
+            foreach (var wrapper in baseWrappers)
+                resolved.Add((wrapper, source));
+        }
 
         return (resolved, sources);
     }
@@ -2285,6 +2475,9 @@ public partial class EditMediaViewModel : ViewModelBase
         _originalItem.EnvironmentOverrides.Clear();
         foreach (var row in EnvironmentOverrides)
         {
+            if (row.IsInherited)
+                continue;
+
             if (string.IsNullOrWhiteSpace(row.Key))
                 continue;
 
