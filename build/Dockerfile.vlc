@@ -52,6 +52,8 @@ RUN set -eux; \
     cp -a /usr/lib/x86_64-linux-gnu/libopus.so*          /out/vlc/lib/ || true; \
     cp -a /usr/lib/x86_64-linux-gnu/libogg.so*           /out/vlc/lib/ || true; \
     cp -a /usr/lib/x86_64-linux-gnu/libmp3lame.so*       /out/vlc/lib/ || true; \
+    # libvlccore can depend on libidn (e.g. libidn.so.12 on Nobara).
+    cp -a /usr/lib/x86_64-linux-gnu/libidn.so*           /out/vlc/lib/ || true; \
     # 5) Drop VDPAU plugins – VAAPI/CUDA/Software will be used instead.
     #    This avoids pulling in a ton of VDPAU dependencies that are rarely useful
     #    inside an AppImage.

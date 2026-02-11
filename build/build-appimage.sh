@@ -51,7 +51,7 @@ if [ ! -d "$WORK_DIR/vlc" ]; then
 fi
 
 echo "[5/7] Build AppDir layout..."
-mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib/vlc" "$APPDIR/usr/share/applications"
+mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib/vlc" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/metainfo"
 
 cp "$BUILD_DIR/AppRun" "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun"
@@ -81,8 +81,10 @@ fi
 cp -a "$WORK_DIR/vlc/vlc" "$APPDIR/usr/lib/vlc/"
 cp -a "$WORK_DIR/vlc/lib" "$APPDIR/usr/lib/vlc/"
 
+DESKTOP_FILE_NAME="io.github.dark574.Retromind.desktop"
+
 # --- Desktop entry (write to standard location AND as root fallback) ---
-cat > "$APPDIR/usr/share/applications/retromind.desktop" << 'EOF'
+cat > "$APPDIR/usr/share/applications/$DESKTOP_FILE_NAME" << 'EOF'
 [Desktop Entry]
 Type=Application
 Name=Retromind
@@ -92,7 +94,15 @@ Categories=AudioVideo;Video;Audio;Utility;
 Terminal=false
 EOF
 
-cp "$APPDIR/usr/share/applications/retromind.desktop" "$APPDIR/retromind.desktop"
+cp "$APPDIR/usr/share/applications/$DESKTOP_FILE_NAME" "$APPDIR/$DESKTOP_FILE_NAME"
+
+# --- AppStream metadata (AppImage warning fix) ---
+APPSTREAM_META="$BUILD_DIR/io.github.dark574.Retromind.appdata.xml"
+if [ -f "$APPSTREAM_META" ]; then
+  cp "$APPSTREAM_META" "$APPDIR/usr/share/metainfo/io.github.dark574.Retromind.appdata.xml"
+else
+  echo "Notice: AppStream metadata missing at '$APPSTREAM_META'."
+fi
 
 # --- Icon (ensure Icon=retromind resolves) ---
 cp "$BUILD_DIR/retromind.svg" "$APPDIR/retromind.svg"
