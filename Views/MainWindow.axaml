@@ -19,7 +19,6 @@
         ExtendClientAreaToDecorationsHint="False"
         ExtendClientAreaTitleBarHeightHint="-1"
         
-        KeyDown="OnKeyDown"
         TextInput="OnTextInput" >
 
     <Window.DataTemplates>

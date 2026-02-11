@@ -339,9 +339,8 @@ public partial class BigModeViewModel
                 {
                     if (secondaryPlayer != null)
                     {
-                        if (secondaryPlayer.IsPlaying)
-                            secondaryPlayer.Stop();
-
+                        // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
+                        secondaryPlayer.Stop();
                         secondaryPlayer.Media = null;
                         secondaryPlayer.Dispose();
                     }
@@ -369,9 +368,8 @@ public partial class BigModeViewModel
                 {
                     if (mainPlayer != null)
                     {
-                        if (mainPlayer.IsPlaying)
-                            mainPlayer.Stop();
-
+                        // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
+                        mainPlayer.Stop();
                         mainPlayer.Media = null;
                         mainPlayer.Dispose();
                     }

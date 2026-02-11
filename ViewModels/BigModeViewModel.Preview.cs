@@ -429,9 +429,8 @@ public partial class BigModeViewModel
         {
             try
             {
-                if (MediaPlayer.IsPlaying)
-                    MediaPlayer.Stop();
-
+                // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
+                MediaPlayer.Stop();
                 MediaPlayer.Media = null;
                 MediaPlayer.Dispose();
             }
@@ -730,9 +729,8 @@ public partial class BigModeViewModel
         {
             if (MediaPlayer != null)
             {
-                if (MediaPlayer.IsPlaying)
-                    MediaPlayer.Stop();
-
+                // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
+                MediaPlayer.Stop();
                 MediaPlayer.Media = null;
             }
         }

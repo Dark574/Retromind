@@ -3,6 +3,7 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Retromind.Helpers;
@@ -38,6 +39,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
     }
 
     // Override the method that is called when the window is closing.
@@ -476,6 +478,10 @@ public partial class MainWindow : Window
                     e.Handled = true;
                     break;
                 case Key.Enter:
+                    bigVm.PlayCurrentCommand.Execute(null);
+                    e.Handled = true;
+                    break;
+                case Key.Space:
                     bigVm.PlayCurrentCommand.Execute(null);
                     e.Handled = true;
                     break;
