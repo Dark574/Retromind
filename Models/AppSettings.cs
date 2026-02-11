@@ -19,6 +19,13 @@ public class AppSettings
     /// paths are stored (classic behavior)
     /// </summary>
     public bool PreferPortableLaunchPaths { get; set; } = false;
+
+    /// <summary>
+    /// When true and running as AppImage, Retromind redirects HOME and XDG_* paths
+    /// into a local "Home" folder next to the AppImage for full portability.
+    /// Requires restart to take effect.
+    /// </summary>
+    public bool UsePortableHomeInAppImage { get; set; } = false;
     
     // --- Native wrapper defaults (C: global -> node -> item) ---
 

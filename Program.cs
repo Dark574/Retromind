@@ -2,6 +2,7 @@
 using System.Linq;
 using Avalonia;
 using LibVLCSharp.Shared;
+using Retromind.Helpers;
 
 namespace Retromind;
 
@@ -39,6 +40,10 @@ internal sealed class Program
             // Unknown value -> fall back to safe default for VLC embedding.
             Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", "x11");
         }
+
+        // AppImage portability: redirect XDG dirs into a local "Home" folder.
+        // Safe to call before Avalonia initialization.
+        PortableEnvironment.ApplyPortableXdgPaths();
 
         // VLC is REQUIRED for this build.
         try

@@ -59,6 +59,23 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             OnPropertyChanged();
         }
     }
+
+    /// <summary>
+    /// Controls whether the AppImage redirects HOME and XDG_* into a local folder
+    /// next to the AppImage for portability. Requires restart to apply.
+    /// </summary>
+    public bool UsePortableHomeInAppImage
+    {
+        get => _appSettings.UsePortableHomeInAppImage;
+        set
+        {
+            if (_appSettings.UsePortableHomeInAppImage == value)
+                return;
+
+            _appSettings.UsePortableHomeInAppImage = value;
+            OnPropertyChanged();
+        }
+    }
     
     /// <summary>
     /// Controls whether selecting an item in the main media grid should

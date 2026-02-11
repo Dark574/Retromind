@@ -150,6 +150,23 @@ For the **AppImage**, `"none"` is recommended as default for maximum compatibili
 On your own machine you can set `"vaapi"` in `app_settings.json` if VAAPI works
 well (e.g. smoother BigMode videos, lower CPU load).
 
+### AppImage portable HOME/XDG mode
+
+Retromind can optionally redirect `HOME` and the `XDG_*` paths into a local
+`Home/` folder next to the AppImage for full portability. This affects runtime
+data written by games, launchers, and runtimes that respect `HOME` or XDG.
+
+Enable in `app_settings.json`:
+
+```json
+"UsePortableHomeInAppImage": true
+```
+
+Notes:
+- Only applies when running as **AppImage**.
+- Requires a **restart** to take effect.
+- Existing `HOME`/`XDG_*` environment variables are not overridden if already set.
+
 ### Portable layout on USB sticks / external drives
 
 Retromind is designed to work well from a single portable folder (e.g. on a USB stick)

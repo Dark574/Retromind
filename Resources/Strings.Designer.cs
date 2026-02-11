@@ -1203,6 +1203,18 @@ namespace Retromind.Resources {
             }
         }
 
+        public static string Settings_PortableHome {
+            get {
+                return ResourceManager.GetString("Settings.PortableHome", resourceCulture);
+            }
+        }
+
+        public static string Settings_PortableHome_Hint {
+            get {
+                return ResourceManager.GetString("Settings.PortableHome.Hint", resourceCulture);
+            }
+        }
+
         public static string Settings_UseGlobalWrapperDefaults {
             get {
                 return ResourceManager.GetString("Settings.UseGlobalWrapperDefaults", resourceCulture);

@@ -264,6 +264,8 @@
     <data name="Settings.GlobalSettingsHint" xml:space="preserve"><value>Define emulators and metadata sources here to use them quickly in your library.</value></data>
     <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Play random music</value></data>
     <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>When enabled, selecting an item in the main grid automatically plays its music asset (if available).</value></data>
+    <data name="Settings.PortableHome" xml:space="preserve"><value>Use portable HOME/XDG for AppImage</value></data>
+    <data name="Settings.PortableHome.Hint" xml:space="preserve"><value>Redirects HOME and XDG dirs to a local Home/ folder next to the AppImage (requires restart).</value></data>
     <data name="Settings.UseGlobalWrapperDefaults" xml:space="preserve"><value>Use global defaults</value></data>
     <data name="Settings.PortableLaunchPaths" xml:space="preserve"><value>Store launch file paths relative to Retromind data folder (portable)</value></data>
     <data name="Settings.ProfileName" xml:space="preserve"><value>Profile Name</value></data>

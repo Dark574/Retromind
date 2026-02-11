@@ -25,6 +25,11 @@
             </StackPanel>
             <StackPanel Orientation="Vertical" Spacing="4">
 
+                <!-- Toggle: redirect HOME + XDG dirs when running as AppImage -->
+                <CheckBox Content="{x:Static p:Strings.Settings_PortableHome}"
+                          IsChecked="{Binding UsePortableHomeInAppImage}"
+                          ToolTip.Tip="{x:Static p:Strings.Settings_PortableHome_Hint}" />
+
                 <!-- Toggle: auto-play music on selection in main grid -->
                 <CheckBox Content="{x:Static p:Strings.Settings_PlayRandomMusic}"
                           IsChecked="{Binding EnableSelectionMusicPreview}"

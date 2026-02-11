@@ -2,6 +2,7 @@
   "Version": 1,
 
   "PreferPortableLaunchPaths": true,
+  "UsePortableHomeInAppImage": false,
   "DefaultNativeWrappers": [],
   "VlcHardwareDecodeMode": "none",
   "EnableSelectionMusicPreview": true,
