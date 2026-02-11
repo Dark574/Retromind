@@ -423,7 +423,38 @@ public partial class EditMediaViewModel : ViewModelBase
             env[row.Key.Trim()] = row.Value ?? string.Empty;
         }
 
+        ApplyXdgOverridesForPreview(env);
+
         return env;
+    }
+
+    private void ApplyXdgOverridesForPreview(Dictionary<string, string> env)
+    {
+        if (MediaType != MediaType.Native)
+            return;
+
+        ApplyXdgOverrideIfMissing(env, "XDG_CONFIG_HOME", XdgConfigPath);
+        ApplyXdgOverrideIfMissing(env, "XDG_DATA_HOME", XdgDataPath);
+        ApplyXdgOverrideIfMissing(env, "XDG_CACHE_HOME", XdgCachePath);
+        ApplyXdgOverrideIfMissing(env, "XDG_STATE_HOME", XdgStatePath);
+    }
+
+    private static void ApplyXdgOverrideIfMissing(
+        Dictionary<string, string> env,
+        string key,
+        string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        if (env.ContainsKey(key))
+            return;
+
+        var resolved = Path.IsPathRooted(value)
+            ? value
+            : AppPaths.ResolveDataPath(value);
+
+        env[key] = resolved;
     }
 
     private static void ApplyPrefixEnvironment(
@@ -1218,6 +1249,25 @@ public partial class EditMediaViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PreviewText))]
     private string _workingDirectory = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewText))]
+    private string _xdgConfigPath = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewText))]
+    private string _xdgDataPath = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewText))]
+    private string _xdgCachePath = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewText))]
+    private string _xdgStatePath = string.Empty;
+
+    [ObservableProperty]
+    private string _xdgBasePath = string.Empty;
     
     /// <summary>
     /// Ensures that switching from "manual emulator" defaults to a proper
@@ -1292,6 +1342,35 @@ public partial class EditMediaViewModel : ViewModelBase
         CopyPreviewCommand.NotifyCanExecuteChanged();
     }
 
+    partial void OnXdgConfigPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(PreviewText));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnXdgDataPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(PreviewText));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnXdgCachePathChanged(string value)
+    {
+        OnPropertyChanged(nameof(PreviewText));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnXdgStatePathChanged(string value)
+    {
+        OnPropertyChanged(nameof(PreviewText));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnXdgBasePathChanged(string value)
+    {
+        ApplyXdgBaseCommand.NotifyCanExecuteChanged();
+    }
+
     partial void OnTitleChanged(string value)
     {
         CopyAssetPrefixCommand.NotifyCanExecuteChanged();
@@ -1332,6 +1411,12 @@ public partial class EditMediaViewModel : ViewModelBase
     
     public IAsyncRelayCommand BrowseLauncherCommand { get; }
     public IAsyncRelayCommand BrowseWorkingDirectoryCommand { get; }
+    public IAsyncRelayCommand BrowseXdgConfigCommand { get; }
+    public IAsyncRelayCommand BrowseXdgDataCommand { get; }
+    public IAsyncRelayCommand BrowseXdgCacheCommand { get; }
+    public IAsyncRelayCommand BrowseXdgStateCommand { get; }
+    public IAsyncRelayCommand BrowseXdgBaseCommand { get; }
+    public IRelayCommand ApplyXdgBaseCommand { get; }
     public IRelayCommand<Window?> SaveAndCloseCommand { get; }
     public IRelayCommand<Window?> CancelAndCloseCommand { get; }
 
@@ -1381,6 +1466,12 @@ public partial class EditMediaViewModel : ViewModelBase
         // General commands.
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
         BrowseWorkingDirectoryCommand = new AsyncRelayCommand(BrowseWorkingDirectoryAsync);
+        BrowseXdgConfigCommand = new AsyncRelayCommand(BrowseXdgConfigAsync);
+        BrowseXdgDataCommand = new AsyncRelayCommand(BrowseXdgDataAsync);
+        BrowseXdgCacheCommand = new AsyncRelayCommand(BrowseXdgCacheAsync);
+        BrowseXdgStateCommand = new AsyncRelayCommand(BrowseXdgStateAsync);
+        BrowseXdgBaseCommand = new AsyncRelayCommand(BrowseXdgBaseAsync);
+        ApplyXdgBaseCommand = new RelayCommand(ApplyXdgBase, CanApplyXdgBase);
         
         // Generic asset commands
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
@@ -1526,6 +1617,11 @@ public partial class EditMediaViewModel : ViewModelBase
         LauncherPath = _originalItem.LauncherPath;
         OverrideWatchProcess = _originalItem.OverrideWatchProcess ?? string.Empty;
         WorkingDirectory = _originalItem.WorkingDirectory ?? string.Empty;
+        XdgConfigPath = _originalItem.XdgConfigPath ?? string.Empty;
+        XdgDataPath = _originalItem.XdgDataPath ?? string.Empty;
+        XdgCachePath = _originalItem.XdgCachePath ?? string.Empty;
+        XdgStatePath = _originalItem.XdgStatePath ?? string.Empty;
+        XdgBasePath = _originalItem.XdgBasePath ?? string.Empty;
         
         // Prefix
         PrefixPath = _originalItem.PrefixPath ?? string.Empty;
@@ -1906,7 +2002,7 @@ public partial class EditMediaViewModel : ViewModelBase
                 continue;
 
             var key = kv.Key.Trim();
-            var value = kv.Value ?? string.Empty;
+            var value = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(key, kv.Value);
 
             // Simple, shell-like quoting: wrap in "..." if value contains whitespace
             if (value.Contains(' ', StringComparison.Ordinal) ||
@@ -2465,7 +2561,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
         var result = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Select working directory",
+            Title = Strings.Dialog_SelectWorkingDirectory,
             AllowMultiple = false
         });
 
@@ -2485,6 +2581,64 @@ public partial class EditMediaViewModel : ViewModelBase
         {
             WorkingDirectory = path;
         }
+    }
+
+    private async Task BrowseXdgConfigAsync()
+        => await BrowseXdgFolderAsync(Strings.Dialog_SelectXdgConfigFolder, path => XdgConfigPath = path);
+
+    private async Task BrowseXdgDataAsync()
+        => await BrowseXdgFolderAsync(Strings.Dialog_SelectXdgDataFolder, path => XdgDataPath = path);
+
+    private async Task BrowseXdgCacheAsync()
+        => await BrowseXdgFolderAsync(Strings.Dialog_SelectXdgCacheFolder, path => XdgCachePath = path);
+
+    private async Task BrowseXdgStateAsync()
+        => await BrowseXdgFolderAsync(Strings.Dialog_SelectXdgStateFolder, path => XdgStatePath = path);
+
+    private async Task BrowseXdgBaseAsync()
+        => await BrowseXdgFolderAsync(Strings.Dialog_SelectXdgBaseFolder, path => XdgBasePath = path);
+
+    private async Task BrowseXdgFolderAsync(string title, Action<string> setPath)
+    {
+        if (StorageProvider == null) return;
+
+        var result = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false
+        });
+
+        if (result == null || result.Count == 0)
+            return;
+
+        var path = result[0].Path.LocalPath;
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        if (_settings.PreferPortableLaunchPaths &&
+            TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
+        {
+            setPath(relativePath);
+        }
+        else
+        {
+            setPath(path);
+        }
+    }
+
+    private bool CanApplyXdgBase()
+        => !string.IsNullOrWhiteSpace(XdgBasePath);
+
+    private void ApplyXdgBase()
+    {
+        var basePath = XdgBasePath?.Trim();
+        if (string.IsNullOrWhiteSpace(basePath))
+            return;
+
+        XdgConfigPath = Path.Combine(basePath, "config");
+        XdgDataPath = Path.Combine(basePath, "data");
+        XdgCachePath = Path.Combine(basePath, "cache");
+        XdgStatePath = Path.Combine(basePath, "state");
     }
 
     private void Save()
@@ -2525,6 +2679,26 @@ public partial class EditMediaViewModel : ViewModelBase
         _originalItem.WorkingDirectory = string.IsNullOrWhiteSpace(WorkingDirectory)
             ? null
             : WorkingDirectory.Trim();
+
+        _originalItem.XdgConfigPath = string.IsNullOrWhiteSpace(XdgConfigPath)
+            ? null
+            : XdgConfigPath.Trim();
+
+        _originalItem.XdgDataPath = string.IsNullOrWhiteSpace(XdgDataPath)
+            ? null
+            : XdgDataPath.Trim();
+
+        _originalItem.XdgCachePath = string.IsNullOrWhiteSpace(XdgCachePath)
+            ? null
+            : XdgCachePath.Trim();
+
+        _originalItem.XdgStatePath = string.IsNullOrWhiteSpace(XdgStatePath)
+            ? null
+            : XdgStatePath.Trim();
+
+        _originalItem.XdgBasePath = string.IsNullOrWhiteSpace(XdgBasePath)
+            ? null
+            : XdgBasePath.Trim();
 
         // Always store process monitor override (null when empty)
         _originalItem.OverrideWatchProcess = string.IsNullOrWhiteSpace(OverrideWatchProcess)

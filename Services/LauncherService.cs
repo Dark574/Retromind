@@ -128,6 +128,7 @@ public sealed class LauncherService
         };
         startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, target, launchFilePath: null);
         ApplyEnvironmentOverrides(startInfo, environmentOverrides);
+        ApplyXdgOverrides(startInfo, item);
         return Process.Start(startInfo);
     }
 
@@ -196,6 +197,8 @@ public sealed class LauncherService
                 if (item.EnvironmentOverrides is { Count: > 0 })
                     ApplyEnvironmentOverrides(startInfo, item.EnvironmentOverrides);
             }
+
+            ApplyXdgOverrides(startInfo, item);
 
             if (shouldApplyPrefix && !prefixInitialized)
                 ApplyWineArchOverride(startInfo, item.WineArchOverride);
@@ -591,6 +594,32 @@ public sealed class LauncherService
             if (!string.IsNullOrWhiteSpace(value))
                 Debug.WriteLine($"[Launcher] ENV {key}={value}");
         }
+    }
+
+    private static void ApplyXdgOverrides(ProcessStartInfo startInfo, MediaItem item)
+    {
+        if (item.MediaType != MediaType.Native)
+            return;
+
+        ApplyXdgPath(startInfo, "XDG_CONFIG_HOME", item.XdgConfigPath);
+        ApplyXdgPath(startInfo, "XDG_DATA_HOME", item.XdgDataPath);
+        ApplyXdgPath(startInfo, "XDG_CACHE_HOME", item.XdgCachePath);
+        ApplyXdgPath(startInfo, "XDG_STATE_HOME", item.XdgStatePath);
+    }
+
+    private static void ApplyXdgPath(ProcessStartInfo startInfo, string key, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        if (startInfo.EnvironmentVariables.ContainsKey(key))
+            return;
+
+        var resolved = Path.IsPathRooted(value)
+            ? value
+            : AppPaths.ResolveDataPath(value);
+
+        startInfo.EnvironmentVariables[key] = resolved;
     }
 
     private static void ApplyWineArchOverride(ProcessStartInfo startInfo, string? wineArchOverride)

@@ -9,7 +9,11 @@ public static class EnvironmentPathHelper
     private static readonly HashSet<string> DataRootPathKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "PROTONPATH",
-        "STEAM_COMPAT_DATA_PATH"
+        "STEAM_COMPAT_DATA_PATH",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_CACHE_HOME",
+        "XDG_STATE_HOME"
     };
 
     public static string NormalizeDataRootPathIfNeeded(string key, string? value)

@@ -98,6 +98,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Button.Save", resourceCulture);
             }
         }
+
+        public static string Button_Apply {
+            get {
+                return ResourceManager.GetString("Button.Apply", resourceCulture);
+            }
+        }
         
         public static string Button_TakeOver {
             get {
@@ -452,6 +458,42 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Dialog.Select.Wallpaper", resourceCulture);
             }
         }
+
+        public static string Dialog_SelectWorkingDirectory {
+            get {
+                return ResourceManager.GetString("Dialog.SelectWorkingDirectory", resourceCulture);
+            }
+        }
+
+        public static string Dialog_SelectXdgCacheFolder {
+            get {
+                return ResourceManager.GetString("Dialog.SelectXdgCacheFolder", resourceCulture);
+            }
+        }
+
+        public static string Dialog_SelectXdgConfigFolder {
+            get {
+                return ResourceManager.GetString("Dialog.SelectXdgConfigFolder", resourceCulture);
+            }
+        }
+
+        public static string Dialog_SelectXdgDataFolder {
+            get {
+                return ResourceManager.GetString("Dialog.SelectXdgDataFolder", resourceCulture);
+            }
+        }
+
+        public static string Dialog_SelectXdgStateFolder {
+            get {
+                return ResourceManager.GetString("Dialog.SelectXdgStateFolder", resourceCulture);
+            }
+        }
+
+        public static string Dialog_SelectXdgBaseFolder {
+            get {
+                return ResourceManager.GetString("Dialog.SelectXdgBaseFolder", resourceCulture);
+            }
+        }
         
         public static string Dialog_TitleSearch {
             get {
@@ -608,6 +650,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Hint.WorkingDirectory", resourceCulture);
             }
         }
+
+        public static string Hint_XdgSection {
+            get {
+                return ResourceManager.GetString("Hint.XdgSection", resourceCulture);
+            }
+        }
         
         public static string Hint_TmdbKey {
             get {
@@ -696,6 +744,54 @@ namespace Retromind.Resources {
         public static string Launch_WorkingDirectoryNotSet {
             get {
                 return ResourceManager.GetString("Launch.WorkingDirectoryNotSet", resourceCulture);
+            }
+        }
+
+        public static string Launch_XdgSection {
+            get {
+                return ResourceManager.GetString("Launch.XdgSection", resourceCulture);
+            }
+        }
+
+        public static string Launch_XdgBase {
+            get {
+                return ResourceManager.GetString("Launch.XdgBase", resourceCulture);
+            }
+        }
+
+        public static string Launch_XdgBaseHint {
+            get {
+                return ResourceManager.GetString("Launch.XdgBaseHint", resourceCulture);
+            }
+        }
+
+        public static string Launch_XdgConfig {
+            get {
+                return ResourceManager.GetString("Launch.XdgConfig", resourceCulture);
+            }
+        }
+
+        public static string Launch_XdgData {
+            get {
+                return ResourceManager.GetString("Launch.XdgData", resourceCulture);
+            }
+        }
+
+        public static string Launch_XdgCache {
+            get {
+                return ResourceManager.GetString("Launch.XdgCache", resourceCulture);
+            }
+        }
+
+        public static string Launch_XdgState {
+            get {
+                return ResourceManager.GetString("Launch.XdgState", resourceCulture);
+            }
+        }
+
+        public static string Launch_XdgPathHint {
+            get {
+                return ResourceManager.GetString("Launch.XdgPathHint", resourceCulture);
             }
         }
         

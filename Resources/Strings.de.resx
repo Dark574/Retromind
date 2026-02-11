@@ -39,6 +39,7 @@
     <data name="Button.Play" xml:space="preserve"><value>▶ START</value></data>
     <data name="Button.Random" xml:space="preserve"><value>Zufall</value></data>
     <data name="Button.Save" xml:space="preserve"><value>Speichern</value></data>
+    <data name="Button.Apply" xml:space="preserve"><value>Anwenden</value></data>
     <data name="Button.TakeOver" xml:space="preserve"><value>Übernehmen</value></data>
     <data name="Button.No" xml:space="preserve"><value>Nein</value></data>
     <data name="Button.Yes" xml:space="preserve"><value>Ja</value></data>
@@ -109,6 +110,12 @@
     <data name="Dialog.Select.Logo" xml:space="preserve"><value>Logo auswählen</value></data>
     <data name="Dialog.Select.Music" xml:space="preserve"><value>Musik auswählen</value></data>
     <data name="Dialog.Select.Wallpaper" xml:space="preserve"><value>Wallpaper auswählen</value></data>
+    <data name="Dialog.SelectWorkingDirectory" xml:space="preserve"><value>Arbeitsverzeichnis auswählen</value></data>
+    <data name="Dialog.SelectXdgCacheFolder" xml:space="preserve"><value>XDG-Cache-Ordner auswählen</value></data>
+    <data name="Dialog.SelectXdgConfigFolder" xml:space="preserve"><value>XDG-Config-Ordner auswählen</value></data>
+    <data name="Dialog.SelectXdgDataFolder" xml:space="preserve"><value>XDG-Datenordner auswählen</value></data>
+    <data name="Dialog.SelectXdgStateFolder" xml:space="preserve"><value>XDG-State-Ordner auswählen</value></data>
+    <data name="Dialog.SelectXdgBaseFolder" xml:space="preserve"><value>XDG-Basisordner auswählen</value></data>
     <data name="Dialog.TitleSearch" xml:space="preserve"><value>Titel suchen...</value></data>
     <data name="Dialog_ImportAssetTitle" xml:space="preserve"><value>Importiere {0}</value></data>
     <data name="Dialog_FileExtensionsPrompt" xml:space="preserve"><value>Dateiendungen (kommagetrennt):</value></data>
@@ -142,6 +149,7 @@
     <data name="Hint.Required" xml:space="preserve"><value>(Erforderlich)</value></data>
     <data name="Hint.TimePlayed" xml:space="preserve"><value>Nur für Steam/GOG/Skripte nötig. Name des eigentlichen Spiel-Prozesses (ohne .exe), damit die Spielzeit korrekt erfasst wird.</value></data>
     <data name="Hint.WorkingDirectory" xml:space="preserve"><value>Optional. Wenn leer, wird der Ordner der Startdatei verwendet. Beeinflusst relative Pfade.</value></data>
+    <data name="Hint.XdgSection" xml:space="preserve"><value>Optional. XDG ist der Linux-Standard für Speicherorte von config/data/cache/state. Gilt nur für native Starts. Ein Basisordner kann config/data/cache/state automatisch befüllen.</value></data>
     <data name="Hint.TmdbKey" xml:space="preserve"><value>(Optional: Für Standardschlüssel leer lassen)</value></data>
 
     <!-- IMPORT -->
@@ -161,6 +169,14 @@
     <data name="Launch.WorkingDirectoryHint" xml:space="preserve"><value>z. B. /home/user/Spiele/MeinSpiel</value></data>
     <data name="Launch.WorkingDirectoryEffectiveLabel" xml:space="preserve"><value>Effektiv:</value></data>
     <data name="Launch.WorkingDirectoryNotSet" xml:space="preserve"><value>nicht gesetzt</value></data>
+    <data name="Launch.XdgSection" xml:space="preserve"><value>XDG-Ordner (nativ)</value></data>
+    <data name="Launch.XdgBase" xml:space="preserve"><value>XDG-Basisordner</value></data>
+    <data name="Launch.XdgBaseHint" xml:space="preserve"><value>Basisordner für config/data/cache/state</value></data>
+    <data name="Launch.XdgConfig" xml:space="preserve"><value>Config (XDG_CONFIG_HOME)</value></data>
+    <data name="Launch.XdgData" xml:space="preserve"><value>Daten/Saves (XDG_DATA_HOME)</value></data>
+    <data name="Launch.XdgCache" xml:space="preserve"><value>Cache (XDG_CACHE_HOME)</value></data>
+    <data name="Launch.XdgState" xml:space="preserve"><value>Status (XDG_STATE_HOME)</value></data>
+    <data name="Launch.XdgPathHint" xml:space="preserve"><value>Relativ zum Retromind-Datenordner oder absoluter Pfad</value></data>
 
     <!-- MEDIA -->
     <data name="Media.AddMusic" xml:space="preserve"><value>+ Musik</value></data>

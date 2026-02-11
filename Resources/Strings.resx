@@ -39,6 +39,7 @@
     <data name="Button.Play" xml:space="preserve"><value>▶ START</value></data>
     <data name="Button.Random" xml:space="preserve"><value>Random</value></data>
     <data name="Button.Save" xml:space="preserve"><value>Save</value></data>
+    <data name="Button.Apply" xml:space="preserve"><value>Apply</value></data>
     <data name="Button.TakeOver" xml:space="preserve"><value>Take Over</value></data>
     <data name="Button.No" xml:space="preserve"><value>No</value></data>
     <data name="Button.Yes" xml:space="preserve"><value>Yes</value></data>
@@ -108,6 +109,12 @@
     <data name="Dialog.Select.Logo" xml:space="preserve"><value>Select Logo</value></data>
     <data name="Dialog.Select.Music" xml:space="preserve"><value>Select Music</value></data>
     <data name="Dialog.Select.Wallpaper" xml:space="preserve"><value>Select Wallpaper</value></data>
+    <data name="Dialog.SelectWorkingDirectory" xml:space="preserve"><value>Select working directory</value></data>
+    <data name="Dialog.SelectXdgCacheFolder" xml:space="preserve"><value>Select XDG cache folder</value></data>
+    <data name="Dialog.SelectXdgConfigFolder" xml:space="preserve"><value>Select XDG config folder</value></data>
+    <data name="Dialog.SelectXdgDataFolder" xml:space="preserve"><value>Select XDG data folder</value></data>
+    <data name="Dialog.SelectXdgStateFolder" xml:space="preserve"><value>Select XDG state folder</value></data>
+    <data name="Dialog.SelectXdgBaseFolder" xml:space="preserve"><value>Select XDG base folder</value></data>
     <data name="Dialog.TitleSearch" xml:space="preserve"><value>Search title...</value></data>
     <data name="Dialog_ImportAssetTitle" xml:space="preserve"><value>Import {0}</value></data>
     <data name="Dialog_FileExtensionsPrompt" xml:space="preserve"><value>File extensions (comma separated):</value></data>
@@ -141,6 +148,7 @@
     <data name="Hint.Required" xml:space="preserve"><value>(Necessary)</value></data>
     <data name="Hint.TimePlayed" xml:space="preserve"><value>Only needed for Steam/GOG/scripts. Name of the actual game process (without .exe). So that the time is measured correctly.</value></data>
     <data name="Hint.WorkingDirectory" xml:space="preserve"><value>Optional. If empty, the launch file folder is used. Affects relative paths.</value></data>
+    <data name="Hint.XdgSection" xml:space="preserve"><value>Optional. XDG is the Linux standard for where apps store config/data/cache/state. Applies to native launches only. You can set a base folder to auto-fill config/data/cache/state subfolders.</value></data>
     <data name="Hint.TmdbKey" xml:space="preserve"><value>(Optional: Leave blank for default key)</value></data>
   
     <!-- IMPORT -->
@@ -160,6 +168,14 @@
     <data name="Launch.WorkingDirectoryHint" xml:space="preserve"><value>e.g. /home/user/Games/MyGame</value></data>
     <data name="Launch.WorkingDirectoryEffectiveLabel" xml:space="preserve"><value>Effective:</value></data>
     <data name="Launch.WorkingDirectoryNotSet" xml:space="preserve"><value>not set</value></data>
+    <data name="Launch.XdgSection" xml:space="preserve"><value>XDG folders (native)</value></data>
+    <data name="Launch.XdgBase" xml:space="preserve"><value>XDG base folder</value></data>
+    <data name="Launch.XdgBaseHint" xml:space="preserve"><value>Base folder for config/data/cache/state</value></data>
+    <data name="Launch.XdgConfig" xml:space="preserve"><value>Config (XDG_CONFIG_HOME)</value></data>
+    <data name="Launch.XdgData" xml:space="preserve"><value>Data/Saves (XDG_DATA_HOME)</value></data>
+    <data name="Launch.XdgCache" xml:space="preserve"><value>Cache (XDG_CACHE_HOME)</value></data>
+    <data name="Launch.XdgState" xml:space="preserve"><value>State (XDG_STATE_HOME)</value></data>
+    <data name="Launch.XdgPathHint" xml:space="preserve"><value>Relative to Retromind data folder or absolute path</value></data>
   
     <!-- MEDIA -->
     <data name="Media.AddMusic" xml:space="preserve"><value>+ Music</value></data>

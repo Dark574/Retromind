@@ -348,6 +348,16 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private string? _workingDirectory;
 
     /// <summary>
+    /// Optional: XDG config/data/cache overrides for native launches.
+    /// Relative paths are resolved against AppPaths.DataRoot.
+    /// </summary>
+    [ObservableProperty] private string? _xdgConfigPath;
+    [ObservableProperty] private string? _xdgDataPath;
+    [ObservableProperty] private string? _xdgCachePath;
+    [ObservableProperty] private string? _xdgStatePath;
+    [ObservableProperty] private string? _xdgBasePath;
+
+    /// <summary>
     /// Optional: Path to a WINE prefix directory (relative to library root or absolute)
     /// </summary>
     [ObservableProperty] private string? _prefixPath;
