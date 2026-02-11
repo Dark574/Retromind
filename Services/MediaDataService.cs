@@ -351,6 +351,7 @@ public class MediaDataService
             EmulatorId = item.EmulatorId,
             LauncherPath = item.LauncherPath,
             LauncherArgs = item.LauncherArgs,
+            WorkingDirectory = item.WorkingDirectory,
             PrefixPath = item.PrefixPath,
             WineArchOverride = item.WineArchOverride,
             OverrideWatchProcess = item.OverrideWatchProcess,

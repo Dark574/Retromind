@@ -343,6 +343,11 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private string? _launcherArgs;
 
     /// <summary>
+    /// Optional: Working directory override for the launched process (relative to DataRoot or absolute).
+    /// </summary>
+    [ObservableProperty] private string? _workingDirectory;
+
+    /// <summary>
     /// Optional: Path to a WINE prefix directory (relative to library root or absolute)
     /// </summary>
     [ObservableProperty] private string? _prefixPath;

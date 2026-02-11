@@ -602,6 +602,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Hint.TimePlayed", resourceCulture);
             }
         }
+
+        public static string Hint_WorkingDirectory {
+            get {
+                return ResourceManager.GetString("Hint.WorkingDirectory", resourceCulture);
+            }
+        }
         
         public static string Hint_TmdbKey {
             get {
@@ -666,6 +672,30 @@ namespace Retromind.Resources {
         public static string Launch_LauncherPathHint {
             get {
                 return ResourceManager.GetString("Launch.LauncherPathHint", resourceCulture);
+            }
+        }
+
+        public static string Launch_WorkingDirectory {
+            get {
+                return ResourceManager.GetString("Launch.WorkingDirectory", resourceCulture);
+            }
+        }
+
+        public static string Launch_WorkingDirectoryHint {
+            get {
+                return ResourceManager.GetString("Launch.WorkingDirectoryHint", resourceCulture);
+            }
+        }
+
+        public static string Launch_WorkingDirectoryEffectiveLabel {
+            get {
+                return ResourceManager.GetString("Launch.WorkingDirectoryEffectiveLabel", resourceCulture);
+            }
+        }
+
+        public static string Launch_WorkingDirectoryNotSet {
+            get {
+                return ResourceManager.GetString("Launch.WorkingDirectoryNotSet", resourceCulture);
             }
         }
         

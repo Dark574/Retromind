@@ -117,6 +117,32 @@
                                         Command="{Binding ChangePrimaryFileCommand}" />
                             </Grid>
                         </StackPanel>
+
+                        <!-- Working directory override -->
+                        <StackPanel Margin="0,10,0,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                <TextBlock Text="{x:Static p:Strings.Launch_WorkingDirectory}" VerticalAlignment="Center"/>
+                                <Border Background="LightGray" CornerRadius="10" Width="18" Height="18" Margin="8,0,0,0"
+                                        ToolTip.Tip="{x:Static p:Strings.Hint_WorkingDirectory}"
+                                        Cursor="Help">
+                                    <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               FontSize="12" FontWeight="Bold" Foreground="Gray"/>
+                                </Border>
+                            </StackPanel>
+                            <Grid ColumnDefinitions="*, 10, Auto">
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding WorkingDirectory}"
+                                         Watermark="{x:Static p:Strings.Launch_WorkingDirectoryHint}" />
+                                <Button Grid.Column="2"
+                                        Content="Browse..."
+                                        Command="{Binding BrowseWorkingDirectoryCommand}" />
+                            </Grid>
+                            <TextBlock Opacity="0.7" FontSize="11">
+                                <Run Text="{x:Static p:Strings.Launch_WorkingDirectoryEffectiveLabel}" />
+                                <Run Text=" " />
+                                <Run Text="{Binding EffectiveWorkingDirectory}" />
+                            </TextBlock>
+                        </StackPanel>
                         
                         <!-- Process monitoring -->
                         <StackPanel>

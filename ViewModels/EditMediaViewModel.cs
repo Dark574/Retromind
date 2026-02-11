@@ -1214,6 +1214,10 @@ public partial class EditMediaViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PreviewText))]
     private string? _launcherArgs;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewText))]
+    private string _workingDirectory = string.Empty;
     
     /// <summary>
     /// Ensures that switching from "manual emulator" defaults to a proper
@@ -1281,6 +1285,13 @@ public partial class EditMediaViewModel : ViewModelBase
         CopyPreviewCommand.NotifyCanExecuteChanged();
     }
 
+    partial void OnWorkingDirectoryChanged(string value)
+    {
+        OnPropertyChanged(nameof(PreviewText));
+        OnPropertyChanged(nameof(EffectiveWorkingDirectory));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
+
     partial void OnTitleChanged(string value)
     {
         CopyAssetPrefixCommand.NotifyCanExecuteChanged();
@@ -1320,6 +1331,7 @@ public partial class EditMediaViewModel : ViewModelBase
     public IAsyncRelayCommand DeleteAssetCommand { get; }
     
     public IAsyncRelayCommand BrowseLauncherCommand { get; }
+    public IAsyncRelayCommand BrowseWorkingDirectoryCommand { get; }
     public IRelayCommand<Window?> SaveAndCloseCommand { get; }
     public IRelayCommand<Window?> CancelAndCloseCommand { get; }
 
@@ -1368,6 +1380,7 @@ public partial class EditMediaViewModel : ViewModelBase
 
         // General commands.
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
+        BrowseWorkingDirectoryCommand = new AsyncRelayCommand(BrowseWorkingDirectoryAsync);
         
         // Generic asset commands
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
@@ -1512,6 +1525,7 @@ public partial class EditMediaViewModel : ViewModelBase
         // Load launch configuration
         LauncherPath = _originalItem.LauncherPath;
         OverrideWatchProcess = _originalItem.OverrideWatchProcess ?? string.Empty;
+        WorkingDirectory = _originalItem.WorkingDirectory ?? string.Empty;
         
         // Prefix
         PrefixPath = _originalItem.PrefixPath ?? string.Empty;
@@ -1773,6 +1787,13 @@ public partial class EditMediaViewModel : ViewModelBase
 
                 return $"{env} {command}".Trim();
             }
+
+            string WrapPreview(string command)
+            {
+                var withEnv = WithEnvPrefix(command);
+                var withCwd = ApplyWorkingDirectoryPreview(withEnv);
+                return $"> {withCwd}".Trim();
+            }
             
             var selectedEmulator = ResolveSelectedEmulatorConfig();
 
@@ -1799,7 +1820,7 @@ public partial class EditMediaViewModel : ViewModelBase
                     ? BuildWrappedCommandLine(inner, wrappers)
                     : inner;
 
-                return $"> {WithEnvPrefix(final)}".Trim();
+                return WrapPreview(final);
             }
 
             // --- Manual emulator (no profile selected) ---
@@ -1827,7 +1848,7 @@ public partial class EditMediaViewModel : ViewModelBase
                     ? BuildWrappedCommandLine(inner, wrappers)
                     : inner;
 
-                return $"> {WithEnvPrefix(final)}".Trim();
+                return WrapPreview(final);
             }
 
             // --- Native execution (direct or via wrappers) ---
@@ -1844,10 +1865,23 @@ public partial class EditMediaViewModel : ViewModelBase
                     ? BuildWrappedCommandLine(inner, wrappers)
                     : inner;
 
-                return $"> {WithEnvPrefix(final)}".Trim();
+                return WrapPreview(final);
             }
 
             return string.Empty;
+        }
+    }
+
+    public string EffectiveWorkingDirectory
+    {
+        get
+        {
+            var overridePath = NormalizeWorkingDirectoryForPreview(WorkingDirectory);
+            if (!string.IsNullOrWhiteSpace(overridePath))
+                return overridePath;
+
+            var launchDir = ResolveLaunchFileWorkingDirectory();
+            return string.IsNullOrWhiteSpace(launchDir) ? Strings.Launch_WorkingDirectoryNotSet : launchDir;
         }
     }
 
@@ -1889,6 +1923,51 @@ public partial class EditMediaViewModel : ViewModelBase
         return parts.Count == 0
             ? string.Empty
             : string.Join(' ', parts);
+    }
+
+    private string ApplyWorkingDirectoryPreview(string command)
+    {
+        var workingDir = NormalizeWorkingDirectoryForPreview(WorkingDirectory);
+        if (string.IsNullOrWhiteSpace(workingDir))
+            return command;
+
+        var quoted = QuoteForShell(workingDir);
+        return $"cd {quoted} && {command}";
+    }
+
+    private static string NormalizeWorkingDirectoryForPreview(string? workingDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(workingDirectory))
+            return string.Empty;
+
+        var trimmed = workingDirectory.Trim();
+        return Path.IsPathRooted(trimmed)
+            ? trimmed
+            : AppPaths.ResolveDataPath(trimmed);
+    }
+
+    private static string QuoteForShell(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return value;
+
+        return value.Contains(' ', StringComparison.Ordinal) ||
+               value.Contains('\t', StringComparison.Ordinal)
+            ? $"\"{value}\""
+            : value;
+    }
+
+    private string? ResolveLaunchFileWorkingDirectory()
+    {
+        var launchPath = _originalItem.GetPrimaryLaunchPath();
+        if (string.IsNullOrWhiteSpace(launchPath))
+            return null;
+
+        if (Directory.Exists(launchPath))
+            return launchPath;
+
+        var dir = Path.GetDirectoryName(launchPath);
+        return string.IsNullOrWhiteSpace(dir) ? string.Empty : dir;
     }
     
     /// <summary>
@@ -2360,8 +2439,10 @@ public partial class EditMediaViewModel : ViewModelBase
 
         // Notify UI about the change:
         // - display path
+        // - effective working directory
         // - preview command line (uses GetPrimaryLaunchPath())
         OnPropertyChanged(nameof(PrimaryFileDisplayPath));
+        OnPropertyChanged(nameof(EffectiveWorkingDirectory));
         OnPropertyChanged(nameof(PreviewText));
         CopyPreviewCommand.NotifyCanExecuteChanged();
     }
@@ -2376,6 +2457,34 @@ public partial class EditMediaViewModel : ViewModelBase
         });
 
         if (result != null && result.Count > 0) LauncherPath = result[0].Path.LocalPath;
+    }
+
+    private async Task BrowseWorkingDirectoryAsync()
+    {
+        if (StorageProvider == null) return;
+
+        var result = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select working directory",
+            AllowMultiple = false
+        });
+
+        if (result == null || result.Count == 0)
+            return;
+
+        var path = result[0].Path.LocalPath;
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        if (_settings.PreferPortableLaunchPaths &&
+            TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
+        {
+            WorkingDirectory = relativePath;
+        }
+        else
+        {
+            WorkingDirectory = path;
+        }
     }
 
     private void Save()
@@ -2412,6 +2521,10 @@ public partial class EditMediaViewModel : ViewModelBase
         
         // Always store per-item launcher arguments (used for both Native and Emulator modes)
         _originalItem.LauncherArgs = LauncherArgs;
+
+        _originalItem.WorkingDirectory = string.IsNullOrWhiteSpace(WorkingDirectory)
+            ? null
+            : WorkingDirectory.Trim();
 
         // Always store process monitor override (null when empty)
         _originalItem.OverrideWatchProcess = string.IsNullOrWhiteSpace(OverrideWatchProcess)

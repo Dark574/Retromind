@@ -141,6 +141,7 @@
     <data name="Hint.IgdbCredentials" xml:space="preserve"><value>(Optional: Für Standardzugang leer lassen)</value></data>
     <data name="Hint.Required" xml:space="preserve"><value>(Erforderlich)</value></data>
     <data name="Hint.TimePlayed" xml:space="preserve"><value>Nur für Steam/GOG/Skripte nötig. Name des eigentlichen Spiel-Prozesses (ohne .exe), damit die Spielzeit korrekt erfasst wird.</value></data>
+    <data name="Hint.WorkingDirectory" xml:space="preserve"><value>Optional. Wenn leer, wird der Ordner der Startdatei verwendet. Beeinflusst relative Pfade.</value></data>
     <data name="Hint.TmdbKey" xml:space="preserve"><value>(Optional: Für Standardschlüssel leer lassen)</value></data>
 
     <!-- IMPORT -->
@@ -156,6 +157,10 @@
     <data name="Launch.Config" xml:space="preserve"><value>Startkonfiguration</value></data>
     <data name="Launch.LauncherPath" xml:space="preserve"><value>Emulator- / Tool-Pfad</value></data>
     <data name="Launch.LauncherPathHint" xml:space="preserve"><value>z. B. /usr/bin/snes9x</value></data>
+    <data name="Launch.WorkingDirectory" xml:space="preserve"><value>Arbeitsverzeichnis</value></data>
+    <data name="Launch.WorkingDirectoryHint" xml:space="preserve"><value>z. B. /home/user/Spiele/MeinSpiel</value></data>
+    <data name="Launch.WorkingDirectoryEffectiveLabel" xml:space="preserve"><value>Effektiv:</value></data>
+    <data name="Launch.WorkingDirectoryNotSet" xml:space="preserve"><value>nicht gesetzt</value></data>
 
     <!-- MEDIA -->
     <data name="Media.AddMusic" xml:space="preserve"><value>+ Musik</value></data>

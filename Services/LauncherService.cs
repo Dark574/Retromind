@@ -126,6 +126,7 @@ public sealed class LauncherService
             Arguments = item.LauncherArgs ?? string.Empty,
             UseShellExecute = !hasEnvOverrides
         };
+        startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, target, launchFilePath: null);
         ApplyEnvironmentOverrides(startInfo, environmentOverrides);
         return Process.Start(startInfo);
     }
@@ -148,7 +149,7 @@ public sealed class LauncherService
                 FileName = fileName
             };
 
-            startInfo.WorkingDirectory = ResolveWorkingDirectory(fileName, launchFilePath);
+            startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, fileName, launchFilePath);
 
             // Linux-only project: WINEPREFIX is only applied when explicitly requested
             // Rules:
@@ -499,17 +500,50 @@ public sealed class LauncherService
         return sanitized;
     }
 
-    private static string? ResolveWorkingDirectory(string fileName, string? launchFilePath)
+    private static string ResolveWorkingDirectory(string? overrideDirectory, string fileName, string? launchFilePath)
     {
-        // Prefer launcher directory ONLY if it's a real file path.
-        if (Path.IsPathRooted(fileName) && File.Exists(fileName))
-            return Path.GetDirectoryName(fileName) ?? string.Empty;
+        var overridePath = ResolveWorkingDirectoryOverride(overrideDirectory);
+        if (!string.IsNullOrWhiteSpace(overridePath))
+        {
+            if (!Directory.Exists(overridePath))
+                Debug.WriteLine($"[Launcher] Working directory not found: {overridePath}");
 
-        // Fallback to media file directory.
-        if (!string.IsNullOrWhiteSpace(launchFilePath) && File.Exists(launchFilePath))
-            return Path.GetDirectoryName(launchFilePath) ?? string.Empty;
+            return overridePath;
+        }
+
+        // Prefer the media file directory if we have one.
+        if (!string.IsNullOrWhiteSpace(launchFilePath))
+        {
+            if (Directory.Exists(launchFilePath))
+                return launchFilePath;
+
+            if (File.Exists(launchFilePath))
+                return Path.GetDirectoryName(launchFilePath) ?? string.Empty;
+        }
+
+        // Fall back to the launcher/executable directory if it's a real path.
+        if (Path.IsPathRooted(fileName))
+        {
+            if (Directory.Exists(fileName))
+                return fileName;
+
+            if (File.Exists(fileName))
+                return Path.GetDirectoryName(fileName) ?? string.Empty;
+        }
 
         return string.Empty;
+    }
+
+    private static string? ResolveWorkingDirectoryOverride(string? overrideDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(overrideDirectory))
+            return null;
+
+        var trimmed = overrideDirectory.Trim();
+        if (Path.IsPathRooted(trimmed))
+            return trimmed;
+
+        return AppPaths.ResolveDataPath(trimmed);
     }
 
     private static bool LooksLikeUriOrProtocol(string value)
