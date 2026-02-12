@@ -239,16 +239,38 @@ public partial class MainWindowViewModel
         if (targetNode == null) targetNode = SelectedNode;
         if (targetNode == null || CurrentWindow is not { } owner) return;
 
-        var items = await _storeService.ImportHeroicGogAsync();
+        var discoveredHeroicConfigs = new List<string>();
+        var items = await _storeService.ImportHeroicGogAsync(discoveredConfigPaths: discoveredHeroicConfigs);
         if (items.Count == 0)
         {
-            await ShowConfirmDialog(owner, Strings.Dialog_NoGogInstallationsFound);
-            return;
+            var tryManual = await ShowConfirmDialog(owner, Strings.Dialog_NoGogInstallationsFound_SelectPath);
+            if (!tryManual) return;
+
+            var storageProvider = StorageProvider ?? owner.StorageProvider;
+            var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = Strings.Dialog_SelectHeroicGogFolder,
+                AllowMultiple = false
+            });
+
+            if (folders.Count == 0) return;
+            var manualPath = folders[0].Path.LocalPath;
+
+            discoveredHeroicConfigs.Clear();
+            items = await _storeService.ImportHeroicGogAsync(manualPath, discoveredHeroicConfigs);
+
+            if (items.Count == 0)
+            {
+                await ShowConfirmDialog(owner, Strings.Dialog_NoGogInstallationsFound);
+                return;
+            }
         }
 
         var message = string.Format(Strings.Dialog_ConfirmImportGogFormat, items.Count);
         if (!await ShowConfirmDialog(owner, message))
             return;
+
+        StoreHeroicGogConfigPaths(discoveredHeroicConfigs);
 
         var itemsToAdd = items
             .Where(item => !targetNode.Items.Any(x => x.Title == item.Title))
@@ -269,6 +291,49 @@ public partial class MainWindowViewModel
         });
 
         await SaveData();
+    }
+
+    private void StoreHeroicGogConfigPaths(IEnumerable<string> configPaths)
+    {
+        if (configPaths == null)
+            return;
+
+        _currentSettings.HeroicGogConfigPaths ??= new List<string>();
+
+        var existing = new HashSet<string>(_currentSettings.HeroicGogConfigPaths, StringComparer.OrdinalIgnoreCase);
+        var changed = false;
+
+        foreach (var path in configPaths)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                continue;
+
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(path);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (string.Equals(Path.GetFileName(fullPath), "installed.json", StringComparison.OrdinalIgnoreCase))
+            {
+                var parent = Directory.GetParent(fullPath)?.FullName;
+                if (!string.IsNullOrWhiteSpace(parent))
+                    fullPath = parent;
+            }
+
+            if (existing.Add(fullPath))
+            {
+                _currentSettings.HeroicGogConfigPaths.Add(fullPath);
+                changed = true;
+            }
+        }
+
+        if (changed)
+            SaveSettingsOnly();
     }
 
     private void StoreSteamLibraryPaths(IEnumerable<string> steamAppsPaths)

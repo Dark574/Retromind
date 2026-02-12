@@ -32,6 +32,12 @@ public class AppSettings
     /// If empty, Retromind uses automatic discovery only.
     /// </summary>
     public List<string> SteamLibraryPaths { get; set; } = new();
+
+    /// <summary>
+    /// Optional manual Heroic GOG config paths (heroic folder, gog_store folder, or installed.json).
+    /// If empty, Retromind uses automatic discovery only.
+    /// </summary>
+    public List<string> HeroicGogConfigPaths { get; set; } = new();
     
     // --- Native wrapper defaults (C: global -> node -> item) ---
 

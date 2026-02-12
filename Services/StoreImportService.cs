@@ -30,9 +30,9 @@ public class StoreImportService
         Path.Combine(".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "steamapps")
     };
 
-    // Path for Heroic Launcher configuration (GOG store).
-    private readonly string _heroicConfigPath = 
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config/heroic/gog_store/installed.json");
+    // Path suffix for Heroic Launcher configuration (GOG store).
+    private readonly string _heroicGogConfigSuffix =
+        Path.Combine(".config", "heroic", "gog_store", "installed.json");
 
     // Regex to parse Steam's ACF format lines: "key"		"value"
     // Captures the key in group 1 and the value in group 2.
@@ -72,6 +72,7 @@ public class StoreImportService
 
             try
             {
+                var seenAppIds = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var libraryPath in libraryPaths)
                 {
                     // Steam uses appmanifest_*.acf files for installed games
@@ -79,9 +80,11 @@ public class StoreImportService
 
                     foreach (var file in acfFiles)
                     {
-                        var item = await ParseSteamAcfFileAsync(file);
-                        if (item != null)
+                        var (item, appId) = await ParseSteamAcfFileAsync(file);
+                        if (item != null && !string.IsNullOrWhiteSpace(appId))
                         {
+                            if (!seenAppIds.Add(appId))
+                                continue;
                             results.Add(item);
                         }
                     }
@@ -290,7 +293,7 @@ public class StoreImportService
     /// <summary>
     /// Parses a single Steam ACF manifest file.
     /// </summary>
-    private async Task<MediaItem?> ParseSteamAcfFileAsync(string filePath)
+    private async Task<(MediaItem? Item, string? AppId)> ParseSteamAcfFileAsync(string filePath)
     {
         try
         {
@@ -313,17 +316,18 @@ public class StoreImportService
                 if (name != null && appId != null) break; // Found everything we need
             }
 
-            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(appId)) return null;
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(appId))
+                return (null, null);
 
             // Filter internal tools
             if (name.Contains("Steamworks Common Redist") || 
                 name.StartsWith("Proton", StringComparison.OrdinalIgnoreCase) ||
                 name.StartsWith("Steam Linux Runtime", StringComparison.OrdinalIgnoreCase))
             {
-                return null;
+                return (null, null);
             }
 
-            return new MediaItem
+            return (new MediaItem
             {
                 Title = name,
                 // Use the steam command to launch the game (Steam will handle the URL argument).
@@ -341,47 +345,62 @@ public class StoreImportService
                 MediaType = MediaType.Command,
                 Description = "Imported from Steam",
                 Developer = "Valve / Steam"
-            };
+            }, appId);
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[StoreImport] Failed to parse ACF '{filePath}': {ex.Message}");
-            return null;
+            return (null, null);
         }
     }
 
     /// <summary>
     /// Imports games installed via Heroic Games Launcher (specifically GOG support).
     /// </summary>
-    public async Task<List<MediaItem>> ImportHeroicGogAsync()
+    public async Task<List<MediaItem>> ImportHeroicGogAsync(
+        string? manualConfigPath = null,
+        ICollection<string>? discoveredConfigPaths = null)
     {
         var results = new List<MediaItem>();
 
-        if (!File.Exists(_heroicConfigPath))
+        var configPaths = GetHeroicGogConfigPaths(manualConfigPath);
+        if (configPaths.Count == 0)
         {
             Debug.WriteLine("[StoreImport] Heroic GOG config not found.");
             return results;
         }
 
+        if (discoveredConfigPaths != null)
+        {
+            foreach (var path in configPaths)
+                discoveredConfigPaths.Add(path);
+        }
+
         try
         {
-            var json = await File.ReadAllTextAsync(_heroicConfigPath);
-            var rootNode = JsonSerializer.Deserialize<JsonNode>(json);
-            
-            // Heroic's JSON structure for installed.json:
-            // { "installed": [ { "title": "...", "appName": "...", ... }, ... ] }
-            
-            if (rootNode is JsonObject obj && obj.TryGetPropertyValue("installed", out var installedNode))
+            foreach (var configPath in configPaths)
             {
-                var gamesList = installedNode?.AsArray();
-                if (gamesList != null)
+                if (!File.Exists(configPath))
+                    continue;
+
+                var json = await File.ReadAllTextAsync(configPath);
+                var rootNode = JsonSerializer.Deserialize<JsonNode>(json);
+
+                // Heroic's JSON structure for installed.json:
+                // { "installed": [ { "title": "...", "appName": "...", ... }, ... ] }
+
+                if (rootNode is JsonObject obj && obj.TryGetPropertyValue("installed", out var installedNode))
                 {
-                    foreach (var gameNode in gamesList)
+                    var gamesList = installedNode?.AsArray();
+                    if (gamesList != null)
                     {
-                        var item = ParseHeroicGameNode(gameNode);
-                        if (item != null)
+                        foreach (var gameNode in gamesList)
                         {
-                            results.Add(item);
+                            var item = ParseHeroicGameNode(gameNode);
+                            if (item != null)
+                            {
+                                results.Add(item);
+                            }
                         }
                     }
                 }
@@ -393,6 +412,93 @@ public class StoreImportService
         }
 
         return results;
+    }
+
+    private List<string> GetHeroicGogConfigPaths(string? manualConfigPath)
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var manualResolved = ResolveHeroicGogConfigPath(manualConfigPath);
+        if (!string.IsNullOrWhiteSpace(manualResolved) && File.Exists(manualResolved))
+            paths.Add(Path.GetFullPath(manualResolved));
+
+        if (_settings.HeroicGogConfigPaths is { Count: > 0 })
+        {
+            foreach (var storedPath in _settings.HeroicGogConfigPaths)
+            {
+                var resolved = ResolveHeroicGogConfigPath(storedPath);
+                if (!string.IsNullOrWhiteSpace(resolved) && File.Exists(resolved))
+                    paths.Add(Path.GetFullPath(resolved));
+            }
+        }
+
+        foreach (var candidate in GetHeroicGogCandidatePaths())
+        {
+            if (!File.Exists(candidate))
+                continue;
+
+            paths.Add(Path.GetFullPath(candidate));
+        }
+
+        return paths.ToList();
+    }
+
+    private IEnumerable<string> GetHeroicGogCandidatePaths()
+    {
+        var xdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        if (!string.IsNullOrWhiteSpace(xdgConfig) && Path.IsPathRooted(xdgConfig))
+            yield return Path.Combine(xdgConfig, "heroic", "gog_store", "installed.json");
+
+        foreach (var home in GetHomeCandidates())
+            yield return Path.Combine(home, _heroicGogConfigSuffix);
+    }
+
+    private static string? ResolveHeroicGogConfigPath(string? inputPath)
+    {
+        if (string.IsNullOrWhiteSpace(inputPath))
+            return null;
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(inputPath);
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (File.Exists(fullPath))
+            return fullPath;
+
+        if (!Directory.Exists(fullPath))
+            return null;
+
+        var fileName = Path.GetFileName(fullPath);
+
+        if (string.Equals(fileName, "gog_store", StringComparison.OrdinalIgnoreCase))
+        {
+            var candidate = Path.Combine(fullPath, "installed.json");
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        if (string.Equals(fileName, "heroic", StringComparison.OrdinalIgnoreCase))
+        {
+            var candidate = Path.Combine(fullPath, "gog_store", "installed.json");
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        var gogStoreCandidate = Path.Combine(fullPath, "gog_store", "installed.json");
+        if (File.Exists(gogStoreCandidate))
+            return gogStoreCandidate;
+
+        var installedCandidate = Path.Combine(fullPath, "installed.json");
+        if (File.Exists(installedCandidate))
+            return installedCandidate;
+
+        return null;
     }
 
     private MediaItem? ParseHeroicGameNode(JsonNode? gameNode)

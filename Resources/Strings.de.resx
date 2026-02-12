@@ -124,6 +124,8 @@
     <data name="Dialog_SelectSteamLibraryFolder" xml:space="preserve"><value>Steam-Bibliotheksordner auswählen (enthält steamapps)</value></data>
     <data name="Dialog_ConfirmImportSteamFormat" xml:space="preserve"><value>{0} Steam-Spiele gefunden. In '{1}' importieren?</value></data>
     <data name="Dialog_NoGogInstallationsFound" xml:space="preserve"><value>Keine Heroic/GOG-Installationen gefunden.</value></data>
+    <data name="Dialog_NoGogInstallationsFound_SelectPath" xml:space="preserve"><value>Keine Heroic/GOG-Installationen gefunden. Heroic-Config-Ordner manuell auswählen? (Bitte den Ordner wählen, der 'gog_store/installed.json' enthält, oder direkt den Ordner 'gog_store'.)</value></data>
+    <data name="Dialog_SelectHeroicGogFolder" xml:space="preserve"><value>Heroic-Config-Ordner auswählen (enthält gog_store/installed.json)</value></data>
     <data name="Dialog_ConfirmImportGogFormat" xml:space="preserve"><value>{0} GOG-Spiele gefunden. Importieren?</value></data>
     <data name="Dialog_ConfirmCombineMultiDiscFormat" xml:space="preserve"><value>Du hast {0} Dateien ausgewählt. Soll daraus ein Multi-Disc-Eintrag erstellt werden?</value></data>
 
@@ -167,6 +169,9 @@
     <data name="Settings_SectionSteamLibrary" xml:space="preserve"><value>Steam-Bibliothekspfade</value></data>
     <data name="Settings_SteamLibraryPathsHint" xml:space="preserve"><value>Optional. Füge den Steam-Bibliotheksordner hinzu (z. B. /home/user/.local/share/Steam) oder direkt den Ordner 'steamapps'.</value></data>
     <data name="Settings_SteamLibraryPathWatermark" xml:space="preserve"><value>z. B. /home/user/.local/share/Steam</value></data>
+    <data name="Settings_SectionHeroicGog" xml:space="preserve"><value>Heroic / GOG Pfade</value></data>
+    <data name="Settings_HeroicGogPathsHint" xml:space="preserve"><value>Optional. Füge den Heroic-Config-Ordner hinzu (z. B. /home/user/.config/heroic) oder direkt den Ordner 'gog_store'.</value></data>
+    <data name="Settings_HeroicGogPathWatermark" xml:space="preserve"><value>z. B. /home/user/.config/heroic</value></data>
 
     <!-- LAUNCH -->
     <data name="Launch.Arguments" xml:space="preserve"><value>Argumente</value></data>

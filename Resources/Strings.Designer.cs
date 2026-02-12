@@ -542,6 +542,18 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Dialog_NoGogInstallationsFound", resourceCulture);
             }
         }
+
+        public static string Dialog_NoGogInstallationsFound_SelectPath {
+            get {
+                return ResourceManager.GetString("Dialog_NoGogInstallationsFound_SelectPath", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_SelectHeroicGogFolder {
+            get {
+                return ResourceManager.GetString("Dialog_SelectHeroicGogFolder", resourceCulture);
+            }
+        }
         
         public static string Dialog_ConfirmImportGogFormat {
             get {
@@ -1296,6 +1308,24 @@ namespace Retromind.Resources {
         public static string Settings_SteamLibraryPathWatermark {
             get {
                 return ResourceManager.GetString("Settings_SteamLibraryPathWatermark", resourceCulture);
+            }
+        }
+
+        public static string Settings_SectionHeroicGog {
+            get {
+                return ResourceManager.GetString("Settings_SectionHeroicGog", resourceCulture);
+            }
+        }
+
+        public static string Settings_HeroicGogPathsHint {
+            get {
+                return ResourceManager.GetString("Settings_HeroicGogPathsHint", resourceCulture);
+            }
+        }
+
+        public static string Settings_HeroicGogPathWatermark {
+            get {
+                return ResourceManager.GetString("Settings_HeroicGogPathWatermark", resourceCulture);
             }
         }
         
