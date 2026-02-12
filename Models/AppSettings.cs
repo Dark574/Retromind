@@ -26,6 +26,12 @@ public class AppSettings
     /// Requires restart to take effect.
     /// </summary>
     public bool UsePortableHomeInAppImage { get; set; } = false;
+
+    /// <summary>
+    /// Optional manual Steam library paths (folders containing steamapps or steamapps itself).
+    /// If empty, Retromind uses automatic discovery only.
+    /// </summary>
+    public List<string> SteamLibraryPaths { get; set; } = new();
     
     // --- Native wrapper defaults (C: global -> node -> item) ---
 

@@ -119,6 +119,8 @@
     <data name="Dialog_ImportAssetTitle" xml:space="preserve"><value>Import {0}</value></data>
     <data name="Dialog_FileExtensionsPrompt" xml:space="preserve"><value>File extensions (comma separated):</value></data>
     <data name="Dialog_NoSteamGamesFound" xml:space="preserve"><value>No Steam games found.</value></data>
+    <data name="Dialog_NoSteamGamesFound_SelectPath" xml:space="preserve"><value>No Steam games found. Select your Steam library folder manually? (Choose the folder that contains 'steamapps' or the 'steamapps' folder itself.)</value></data>
+    <data name="Dialog_SelectSteamLibraryFolder" xml:space="preserve"><value>Select Steam library folder (contains steamapps)</value></data>
     <data name="Dialog_ConfirmImportSteamFormat" xml:space="preserve"><value>Found {0} Steam games. Import to '{1}'?</value></data>
     <data name="Dialog_NoGogInstallationsFound" xml:space="preserve"><value>No Heroic/GOG installations found.</value></data>
     <data name="Dialog_ConfirmImportGogFormat" xml:space="preserve"><value>Found {0} GOG games. Import?</value></data>
@@ -156,6 +158,14 @@
     <data name="Import.Gog" xml:space="preserve"><value>GOG (via Heroic)</value></data>
     <data name="Import.Roms" xml:space="preserve"><value>Local Folder (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Steam library</value></data>
+
+    <!-- SETTINGS -->
+    <data name="Settings.TabMisc" xml:space="preserve"><value>Misc</value></data>
+    <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Launch paths</value></data>
+    <data name="Settings_SectionMusic" xml:space="preserve"><value>Music</value></data>
+    <data name="Settings_SectionSteamLibrary" xml:space="preserve"><value>Steam library paths</value></data>
+    <data name="Settings_SteamLibraryPathsHint" xml:space="preserve"><value>Optional. Add the Steam library root (e.g. /home/user/.local/share/Steam) or the 'steamapps' folder.</value></data>
+    <data name="Settings_SteamLibraryPathWatermark" xml:space="preserve"><value>e.g. /home/user/.local/share/Steam</value></data>
   
     <!-- LAUNCH -->
     <data name="Launch.Arguments" xml:space="preserve"><value>Arguments</value></data>
@@ -261,7 +271,6 @@
     <data name="Settings.ConvertExistingLaunchPaths" xml:space="preserve"><value>Convert existing launch paths</value></data>
     <data name="Settings.DefaultArguments" xml:space="preserve"><value>Default Arguments</value></data>
     <data name="Settings.ExecutablePath" xml:space="preserve"><value>Executable Path</value></data>
-    <data name="Settings.GlobalSettingsHint" xml:space="preserve"><value>Define emulators and metadata sources here to use them quickly in your library.</value></data>
     <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Play random music</value></data>
     <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>When enabled, selecting an item in the main grid automatically plays its music asset (if available).</value></data>
     <data name="Settings.PortableHome" xml:space="preserve"><value>Use portable HOME/XDG for AppImage</value></data>

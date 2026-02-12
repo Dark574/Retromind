@@ -180,16 +180,37 @@ public partial class MainWindowViewModel
         if (targetNode == null) targetNode = SelectedNode;
         if (targetNode == null || CurrentWindow is not { } owner) return;
 
-        var items = await _storeService.ImportSteamGamesAsync();
+        var discoveredSteamApps = new List<string>();
+        var items = await _storeService.ImportSteamGamesAsync(discoveredSteamAppsPaths: discoveredSteamApps);
         if (items.Count == 0)
         {
-            await ShowConfirmDialog(owner, Strings.Dialog_NoSteamGamesFound);
-            return;
+            var tryManual = await ShowConfirmDialog(owner, Strings.Dialog_NoSteamGamesFound_SelectPath);
+            if (!tryManual) return;
+
+            var storageProvider = StorageProvider ?? owner.StorageProvider;
+            var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = Strings.Dialog_SelectSteamLibraryFolder,
+                AllowMultiple = false
+            });
+
+            if (folders.Count == 0) return;
+            var manualPath = folders[0].Path.LocalPath;
+            discoveredSteamApps.Clear();
+            items = await _storeService.ImportSteamGamesAsync(manualPath, discoveredSteamApps);
+
+            if (items.Count == 0)
+            {
+                await ShowConfirmDialog(owner, Strings.Dialog_NoSteamGamesFound);
+                return;
+            }
         }
 
         var message = string.Format(Strings.Dialog_ConfirmImportSteamFormat, items.Count, targetNode.Name);
         if (!await ShowConfirmDialog(owner, message))
             return;
+
+        StoreSteamLibraryPaths(discoveredSteamApps);
 
         // Determine adds off-thread-safe (pure checks)
         var itemsToAdd = items
@@ -248,6 +269,42 @@ public partial class MainWindowViewModel
         });
 
         await SaveData();
+    }
+
+    private void StoreSteamLibraryPaths(IEnumerable<string> steamAppsPaths)
+    {
+        if (steamAppsPaths == null)
+            return;
+
+        _currentSettings.SteamLibraryPaths ??= new List<string>();
+
+        var existing = new HashSet<string>(_currentSettings.SteamLibraryPaths, StringComparer.OrdinalIgnoreCase);
+        var changed = false;
+
+        foreach (var path in steamAppsPaths)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                continue;
+
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(path);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (existing.Add(fullPath))
+            {
+                _currentSettings.SteamLibraryPaths.Add(fullPath);
+                changed = true;
+            }
+        }
+
+        if (changed)
+            SaveSettingsOnly();
     }
 
     // --- Media & Scraping Actions ---

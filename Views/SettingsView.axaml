@@ -10,32 +10,6 @@
         WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="Auto, *, Auto" Margin="20">
-
-        <!-- Header Hint -->
-        <StackPanel Grid.Row="0" Orientation="Vertical" Spacing="5" Margin="0,0,0,15">
-            <TextBlock Text="{x:Static p:Strings.Settings_GlobalSettingsHint}"
-                       Opacity="0.6" FontStyle="Italic" />
-
-            <StackPanel Orientation="Horizontal" Spacing="10">
-                <CheckBox IsChecked="{Binding PreferPortableLaunchPaths}"
-                          Content="{x:Static p:Strings.Settings_PortableLaunchPaths}" />
-
-                <Button Content="{x:Static p:Strings.Settings_ConvertExistingLaunchPaths}"
-                        Command="{Binding ConvertExistingToPortableCommand}" />
-            </StackPanel>
-            <StackPanel Orientation="Vertical" Spacing="4">
-
-                <!-- Toggle: redirect HOME + XDG dirs when running as AppImage -->
-                <CheckBox Content="{x:Static p:Strings.Settings_PortableHome}"
-                          IsChecked="{Binding UsePortableHomeInAppImage}"
-                          ToolTip.Tip="{x:Static p:Strings.Settings_PortableHome_Hint}" />
-
-                <!-- Toggle: auto-play music on selection in main grid -->
-                <CheckBox Content="{x:Static p:Strings.Settings_PlayRandomMusic}"
-                          IsChecked="{Binding EnableSelectionMusicPreview}"
-                          ToolTip.Tip="{x:Static p:Strings.Settings_PlayRandomMusic_Hint}" />
-            </StackPanel>
-        </StackPanel>
         
         <!-- Main Content with Tabs -->
         <TabControl Grid.Row="1">
@@ -313,6 +287,54 @@
                                VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.5"
                                IsVisible="{Binding SelectedScraper, Converter={x:Static ObjectConverters.IsNull}}" />
                 </Grid>
+            </TabItem>
+
+            <!-- TAB 3: MISC -->
+            <TabItem Header="{x:Static p:Strings.Settings_TabMisc}">
+                <ScrollViewer>
+                    <StackPanel Spacing="15" Margin="0,0,10,0">
+                        <TextBlock Text="{x:Static p:Strings.Settings_SectionLaunchPaths}" FontWeight="Bold" FontSize="16" />
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <CheckBox IsChecked="{Binding PreferPortableLaunchPaths}"
+                                      Content="{x:Static p:Strings.Settings_PortableLaunchPaths}" />
+                            <Button Content="{x:Static p:Strings.Settings_ConvertExistingLaunchPaths}"
+                                    Command="{Binding ConvertExistingToPortableCommand}" />
+                        </StackPanel>
+                        <CheckBox Content="{x:Static p:Strings.Settings_PortableHome}"
+                                  IsChecked="{Binding UsePortableHomeInAppImage}"
+                                  ToolTip.Tip="{x:Static p:Strings.Settings_PortableHome_Hint}" />
+
+                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
+
+                        <TextBlock Text="{x:Static p:Strings.Settings_SectionMusic}" FontWeight="Bold" FontSize="16" />
+                        <CheckBox Content="{x:Static p:Strings.Settings_PlayRandomMusic}"
+                                  IsChecked="{Binding EnableSelectionMusicPreview}"
+                                  ToolTip.Tip="{x:Static p:Strings.Settings_PlayRandomMusic_Hint}" />
+
+                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
+
+                        <TextBlock Text="{x:Static p:Strings.Settings_SectionSteamLibrary}" FontWeight="Bold" FontSize="16" />
+                        <TextBlock Text="{x:Static p:Strings.Settings_SteamLibraryPathsHint}"
+                                   Opacity="0.6" TextWrapping="Wrap" />
+                        <ListBox ItemsSource="{Binding SteamLibraryPaths}"
+                                 SelectedItem="{Binding SelectedSteamLibraryPath}"
+                                 MinHeight="80" />
+                        <Grid ColumnDefinitions="*, Auto, Auto, Auto" ColumnSpacing="8">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding SteamLibraryPathInput}"
+                                     Watermark="{x:Static p:Strings.Settings_SteamLibraryPathWatermark}" />
+                            <Button Grid.Column="1"
+                                    Content="{x:Static p:Strings.Button_Browse}"
+                                    Command="{Binding BrowseSteamLibraryPathCommand}" />
+                            <Button Grid.Column="2"
+                                    Content="{x:Static p:Strings.Button_Add}"
+                                    Command="{Binding AddSteamLibraryPathCommand}" />
+                            <Button Grid.Column="3"
+                                    Content="{x:Static p:Strings.Button_Remove}"
+                                    Command="{Binding RemoveSteamLibraryPathCommand}" />
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
             
         </TabControl>

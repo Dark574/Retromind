@@ -16,13 +16,18 @@ namespace Retromind.Services;
 /// </summary>
 public class StoreImportService
 {
+    private const string PasswdPath = "/etc/passwd";
+
+    private readonly AppSettings _settings;
+
     // --- Configuration ---
 
     // Known default paths for Steam libraries on Linux.
-    private readonly string[] _steamPaths = 
+    private readonly string[] _steamPathSuffixes = 
     {
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam/steam/steamapps"),
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share/Steam/steamapps")
+        Path.Combine(".steam", "steam", "steamapps"),
+        Path.Combine(".local", "share", "Steam", "steamapps"),
+        Path.Combine(".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "steamapps")
     };
 
     // Path for Heroic Launcher configuration (GOG store).
@@ -32,36 +37,53 @@ public class StoreImportService
     // Regex to parse Steam's ACF format lines: "key"		"value"
     // Captures the key in group 1 and the value in group 2.
     private static readonly Regex SteamAcfRegex = new("\"(.+?)\"\\s+\"(.+?)\"", RegexOptions.Compiled);
+    private static readonly Regex SteamLibraryPathRegex = new("\"path\"\\s+\"(.+?)\"", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex SteamLibraryIndexRegex = new("\"\\d+\"\\s+\"(.+?)\"", RegexOptions.Compiled);
+
+    public StoreImportService(AppSettings settings)
+    {
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+    }
 
     /// <summary>
     /// Scans known Steam library folders for installed games.
     /// Filters out common runtime/tool entries (Proton, Steamworks).
     /// </summary>
-    public async Task<List<MediaItem>> ImportSteamGamesAsync()
+    public async Task<List<MediaItem>> ImportSteamGamesAsync(
+        string? manualLibraryPath = null,
+        ICollection<string>? discoveredSteamAppsPaths = null)
     {
         return await Task.Run(async () =>
         {
             var results = new List<MediaItem>();
             
-            // Find the first existing Steam library path
-            var foundPath = _steamPaths.FirstOrDefault(Directory.Exists);
-            if (foundPath == null)
+            var libraryPaths = await GetSteamLibraryPathsAsync(manualLibraryPath);
+            if (libraryPaths.Count == 0)
             {
                 Debug.WriteLine("[StoreImport] No Steam library found.");
                 return results;
             }
 
+            if (discoveredSteamAppsPaths != null)
+            {
+                foreach (var path in libraryPaths)
+                    discoveredSteamAppsPaths.Add(path);
+            }
+
             try
             {
-                // Steam uses appmanifest_*.acf files for installed games
-                var acfFiles = Directory.GetFiles(foundPath, "appmanifest_*.acf");
-
-                foreach (var file in acfFiles)
+                foreach (var libraryPath in libraryPaths)
                 {
-                    var item = await ParseSteamAcfFileAsync(file);
-                    if (item != null)
+                    // Steam uses appmanifest_*.acf files for installed games
+                    var acfFiles = Directory.GetFiles(libraryPath, "appmanifest_*.acf");
+
+                    foreach (var file in acfFiles)
                     {
-                        results.Add(item);
+                        var item = await ParseSteamAcfFileAsync(file);
+                        if (item != null)
+                        {
+                            results.Add(item);
+                        }
                     }
                 }
             }
@@ -72,6 +94,197 @@ public class StoreImportService
 
             return results;
         });
+    }
+
+    private async Task<List<string>> GetSteamLibraryPathsAsync(string? manualLibraryPath)
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var manualSteamApps = ResolveSteamAppsPath(manualLibraryPath);
+        if (!string.IsNullOrWhiteSpace(manualSteamApps) && Directory.Exists(manualSteamApps))
+            paths.Add(Path.GetFullPath(manualSteamApps));
+
+        if (_settings.SteamLibraryPaths is { Count: > 0 })
+        {
+            foreach (var storedPath in _settings.SteamLibraryPaths)
+            {
+                var resolved = ResolveSteamAppsPath(storedPath);
+                if (!string.IsNullOrWhiteSpace(resolved) && Directory.Exists(resolved))
+                    paths.Add(Path.GetFullPath(resolved));
+            }
+        }
+
+        foreach (var steamAppsPath in GetSteamAppsCandidatePaths())
+        {
+            if (Directory.Exists(steamAppsPath))
+            {
+                paths.Add(Path.GetFullPath(steamAppsPath));
+            }
+        }
+
+        // Read libraryfolders.vdf for additional libraries (new + old formats).
+        foreach (var steamAppsPath in paths.ToList())
+        {
+            var vdfPath = Path.Combine(steamAppsPath, "libraryfolders.vdf");
+            if (!File.Exists(vdfPath)) continue;
+
+            var libraryRoots = await ParseSteamLibraryFoldersAsync(vdfPath);
+            foreach (var root in libraryRoots)
+            {
+                if (string.IsNullOrWhiteSpace(root)) continue;
+
+                var steamApps = root.EndsWith("steamapps", StringComparison.OrdinalIgnoreCase)
+                    ? root
+                    : Path.Combine(root, "steamapps");
+
+                if (Directory.Exists(steamApps))
+                {
+                    paths.Add(Path.GetFullPath(steamApps));
+                }
+            }
+        }
+
+        return paths.ToList();
+    }
+
+    private IEnumerable<string> GetSteamAppsCandidatePaths()
+    {
+        foreach (var home in GetHomeCandidates())
+        {
+            foreach (var suffix in _steamPathSuffixes)
+                yield return Path.Combine(home, suffix);
+        }
+    }
+
+    private static string? ResolveSteamAppsPath(string? inputPath)
+    {
+        if (string.IsNullOrWhiteSpace(inputPath))
+            return null;
+
+        var fullPath = Path.GetFullPath(inputPath);
+        if (!Directory.Exists(fullPath))
+            return null;
+
+        var name = Path.GetFileName(fullPath);
+        if (string.Equals(name, "steamapps", StringComparison.OrdinalIgnoreCase))
+            return fullPath;
+
+        var candidate = Path.Combine(fullPath, "steamapps");
+        if (Directory.Exists(candidate))
+            return candidate;
+
+        if (string.Equals(name, "common", StringComparison.OrdinalIgnoreCase))
+        {
+            var parent = Directory.GetParent(fullPath)?.FullName;
+            if (!string.IsNullOrWhiteSpace(parent) &&
+                string.Equals(Path.GetFileName(parent), "steamapps", StringComparison.OrdinalIgnoreCase))
+            {
+                return parent;
+            }
+        }
+
+        try
+        {
+            if (Directory.GetFiles(fullPath, "appmanifest_*.acf").Length > 0)
+                return fullPath;
+        }
+        catch
+        {
+            // Ignore invalid or inaccessible folders.
+        }
+
+        return null;
+    }
+
+    private IEnumerable<string> GetHomeCandidates()
+    {
+        var currentHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrWhiteSpace(currentHome))
+            yield return currentHome;
+
+        if (!ShouldAddRealHomeFallback())
+            yield break;
+
+        var realHome = TryGetRealUserHomePath();
+        if (string.IsNullOrWhiteSpace(realHome))
+            yield break;
+
+        if (!string.Equals(currentHome, realHome, StringComparison.OrdinalIgnoreCase))
+            yield return realHome;
+    }
+
+    private bool ShouldAddRealHomeFallback()
+    {
+        if (!_settings.UsePortableHomeInAppImage)
+            return false;
+
+        var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
+        var appDir = Environment.GetEnvironmentVariable("APPDIR");
+        return !string.IsNullOrWhiteSpace(appImage) || !string.IsNullOrWhiteSpace(appDir);
+    }
+
+    private static string? TryGetRealUserHomePath()
+    {
+        try
+        {
+            var userName = Environment.UserName;
+            if (string.IsNullOrWhiteSpace(userName))
+                return null;
+
+            if (!File.Exists(PasswdPath))
+                return null;
+
+            foreach (var line in File.ReadLines(PasswdPath))
+            {
+                if (!line.StartsWith(userName + ":", StringComparison.Ordinal))
+                    continue;
+
+                var parts = line.Split(':');
+                if (parts.Length > 5)
+                    return parts[5];
+            }
+        }
+        catch
+        {
+            // Best-effort: if we can't read the real home, just skip it.
+        }
+
+        return null;
+    }
+
+    private async Task<List<string>> ParseSteamLibraryFoldersAsync(string vdfPath)
+    {
+        var results = new List<string>();
+        var lines = await File.ReadAllLinesAsync(vdfPath);
+        var hasPathEntries = lines.Any(line => line.Contains("\"path\"", StringComparison.OrdinalIgnoreCase));
+
+        foreach (var line in lines)
+        {
+            if (hasPathEntries)
+            {
+                var match = SteamLibraryPathRegex.Match(line);
+                if (!match.Success) continue;
+                var value = UnescapeVdfValue(match.Groups[1].Value);
+                if (!string.IsNullOrWhiteSpace(value))
+                    results.Add(value);
+            }
+            else
+            {
+                var match = SteamLibraryIndexRegex.Match(line);
+                if (!match.Success) continue;
+                var value = UnescapeVdfValue(match.Groups[1].Value);
+                if (string.IsNullOrWhiteSpace(value)) continue;
+                if (value.Contains('/') || value.Contains('\\') || value.Contains(':'))
+                    results.Add(value);
+            }
+        }
+
+        return results.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private static string UnescapeVdfValue(string value)
+    {
+        return value.Replace("\\\\", "\\").Replace("\\\"", "\"");
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -33,6 +34,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     [ObservableProperty] 
     [NotifyCanExecuteChangedFor(nameof(RemoveScraperCommand))]
     private ScraperConfig? _selectedScraper;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemoveSteamLibraryPathCommand))]
+    private string? _selectedSteamLibraryPath;
+
+    [ObservableProperty]
+    private string _steamLibraryPathInput = string.Empty;
     
     // Filtered list of scraper types for the UI (hiding 'None')
     public ScraperType[] AvailableScraperTypes { get; } = Enum.GetValues<ScraperType>()
@@ -42,6 +50,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     // UI Collections
     public ObservableCollection<EmulatorConfig> Emulators { get; } = new();
     public ObservableCollection<ScraperConfig> Scrapers { get; } = new();
+    public ObservableCollection<string> SteamLibraryPaths { get; } = new();
 
     /// <summary>
     /// Controls whether newly selected launch file paths are stored as portable
@@ -154,8 +163,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IRelayCommand RemoveEmulatorCommand { get; }
     public IRelayCommand AddScraperCommand { get; }
     public IRelayCommand RemoveScraperCommand { get; }
+    public IRelayCommand AddSteamLibraryPathCommand { get; }
+    public IRelayCommand RemoveSteamLibraryPathCommand { get; }
     public IRelayCommand SaveCommand { get; }
     public IAsyncRelayCommand BrowsePathCommand { get; }
+    public IAsyncRelayCommand BrowseSteamLibraryPathCommand { get; }
     public IAsyncRelayCommand ConvertExistingToPortableCommand { get; }
 
     // Emulator wrapper editor commands
@@ -196,14 +208,24 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             Scrapers.Add(scraper);
         }
 
+        if (_appSettings.SteamLibraryPaths != null)
+        {
+            foreach (var path in _appSettings.SteamLibraryPaths)
+                SteamLibraryPaths.Add(path);
+        }
+
         AddEmulatorCommand = new RelayCommand(AddEmulator);
         RemoveEmulatorCommand = new RelayCommand(RemoveEmulator, () => SelectedEmulator != null);
         
         AddScraperCommand = new RelayCommand(AddScraper);
         RemoveScraperCommand = new RelayCommand(RemoveScraper, () => SelectedScraper != null);
         
+        AddSteamLibraryPathCommand = new RelayCommand(AddSteamLibraryPath);
+        RemoveSteamLibraryPathCommand = new RelayCommand(RemoveSteamLibraryPath, () => SelectedSteamLibraryPath != null);
+        
         SaveCommand = new RelayCommand(Save);
         BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync, () => SelectedEmulator != null);
+        BrowseSteamLibraryPathCommand = new AsyncRelayCommand(BrowseSteamLibraryPathAsync);
         
         // command to request migration to portable launch paths
         ConvertExistingToPortableCommand = new AsyncRelayCommand(ConvertExistingToPortableAsync);
@@ -444,6 +466,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         _appSettings.Scrapers.Clear();
         _appSettings.Scrapers.AddRange(Scrapers);
+
+        _appSettings.SteamLibraryPaths.Clear();
+        _appSettings.SteamLibraryPaths.AddRange(SteamLibraryPaths);
         
         RequestClose?.Invoke();
     }
@@ -452,16 +477,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         if (SelectedEmulator == null) return;
 
-        // Try to resolve StorageProvider:
-        // 1. Injected property (Priority)
-        // 2. Fallback to active window (Pragmatic approach for dialogs)
-        var provider = StorageProvider;
-        if (provider == null && Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            var activeWindow = desktop.Windows.LastOrDefault(w => w.IsActive) ?? desktop.MainWindow;
-            provider = activeWindow?.StorageProvider;
-        }
-
+        var provider = ResolveStorageProvider();
         if (provider == null) return;
 
         var result = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -474,6 +490,79 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         {
             SelectedEmulator.Path = result[0].Path.LocalPath;
         }
+    }
+
+    private async Task BrowseSteamLibraryPathAsync()
+    {
+        var provider = ResolveStorageProvider();
+        if (provider == null) return;
+
+        var result = await provider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = Strings.Dialog_SelectSteamLibraryFolder,
+            AllowMultiple = false
+        });
+
+        if (result == null || result.Count == 0) return;
+
+        AddSteamLibraryPath(result[0].Path.LocalPath);
+    }
+
+    private void AddSteamLibraryPath()
+    {
+        AddSteamLibraryPath(SteamLibraryPathInput);
+    }
+
+    private void AddSteamLibraryPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        var trimmed = path.Trim();
+        var normalized = NormalizePathSafe(trimmed);
+
+        if (SteamLibraryPaths.Any(p => string.Equals(p, normalized, StringComparison.OrdinalIgnoreCase)))
+        {
+            SteamLibraryPathInput = string.Empty;
+            return;
+        }
+
+        SteamLibraryPaths.Add(normalized);
+        SteamLibraryPathInput = string.Empty;
+    }
+
+    private void RemoveSteamLibraryPath()
+    {
+        if (SelectedSteamLibraryPath == null) return;
+        SteamLibraryPaths.Remove(SelectedSteamLibraryPath);
+        SelectedSteamLibraryPath = null;
+    }
+
+    private static string NormalizePathSafe(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch
+        {
+            return path;
+        }
+    }
+
+    private IStorageProvider? ResolveStorageProvider()
+    {
+        // Try to resolve StorageProvider:
+        // 1. Injected property (Priority)
+        // 2. Fallback to active window (Pragmatic approach for dialogs)
+        var provider = StorageProvider;
+        if (provider == null && Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var activeWindow = desktop.Windows.LastOrDefault(w => w.IsActive) ?? desktop.MainWindow;
+            provider = activeWindow?.StorageProvider;
+        }
+
+        return provider;
     }
 
     public void Dispose()

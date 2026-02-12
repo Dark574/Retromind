@@ -519,6 +519,18 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Dialog_NoSteamGamesFound_SelectPath {
+            get {
+                return ResourceManager.GetString("Dialog_NoSteamGamesFound_SelectPath", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_SelectSteamLibraryFolder {
+            get {
+                return ResourceManager.GetString("Dialog_SelectSteamLibraryFolder", resourceCulture);
+            }
+        }
+        
         public static string Dialog_ConfirmImportSteamFormat {
             get {
                 return ResourceManager.GetString("Dialog_ConfirmImportSteamFormat", resourceCulture);
@@ -1185,12 +1197,6 @@ namespace Retromind.Resources {
             }
         }
         
-        public static string Settings_GlobalSettingsHint {
-            get {
-                return ResourceManager.GetString("Settings.GlobalSettingsHint", resourceCulture);
-            }
-        }
-
         public static string Settings_PlayRandomMusic {
             get {
                 return ResourceManager.GetString("Settings.PlayRandomMusic", resourceCulture);
@@ -1254,6 +1260,42 @@ namespace Retromind.Resources {
         public static string Settings_TabMetadata {
             get {
                 return ResourceManager.GetString("Settings.TabMetadata", resourceCulture);
+            }
+        }
+
+        public static string Settings_TabMisc {
+            get {
+                return ResourceManager.GetString("Settings.TabMisc", resourceCulture);
+            }
+        }
+
+        public static string Settings_SectionLaunchPaths {
+            get {
+                return ResourceManager.GetString("Settings_SectionLaunchPaths", resourceCulture);
+            }
+        }
+
+        public static string Settings_SectionMusic {
+            get {
+                return ResourceManager.GetString("Settings_SectionMusic", resourceCulture);
+            }
+        }
+
+        public static string Settings_SectionSteamLibrary {
+            get {
+                return ResourceManager.GetString("Settings_SectionSteamLibrary", resourceCulture);
+            }
+        }
+
+        public static string Settings_SteamLibraryPathsHint {
+            get {
+                return ResourceManager.GetString("Settings_SteamLibraryPathsHint", resourceCulture);
+            }
+        }
+
+        public static string Settings_SteamLibraryPathWatermark {
+            get {
+                return ResourceManager.GetString("Settings_SteamLibraryPathWatermark", resourceCulture);
             }
         }
         

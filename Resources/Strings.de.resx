@@ -120,6 +120,8 @@
     <data name="Dialog_ImportAssetTitle" xml:space="preserve"><value>Importiere {0}</value></data>
     <data name="Dialog_FileExtensionsPrompt" xml:space="preserve"><value>Dateiendungen (kommagetrennt):</value></data>
     <data name="Dialog_NoSteamGamesFound" xml:space="preserve"><value>Keine Steam-Spiele gefunden.</value></data>
+    <data name="Dialog_NoSteamGamesFound_SelectPath" xml:space="preserve"><value>Keine Steam-Spiele gefunden. Steam-Bibliotheksordner manuell auswählen? (Bitte den Ordner wählen, der 'steamapps' enthält, oder direkt den Ordner 'steamapps'.)</value></data>
+    <data name="Dialog_SelectSteamLibraryFolder" xml:space="preserve"><value>Steam-Bibliotheksordner auswählen (enthält steamapps)</value></data>
     <data name="Dialog_ConfirmImportSteamFormat" xml:space="preserve"><value>{0} Steam-Spiele gefunden. In '{1}' importieren?</value></data>
     <data name="Dialog_NoGogInstallationsFound" xml:space="preserve"><value>Keine Heroic/GOG-Installationen gefunden.</value></data>
     <data name="Dialog_ConfirmImportGogFormat" xml:space="preserve"><value>{0} GOG-Spiele gefunden. Importieren?</value></data>
@@ -157,6 +159,14 @@
     <data name="Import.Gog" xml:space="preserve"><value>GOG (über Heroic)</value></data>
     <data name="Import.Roms" xml:space="preserve"><value>Lokaler Ordner (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Steam-Bibliothek</value></data>
+
+    <!-- SETTINGS -->
+    <data name="Settings.TabMisc" xml:space="preserve"><value>Sonstiges</value></data>
+    <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Startpfade</value></data>
+    <data name="Settings_SectionMusic" xml:space="preserve"><value>Musik</value></data>
+    <data name="Settings_SectionSteamLibrary" xml:space="preserve"><value>Steam-Bibliothekspfade</value></data>
+    <data name="Settings_SteamLibraryPathsHint" xml:space="preserve"><value>Optional. Füge den Steam-Bibliotheksordner hinzu (z. B. /home/user/.local/share/Steam) oder direkt den Ordner 'steamapps'.</value></data>
+    <data name="Settings_SteamLibraryPathWatermark" xml:space="preserve"><value>z. B. /home/user/.local/share/Steam</value></data>
 
     <!-- LAUNCH -->
     <data name="Launch.Arguments" xml:space="preserve"><value>Argumente</value></data>
@@ -263,7 +273,6 @@
     <data name="Settings.ConvertExistingLaunchPaths" xml:space="preserve"><value>Startpfade konvertieren</value></data>
     <data name="Settings.DefaultArguments" xml:space="preserve"><value>Standardargumente</value></data>
     <data name="Settings.ExecutablePath" xml:space="preserve"><value>Ausführungsdatei-Pfad</value></data>
-    <data name="Settings.GlobalSettingsHint" xml:space="preserve"><value>Hier Emulatoren und Metadaten-Quellen definieren, um sie in der Bibliothek schnell zu nutzen.</value></data>
     <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Zufällige Musik abspielen</value></data>
     <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>Wenn aktiviert, spielt die Auswahl im Hauptgrid automatisch die Musik (falls vorhanden).</value></data>
     <data name="Settings.PortableHome" xml:space="preserve"><value>Portables HOME/XDG für AppImage verwenden</value></data>
