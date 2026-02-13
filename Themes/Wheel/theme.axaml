@@ -13,13 +13,15 @@
              ext:ThemeProperties.BackgroundDimOpacity="0.30"
              ext:ThemeProperties.TitleFontSize="48"
              ext:ThemeProperties.BodyFontSize="18"
-             ext:ThemeProperties.FadeDurationMs="250"
+             ext:ThemeProperties.FadeDurationMs="4000"
              ext:ThemeProperties.MoveDurationMs="250"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
              ext:ThemeProperties.VideoCornerRadius="8"
              ext:ThemeProperties.VideoBorderThickness="0"
-             ext:ThemeProperties.VideoStretchMode="Uniform">
+             ext:ThemeProperties.VideoStretchMode="Uniform"
+             ext:ThemeProperties.BackgroundVisualElementName="BackgroundVisual"
+             ext:ThemeProperties.BackgroundVisualEnterMode="None">
 
     <UserControl.Styles>
         <!-- ... Styles remain unchanged ... -->
@@ -57,23 +59,25 @@
     
     <Panel>
         <!-- LAYER 1: Background -->
-        <!-- Wallpaper for Games-View -->
-        <Image Name="GameWallpaper"
-               helpers:AsyncImageHelper.Url="{Binding ActiveWallpaperPath}"
-               helpers:AsyncImageHelper.DecodeWidth="1920"
-               helpers:AsyncImageHelper.DisableCache="True"
-               Stretch="UniformToFill"
-               IsVisible="{Binding IsGameListActive}"
-               Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />
-        
-        <!-- Wallpaper for Categories-View -->
-        <Image Name="CategoryWallpaper"
-               helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
-               helpers:AsyncImageHelper.DecodeWidth="1920"
-               helpers:AsyncImageHelper.DisableCache="True"
-               Stretch="UniformToFill"
-               IsVisible="{Binding IsCategorySelectionActive}"
-               Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />
+        <Grid x:Name="BackgroundVisual">
+            <!-- Wallpaper for Games-View -->
+            <ext:CrossfadeImage Name="GameWallpaper"
+                                Url="{Binding ActiveWallpaperPath}"
+                                DecodeWidth="1920"
+                                DisableCache="True"
+                                Stretch="UniformToFill"
+                                IsVisible="{Binding IsGameListActive}"
+                                Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />
+            
+            <!-- Wallpaper for Categories-View -->
+            <ext:CrossfadeImage Name="CategoryWallpaper"
+                                Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
+                                DecodeWidth="1920"
+                                DisableCache="True"
+                                Stretch="UniformToFill"
+                                IsVisible="{Binding IsCategorySelectionActive}"
+                                Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />
+        </Grid>
         
         <!-- Games-Wheel -->
         <ListBox ItemsSource="{Binding Items}"
@@ -302,10 +306,10 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 IsVisible="{Binding IsCategorySelectionActive}">
-                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryCoverAbsolutePath}"
-                                   Width="280"
-                                   Height="380"
-                                   Stretch="Uniform" />
+                            <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryCoverAbsolutePath}"
+                                                Width="280"
+                                                Height="380"
+                                                Stretch="Uniform" />
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="30"
                                                   OffsetX="0"
@@ -320,10 +324,10 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 IsVisible="{Binding IsGameListActive}">
-                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
-                                   Width="280"
-                                   Height="380"
-                                   Stretch="Uniform" />
+                            <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryCoverPath}"
+                                                Width="280"
+                                                Height="380"
+                                                Stretch="Uniform" />
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="30"
                                                   OffsetX="0"

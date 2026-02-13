@@ -21,11 +21,13 @@
              ext:ThemeProperties.BodyFontFamily="Fonts/IBMPlexSans-Regular.ttf"
              ext:ThemeProperties.CaptionFontFamily="Fonts/IBMPlexSans-SemiBold.ttf"
              ext:ThemeProperties.MonoFontFamily="Fonts/IBMPlexMono-Regular.ttf"
-             ext:ThemeProperties.FadeDurationMs="950"
+             ext:ThemeProperties.FadeDurationMs="4000"
              ext:ThemeProperties.MoveDurationMs="950"
              ext:ThemeProperties.PrimaryVisualElementName="CoverCard"
-             ext:ThemeProperties.PrimaryVisualEnterMode="SlideFromBottom"
+             ext:ThemeProperties.PrimaryVisualEnterMode="None"
              ext:ThemeProperties.PrimaryVisualEnterOffsetY="140"
+             ext:ThemeProperties.BackgroundVisualElementName="BackgroundVisual"
+             ext:ThemeProperties.BackgroundVisualEnterMode="None"
              ext:ThemeProperties.BackgroundDimOpacity="0.15"
              ext:ThemeProperties.PanelBackgroundOpacity="0.20">
 
@@ -119,26 +121,28 @@
         <Rectangle Fill="{DynamicResource PaperGradient}" />
         <Rectangle Fill="{DynamicResource AtlasGlow}" Opacity="0.45" />
 
-        <!-- Optional background video (secondary channel) -->
-        <Border x:Name="BackgroundVideoSlot"
-                Opacity="0.14"
-                ClipToBounds="True"
-                IsVisible="{Binding SecondaryVideoHasContent}" />
+        <Grid x:Name="BackgroundVisual">
+            <!-- Optional background video (secondary channel) -->
+            <Border x:Name="BackgroundVideoSlot"
+                    Opacity="0.14"
+                    ClipToBounds="True"
+                    IsVisible="{Binding SecondaryVideoHasContent}" />
 
-        <!-- Low-opacity wallpaper for item or category -->
-        <Image helpers:AsyncImageHelper.Url="{Binding ActiveWallpaperPath}"
-               helpers:AsyncImageHelper.DecodeWidth="1920"
-               helpers:AsyncImageHelper.DisableCache="True"
-               Stretch="UniformToFill"
-               Opacity="0.10"
-               IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+            <!-- Low-opacity wallpaper for item or category -->
+            <ext:CrossfadeImage Url="{Binding ActiveWallpaperPath}"
+                                DecodeWidth="1920"
+                                DisableCache="True"
+                                Stretch="UniformToFill"
+                                Opacity="0.10"
+                                IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
-        <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
-               helpers:AsyncImageHelper.DecodeWidth="1920"
-               helpers:AsyncImageHelper.DisableCache="True"
-               Stretch="UniformToFill"
-               Opacity="0.08"
-               IsVisible="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+            <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
+                                DecodeWidth="1920"
+                                DisableCache="True"
+                                Stretch="UniformToFill"
+                                Opacity="0.08"
+                                IsVisible="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+        </Grid>
 
         <Rectangle Fill="{DynamicResource DotPatternBrush}" Opacity="0.06" />
 
@@ -286,19 +290,18 @@
                             x:Name="CoverCard"
                             Width="210"
                             Height="320"
-                            Background="#F5EEE0"
-                            BorderBrush="#CABBA7"
-                            BorderThickness="1"
+                            Background="Transparent"
+                            BorderThickness="0"
                             CornerRadius="14"
                             Margin="-40,40,0,0"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Top"
                             ClipToBounds="True"
                             IsVisible="{Binding SelectedItem.PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
-                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
-                               helpers:AsyncImageHelper.DecodeWidth="700"
-                               helpers:AsyncImageHelper.DisableCache="True"
-                               Stretch="UniformToFill" />
+                        <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryCoverPath}"
+                                            DecodeWidth="700"
+                                            DisableCache="True"
+                                            Stretch="Uniform" />
                     </Border>
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">

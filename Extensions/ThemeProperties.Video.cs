@@ -96,6 +96,20 @@ public partial class ThemeProperties
         element.SetValue(VideoStretchModeProperty, value);
 
     /// <summary>
+    /// Fade duration for main preview video crossfades (milliseconds).
+    /// </summary>
+    public static readonly AttachedProperty<int> VideoFadeDurationMsProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, int>(
+            "VideoFadeDurationMs",
+            defaultValue: 250);
+
+    public static int GetVideoFadeDurationMs(AvaloniaObject element) =>
+        element.GetValue(VideoFadeDurationMsProperty);
+
+    public static void SetVideoFadeDurationMs(AvaloniaObject element, int value) =>
+        element.SetValue(VideoFadeDurationMsProperty, value);
+
+    /// <summary>
     /// Relative path to an optional secondary background video for the theme
     /// (e.g. "Videos/background_loop.mp4"). Resolved relative to the theme base folder.
     /// </summary>

@@ -305,7 +305,8 @@ public partial class BigModeViewModel
         _gamepadService.OnSelect -= OnGamepadSelect;
         _gamepadService.OnBack -= OnGamepadBack;
 
-        _videoSurface.FrameReady -= OnMainVideoFrameReady;
+        _videoSurfaceA.FrameReady -= OnMainVideoFrameReadyA;
+        _videoSurfaceB.FrameReady -= OnMainVideoFrameReadyB;
         DisposeGamepadRepeatTimer();
 
         // Stop attract timer early so it can't fire while we tear down VLC
@@ -334,12 +335,15 @@ public partial class BigModeViewModel
             // ignore
         }
 
-        var mainPlayer = MediaPlayer;
+        var mainPlayerA = _mediaPlayerA;
+        var mainPlayerB = _mediaPlayerB;
         var secondaryPlayer = _secondaryPlayer;
         var vlc = _libVlc;
         var secondaryVlc = _secondaryLibVlc;
 
         MediaPlayer = null;
+        _mediaPlayerA = null;
+        _mediaPlayerB = null;
         _secondaryPlayer = null;
 
         SaveState();
@@ -380,12 +384,12 @@ public partial class BigModeViewModel
                 // Stop & dispose main channel
                 try
                 {
-                    if (mainPlayer != null)
+                    if (mainPlayerA != null)
                     {
                         // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
-                        mainPlayer.Stop();
-                        mainPlayer.Media = null;
-                        mainPlayer.Dispose();
+                        mainPlayerA.Stop();
+                        mainPlayerA.Media = null;
+                        mainPlayerA.Dispose();
                     }
                 }
                 catch
@@ -395,7 +399,22 @@ public partial class BigModeViewModel
 
                 try
                 {
-                    _currentPreviewMedia?.Dispose();
+                    if (mainPlayerB != null)
+                    {
+                        // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
+                        mainPlayerB.Stop();
+                        mainPlayerB.Media = null;
+                        mainPlayerB.Dispose();
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    _currentPreviewMediaA?.Dispose();
                 }
                 catch
                 {
@@ -403,7 +422,20 @@ public partial class BigModeViewModel
                 }
                 finally
                 {
-                    _currentPreviewMedia = null;
+                    _currentPreviewMediaA = null;
+                }
+
+                try
+                {
+                    _currentPreviewMediaB?.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
+                finally
+                {
+                    _currentPreviewMediaB = null;
                 }
 
                 // Dispose LibVLC last
@@ -427,7 +459,16 @@ public partial class BigModeViewModel
 
                 try
                 {
-                    _videoSurface.Dispose();
+                    _videoSurfaceA.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    _videoSurfaceB.Dispose();
                 }
                 catch
                 {

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using LibVLCSharp.Shared;
 using Retromind.Helpers;
+using Retromind.Helpers.Video;
 using Retromind.Models;
 
 namespace Retromind.ViewModels;
@@ -47,6 +48,7 @@ public partial class BigModeViewModel
 
     private static readonly TimeSpan VideoFadeOutDelay = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan VideoStartSettleDelay = TimeSpan.FromMilliseconds(75);
+    private static readonly TimeSpan VideoStartTimeout = TimeSpan.FromMilliseconds(900);
     private static readonly TimeSpan StopWaitTimeout = TimeSpan.FromMilliseconds(750);
     
     // AppImage-specific: some bundled LibVLC builds can lose audio after Stop/Play cycles.
@@ -72,13 +74,24 @@ public partial class BigModeViewModel
     // Avoid duplicate restarts while a start is already pending for the same video.
     private string? _pendingPreviewVideoPath;
     private int _pendingPreviewGeneration;
+    private int _pendingPreviewSurfaceIndex = -1;
 
     // IMPORTANT: Keep Media alive while VLC is using it, otherwise playback can freeze.
-    private Media? _currentPreviewMedia;
+    private Media? _currentPreviewMediaA;
+    private Media? _currentPreviewMediaB;
 
     // Tracks the expected frame generation so we can hide stale frames until the first new frame arrives.
     private int _expectedPreviewFrameGeneration;
+    private int _expectedPreviewSurfaceIndex = -1;
     private int _mainVideoFrameReadyGeneration;
+    private int _audioFadeGeneration;
+
+    private int _activePreviewIndex = -1;
+
+    private bool _mainVideoHasFrameA;
+    private bool _mainVideoHasFrameB;
+    private bool _mainVideoIsPlayingA;
+    private bool _mainVideoIsPlayingB;
 
     private bool _suspendPreviewDuringScroll;
     
@@ -137,13 +150,16 @@ public partial class BigModeViewModel
 
         // StopVideo() may not be fully "settled" in LibVLC immediately.
         // Wait defensively for a short time until playback is confirmed stopped.
-        var mp = MediaPlayer;
-        if (mp != null)
+        var mpA = _mediaPlayerA;
+        var mpB = _mediaPlayerB;
+        if (mpA != null || mpB != null)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             while (sw.Elapsed < StopWaitTimeout)
             {
-                if (!mp.IsPlaying)
+                var aPlaying = mpA != null && mpA.IsPlaying;
+                var bPlaying = mpB != null && mpB.IsPlaying;
+                if (!aPlaying && !bPlaying)
                     break;
 
                 await Task.Delay(25).ConfigureAwait(false);
@@ -158,7 +174,7 @@ public partial class BigModeViewModel
     // Event handlers / callbacks
     // ----------------------------
     
-    private void OnPreviewEndReached(object? sender, EventArgs e)
+    private void OnPreviewEndReached(int index)
     {
         // Called on a VLC thread; marshal back to UI thread.
         if (string.IsNullOrEmpty(_currentPreviewVideoPath))
@@ -166,14 +182,21 @@ public partial class BigModeViewModel
 
         UiThreadHelper.Post(() =>
         {
-            if (!CanShowVideo || !_isViewReady || _isLaunching || MediaPlayer == null)
+            if (!CanShowVideo || !_isViewReady || _isLaunching)
+                return;
+
+            if (index != _activePreviewIndex)
+                return;
+
+            var player = GetMediaPlayer(index);
+            if (player == null)
                 return;
 
             // Replay the current preview video from the beginning.
             try
             {
-                MediaPlayer.Stop();
-                MediaPlayer.Play();
+                player.Stop();
+                player.Play();
             }
             catch
             {
@@ -185,13 +208,25 @@ public partial class BigModeViewModel
         }, DispatcherPriority.Background);
     }
 
-    private void OnMainVideoFrameReady()
+    private void OnMainVideoFrameReadyA() => OnMainVideoFrameReady(0);
+
+    private void OnMainVideoFrameReadyB() => OnMainVideoFrameReady(1);
+
+    private void OnMainVideoFrameReady(int index)
     {
+        if (index == 0)
+            _mainVideoHasFrameA = true;
+        else
+            _mainVideoHasFrameB = true;
+
         var expected = Volatile.Read(ref _expectedPreviewFrameGeneration);
         if (expected == 0)
             return;
 
         if (expected != Volatile.Read(ref _previewPlayGeneration))
+            return;
+
+        if (index != Volatile.Read(ref _expectedPreviewSurfaceIndex))
             return;
 
         if (Interlocked.CompareExchange(ref _mainVideoFrameReadyGeneration, expected, 0) != 0)
@@ -202,7 +237,26 @@ public partial class BigModeViewModel
             if (expected != Volatile.Read(ref _previewPlayGeneration))
                 return;
 
-            MainVideoHasFrame = true;
+            UpdateMainVideoHasFrame();
+
+            var oldIndex = _activePreviewIndex;
+            _activePreviewIndex = index;
+            MainVideoActiveSurfaceIndex = index;
+            MediaPlayer = GetMediaPlayer(index);
+
+            var fadeMs = Math.Max(0, VideoFadeDurationMs);
+            if (fadeMs == 0)
+            {
+                var newPlayer = GetMediaPlayer(index);
+                if (newPlayer != null)
+                    newPlayer.Volume = 100;
+
+                StopPreviewPlayer(oldIndex);
+                return;
+            }
+
+            StartAudioCrossfade(oldIndex, index, expected, fadeMs);
+            _ = StopPreviewPlayerAfterDelayAsync(oldIndex, expected, fadeMs);
         }, DispatcherPriority.Background);
     }
 
@@ -233,8 +287,9 @@ public partial class BigModeViewModel
             if (idx >= 0) SelectedItemIndex = idx;
         }
 
-        // Stop current preview immediately on selection change to avoid stale playback while scrolling.
-        StopVideo();
+        // Stop preview only when the target video actually changes.
+        var targetVideoPath = ResolvePreviewVideoPath();
+        StopVideoIfPreviewPathChanged(targetVideoPath);
 
         // Selection changed -> update counters before triggering preview logic.
         UpdateGameCounters();
@@ -265,12 +320,13 @@ public partial class BigModeViewModel
             SelectedCategoryIndex = CurrentCategories.IndexOf(value);
         }
 
-        // Stop current preview immediately on selection change to avoid stale playback while scrolling.
-        StopVideo();
-
         // Root menu: keep theme context synced with the selected root node.
         if (!IsGameListActive && _navigationPath.Count == 0)
             ThemeContextNode = value;
+
+        // Stop preview only when the target video actually changes.
+        var targetVideoPath = ResolvePreviewVideoPath();
+        StopVideoIfPreviewPathChanged(targetVideoPath);
 
         TriggerPreviewPlaybackWithDebounce();
     }
@@ -293,6 +349,15 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveControlPanelPath));
         
         TriggerPreviewPlaybackWithDebounce();
+    }
+
+    private void StopVideoIfPreviewPathChanged(string? targetVideoPath)
+    {
+        if (string.Equals(_currentPreviewVideoPath, targetVideoPath, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (string.IsNullOrEmpty(targetVideoPath))
+            StopVideo();
     }
     
     // ----------------------------
@@ -439,67 +504,108 @@ public partial class BigModeViewModel
     // Playback
     // ----------------------------
 
-    /// <summary>
-    /// Ensures that the main MediaPlayer instance is in a clean, usable state.
-    /// If a previous Stop/Dispose cycle left the player in an undefined state,
-    /// this recreates it and reattaches the video callbacks.
-    /// </summary>
-    private MediaPlayer EnsureMediaPlayer(bool forceRecreate = false)
+    private MediaPlayer? GetMediaPlayer(int index) =>
+        index == 0 ? _mediaPlayerA : _mediaPlayerB;
+
+    private void SetMediaPlayer(int index, MediaPlayer? player)
     {
-        // Some LibVLC builds (especially when bundled in portable runtimes / AppImages)
-        // can end up in a broken audio state when the same MediaPlayer is reused
-        // across many rapid Stop/Play cycles. In that case we allow the caller to
-        // request a hard recreate of the player.
-        if (forceRecreate && MediaPlayer is not null)
+        if (index == 0)
+            _mediaPlayerA = player;
+        else
+            _mediaPlayerB = player;
+    }
+
+    private LibVlcVideoSurface GetSurface(int index) =>
+        index == 0 ? _videoSurfaceA : _videoSurfaceB;
+
+    private Media? GetPreviewMedia(int index) =>
+        index == 0 ? _currentPreviewMediaA : _currentPreviewMediaB;
+
+    private void SetPreviewMedia(int index, Media? media)
+    {
+        if (index == 0)
+            _currentPreviewMediaA = media;
+        else
+            _currentPreviewMediaB = media;
+    }
+
+    private void DisposePreviewMedia(int index)
+    {
+        try
+        {
+            GetPreviewMedia(index)?.Dispose();
+        }
+        catch
+        {
+            // ignore
+        }
+        finally
+        {
+            SetPreviewMedia(index, null);
+        }
+    }
+
+    private int GetInactivePreviewIndex()
+    {
+        if (_activePreviewIndex is 0 or 1)
+            return _activePreviewIndex == 0 ? 1 : 0;
+
+        return 0;
+    }
+
+    private void UpdateMainVideoHasFrame()
+    {
+        MainVideoHasFrame = _mainVideoHasFrameA || _mainVideoHasFrameB;
+    }
+
+    private void UpdateMainVideoIsPlaying()
+    {
+        MainVideoIsPlaying = _mainVideoIsPlayingA || _mainVideoIsPlayingB;
+    }
+
+    /// <summary>
+    /// Ensures that the MediaPlayer for the given index is in a clean, usable state.
+    /// </summary>
+    private MediaPlayer EnsureMediaPlayerForIndex(int index, bool forceRecreate = false)
+    {
+        // Max-robust AppImage path: always recreate before reuse on the inactive channel.
+        if (IsAppImage)
+            forceRecreate = true;
+
+        var player = GetMediaPlayer(index);
+
+        if (forceRecreate && player is not null)
         {
             try
             {
                 // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
-                MediaPlayer.Stop();
-                MediaPlayer.Media = null;
-                MediaPlayer.Dispose();
+                player.Stop();
+                player.Media = null;
+                player.Dispose();
             }
             catch
             {
                 // Best-effort cleanup; fallback is simply to drop the reference.
             }
 
-            MediaPlayer = null;
+            player = null;
+            SetMediaPlayer(index, null);
         }
-        
-        // If the current player is null or already disposed (LibVLC 3.x can get
-        // into odd states after Stop/Media = null), create a fresh one.
-        if (MediaPlayer is null)
+
+        if (player is null)
         {
-            var newPlayer = new MediaPlayer(_libVlc)
-            {
-                Volume = 100,
-                Scale = 0f // 0 = scale to fill the control
-            };
-
-            newPlayer.SetVideoFormatCallbacks(
-                _videoSurface.VideoFormat,
-                _videoSurface.VideoCleanup);
-
-            newPlayer.SetVideoCallbacks(
-                _videoSurface.VideoLock,
-                _videoSurface.VideoUnlock,
-                _videoSurface.VideoDisplay);
-
-            newPlayer.EndReached += OnPreviewEndReached;
-
-            MediaPlayer = newPlayer;
+            player = CreateMediaPlayerForSurface(GetSurface(index), index);
+            SetMediaPlayer(index, player);
         }
         else
         {
-            // Defensive: ensure we always start from a known volume and unmuted state.
-            if (MediaPlayer.Volume <= 0)
-                MediaPlayer.Volume = 100;
+            if (player.Volume <= 0)
+                player.Volume = 100;
 
-            MediaPlayer.Mute = false;
+            player.Mute = false;
         }
 
-        return MediaPlayer;
+        return player;
     }
 
     /// <summary>
@@ -507,16 +613,21 @@ public partial class BigModeViewModel
     /// </summary>
     private void TriggerPreviewPlayback()
     {
-        var node = ThemeContextNode ?? CurrentNode;
-
-        string? videoPath = IsGameListActive
-            ? ResolveItemVideoPath(SelectedItem, node)
-            : ResolveNodeVideoPath(SelectedCategory);
+        var videoPath = ResolvePreviewVideoPath();
         
         // Main channel: Derive content flag from path and mode
         MainVideoHasContent = CanShowVideo && !string.IsNullOrEmpty(videoPath);
 
         PlayPreviewForPath(videoPath);
+    }
+
+    private string? ResolvePreviewVideoPath()
+    {
+        var node = ThemeContextNode ?? CurrentNode;
+
+        return IsGameListActive
+            ? ResolveItemVideoPath(SelectedItem, node)
+            : ResolveNodeVideoPath(SelectedCategory);
     }
 
     private string? ResolveItemVideoPath(MediaItem? item, MediaNode? node)
@@ -626,7 +737,7 @@ public partial class BigModeViewModel
 
     private void PlayPreviewForPath(string? videoPath)
     {
-        if (!CanShowVideo || !_isViewReady || _isLaunching || MediaPlayer == null)
+        if (!CanShowVideo || !_isViewReady || _isLaunching)
         {
             StopVideo();
             return;
@@ -641,14 +752,14 @@ public partial class BigModeViewModel
             // (e.g. AppImage), where reusing the same player across "no-media"
             // transitions can sometimes leave the audio output in a bad state
             _forceRecreateMediaPlayerNextTime = true;
-            
+
             StopVideo();
             return;
         }
 
         if (string.Equals(_currentPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase))
         {
-            if (MediaPlayer.IsPlaying ||
+            if ((_mainVideoIsPlayingA || _mainVideoIsPlayingB) ||
                 string.Equals(_pendingPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase))
                 return;
         }
@@ -660,12 +771,18 @@ public partial class BigModeViewModel
         IsVideoVisible = false;
 
         var gen = Interlocked.Increment(ref _previewPlayGeneration);
-        MainVideoHasFrame = false;
         Volatile.Write(ref _mainVideoFrameReadyGeneration, 0);
         Volatile.Write(ref _expectedPreviewFrameGeneration, gen);
+
+        var targetIndex = GetInactivePreviewIndex();
+        Volatile.Write(ref _expectedPreviewSurfaceIndex, targetIndex);
+
         _pendingPreviewVideoPath = videoPath;
+        _pendingPreviewSurfaceIndex = targetIndex;
         Volatile.Write(ref _pendingPreviewGeneration, gen);
-        _ = StartPlaybackAfterRenderAsync(videoPath, gen);
+
+        _ = StartPlaybackAfterRenderAsync(videoPath, gen, targetIndex);
+        _ = FallbackStopOldAfterTimeoutAsync(_activePreviewIndex, targetIndex, gen);
 
         // Fade in after the next render tick to avoid one-frame flashes.
         UiThreadHelper.Post(() =>
@@ -675,7 +792,7 @@ public partial class BigModeViewModel
         }, DispatcherPriority.Render);
     }
 
-    private async Task StartPlaybackAfterRenderAsync(string videoPath, int generation)
+    private async Task StartPlaybackAfterRenderAsync(string videoPath, int generation, int targetIndex)
     {
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
 
@@ -699,29 +816,36 @@ public partial class BigModeViewModel
             return;
         }
 
+        if (targetIndex != Volatile.Read(ref _pendingPreviewSurfaceIndex))
+        {
+            ClearPendingPreviewStart(generation);
+            return;
+        }
+
         try
         {
             // (Re)create MediaPlayer if needed and ensure a clean state.
             var forceRecreate = _forceRecreateMediaPlayerNextTime;
             _forceRecreateMediaPlayerNextTime = false;
 
-            var player = EnsureMediaPlayer(forceRecreate);
-            
-            _currentPreviewMedia?.Dispose();
-            _currentPreviewMedia = null;
+            var player = EnsureMediaPlayerForIndex(targetIndex, forceRecreate);
+
+            DisposePreviewMedia(targetIndex);
 
             var media = new Media(_libVlc, new Uri(videoPath));
-            
-            _currentPreviewMedia = media;
+            SetPreviewMedia(targetIndex, media);
 
             player.Media = media;
             player.Mute = false;
-            if (player.Volume <= 0)
-                player.Volume = 100;
-
+            player.Volume = 0;
             player.Play();
 
-            MainVideoIsPlaying = true;
+            if (targetIndex == 0)
+                _mainVideoIsPlayingA = true;
+            else
+                _mainVideoIsPlayingB = true;
+
+            UpdateMainVideoIsPlaying();
 
             // Defensive: keep the background channel alive after preview changes.
             EnsureSecondaryBackgroundPlayingIfReady();
@@ -729,7 +853,12 @@ public partial class BigModeViewModel
         catch
         {
             // Best-effort: preview must never crash the UI.
-            MainVideoIsPlaying = false;
+            if (targetIndex == 0)
+                _mainVideoIsPlayingA = false;
+            else
+                _mainVideoIsPlayingB = false;
+
+            UpdateMainVideoIsPlaying();
         }
         finally
         {
@@ -753,10 +882,9 @@ public partial class BigModeViewModel
         IsVideoVisible = false;
 
         // Main channel: Reset status
-        MainVideoIsPlaying = false;
         MainVideoHasContent = false;
-        MainVideoHasFrame = false;
         Volatile.Write(ref _expectedPreviewFrameGeneration, 0);
+        Volatile.Write(ref _expectedPreviewSurfaceIndex, -1);
         Volatile.Write(ref _mainVideoFrameReadyGeneration, 0);
 
         // AppImage workaround: force a fresh MediaPlayer on the next preview start
@@ -767,32 +895,11 @@ public partial class BigModeViewModel
         var fadeGen = Interlocked.Increment(ref _overlayFadeGeneration);
         _ = HideOverlayAfterFadeAsync(fadeGen);
 
-        try
-        {
-            if (MediaPlayer != null)
-            {
-                // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
-                MediaPlayer.Stop();
-                MediaPlayer.Media = null;
-            }
-        }
-        catch
-        {
-            // best-effort only
-        }
+        MainVideoActiveSurfaceIndex = -1;
+        _activePreviewIndex = -1;
 
-        try
-        {
-            _currentPreviewMedia?.Dispose();
-        }
-        catch
-        {
-            // ignore
-        }
-        finally
-        {
-            _currentPreviewMedia = null;
-        }
+        StopPreviewPlayer(0);
+        StopPreviewPlayer(1);
 
         _currentPreviewVideoPath = null;
 
@@ -806,12 +913,151 @@ public partial class BigModeViewModel
             return;
 
         _pendingPreviewVideoPath = null;
+        _pendingPreviewSurfaceIndex = -1;
     }
 
     private void ClearPendingPreviewStart()
     {
         _pendingPreviewVideoPath = null;
+        _pendingPreviewSurfaceIndex = -1;
         Volatile.Write(ref _pendingPreviewGeneration, 0);
+    }
+
+    private void StopPreviewPlayer(int index)
+    {
+        var player = GetMediaPlayer(index);
+        if (player != null)
+        {
+            try
+            {
+                // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
+                player.Stop();
+                player.Media = null;
+            }
+            catch
+            {
+                // best-effort only
+            }
+        }
+
+        DisposePreviewMedia(index);
+
+        if (index == 0)
+        {
+            _mainVideoIsPlayingA = false;
+            _mainVideoHasFrameA = false;
+        }
+        else
+        {
+            _mainVideoIsPlayingB = false;
+            _mainVideoHasFrameB = false;
+        }
+
+        UpdateMainVideoIsPlaying();
+        UpdateMainVideoHasFrame();
+
+        if (index == _activePreviewIndex && !_mainVideoHasFrameA && !_mainVideoHasFrameB)
+        {
+            _activePreviewIndex = -1;
+            MainVideoActiveSurfaceIndex = -1;
+        }
+    }
+
+    private void StartAudioCrossfade(int fromIndex, int toIndex, int generation, int durationMs)
+    {
+        var fromPlayer = fromIndex is 0 or 1 ? GetMediaPlayer(fromIndex) : null;
+        var toPlayer = toIndex is 0 or 1 ? GetMediaPlayer(toIndex) : null;
+
+        if (toPlayer != null && toPlayer.Volume < 0)
+            toPlayer.Volume = 0;
+
+        var fadeGen = Interlocked.Increment(ref _audioFadeGeneration);
+        _ = CrossfadeAudioAsync(fromPlayer, toPlayer, durationMs, fadeGen, generation);
+    }
+
+    private async Task CrossfadeAudioAsync(MediaPlayer? fromPlayer, MediaPlayer? toPlayer, int durationMs, int fadeGen, int previewGen)
+    {
+        if (durationMs <= 0)
+        {
+            if (toPlayer != null)
+                toPlayer.Volume = 100;
+            if (fromPlayer != null)
+                fromPlayer.Volume = 0;
+            return;
+        }
+
+        var steps = Math.Clamp(durationMs / 30, 4, 60);
+        var stepDelay = Math.Max(1, durationMs / steps);
+
+        for (var i = 0; i <= steps; i++)
+        {
+            if (fadeGen != Volatile.Read(ref _audioFadeGeneration))
+                return;
+
+            if (previewGen != Volatile.Read(ref _previewPlayGeneration))
+                return;
+
+            var t = (double)i / steps;
+            if (fromPlayer != null)
+                fromPlayer.Volume = (int)Math.Round(100 * (1.0 - t));
+            if (toPlayer != null)
+                toPlayer.Volume = (int)Math.Round(100 * t);
+
+            try
+            {
+                await Task.Delay(stepDelay).ConfigureAwait(false);
+            }
+            catch
+            {
+                return;
+            }
+        }
+    }
+
+    private async Task StopPreviewPlayerAfterDelayAsync(int index, int generation, int delayMs)
+    {
+        if (index is not (0 or 1))
+            return;
+
+        try
+        {
+            await Task.Delay(delayMs).ConfigureAwait(false);
+        }
+        catch
+        {
+            return;
+        }
+
+        if (generation != Volatile.Read(ref _previewPlayGeneration))
+            return;
+
+        if (index == _activePreviewIndex)
+            return;
+
+        UiThreadHelper.Post(() => StopPreviewPlayer(index), DispatcherPriority.Background);
+    }
+
+    private async Task FallbackStopOldAfterTimeoutAsync(int oldIndex, int targetIndex, int generation)
+    {
+        if (oldIndex is not (0 or 1) || targetIndex is not (0 or 1))
+            return;
+
+        try
+        {
+            await Task.Delay(VideoStartTimeout).ConfigureAwait(false);
+        }
+        catch
+        {
+            return;
+        }
+
+        if (generation != Volatile.Read(ref _previewPlayGeneration))
+            return;
+
+        if (_activePreviewIndex == targetIndex)
+            return;
+
+        UiThreadHelper.Post(() => StopPreviewPlayer(oldIndex), DispatcherPriority.Background);
     }
 
     private async Task HideOverlayAfterFadeAsync(int generation)

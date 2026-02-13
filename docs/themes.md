@@ -116,19 +116,18 @@ So you can bind directly:
 
 ---
 
-## 4) Video preview: Inline video controls (Main & Secondary)
+## 4) Video preview: Main & Secondary
 
 Retromind renders videos via LibVLC into one or more `IVideoSurface` instances.  
-Your theme can place these surfaces **directly** in the layout using `VideoSurfaceControl`, just like any other control.
+Themes never talk to LibVLC directly — you only decide **where** and **how** the video appears.
 
-There are currently two logical channels:
+There are two logical channels:
 
-- **Main channel** – per-item/system preview (`MainVideoSurface`)
-- **Secondary channel** – optional background / B‑Roll (`SecondaryVideoSurface`)
+- **Main channel** – per-item/system preview (host‑managed, crossfaded)
+- **Secondary channel** – optional background / B‑Roll (theme‑managed)
 
 The `BigModeViewModel` exposes:
 
-- `IVideoSurface? MainVideoSurface`
 - `bool MainVideoHasContent`
 - `bool MainVideoIsPlaying`
 
@@ -136,53 +135,44 @@ The `BigModeViewModel` exposes:
 - `bool SecondaryVideoHasContent`
 - `bool SecondaryVideoIsPlaying`
 
-> Important:
-> - Themes never talk to LibVLC directly.
-> - You only bind to these properties and decide **where** and **how** videos appear.
+### 4.1 Main video (per-item preview, host‑managed)
 
-### 4.1 Main video (per-item preview)
+The host injects a **shared, crossfading** video control into a **named slot** in your theme.  
+You only need to provide a container with a matching name.
 
-Typical usage: show the preview video of the selected game or system in a dedicated area.
+Default slot name: `VideoSlot` (can be overridden via `ThemeProperties.VideoSlotName`).
 
 ```xml
-<Grid xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Retromind.ViewModels" xmlns:video="using:Retromind.Helpers.Video" xmlns:helpers="using:Retromind.Helpers" x:DataType="vm:BigModeViewModel">
-    <Grid.Resources>
-        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity"
-                                        TrueOpacity="1.0"
-                                        FalseOpacity="0.0" />
-    </Grid.Resources>
-    
-    <Border Background="Black"
-            CornerRadius="4"
-            ClipToBounds="True">
-        <Grid>
-            <!-- Fallback text if no video is available for this item -->
-            <TextBlock Text="Preview"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       Foreground="#404040"
-                       FontSize="20"
-                       IsVisible="{Binding MainVideoHasContent,
-                                           Converter={x:Static helpers:ObjectConverters.IsNull}}"/>
-    
-            <!-- Inline video: main channel -->
-            <video:VideoSurfaceControl Surface="{Binding MainVideoSurface}"
-                                       Stretch="UniformToFill"
-                                       IsVisible="{Binding MainVideoHasContent}"
-                                       Opacity="{Binding MainVideoIsPlaying,
-                                                         Converter={StaticResource BoolToOpacity}}"/>
-        </Grid>
-    </Border>
-</Grid>
+<Border x:Name="VideoSlot"
+        Background="Black"
+        CornerRadius="6"
+        ClipToBounds="True">
+    <Grid>
+        <!-- Optional fallback text / overlay when no video is available -->
+        <TextBlock Text="No preview video"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Foreground="#404040"
+                   FontSize="18" />
+    </Grid>
+</Border>
 ```
 
-- `MainVideoHasContent` → `true` if the current selection has a valid preview video and video mode is enabled.
-- `MainVideoIsPlaying` → `true` while the main player is actually running.
+Behavior:
+- When the selection changes, the host **crossfades** the main preview video (video + audio).
+- If the **same video** is selected again, it keeps playing (no restart).
+- If no video is available, the slot remains empty (your fallback stays visible).
 
-You are free to:
+**Crossfade timing**
+- Controlled by `ThemeProperties.VideoFadeDurationMs` on the theme root (default: `250` ms).
 
-- put overlays (bezels, CRT masks, scanlines, etc.) **above** the video,
-- combine the video with reactive effects (opacity, blur, glow) based on `MainVideoIsPlaying`.
+### 4.2 Secondary video (background / B‑Roll)
+
+The secondary channel is intended for theme‑level videos, for example:
+
+- a moving background (wallpaper),
+- a small system intro loop,
+- decorative B‑Roll.
 
 ### 4.2 Secondary video (background / B‑Roll)
 
@@ -274,6 +264,33 @@ Note:
 
 ---
 
+## 4.3) Crossfade images (optional)
+
+For smooth image transitions (e.g. wallpapers, covers, logos), use the `ext:CrossfadeImage`
+control. It loads images asynchronously and crossfades when the bound `Url` changes.
+
+Example:
+```xml
+<ext:CrossfadeImage Url="{Binding ActiveWallpaperPath}"
+                    DecodeWidth="1920"
+                    DisableCache="True"
+                    Stretch="UniformToFill" />
+```
+
+Supported properties:
+- `Url` (string?, file path or web URL)
+- `DecodeWidth` (int?, optional)
+- `DisableCache` (bool, optional)
+- `Stretch` (Avalonia Stretch)
+- `FadeDurationMs` (int, optional; when 0, uses `ThemeProperties.FadeDurationMs`)
+- `FadeDelayMs` (int, optional; delay before switching to the new image)
+
+Tip:
+- For a visible crossfade, keep the control present in the visual tree.
+  Toggling `IsVisible` to `false` will hide it immediately.
+
+---
+
 ## 5) ThemeProperties: “manifest” + tuning API
 
 `ThemeProperties` are **attached properties** meant to be set on the theme root.  
@@ -294,7 +311,7 @@ Example:
              ext:ThemeProperties.WebsiteUrl="https://example.invalid"
 
              ext:ThemeProperties.AccentColor="#FFD700"
-             ext:ThemeProperties.VideoEnabled="True"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
 
              ext:ThemeProperties.SelectedScale="1.10"
@@ -351,17 +368,27 @@ Example:
 
 ### 6.3 Video
 
-- `ThemeProperties.VideoEnabled` (bool, default: `true`)  
-  Enables/disables all video playback for this theme (both main and secondary channels). If false, the ViewModel will not start LibVLC preview playback for this theme.
+- `ThemeProperties.PrimaryVideoEnabled` (bool?, default: `true`)  
+  Enables/disables the **main** preview channel for this theme.
+- `ThemeProperties.SecondaryVideoEnabled` (bool?, default: `null`)  
+  Enables/disables the **secondary** background channel.  
+  When not set, the host enables it only if `SecondaryBackgroundVideoPath` is set.
+- `ThemeProperties.VideoSlotName` (string, default: `"VideoSlot"`)  
+  Slot name for the main preview channel (host injects the crossfading control here).
+- `ThemeProperties.SecondaryVideoSlotName` (string?, optional)  
+  Slot name for the secondary channel if you want to place it explicitly in the layout.
+- `ThemeProperties.VideoFadeDurationMs` (int, default: `250`)  
+  Crossfade duration for the **main** preview channel (video + audio).
 - `ThemeProperties.SecondaryBackgroundVideoPath` (string?, optional)  
-  Theme-local relative path to a background video for the secondary channel.
+  Theme-local relative path to a background video for the secondary channel.  
   Example: "Videos/NameOfVideo.mp4" → resolved as Path.Combine(BasePath, "Videos/NameOfVideo.mp4").
 
 Example:
 ```xml
 <UserControl xmlns:ext="clr-namespace:Retromind.Extensions"
-             ext:ThemeProperties.VideoEnabled="True"
-             ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4">
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4"
+             ext:ThemeProperties.VideoFadeDurationMs="250">
              <!-- layout -->
 </UserControl>
 ```
@@ -487,7 +514,7 @@ Example (Arcade theme):
          ext:ThemeProperties.Name="Arcade"
          ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
          ext:ThemeProperties.Version="0.1.0"
-         ext:ThemeProperties.VideoEnabled="True"
+         ext:ThemeProperties.PrimaryVideoEnabled="True"
          ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4"
          ext:ThemeProperties.AttractModeEnabled="True"
          ext:ThemeProperties.AttractModeIdleSeconds="60"
@@ -510,7 +537,7 @@ Example (Arcade theme):
          ext:ThemeProperties.Name="Arcade"
          ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
          ext:ThemeProperties.Version="0.1.0"
-         ext:ThemeProperties.VideoEnabled="True"
+         ext:ThemeProperties.PrimaryVideoEnabled="True"
          ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4"
          ext:ThemeProperties.AttractModeEnabled="True"
          ext:ThemeProperties.AttractModeIdleSeconds="60">
@@ -706,7 +733,7 @@ If your slot has no meaningful size yet, the host may hide the overlay to avoid 
 
 ### Video does not show up
 Checklist:
-1. `ext:ThemeProperties.VideoEnabled="True"` (or omitted → defaults to true)
+1. `ext:ThemeProperties.PrimaryVideoEnabled="True"` (or omitted → defaults to true)
 2. Slot exists:
     - default: `x:Name="VideoSlot"`
     - or custom `VideoSlotName` + matching `x:Name`
@@ -1055,7 +1082,7 @@ A minimal subtheme:
 ```xml
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Retromind.ViewModels" xmlns:ext="clr-namespace:Retromind.Extensions" x:DataType="vm:BigModeViewModel" Background="#101010"
          ext:ThemeProperties.Name="Default System Layout"
-         ext:ThemeProperties.VideoEnabled="True">
+         ext:ThemeProperties.PrimaryVideoEnabled="True">
 
 <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,2*" Margin="40">
 

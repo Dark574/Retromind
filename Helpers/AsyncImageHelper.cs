@@ -95,6 +95,12 @@ public class AsyncImageHelper : AvaloniaObject
     public static bool GetDisableCache(Image element) => element.GetValue(DisableCacheProperty);
     public static void SetDisableCache(Image element, bool value) => element.SetValue(DisableCacheProperty, value);
 
+    public static readonly AttachedProperty<bool> IsLoadedProperty =
+        AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, bool>("IsLoaded");
+
+    public static bool GetIsLoaded(Image element) => element.GetValue(IsLoadedProperty);
+    public static void SetIsLoaded(Image element, bool value) => element.SetValue(IsLoadedProperty, value);
+
     // Private property to store the Cancellation Token Source for the current load operation on this Image control
     private static readonly AttachedProperty<CancellationTokenSource?> CurrentLoadCtsProperty =
         AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, CancellationTokenSource?>("CurrentLoadCts");
@@ -124,6 +130,7 @@ public class AsyncImageHelper : AvaloniaObject
         ReleaseImageCacheKey(image);
         DisposeUncachedBitmap(image);
         image.Source = PlaceholderImage;
+        image.SetValue(IsLoadedProperty, false);
         image.SetValue(CurrentLoadCtsProperty, null);
     }
     
@@ -341,6 +348,7 @@ public class AsyncImageHelper : AvaloniaObject
             DisposeUncachedBitmap(image);
             image.Source = bitmap;
             image.SetValue(CurrentUncachedBitmapProperty, bitmap);
+            image.SetValue(IsLoadedProperty, true);
             return;
         }
 
@@ -360,6 +368,7 @@ public class AsyncImageHelper : AvaloniaObject
         }
 
         image.Source = bitmap;
+        image.SetValue(IsLoadedProperty, true);
     }
 
     private static void ReleaseImageCacheKey(Image image)

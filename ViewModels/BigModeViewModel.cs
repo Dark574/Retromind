@@ -45,8 +45,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private bool _isLaunching;
 
     // --- Video (VLC + surfaces + players) ---
-    private readonly LibVlcVideoSurface _videoSurface;
+    private readonly LibVlcVideoSurface _videoSurfaceA;
+    private readonly LibVlcVideoSurface _videoSurfaceB;
     private readonly LibVlcVideoSurface? _secondaryVideoSurface;
+    private MediaPlayer? _mediaPlayerA;
+    private MediaPlayer? _mediaPlayerB;
     private MediaPlayer? _secondaryPlayer;
     private Media? _secondaryBackgroundMedia;
 
@@ -137,6 +140,13 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _secondaryVideoIsPlaying;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MainVideoSurface))]
+    private int _mainVideoActiveSurfaceIndex = -1;
+
+    [ObservableProperty]
+    private int _videoFadeDurationMs = 250;
+
     // --- Misc UI state ---
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCategorySelectionActive))]
@@ -163,9 +173,24 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private int _currentGameNumber;
 
     /// <summary>
-    /// Main channel for video previews. Themes should preferably use this property
+    /// Main channel A for video previews (used for crossfades).
     /// </summary>
-    public IVideoSurface? MainVideoSurface => _videoSurface;
+    public IVideoSurface? MainVideoSurfaceA => _videoSurfaceA;
+
+    /// <summary>
+    /// Main channel B for video previews (used for crossfades).
+    /// </summary>
+    public IVideoSurface? MainVideoSurfaceB => _videoSurfaceB;
+
+    /// <summary>
+    /// Backwards-compatible surface: returns the currently active surface.
+    /// </summary>
+    public IVideoSurface? MainVideoSurface =>
+        MainVideoActiveSurfaceIndex == 0
+            ? _videoSurfaceA
+            : MainVideoActiveSurfaceIndex == 1
+                ? _videoSurfaceB
+                : null;
 
     /// <summary>
     /// Optional second video channel (e.g., system intro, B-roll)
@@ -370,31 +395,19 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         _secondaryLibVlc = new LibVLC(enableDebugLogs: false, secondaryVlcOptions);
         
-        // Video surface for callback rendering – main channel
-        _videoSurface = new LibVlcVideoSurface();
-        _videoSurface.FrameReady += OnMainVideoFrameReady;
+        // Video surfaces for callback rendering – main channel (A/B crossfade)
+        _videoSurfaceA = new LibVlcVideoSurface();
+        _videoSurfaceA.FrameReady += OnMainVideoFrameReadyA;
+
+        _videoSurfaceB = new LibVlcVideoSurface();
+        _videoSurfaceB.FrameReady += OnMainVideoFrameReadyB;
 
         // Second video channel
         _secondaryVideoSurface = new LibVlcVideoSurface();
         
-        MediaPlayer = new MediaPlayer(_libVlc)
-        {
-            Volume = 100,
-            Scale = 0f // 0 = scale to fill the control
-        };
-
-        // Setting up video format and callbacks
-        MediaPlayer.SetVideoFormatCallbacks(
-            _videoSurface.VideoFormat,
-            _videoSurface.VideoCleanup);
-
-        MediaPlayer.SetVideoCallbacks(
-            _videoSurface.VideoLock,
-            _videoSurface.VideoUnlock,
-            _videoSurface.VideoDisplay);
-        
-        // Loop preview videos by restarting them when they reach the end
-        MediaPlayer.EndReached += OnPreviewEndReached;
+        _mediaPlayerA = CreateMediaPlayerForSurface(_videoSurfaceA, index: 0);
+        _mediaPlayerB = CreateMediaPlayerForSurface(_videoSurfaceB, index: 1);
+        MediaPlayer = _mediaPlayerA;
         
         // Second player for background videos
         _secondaryPlayer = new MediaPlayer(_secondaryLibVlc)
@@ -435,6 +448,28 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         
         // Start attract-mode timer (if configured by the theme)
         InitializeAttractModeTimer();
+    }
+
+    private MediaPlayer CreateMediaPlayerForSurface(LibVlcVideoSurface surface, int index)
+    {
+        var player = new MediaPlayer(_libVlc)
+        {
+            Volume = 100,
+            Scale = 0f // 0 = scale to fill the control
+        };
+
+        player.SetVideoFormatCallbacks(
+            surface.VideoFormat,
+            surface.VideoCleanup);
+
+        player.SetVideoCallbacks(
+            surface.VideoLock,
+            surface.VideoUnlock,
+            surface.VideoDisplay);
+
+        player.EndReached += (_, _) => OnPreviewEndReached(index);
+
+        return player;
     }
 
     /// <summary>

@@ -41,7 +41,7 @@ public partial class BigModeHostView : UserControl
     private readonly Dictionary<string, Theme> _systemThemeCache = new(StringComparer.OrdinalIgnoreCase);
 
     // Shared primary video control for the main preview channel.
-    private readonly VideoSurfaceControl _primaryVideoControl;
+    private readonly CrossfadeVideoSurfaceControl _primaryVideoControl;
 
     // Shared secondary video control for the background / B-roll channel.
     private readonly VideoSurfaceControl _secondaryVideoControl;
@@ -61,17 +61,24 @@ public partial class BigModeHostView : UserControl
                           ?? throw new InvalidOperationException("ThemePresenter control not found in BigModeHostView.");
 
         // Shared primary video control: main preview channel
-        _primaryVideoControl = new VideoSurfaceControl
+        _primaryVideoControl = new CrossfadeVideoSurfaceControl
         {
-            Stretch = Stretch.Uniform
+            Stretch = Stretch.Uniform,
+            IsHitTestVisible = false
         };
 
         // Bind video surface and basic visibility to the main preview properties.
         // We keep the bindings simple and let the theme handle additional styling.
-        _primaryVideoControl.Bind(VideoSurfaceControl.SurfaceProperty,
-            new Binding("MainVideoSurface"));
+        _primaryVideoControl.Bind(CrossfadeVideoSurfaceControl.SurfaceAProperty,
+            new Binding("MainVideoSurfaceA"));
+        _primaryVideoControl.Bind(CrossfadeVideoSurfaceControl.SurfaceBProperty,
+            new Binding("MainVideoSurfaceB"));
+        _primaryVideoControl.Bind(CrossfadeVideoSurfaceControl.ActiveIndexProperty,
+            new Binding("MainVideoActiveSurfaceIndex"));
+        _primaryVideoControl.Bind(CrossfadeVideoSurfaceControl.FadeDurationMsProperty,
+            new Binding("VideoFadeDurationMs"));
         _primaryVideoControl.Bind(IsVisibleProperty,
-            new Binding("MainVideoHasFrame"));
+            new Binding("IsVideoOverlayVisible"));
         
         // Shared secondary video control: background / B-roll channel.
         _secondaryVideoControl = new VideoSurfaceControl
@@ -115,21 +122,29 @@ public partial class BigModeHostView : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // 1) Item change: trigger the PrimaryVisual animation (for all themes)
-        if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedItem))
-        {
-            if (_themePresenter.Content is Control currentThemeRoot)
-            {
-                ThemeTransitionHelper.AnimatePrimaryVisual(currentThemeRoot);
-            }
-        }
+        var isItemChange = e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedItem);
+        var isCategoryChange = e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedCategory);
 
-        // 2) SystemHost theme only: refresh the system layout on category change
-        if (_isSystemHostTheme &&
-            e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedCategory))
-        {
+        // SystemHost theme only: refresh the system layout on category change
+        if (_isSystemHostTheme && isCategoryChange)
             UpdateSystemLayoutForSelectedCategory();
-        }
+
+        if (!isItemChange && !isCategoryChange)
+            return;
+
+        if (_themePresenter.Content is Control currentThemeRoot)
+            AnimateVisualSlots(currentThemeRoot);
+
+        // For SystemHost, also animate the right-hand system layout on item changes.
+        if (isItemChange && _isSystemHostTheme && _systemLayoutHost?.Content is Control systemRoot)
+            AnimateVisualSlots(systemRoot);
+    }
+
+    private static void AnimateVisualSlots(Control themeRoot)
+    {
+        ThemeTransitionHelper.AnimatePrimaryVisual(themeRoot);
+        ThemeTransitionHelper.AnimateSecondaryVisual(themeRoot);
+        ThemeTransitionHelper.AnimateBackgroundVisual(themeRoot);
     }
     
     public void SetThemeContent(Control themeRoot, Theme theme)
@@ -176,6 +191,7 @@ public partial class BigModeHostView : UserControl
         {
             // Base capability from outer theme
             vm.CanShowVideo = theme.PrimaryVideoEnabled;
+            vm.VideoFadeDurationMs = ThemeProperties.GetVideoFadeDurationMs(themeRoot);
         }
         
         // Apply theme tuning (selection UX, spacing, typography, animation timings)
@@ -187,8 +203,8 @@ public partial class BigModeHostView : UserControl
         // Secondary video slot (background / B-roll), if configured by the theme.
         AttachSecondaryVideoToSlot(themeRoot);
         
-        // Initial PrimaryVisual animation for the newly set theme
-        ThemeTransitionHelper.AnimatePrimaryVisual(themeRoot);
+        // Initial visual animations for the newly set theme
+        AnimateVisualSlots(themeRoot);
 
         // If this is the SystemHost theme, initialize the right-hand system layout
         // immediately for the current SelectedCategory
@@ -372,7 +388,7 @@ public partial class BigModeHostView : UserControl
 
         _systemLayoutHost.Content = subView;
 
-        ThemeTransitionHelper.AnimatePrimaryVisual(subView);
+        AnimateVisualSlots(subView);
 
         // When we are inside the SystemHost theme, the per-system subtheme
         // can define its own primary video slot. Attach the shared primary
@@ -382,11 +398,12 @@ public partial class BigModeHostView : UserControl
         // Attach the secondary video control to the system subtheme, if it exposes
         // a secondary video slot name (e.g. via SecondaryVideoSlotName)
         AttachSecondaryVideoToSlot(subView);
-        
+
         // Update the VM flag so higher-level logic knows whether video can be shown.
         // For system view we allow video when either the outer host theme or the
         // per-system subtheme enables the primary channel.
         vm.CanShowVideo = vm.CanShowVideo || systemTheme.PrimaryVideoEnabled;
+        vm.VideoFadeDurationMs = ThemeProperties.GetVideoFadeDurationMs(subView);
     }
     
     private void UnhookThemeTuning()

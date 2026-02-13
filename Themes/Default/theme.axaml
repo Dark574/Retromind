@@ -13,12 +13,14 @@
              ext:ThemeProperties.Version="0.2.0"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
-             ext:ThemeProperties.FadeDurationMs="1100"
+             ext:ThemeProperties.FadeDurationMs="4000"
              ext:ThemeProperties.MoveDurationMs="1100"
              ext:ThemeProperties.PrimaryVisualElementName="CoverPanel"
              ext:ThemeProperties.PrimaryVisualEnterMode="SlideFromLeft"
              ext:ThemeProperties.PrimaryVisualEnterOffsetX="-420"
-             ext:ThemeProperties.PrimaryVisualEnterOffsetY="0">
+             ext:ThemeProperties.PrimaryVisualEnterOffsetY="0"
+             ext:ThemeProperties.BackgroundVisualElementName="BackgroundVisual"
+             ext:ThemeProperties.BackgroundVisualEnterMode="None">
 
     <UserControl.Resources>
         <!-- Soft slide+fade animation for the main title -->
@@ -55,15 +57,16 @@
     <!-- Background layer + actual content -->
     <Grid>
         <!-- Very transparent wallpaper from the current item -->
-        <Image helpers:AsyncImageHelper.Url="{Binding ActiveWallpaperPath}"
-               helpers:AsyncImageHelper.DecodeWidth="1920"
-               helpers:AsyncImageHelper.DisableCache="True"
-               Stretch="UniformToFill"
-               Opacity="0.30"
-               HorizontalAlignment="Center"
-               VerticalAlignment="Center"
-               IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
-               IsHitTestVisible="False" />
+        <ext:CrossfadeImage x:Name="BackgroundVisual"
+                            Url="{Binding ActiveWallpaperPath}"
+                            DecodeWidth="1920"
+                            DisableCache="True"
+                            Stretch="UniformToFill"
+                            Opacity="0.30"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
+                            IsHitTestVisible="False" />
 
         <!-- Two-column layout: navigation on the left, video + details on the right -->
         <Grid ColumnDefinitions="0.20*,0.80*"
@@ -90,38 +93,40 @@
                             Margin="0,0,0,24">
                         <StackPanel Spacing="6">
                             <!-- Game logo (item logo) -->
-                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
-                                   helpers:AsyncImageHelper.DecodeWidth="512"
-                                   helpers:AsyncImageHelper.DisableCache="True"
-                                   Height="80"
-                                   Stretch="Uniform"
-                                   HorizontalAlignment="Left"
-                                   VerticalAlignment="Center"
-                                   IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
-                                <Image.RenderTransform>
+                            <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryLogoPath}"
+                                                DecodeWidth="512"
+                                                DisableCache="True"
+                                                FadeDelayMs="120"
+                                                Height="80"
+                                                Stretch="Uniform"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center"
+                                                IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                                <ext:CrossfadeImage.RenderTransform>
                                     <TranslateTransform X="-12" />
-                                </Image.RenderTransform>
-                                <Image.Transitions>
+                                </ext:CrossfadeImage.RenderTransform>
+                                <ext:CrossfadeImage.Transitions>
                                     <StaticResource ResourceKey="TitleTransitions" />
-                                </Image.Transitions>
-                            </Image>
+                                </ext:CrossfadeImage.Transitions>
+                            </ext:CrossfadeImage>
 
                             <!-- Fallback logo when item has no logo (node fallback) -->
-                            <Image helpers:AsyncImageHelper.Url="{Binding ActiveLogoPath}"
-                                   helpers:AsyncImageHelper.DecodeWidth="512"
-                                   helpers:AsyncImageHelper.DisableCache="True"
-                                   Height="32"
-                                   Stretch="Uniform"
-                                   HorizontalAlignment="Left"
-                                   VerticalAlignment="Center"
-                                   IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
-                                <Image.RenderTransform>
+                            <ext:CrossfadeImage Url="{Binding ActiveLogoPath}"
+                                                DecodeWidth="512"
+                                                DisableCache="True"
+                                                FadeDelayMs="120"
+                                                Height="32"
+                                                Stretch="Uniform"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center"
+                                                IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
+                                <ext:CrossfadeImage.RenderTransform>
                                     <TranslateTransform X="-12" />
-                                </Image.RenderTransform>
-                                <Image.Transitions>
+                                </ext:CrossfadeImage.RenderTransform>
+                                <ext:CrossfadeImage.Transitions>
                                     <StaticResource ResourceKey="TitleTransitions" />
-                                </Image.Transitions>
-                            </Image>
+                                </ext:CrossfadeImage.Transitions>
+                            </ext:CrossfadeImage>
 
                             <!-- Fallback: text title when no item logo is available -->
                             <TextBlock Text="{Binding SelectedItem.Title}"
