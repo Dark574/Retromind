@@ -153,6 +153,7 @@
                              BorderThickness="0"
                              Padding="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              IsVisible="{Binding IsCategorySelectionActive}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -173,6 +174,7 @@
                              BorderThickness="0"
                              Padding="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              IsVisible="{Binding IsGameListActive}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>

@@ -173,17 +173,25 @@ public static class ListBoxBehaviors
 
         // Delay the centering until after layout has updated; otherwise
         // container positions and viewport size may be outdated.
-        Dispatcher.UIThread.Post(() => CenterCurrentSelection(listBox), DispatcherPriority.Render);
+        Dispatcher.UIThread.Post(() => CenterCurrentSelection(listBox, remainingAttempts: 8), DispatcherPriority.Render);
     }
     
-    private static void CenterCurrentSelection(ListBox listBox)
+    private static void CenterCurrentSelection(ListBox listBox, int remainingAttempts)
     {
         if (listBox.SelectedItem == null)
             return;
 
         // Try to find the container (ListBoxItem) for the selected item
         if (listBox.ContainerFromItem(listBox.SelectedItem) is not Control container)
+        {
+            if (remainingAttempts > 0)
+            {
+                Dispatcher.UIThread.Post(
+                    () => CenterCurrentSelection(listBox, remainingAttempts - 1),
+                    DispatcherPriority.Render);
+            }
             return;
+        }
 
         // Find the ScrollViewer inside the ListBox visual tree
         var scrollViewer = listBox
@@ -192,7 +200,15 @@ public static class ListBoxBehaviors
             .FirstOrDefault();
 
         if (scrollViewer == null)
+        {
+            if (remainingAttempts > 0)
+            {
+                Dispatcher.UIThread.Post(
+                    () => CenterCurrentSelection(listBox, remainingAttempts - 1),
+                    DispatcherPriority.Render);
+            }
             return;
+        }
 
         // Transform the item's top-left into the ScrollViewer's coordinate space
         var p = container.TranslatePoint(new Point(0, 0), scrollViewer);
@@ -202,20 +218,28 @@ public static class ListBoxBehaviors
         var itemTopLeft = p.Value;
 
         // We want the item to be vertically centered:
-        // offsetY = currentItemTop - (viewportHeight - itemHeight) / 2
+        // offsetY = itemTopInContent - (viewportHeight - itemHeight) / 2
         var itemHeight = container.Bounds.Height;
         var viewportHeight = scrollViewer.Viewport.Height;
 
         if (viewportHeight <= 0 || itemHeight <= 0)
+        {
+            if (remainingAttempts > 0)
+            {
+                Dispatcher.UIThread.Post(
+                    () => CenterCurrentSelection(listBox, remainingAttempts - 1),
+                    DispatcherPriority.Render);
+            }
             return;
+        }
 
-        var desiredOffsetY = itemTopLeft.Y - (viewportHeight - itemHeight) / 2.0;
+        var currentOffset = scrollViewer.Offset;
+        var desiredOffsetY = currentOffset.Y + itemTopLeft.Y - (viewportHeight - itemHeight) / 2.0;
 
         // Clamp to valid range (no negative offsets, no scrolling past content end)
         var maxOffsetY = Math.Max(0, scrollViewer.Extent.Height - viewportHeight);
         var clampedOffsetY = Math.Max(0, Math.Min(desiredOffsetY, maxOffsetY));
 
-        var currentOffset = scrollViewer.Offset;
         var newOffset = new Vector(currentOffset.X, clampedOffsetY);
 
         scrollViewer.Offset = newOffset;
