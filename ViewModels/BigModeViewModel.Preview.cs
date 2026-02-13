@@ -50,7 +50,8 @@ public partial class BigModeViewModel
     private static readonly TimeSpan VideoStartSettleDelay = TimeSpan.FromMilliseconds(75);
     private static readonly TimeSpan VideoStartTimeout = TimeSpan.FromMilliseconds(900);
     private static readonly TimeSpan StopWaitTimeout = TimeSpan.FromMilliseconds(750);
-    private static readonly TimeSpan AudioStartFallbackDelay = TimeSpan.FromMilliseconds(200);
+    private static readonly TimeSpan AudioStartFallbackDelay = TimeSpan.FromMilliseconds(100);
+    private const int MaxAudioFadeDurationMs = 600;
     
     // AppImage-specific: some bundled LibVLC builds can lose audio after Stop/Play cycles.
     private static readonly bool IsAppImage =
@@ -246,20 +247,29 @@ public partial class BigModeViewModel
             MainVideoActiveSurfaceIndex = index;
             MediaPlayer = GetMediaPlayer(index);
 
-            var fadeMs = Math.Max(0, VideoFadeDurationMs);
-            if (fadeMs == 0)
+            var videoFadeMs = Math.Max(0, VideoFadeDurationMs);
+            var audioFadeMs = ResolveAudioFadeDurationMs(videoFadeMs);
+
+            if (audioFadeMs == 0)
             {
                 var newPlayer = GetMediaPlayer(index);
                 if (newPlayer != null)
                     newPlayer.Volume = 100;
 
                 Interlocked.CompareExchange(ref _audioCrossfadeStartedGeneration, expected, 0);
+            }
+            else
+            {
+                TryStartAudioCrossfadeOnce(oldIndex, index, expected, audioFadeMs);
+            }
+
+            if (videoFadeMs == 0)
+            {
                 StopPreviewPlayer(oldIndex);
                 return;
             }
 
-            TryStartAudioCrossfadeOnce(oldIndex, index, expected, fadeMs);
-            _ = StopPreviewPlayerAfterDelayAsync(oldIndex, expected, fadeMs);
+            _ = StopPreviewPlayerAfterDelayAsync(oldIndex, expected, videoFadeMs);
         }, DispatcherPriority.Background);
     }
 
@@ -302,6 +312,7 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(SelectedYear));
         OnPropertyChanged(nameof(SelectedDeveloper));
         OnPropertyChanged(nameof(ActiveLogoPath));
+        OnPropertyChanged(nameof(HasDisplayLogo));
         OnPropertyChanged(nameof(ActiveWallpaperPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));
@@ -345,6 +356,7 @@ public partial class BigModeViewModel
         UpdateCircularItems();
 
         OnPropertyChanged(nameof(ActiveLogoPath));
+        OnPropertyChanged(nameof(HasDisplayLogo));
         OnPropertyChanged(nameof(ActiveWallpaperPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));
@@ -1016,8 +1028,8 @@ public partial class BigModeViewModel
         if (Volatile.Read(ref _mainVideoFrameReadyGeneration) == generation)
             return;
 
-        var fadeMs = Math.Max(0, VideoFadeDurationMs);
-        if (fadeMs == 0)
+        var audioFadeMs = ResolveAudioFadeDurationMs(VideoFadeDurationMs);
+        if (audioFadeMs == 0)
         {
             var player = GetMediaPlayer(toIndex);
             if (player != null)
@@ -1027,7 +1039,15 @@ public partial class BigModeViewModel
             return;
         }
 
-        TryStartAudioCrossfadeOnce(fromIndex, toIndex, generation, fadeMs);
+        TryStartAudioCrossfadeOnce(fromIndex, toIndex, generation, audioFadeMs);
+    }
+
+    private static int ResolveAudioFadeDurationMs(int videoFadeMs)
+    {
+        if (videoFadeMs <= 0)
+            return 0;
+
+        return Math.Clamp(videoFadeMs, 0, MaxAudioFadeDurationMs);
     }
 
     private async Task CrossfadeAudioAsync(MediaPlayer? fromPlayer, MediaPlayer? toPlayer, int durationMs, int fadeGen, int previewGen)

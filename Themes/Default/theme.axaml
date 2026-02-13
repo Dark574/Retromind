@@ -94,7 +94,8 @@
                     <Border Grid.Row="1"
                             Margin="0,0,0,24">
                         <StackPanel Spacing="6">
-                            <Grid Height="{StaticResource LogoHeight}">
+                            <Grid Height="{StaticResource LogoHeight}"
+                                  IsVisible="{Binding HasDisplayLogo}">
                                 <!-- Game logo (item logo) -->
                                 <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryLogoPath}"
                                                     DecodeWidth="512"

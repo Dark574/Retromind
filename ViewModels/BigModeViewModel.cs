@@ -225,6 +225,14 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         ResolveArtworkForSelection(AssetType.Logo);
 
     /// <summary>
+    /// True if the current selection can display any logo (item or fallback).
+    /// Used by themes to collapse empty logo slots.
+    /// </summary>
+    public bool HasDisplayLogo =>
+        !string.IsNullOrWhiteSpace(SelectedItem?.ItemLogoPath) ||
+        !string.IsNullOrWhiteSpace(ActiveLogoPath);
+
+    /// <summary>
     /// Resolved wallpaper path for the currently selected item in context of the
     /// active node. Resolution order: item → node. Does not apply theme defaults
     /// </summary>
