@@ -27,6 +27,7 @@ See `docs/CHANGELOG.md` for version history.
 - Library tree (areas/categories) on the left
 - Cover/grid view in the center
 - Details view on the right
+- Drag & drop categories in the tree to reorder or move between parents (merge prompt on conflicts)
 - Global search across the library with filters (year, favorites, status)
 - Metadata scraping (depends on your API keys)
 - Optional BigMode / controller-friendly UI with runtime themes

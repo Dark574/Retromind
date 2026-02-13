@@ -39,6 +39,7 @@ Retromind focuses on:
 - Library tree (areas / categories) on the left
 - Cover / grid view in the center
 - Details view on the right
+- Drag & drop categories in the tree to reorder or move between parents (merge prompt on conflicts)
 - Metadata scraping (TMDB, IGDB, Google Books, …)
 - Optional **BigMode** – controller-friendly UI
 - AppImage build script with bundled LibVLC
