@@ -52,9 +52,9 @@ public sealed class LibVlcVideoPlayer : IVideoPlayer
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("Video path must not be empty.", nameof(path));
 
-        // Do NOT dispose the media immediately; the player holds the reference.
-        var media = new Media(_libVlc, path, FromType.FromPath);
-        _mediaPlayer.Media = media;
+        _mediaPlayer.Stop();
+        _mediaPlayer.Media?.Dispose();
+        _mediaPlayer.Media = new Media(_libVlc, path, FromType.FromPath);
     }
 
     public void Play()
