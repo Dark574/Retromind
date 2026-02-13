@@ -43,6 +43,7 @@ public static class ObjectConverters
             return isPointerOver ? HoverBrush : TransparentBrush;
         });
 
+
     private static readonly IBrush SelectedBrush =
         new SolidColorBrush(Color.FromArgb(0xDD, 0x2C, 0x76, 0x9A));
 

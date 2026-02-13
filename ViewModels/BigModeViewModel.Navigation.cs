@@ -110,6 +110,28 @@ public partial class BigModeViewModel
                 _settings.LastBigModeWasItemView = false;
                 _settings.LastBigModeSelectedNodeId = null;
             }
+
+            // If we landed in a leaf node with items but no child categories,
+            // prefer showing the item list so the UI is not empty.
+            if (!_settings.LastBigModeWasItemView)
+            {
+                var parentNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
+                if (parentNode != null && CurrentCategories.Count == 0 && parentNode.Items is { Count: > 0 })
+                {
+                    IsGameListActive = true;
+                    Items = parentNode.Items;
+                    SelectedCategory = parentNode;
+                    ThemeContextNode = parentNode;
+
+                    var item = parentNode.Items.FirstOrDefault(i => i.Id == _settings.LastBigModeSelectedNodeId)
+                               ?? parentNode.Items.FirstOrDefault();
+                    SelectedItem = item;
+
+                    _settings.LastBigModeWasItemView = true;
+                    _settings.LastBigModeSelectedNodeId = item?.Id;
+                    return;
+                }
+            }
             
             // Restore category view
             // Try to find the last selected category on the current level

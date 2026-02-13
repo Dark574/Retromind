@@ -116,7 +116,23 @@ public class CrossfadeImage : Grid
         _imageB.Measure(availableSize);
 
         var active = _activeIndex == 0 ? _imageA : _imageB;
-        return active.DesiredSize;
+        var desired = active.DesiredSize;
+
+        var hasWidth = !double.IsNaN(Width);
+        var hasHeight = !double.IsNaN(Height);
+
+        var width = hasWidth ? Width : desired.Width;
+        var height = hasHeight ? Height : desired.Height;
+
+        if (!hasWidth && hasHeight && !double.IsInfinity(availableSize.Width))
+            width = availableSize.Width;
+
+        if (!double.IsInfinity(availableSize.Width))
+            width = Math.Clamp(width, 0, availableSize.Width);
+        if (!double.IsInfinity(availableSize.Height))
+            height = Math.Clamp(height, 0, availableSize.Height);
+
+        return new Size(width, height);
     }
 
     protected override Size ArrangeOverride(Size finalSize)
@@ -199,6 +215,7 @@ public class CrossfadeImage : Grid
         _imageB.Opacity = 0;
         _imageA.IsVisible = false;
         _imageB.IsVisible = false;
+        InvalidateMeasure();
     }
 
     private void ApplyImageSettings(Image target)
@@ -279,6 +296,7 @@ public class CrossfadeImage : Grid
 
             _activeIndex = targetIndex;
             ScheduleDeactivateInactiveImage(generation, targetIndex);
+            InvalidateMeasure();
         });
     }
 
