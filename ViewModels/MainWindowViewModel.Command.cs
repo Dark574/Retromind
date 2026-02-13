@@ -397,6 +397,54 @@ public partial class MainWindowViewModel
         node = null;
         return false;
     }
+
+    private static bool NamesCollide(MediaNode left, MediaNode right)
+    {
+        if (left == null || right == null)
+            return false;
+
+        var leftName = left.Name?.Trim() ?? string.Empty;
+        var rightName = right.Name?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(leftName) || string.IsNullOrWhiteSpace(rightName))
+            return false;
+
+        if (string.Equals(leftName, rightName, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var leftSanitized = PathHelper.SanitizePathSegment(leftName);
+        var rightSanitized = PathHelper.SanitizePathSegment(rightName);
+
+        return string.Equals(leftSanitized, rightSanitized, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static MediaNode? FindNameCollision(IEnumerable<MediaNode> siblings, MediaNode sourceNode)
+    {
+        var sourceName = sourceNode.Name?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(sourceName))
+            return null;
+
+        var sourceSanitized = PathHelper.SanitizePathSegment(sourceName);
+
+        foreach (var node in siblings)
+        {
+            if (ReferenceEquals(node, sourceNode))
+                continue;
+
+            var candidateName = node.Name?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(candidateName))
+                continue;
+
+            if (string.Equals(candidateName, sourceName, StringComparison.OrdinalIgnoreCase))
+                return node;
+
+            var candidateSanitized = PathHelper.SanitizePathSegment(candidateName);
+            if (string.Equals(candidateSanitized, sourceSanitized, StringComparison.OrdinalIgnoreCase))
+                return node;
+        }
+
+        return null;
+    }
     
     private async Task AddCategoryAsync(MediaNode? parentNode)
     {
@@ -404,7 +452,9 @@ public partial class MainWindowViewModel
         
         try 
         {
-            var name = await PromptForName(owner, Strings.Dialog_EnterName_Message);
+            var siblings = parentNode == null ? RootItems : parentNode.Children;
+            var validator = CreateNodeNameValidator(siblings);
+            var name = await PromptForName(owner, Strings.Dialog_EnterName_Message, validator);
             if (!string.IsNullOrWhiteSpace(name))
             {
                 if (parentNode == null) 
@@ -824,11 +874,74 @@ public partial class MainWindowViewModel
         return result;
     }
 
-    private async Task<string?> PromptForName(Window owner, string message)
+    private async Task<string?> PromptForName(
+        Window owner,
+        string message,
+        NamePromptViewModel.NamePromptValidator? validator = null)
     {
-        var dialog = new NamePromptView { DataContext = new NamePromptViewModel(message, message) };
+        var dialog = new NamePromptView { DataContext = new NamePromptViewModel(message, message, validator) };
         var result = await dialog.ShowDialog<bool>(owner);
         return result && dialog.DataContext is NamePromptViewModel vm ? vm.InputText : null;
+    }
+
+    private static NamePromptViewModel.NamePromptValidator CreateNodeNameValidator(
+        IEnumerable<MediaNode> siblings)
+    {
+        var existingRaw = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var existingSanitized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var node in siblings)
+        {
+            var name = node.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+                continue;
+
+            existingRaw.Add(name);
+            existingSanitized.Add(PathHelper.SanitizePathSegment(name));
+        }
+
+        return input =>
+        {
+            var trimmed = input?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(trimmed))
+                return new NamePromptViewModel.NamePromptValidationResult(
+                    false,
+                    Strings.Dialog_NamePrompt_EmptyName);
+
+            var sanitized = PathHelper.SanitizePathSegment(trimmed);
+            var hasCollision = existingRaw.Contains(trimmed) || existingSanitized.Contains(sanitized);
+
+            if (!hasCollision)
+                return new NamePromptViewModel.NamePromptValidationResult(true);
+
+            var suggestion = BuildUniqueNameSuggestion(trimmed, existingRaw, existingSanitized);
+
+            return new NamePromptViewModel.NamePromptValidationResult(
+                false,
+                Strings.Dialog_NamePrompt_DuplicateOrCollision,
+                suggestion);
+        };
+    }
+
+    private static string BuildUniqueNameSuggestion(
+        string baseName,
+        HashSet<string> existingRaw,
+        HashSet<string> existingSanitized)
+    {
+        for (int i = 2; i < 1000; i++)
+        {
+            var candidate = $"{baseName} ({i})";
+            if (existingRaw.Contains(candidate))
+                continue;
+
+            var sanitizedCandidate = PathHelper.SanitizePathSegment(candidate);
+            if (existingSanitized.Contains(sanitizedCandidate))
+                continue;
+
+            return candidate;
+        }
+
+        return string.Empty;
     }
     
     private async Task OpenSettingsAsync()
@@ -1010,16 +1123,46 @@ public partial class MainWindowViewModel
         MediaNode? mergeTarget = null;
         if (dropPosition == NodeDropPosition.Inside)
         {
-            if (string.Equals(targetNode.Name, sourceNode.Name, StringComparison.OrdinalIgnoreCase))
+            if (NamesCollide(targetNode, sourceNode))
             {
+                if (CurrentWindow is not { } owner)
+                    return false;
+
+                var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeFormat, targetNode.Name);
+                if (!await ShowConfirmDialog(owner, mergeMessage))
+                    return false;
+
                 mergeTarget = targetNode;
             }
             else
             {
                 var destinationCollection = newParent == null ? RootItems : newParent.Children;
-                mergeTarget = destinationCollection.FirstOrDefault(n =>
-                    !ReferenceEquals(n, sourceNode) &&
-                    string.Equals(n.Name, sourceNode.Name, StringComparison.OrdinalIgnoreCase));
+                mergeTarget = FindNameCollision(destinationCollection, sourceNode);
+                if (mergeTarget != null)
+                {
+                    if (CurrentWindow is not { } owner)
+                        return false;
+
+                    var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeFormat, mergeTarget.Name);
+                    if (!await ShowConfirmDialog(owner, mergeMessage))
+                        return false;
+                }
+            }
+        }
+        else if (parentChanged)
+        {
+            var destinationCollection = newParent == null ? RootItems : newParent.Children;
+            var collision = FindNameCollision(destinationCollection, sourceNode);
+            if (collision != null)
+            {
+                if (CurrentWindow is not { } owner)
+                    return false;
+
+                var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeFormat, collision.Name);
+                if (!await ShowConfirmDialog(owner, mergeMessage))
+                    return false;
+
+                mergeTarget = collision;
             }
         }
 

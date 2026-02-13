@@ -17,8 +17,20 @@
 
         <!-- x:Name added so we can find it in the code -->
         <TextBox x:Name="NameBox"
-                 Text="{Binding InputText}"
+                 Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
                  Width="300" />
+
+        <TextBlock Text="{Binding ValidationMessage}"
+                   Foreground="Red"
+                   IsVisible="{Binding HasValidationMessage}" />
+
+        <StackPanel Orientation="Horizontal"
+                    Spacing="6"
+                    IsVisible="{Binding HasSuggestion}">
+            <TextBlock Text="{Binding SuggestionText}" VerticalAlignment="Center" />
+            <Button Command="{Binding UseSuggestionCommand}"
+                    Content="{x:Static p:Strings.Button_TakeOver}" />
+        </StackPanel>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
             <Button Command="{Binding OkCommand}" 

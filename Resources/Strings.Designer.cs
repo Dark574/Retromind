@@ -398,6 +398,24 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Dialog.EnterName.Message", resourceCulture);
             }
         }
+
+        public static string Dialog_NamePrompt_EmptyName {
+            get {
+                return ResourceManager.GetString("Dialog.NamePrompt.EmptyName", resourceCulture);
+            }
+        }
+
+        public static string Dialog_NamePrompt_DuplicateOrCollision {
+            get {
+                return ResourceManager.GetString("Dialog.NamePrompt.DuplicateOrCollision", resourceCulture);
+            }
+        }
+
+        public static string Dialog_NamePrompt_SuggestionFormat {
+            get {
+                return ResourceManager.GetString("Dialog.NamePrompt.SuggestionFormat", resourceCulture);
+            }
+        }
         
         public static string Dialog_LoadMetadata {
             get {
@@ -420,6 +438,12 @@ namespace Retromind.Resources {
         public static string Dialog_ConfirmMergeNodeAssetsFormat {
             get {
                 return ResourceManager.GetString("Dialog.ConfirmMergeNodeAssetsFormat", resourceCulture);
+            }
+        }
+
+        public static string Dialog_ConfirmMergeNodeFormat {
+            get {
+                return ResourceManager.GetString("Dialog.ConfirmMergeNodeFormat", resourceCulture);
             }
         }
         

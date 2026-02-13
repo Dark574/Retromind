@@ -24,7 +24,18 @@
                 <StackPanel Spacing="10">
                     <StackPanel Spacing="5">
                         <TextBlock Text="{x:Static p:Strings.Common_Name}"/>
-                        <TextBox Text="{Binding Name}"/>
+                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="{Binding NameValidationMessage}"
+                                   FontSize="12"
+                                   Foreground="Tomato"
+                                   IsVisible="{Binding HasNameValidationMessage}"/>
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="6"
+                                    IsVisible="{Binding HasNameSuggestion}">
+                            <TextBlock Text="{Binding NameSuggestionText}" VerticalAlignment="Center"/>
+                            <Button Command="{Binding UseNameSuggestionCommand}"
+                                    Content="{x:Static p:Strings.Button_TakeOver}"/>
+                        </StackPanel>
                         <TextBlock Text="{Binding SaveErrorMessage}"
                                    FontSize="12"
                                    Foreground="Tomato"

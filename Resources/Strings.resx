@@ -99,6 +99,10 @@
     <data name="Dialog.ConfigureMetadata" xml:space="preserve"><value>Configure metadata</value></data>
     <data name="Dialog.EditMedia" xml:space="preserve"><value>Edit Media</value></data>
     <data name="Dialog.EnterName.Message" xml:space="preserve"><value>Please enter a name:</value></data>
+    <data name="Dialog.NamePrompt.EmptyName" xml:space="preserve"><value>Name cannot be empty.</value></data>
+    <data name="Dialog.NamePrompt.DuplicateOrCollision" xml:space="preserve"><value>Name already exists or results in the same folder. Please choose a different name.</value></data>
+    <data name="Dialog.NamePrompt.SuggestionFormat" xml:space="preserve"><value>Suggestion: {0}</value></data>
+    <data name="Dialog.ConfirmMergeNodeFormat" xml:space="preserve"><value>A node named '{0}' already exists here. Merge the nodes?</value></data>
     <data name="Dialog.LoadMetadata" xml:space="preserve"><value>Load metadata...</value></data>
     <data name="Dialog.MsgConfirmDelete" xml:space="preserve"><value>Do you really want to delete this?</value></data>
     <data name="Dialog.ConfirmMoveNodeAssetsFormat" xml:space="preserve"><value>Move all assets for '{0}' to the new location on disk? This may take a moment.</value></data>

@@ -47,6 +47,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
     /// </summary>
     private readonly FileManagementService _fileService;
     private readonly Func<string, Task<bool>>? _confirmDialogAsync;
+    private bool _isInitializing = true;
 
     /// <summary>
     /// Logical path from the root node down to this node.
@@ -74,6 +75,17 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private string? _saveErrorMessage;
 
     public bool HasSaveError => !string.IsNullOrWhiteSpace(SaveErrorMessage);
+
+    [ObservableProperty] private string _nameValidationMessage = string.Empty;
+    [ObservableProperty] private string _nameSuggestion = string.Empty;
+    [ObservableProperty] private bool _isNameValid = true;
+
+    public bool HasNameValidationMessage => !string.IsNullOrWhiteSpace(NameValidationMessage);
+    public bool HasNameSuggestion => !string.IsNullOrWhiteSpace(NameSuggestion);
+    public string NameSuggestionText =>
+        string.IsNullOrWhiteSpace(NameSuggestion)
+            ? string.Empty
+            : string.Format(Strings.Dialog_NamePrompt_SuggestionFormat, NameSuggestion);
 
     [ObservableProperty] private EmulatorConfig? _selectedEmulator;
 
@@ -140,10 +152,36 @@ public partial class NodeSettingsViewModel : ViewModelBase
     partial void OnNodeMarqueePathChanged(string? value)
         => OnPropertyChanged(nameof(NodeMarqueePreviewPath));
 
+    partial void OnNameChanged(string value)
+    {
+        if (_isInitializing)
+            return;
+
+        ValidateName();
+    }
+
+    partial void OnNameValidationMessageChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasNameValidationMessage));
+    }
+
+    partial void OnNameSuggestionChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasNameSuggestion));
+        OnPropertyChanged(nameof(NameSuggestionText));
+        UseNameSuggestionCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsNameValidChanged(bool value)
+    {
+        SaveCommand.NotifyCanExecuteChanged();
+    }
+
     
     public IAsyncRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
     public IRelayCommand ClearThemeCommand { get; }
+    public IRelayCommand UseNameSuggestionCommand { get; }
 
     /// <summary>
     /// Signals the view to close (true = saved, false = cancelled).
@@ -272,9 +310,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         SelectedTheme = string.IsNullOrWhiteSpace(_node.ThemePath) ? null : _node.ThemePath;
 
-        SaveCommand = new AsyncRelayCommand(SaveAsync);
+        SaveCommand = new AsyncRelayCommand(SaveAsync, CanSave);
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
         ClearThemeCommand = new RelayCommand(() => SelectedTheme = null);
+        UseNameSuggestionCommand = new RelayCommand(ApplyNameSuggestion, () => HasNameSuggestion);
 
         AddNativeWrapperCommand = new RelayCommand(AddNativeWrapper);
         RemoveNativeWrapperCommand = new RelayCommand<LaunchWrapperRow?>(RemoveNativeWrapper);
@@ -301,6 +340,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
         // Update once after initialization
         MoveNativeWrapperUpCommand.NotifyCanExecuteChanged();
         MoveNativeWrapperDownCommand.NotifyCanExecuteChanged();
+
+        _isInitializing = false;
+        ValidateName();
     }
 
     /// <summary>
@@ -735,6 +777,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(Name))
             return;
 
+        if (!IsNameValid)
+            return;
+
         var oldName = _node.Name;
         var newName = Name.Trim();
 
@@ -824,6 +869,103 @@ public partial class NodeSettingsViewModel : ViewModelBase
         }
 
         RequestClose?.Invoke(true);
+    }
+
+    private bool CanSave()
+        => IsNameValid && !string.IsNullOrWhiteSpace(Name);
+
+    private void ApplyNameSuggestion()
+    {
+        if (!string.IsNullOrWhiteSpace(NameSuggestion))
+            Name = NameSuggestion;
+    }
+
+    private void ValidateName()
+    {
+        var trimmed = Name?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            IsNameValid = false;
+            NameValidationMessage = Strings.Dialog_NamePrompt_EmptyName;
+            NameSuggestion = string.Empty;
+            return;
+        }
+
+        if (string.Equals(trimmed, _node.Name, StringComparison.Ordinal))
+        {
+            IsNameValid = true;
+            NameValidationMessage = string.Empty;
+            NameSuggestion = string.Empty;
+            return;
+        }
+
+        var (existingRaw, existingSanitized) = BuildSiblingNameSets();
+        var sanitized = PathHelper.SanitizePathSegment(trimmed);
+        var hasCollision = existingRaw.Contains(trimmed) || existingSanitized.Contains(sanitized);
+
+        if (!hasCollision)
+        {
+            IsNameValid = true;
+            NameValidationMessage = string.Empty;
+            NameSuggestion = string.Empty;
+            return;
+        }
+
+        IsNameValid = false;
+        NameValidationMessage = Strings.Dialog_NamePrompt_DuplicateOrCollision;
+        NameSuggestion = BuildUniqueNameSuggestion(trimmed, existingRaw, existingSanitized);
+    }
+
+    private (HashSet<string> Raw, HashSet<string> Sanitized) BuildSiblingNameSets()
+    {
+        var raw = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sanitized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var sibling in GetSiblingNodes())
+        {
+            var name = sibling.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+                continue;
+
+            raw.Add(name);
+            sanitized.Add(PathHelper.SanitizePathSegment(name));
+        }
+
+        return (raw, sanitized);
+    }
+
+    private IEnumerable<MediaNode> GetSiblingNodes()
+    {
+        var chain = GetNodeChain(_node, _rootNodes);
+        if (chain.Count > 1)
+        {
+            var parent = chain[^2];
+            return parent.Children.Where(n => !ReferenceEquals(n, _node));
+        }
+
+        return _rootNodes.Where(n => !ReferenceEquals(n, _node));
+    }
+
+    private static string BuildUniqueNameSuggestion(
+        string baseName,
+        HashSet<string> existingRaw,
+        HashSet<string> existingSanitized)
+    {
+        for (int i = 2; i < 1000; i++)
+        {
+            var candidate = $"{baseName} ({i})";
+            if (existingRaw.Contains(candidate))
+                continue;
+
+            var sanitizedCandidate = PathHelper.SanitizePathSegment(candidate);
+            if (existingSanitized.Contains(sanitizedCandidate))
+                continue;
+
+            return candidate;
+        }
+
+        return string.Empty;
     }
 
     private async Task<(bool Success, bool Canceled)> TryRenameNodeFolderIfNeededAsync(
