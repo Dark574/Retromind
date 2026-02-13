@@ -77,7 +77,7 @@ public partial class MainWindowViewModel
         // and avoid "async void" pitfalls
         
         AddCategoryCommand = new AsyncRelayCommand<MediaNode?>(AddCategoryAsync);
-        AddMediaCommand = new AsyncRelayCommand<MediaNode?>(AddMediaAsync);
+        AddMediaCommand = new AsyncRelayCommand<MediaNode?>(AddMediaAsync, CanOperateOnNode);
         DeleteCommand = new AsyncRelayCommand<MediaNode?>(DeleteNodeAsync);
         
         SetCoverCommand = new AsyncRelayCommand<MediaItem?>(SetCoverAsync);
@@ -95,12 +95,12 @@ public partial class MainWindowViewModel
         
         ToggleThemeCommand = new RelayCommand(() => IsDarkTheme = !IsDarkTheme);
         
-        ImportRomsCommand = new AsyncRelayCommand<MediaNode?>(ImportRomsAsync);
-        ImportSteamCommand = new AsyncRelayCommand<MediaNode?>(ImportSteamAsync);
-        ImportGogCommand = new AsyncRelayCommand<MediaNode?>(ImportGogAsync);
+        ImportRomsCommand = new AsyncRelayCommand<MediaNode?>(ImportRomsAsync, CanOperateOnNode);
+        ImportSteamCommand = new AsyncRelayCommand<MediaNode?>(ImportSteamAsync, CanOperateOnNode);
+        ImportGogCommand = new AsyncRelayCommand<MediaNode?>(ImportGogAsync, CanOperateOnNode);
         
         ScrapeMediaCommand = new AsyncRelayCommand<MediaItem?>(ScrapeMediaAsync);
-        ScrapeNodeCommand = new AsyncRelayCommand<MediaNode?>(ScrapeNodeAsync);
+        ScrapeNodeCommand = new AsyncRelayCommand<MediaNode?>(ScrapeNodeAsync, CanOperateOnNode);
         OpenSearchCommand = new RelayCommand(OpenIntegratedSearch);
         
         EnterBigModeCommand = new RelayCommand(EnterBigMode);
@@ -444,6 +444,18 @@ public partial class MainWindowViewModel
         }
 
         return null;
+    }
+
+    private bool CanOperateOnNode(MediaNode? node)
+        => node != null || SelectedNode != null;
+
+    private void NotifyNodeCommandsCanExecuteChanged()
+    {
+        AddMediaCommand.NotifyCanExecuteChanged();
+        ImportRomsCommand.NotifyCanExecuteChanged();
+        ImportSteamCommand.NotifyCanExecuteChanged();
+        ImportGogCommand.NotifyCanExecuteChanged();
+        ScrapeNodeCommand.NotifyCanExecuteChanged();
     }
     
     private async Task AddCategoryAsync(MediaNode? parentNode)

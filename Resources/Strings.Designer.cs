@@ -446,6 +446,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Dialog.ConfirmMergeNodeFormat", resourceCulture);
             }
         }
+
+        public static string Dialog_EmptyLibraryHint {
+            get {
+                return ResourceManager.GetString("Dialog.EmptyLibraryHint", resourceCulture);
+            }
+        }
         
         public static string Dialog_NoResult {
             get {

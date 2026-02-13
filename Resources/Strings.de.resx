@@ -104,6 +104,7 @@
     <data name="Dialog.NamePrompt.DuplicateOrCollision" xml:space="preserve"><value>Name existiert bereits oder führt zum gleichen Ordner. Bitte anderen Namen wählen.</value></data>
     <data name="Dialog.NamePrompt.SuggestionFormat" xml:space="preserve"><value>Vorschlag: {0}</value></data>
     <data name="Dialog.ConfirmMergeNodeFormat" xml:space="preserve"><value>Ein Knoten mit dem Namen '{0}' existiert hier bereits. Zusammenführen?</value></data>
+    <data name="Dialog.EmptyLibraryHint" xml:space="preserve"><value>Bitte zuerst eine Kategorie anlegen.</value></data>
     <data name="Dialog.LoadMetadata" xml:space="preserve"><value>Metadaten laden...</value></data>
     <data name="Dialog.MsgConfirmDelete" xml:space="preserve"><value>Möchten Sie dies wirklich löschen?</value></data>
     <data name="Dialog.ConfirmMoveNodeAssetsFormat" xml:space="preserve"><value>Alle Assets für '{0}' auf den neuen Speicherort verschieben? Das kann einen Moment dauern.</value></data>

@@ -247,7 +247,17 @@
                    <!-- MIDDLE CONTENT (column 2) -->
                    <!-- Remove the background so the wallpaper shows through completely -->
                    <Border Grid.Column="2" Background="Transparent"> <!-- Transparent! -->
-                       <ContentControl Content="{Binding SelectedNodeContent}" />
+                       <Grid>
+                           <TextBlock Text="{x:Static p:Strings.Dialog_EmptyLibraryHint}"
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Center"
+                                      Foreground="{Binding TextColor}"
+                                      FontSize="16"
+                                      FontStyle="Italic"
+                                      IsVisible="{Binding SelectedNodeContent, Converter={x:Static helpers:ObjectConverters.IsNull}}" />
+                           <ContentControl Content="{Binding SelectedNodeContent}"
+                                           IsVisible="{Binding SelectedNodeContent, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
+                       </Grid>
                    </Border>
 
                    <!-- Splitter 2 -->
@@ -256,26 +266,27 @@
                    <!-- RIGHT CONTENT (column 4) -->
                    <!-- Attach background to panel background! -->
                    <Grid Grid.Column="4" Background="{Binding PanelBackground}" x:CompileBindings="False">
-                       
-                       <TextBlock Text="{x:Static p:Strings.Dialog_ChooseMedia}"
-                                  VerticalAlignment="Center"
-                                  HorizontalAlignment="Center"
-                                  Foreground="{Binding DataContext.TextColor, ElementName=MainWin}"
-                                  FontSize="16"
-                                  FontStyle="Italic"
-                                  IsVisible="{Binding SelectedNodeContent.SelectedMediaItem, Converter={x:Static ObjectConverters.IsNull}}" />
+                       <Grid IsVisible="{Binding SelectedNodeContent, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
+                           <TextBlock Text="{x:Static p:Strings.Dialog_ChooseMedia}"
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Center"
+                                      Foreground="{Binding DataContext.TextColor, ElementName=MainWin}"
+                                      FontSize="16"
+                                      FontStyle="Italic"
+                                      IsVisible="{Binding SelectedNodeContent.SelectedMediaItem, Converter={x:Static ObjectConverters.IsNull}}" />
 
-                       <!-- ... ContentControl and fallback as before ... -->
-                       <ContentControl x:CompileBindings="False"
-                                       Content="{Binding SelectedNodeContent.SelectedMediaItem}"
-                                       IsVisible="{Binding SelectedNodeContent.SelectedMediaItem, Converter={x:Static ObjectConverters.IsNotNull}}">
-                           <ContentControl.ContentTemplate>
-                               <DataTemplate DataType="models:MediaItem">
-                                   <!-- Here, the background is transparent because the grid behind it already has the color -->
-                                   <views:MediaDetailView Background="Transparent" />
-                               </DataTemplate>
-                           </ContentControl.ContentTemplate>
-                       </ContentControl>
+                           <!-- ... ContentControl and fallback as before ... -->
+                           <ContentControl x:CompileBindings="False"
+                                           Content="{Binding SelectedNodeContent.SelectedMediaItem}"
+                                           IsVisible="{Binding SelectedNodeContent.SelectedMediaItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                               <ContentControl.ContentTemplate>
+                                   <DataTemplate DataType="models:MediaItem">
+                                       <!-- Here, the background is transparent because the grid behind it already has the color -->
+                                       <views:MediaDetailView Background="Transparent" />
+                                   </DataTemplate>
+                               </ContentControl.ContentTemplate>
+                           </ContentControl>
+                       </Grid>
                    </Grid>
 
                </Grid> <!-- End Grid -->

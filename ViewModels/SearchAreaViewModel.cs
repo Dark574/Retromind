@@ -134,6 +134,11 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     
     public bool HasResults => SearchResults.Count > 0;
     public bool HasNoResults => SearchResults.Count == 0;
+    public bool ShowNoResults => HasNoResults && HasAnyRoots;
+    public bool ShowEmptyLibraryHint => !HasAnyRoots;
+
+    [ObservableProperty]
+    private bool _hasAnyRoots;
 
     public SearchAreaViewModel(IEnumerable<MediaNode> rootNodes)
     {
@@ -150,6 +155,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         }
 
         InitializeScopes();
+        UpdateRootAvailability();
 
         // Keep the initial state consistent (empty results until user enters criteria)
         SearchResults.Clear();
@@ -188,6 +194,17 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     partial void OnViewportWidthChanged(double value) => RebuildRows();
 
     private IEnumerable<MediaNode> RootNodes => _rootNodesObservable ?? _rootNodesSnapshot;
+
+    private void UpdateRootAvailability()
+    {
+        var hasRoots = RootNodes.Any();
+        if (hasRoots != HasAnyRoots)
+        {
+            HasAnyRoots = hasRoots;
+            OnPropertyChanged(nameof(ShowNoResults));
+            OnPropertyChanged(nameof(ShowEmptyLibraryHint));
+        }
+    }
 
     private void InitializeScopes()
     {
@@ -298,6 +315,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             return;
 
         InitializeScopes();
+        UpdateRootAvailability();
 
         if (!string.IsNullOrWhiteSpace(SearchText) ||
             !string.IsNullOrWhiteSpace(SearchYear) ||
@@ -366,6 +384,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 SelectedMediaItem = null;
                 OnPropertyChanged(nameof(HasResults));
                 OnPropertyChanged(nameof(HasNoResults));
+                OnPropertyChanged(nameof(ShowNoResults));
                 (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
             });
             return;
@@ -418,6 +437,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
             OnPropertyChanged(nameof(HasResults));
             OnPropertyChanged(nameof(HasNoResults));
+            OnPropertyChanged(nameof(ShowNoResults));
 
             // Keep "Play random" enabled state accurate
             (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();

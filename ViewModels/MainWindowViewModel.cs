@@ -141,6 +141,7 @@ public partial class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _selectedNode, value))
             {
                 UpdateContent();
+                NotifyNodeCommandsCanExecuteChanged();
 
                 OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
                 OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));

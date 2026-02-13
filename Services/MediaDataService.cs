@@ -258,10 +258,7 @@ public class MediaDataService
             // 3. If everything failed, return a fresh tree
             if (result == null || result.Count == 0)
             {
-                return new ObservableCollection<MediaNode>
-                {
-                    new(Strings.Media_Library, NodeType.Area)
-                };
+                return new ObservableCollection<MediaNode>();
             }
 
             return result;
