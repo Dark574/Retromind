@@ -300,6 +300,10 @@ public class MediaDataService
             ThemePath = node.ThemePath,
             Description = node.Description,
             SystemPreviewThemeId = node.SystemPreviewThemeId,
+            LogoFallbackEnabled = node.LogoFallbackEnabled,
+            WallpaperFallbackEnabled = node.WallpaperFallbackEnabled,
+            VideoFallbackEnabled = node.VideoFallbackEnabled,
+            MarqueeFallbackEnabled = node.MarqueeFallbackEnabled,
             NativeWrappersOverride = CloneWrappers(node.NativeWrappersOverride),
             EnvironmentOverrides = CloneEnvironmentOverridesOrNull(node.EnvironmentOverrides)
         };

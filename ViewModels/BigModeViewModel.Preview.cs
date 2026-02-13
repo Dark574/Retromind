@@ -209,6 +209,14 @@ public partial class BigModeViewModel
     partial void OnThemeContextNodeChanged(MediaNode? value)
     {
         CancelPreviewDebounce();
+        OnPropertyChanged(nameof(ActiveLogoPath));
+        OnPropertyChanged(nameof(ActiveWallpaperPath));
+        OnPropertyChanged(nameof(ActiveVideoPath));
+        OnPropertyChanged(nameof(ActiveMarqueePath));
+        OnPropertyChanged(nameof(ActiveBezelPath));
+        OnPropertyChanged(nameof(ActiveControlPanelPath));
+        if (IsGameListActive)
+            ApplyNodeFallbackOverrides();
         TriggerPreviewPlaybackWithDebounce();
     }
 
@@ -235,6 +243,12 @@ public partial class BigModeViewModel
         // Notify dependent computed properties used by themes.
         OnPropertyChanged(nameof(SelectedYear));
         OnPropertyChanged(nameof(SelectedDeveloper));
+        OnPropertyChanged(nameof(ActiveLogoPath));
+        OnPropertyChanged(nameof(ActiveWallpaperPath));
+        OnPropertyChanged(nameof(ActiveVideoPath));
+        OnPropertyChanged(nameof(ActiveMarqueePath));
+        OnPropertyChanged(nameof(ActiveBezelPath));
+        OnPropertyChanged(nameof(ActiveControlPanelPath));
         
         TriggerPreviewPlaybackWithDebounce();
     }
@@ -266,6 +280,13 @@ public partial class BigModeViewModel
         // View mode changed (categories vs. games) -> counters may need to reset.
         UpdateGameCounters();
         UpdateCircularItems();
+
+        OnPropertyChanged(nameof(ActiveLogoPath));
+        OnPropertyChanged(nameof(ActiveWallpaperPath));
+        OnPropertyChanged(nameof(ActiveVideoPath));
+        OnPropertyChanged(nameof(ActiveMarqueePath));
+        OnPropertyChanged(nameof(ActiveBezelPath));
+        OnPropertyChanged(nameof(ActiveControlPanelPath));
         
         TriggerPreviewPlaybackWithDebounce();
     }
@@ -482,8 +503,10 @@ public partial class BigModeViewModel
     /// </summary>
     private void TriggerPreviewPlayback()
     {
+        var node = ThemeContextNode ?? CurrentNode;
+
         string? videoPath = IsGameListActive
-            ? ResolveItemVideoPath(SelectedItem)
+            ? ResolveItemVideoPath(SelectedItem, node)
             : ResolveNodeVideoPath(SelectedCategory);
         
         // Main channel: Derive content flag from path and mode
@@ -492,7 +515,7 @@ public partial class BigModeViewModel
         PlayPreviewForPath(videoPath);
     }
 
-    private string? ResolveItemVideoPath(MediaItem? item)
+    private string? ResolveItemVideoPath(MediaItem? item, MediaNode? node)
     {
         if (item == null) return null;
 
@@ -503,13 +526,17 @@ public partial class BigModeViewModel
             _itemVideoPathCache.Clear();
         
         string? videoPath = null;
+        var hasItemVideo = false;
 
         var relativeVideoPath = item.GetPrimaryAssetPath(AssetType.Video);
         if (!string.IsNullOrEmpty(relativeVideoPath))
         {
             var candidate = AppPaths.ResolveDataPath(relativeVideoPath);
             if (File.Exists(candidate))
+            {
                 videoPath = candidate;
+                hasItemVideo = true;
+            }
         }
 
         // Fallback: use the launch file if it is already a video; otherwise try
@@ -541,6 +568,7 @@ public partial class BigModeViewModel
                                 if (File.Exists(candidate))
                                 {
                                     videoPath = candidate;
+                                    hasItemVideo = true;
                                     break;
                                 }
                             }
@@ -554,7 +582,17 @@ public partial class BigModeViewModel
             }
         }
 
-        _itemVideoPathCache[item.Id] = videoPath;
+        if (videoPath == null && node != null && node.IsFallbackEnabled(AssetType.Video))
+            videoPath = ResolveNodeVideoPath(node);
+
+        if (hasItemVideo)
+        {
+            _itemVideoPathCache[item.Id] = videoPath;
+        }
+        else
+        {
+            _itemVideoPathCache.Remove(item.Id);
+        }
         return videoPath;
     }
 

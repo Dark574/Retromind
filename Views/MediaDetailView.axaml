@@ -26,22 +26,27 @@
 
             <Grid>
                 <!-- 1) Header area (logo or title fallback) -->
-                <Panel MinHeight="80" Margin="0,0,40,0">
-                    <!-- Fallback: title as text -->
-                    <TextBlock Text="{Binding Title}"
-                               FontSize="28" FontWeight="Bold" TextWrapping="Wrap"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               TextAlignment="Center"
-                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                <Grid MinHeight="80" Margin="0,0,40,0">
+                    <StackPanel Spacing="6"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                        <!-- Title shown when the item has no logo -->
+                        <TextBlock Text="{Binding Title}"
+                                   FontSize="28" FontWeight="Bold" TextWrapping="Wrap"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   TextAlignment="Center"
+                                   IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
 
-                    <!-- Primary: logo image (downsample to reduce memory usage) -->
-                    <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
-                           helpers:AsyncImageHelper.DecodeWidth="400"
-                           helpers:AsyncImageHelper.DisableCache="True"
-                           Stretch="Uniform" MaxHeight="150"
-                           HorizontalAlignment="Center"
-                           IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                </Panel>
+                        <!-- Logo (item logo or fallback) -->
+                        <Image x:CompileBindings="False"
+                               helpers:AsyncImageHelper.Url="{Binding $parent[Window].DataContext.ResolvedSelectedItemLogoPath}"
+                               helpers:AsyncImageHelper.DecodeWidth="400"
+                               helpers:AsyncImageHelper.DisableCache="True"
+                               Stretch="Uniform" MaxHeight="150"
+                               HorizontalAlignment="Center"
+                               IsVisible="{Binding $parent[Window].DataContext.ResolvedSelectedItemLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    </StackPanel>
+                </Grid>
 
                 <!-- Edit button (top-right) -->
                 <Button ToolTip.Tip="{x:Static p:Strings.Button_Edit}"

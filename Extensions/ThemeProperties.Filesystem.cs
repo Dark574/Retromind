@@ -6,11 +6,24 @@ namespace Retromind.Extensions;
 public partial class ThemeProperties
 {
     /// <summary>
-    /// Gets or sets the absolute base directory of the currently active theme.
-    /// Example: "/home/user/Retromind/Themes/Arcade".
-    /// This is set by the host (ThemeLoader) when a theme is loaded.
+    /// Per-theme base directory stored on the root view instance.
+    /// This allows multiple themes to coexist without global state.
     /// </summary>
-    public static string? ThemeBasePath { get; set; }
+    public static readonly Avalonia.AttachedProperty<string?> ThemeBasePathProperty =
+        Avalonia.AvaloniaProperty.RegisterAttached<ThemeProperties, Avalonia.AvaloniaObject, string?>(
+            "ThemeBasePath");
+
+    public static string? GetThemeBasePath(Avalonia.AvaloniaObject element) =>
+        element.GetValue(ThemeBasePathProperty);
+
+    public static void SetThemeBasePath(Avalonia.AvaloniaObject element, string? value) =>
+        element.SetValue(ThemeBasePathProperty, value);
+
+    /// <summary>
+    /// Legacy/global fallback for theme base path.
+    /// Prefer the per-view attached property when possible.
+    /// </summary>
+    public static string? GlobalThemeBasePath { get; set; }
 
     /// <summary>
     /// Combines the current ThemeBasePath with a theme-relative path.
@@ -21,16 +34,18 @@ public partial class ThemeProperties
     /// <param name="relativePath">
     /// Path relative to the theme directory, e.g. "Images/cabinet.png" or "sounds/navigate.wav".
     /// </param>
-    public static string? GetThemeFilePath(string? relativePath)
+    public static string? GetThemeFilePath(string? relativePath, Avalonia.AvaloniaObject? scope = null)
     {
-        if (string.IsNullOrWhiteSpace(ThemeBasePath))
+        var basePath = scope != null ? GetThemeBasePath(scope) : GlobalThemeBasePath;
+
+        if (string.IsNullOrWhiteSpace(basePath))
             return null;
 
         if (string.IsNullOrWhiteSpace(relativePath))
             return null;
 
         // Use System.IO.Path.Combine to keep it portable across platforms.
-        return System.IO.Path.Combine(ThemeBasePath, relativePath);
+        return System.IO.Path.Combine(basePath, relativePath);
     }
 
     /// <summary>
@@ -38,11 +53,11 @@ public partial class ThemeProperties
     /// Equivalent to GetThemeFilePath("Images/" + fileName).
     /// </summary>
     /// <param name="fileName">File name inside the "Images" subfolder, e.g. "cabinet.png".</param>
-    public static string? GetThemeImagePath(string? fileName)
+    public static string? GetThemeImagePath(string? fileName, Avalonia.AvaloniaObject? scope = null)
     {
         if (string.IsNullOrWhiteSpace(fileName))
             return null;
 
-        return GetThemeFilePath(System.IO.Path.Combine("Images", fileName));
+        return GetThemeFilePath(System.IO.Path.Combine("Images", fileName), scope);
     }
 }

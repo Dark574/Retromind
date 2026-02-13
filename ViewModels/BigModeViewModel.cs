@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -55,6 +56,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     // --- Caches ---
     private readonly Dictionary<string, string?> _itemVideoPathCache = new();
     private readonly Dictionary<string, string?> _nodeVideoPathCache = new();
+
+    // Tracks last items list so we can clear node fallback overrides when switching.
+    private ObservableCollection<MediaItem>? _lastItemsForNodeFallback;
 
     // --- Index helpers ---
     [ObservableProperty]
@@ -189,6 +193,27 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         ResolveArtworkForSelection(AssetType.Marquee);
 
     /// <summary>
+    /// Resolved logo path for the currently selected item in context of the
+    /// active node. Resolution order: item → node. Does not apply theme defaults
+    /// </summary>
+    public string? ActiveLogoPath =>
+        ResolveArtworkForSelection(AssetType.Logo);
+
+    /// <summary>
+    /// Resolved wallpaper path for the currently selected item in context of the
+    /// active node. Resolution order: item → node. Does not apply theme defaults
+    /// </summary>
+    public string? ActiveWallpaperPath =>
+        ResolveArtworkForSelection(AssetType.Wallpaper);
+
+    /// <summary>
+    /// Resolved video path for the currently selected item in context of the
+    /// active node. Resolution order: item → node. Does not apply theme defaults
+    /// </summary>
+    public string? ActiveVideoPath =>
+        ResolveArtworkForSelection(AssetType.Video);
+
+    /// <summary>
     /// Resolved bezel artwork path for the currently selected item in context of the
     /// active node. Resolution order: item → node. Does not apply theme defaults
     /// </summary>
@@ -220,6 +245,58 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             SelectedItem,
             node,
             type);
+    }
+
+    private static readonly AssetType[] NodeFallbackTypes =
+    {
+        AssetType.Logo,
+        AssetType.Marquee
+    };
+
+    private void ApplyNodeFallbackOverrides()
+    {
+        if (Items is null || Items.Count == 0)
+            return;
+
+        var node = ThemeContextNode ?? CurrentNode;
+        var fallbackByType = new Dictionary<AssetType, string?>(NodeFallbackTypes.Length);
+        foreach (var type in NodeFallbackTypes)
+        {
+            var rel = node != null && node.IsFallbackEnabled(type)
+                ? node.GetPrimaryAssetPath(type)
+                : null;
+            fallbackByType[type] = rel;
+        }
+
+        for (var i = 0; i < Items.Count; i++)
+        {
+            var item = Items[i];
+            foreach (var type in NodeFallbackTypes)
+            {
+                var hasItemAsset = item.Assets.Any(a => a.Type == type);
+                var fallbackRel = fallbackByType[type];
+                if (!hasItemAsset && !string.IsNullOrWhiteSpace(fallbackRel))
+                {
+                    item.SetActiveAsset(type, fallbackRel);
+                }
+                else
+                {
+                    item.ClearActiveAsset(type);
+                }
+            }
+        }
+    }
+
+    private void ClearNodeFallbackOverrides(IEnumerable<MediaItem>? items)
+    {
+        if (items == null)
+            return;
+
+        foreach (var item in items)
+        {
+            foreach (var type in NodeFallbackTypes)
+                item.ClearActiveAsset(type);
+        }
     }
     
     public ICommand ForceExitCommand { get; }

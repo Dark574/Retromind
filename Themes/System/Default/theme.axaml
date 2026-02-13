@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
-             xmlns:ext="clr-namespace:Retromind.Extensions"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              xmlns:video="using:Retromind.Helpers.Video"
              xmlns:helpers="using:Retromind.Helpers"
              x:DataType="vm:BigModeViewModel"
@@ -29,11 +29,11 @@
                     VerticalAlignment="Center"
                     Spacing="8">
             <!-- Current system name (SelectedCategory is the active node in system view) -->
-            <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoPath}"
+            <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
                    Height="80"
                    Stretch="Uniform"
                    HorizontalAlignment="Center"
-                   IsVisible="{Binding SelectedCategory.PrimaryLogoPath,
+                   IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
                                                    Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
 
             <!-- Fallback: text title if no logo -->
@@ -43,7 +43,7 @@
                        Foreground="White"
                        TextTrimming="CharacterEllipsis"
                        MaxWidth="260"
-                       IsVisible="{Binding SelectedCategory.PrimaryLogoPath,
+                       IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
                                                        Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
         </StackPanel>
 

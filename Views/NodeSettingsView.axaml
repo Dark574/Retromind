@@ -10,7 +10,7 @@
         x:Class="Retromind.Views.NodeSettingsView"
         x:DataType="vm:NodeSettingsViewModel"
         Title="{x:Static p:Strings.NodeSettings_Title}"
-        Width="640" Height="720" MinHeight="480" MaxHeight="900" SizeToContent="Width"
+        Width="740" Height="720" MinHeight="480" MaxHeight="900" SizeToContent="Width"
         WindowStartupLocation="CenterOwner"
         CanResize="True">
 
@@ -38,14 +38,18 @@
                 </StackPanel>
 
                 <!-- NODE ARTWORK (Logo / Wallpaper / Video) -->
-                <Border BorderBrush="#444444"
-                        BorderThickness="1"
-                        CornerRadius="6"
-                        Padding="6"
-                        Background="#11000000">
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="BigMode Artwork (per category)"
-                                   FontWeight="SemiBold" />
+                <Expander Header="BigMode Artwork (per category)"
+                          IsExpanded="False"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch">
+                    <Border BorderBrush="#444444"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="6"
+                            Background="#11000000"
+                            HorizontalAlignment="Stretch"
+                            Margin="0,6,0,0">
+                        <StackPanel Spacing="6">
 
                         <!-- Logo -->
                         <StackPanel Spacing="2">
@@ -75,9 +79,9 @@
                                         CornerRadius="4"
                                         ClipToBounds="True"
                                         VerticalAlignment="Center">
-                                    <Image helpers:AsyncImageHelper.Url="{Binding NodeLogoPath}"
+                                    <Image helpers:AsyncImageHelper.Url="{Binding NodeLogoPreviewPath}"
                                            Stretch="Uniform"
-                                           IsVisible="{Binding NodeLogoPath,
+                                           IsVisible="{Binding NodeLogoPreviewPath,
                                                                Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
                                 </Border>
                             </Grid>
@@ -88,6 +92,9 @@
                                      Background="#22000000"
                                      BorderThickness="0"
                                      Padding="4,2" />
+
+                            <CheckBox Content="Use as fallback for items"
+                                      IsChecked="{Binding NodeLogoFallbackEnabled}" />
                         </StackPanel>
 
                         <!-- Wallpaper -->
@@ -118,9 +125,9 @@
                                         CornerRadius="4"
                                         ClipToBounds="True"
                                         VerticalAlignment="Center">
-                                    <Image helpers:AsyncImageHelper.Url="{Binding NodeWallpaperPath}"
+                                    <Image helpers:AsyncImageHelper.Url="{Binding NodeWallpaperPreviewPath}"
                                            Stretch="UniformToFill"
-                                           IsVisible="{Binding NodeWallpaperPath,
+                                           IsVisible="{Binding NodeWallpaperPreviewPath,
                                                                Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
                                 </Border>
                             </Grid>
@@ -131,6 +138,9 @@
                                      Background="#22000000"
                                      BorderThickness="0"
                                      Padding="4,2" />
+
+                            <CheckBox Content="Use as fallback for items"
+                                      IsChecked="{Binding NodeWallpaperFallbackEnabled}" />
                         </StackPanel>
 
                         <!-- Video -->
@@ -166,9 +176,59 @@
                             <TextBlock Text="(Preview is currently not shown in this dialog)"
                                        FontSize="11"
                                        Foreground="#888888" />
+
+                            <CheckBox Content="Use as fallback for items"
+                                      IsChecked="{Binding NodeVideoFallbackEnabled}" />
                         </StackPanel>
-                    </StackPanel>
-                </Border>
+
+                        <!-- Marquee -->
+                        <StackPanel Spacing="2">
+                            <!-- Row 1: Label + Buttons + Preview -->
+                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="6">
+                                <TextBlock Grid.Column="0"
+                                           Text="Marquee"
+                                           VerticalAlignment="Center" />
+
+                                <Button Grid.Column="1"
+                                        Content="Browse..."
+                                        Padding="8,2"
+                                        Click="OnBrowseMarqueeClicked" />
+
+                                <Button Grid.Column="2"
+                                        Content="✕"
+                                        Padding="6,2"
+                                        ToolTip.Tip="Remove marquee"
+                                        Foreground="Red"
+                                        IsEnabled="{Binding NodeMarqueePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
+                                        Click="OnClearMarqueeClicked" />
+
+                                <Border Grid.Column="3"
+                                        HorizontalAlignment="Right"
+                                        Width="120" Height="50"
+                                        Background="#22000000"
+                                        CornerRadius="4"
+                                        ClipToBounds="True"
+                                        VerticalAlignment="Center">
+                                    <Image helpers:AsyncImageHelper.Url="{Binding NodeMarqueePreviewPath}"
+                                           Stretch="Uniform"
+                                           IsVisible="{Binding NodeMarqueePreviewPath,
+                                                               Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                                </Border>
+                            </Grid>
+
+                            <!-- Row 2: Path -->
+                            <TextBox Text="{Binding NodeMarqueePath}"
+                                     IsReadOnly="True"
+                                     Background="#22000000"
+                                     BorderThickness="0"
+                                     Padding="4,2" />
+
+                            <CheckBox Content="Use as fallback for items"
+                                      IsChecked="{Binding NodeMarqueeFallbackEnabled}" />
+                        </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Expander>
 
                 <!-- EMULATOR -->
                 <StackPanel Spacing="5">

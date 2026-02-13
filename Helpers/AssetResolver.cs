@@ -43,7 +43,7 @@ public static class AssetResolver
             return itemPath;
 
         // 2) Node-level asset (relative path; resolve via AppPaths).
-        if (node is not null)
+        if (node is not null && node.IsFallbackEnabled(type))
         {
             var nodeRel = node.GetPrimaryAssetPath(type);
             if (!string.IsNullOrWhiteSpace(nodeRel))

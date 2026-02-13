@@ -245,6 +245,43 @@ public partial class MediaItem : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Clears a single active asset override (if present).
+    /// </summary>
+    public void ClearActiveAsset(AssetType type)
+    {
+        if (!_activeAssets.Remove(type))
+            return;
+
+        switch (type)
+        {
+            case AssetType.Cover:
+                OnPropertyChanged(nameof(PrimaryCoverPath));
+                break;
+            case AssetType.Wallpaper:
+                OnPropertyChanged(nameof(PrimaryWallpaperPath));
+                break;
+            case AssetType.Logo:
+                OnPropertyChanged(nameof(PrimaryLogoPath));
+                break;
+            case AssetType.Video:
+                OnPropertyChanged(nameof(PrimaryVideoPath));
+                break;
+            case AssetType.Marquee:
+                OnPropertyChanged(nameof(PrimaryMarqueePath));
+                break;
+            case AssetType.Banner:
+                OnPropertyChanged(nameof(PrimaryBannerPath));
+                break;
+            case AssetType.Bezel:
+                OnPropertyChanged(nameof(PrimaryBezelPath));
+                break;
+            case AssetType.ControlPanel:
+                OnPropertyChanged(nameof(PrimaryControlPanelPath));
+                break;
+        }
+    }
+
     // --- UI Properties (Binding Sources) ---
     public string? PrimaryCoverPath => GetPrimaryAssetAbsolutePath(AssetType.Cover);
     public string? PrimaryWallpaperPath => GetPrimaryAssetAbsolutePath(AssetType.Wallpaper);
@@ -262,6 +299,12 @@ public partial class MediaItem : ObservableObject
     /// Used by arcade-style themes to show joysticks/buttons layout
     /// </summary>
     public string? PrimaryControlPanelPath => GetPrimaryAssetAbsolutePath(AssetType.ControlPanel);
+
+    /// <summary>
+    /// Returns the item's own logo asset path (relative), ignoring active overrides.
+    /// Useful for theme logic that needs to distinguish between item logos and fallbacks.
+    /// </summary>
+    public string? ItemLogoPath => Assets.FirstOrDefault(a => a.Type == AssetType.Logo)?.RelativePath;
 
 
     // --- Launch: Multi-file helpers ---
@@ -421,6 +464,7 @@ public partial class MediaItem : ObservableObject
         OnPropertyChanged(nameof(PrimaryBannerPath));
         OnPropertyChanged(nameof(PrimaryBezelPath));
         OnPropertyChanged(nameof(PrimaryControlPanelPath));
+        OnPropertyChanged(nameof(ItemLogoPath));
         
         // Manuals are exposed via the computed ManualAssets property.
         // Notify bindings so views like MediaDetailView can refresh their list.
@@ -441,6 +485,7 @@ public partial class MediaItem : ObservableObject
         OnPropertyChanged(nameof(PrimaryBannerPath));
         OnPropertyChanged(nameof(PrimaryBezelPath));
         OnPropertyChanged(nameof(PrimaryControlPanelPath));
+        OnPropertyChanged(nameof(ItemLogoPath));
         OnPropertyChanged(nameof(ManualAssets));
     }
 }

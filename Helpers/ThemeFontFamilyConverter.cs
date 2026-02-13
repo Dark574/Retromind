@@ -9,7 +9,7 @@ namespace Retromind.Helpers;
 
 /// <summary>
 /// Resolves a theme-relative font path (e.g. "Fonts/MyFont.ttf#Family")
-/// into a FontFamily using ThemeProperties.ThemeBasePath as the root.
+/// into a FontFamily using ThemeProperties.GetThemeFilePath.
 /// </summary>
 public sealed class ThemeFontFamilyConverter : IValueConverter
 {

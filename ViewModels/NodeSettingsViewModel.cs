@@ -104,6 +104,16 @@ public partial class NodeSettingsViewModel : ViewModelBase
     [ObservableProperty] private string? _nodeLogoPath;
     [ObservableProperty] private string? _nodeWallpaperPath;
     [ObservableProperty] private string? _nodeVideoPath;
+    [ObservableProperty] private string? _nodeMarqueePath;
+
+    [ObservableProperty] private bool _nodeLogoFallbackEnabled = false;
+    [ObservableProperty] private bool _nodeWallpaperFallbackEnabled = false;
+    [ObservableProperty] private bool _nodeVideoFallbackEnabled = false;
+    [ObservableProperty] private bool _nodeMarqueeFallbackEnabled = false;
+
+    public string? NodeLogoPreviewPath => ResolvePreviewPath(NodeLogoPath);
+    public string? NodeWallpaperPreviewPath => ResolvePreviewPath(NodeWallpaperPath);
+    public string? NodeMarqueePreviewPath => ResolvePreviewPath(NodeMarqueePath);
     
     // System-theme selection is always available because it is used by SystemHost
     // when this node is selected in a parent host.
@@ -120,6 +130,15 @@ public partial class NodeSettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsEmulatorInherited));
         OnPropertyChanged(nameof(InheritedEmulatorInfo));
     }
+
+    partial void OnNodeLogoPathChanged(string? value)
+        => OnPropertyChanged(nameof(NodeLogoPreviewPath));
+
+    partial void OnNodeWallpaperPathChanged(string? value)
+        => OnPropertyChanged(nameof(NodeWallpaperPreviewPath));
+
+    partial void OnNodeMarqueePathChanged(string? value)
+        => OnPropertyChanged(nameof(NodeMarqueePreviewPath));
 
     
     public IAsyncRelayCommand SaveCommand { get; }
@@ -604,6 +623,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
         NodeLogoPath = _node.PrimaryLogoPath;
         NodeWallpaperPath = _node.PrimaryWallpaperPath;
         NodeVideoPath = _node.PrimaryVideoPath;
+        NodeMarqueePath = _node.PrimaryMarqueePath;
+
+        NodeLogoFallbackEnabled = _node.LogoFallbackEnabled;
+        NodeWallpaperFallbackEnabled = _node.WallpaperFallbackEnabled;
+        NodeVideoFallbackEnabled = _node.VideoFallbackEnabled;
+        NodeMarqueeFallbackEnabled = _node.MarqueeFallbackEnabled;
     }
 
     private void InitializeEmulators()
@@ -696,6 +721,14 @@ public partial class NodeSettingsViewModel : ViewModelBase
             // Best-effort: if scanning fails (permissions, IO errors), keep the list empty.
         }
     }
+
+    private static string? ResolvePreviewPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        return AppPaths.ResolveDataPath(path);
+    }
     
     private async Task SaveAsync()
     {
@@ -740,6 +773,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
         UpdateNodeAsset(AssetType.Logo, NodeLogoPath);
         UpdateNodeAsset(AssetType.Wallpaper, NodeWallpaperPath);
         UpdateNodeAsset(AssetType.Video, NodeVideoPath);
+        UpdateNodeAsset(AssetType.Marquee, NodeMarqueePath);
+
+        _node.LogoFallbackEnabled = NodeLogoFallbackEnabled;
+        _node.WallpaperFallbackEnabled = NodeWallpaperFallbackEnabled;
+        _node.VideoFallbackEnabled = NodeVideoFallbackEnabled;
+        _node.MarqueeFallbackEnabled = NodeMarqueeFallbackEnabled;
         
         // persist wrapper override with tri-state semantics
         switch (NativeWrapperMode)
@@ -839,6 +878,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
             NodeLogoPath = _node.PrimaryLogoPath;
             NodeWallpaperPath = _node.PrimaryWallpaperPath;
             NodeVideoPath = _node.PrimaryVideoPath;
+            NodeMarqueePath = _node.PrimaryMarqueePath;
         }
         catch
         {

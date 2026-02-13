@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:video="using:Retromind.Helpers.Video"
-             xmlns:helpers="using:Retromind.Helpers"
+             xmlns:helpers="clr-namespace:Retromind.Helpers"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              xmlns:resources="clr-namespace:Retromind.Resources"
              x:DataType="vm:BigModeViewModel"
@@ -59,7 +59,7 @@
         <!-- LAYER 1: Background -->
         <!-- Wallpaper for Games-View -->
         <Image Name="GameWallpaper"
-               helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
+               helpers:AsyncImageHelper.Url="{Binding ActiveWallpaperPath}"
                helpers:AsyncImageHelper.DecodeWidth="1920"
                helpers:AsyncImageHelper.DisableCache="True"
                Stretch="UniformToFill"
@@ -68,7 +68,7 @@
         
         <!-- Wallpaper for Categories-View -->
         <Image Name="CategoryWallpaper"
-               helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}"
+               helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
                helpers:AsyncImageHelper.DecodeWidth="1920"
                helpers:AsyncImageHelper.DisableCache="True"
                Stretch="UniformToFill"
@@ -99,17 +99,28 @@
 
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <Panel Width="300" Height="140">
-                        <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}" Stretch="Uniform"
-                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <StackPanel Width="300" Height="140" Spacing="4" VerticalAlignment="Center">
+                        <!-- Item logo (preferred) -->
+                        <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
+                               Height="80"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Center"
+                               IsVisible="{Binding ItemLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                        <!-- Fallback logo (node-level) -->
+                        <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
+                               Height="44"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Center"
+                               IsVisible="{Binding ItemLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+
                         <TextBlock Text="{Binding Title}"
-                                   FontSize="32"
+                                   FontSize="20"
                                    FontWeight="Bold"
                                    TextWrapping="Wrap"
                                    TextAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
-                    </Panel>
+                                   IsVisible="{Binding ItemLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                    </StackPanel>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
@@ -291,7 +302,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 IsVisible="{Binding IsCategorySelectionActive}">
-                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryCoverPath}"
+                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryCoverAbsolutePath}"
                                    Width="280"
                                    Height="380"
                                    Stretch="Uniform" />

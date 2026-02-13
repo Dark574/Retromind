@@ -37,13 +37,13 @@
 
        <!-- LAYER 0: Wallpaper (lies over it) -->
        <Image x:CompileBindings="False"
-              helpers:AsyncImageHelper.Url="{Binding SelectedNodeContent.SelectedMediaItem.PrimaryWallpaperPath}"
+              helpers:AsyncImageHelper.Url="{Binding ResolvedSelectedItemWallpaperPath}"
               helpers:AsyncImageHelper.DecodeWidth="1920"
               helpers:AsyncImageHelper.DisableCache="True"
               Stretch="UniformToFill"
               Opacity="0.4"
               IsHitTestVisible="False"
-              IsVisible="{Binding SelectedNodeContent.SelectedMediaItem.PrimaryWallpaperPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              IsVisible="{Binding ResolvedSelectedItemWallpaperPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
        
        <!-- LAYER 1: The UI Grid (with semi-transparent backgrounds) -->
        <Grid RowDefinitions="30, *"> <!-- New line for custom title bar -->

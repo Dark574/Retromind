@@ -963,6 +963,11 @@ public partial class MainWindowViewModel
             {
                 var item = searchVm.SelectedMediaItem;
 
+                OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+
                 if (!_currentSettings.EnableSelectionMusicPreview)
                 {
                     _audioService.StopMusic();

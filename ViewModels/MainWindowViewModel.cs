@@ -141,6 +141,11 @@ public partial class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _selectedNode, value))
             {
                 UpdateContent();
+
+                OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
             
                 // Persist selection
                 if (value != null)
@@ -160,6 +165,11 @@ public partial class MainWindowViewModel : ViewModelBase
         get => _selectedNodeContent;
         set => SetProperty(ref _selectedNodeContent, value);
     }
+
+    public string? ResolvedSelectedItemLogoPath => ResolveSelectedItemAsset(AssetType.Logo);
+    public string? ResolvedSelectedItemWallpaperPath => ResolveSelectedItemAsset(AssetType.Wallpaper);
+    public string? ResolvedSelectedItemVideoPath => ResolveSelectedItemAsset(AssetType.Video);
+    public string? ResolvedSelectedItemMarqueePath => ResolveSelectedItemAsset(AssetType.Marquee);
 
     // --- Layout Properties ---
     public GridLength TreePaneWidth
@@ -770,6 +780,28 @@ public partial class MainWindowViewModel : ViewModelBase
         }, token);
     }
 
+    private string? ResolveSelectedItemAsset(AssetType type)
+    {
+        var item = GetCurrentSelectedItem();
+        if (item == null)
+            return null;
+
+        var node = FindParentNode(RootItems, item) ?? SelectedNode;
+        return AssetResolver.ResolveAssetPath(item, node, type);
+    }
+
+    private MediaItem? GetCurrentSelectedItem()
+    {
+        var item = _currentMediaAreaVm?.SelectedMediaItem;
+        if (item != null)
+            return item;
+
+        if (SelectedNodeContent is SearchAreaViewModel searchVm)
+            return searchVm.SelectedMediaItem;
+
+        return null;
+    }
+
     /// <summary>
     /// Flushes pending saves (best effort) and then performs cleanup.
     /// Must be awaited from the UI during window closing to avoid deadlocks.
@@ -877,6 +909,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
             if (SelectedNode != null)
                 UpdateBigModeStateFromCoreSelection(SelectedNode, item);
+
+            OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
 
             // Respect user preference for automatic selection-based music preview
             if (item != null && _currentSettings.EnableSelectionMusicPreview)

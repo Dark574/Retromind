@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
-             xmlns:ext="clr-namespace:Retromind.Extensions"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              xmlns:helpers="using:Retromind.Helpers"
              x:DataType="vm:BigModeViewModel"
              Background="#F3EEE4"
@@ -126,19 +126,19 @@
                 IsVisible="{Binding SecondaryVideoHasContent}" />
 
         <!-- Low-opacity wallpaper for item or category -->
-        <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
+        <Image helpers:AsyncImageHelper.Url="{Binding ActiveWallpaperPath}"
                helpers:AsyncImageHelper.DecodeWidth="1920"
                helpers:AsyncImageHelper.DisableCache="True"
                Stretch="UniformToFill"
                Opacity="0.10"
-               IsVisible="{Binding SelectedItem.PrimaryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+               IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
-        <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperPath}"
+        <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
                helpers:AsyncImageHelper.DecodeWidth="1920"
                helpers:AsyncImageHelper.DisableCache="True"
                Stretch="UniformToFill"
                Opacity="0.08"
-               IsVisible="{Binding SelectedCategory.PrimaryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+               IsVisible="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
         <Rectangle Fill="{DynamicResource DotPatternBrush}" Opacity="0.06" />
 
@@ -229,11 +229,35 @@
             <Grid Grid.Column="1" Margin="20,0">
                 <Grid RowDefinitions="Auto,*,Auto">
                     <StackPanel Grid.Row="0" Spacing="6">
-                        <TextBlock Classes="Title"
-                                   Text="{Binding SelectedItem.Title}"
-                                   TextWrapping="Wrap"
-                                   MaxLines="2"
-                                   IsVisible="{Binding IsGameListActive}" />
+                        <!-- Item header (logo + fallback title) -->
+                        <StackPanel Spacing="4" IsVisible="{Binding IsGameListActive}">
+                            <!-- Item logo (preferred) -->
+                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
+                                   helpers:AsyncImageHelper.DecodeWidth="384"
+                                   helpers:AsyncImageHelper.DisableCache="True"
+                                   Height="36"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Left"
+                                   IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                            <!-- Fallback logo (node-level) -->
+                            <Image helpers:AsyncImageHelper.Url="{Binding ActiveLogoPath}"
+                                   helpers:AsyncImageHelper.DecodeWidth="256"
+                                   helpers:AsyncImageHelper.DisableCache="True"
+                                   Height="24"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Left"
+                                   IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+
+                            <!-- Fallback title when no item logo -->
+                            <TextBlock Classes="Title"
+                                       FontSize="20"
+                                       Text="{Binding SelectedItem.Title}"
+                                       TextWrapping="Wrap"
+                                       MaxLines="2"
+                                       IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                        </StackPanel>
+
                         <TextBlock FontSize="18"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource AccentBrush}"

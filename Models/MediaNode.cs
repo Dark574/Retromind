@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
+using Retromind.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Retromind.Models;
@@ -95,6 +96,20 @@ public partial class MediaNode : ObservableObject
     [ObservableProperty] 
     private string _description = string.Empty;
 
+    // --- BigMode fallback toggles for item artwork ---
+
+    [ObservableProperty]
+    private bool _logoFallbackEnabled = false;
+
+    [ObservableProperty]
+    private bool _wallpaperFallbackEnabled = false;
+
+    [ObservableProperty]
+    private bool _videoFallbackEnabled = false;
+
+    [ObservableProperty]
+    private bool _marqueeFallbackEnabled = false;
+
     private ObservableCollection<MediaAsset> _assets = new();
 
     public ObservableCollection<MediaAsset> Assets
@@ -133,16 +148,66 @@ public partial class MediaNode : ObservableObject
         // UI thread marshalling (if needed) must be handled by the caller (ViewModel/Service).
         _activeAssets[type] = relativePath;
 
-        if (type == AssetType.Cover) OnPropertyChanged(nameof(PrimaryCoverPath));
-        if (type == AssetType.Wallpaper) OnPropertyChanged(nameof(PrimaryWallpaperPath));
-        if (type == AssetType.Logo) OnPropertyChanged(nameof(PrimaryLogoPath));
-        if (type == AssetType.Video) OnPropertyChanged(nameof(PrimaryVideoPath));
+        if (type == AssetType.Cover)
+        {
+            OnPropertyChanged(nameof(PrimaryCoverPath));
+            OnPropertyChanged(nameof(PrimaryCoverAbsolutePath));
+        }
+        if (type == AssetType.Wallpaper)
+        {
+            OnPropertyChanged(nameof(PrimaryWallpaperPath));
+            OnPropertyChanged(nameof(PrimaryWallpaperAbsolutePath));
+        }
+        if (type == AssetType.Logo)
+        {
+            OnPropertyChanged(nameof(PrimaryLogoPath));
+            OnPropertyChanged(nameof(PrimaryLogoAbsolutePath));
+        }
+        if (type == AssetType.Video)
+        {
+            OnPropertyChanged(nameof(PrimaryVideoPath));
+            OnPropertyChanged(nameof(PrimaryVideoAbsolutePath));
+        }
+        if (type == AssetType.Marquee)
+        {
+            OnPropertyChanged(nameof(PrimaryMarqueePath));
+            OnPropertyChanged(nameof(PrimaryMarqueeAbsolutePath));
+        }
     }
     
     public string? PrimaryCoverPath => GetPrimaryAssetPath(AssetType.Cover);
     public string? PrimaryWallpaperPath => GetPrimaryAssetPath(AssetType.Wallpaper);
     public string? PrimaryLogoPath => GetPrimaryAssetPath(AssetType.Logo);
     public string? PrimaryVideoPath => GetPrimaryAssetPath(AssetType.Video);
+    public string? PrimaryMarqueePath => GetPrimaryAssetPath(AssetType.Marquee);
+
+    // Absolute variants for UI bindings (AsyncImageHelper expects absolute file paths)
+    public string? PrimaryCoverAbsolutePath => GetPrimaryAssetAbsolutePath(AssetType.Cover);
+    public string? PrimaryWallpaperAbsolutePath => GetPrimaryAssetAbsolutePath(AssetType.Wallpaper);
+    public string? PrimaryLogoAbsolutePath => GetPrimaryAssetAbsolutePath(AssetType.Logo);
+    public string? PrimaryVideoAbsolutePath => GetPrimaryAssetAbsolutePath(AssetType.Video);
+    public string? PrimaryMarqueeAbsolutePath => GetPrimaryAssetAbsolutePath(AssetType.Marquee);
+
+    public bool IsFallbackEnabled(AssetType type)
+    {
+        return type switch
+        {
+            AssetType.Logo => LogoFallbackEnabled,
+            AssetType.Wallpaper => WallpaperFallbackEnabled,
+            AssetType.Video => VideoFallbackEnabled,
+            AssetType.Marquee => MarqueeFallbackEnabled,
+            _ => true
+        };
+    }
+
+    public string? GetPrimaryAssetAbsolutePath(AssetType type)
+    {
+        var relPath = GetPrimaryAssetPath(type);
+        if (string.IsNullOrWhiteSpace(relPath))
+            return null;
+
+        return AppPaths.ResolveDataPath(relPath);
+    }
     
     // --- Content ---
 
@@ -186,9 +251,15 @@ public partial class MediaNode : ObservableObject
         foreach (var key in keysToRemove) _activeAssets.Remove(key);
 
         OnPropertyChanged(nameof(PrimaryCoverPath));
+        OnPropertyChanged(nameof(PrimaryCoverAbsolutePath));
         OnPropertyChanged(nameof(PrimaryWallpaperPath));
+        OnPropertyChanged(nameof(PrimaryWallpaperAbsolutePath));
         OnPropertyChanged(nameof(PrimaryLogoPath));
+        OnPropertyChanged(nameof(PrimaryLogoAbsolutePath));
         OnPropertyChanged(nameof(PrimaryVideoPath));
+        OnPropertyChanged(nameof(PrimaryVideoAbsolutePath));
+        OnPropertyChanged(nameof(PrimaryMarqueePath));
+        OnPropertyChanged(nameof(PrimaryMarqueeAbsolutePath));
     }
 }
 

@@ -1,12 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
-             xmlns:ext="clr-namespace:Retromind.Extensions"
-             xmlns:helpers="using:Retromind.Helpers"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="clr-namespace:Retromind.Helpers"
              xmlns:ac="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls"
              xmlns:video="using:Retromind.Helpers.Video"
              xmlns:media="using:Avalonia.Media"
              x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
              Background="Black"
 
              ext:ThemeProperties.Name="Arcade"
@@ -41,7 +42,8 @@
         <!-- Background: Video wallpaper + fallback image + dark tint -->
         <Grid>
             <!-- Fallback: static background image -->
-            <Image Source="{Binding Converter={StaticResource ThemeAssetConverter},
+            <Image Source="{Binding $parent[UserControl],
+                                    Converter={StaticResource ThemeAssetConverter},
                                     ConverterParameter=Images/background.jpg}"
                    Stretch="UniformToFill"
                    HorizontalAlignment="Center"
@@ -140,7 +142,8 @@
                             </Grid>
 
                             <!-- Cabinet-PNG -->
-                            <Image Source="{Binding Converter={StaticResource ThemeAssetConverter},
+                            <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
                                                 ConverterParameter=Images/cabinet.png}"
                                    Stretch="Uniform"
                                    HorizontalAlignment="Center"
@@ -244,7 +247,7 @@
                                                    TextAlignment="Center"
                                                    TextTrimming="CharacterEllipsis"
                                                    MaxWidth="200"
-                                                   IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
+                                                   IsVisible="{Binding ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
                                     </StackPanel>
                                 </ac:LayoutTransformControl>
                             </Border>

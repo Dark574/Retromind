@@ -203,17 +203,29 @@ public partial class BigModeViewModel
         SelectedCategoryIndex = -1;
     }
 
+    partial void OnItemsChanging(ObservableCollection<MediaItem> value)
+    {
+        _lastItemsForNodeFallback = Items;
+    }
+
     partial void OnItemsChanged(ObservableCollection<MediaItem> value)
     {
         SelectedItemIndex = -1;
 
         // Items list changed -> cached item video paths may no longer be relevant.
         _itemVideoPathCache.Clear();
+
+        if (_lastItemsForNodeFallback != null && !ReferenceEquals(_lastItemsForNodeFallback, value))
+            ClearNodeFallbackOverrides(_lastItemsForNodeFallback);
+
+        _lastItemsForNodeFallback = value;
+        ApplyNodeFallbackOverrides();
         
         // Keep game counters in sync with the new item collection.
         UpdateGameCounters();
         UpdateCircularItems();
     }
+
 
     /// <summary>
     /// Builds a root-to-node path for a target node id (used for CoreApp -> BigMode fallback).
@@ -286,6 +298,8 @@ public partial class BigModeViewModel
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
             return;
+
+        ClearNodeFallbackOverrides(Items);
 
         _gamepadService.OnDirectionStateChanged -= OnGamepadDirectionStateChanged;
         _gamepadService.OnSelect -= OnGamepadSelect;

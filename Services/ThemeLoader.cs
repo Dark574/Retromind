@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Markup.Xaml;
@@ -23,7 +24,7 @@ public static class ThemeLoader
     private static readonly Dictionary<string, CachedXaml> XamlCache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public static Theme LoadTheme(string filePath)
+    public static Theme LoadTheme(string filePath, bool setGlobalBasePath = true)
     {
         // Allow passing "Wheel/theme.axaml" etc. (relative to portable ThemesRoot).
         if (!string.IsNullOrWhiteSpace(filePath) && !Path.IsPathRooted(filePath))
@@ -42,8 +43,9 @@ public static class ThemeLoader
         {
             var errorView = CreateErrorView(string.Format(Strings.Theme_Error_FileNotFoundFormat, filePath));
             
-            // In error mode we reset ThemeBasePath to avoid pointing to a stale directory.
-            ThemeProperties.ThemeBasePath = null;
+            // In error mode we reset the legacy global path to avoid pointing to a stale directory.
+            if (setGlobalBasePath)
+                ThemeProperties.GlobalThemeBasePath = null;
             
             return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, primaryVideoEnabled: false, secondaryVideoEnabled: false);
         }
@@ -51,14 +53,18 @@ public static class ThemeLoader
         try
         {
             // At this point we have a valid theme file.
-            // Make the directory available globally for theme-local assets (cabinet, pointer, sounds, ...).
-            ThemeProperties.ThemeBasePath = themeDir;
+            // Store the base path on the view instance so multiple themes can coexist.
             
             var xamlContent = ReadXamlWithCache(filePath);
 
             // Parse the initial view instance for host usage.
             var view = AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent)
                        ?? CreateErrorView(Strings.Theme_Error_LoadedNullOrInvalid);
+            ThemeProperties.SetThemeBasePath(view, themeDir);
+            NormalizeThemeTypography(view, themeDir);
+
+            if (setGlobalBasePath)
+                ThemeProperties.GlobalThemeBasePath = themeDir;
 
             var sounds = new ThemeSounds
             {
@@ -99,9 +105,14 @@ public static class ThemeLoader
             // Factory that creates fresh view instances from the cached XAML string.
             // This is used for scenarios where the same theme needs to be instantiated
             // multiple times (e.g. system subthemes in BigMode).
-            Control ViewFactory() =>
-                AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent)
-                ?? CreateErrorView(Strings.Theme_Error_LoadedNullOrInvalid);
+            Control ViewFactory()
+            {
+                var fresh = AvaloniaRuntimeXamlLoader.Parse<Control>(xamlContent)
+                            ?? CreateErrorView(Strings.Theme_Error_LoadedNullOrInvalid);
+                ThemeProperties.SetThemeBasePath(fresh, themeDir);
+                NormalizeThemeTypography(fresh, themeDir);
+                return fresh;
+            }
             
             return new Theme(
                 view,
@@ -126,6 +137,48 @@ public static class ThemeLoader
             return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, primaryVideoEnabled: false,
                 secondaryVideoEnabled: false);
         }
+    }
+
+    private static void NormalizeThemeTypography(Control view, string themeDir)
+    {
+        NormalizeFontSpec(view, ThemeProperties.GetTitleFontFamily(view), ThemeProperties.SetTitleFontFamily, themeDir);
+        NormalizeFontSpec(view, ThemeProperties.GetBodyFontFamily(view), ThemeProperties.SetBodyFontFamily, themeDir);
+        NormalizeFontSpec(view, ThemeProperties.GetCaptionFontFamily(view), ThemeProperties.SetCaptionFontFamily, themeDir);
+        NormalizeFontSpec(view, ThemeProperties.GetMonoFontFamily(view), ThemeProperties.SetMonoFontFamily, themeDir);
+    }
+
+    private static void NormalizeFontSpec(
+        Control view,
+        string? spec,
+        Action<AvaloniaObject, string?> setter,
+        string themeDir)
+    {
+        if (string.IsNullOrWhiteSpace(spec))
+            return;
+
+        var hashIndex = spec.IndexOf('#', StringComparison.Ordinal);
+        var pathPart = hashIndex >= 0 ? spec[..hashIndex] : spec;
+        var familyPart = hashIndex >= 0 ? spec[hashIndex..] : string.Empty;
+
+        if (!LooksLikePath(pathPart) || Path.IsPathRooted(pathPart))
+            return;
+
+        var resolved = Path.Combine(themeDir, pathPart) + familyPart;
+        setter(view, resolved);
+    }
+
+    private static bool LooksLikePath(string value)
+    {
+        if (value.Contains('/', StringComparison.Ordinal) || value.Contains('\\', StringComparison.Ordinal))
+            return true;
+
+        var ext = Path.GetExtension(value);
+        if (string.IsNullOrWhiteSpace(ext))
+            return false;
+
+        return ext.Equals(".ttf", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".otf", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".ttc", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ReadXamlWithCache(string filePath)

@@ -242,7 +242,8 @@ Example: full‑screen video wallpaper with static fallback image:
                                        IsVisible="{Binding SecondaryVideoHasContent}"/>
     
             <!-- Static fallback wallpaper when no background video is available -->
-            <Image Source="{Binding Converter={StaticResource ThemeAssetConverter},
+            <Image Source="{Binding $parent[UserControl],
+                                    Converter={StaticResource ThemeAssetConverter},
                                     ConverterParameter=Images/background.jpg}"
                    Stretch="UniformToFill"
                    HorizontalAlignment="Center"
@@ -264,6 +265,12 @@ Behavior:
 
 - If the configured video file exists → `SecondaryVideoHasContent = true` → video is drawn, image fades out.
 - If it does not exist (or video is disabled) → no secondary video, only the static wallpaper is visible.
+
+Note:
+
+- `ThemeAssetToBitmapConverter` now resolves assets relative to the *theme view instance*.
+  Bind the converter to the root view (e.g. `$parent[UserControl]` or an explicit root name)
+  and pass the relative asset path via `ConverterParameter`.
 
 ---
 

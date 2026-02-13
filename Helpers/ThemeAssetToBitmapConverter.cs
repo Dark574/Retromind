@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
 using Retromind.Extensions;
@@ -10,8 +11,8 @@ using Retromind.Extensions;
 namespace Retromind.Helpers;
 
 /// <summary>
-/// Converts a theme-relative asset path (e.g. "Images/cabinet.png")
-/// into a Bitmap, using ThemeProperties.ThemeBasePath as root.
+    /// Converts a theme-relative asset path (e.g. "Images/cabinet.png")
+    /// into a Bitmap, using a per-view ThemeBasePath when available.
 /// Intended for use in theme XAML to load images that live next to the AppImage.
 /// </summary>
 public sealed class ThemeAssetToBitmapConverter : IValueConverter
@@ -47,7 +48,20 @@ public sealed class ThemeAssetToBitmapConverter : IValueConverter
 
         try
         {
-            var fullPath = ThemeProperties.GetThemeFilePath(relativePath);
+            string? fullPath = null;
+            if (Path.IsPathRooted(relativePath))
+            {
+                fullPath = relativePath;
+            }
+            else if (value is AvaloniaObject scope)
+            {
+                fullPath = ThemeProperties.GetThemeFilePath(relativePath, scope);
+            }
+            else
+            {
+                fullPath = ThemeProperties.GetThemeFilePath(relativePath);
+            }
+
             if (string.IsNullOrWhiteSpace(fullPath))
                 return null;
 

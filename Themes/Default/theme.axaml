@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
-             xmlns:ext="clr-namespace:Retromind.Extensions"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              xmlns:helpers="using:Retromind.Helpers"
              xmlns:resources="using:Retromind.Resources"
              xmlns:video="using:Retromind.Helpers.Video"
@@ -55,14 +55,14 @@
     <!-- Background layer + actual content -->
     <Grid>
         <!-- Very transparent wallpaper from the current item -->
-        <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryWallpaperPath}"
+        <Image helpers:AsyncImageHelper.Url="{Binding ActiveWallpaperPath}"
                helpers:AsyncImageHelper.DecodeWidth="1920"
                helpers:AsyncImageHelper.DisableCache="True"
                Stretch="UniformToFill"
                Opacity="0.30"
                HorizontalAlignment="Center"
                VerticalAlignment="Center"
-               IsVisible="{Binding SelectedItem.PrimaryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
+               IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
                IsHitTestVisible="False" />
 
         <!-- Two-column layout: navigation on the left, video + details on the right -->
@@ -88,8 +88,8 @@
                     <!-- Big title (selected game) -->
                     <Border Grid.Row="1"
                             Margin="0,0,0,24">
-                        <Grid>
-                            <!-- Game logo (if available) -->
+                        <StackPanel Spacing="6">
+                            <!-- Game logo (item logo) -->
                             <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
                                    helpers:AsyncImageHelper.DecodeWidth="512"
                                    helpers:AsyncImageHelper.DisableCache="True"
@@ -97,7 +97,7 @@
                                    Stretch="Uniform"
                                    HorizontalAlignment="Left"
                                    VerticalAlignment="Center"
-                                   IsVisible="{Binding SelectedItem.PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                                   IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
                                 <Image.RenderTransform>
                                     <TranslateTransform X="-12" />
                                 </Image.RenderTransform>
@@ -106,15 +106,32 @@
                                 </Image.Transitions>
                             </Image>
 
-                            <!-- Fallback: text title when no logo is available -->
+                            <!-- Fallback logo when item has no logo (node fallback) -->
+                            <Image helpers:AsyncImageHelper.Url="{Binding ActiveLogoPath}"
+                                   helpers:AsyncImageHelper.DecodeWidth="512"
+                                   helpers:AsyncImageHelper.DisableCache="True"
+                                   Height="32"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Left"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
+                                <Image.RenderTransform>
+                                    <TranslateTransform X="-12" />
+                                </Image.RenderTransform>
+                                <Image.Transitions>
+                                    <StaticResource ResourceKey="TitleTransitions" />
+                                </Image.Transitions>
+                            </Image>
+
+                            <!-- Fallback: text title when no item logo is available -->
                             <TextBlock Text="{Binding SelectedItem.Title}"
-                                       FontSize="48"
+                                       FontSize="18"
                                        FontWeight="Bold"
                                        Foreground="White"
                                        TextWrapping="Wrap"
                                        MaxLines="2"
                                        TextTrimming="CharacterEllipsis"
-                                       IsVisible="{Binding SelectedItem.PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
+                                       IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
                                 <TextBlock.RenderTransform>
                                     <!-- Less negative = moves to the right -->
                                     <TranslateTransform X="-12" />
@@ -123,7 +140,7 @@
                                     <StaticResource ResourceKey="TitleTransitions" />
                                 </TextBlock.Transitions>
                             </TextBlock>
-                        </Grid>
+                        </StackPanel>
                     </Border>
 
                     <!-- Row 2: categories OR games depending on view mode -->

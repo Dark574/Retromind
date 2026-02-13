@@ -120,6 +120,40 @@ public partial class NodeSettingsView : Window
             vm.NodeVideoPath = relative;
     }
 
+    /// <summary>
+    /// Opens a file picker and imports a marquee image as a node-level asset.
+    /// </summary>
+    private async void OnBrowseMarqueeClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not NodeSettingsViewModel vm)
+            return;
+
+        var file = await PickSingleFileAsync(new FilePickerOpenOptions
+        {
+            Title = "Select marquee image",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Images")
+                {
+                    Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp" }
+                },
+                FilePickerFileTypes.All
+            }
+        });
+
+        if (file is null)
+            return;
+
+        var localPath = file.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(localPath))
+            return;
+
+        var relative = await vm.ImportNodeAssetAsync(localPath, AssetType.Marquee);
+        if (!string.IsNullOrWhiteSpace(relative))
+            vm.NodeMarqueePath = relative;
+    }
+
     // --- CLEAR HANDLERS ---
 
     /// <summary>
@@ -154,6 +188,17 @@ public partial class NodeSettingsView : Window
             return;
 
         vm.NodeVideoPath = null;
+    }
+
+    /// <summary>
+    /// Clears the marquee path and removes the stored marquee asset on save.
+    /// </summary>
+    private void OnClearMarqueeClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not NodeSettingsViewModel vm)
+            return;
+
+        vm.NodeMarqueePath = null;
     }
     
     /// <summary>
