@@ -14,7 +14,9 @@ public static class PathHelper
     {
         if (string.IsNullOrWhiteSpace(input)) return "Unknown";
 
-        var sanitized = input.Replace(" ", "_");
+        var sanitized = input.Replace("/", "")
+            .Replace("\\", "")
+            .Replace(" ", "_");
 
         foreach (var c in Path.GetInvalidFileNameChars())
         {
@@ -24,7 +26,7 @@ public static class PathHelper
         while (sanitized.Contains("__"))
             sanitized = sanitized.Replace("__", "_");
 
-        if (string.IsNullOrWhiteSpace(sanitized))
+        if (string.IsNullOrWhiteSpace(sanitized) || sanitized == "." || sanitized == "..")
             return "Unknown";
 
         return sanitized;

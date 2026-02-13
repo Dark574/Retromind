@@ -377,7 +377,19 @@ public class FileManagementService
 
         // Prefer existing raw paths for backward compatibility.
         if (Directory.Exists(rawPath))
-            return rawPath;
+        {
+            var rawFull = Path.GetFullPath(rawPath);
+            var rootFull = Path.GetFullPath(libraryRootPath);
+            var rootWithSep = rootFull.EndsWith(Path.DirectorySeparatorChar)
+                ? rootFull
+                : rootFull + Path.DirectorySeparatorChar;
+
+            if (rawFull.StartsWith(rootWithSep, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rawFull, rootFull, StringComparison.OrdinalIgnoreCase))
+            {
+                return rawPath;
+            }
+        }
 
         return sanitizedPath;
     }
