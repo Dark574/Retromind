@@ -110,6 +110,23 @@ public class CrossfadeImage : Grid
         set => SetValue(FadeDelayMsProperty, value);
     }
 
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        _imageA.Measure(availableSize);
+        _imageB.Measure(availableSize);
+
+        var active = _activeIndex == 0 ? _imageA : _imageB;
+        return active.DesiredSize;
+    }
+
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        var bounds = new Rect(finalSize);
+        _imageA.Arrange(bounds);
+        _imageB.Arrange(bounds);
+        return finalSize;
+    }
+
     private static Image CreateImage(int zIndex)
     {
         var image = new Image
@@ -143,6 +160,8 @@ public class CrossfadeImage : Grid
             return;
         }
 
+        EnsureImagesVisible();
+
         var target = GetInactiveImage(out var targetIndex);
         var old = GetActiveImage();
 
@@ -163,10 +182,8 @@ public class CrossfadeImage : Grid
             string.Equals(AsyncImageHelper.GetUrl(target), url, StringComparison.OrdinalIgnoreCase) &&
             AsyncImageHelper.GetIsLoaded(target))
         {
-            // Fast-path: target image already has the correct URL loaded.
-            target.Opacity = 1;
-            old.Opacity = 0;
-            _activeIndex = targetIndex;
+            // Target image already has the correct URL loaded: still crossfade for consistency.
+            _ = ApplyLoadedImageAsync(target, targetIndex, generation);
             return;
         }
 
@@ -180,6 +197,8 @@ public class CrossfadeImage : Grid
         AsyncImageHelper.SetUrl(_imageB, null);
         _imageA.Opacity = 0;
         _imageB.Opacity = 0;
+        _imageA.IsVisible = false;
+        _imageB.IsVisible = false;
     }
 
     private void ApplyImageSettings(Image target)
@@ -259,6 +278,7 @@ public class CrossfadeImage : Grid
             other.Opacity = 0;
 
             _activeIndex = targetIndex;
+            ScheduleDeactivateInactiveImage(generation, targetIndex);
         });
     }
 
@@ -351,5 +371,61 @@ public class CrossfadeImage : Grid
             opacityTransition.Duration = duration;
             opacityTransition.Easing ??= new CubicEaseOut();
         }
+    }
+
+    private void EnsureImagesVisible()
+    {
+        _imageA.IsVisible = true;
+        _imageB.IsVisible = true;
+    }
+
+    private void SetActiveVisibility(int activeIndex)
+    {
+        if (activeIndex == 0)
+        {
+            _imageA.IsVisible = true;
+            _imageB.IsVisible = false;
+        }
+        else
+        {
+            _imageA.IsVisible = false;
+            _imageB.IsVisible = true;
+        }
+    }
+
+    private void ScheduleDeactivateInactiveImage(int generation, int activeIndex)
+    {
+        var duration = ResolveFadeDuration();
+        var delayMs = (int)duration.TotalMilliseconds;
+        if (delayMs <= 0)
+        {
+            SetActiveVisibility(activeIndex);
+            return;
+        }
+
+        _ = DeactivateInactiveAfterDelayAsync(generation, activeIndex, delayMs);
+    }
+
+    private async Task DeactivateInactiveAfterDelayAsync(int generation, int activeIndex, int delayMs)
+    {
+        try
+        {
+            await Task.Delay(delayMs).ConfigureAwait(false);
+        }
+        catch
+        {
+            return;
+        }
+
+        UiThreadHelper.Post(() =>
+        {
+            if (generation != _loadGeneration)
+                return;
+
+            if (_activeIndex != activeIndex)
+                return;
+
+            SetActiveVisibility(activeIndex);
+        });
     }
 }

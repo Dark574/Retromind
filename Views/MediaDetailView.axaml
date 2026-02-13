@@ -6,6 +6,7 @@
              xmlns:helpers="clr-namespace:Retromind.Helpers"
              xmlns:vm="clr-namespace:Retromind.ViewModels"
              xmlns:p="clr-namespace:Retromind.Resources"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="600"
              x:Class="Retromind.Views.MediaDetailView"
              x:DataType="models:MediaItem">
@@ -27,9 +28,9 @@
             <Grid>
                 <!-- 1) Header area (logo or title fallback) -->
                 <Grid MinHeight="80" Margin="0,0,40,0">
-                    <StackPanel Spacing="6"
+                    <StackPanel Spacing="2"
                                 HorizontalAlignment="Center"
-                                VerticalAlignment="Center">
+                                VerticalAlignment="Top">
                         <!-- Title shown when the item has no logo -->
                         <TextBlock Text="{Binding Title}"
                                    FontSize="28" FontWeight="Bold" TextWrapping="Wrap"
@@ -38,11 +39,13 @@
                                    IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
 
                         <!-- Logo (item logo or fallback) -->
-                        <Image x:CompileBindings="False"
-                               helpers:AsyncImageHelper.Url="{Binding $parent[Window].DataContext.ResolvedSelectedItemLogoPath}"
-                               helpers:AsyncImageHelper.DecodeWidth="400"
-                               helpers:AsyncImageHelper.DisableCache="True"
-                               Stretch="Uniform" MaxHeight="150"
+                        <ext:CrossfadeImage x:CompileBindings="False"
+                               Url="{Binding $parent[Window].DataContext.ResolvedSelectedItemLogoPath}"
+                               DecodeWidth="400"
+                               DisableCache="True"
+                               Stretch="Uniform"
+                               FadeDurationMs="1600"
+                               MaxHeight="150"
                                HorizontalAlignment="Center"
                                IsVisible="{Binding $parent[Window].DataContext.ResolvedSelectedItemLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                     </StackPanel>

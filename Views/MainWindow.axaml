@@ -5,6 +5,7 @@
         xmlns:models="using:Retromind.Models"
         xmlns:helpers="clr-namespace:Retromind.Helpers"
         xmlns:input="using:Avalonia.Input"
+        xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
 
         xmlns:p="clr-namespace:Retromind.Resources"
 
@@ -36,11 +37,12 @@
        <Border Background="{Binding WindowBackground}" />
 
        <!-- LAYER 0: Wallpaper (lies over it) -->
-       <Image x:CompileBindings="False"
-              helpers:AsyncImageHelper.Url="{Binding ResolvedSelectedItemWallpaperPath}"
-              helpers:AsyncImageHelper.DecodeWidth="1920"
-              helpers:AsyncImageHelper.DisableCache="True"
+       <ext:CrossfadeImage x:CompileBindings="False"
+              Url="{Binding ResolvedSelectedItemWallpaperPath}"
+              DecodeWidth="1920"
+              DisableCache="True"
               Stretch="UniformToFill"
+              FadeDurationMs="1600"
               Opacity="0.4"
               IsHitTestVisible="False"
               IsVisible="{Binding ResolvedSelectedItemWallpaperPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
