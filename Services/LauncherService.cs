@@ -1086,25 +1086,30 @@ public sealed class LauncherService
                 ? $"\"{fullPath}\""
                 : fullPath;
         }
-        
-        // First, replace all the extra placeholders
-        var result = templateArgs
-            .Replace("{fileDir}", fileDir, StringComparison.Ordinal)
-            .Replace("{fileName}", fileName, StringComparison.Ordinal)
-            .Replace("{fileBase}", fileBase, StringComparison.Ordinal);
 
-        // If the user provided explicit quotes like "\"{file}\"", preserve exact quoting behavior
-        if (result.Contains("\"{file}\"", StringComparison.Ordinal))
+        static string QuoteIfNeededOrEmpty(string value)
+            => string.IsNullOrEmpty(value)
+                ? string.Empty
+                : (value.Contains(' ', StringComparison.Ordinal) ? $"\"{value}\"" : value);
+
+        static string ReplacePlaceholder(string input, string name, string rawValue)
         {
-            return result.Replace("{file}", fullPath, StringComparison.Ordinal);
+            var explicitToken = $"\"{{{name}}}\"";
+            if (input.Contains(explicitToken, StringComparison.Ordinal))
+                return input.Replace($"{{{name}}}", rawValue, StringComparison.Ordinal);
+
+            var quotedValue = QuoteIfNeededOrEmpty(rawValue);
+            return input.Replace($"{{{name}}}", quotedValue, StringComparison.Ordinal);
         }
 
-        // Standard case: {file} is replaced – if present – with a possibly quoted path
-        var quotedPath = (!string.IsNullOrEmpty(fullPath) && fullPath.Contains(' ', StringComparison.Ordinal))
-            ? $"\"{fullPath}\""
-            : fullPath;
-        
-        return result.Replace("{file}", quotedPath, StringComparison.Ordinal);
+        // Replace placeholders with proper quoting, preserving explicit quotes if provided by the user.
+        var result = templateArgs;
+        result = ReplacePlaceholder(result, "fileDir", fileDir);
+        result = ReplacePlaceholder(result, "fileName", fileName);
+        result = ReplacePlaceholder(result, "fileBase", fileBase);
+        result = ReplacePlaceholder(result, "file", fullPath);
+
+        return result;
     }
 
     private static bool IsProcessRunning(string processName)
