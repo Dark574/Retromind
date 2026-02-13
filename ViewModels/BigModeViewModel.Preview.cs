@@ -50,6 +50,7 @@ public partial class BigModeViewModel
     private static readonly TimeSpan VideoStartSettleDelay = TimeSpan.FromMilliseconds(75);
     private static readonly TimeSpan VideoStartTimeout = TimeSpan.FromMilliseconds(900);
     private static readonly TimeSpan StopWaitTimeout = TimeSpan.FromMilliseconds(750);
+    private static readonly TimeSpan AudioStartFallbackDelay = TimeSpan.FromMilliseconds(200);
     
     // AppImage-specific: some bundled LibVLC builds can lose audio after Stop/Play cycles.
     private static readonly bool IsAppImage =
@@ -85,6 +86,7 @@ public partial class BigModeViewModel
     private int _expectedPreviewSurfaceIndex = -1;
     private int _mainVideoFrameReadyGeneration;
     private int _audioFadeGeneration;
+    private int _audioCrossfadeStartedGeneration;
 
     private int _activePreviewIndex = -1;
 
@@ -251,11 +253,12 @@ public partial class BigModeViewModel
                 if (newPlayer != null)
                     newPlayer.Volume = 100;
 
+                Interlocked.CompareExchange(ref _audioCrossfadeStartedGeneration, expected, 0);
                 StopPreviewPlayer(oldIndex);
                 return;
             }
 
-            StartAudioCrossfade(oldIndex, index, expected, fadeMs);
+            TryStartAudioCrossfadeOnce(oldIndex, index, expected, fadeMs);
             _ = StopPreviewPlayerAfterDelayAsync(oldIndex, expected, fadeMs);
         }, DispatcherPriority.Background);
     }
@@ -771,9 +774,11 @@ public partial class BigModeViewModel
         IsVideoVisible = false;
 
         var gen = Interlocked.Increment(ref _previewPlayGeneration);
+        Volatile.Write(ref _audioCrossfadeStartedGeneration, 0);
         Volatile.Write(ref _mainVideoFrameReadyGeneration, 0);
         Volatile.Write(ref _expectedPreviewFrameGeneration, gen);
 
+        var oldIndex = _activePreviewIndex;
         var targetIndex = GetInactivePreviewIndex();
         Volatile.Write(ref _expectedPreviewSurfaceIndex, targetIndex);
 
@@ -781,8 +786,8 @@ public partial class BigModeViewModel
         _pendingPreviewSurfaceIndex = targetIndex;
         Volatile.Write(ref _pendingPreviewGeneration, gen);
 
-        _ = StartPlaybackAfterRenderAsync(videoPath, gen, targetIndex);
-        _ = FallbackStopOldAfterTimeoutAsync(_activePreviewIndex, targetIndex, gen);
+        _ = StartPlaybackAfterRenderAsync(videoPath, gen, targetIndex, oldIndex);
+        _ = FallbackStopOldAfterTimeoutAsync(oldIndex, targetIndex, gen);
 
         // Fade in after the next render tick to avoid one-frame flashes.
         UiThreadHelper.Post(() =>
@@ -792,7 +797,7 @@ public partial class BigModeViewModel
         }, DispatcherPriority.Render);
     }
 
-    private async Task StartPlaybackAfterRenderAsync(string videoPath, int generation, int targetIndex)
+    private async Task StartPlaybackAfterRenderAsync(string videoPath, int generation, int targetIndex, int oldIndex)
     {
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
 
@@ -840,6 +845,8 @@ public partial class BigModeViewModel
             player.Volume = 0;
             player.Play();
 
+            _ = StartAudioFallbackAfterDelayAsync(oldIndex, targetIndex, generation);
+
             if (targetIndex == 0)
                 _mainVideoIsPlayingA = true;
             else
@@ -886,6 +893,7 @@ public partial class BigModeViewModel
         Volatile.Write(ref _expectedPreviewFrameGeneration, 0);
         Volatile.Write(ref _expectedPreviewSurfaceIndex, -1);
         Volatile.Write(ref _mainVideoFrameReadyGeneration, 0);
+        Volatile.Write(ref _audioCrossfadeStartedGeneration, 0);
 
         // AppImage workaround: force a fresh MediaPlayer on the next preview start
         // to avoid LibVLC losing audio after frequent Stop/Play cycles.
@@ -973,6 +981,53 @@ public partial class BigModeViewModel
 
         var fadeGen = Interlocked.Increment(ref _audioFadeGeneration);
         _ = CrossfadeAudioAsync(fromPlayer, toPlayer, durationMs, fadeGen, generation);
+    }
+
+    private bool TryStartAudioCrossfadeOnce(int fromIndex, int toIndex, int generation, int durationMs)
+    {
+        if (Interlocked.CompareExchange(ref _audioCrossfadeStartedGeneration, generation, 0) != 0)
+            return false;
+
+        StartAudioCrossfade(fromIndex, toIndex, generation, durationMs);
+        return true;
+    }
+
+    private async Task StartAudioFallbackAfterDelayAsync(int fromIndex, int toIndex, int generation)
+    {
+        if (!IsAppImage)
+            return;
+
+        var delayMs = (int)Math.Max(0, AudioStartFallbackDelay.TotalMilliseconds);
+        if (delayMs == 0)
+            return;
+
+        try
+        {
+            await Task.Delay(delayMs).ConfigureAwait(false);
+        }
+        catch
+        {
+            return;
+        }
+
+        if (generation != Volatile.Read(ref _previewPlayGeneration))
+            return;
+
+        if (Volatile.Read(ref _mainVideoFrameReadyGeneration) == generation)
+            return;
+
+        var fadeMs = Math.Max(0, VideoFadeDurationMs);
+        if (fadeMs == 0)
+        {
+            var player = GetMediaPlayer(toIndex);
+            if (player != null)
+                player.Volume = 100;
+
+            Interlocked.CompareExchange(ref _audioCrossfadeStartedGeneration, generation, 0);
+            return;
+        }
+
+        TryStartAudioCrossfadeOnce(fromIndex, toIndex, generation, fadeMs);
     }
 
     private async Task CrossfadeAudioAsync(MediaPlayer? fromPlayer, MediaPlayer? toPlayer, int durationMs, int fadeGen, int previewGen)

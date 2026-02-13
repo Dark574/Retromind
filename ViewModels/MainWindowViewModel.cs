@@ -267,6 +267,11 @@ public partial class MainWindowViewModel : ViewModelBase
         _currentSettings = preloadedSettings;
         _documentService = documentService;
         _fileService.LibraryChanged += MarkLibraryDirty;
+
+        // Seed layout values early so bindings are stable before LoadData completes.
+        _treePaneWidth = new GridLength(_currentSettings.TreeColumnWidth);
+        _detailPaneWidth = new GridLength(_currentSettings.DetailColumnWidth);
+        _itemWidth = _currentSettings.ItemWidth;
         
         // Ensure SDL also reports background events and applies deadzone handling.
         Environment.SetEnvironmentVariable("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1");

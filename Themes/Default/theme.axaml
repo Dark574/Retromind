@@ -23,6 +23,8 @@
              ext:ThemeProperties.BackgroundVisualEnterMode="None">
 
     <UserControl.Resources>
+        <x:Double x:Key="LogoHeight">80</x:Double>
+
         <!-- Soft slide+fade animation for the main title -->
         <Transitions x:Key="TitleTransitions">
             <DoubleTransition Property="{x:Static Visual.OpacityProperty}"
@@ -91,13 +93,13 @@
                     <!-- Big title (selected game) -->
                     <Border Grid.Row="1"
                             Margin="0,0,0,24">
-                        <StackPanel Spacing="6">
+                        <Grid Height="{StaticResource LogoHeight}">
                             <!-- Game logo (item logo) -->
                             <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryLogoPath}"
                                                 DecodeWidth="512"
                                                 DisableCache="True"
                                                 FadeDelayMs="120"
-                                                Height="80"
+                                                Height="{StaticResource LogoHeight}"
                                                 Stretch="Uniform"
                                                 HorizontalAlignment="Left"
                                                 VerticalAlignment="Center"
@@ -115,7 +117,7 @@
                                                 DecodeWidth="512"
                                                 DisableCache="True"
                                                 FadeDelayMs="120"
-                                                Height="32"
+                                                Height="{StaticResource LogoHeight}"
                                                 Stretch="Uniform"
                                                 HorizontalAlignment="Left"
                                                 VerticalAlignment="Center"
@@ -136,6 +138,7 @@
                                        TextWrapping="Wrap"
                                        MaxLines="2"
                                        TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center"
                                        IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
                                 <TextBlock.RenderTransform>
                                     <!-- Less negative = moves to the right -->
@@ -145,7 +148,7 @@
                                     <StaticResource ResourceKey="TitleTransitions" />
                                 </TextBlock.Transitions>
                             </TextBlock>
-                        </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!-- Row 2: categories OR games depending on view mode -->
