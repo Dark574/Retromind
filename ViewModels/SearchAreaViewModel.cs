@@ -315,7 +315,6 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
         // Cancel previous pending search (debounce + background evaluation)
         _searchCts?.Cancel();
-        _searchCts?.Dispose();
         var cts = new CancellationTokenSource();
         _searchCts = cts;
 

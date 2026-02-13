@@ -166,7 +166,6 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     private void DebouncedApplyFilter(string querySnapshot)
     {
         _searchDebounceCts?.Cancel();
-        _searchDebounceCts?.Dispose();
         var cts = new CancellationTokenSource();
         _searchDebounceCts = cts;
 
