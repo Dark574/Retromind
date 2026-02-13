@@ -6,11 +6,11 @@
         xmlns:models="using:Retromind.Models"
         xmlns:p="clr-namespace:Retromind.Resources"
         xmlns:helpers="using:Retromind.Helpers"
-        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+        mc:Ignorable="d" d:DesignWidth="270" d:DesignHeight="600"
         x:Class="Retromind.Views.NodeSettingsView"
         x:DataType="vm:NodeSettingsViewModel"
         Title="{x:Static p:Strings.NodeSettings_Title}"
-        Width="740" Height="720" MinHeight="480" MaxHeight="900" SizeToContent="Width"
+        Width="590" Height="720" MinHeight="480" MaxHeight="900" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="True">
 
@@ -425,7 +425,7 @@
 
                     <ComboBox ItemsSource="{Binding AvailableSystemThemes}"
                               SelectedItem="{Binding SelectedSystemTheme}"
-                              Width="260"
+                              HorizontalAlignment="Stretch"
                               IsEnabled="{Binding IsSystemThemeSelectionEnabled}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="helpers:SystemThemeOption">

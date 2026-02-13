@@ -418,14 +418,14 @@ public partial class BigModeViewModel
 
             if (_navigationPath.Count > 0) _navigationPath.Pop();
 
-            // Theme context = current folder (peek) or root.
-            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
-
             // Restore selection to the leaf node if it exists in the current level.
             var leafNode = CurrentNode ?? (_navigationPath.Count > 0 ? _navigationPath.Peek() : null);
             SelectedCategory = leafNode != null && CurrentCategories.Contains(leafNode)
                 ? leafNode
                 : CurrentCategories.FirstOrDefault();
+
+            // Theme context = current folder (peek) or selected root.
+            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : SelectedCategory;
 
             TriggerPreviewPlaybackWithDebounce();
 
@@ -452,8 +452,9 @@ public partial class BigModeViewModel
             CategoryTitle = previousTitle;
             CurrentCategories = previousList;
 
-            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
             SelectedCategory = CurrentCategories.FirstOrDefault();
+
+            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : SelectedCategory;
 
             TriggerPreviewPlaybackWithDebounce();
             return;

@@ -268,6 +268,10 @@ public partial class BigModeViewModel
         // Stop current preview immediately on selection change to avoid stale playback while scrolling.
         StopVideo();
 
+        // Root menu: keep theme context synced with the selected root node.
+        if (!IsGameListActive && _navigationPath.Count == 0)
+            ThemeContextNode = value;
+
         TriggerPreviewPlaybackWithDebounce();
     }
     

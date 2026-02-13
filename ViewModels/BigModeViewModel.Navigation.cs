@@ -133,8 +133,8 @@ public partial class BigModeViewModel
                 SelectedCategory = null;
             }
 
-            // ThemeContextNode = current folder (topmost entry in the NavigationPath) or null for root
-            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
+            // ThemeContextNode = current folder (topmost entry in the NavigationPath) or selected root
+            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : SelectedCategory;
 
             // Make sure we are in category mode
             IsGameListActive = false;
@@ -173,8 +173,8 @@ public partial class BigModeViewModel
         SelectedItem = null;
         CurrentNode = SelectedCategory;
 
-        // Root context: no node-specific theme context.
-        ThemeContextNode = null;
+        // Root context: use the selected root node for theme selection.
+        ThemeContextNode = SelectedCategory;
         
         // No active game list at root -> reset counters explicitly.
         UpdateGameCounters();

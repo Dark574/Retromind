@@ -232,6 +232,9 @@ public partial class MainWindowViewModel
         };
         bigVm.PropertyChanged += themeChangedHandler;
 
+        // Ensure initial theme matches the current BigMode context (e.g. root selection).
+        _ = SwapThemeIfNeededAsync();
+
         // Close wiring: exit BigMode deterministically + cleanup handlers + sync selection back.
         bigVm.RequestClose += async () =>
         {
