@@ -476,6 +476,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             surface.VideoDisplay);
 
         player.EndReached += (_, _) => OnPreviewEndReached(index);
+        player.Stopped += (_, _) => OnPreviewStopped(index);
 
         return player;
     }

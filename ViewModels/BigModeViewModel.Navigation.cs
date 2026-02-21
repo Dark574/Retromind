@@ -460,6 +460,30 @@ public partial class BigModeViewModel
                     _currentPreviewMediaB = null;
                 }
 
+                try
+                {
+                    lock (_previewMediaLock)
+                    {
+                        foreach (var media in _pendingDisposeMedia.Values)
+                        {
+                            try
+                            {
+                                media.Dispose();
+                            }
+                            catch
+                            {
+                                // ignore
+                            }
+                        }
+
+                        _pendingDisposeMedia.Clear();
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+
                 // Dispose LibVLC last
                 try
                 {

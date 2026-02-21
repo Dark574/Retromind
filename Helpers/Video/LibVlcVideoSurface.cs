@@ -8,7 +8,7 @@ namespace Retromind.Helpers.Video;
 /// IVideoSurface implementation that is fed by LibVLC video callbacks.
 /// Expected format: BGRA32.
 /// </summary>
-public sealed class LibVlcVideoSurface : IVideoSurface
+public sealed class LibVlcVideoSurface : IVideoSurface, IFrameCopySource
 {
     private readonly object _sync = new();
     private IntPtr _buffer;
@@ -31,6 +31,9 @@ public sealed class LibVlcVideoSurface : IVideoSurface
         ref uint pitches,
         ref uint lines)
     {
+        if (_disposed)
+            return 0;
+
         // BGRA32 as FourCC "RV32"
         var rv32 = BitConverter.ToUInt32(new byte[] { (byte)'R', (byte)'V', (byte)'3', (byte)'2' }, 0);
 
@@ -49,11 +52,7 @@ public sealed class LibVlcVideoSurface : IVideoSurface
 
         lock (_sync)
         {
-            if (_buffer != IntPtr.Zero)
-            {
-                Marshal.FreeHGlobal(_buffer);
-                _buffer = IntPtr.Zero;
-            }
+            FreeBufferLocked();
 
             var size = (int)(pitches * lines);
             _buffer = Marshal.AllocHGlobal(size);
@@ -67,7 +66,14 @@ public sealed class LibVlcVideoSurface : IVideoSurface
     /// </summary>
     internal void VideoCleanup(ref IntPtr opaque)
     {
-        Dispose();
+        lock (_sync)
+        {
+            // Cleanup is part of the LibVLC lifecycle (format changes, stop/start).
+            // Do NOT dispose the surface here, just release the buffer.
+            FreeBufferLocked();
+            Width = 0;
+            Height = 0;
+        }
     }
 
     /// <summary>
@@ -125,11 +131,46 @@ public sealed class LibVlcVideoSurface : IVideoSurface
 
         lock (_sync)
         {
-            if (_buffer != IntPtr.Zero)
+            FreeBufferLocked();
+            Width = 0;
+            Height = 0;
+        }
+    }
+
+    public bool CopyFrameTo(IntPtr destination, int destinationSize)
+    {
+        if (_disposed)
+            return false;
+
+        lock (_sync)
+        {
+            if (_buffer == IntPtr.Zero || Width <= 0 || Height <= 0)
+                return false;
+
+            var srcSize = (long)Width * Height * 4;
+            var bytesToCopy = (long)Math.Min(destinationSize, srcSize);
+            if (bytesToCopy <= 0)
+                return false;
+
+            unsafe
             {
-                Marshal.FreeHGlobal(_buffer);
-                _buffer = IntPtr.Zero;
+                Buffer.MemoryCopy(
+                    source: (void*)_buffer,
+                    destination: (void*)destination,
+                    destinationSizeInBytes: destinationSize,
+                    sourceBytesToCopy: bytesToCopy);
             }
+
+            return true;
+        }
+    }
+
+    private void FreeBufferLocked()
+    {
+        if (_buffer != IntPtr.Zero)
+        {
+            Marshal.FreeHGlobal(_buffer);
+            _buffer = IntPtr.Zero;
         }
     }
 }

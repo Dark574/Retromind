@@ -118,27 +118,34 @@ public class VideoSurfaceControl : Control
         if (_bitmap == null)
             return;
 
-        var ptr = surface.GetCurrentFrame();
-        if (ptr == IntPtr.Zero)
-            return;
-
         using (var fb = _bitmap.Lock())
         {
-            unsafe
+            var destSize = fb.RowBytes * fb.Size.Height;
+
+            if (surface is IFrameCopySource copySource)
             {
-                // Compute destination and source size.
-                var destSize = fb.RowBytes * fb.Size.Height;
+                if (!copySource.CopyFrameTo(fb.Address, destSize))
+                    return;
+            }
+            else
+            {
+                var ptr = surface.GetCurrentFrame();
+                if (ptr == IntPtr.Zero)
+                    return;
 
-                // Compute source buffer size (Width * Height * 4 for BGRA32).
-                var srcSize = surface.Width * surface.Height * 4;
+                unsafe
+                {
+                    // Compute source buffer size (Width * Height * 4 for BGRA32).
+                    var srcSize = surface.Width * surface.Height * 4;
 
-                var bytesToCopy = (long)Math.Min(destSize, srcSize);
+                    var bytesToCopy = (long)Math.Min(destSize, srcSize);
 
-                Buffer.MemoryCopy(
-                    source: (void*)ptr,
-                    destination: (void*)fb.Address,
-                    destinationSizeInBytes: destSize,
-                    sourceBytesToCopy: bytesToCopy);
+                    Buffer.MemoryCopy(
+                        source: (void*)ptr,
+                        destination: (void*)fb.Address,
+                        destinationSizeInBytes: destSize,
+                        sourceBytesToCopy: bytesToCopy);
+                }
             }
         }
 
