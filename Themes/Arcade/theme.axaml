@@ -24,6 +24,11 @@
              ext:ThemeProperties.CircularWindowSize="11"
              ext:ThemeProperties.AttractModeEnabled="True"
              ext:ThemeProperties.AttractModeIdleSeconds="60"
+             ext:ThemeProperties.PrimaryVisualElementName="ArcadeMarquee"
+             ext:ThemeProperties.PrimaryVisualEnterMode="Fade"
+             ext:ThemeProperties.SecondaryVisualElementName="ArcadeBezel"
+             ext:ThemeProperties.SecondaryVisualEnterMode="Fade"
+             ext:ThemeProperties.FadeDurationMs="600"
              ext:ThemeProperties.AttractModeSound="sounds/attract_spin.wav">
 
     <UserControl.Resources>
@@ -92,12 +97,14 @@
                                         Margin="-128,0,0,0"
                                         Background="Transparent"
                                         ClipToBounds="True">
-                                    <Image helpers:AsyncImageHelper.Url="{Binding ActiveMarqueePath}"
-                                           helpers:AsyncImageHelper.DecodeWidth="1024"
-                                           Stretch="UniformToFill"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           IsVisible="{Binding ActiveMarqueePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                                    <ext:CrossfadeImage x:Name="ArcadeMarquee"
+                                                        Url="{Binding ActiveMarqueePath}"
+                                                        DecodeWidth="1024"
+                                                        Stretch="UniformToFill"
+                                                        FadeDurationMs="900"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        IsVisible="{Binding ActiveMarqueePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
                                 </Border>
 
                                 <!-- Screen-Block -->
@@ -131,13 +138,15 @@
                                             </Grid>
                                         </Border>
 
-                                        <Image Source="{Binding ActiveBezelPath,
-                                                                Converter={StaticResource PathToBitmapConverter}}"
-                                               Stretch="UniformToFill"
-                                               HorizontalAlignment="Stretch"
-                                               VerticalAlignment="Stretch"
-                                               IsHitTestVisible="False"
-                                               IsVisible="{Binding ActiveBezelPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                                        <ext:CrossfadeImage x:Name="ArcadeBezel"
+                                                            Url="{Binding ActiveBezelPath}"
+                                                            DecodeWidth="1024"
+                                                            Stretch="UniformToFill"
+                                                            FadeDurationMs="900"
+                                                            HorizontalAlignment="Stretch"
+                                                            VerticalAlignment="Stretch"
+                                                            IsHitTestVisible="False"
+                                                            IsVisible="{Binding ActiveBezelPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
                                     </Grid>
                                 </Border>
                             </Grid>
