@@ -3,8 +3,6 @@
 Retromind is a media frontend for Linux focused on games, movies, books and more.  
 It is designed to be portable, controller‑friendly and run well on Linux desktops.
 
-> Note: This is an early version ({{STABILITY}}, as of {{DATE}}).
-
 ---
 
 ## 1. Download
@@ -13,9 +11,7 @@ It is designed to be portable, controller‑friendly and run well on Linux deskt
 
 - `Retromind-{{VERSION}}-linux-x86_64.AppImage`
 
-Optional:
-
-- `SHA256SUMS.txt` – SHA‑256 checksums for all binaries in this release.
+SHA‑256 checksum: `checksum`
 
 ---
 
@@ -53,10 +49,6 @@ Replace this list for each release:
 
 ## 4. Known issues / limitations
 
-- **Background video + attract mode (Arcade theme)**  
-  When attract mode starts in the Arcade theme, the background video can currently freeze on a single frame.  
-  Functionally this is fine (it behaves like a static wallpaper), but it may be improved in future versions.
-
 - **Linux only**  
   Windows is not supported at the moment.
 
@@ -69,7 +61,7 @@ Replace this list for each release:
 ## 5. System requirements
 
 - Linux x86_64
-- GLibC ≥ *(add the minimum version you tested, e.g. 2.31)*
+- GLibC ≥ 2.36 (built on Debian 12 "bookworm")
 - OpenGL/Vulkan‑capable GPU (recommended)
 - .NET runtime is bundled in the AppImage (self‑contained), no separate installation required
 
