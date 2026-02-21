@@ -11,6 +11,7 @@
              ext:ThemeProperties.Version="0.1.0"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
              ext:ThemeProperties.SecondaryVideoEnabled="True"
              ext:ThemeProperties.SecondaryVideoSlotName="BackgroundVideoSlot"
              ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/background_loop.mp4"

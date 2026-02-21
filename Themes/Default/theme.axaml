@@ -13,6 +13,7 @@
              ext:ThemeProperties.Version="0.2.0"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
              ext:ThemeProperties.FadeDurationMs="4000"
              ext:ThemeProperties.MoveDurationMs="1100"
              ext:ThemeProperties.PrimaryVisualElementName="CoverPanel"

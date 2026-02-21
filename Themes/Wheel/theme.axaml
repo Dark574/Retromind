@@ -17,6 +17,7 @@
              ext:ThemeProperties.MoveDurationMs="250"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
              ext:ThemeProperties.VideoCornerRadius="8"
              ext:ThemeProperties.VideoBorderThickness="0"
              ext:ThemeProperties.VideoStretchMode="Uniform"

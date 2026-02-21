@@ -19,6 +19,7 @@
              ext:ThemeProperties.AccentColor="#00D1FF"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
              ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4"
              ext:ThemeProperties.CircularWindowSize="11"
              ext:ThemeProperties.AttractModeEnabled="True"

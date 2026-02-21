@@ -7,7 +7,8 @@
 
              ext:ThemeProperties.Name="System Host"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.1.0">
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.VideoFadeDurationMs="600">
              <!-- ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"> -->
 

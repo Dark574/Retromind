@@ -12,6 +12,7 @@
              ext:ThemeProperties.Version="0.1.0"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
              ext:ThemeProperties.SecondaryVideoEnabled="False">
 
     <!-- Very simple, neutral system layout:
