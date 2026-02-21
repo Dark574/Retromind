@@ -9,11 +9,11 @@ WORK_DIR="$PROJECT_ROOT/.build-work"
 PUBLISH_DIR="$PROJECT_ROOT/bin/Release/net10.0/linux-x64/publish"
 APPDIR="$WORK_DIR/AppDir"
 
-echo "[1/7] Prepare folders..."
+echo "[1/8] Prepare folders..."
 rm -rf "$WORK_DIR"
 mkdir -p "$OUT_DIR" "$WORK_DIR"
 
-echo "[2/7] Publish self-contained (linux-x64)..."
+echo "[2/8] Publish self-contained (linux-x64)..."
 cd "$PROJECT_ROOT"
 dotnet publish Retromind.csproj -c Release -r linux-x64 \
   --self-contained true \
@@ -27,10 +27,10 @@ if [ ! -f "$PUBLISH_DIR/Retromind" ]; then
   exit 1
 fi
 
-echo "[3/7] Build VLC export container image..."
+echo "[3/8] Build VLC export container image..."
 docker build -f "$BUILD_DIR/Dockerfile.vlc" -t retromind-vlc-export:stable-slim "$PROJECT_ROOT/build"
 
-echo "[4/7] Export VLC libs/plugins from container..."
+echo "[4/8] Export VLC libs/plugins from container..."
 CID="$(docker create retromind-vlc-export:stable-slim)"
 # Ensure the container always gets removed, even on failure.
 cleanup_container() {
@@ -50,7 +50,7 @@ if [ ! -d "$WORK_DIR/vlc" ]; then
   exit 1
 fi
 
-echo "[5/7] Build AppDir layout..."
+echo "[5/8] Build AppDir layout..."
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib/vlc" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/metainfo"
 
 cp "$BUILD_DIR/AppRun" "$APPDIR/AppRun"
@@ -80,6 +80,39 @@ fi
 
 cp -a "$WORK_DIR/vlc/vlc" "$APPDIR/usr/lib/vlc/"
 cp -a "$WORK_DIR/vlc/lib" "$APPDIR/usr/lib/vlc/"
+
+# --- Wayland runtime libs (for true Wayland backend) ---
+echo "[6/8] Bundle Wayland runtime libs (if available on build host)..."
+copy_lib() {
+  name="$1"
+  path=""
+
+  if command -v ldconfig >/dev/null 2>&1; then
+    path="$(ldconfig -p 2>/dev/null | awk -v n="$name" '$1==n {print $NF; exit}')"
+  fi
+
+  if [ -z "$path" ]; then
+    for dir in /usr/lib /usr/lib64 /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /lib64; do
+      if [ -e "$dir/$name" ]; then
+        path="$dir/$name"
+        break
+      fi
+    done
+  fi
+
+  if [ -n "$path" ] && [ -e "$path" ]; then
+    echo "  + $name -> $path"
+    cp -L "$path" "$APPDIR/usr/lib/"
+  else
+    echo "  - missing: $name"
+  fi
+}
+
+copy_lib "libwayland-client.so.0"
+copy_lib "libwayland-cursor.so.0"
+copy_lib "libwayland-egl.so.1"
+copy_lib "libxkbcommon.so.0"
+copy_lib "libdecor-0.so.0"
 
 DESKTOP_FILE_NAME="io.github.dark574.Retromind.desktop"
 
@@ -126,7 +159,7 @@ if [ -d "$PROJECT_ROOT/Licenses" ]; then
   cp -r "$PROJECT_ROOT/Licenses/." "$DOC_DIR/Licenses/"
 fi
 
-echo "[6/7] Download appimagetool (if missing)..."
+echo "[7/8] Download appimagetool (if missing)..."
 APPIMAGETOOL="$WORK_DIR/appimagetool"
 if [ ! -x "$APPIMAGETOOL" ]; then
   curl -L -o "$APPIMAGETOOL" "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
@@ -136,7 +169,7 @@ fi
 echo "Debug: listing desktop files..."
 find "$APPDIR" -maxdepth 4 -type f -name "*.desktop" -print
 
-echo "[7/7] Build AppImage..."
+echo "[8/8] Build AppImage..."
 cd "$WORK_DIR"
 "$APPIMAGETOOL" "$APPDIR" "$OUT_DIR/Retromind-x86_64.AppImage"
 

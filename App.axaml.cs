@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -37,6 +38,7 @@ public partial class App : Application
         // For testing specific cultures, uncomment the following:
         //System.Threading.Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo("en-US");
         AvaloniaXamlLoader.Load(this);
+        AttachGlobalExceptionHandlers();
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -114,7 +116,48 @@ public partial class App : Application
         
         base.OnFrameworkInitializationCompleted();
     }
-    
+
+    private static void AttachGlobalExceptionHandlers()
+    {
+        // 1) UI thread exceptions
+        Dispatcher.UIThread.UnhandledException += (_, e) =>
+        {
+            if (IsRandrKeyOutOfRange(e.Exception))
+            {
+                LogUnhandled("Handled RandR screens exception (known sporadic X11 bug).", e.Exception);
+                e.Handled = true;
+                return;
+            }
+
+            LogUnhandled("Unhandled UI thread exception.", e.Exception);
+        };
+
+        // 2) Non-UI exceptions
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            LogUnhandled("Unhandled AppDomain exception.", e.ExceptionObject as Exception);
+        };
+
+        // 3) Background task exceptions
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            LogUnhandled("Unobserved task exception.", e.Exception);
+        };
+    }
+
+    private static bool IsRandrKeyOutOfRange(Exception? ex)
+    {
+        if (ex is not ArgumentOutOfRangeException { ParamName: "key" }) return false;
+        return ex.StackTrace?.Contains("Randr15ScreensImpl", StringComparison.Ordinal) == true;
+    }
+
+    private static void LogUnhandled(string message, Exception? ex)
+    {
+        var detail = ex?.ToString() ?? "(no exception)";
+        Debug.WriteLine($"[Unhandled] {message} {detail}");
+        Console.WriteLine($"[Unhandled] {message} {detail}");
+    }
+
     /// <summary>
     /// Configures the application's dependency injection container.
     /// </summary>

@@ -72,6 +72,7 @@ internal sealed class Program
             {
                 if (App.Current is App app)
                     app.IsBigModeOnly = isBigModeOnly;
+
             });
     }
     
