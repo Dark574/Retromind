@@ -91,8 +91,8 @@
                                         Margin="-128,0,0,0"
                                         Background="Transparent"
                                         ClipToBounds="True">
-                                    <Image Source="{Binding ActiveMarqueePath,
-                                                        Converter={StaticResource PathToBitmapConverter}}"
+                                    <Image helpers:AsyncImageHelper.Url="{Binding ActiveMarqueePath}"
+                                           helpers:AsyncImageHelper.DecodeWidth="1024"
                                            Stretch="UniformToFill"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
