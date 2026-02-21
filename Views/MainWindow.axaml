@@ -22,6 +22,22 @@
         
         TextInput="OnTextInput" >
 
+    <Window.Resources>
+        <!-- Vector icons to avoid emoji font fallback changes -->
+        <Geometry x:Key="IconThemeToggle">
+            M12 2A10 10 0 1 0 22 12A8 8 0 0 1 12 2Z
+        </Geometry>
+        <Geometry x:Key="IconSearch">
+            M15.5 14h-.79l-.28-.27A6.5 6.5 0 1 0 14 15.5l.27.28v.79L20 21.5 21.5 20 15.5 14z M10 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z
+        </Geometry>
+        <Geometry x:Key="IconTv">
+            M3 5h18v12H3z M5 19h14v2H5z
+        </Geometry>
+        <Geometry x:Key="IconSettings">
+            M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.12.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.39 1.05.7 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.58-.24 1.12-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58z M12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z
+        </Geometry>
+    </Window.Resources>
+
     <Window.DataTemplates>
         <DataTemplate DataType="{x:Type vm:MediaAreaViewModel}">
             <views:MediaAreaView />
@@ -105,35 +121,47 @@
                                           FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
 
                                <!-- Theme Toggle Button -->
-                               <Button Grid.Column="1" Content="🌗" 
+                               <Button Grid.Column="1"
                                        Command="{Binding ToggleThemeCommand}"
                                        Background="Transparent" BorderThickness="0"
                                        ToolTip.Tip="{x:Static p:Strings.Toggle_Theme}"
-                                       FontSize="16" Cursor="Hand" Margin="0,0,5,0"
-                                       Foreground="{Binding TextColor}"/>
+                                       Cursor="Hand" Margin="0,0,5,0"
+                                       Foreground="{Binding TextColor}">
+                                   <PathIcon Data="{StaticResource IconThemeToggle}"
+                                             Width="16" Height="16" />
+                               </Button>
 
                                <!-- Search button integrated into the header -->
-                               <Button Grid.Column="2" Content="🔍" 
+                               <Button Grid.Column="2"
                                        Command="{Binding OpenSearchCommand}"
                                        Background="Transparent" BorderThickness="0"
                                        ToolTip.Tip="{x:Static p:Strings.Search_Global}"
-                                       FontSize="14" Cursor="Hand" Margin="0,2,5,0"
-                                       Foreground="{Binding TextColor}"/>
+                                       Cursor="Hand" Margin="0,2,5,0"
+                                       Foreground="{Binding TextColor}">
+                                   <PathIcon Data="{StaticResource IconSearch}"
+                                             Width="16" Height="16" />
+                               </Button>
 
                                <!-- BIG MODE BUTTON -->
-                               <Button Grid.Column="3" Content="📺" 
+                               <Button Grid.Column="3"
                                        Command="{Binding EnterBigModeCommand}"
                                        Background="Transparent" BorderThickness="0"
                                        ToolTip.Tip="Big Picture Mode"
-                                       FontSize="14" Cursor="Hand" Margin="0,2,5,0"
-                                       Foreground="{Binding TextColor}"/>
+                                       Cursor="Hand" Margin="0,2,5,0"
+                                       Foreground="{Binding TextColor}">
+                                   <PathIcon Data="{StaticResource IconTv}"
+                                             Width="16" Height="16" />
+                               </Button>
 
-                               <Button Grid.Column="4" Content="⚙" 
+                               <Button Grid.Column="4"
                                        Command="{Binding OpenSettingsCommand}"
                                        Background="Transparent" BorderThickness="0"
                                        ToolTip.Tip="{x:Static p:Strings.Settings_Title}"
-                                       FontSize="16" Cursor="Hand"
-                                       Foreground="{Binding TextColor}"/>
+                                       Cursor="Hand"
+                                       Foreground="{Binding TextColor}">
+                                   <PathIcon Data="{StaticResource IconSettings}"
+                                             Width="16" Height="16" />
+                               </Button>
                            </Grid>
 
                            <!-- The actual tree -->
