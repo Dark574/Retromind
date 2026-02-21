@@ -98,7 +98,7 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Button.Save", resourceCulture);
             }
         }
-
+        
         public static string Button_Apply {
             get {
                 return ResourceManager.GetString("Button.Apply", resourceCulture);
@@ -218,13 +218,13 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Common.Developer", resourceCulture);
             }
         }
-
+        
         public static string Common_FavoritesOnly {
             get {
                 return ResourceManager.GetString("Common.FavoritesOnly", resourceCulture);
             }
         }
-
+        
         public static string Common_FavoritesOnlyHint {
             get {
                 return ResourceManager.GetString("Common.FavoritesOnlyHint", resourceCulture);
@@ -282,6 +282,30 @@ namespace Retromind.Resources {
         public static string Common_Title {
             get {
                 return ResourceManager.GetString("Common.Title", resourceCulture);
+            }
+        }
+        
+        public static string Common_Source {
+            get {
+                return ResourceManager.GetString("Common.Source", resourceCulture);
+            }
+        }
+        
+        public static string Common_SourceItem {
+            get {
+                return ResourceManager.GetString("Common.SourceItem", resourceCulture);
+            }
+        }
+        
+        public static string Common_SourceNodeFormat {
+            get {
+                return ResourceManager.GetString("Common.SourceNodeFormat", resourceCulture);
+            }
+        }
+        
+        public static string Common_SourceEmulatorFormat {
+            get {
+                return ResourceManager.GetString("Common.SourceEmulatorFormat", resourceCulture);
             }
         }
         
@@ -398,22 +422,34 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Dialog.EnterName.Message", resourceCulture);
             }
         }
-
+        
         public static string Dialog_NamePrompt_EmptyName {
             get {
                 return ResourceManager.GetString("Dialog.NamePrompt.EmptyName", resourceCulture);
             }
         }
-
+        
         public static string Dialog_NamePrompt_DuplicateOrCollision {
             get {
                 return ResourceManager.GetString("Dialog.NamePrompt.DuplicateOrCollision", resourceCulture);
             }
         }
-
+        
         public static string Dialog_NamePrompt_SuggestionFormat {
             get {
                 return ResourceManager.GetString("Dialog.NamePrompt.SuggestionFormat", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_ConfirmMergeNodeFormat {
+            get {
+                return ResourceManager.GetString("Dialog.ConfirmMergeNodeFormat", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_EmptyLibraryHint {
+            get {
+                return ResourceManager.GetString("Dialog.EmptyLibraryHint", resourceCulture);
             }
         }
         
@@ -438,18 +474,6 @@ namespace Retromind.Resources {
         public static string Dialog_ConfirmMergeNodeAssetsFormat {
             get {
                 return ResourceManager.GetString("Dialog.ConfirmMergeNodeAssetsFormat", resourceCulture);
-            }
-        }
-
-        public static string Dialog_ConfirmMergeNodeFormat {
-            get {
-                return ResourceManager.GetString("Dialog.ConfirmMergeNodeFormat", resourceCulture);
-            }
-        }
-
-        public static string Dialog_EmptyLibraryHint {
-            get {
-                return ResourceManager.GetString("Dialog.EmptyLibraryHint", resourceCulture);
             }
         }
         
@@ -488,37 +512,37 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Dialog.Select.Wallpaper", resourceCulture);
             }
         }
-
+        
         public static string Dialog_SelectWorkingDirectory {
             get {
                 return ResourceManager.GetString("Dialog.SelectWorkingDirectory", resourceCulture);
             }
         }
-
+        
         public static string Dialog_SelectXdgCacheFolder {
             get {
                 return ResourceManager.GetString("Dialog.SelectXdgCacheFolder", resourceCulture);
             }
         }
-
+        
         public static string Dialog_SelectXdgConfigFolder {
             get {
                 return ResourceManager.GetString("Dialog.SelectXdgConfigFolder", resourceCulture);
             }
         }
-
+        
         public static string Dialog_SelectXdgDataFolder {
             get {
                 return ResourceManager.GetString("Dialog.SelectXdgDataFolder", resourceCulture);
             }
         }
-
+        
         public static string Dialog_SelectXdgStateFolder {
             get {
                 return ResourceManager.GetString("Dialog.SelectXdgStateFolder", resourceCulture);
             }
         }
-
+        
         public static string Dialog_SelectXdgBaseFolder {
             get {
                 return ResourceManager.GetString("Dialog.SelectXdgBaseFolder", resourceCulture);
@@ -572,7 +596,7 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Dialog_NoGogInstallationsFound", resourceCulture);
             }
         }
-
+        
         public static string Dialog_NoGogInstallationsFound_SelectPath {
             get {
                 return ResourceManager.GetString("Dialog_NoGogInstallationsFound_SelectPath", resourceCulture);
@@ -614,64 +638,70 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("EditMedia.Tab_Prefix", resourceCulture);
             }
         }
-
+        
         public static string EditMedia_AssetsPrefixLabel {
             get {
                 return ResourceManager.GetString("EditMedia.AssetsPrefixLabel", resourceCulture);
             }
         }
-
+        
         public static string EditMedia_AssetsPrefixHint {
             get {
                 return ResourceManager.GetString("EditMedia.AssetsPrefixHint", resourceCulture);
             }
         }
-
+        
         public static string EditMedia_AssetsPrefixExampleFormat {
             get {
                 return ResourceManager.GetString("EditMedia.AssetsPrefixExampleFormat", resourceCulture);
             }
         }
-
+        
         public static string EditMedia_InheritedEmulatorFallbackHint {
             get {
                 return ResourceManager.GetString("EditMedia.InheritedEmulatorFallbackHint", resourceCulture);
             }
         }
-
+        
         public static string EditMedia_InheritedWrappersNone {
             get {
                 return ResourceManager.GetString("EditMedia.InheritedWrappersNone", resourceCulture);
             }
         }
-
+        
         public static string EditMedia_InheritedWrappersInfoFormat {
             get {
                 return ResourceManager.GetString("EditMedia.InheritedWrappersInfoFormat", resourceCulture);
             }
         }
-
+        
         public static string EditMedia_InheritedWrappersSourceNodeFormat {
             get {
                 return ResourceManager.GetString("EditMedia.InheritedWrappersSourceNodeFormat", resourceCulture);
             }
         }
-
+        
         public static string EditMedia_InheritedWrappersSourceEmulatorFormat {
             get {
                 return ResourceManager.GetString("EditMedia.InheritedWrappersSourceEmulatorFormat", resourceCulture);
             }
         }
-
+        
         public static string EditMedia_InheritedWrappersSourceGlobal {
             get {
                 return ResourceManager.GetString("EditMedia.InheritedWrappersSourceGlobal", resourceCulture);
             }
         }
-
+        
         public static string EditMedia_InheritedWrappersSourceGlobalViaEmulatorFormat {
             get {
                 return ResourceManager.GetString("EditMedia.InheritedWrappersSourceGlobalViaEmulatorFormat", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_EnvInheritedHint {
+            get {
+                return ResourceManager.GetString("EditMedia.EnvInheritedHint", resourceCulture);
             }
         }
         
@@ -698,13 +728,13 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Hint.TimePlayed", resourceCulture);
             }
         }
-
+        
         public static string Hint_WorkingDirectory {
             get {
                 return ResourceManager.GetString("Hint.WorkingDirectory", resourceCulture);
             }
         }
-
+        
         public static string Hint_XdgSection {
             get {
                 return ResourceManager.GetString("Hint.XdgSection", resourceCulture);
@@ -738,6 +768,60 @@ namespace Retromind.Resources {
         public static string Import_Steam {
             get {
                 return ResourceManager.GetString("Import.Steam", resourceCulture);
+            }
+        }
+        
+        public static string Settings_TabMisc {
+            get {
+                return ResourceManager.GetString("Settings.TabMisc", resourceCulture);
+            }
+        }
+        
+        public static string Settings_SectionLaunchPaths {
+            get {
+                return ResourceManager.GetString("Settings_SectionLaunchPaths", resourceCulture);
+            }
+        }
+        
+        public static string Settings_SectionMusic {
+            get {
+                return ResourceManager.GetString("Settings_SectionMusic", resourceCulture);
+            }
+        }
+        
+        public static string Settings_SectionSteamLibrary {
+            get {
+                return ResourceManager.GetString("Settings_SectionSteamLibrary", resourceCulture);
+            }
+        }
+        
+        public static string Settings_SteamLibraryPathsHint {
+            get {
+                return ResourceManager.GetString("Settings_SteamLibraryPathsHint", resourceCulture);
+            }
+        }
+        
+        public static string Settings_SteamLibraryPathWatermark {
+            get {
+                return ResourceManager.GetString("Settings_SteamLibraryPathWatermark", resourceCulture);
+            }
+        }
+        
+        public static string Settings_SectionHeroicGog {
+            get {
+                return ResourceManager.GetString("Settings_SectionHeroicGog", resourceCulture);
+            }
+        }
+        
+        public static string Settings_HeroicGogPathsHint {
+            get {
+                return ResourceManager.GetString("Settings_HeroicGogPathsHint", resourceCulture);
+            }
+        }
+        
+        public static string Settings_HeroicGogPathWatermark {
+            get {
+                return ResourceManager.GetString("Settings_HeroicGogPathWatermark", resourceCulture);
             }
         }
         
@@ -776,82 +860,76 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Launch.LauncherPathHint", resourceCulture);
             }
         }
-
+        
         public static string Launch_WorkingDirectory {
             get {
                 return ResourceManager.GetString("Launch.WorkingDirectory", resourceCulture);
             }
         }
-
+        
         public static string Launch_WorkingDirectoryHint {
             get {
                 return ResourceManager.GetString("Launch.WorkingDirectoryHint", resourceCulture);
             }
         }
-
+        
         public static string Launch_WorkingDirectoryEffectiveLabel {
             get {
                 return ResourceManager.GetString("Launch.WorkingDirectoryEffectiveLabel", resourceCulture);
             }
         }
-
+        
         public static string Launch_WorkingDirectoryNotSet {
             get {
                 return ResourceManager.GetString("Launch.WorkingDirectoryNotSet", resourceCulture);
             }
         }
-
+        
         public static string Launch_XdgSection {
             get {
                 return ResourceManager.GetString("Launch.XdgSection", resourceCulture);
             }
         }
-
+        
         public static string Launch_XdgBase {
             get {
                 return ResourceManager.GetString("Launch.XdgBase", resourceCulture);
             }
         }
-
+        
         public static string Launch_XdgBaseHint {
             get {
                 return ResourceManager.GetString("Launch.XdgBaseHint", resourceCulture);
             }
         }
-
+        
         public static string Launch_XdgConfig {
             get {
                 return ResourceManager.GetString("Launch.XdgConfig", resourceCulture);
             }
         }
-
+        
         public static string Launch_XdgData {
             get {
                 return ResourceManager.GetString("Launch.XdgData", resourceCulture);
             }
         }
-
+        
         public static string Launch_XdgCache {
             get {
                 return ResourceManager.GetString("Launch.XdgCache", resourceCulture);
             }
         }
-
+        
         public static string Launch_XdgState {
             get {
                 return ResourceManager.GetString("Launch.XdgState", resourceCulture);
             }
         }
-
+        
         public static string Launch_XdgPathHint {
             get {
                 return ResourceManager.GetString("Launch.XdgPathHint", resourceCulture);
-            }
-        }
-        
-        public static string Launch_Mode {
-            get {
-                return ResourceManager.GetString("Launch.Mode", resourceCulture);
             }
         }
         
@@ -1046,13 +1124,13 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("NodeSettings_DefaultEmulatorForFolder", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_InheritedEmulatorInfoFormat {
             get {
                 return ResourceManager.GetString("NodeSettings_InheritedEmulatorInfoFormat", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_InheritedEmulatorNone {
             get {
                 return ResourceManager.GetString("NodeSettings_InheritedEmulatorNone", resourceCulture);
@@ -1124,7 +1202,7 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("NodeSettings_RandomizeCovers", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_RandomizeCoversHint {
             get {
                 return ResourceManager.GetString("NodeSettings_RandomizeCoversHint", resourceCulture);
@@ -1136,31 +1214,55 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("NodeSettings_RandomizeMusic", resourceCulture);
             }
         }
-
-        public static string NodeSettings_InheritedWrappersNone {
-            get {
-                return ResourceManager.GetString("NodeSettings_InheritedWrappersNone", resourceCulture);
-            }
-        }
-
-        public static string NodeSettings_InheritedWrappersEmptyFormat {
-            get {
-                return ResourceManager.GetString("NodeSettings_InheritedWrappersEmptyFormat", resourceCulture);
-            }
-        }
-
-        public static string NodeSettings_InheritedWrappersInfoFormat {
-            get {
-                return ResourceManager.GetString("NodeSettings_InheritedWrappersInfoFormat", resourceCulture);
-            }
-        }
-
+        
         public static string NodeSettings_RandomizeMusicHint {
             get {
                 return ResourceManager.GetString("NodeSettings_RandomizeMusicHint", resourceCulture);
             }
         }
-
+        
+        public static string NodeSettings_InheritedWrappersNone {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedWrappersNone", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_InheritedWrappersEmptyFormat {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedWrappersEmptyFormat", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_InheritedWrappersInfoFormat {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedWrappersInfoFormat", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_EnvOverridesTitle {
+            get {
+                return ResourceManager.GetString("NodeSettings_EnvOverridesTitle", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_InheritedEnvNone {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedEnvNone", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_InheritedEnvEmptyFormat {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedEnvEmptyFormat", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_InheritedEnvInfoFormat {
+            get {
+                return ResourceManager.GetString("NodeSettings_InheritedEnvInfoFormat", resourceCulture);
+            }
+        }
+        
         public static string NodeSettings_RenameFailed {
             get {
                 return ResourceManager.GetString("NodeSettings_RenameFailed", resourceCulture);
@@ -1220,10 +1322,16 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Settings.AddProfile", resourceCulture);
             }
         }
-
+        
         public static string Settings_ConfirmConvertLaunchPaths {
             get {
                 return ResourceManager.GetString("Settings.ConfirmConvertLaunchPaths", resourceCulture);
+            }
+        }
+        
+        public static string Settings_ConvertExistingLaunchPaths {
+            get {
+                return ResourceManager.GetString("Settings.ConvertExistingLaunchPaths", resourceCulture);
             }
         }
         
@@ -1244,40 +1352,34 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Settings.PlayRandomMusic", resourceCulture);
             }
         }
-
+        
         public static string Settings_PlayRandomMusic_Hint {
             get {
                 return ResourceManager.GetString("Settings.PlayRandomMusic.Hint", resourceCulture);
             }
         }
-
+        
         public static string Settings_PortableHome {
             get {
                 return ResourceManager.GetString("Settings.PortableHome", resourceCulture);
             }
         }
-
+        
         public static string Settings_PortableHome_Hint {
             get {
                 return ResourceManager.GetString("Settings.PortableHome.Hint", resourceCulture);
             }
         }
-
+        
         public static string Settings_UseGlobalWrapperDefaults {
             get {
                 return ResourceManager.GetString("Settings.UseGlobalWrapperDefaults", resourceCulture);
             }
         }
-
+        
         public static string Settings_PortableLaunchPaths {
             get {
                 return ResourceManager.GetString("Settings.PortableLaunchPaths", resourceCulture);
-            }
-        }
-
-        public static string Settings_ConvertExistingLaunchPaths {
-            get {
-                return ResourceManager.GetString("Settings.ConvertExistingLaunchPaths", resourceCulture);
             }
         }
         
@@ -1302,60 +1404,6 @@ namespace Retromind.Resources {
         public static string Settings_TabMetadata {
             get {
                 return ResourceManager.GetString("Settings.TabMetadata", resourceCulture);
-            }
-        }
-
-        public static string Settings_TabMisc {
-            get {
-                return ResourceManager.GetString("Settings.TabMisc", resourceCulture);
-            }
-        }
-
-        public static string Settings_SectionLaunchPaths {
-            get {
-                return ResourceManager.GetString("Settings_SectionLaunchPaths", resourceCulture);
-            }
-        }
-
-        public static string Settings_SectionMusic {
-            get {
-                return ResourceManager.GetString("Settings_SectionMusic", resourceCulture);
-            }
-        }
-
-        public static string Settings_SectionSteamLibrary {
-            get {
-                return ResourceManager.GetString("Settings_SectionSteamLibrary", resourceCulture);
-            }
-        }
-
-        public static string Settings_SteamLibraryPathsHint {
-            get {
-                return ResourceManager.GetString("Settings_SteamLibraryPathsHint", resourceCulture);
-            }
-        }
-
-        public static string Settings_SteamLibraryPathWatermark {
-            get {
-                return ResourceManager.GetString("Settings_SteamLibraryPathWatermark", resourceCulture);
-            }
-        }
-
-        public static string Settings_SectionHeroicGog {
-            get {
-                return ResourceManager.GetString("Settings_SectionHeroicGog", resourceCulture);
-            }
-        }
-
-        public static string Settings_HeroicGogPathsHint {
-            get {
-                return ResourceManager.GetString("Settings_HeroicGogPathsHint", resourceCulture);
-            }
-        }
-
-        public static string Settings_HeroicGogPathWatermark {
-            get {
-                return ResourceManager.GetString("Settings_HeroicGogPathWatermark", resourceCulture);
             }
         }
         
@@ -1476,60 +1524,6 @@ namespace Retromind.Resources {
         public static string Media_PlayTime {
             get {
                 return ResourceManager.GetString("Media.PlayTime", resourceCulture);
-            }
-        }
-
-        public static string Common_Source {
-            get {
-                return ResourceManager.GetString("Common.Source", resourceCulture);
-            }
-        }
-        
-        public static string Common_SourceItem {
-            get {
-                return ResourceManager.GetString("Common.SourceItem", resourceCulture);
-            }
-        }
-        
-        public static string Common_SourceNodeFormat {
-            get {
-                return ResourceManager.GetString("Common.SourceNodeFormat", resourceCulture);
-            }
-        }
-        
-        public static string Common_SourceEmulatorFormat {
-            get {
-                return ResourceManager.GetString("Common.SourceEmulatorFormat", resourceCulture);
-            }
-        }
-        
-        public static string EditMedia_EnvInheritedHint {
-            get {
-                return ResourceManager.GetString("EditMedia.EnvInheritedHint", resourceCulture);
-            }
-        }
-        
-        public static string NodeSettings_EnvOverridesTitle {
-            get {
-                return ResourceManager.GetString("NodeSettings_EnvOverridesTitle", resourceCulture);
-            }
-        }
-        
-        public static string NodeSettings_InheritedEnvNone {
-            get {
-                return ResourceManager.GetString("NodeSettings_InheritedEnvNone", resourceCulture);
-            }
-        }
-        
-        public static string NodeSettings_InheritedEnvEmptyFormat {
-            get {
-                return ResourceManager.GetString("NodeSettings_InheritedEnvEmptyFormat", resourceCulture);
-            }
-        }
-        
-        public static string NodeSettings_InheritedEnvInfoFormat {
-            get {
-                return ResourceManager.GetString("NodeSettings_InheritedEnvInfoFormat", resourceCulture);
             }
         }
     }

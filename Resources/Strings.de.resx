@@ -291,7 +291,7 @@
     <data name="Settings.PortableLaunchPaths" xml:space="preserve"><value>Startpfade relativ zum Retromind-Datenordner speichern (portabel)</value></data>
     <data name="Settings.ProfileName" xml:space="preserve"><value>Profilname</value></data>
     <data name="Settings.SectionEmulators" xml:space="preserve"><value>Emulator-Profile</value></data>
-    <data name="Settings.TabEmulators" xml:space="preserve"><value>Emulatoren</value></data>
+    <data name="Settings.TabEmulators" xml:space="preserve"><value>Launcher / Emulatoren</value></data>
     <data name="Settings.TabMetadata" xml:space="preserve"><value>Metadaten</value></data>
     <data name="Settings.Title" xml:space="preserve"><value>Einstellungen</value></data>
     <data name="Settings_Advanced" xml:space="preserve"><value>Erweitert</value></data>
