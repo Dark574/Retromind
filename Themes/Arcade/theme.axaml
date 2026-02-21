@@ -99,7 +99,7 @@
                                         ClipToBounds="True">
                                     <ext:CrossfadeImage x:Name="ArcadeMarquee"
                                                         Url="{Binding ActiveMarqueePath}"
-                                                        DecodeWidth="1024"
+                                                        DecodeWidth="512"
                                                         Stretch="UniformToFill"
                                                         FadeDurationMs="900"
                                                         HorizontalAlignment="Center"
