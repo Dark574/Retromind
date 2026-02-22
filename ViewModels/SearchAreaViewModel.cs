@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,28 +10,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Resources;
 
 namespace Retromind.ViewModels;
-
-/// <summary>
-/// Helper wrapper for search scopes (checkboxes in the filter UI).
-/// </summary>
-public class SearchScope : ObservableObject
-{
-    public MediaNode Node { get; }
-
-    private bool _isSelected = true;
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set => SetProperty(ref _isSelected, value);
-    }
-
-    public SearchScope(MediaNode node)
-    {
-        Node = node ?? throw new ArgumentNullException(nameof(node));
-    }
-}
 
 /// <summary>
 /// ViewModel for the global search functionality.
@@ -55,6 +35,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     private readonly IReadOnlyList<MediaNode> _rootNodesSnapshot;
     private readonly ObservableCollection<MediaNode>? _rootNodesObservable;
     private readonly HashSet<MediaNode> _trackedRootNodes = new();
+    private readonly HashSet<string> _selectedScopeNodeIds = new(StringComparer.Ordinal);
+    private bool _hasExplicitScopeSelection;
 
     private CancellationTokenSource? _searchCts;
     private bool _disposed;
@@ -120,7 +102,12 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private MediaItem? _selectedMediaItem;
 
-    public ObservableCollection<SearchScope> Scopes { get; } = new();
+    public int SelectedScopeCount => CountSelectedNodes();
+
+    public string SelectedScopeSummary =>
+        SelectedScopeCount == 0
+            ? Strings.Search_ScopesNoneSelected
+            : string.Format(Strings.Search_ScopesSelectedFormat, SelectedScopeCount);
 
     public ICommand PlayRandomCommand { get; }
     public ICommand PlayCommand { get; }
@@ -154,7 +141,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 TrackRootNode(node);
         }
 
-        InitializeScopes();
+        EnsureDefaultScopeSelection();
         UpdateRootAvailability();
 
         // Keep the initial state consistent (empty results until user enters criteria)
@@ -206,44 +193,20 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void InitializeScopes()
+    public IReadOnlyList<MediaNode> RootNodesSnapshot => RootNodes.ToList();
+
+    public HashSet<string> GetSelectedScopeIdsSnapshot()
+        => new(_selectedScopeNodeIds, StringComparer.Ordinal);
+
+    public void ApplyScopeSelection(IReadOnlyCollection<string> selectedIds)
     {
-        var selectionByNode = new Dictionary<MediaNode, bool>();
-        foreach (var existing in Scopes)
-        {
-            selectionByNode[existing.Node] = existing.IsSelected;
-            existing.PropertyChanged -= OnScopePropertyChanged;
-        }
+        _selectedScopeNodeIds.Clear();
+        foreach (var id in selectedIds)
+            _selectedScopeNodeIds.Add(id);
 
-        Scopes.Clear();
-
-        // We keep the scope list shallow (root + direct children) for UI simplicity
-        // The actual item search is still recursive within each selected scope
-        foreach (var root in RootNodes)
-        {
-            if (root.Items.Count > 0)
-                AddScope(root, selectionByNode);
-
-            foreach (var child in root.Children)
-                AddScope(child, selectionByNode);
-        }
-
-    }
-
-    private void AddScope(MediaNode node, IDictionary<MediaNode, bool> selectionByNode)
-    {
-        var scope = new SearchScope(node);
-        if (selectionByNode.TryGetValue(node, out var isSelected))
-            scope.IsSelected = isSelected;
-
-        scope.PropertyChanged += OnScopePropertyChanged;
-        Scopes.Add(scope);
-    }
-
-    private void OnScopePropertyChanged(object? sender, PropertyChangedEventArgs args)
-    {
-        if (args.PropertyName == nameof(SearchScope.IsSelected))
-            RequestSearch();
+        _hasExplicitScopeSelection = true;
+        NotifyScopeSummaryChanged();
+        RequestSearch();
     }
 
     private void TrackRootNode(MediaNode node)
@@ -314,8 +277,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         if (_disposed)
             return;
 
-        InitializeScopes();
         UpdateRootAvailability();
+        SyncScopeSelection();
 
         if (!string.IsNullOrWhiteSpace(SearchText) ||
             !string.IsNullOrWhiteSpace(SearchYear) ||
@@ -396,12 +359,27 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         var activeScopes = new List<MediaNode>();
         await UiThreadHelper.InvokeAsync(() =>
         {
-            for (int i = 0; i < Scopes.Count; i++)
-            {
-                if (Scopes[i].IsSelected)
-                    activeScopes.Add(Scopes[i].Node);
-            }
+            foreach (var root in RootNodes)
+                CollectActiveScopes(root, _selectedScopeNodeIds, activeScopes);
         });
+
+        if (activeScopes.Count == 0)
+        {
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                if (!ReferenceEquals(_searchCts, cts) || token.IsCancellationRequested)
+                    return;
+
+                SearchResults.Clear();
+                ItemRows.Clear();
+                SelectedMediaItem = null;
+                OnPropertyChanged(nameof(HasResults));
+                OnPropertyChanged(nameof(HasNoResults));
+                OnPropertyChanged(nameof(ShowNoResults));
+                (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
+            });
+            return;
+        }
 
         var results = new List<MediaItem>(capacity: 256);
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -544,9 +522,6 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         foreach (var node in _trackedRootNodes.ToList())
             UntrackRootNode(node);
 
-        foreach (var scope in Scopes)
-            scope.PropertyChanged -= OnScopePropertyChanged;
-
         ItemRows.Clear();
     }
 
@@ -662,11 +637,101 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         SearchYear = string.Empty;
         OnlyFavorites = false;
         SelectedStatusOption = StatusOptions[0];
+        ResetScopeSelectionToDefault();
+    }
 
-        for (int i = 0; i < Scopes.Count; i++)
+    private void EnsureDefaultScopeSelection()
+    {
+        if (_hasExplicitScopeSelection || _selectedScopeNodeIds.Count > 0)
+            return;
+
+        foreach (var root in RootNodes)
+            _selectedScopeNodeIds.Add(root.Id);
+
+        NotifyScopeSummaryChanged();
+    }
+
+    private void ResetScopeSelectionToDefault()
+    {
+        _selectedScopeNodeIds.Clear();
+        foreach (var root in RootNodes)
+            _selectedScopeNodeIds.Add(root.Id);
+
+        _hasExplicitScopeSelection = false;
+        NotifyScopeSummaryChanged();
+        RequestSearch();
+    }
+
+    private void SyncScopeSelection()
+    {
+        var allIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var root in RootNodes)
+            CollectNodeIds(root, allIds);
+
+        _selectedScopeNodeIds.RemoveWhere(id => !allIds.Contains(id));
+
+        if (!_hasExplicitScopeSelection)
         {
-            if (!Scopes[i].IsSelected)
-                Scopes[i].IsSelected = true;
+            _selectedScopeNodeIds.Clear();
+            foreach (var root in RootNodes)
+                _selectedScopeNodeIds.Add(root.Id);
         }
+
+        NotifyScopeSummaryChanged();
+    }
+
+    private void NotifyScopeSummaryChanged()
+    {
+        OnPropertyChanged(nameof(SelectedScopeCount));
+        OnPropertyChanged(nameof(SelectedScopeSummary));
+    }
+
+    private int CountSelectedNodes()
+    {
+        var total = 0;
+        foreach (var root in RootNodes)
+            total += CountSelectedNodesRecursive(root, _selectedScopeNodeIds);
+
+        return total;
+    }
+
+    private static int CountSelectedNodesRecursive(MediaNode node, HashSet<string> selectedIds)
+    {
+        if (selectedIds.Contains(node.Id))
+            return CountAllNodes(node);
+
+        var count = 0;
+        foreach (var child in node.Children)
+            count += CountSelectedNodesRecursive(child, selectedIds);
+
+        return count;
+    }
+
+    private static int CountAllNodes(MediaNode node)
+    {
+        var count = 1;
+        foreach (var child in node.Children)
+            count += CountAllNodes(child);
+
+        return count;
+    }
+
+    private static void CollectNodeIds(MediaNode node, HashSet<string> ids)
+    {
+        ids.Add(node.Id);
+        foreach (var child in node.Children)
+            CollectNodeIds(child, ids);
+    }
+
+    private static void CollectActiveScopes(MediaNode node, HashSet<string> selectedIds, List<MediaNode> active)
+    {
+        if (selectedIds.Contains(node.Id))
+        {
+            active.Add(node);
+            return;
+        }
+
+        foreach (var child in node.Children)
+            CollectActiveScopes(child, selectedIds, active);
     }
 }

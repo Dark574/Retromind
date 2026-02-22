@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using Retromind.Models;
 using Retromind.ViewModels;
 
@@ -188,5 +189,27 @@ public partial class SearchAreaView : UserControl
             return;
 
         _resultsList.ScrollIntoView(row);
+    }
+
+    private async void OnEditScopesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not SearchAreaViewModel vm)
+            return;
+
+        var owner = this.FindAncestorOfType<Window>() ?? TopLevel.GetTopLevel(this) as Window;
+        var dialogVm = new SearchScopeDialogViewModel(vm.RootNodesSnapshot, vm.GetSelectedScopeIdsSnapshot());
+        var dialog = new SearchScopeDialogView { DataContext = dialogVm };
+
+        dialogVm.RequestClose += result => dialog.Close(result);
+
+        if (owner == null)
+        {
+            dialog.Show();
+            return;
+        }
+
+        var confirmed = await dialog.ShowDialog<bool>(owner);
+        if (confirmed)
+            vm.ApplyScopeSelection(dialogVm.GetSelectedNodeIds());
     }
 }

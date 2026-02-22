@@ -276,6 +276,15 @@
     <data name="Search.Global" xml:space="preserve"><value>Globale Suche öffnen</value></data>
     <data name="Search.GlobalShort" xml:space="preserve"><value>Globale Suche</value></data>
     <data name="Search.Search" xml:space="preserve"><value>Suchen...</value></data>
+    <data name="Search.ScopesSelectedFormat" xml:space="preserve"><value>Knoten: {0} ausgewählt</value></data>
+    <data name="Search.ScopesNoneSelected" xml:space="preserve"><value>Knoten: keine ausgewählt</value></data>
+    <data name="Search.ScopesEdit" xml:space="preserve"><value>Knoten auswählen...</value></data>
+    <data name="Search.ScopesDialogTitle" xml:space="preserve"><value>Knoten auswählen</value></data>
+    <data name="Search.ScopesFilter" xml:space="preserve"><value>Knoten filtern...</value></data>
+    <data name="Search.ScopesSelectAll" xml:space="preserve"><value>Alle auswählen</value></data>
+    <data name="Search.ScopesSelectNone" xml:space="preserve"><value>Keine auswählen</value></data>
+    <data name="Search.ScopesExpandAll" xml:space="preserve"><value>Alle aufklappen</value></data>
+    <data name="Search.ScopesCollapseAll" xml:space="preserve"><value>Alle einklappen</value></data>
 
     <!-- SETTINGS -->
     <data name="Settings.AddProfile" xml:space="preserve"><value>Profil hinzufügen</value></data>

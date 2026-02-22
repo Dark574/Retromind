@@ -274,6 +274,15 @@
     <data name="Search.Global" xml:space="preserve"><value>Open global search</value></data>
     <data name="Search.GlobalShort" xml:space="preserve"><value>Global search</value></data>
     <data name="Search.Search" xml:space="preserve"><value>Search...</value></data>
+    <data name="Search.ScopesSelectedFormat" xml:space="preserve"><value>Nodes: {0} selected</value></data>
+    <data name="Search.ScopesNoneSelected" xml:space="preserve"><value>Nodes: none selected</value></data>
+    <data name="Search.ScopesEdit" xml:space="preserve"><value>Select nodes...</value></data>
+    <data name="Search.ScopesDialogTitle" xml:space="preserve"><value>Select nodes</value></data>
+    <data name="Search.ScopesFilter" xml:space="preserve"><value>Filter nodes...</value></data>
+    <data name="Search.ScopesSelectAll" xml:space="preserve"><value>Select all</value></data>
+    <data name="Search.ScopesSelectNone" xml:space="preserve"><value>Select none</value></data>
+    <data name="Search.ScopesExpandAll" xml:space="preserve"><value>Expand all</value></data>
+    <data name="Search.ScopesCollapseAll" xml:space="preserve"><value>Collapse all</value></data>
   
     <!-- SETTINGS -->
     <data name="Settings.AddProfile" xml:space="preserve"><value>Add Profile</value></data>

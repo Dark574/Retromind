@@ -1317,6 +1317,60 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Search_ScopesSelectedFormat {
+            get {
+                return ResourceManager.GetString("Search.ScopesSelectedFormat", resourceCulture);
+            }
+        }
+        
+        public static string Search_ScopesNoneSelected {
+            get {
+                return ResourceManager.GetString("Search.ScopesNoneSelected", resourceCulture);
+            }
+        }
+        
+        public static string Search_ScopesEdit {
+            get {
+                return ResourceManager.GetString("Search.ScopesEdit", resourceCulture);
+            }
+        }
+        
+        public static string Search_ScopesDialogTitle {
+            get {
+                return ResourceManager.GetString("Search.ScopesDialogTitle", resourceCulture);
+            }
+        }
+        
+        public static string Search_ScopesFilter {
+            get {
+                return ResourceManager.GetString("Search.ScopesFilter", resourceCulture);
+            }
+        }
+        
+        public static string Search_ScopesSelectAll {
+            get {
+                return ResourceManager.GetString("Search.ScopesSelectAll", resourceCulture);
+            }
+        }
+        
+        public static string Search_ScopesSelectNone {
+            get {
+                return ResourceManager.GetString("Search.ScopesSelectNone", resourceCulture);
+            }
+        }
+        
+        public static string Search_ScopesExpandAll {
+            get {
+                return ResourceManager.GetString("Search.ScopesExpandAll", resourceCulture);
+            }
+        }
+        
+        public static string Search_ScopesCollapseAll {
+            get {
+                return ResourceManager.GetString("Search.ScopesCollapseAll", resourceCulture);
+            }
+        }
+        
         public static string Settings_AddProfile {
             get {
                 return ResourceManager.GetString("Settings.AddProfile", resourceCulture);
