@@ -1,0 +1,132 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="clr-namespace:Retromind.Helpers"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="Black"
+
+             ext:ThemeProperties.Name="LivingRoom"
+             ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.SelectedScale="1.05"
+             ext:ThemeProperties.UnselectedOpacity="0.8"
+             ext:ThemeProperties.SelectedGlowOpacity="0.35"
+             ext:ThemeProperties.AccentColor="#F4B36B"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoFadeDurationMs="700"
+             ext:ThemeProperties.FadeDurationMs="700"
+             ext:ThemeProperties.CircularWindowSize="11">
+
+    <UserControl.Resources>
+        <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
+    </UserControl.Resources>
+
+    <Grid>
+        <!-- Background + overlays share the same coordinate space -->
+        <Viewbox Stretch="UniformToFill"
+                 StretchDirection="Both"
+                 IsHitTestVisible="False">
+            <Canvas Width="1536" Height="1024">
+                <!-- Background: living room scene -->
+                <Image Source="{Binding $parent[UserControl],
+                                        Converter={StaticResource ThemeAssetConverter},
+                                        ConverterParameter=Images/livingroom.png}"
+                       Width="1536"
+                       Height="1024"
+                       Stretch="Fill"
+                       IsHitTestVisible="False" />
+
+                <!-- Video slot in the TV area -->
+                <Border x:Name="VideoSlot"
+                        Canvas.Left="589"
+                        Canvas.Top="135"
+                        Width="630"
+                        Height="385"
+                        Background="#000000"
+                        ClipToBounds="True">
+                    <!-- Square clip to match TV perspective -->
+                    <Border.Clip>
+                        <PathGeometry>
+                            <PathFigure StartPoint="0,48" IsClosed="True">
+                                <LineSegment Point="621,10"/>
+                                <LineSegment Point="616,372"/>
+                                <LineSegment Point="3,364"/>
+                            </PathFigure>
+                        </PathGeometry>
+                    </Border.Clip>
+                    <Grid>
+                        <TextBlock Text="Preview"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="#404040"
+                                   FontSize="22" />
+                        <!-- subtle glass sheen -->
+                        <Rectangle Fill="#08FFFFFF" />
+                    </Grid>
+                </Border>
+            </Canvas>
+        </Viewbox>
+
+        <!-- Bottom scroll bar (like Arcade) -->
+        <Border VerticalAlignment="Bottom"
+                Margin="40,0,40,24"
+                CornerRadius="8"
+                Background="#66000000"
+                Padding="14,10">
+            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                <!-- progress line -->
+                <ProgressBar Grid.Row="0" Grid.ColumnSpan="2"
+                             Minimum="0"
+                             Maximum="{Binding TotalGames}"
+                             Value="{Binding CurrentGameNumber}"
+                             Height="4"
+                             Background="#2A2A2A"
+                             Foreground="#F4B36B"
+                             BorderThickness="0"
+                             Margin="0,0,0,8" />
+
+                <!-- Left: film title -->
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           Text="{Binding SelectedItem.Title}"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="#F0F0F0"
+                           TextTrimming="CharacterEllipsis"
+                           MaxLines="1"
+                           IsVisible="{Binding IsGameListActive}" />
+
+                <!-- Fallback when in category selection -->
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           Text="{Binding SelectedCategory.Name}"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="#F0F0F0"
+                           TextTrimming="CharacterEllipsis"
+                           MaxLines="1"
+                           IsVisible="{Binding IsCategorySelectionActive}" />
+
+                <!-- Right: counter -->
+                <StackPanel Grid.Row="1" Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="6"
+                            HorizontalAlignment="Right">
+                    <TextBlock Text="Movie:"
+                               FontSize="14"
+                               Foreground="#BDBDBD" />
+                    <TextBlock Text="{Binding CurrentGameNumber}"
+                               FontSize="14"
+                               Foreground="#F0F0F0" />
+                    <TextBlock Text="/"
+                               FontSize="14"
+                               Foreground="#BDBDBD" />
+                    <TextBlock Text="{Binding TotalGames}"
+                               FontSize="14"
+                               Foreground="#F0F0F0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
