@@ -17,7 +17,20 @@ public class SearchScopeNode : ObservableObject
     public bool? IsChecked
     {
         get => _isChecked;
-        set => SetIsChecked(value, updateChildren: true, updateParent: true);
+        set
+        {
+            var normalized = value;
+
+            // UX tweak: when a partially-selected node is clicked,
+            // interpret it as "clear all" instead of "select all".
+            if (_isChecked == null && value == true)
+                normalized = false;
+            // Prevent manual "indeterminate" state via direct clicks.
+            else if (_isChecked == true && value == null)
+                normalized = false;
+
+            SetIsChecked(normalized, updateChildren: true, updateParent: true);
+        }
     }
 
     private bool _isExpanded;
@@ -41,6 +54,9 @@ public class SearchScopeNode : ObservableObject
         Node = node ?? throw new ArgumentNullException(nameof(node));
         Parent = parent;
     }
+
+    public void SetCheckedRecursive(bool value)
+        => SetIsChecked(value, updateChildren: true, updateParent: true);
 
     public void ApplyInitialSelection(ISet<string> selectedIds)
     {
@@ -79,7 +95,7 @@ public class SearchScopeNode : ObservableObject
         if (_isChecked == value)
             return;
 
-        SetProperty(ref _isChecked, value);
+        SetProperty(ref _isChecked, value, nameof(IsChecked));
 
         if (updateChildren && value.HasValue)
         {

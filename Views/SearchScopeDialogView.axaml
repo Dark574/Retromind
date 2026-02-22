@@ -46,13 +46,13 @@
 
                 <TreeView.ItemTemplate>
                     <TreeDataTemplate x:DataType="vm:SearchScopeNode" ItemsSource="{Binding Children}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                      IsThreeState="True"
-                                      VerticalAlignment="Center"/>
+                        <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                  IsThreeState="True"
+                                  VerticalAlignment="Center"
+                                  ToolTip.Tip="{x:Static p:Strings.Search_ScopesPartialHint}">
                             <TextBlock Text="{Binding DisplayName}"
                                        VerticalAlignment="Center"/>
-                        </StackPanel>
+                        </CheckBox>
                     </TreeDataTemplate>
                 </TreeView.ItemTemplate>
             </TreeView>

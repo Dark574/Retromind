@@ -61,13 +61,13 @@ public partial class SearchScopeDialogViewModel : ViewModelBase
     private void SelectAll()
     {
         foreach (var root in RootNodes)
-            root.IsChecked = true;
+            root.SetCheckedRecursive(true);
     }
 
     private void ClearAll()
     {
         foreach (var root in RootNodes)
-            root.IsChecked = false;
+            root.SetCheckedRecursive(false);
     }
 
     private void SetExpanded(bool expanded)

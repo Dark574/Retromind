@@ -15,6 +15,7 @@ public partial class SearchAreaView : UserControl
 {
     private SearchAreaViewModel? _currentViewModel;
     private ListBox? _resultsList;
+    private bool _isScopeDialogOpen;
 
     public SearchAreaView()
     {
@@ -196,11 +197,29 @@ public partial class SearchAreaView : UserControl
         if (DataContext is not SearchAreaViewModel vm)
             return;
 
+        if (_isScopeDialogOpen)
+            return;
+
+        _isScopeDialogOpen = true;
+
         var owner = this.FindAncestorOfType<Window>() ?? TopLevel.GetTopLevel(this) as Window;
         var dialogVm = new SearchScopeDialogViewModel(vm.RootNodesSnapshot, vm.GetSelectedScopeIdsSnapshot());
         var dialog = new SearchScopeDialogView { DataContext = dialogVm };
 
-        dialogVm.RequestClose += result => dialog.Close(result);
+        dialogVm.RequestClose += result =>
+        {
+            if (result)
+                vm.ApplyScopeSelection(dialogVm.GetSelectedNodeIds());
+            dialog.Close(result);
+        };
+
+        void OnDialogClosed(object? _, EventArgs __)
+        {
+            dialog.Closed -= OnDialogClosed;
+            _isScopeDialogOpen = false;
+        }
+
+        dialog.Closed += OnDialogClosed;
 
         if (owner == null)
         {
@@ -208,8 +227,6 @@ public partial class SearchAreaView : UserControl
             return;
         }
 
-        var confirmed = await dialog.ShowDialog<bool>(owner);
-        if (confirmed)
-            vm.ApplyScopeSelection(dialogVm.GetSelectedNodeIds());
+        await dialog.ShowDialog<bool>(owner);
     }
 }

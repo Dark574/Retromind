@@ -285,6 +285,7 @@
     <data name="Search.ScopesSelectNone" xml:space="preserve"><value>Keine auswählen</value></data>
     <data name="Search.ScopesExpandAll" xml:space="preserve"><value>Alle aufklappen</value></data>
     <data name="Search.ScopesCollapseAll" xml:space="preserve"><value>Alle einklappen</value></data>
+    <data name="Search.ScopesPartialHint" xml:space="preserve"><value>Teilweise ausgewählt: Klick entfernt alle Unterknoten.</value></data>
 
     <!-- SETTINGS -->
     <data name="Settings.AddProfile" xml:space="preserve"><value>Profil hinzufügen</value></data>

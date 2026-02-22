@@ -1370,6 +1370,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Search.ScopesCollapseAll", resourceCulture);
             }
         }
+
+        public static string Search_ScopesPartialHint {
+            get {
+                return ResourceManager.GetString("Search.ScopesPartialHint", resourceCulture);
+            }
+        }
         
         public static string Settings_AddProfile {
             get {

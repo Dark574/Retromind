@@ -283,6 +283,7 @@
     <data name="Search.ScopesSelectNone" xml:space="preserve"><value>Select none</value></data>
     <data name="Search.ScopesExpandAll" xml:space="preserve"><value>Expand all</value></data>
     <data name="Search.ScopesCollapseAll" xml:space="preserve"><value>Collapse all</value></data>
+    <data name="Search.ScopesPartialHint" xml:space="preserve"><value>Partially selected: click clears all child nodes.</value></data>
   
     <!-- SETTINGS -->
     <data name="Settings.AddProfile" xml:space="preserve"><value>Add Profile</value></data>
