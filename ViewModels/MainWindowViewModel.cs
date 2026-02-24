@@ -753,6 +753,37 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             MarkLibraryDirtyAndSaveSoon();
         }
+
+        // If assets of the currently selected item change, refresh the wallpaper (and related resolved paths).
+        if (sender is MediaItem item &&
+            !string.IsNullOrWhiteSpace(e.PropertyName) &&
+            (e.PropertyName == nameof(MediaItem.PrimaryWallpaperPath) ||
+             e.PropertyName == nameof(MediaItem.PrimaryLogoPath) ||
+             e.PropertyName == nameof(MediaItem.PrimaryVideoPath) ||
+             e.PropertyName == nameof(MediaItem.PrimaryMarqueePath)))
+        {
+            var selected = GetCurrentSelectedItem();
+            if (!ReferenceEquals(item, selected))
+                return;
+
+            if (UiThreadHelper.CheckAccess())
+            {
+                OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+            }
+            else
+            {
+                UiThreadHelper.Post(() =>
+                {
+                    OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+                    OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+                    OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+                    OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+                });
+            }
+        }
     }
     
     private async void SaveSettingsOnly()
