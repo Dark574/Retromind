@@ -16,6 +16,7 @@
              ext:ThemeProperties.AccentColor="#F4B36B"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoStretchMode="UniformToFill"
              ext:ThemeProperties.VideoFadeDurationMs="700"
              ext:ThemeProperties.FadeDurationMs="700"
              ext:ThemeProperties.CircularWindowSize="11">

@@ -197,6 +197,9 @@ public partial class BigModeHostView : UserControl
         // Apply theme tuning (selection UX, spacing, typography, animation timings)
         ApplyThemeTuning(themeRoot);
 
+        // Apply video stretch mode if the theme explicitly sets it.
+        ApplyVideoStretchMode(themeRoot);
+
         // Primary video slot (main preview).
         AttachPrimaryVideoToSlot(themeRoot, theme);
 
@@ -307,6 +310,41 @@ public partial class BigModeHostView : UserControl
             case Decorator decorator:
                 decorator.Child = child;
                 break;
+        }
+    }
+
+    private void ApplyVideoStretchMode(Control themeRoot)
+    {
+        // Only override the current stretch when the theme explicitly sets it.
+        if (!themeRoot.IsSet(ThemeProperties.VideoStretchModeProperty))
+            return;
+
+        var raw = ThemeProperties.GetVideoStretchMode(themeRoot);
+        if (string.IsNullOrWhiteSpace(raw))
+            return;
+
+        if (!TryParseStretch(raw, out var stretch))
+            return;
+
+        _primaryVideoControl.Stretch = stretch;
+    }
+
+    private static bool TryParseStretch(string raw, out Stretch stretch)
+    {
+        switch (raw.Trim().ToLowerInvariant())
+        {
+            case "fill":
+                stretch = Stretch.Fill;
+                return true;
+            case "uniform":
+                stretch = Stretch.Uniform;
+                return true;
+            case "uniformtofill":
+                stretch = Stretch.UniformToFill;
+                return true;
+            default:
+                stretch = Stretch.Uniform;
+                return false;
         }
     }
 
