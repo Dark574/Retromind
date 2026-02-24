@@ -11,8 +11,23 @@
         <!-- Header bar -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="10">
                 
-            <!-- Title -->
-            <TextBlock Grid.Column="0" Text="{Binding Node.Name}" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
+            <!-- Title / Logo -->
+            <Grid Grid.Column="0"
+                  VerticalAlignment="Center"
+                  Margin="0,0,20,0">
+                <Image helpers:AsyncImageHelper.Url="{Binding Node.PrimaryLogoAbsolutePath}"
+                       Height="32"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Left"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding Node.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+
+                <TextBlock Text="{Binding Node.Name}"
+                           FontSize="24"
+                           FontWeight="Bold"
+                           VerticalAlignment="Center"
+                           IsVisible="{Binding Node.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
+            </Grid>
 
             <!-- Right side: Controls -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">

@@ -1057,7 +1057,12 @@ public partial class MainWindowViewModel : ViewModelBase
                 var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
                 {
                     Id = nodeToLoad.Id,
-                    Items = new ObservableCollection<MediaItem>(allItems)
+                    Items = new ObservableCollection<MediaItem>(allItems),
+                    Assets = nodeToLoad.Assets,
+                    LogoFallbackEnabled = nodeToLoad.LogoFallbackEnabled,
+                    WallpaperFallbackEnabled = nodeToLoad.WallpaperFallbackEnabled,
+                    VideoFallbackEnabled = nodeToLoad.VideoFallbackEnabled,
+                    MarqueeFallbackEnabled = nodeToLoad.MarqueeFallbackEnabled
                 };
 
                 // Switch to UI thread once (apply randomization + build VM)
