@@ -282,16 +282,12 @@
                                         <TextBlock Text="{Binding SelectedCategory.Description}"
                                                    Foreground="#DDFFFFFF"
                                                    TextWrapping="Wrap"
-                                                   MaxHeight="72"
-                                                   TextTrimming="CharacterEllipsis"
                                                    IsVisible="{Binding IsCategorySelectionActive}" />
 
                                         <!-- Description in game mode -->
                                         <TextBlock Text="{Binding SelectedItem.Description}"
                                                    Foreground="#DDFFFFFF"
                                                    TextWrapping="Wrap"
-                                                   MaxHeight="72"
-                                                   TextTrimming="CharacterEllipsis"
                                                    IsVisible="{Binding IsGameListActive}" />
                                     </StackPanel>
 
