@@ -176,6 +176,19 @@
     <data name="Settings_SectionHeroicGog" xml:space="preserve"><value>Heroic / GOG paths</value></data>
     <data name="Settings_HeroicGogPathsHint" xml:space="preserve"><value>Optional. Add the Heroic config folder (e.g. /home/user/.config/heroic) or the 'gog_store' folder.</value></data>
     <data name="Settings_HeroicGogPathWatermark" xml:space="preserve"><value>e.g. /home/user/.config/heroic</value></data>
+    <data name="Settings_NativeWrapperTitle" xml:space="preserve"><value>Native Wrapper (Linux)</value></data>
+    <data name="Settings_AddWrapper" xml:space="preserve"><value>+ Add wrapper</value></data>
+    <data name="Settings_WrapperPathLabel" xml:space="preserve"><value>Path</value></data>
+    <data name="Settings_WrapperArgsLabel" xml:space="preserve"><value>Args</value></data>
+    <data name="Settings_WrapperPathWatermark" xml:space="preserve"><value>gamemoderun / mangohud / env</value></data>
+    <data name="Settings_MoveUp" xml:space="preserve"><value>Move up</value></data>
+    <data name="Settings_MoveDown" xml:space="preserve"><value>Move down</value></data>
+    <data name="Settings_EmulatorEnvTitle" xml:space="preserve"><value>Environment Variables (emulator)</value></data>
+    <data name="Settings_AddVariable" xml:space="preserve"><value>+ Add variable</value></data>
+    <data name="Settings_EnvKeyLabel" xml:space="preserve"><value>Key</value></data>
+    <data name="Settings_EnvKeyWatermark" xml:space="preserve"><value>e.g. PROTONPATH</value></data>
+    <data name="Settings_EnvValueLabel" xml:space="preserve"><value>Value</value></data>
+    <data name="Settings_EnvValueWatermark" xml:space="preserve"><value>/path/to/proton</value></data>
   
     <!-- LAUNCH -->
     <data name="Launch.Arguments" xml:space="preserve"><value>Arguments</value></data>

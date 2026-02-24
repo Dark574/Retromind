@@ -81,13 +81,13 @@
                                 <!-- Native wrapper chain (Linux, emulator-level) -->
                                 <StackPanel Spacing="8" Margin="0,10,0,0"
                                             DataContext="{Binding $parent[Window].((vm:SettingsViewModel)DataContext)}">
-                                    <TextBlock Text="Native Wrapper (Linux)" FontWeight="Bold" />
+                                    <TextBlock Text="{x:Static p:Strings.Settings_NativeWrapperTitle}" FontWeight="Bold" />
 
                                     <CheckBox Content="{x:Static p:Strings.Settings_UseGlobalWrapperDefaults}"
                                               IsChecked="{Binding UseGlobalWrapperDefaults}" />
 
                                     <StackPanel IsEnabled="{Binding IsEmulatorWrapperListEnabled}">
-                                        <Button Content="+ Add wrapper"
+                                        <Button Content="{x:Static p:Strings.Settings_AddWrapper}"
                                                 Command="{Binding AddEmulatorWrapperCommand}"
                                                 HorizontalAlignment="Left" />
 
@@ -96,23 +96,23 @@
                                                 <DataTemplate>
                                                     <Border Background="#10000000" CornerRadius="4" Padding="8" Margin="0,5,0,0">
                                                         <Grid ColumnDefinitions="*, 10, *, 10, Auto" RowDefinitions="Auto, Auto" >
-                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Path" />
-                                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Args" />
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static p:Strings.Settings_WrapperPathLabel}" />
+                                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="{x:Static p:Strings.Settings_WrapperArgsLabel}" />
 
-                                                            <TextBox Grid.Row="1" Grid.Column="0"
+                                                             <TextBox Grid.Row="1" Grid.Column="0"
                                                                      Text="{Binding Path, Mode=TwoWay}"
-                                                                     Watermark="gamemoderun / mangohud / env" />
+                                                                     Watermark="{x:Static p:Strings.Settings_WrapperPathWatermark}" />
 
                                                             <TextBox Grid.Row="1" Grid.Column="2"
                                                                      Text="{Binding Args, Mode=TwoWay}" />
 
                                                             <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="5">
                                                                 <Button Content="↑"
-                                                                        ToolTip.Tip="Move up"
+                                                                        ToolTip.Tip="{x:Static p:Strings.Settings_MoveUp}"
                                                                         Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).MoveEmulatorWrapperUpCommand}"
                                                                         CommandParameter="{Binding}" />
                                                                 <Button Content="↓"
-                                                                        ToolTip.Tip="Move down"
+                                                                        ToolTip.Tip="{x:Static p:Strings.Settings_MoveDown}"
                                                                         Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).MoveEmulatorWrapperDownCommand}"
                                                                         CommandParameter="{Binding}" />
                                                                 <Button Content="✕"
@@ -130,9 +130,9 @@
                                 <!-- Emulator-level environment variables -->
                                 <StackPanel Spacing="8" Margin="0,10,0,0"
                                             DataContext="{Binding $parent[Window].((vm:SettingsViewModel)DataContext)}">
-                                    <TextBlock Text="Environment Variables (emulator)" FontWeight="Bold" />
+                                    <TextBlock Text="{x:Static p:Strings.Settings_EmulatorEnvTitle}" FontWeight="Bold" />
 
-                                    <Button Content="+ Add variable"
+                                    <Button Content="{x:Static p:Strings.Settings_AddVariable}"
                                             Command="{Binding AddEmulatorEnvVarCommand}"
                                             HorizontalAlignment="Left" />
 
@@ -141,14 +141,14 @@
                                             <DataTemplate>
                                                 <Grid ColumnDefinitions="*, 10, * , Auto" Margin="0,5,0,0">
                                                     <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="Key" />
+                                                        <TextBlock Text="{x:Static p:Strings.Settings_EnvKeyLabel}" />
                                                         <TextBox Text="{Binding Key, Mode=TwoWay}"
-                                                                 Watermark="e.g. PROTONPATH" />
+                                                                 Watermark="{x:Static p:Strings.Settings_EnvKeyWatermark}" />
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="2">
-                                                        <TextBlock Text="Value" />
+                                                        <TextBlock Text="{x:Static p:Strings.Settings_EnvValueLabel}" />
                                                         <TextBox Text="{Binding Value, Mode=TwoWay}"
-                                                                 Watermark="/path/to/proton" />
+                                                                 Watermark="{x:Static p:Strings.Settings_EnvValueWatermark}" />
                                                     </StackPanel>
                                                     <Button Grid.Column="3"
                                                             Content="✕"

@@ -177,6 +177,19 @@
     <data name="Settings_SectionHeroicGog" xml:space="preserve"><value>Heroic / GOG Pfade</value></data>
     <data name="Settings_HeroicGogPathsHint" xml:space="preserve"><value>Optional. Füge den Heroic-Config-Ordner hinzu (z. B. /home/user/.config/heroic) oder direkt den Ordner 'gog_store'.</value></data>
     <data name="Settings_HeroicGogPathWatermark" xml:space="preserve"><value>z. B. /home/user/.config/heroic</value></data>
+    <data name="Settings_NativeWrapperTitle" xml:space="preserve"><value>Native Wrapper</value></data>
+    <data name="Settings_AddWrapper" xml:space="preserve"><value>+ Wrapper hinzufügen</value></data>
+    <data name="Settings_WrapperPathLabel" xml:space="preserve"><value>Pfad</value></data>
+    <data name="Settings_WrapperArgsLabel" xml:space="preserve"><value>Args</value></data>
+    <data name="Settings_WrapperPathWatermark" xml:space="preserve"><value>gamemoderun / mangohud / env</value></data>
+    <data name="Settings_MoveUp" xml:space="preserve"><value>Nach oben</value></data>
+    <data name="Settings_MoveDown" xml:space="preserve"><value>Nach unten</value></data>
+    <data name="Settings_EmulatorEnvTitle" xml:space="preserve"><value>Umgebungsvariablen</value></data>
+    <data name="Settings_AddVariable" xml:space="preserve"><value>+ Variable hinzufügen</value></data>
+    <data name="Settings_EnvKeyLabel" xml:space="preserve"><value>Schlüssel</value></data>
+    <data name="Settings_EnvKeyWatermark" xml:space="preserve"><value>z. B. PROTONPATH</value></data>
+    <data name="Settings_EnvValueLabel" xml:space="preserve"><value>Wert</value></data>
+    <data name="Settings_EnvValueWatermark" xml:space="preserve"><value>/pfad/zu/proton</value></data>
 
     <!-- LAUNCH -->
     <data name="Launch.Arguments" xml:space="preserve"><value>Argumente</value></data>
@@ -254,7 +267,7 @@
     <data name="NodeSettings_InheritedWrappersNone" xml:space="preserve"><value>Keine vererbten Wrapper</value></data>
     <data name="NodeSettings_InheritedWrappersEmptyFormat" xml:space="preserve"><value>Vererbt von {0}: keine Wrapper</value></data>
     <data name="NodeSettings_InheritedWrappersInfoFormat" xml:space="preserve"><value>Vererbt von {0}: {1} Wrapper</value></data>
-    <data name="NodeSettings_EnvOverridesTitle" xml:space="preserve"><value>Umgebungsvariablen (Ordner)</value></data>
+    <data name="NodeSettings_EnvOverridesTitle" xml:space="preserve"><value>Umgebungsvariablen</value></data>
     <data name="NodeSettings_InheritedEnvNone" xml:space="preserve"><value>Keine vererbten Umgebungsvariablen</value></data>
     <data name="NodeSettings_InheritedEnvEmptyFormat" xml:space="preserve"><value>Vererbt von {0}: keine Umgebungsvariablen</value></data>
     <data name="NodeSettings_InheritedEnvInfoFormat" xml:space="preserve"><value>Vererbt von {0}: {1} Variablen</value></data>
