@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -31,6 +32,10 @@ public class ComicVineProvider : IMetadataProvider
     {
         try
         {
+            var apiKey = _config.ApiKey?.Trim();
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new Exception("ComicVine requires an API key. Please enter it in the scraper settings.");
+
             // ComicVine Search API
             // https://comicvine.gamespot.com/api/search/?api_key={key}&format=json&query={query}&resources=volume
             // resources=volume searches for series (e.g. "Amazing Spider-Man"), resources=issue for individual issues.
@@ -38,17 +43,31 @@ public class ComicVineProvider : IMetadataProvider
             // Here we first search for "volumes" (series/collections), as this is usually what users expect.
             // If you primarily have single issue files, "issue" would be more appropriate. We use "volume,issue".
             
-            var encodedQuery = HttpUtility.UrlEncode(query);
-            var url = $"https://comicvine.gamespot.com/api/search/?api_key={_config.ApiKey}&format=json&query={encodedQuery}&resources=volume,issue&limit=20";
+            var builder = new UriBuilder("https://comicvine.gamespot.com/api/search/");
+            var qs = HttpUtility.ParseQueryString(string.Empty);
+            qs["api_key"] = apiKey;
+            qs["format"] = "json";
+            qs["query"] = query;
+            qs["resources"] = "volume,issue";
+            qs["limit"] = "20";
+            builder.Query = qs.ToString();
+            var url = builder.Uri;
 
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Accept.ParseAdd("application/json");
+
             // ComicVine blocks requests without a clear User-Agent.
-            request.Headers.UserAgent.ParseAdd("Retromind-MediaManager/1.0");
+            if (_httpClient.DefaultRequestHeaders.UserAgent.Count == 0)
+                request.Headers.UserAgent.ParseAdd("Retromind/1.0 (Linux Portable Media Manager)");
 
             using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                var detail = ExtractErrorDetail(json);
+                throw new Exception($"ComicVine API error {(int)response.StatusCode} {response.ReasonPhrase}: {detail}");
+            }
+
             var doc = JsonNode.Parse(json);
 
             var results = new List<ScraperSearchResult>();
@@ -108,6 +127,28 @@ public class ComicVineProvider : IMetadataProvider
         {
             throw new Exception($"ComicVine Fehler: {ex.Message}", ex);
         }
+    }
+
+    private static string ExtractErrorDetail(string? jsonOrText)
+    {
+        if (string.IsNullOrWhiteSpace(jsonOrText))
+            return "No response body.";
+
+        try
+        {
+            var doc = JsonNode.Parse(jsonOrText);
+            var error = doc?["error"]?.ToString();
+            var status = doc?["status_code"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(error) || !string.IsNullOrWhiteSpace(status))
+                return $"error={error ?? "unknown"}, status_code={status ?? "unknown"}";
+        }
+        catch
+        {
+            // Not JSON; fall back to trimmed text.
+        }
+
+        var trimmed = jsonOrText.Trim();
+        return trimmed.Length <= 200 ? trimmed : trimmed.Substring(0, 200) + "...";
     }
 
     // Simple HTML stripper. A Regex or dedicated HTML parser would be more robust,
