@@ -1226,6 +1226,102 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("NodeSettings_ThemeAuto", resourceCulture);
             }
         }
+
+        public static string NodeSettings_BigModeArtworkSection {
+            get {
+                return ResourceManager.GetString("NodeSettings_BigModeArtworkSection", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ArtworkLogoLabel {
+            get {
+                return ResourceManager.GetString("NodeSettings_ArtworkLogoLabel", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ArtworkWallpaperLabel {
+            get {
+                return ResourceManager.GetString("NodeSettings_ArtworkWallpaperLabel", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ArtworkVideoLabel {
+            get {
+                return ResourceManager.GetString("NodeSettings_ArtworkVideoLabel", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ArtworkMarqueeLabel {
+            get {
+                return ResourceManager.GetString("NodeSettings_ArtworkMarqueeLabel", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ArtworkRemoveLogo {
+            get {
+                return ResourceManager.GetString("NodeSettings_ArtworkRemoveLogo", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ArtworkRemoveWallpaper {
+            get {
+                return ResourceManager.GetString("NodeSettings_ArtworkRemoveWallpaper", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ArtworkRemoveVideo {
+            get {
+                return ResourceManager.GetString("NodeSettings_ArtworkRemoveVideo", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ArtworkRemoveMarquee {
+            get {
+                return ResourceManager.GetString("NodeSettings_ArtworkRemoveMarquee", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ArtworkFallbackForItems {
+            get {
+                return ResourceManager.GetString("NodeSettings_ArtworkFallbackForItems", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ArtworkVideoPreviewNotShown {
+            get {
+                return ResourceManager.GetString("NodeSettings_ArtworkVideoPreviewNotShown", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_NativeWrapperTitle {
+            get {
+                return ResourceManager.GetString("NodeSettings_NativeWrapperTitle", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ModeInherit {
+            get {
+                return ResourceManager.GetString("NodeSettings_ModeInherit", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ModeNone {
+            get {
+                return ResourceManager.GetString("NodeSettings_ModeNone", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ModeOverride {
+            get {
+                return ResourceManager.GetString("NodeSettings_ModeOverride", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_SystemThemeTitle {
+            get {
+                return ResourceManager.GetString("NodeSettings_SystemThemeTitle", resourceCulture);
+            }
+        }
         
         public static string NodeSettings_PresentationAndAssets {
             get {

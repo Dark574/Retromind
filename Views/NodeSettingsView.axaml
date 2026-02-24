@@ -49,7 +49,7 @@
                 </StackPanel>
 
                 <!-- NODE ARTWORK (Logo / Wallpaper / Video) -->
-                <Expander Header="BigMode Artwork (per category)"
+                <Expander Header="{x:Static p:Strings.NodeSettings_BigModeArtworkSection}"
                           IsExpanded="False"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Stretch">
@@ -67,18 +67,18 @@
                             <!-- Row 1: Label + Buttons + Preview -->
                             <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="6">
                                 <TextBlock Grid.Column="0"
-                                           Text="Logo"
+                                           Text="{x:Static p:Strings.NodeSettings_ArtworkLogoLabel}"
                                            VerticalAlignment="Center" />
 
                                 <Button Grid.Column="1"
-                                        Content="Browse..."
+                                        Content="{x:Static p:Strings.Button_Browse}"
                                         Padding="8,2"
                                         Click="OnBrowseLogoClicked" />
 
                                 <Button Grid.Column="2"
                                         Content="✕"
                                         Padding="6,2"
-                                        ToolTip.Tip="Remove logo"
+                                        ToolTip.Tip="{x:Static p:Strings.NodeSettings_ArtworkRemoveLogo}"
                                         Foreground="Red"
                                         IsEnabled="{Binding NodeLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
                                         Click="OnClearLogoClicked" />
@@ -104,7 +104,7 @@
                                      BorderThickness="0"
                                      Padding="4,2" />
 
-                            <CheckBox Content="Use as fallback for items"
+                            <CheckBox Content="{x:Static p:Strings.NodeSettings_ArtworkFallbackForItems}"
                                       IsChecked="{Binding NodeLogoFallbackEnabled}" />
                         </StackPanel>
 
@@ -113,18 +113,18 @@
                             <!-- Row 1: Label + Buttons + Preview -->
                             <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="6">
                                 <TextBlock Grid.Column="0"
-                                           Text="Wallpaper"
+                                           Text="{x:Static p:Strings.NodeSettings_ArtworkWallpaperLabel}"
                                            VerticalAlignment="Center" />
 
                                 <Button Grid.Column="1"
-                                        Content="Browse..."
+                                        Content="{x:Static p:Strings.Button_Browse}"
                                         Padding="8,2"
                                         Click="OnBrowseWallpaperClicked" />
 
                                 <Button Grid.Column="2"
                                         Content="✕"
                                         Padding="6,2"
-                                        ToolTip.Tip="Remove wallpaper"
+                                        ToolTip.Tip="{x:Static p:Strings.NodeSettings_ArtworkRemoveWallpaper}"
                                         Foreground="Red"
                                         IsEnabled="{Binding NodeWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
                                         Click="OnClearWallpaperClicked" />
@@ -150,7 +150,7 @@
                                      BorderThickness="0"
                                      Padding="4,2" />
 
-                            <CheckBox Content="Use as fallback for items"
+                            <CheckBox Content="{x:Static p:Strings.NodeSettings_ArtworkFallbackForItems}"
                                       IsChecked="{Binding NodeWallpaperFallbackEnabled}" />
                         </StackPanel>
 
@@ -159,18 +159,18 @@
                             <!-- Row 1: Label + Buttons -->
                             <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="6">
                                 <TextBlock Grid.Column="0"
-                                           Text="Video"
+                                           Text="{x:Static p:Strings.NodeSettings_ArtworkVideoLabel}"
                                            VerticalAlignment="Center" />
 
                                 <Button Grid.Column="1"
-                                        Content="Browse..."
+                                        Content="{x:Static p:Strings.Button_Browse}"
                                         Padding="8,2"
                                         Click="OnBrowseVideoClicked" />
 
                                 <Button Grid.Column="2"
                                         Content="✕"
                                         Padding="6,2"
-                                        ToolTip.Tip="Remove video"
+                                        ToolTip.Tip="{x:Static p:Strings.NodeSettings_ArtworkRemoveVideo}"
                                         Foreground="Red"
                                         IsEnabled="{Binding NodeVideoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
                                         Click="OnClearVideoClicked" />
@@ -184,11 +184,11 @@
                                      BorderThickness="0"
                                      Padding="4,2" />
 
-                            <TextBlock Text="(Preview is currently not shown in this dialog)"
+                            <TextBlock Text="{x:Static p:Strings.NodeSettings_ArtworkVideoPreviewNotShown}"
                                        FontSize="11"
                                        Foreground="#888888" />
 
-                            <CheckBox Content="Use as fallback for items"
+                            <CheckBox Content="{x:Static p:Strings.NodeSettings_ArtworkFallbackForItems}"
                                       IsChecked="{Binding NodeVideoFallbackEnabled}" />
                         </StackPanel>
 
@@ -197,18 +197,18 @@
                             <!-- Row 1: Label + Buttons + Preview -->
                             <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="6">
                                 <TextBlock Grid.Column="0"
-                                           Text="Marquee"
+                                           Text="{x:Static p:Strings.NodeSettings_ArtworkMarqueeLabel}"
                                            VerticalAlignment="Center" />
 
                                 <Button Grid.Column="1"
-                                        Content="Browse..."
+                                        Content="{x:Static p:Strings.Button_Browse}"
                                         Padding="8,2"
                                         Click="OnBrowseMarqueeClicked" />
 
                                 <Button Grid.Column="2"
                                         Content="✕"
                                         Padding="6,2"
-                                        ToolTip.Tip="Remove marquee"
+                                        ToolTip.Tip="{x:Static p:Strings.NodeSettings_ArtworkRemoveMarquee}"
                                         Foreground="Red"
                                         IsEnabled="{Binding NodeMarqueePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
                                         Click="OnClearMarqueeClicked" />
@@ -234,7 +234,7 @@
                                      BorderThickness="0"
                                      Padding="4,2" />
 
-                            <CheckBox Content="Use as fallback for items"
+                            <CheckBox Content="{x:Static p:Strings.NodeSettings_ArtworkFallbackForItems}"
                                       IsChecked="{Binding NodeMarqueeFallbackEnabled}" />
                         </StackPanel>
                         </StackPanel>
@@ -261,14 +261,14 @@
 
                 <!-- Native wrapper chain (Linux) -->
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Native Wrapper (Linux)" FontWeight="Bold" />
+                    <TextBlock Text="{x:Static p:Strings.NodeSettings_NativeWrapperTitle}" FontWeight="Bold" />
 
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <RadioButton Content="Inherit"
+                        <RadioButton Content="{x:Static p:Strings.NodeSettings_ModeInherit}"
                                      IsChecked="{Binding IsNativeWrapperInherit, Mode=TwoWay}" />
-                        <RadioButton Content="None"
+                        <RadioButton Content="{x:Static p:Strings.NodeSettings_ModeNone}"
                                      IsChecked="{Binding IsNativeWrapperNone, Mode=TwoWay}" />
-                        <RadioButton Content="Override"
+                        <RadioButton Content="{x:Static p:Strings.NodeSettings_ModeOverride}"
                                      IsChecked="{Binding IsNativeWrapperOverride, Mode=TwoWay}" />
                     </StackPanel>
 
@@ -295,7 +295,7 @@
                     </StackPanel>
 
                     <StackPanel IsVisible="{Binding IsNativeWrapperOverride}">
-                        <Button Content="+ Add wrapper"
+                        <Button Content="{x:Static p:Strings.Settings_AddWrapper}"
                                 Command="{Binding AddNativeWrapperCommand}"
                                 HorizontalAlignment="Left" />
 
@@ -304,23 +304,23 @@
                                 <DataTemplate>
                                     <Border Background="#10000000" CornerRadius="4" Padding="8" Margin="0,5,0,0">
                                         <Grid ColumnDefinitions="*, 10, *, 10, Auto" RowDefinitions="Auto, Auto" >
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Path" />
-                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Args" />
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static p:Strings.Settings_WrapperPathLabel}" />
+                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="{x:Static p:Strings.Settings_WrapperArgsLabel}" />
 
                                             <TextBox Grid.Row="1" Grid.Column="0"
                                                      Text="{Binding Path, Mode=TwoWay}"
-                                                     Watermark="gamemoderun / mangohud / env" />
+                                                     Watermark="{x:Static p:Strings.Settings_WrapperPathWatermark}" />
 
                                             <TextBox Grid.Row="1" Grid.Column="2"
                                                      Text="{Binding Args, Mode=TwoWay}" />
 
                                             <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="5">
                                                 <Button Content="↑"
-                                                        ToolTip.Tip="Move up"
+                                                        ToolTip.Tip="{x:Static p:Strings.Settings_MoveUp}"
                                                         Command="{Binding $parent[Window].((vm:NodeSettingsViewModel)DataContext).MoveNativeWrapperUpCommand}"
                                                         CommandParameter="{Binding}" />
                                                 <Button Content="↓"
-                                                        ToolTip.Tip="Move down"
+                                                        ToolTip.Tip="{x:Static p:Strings.Settings_MoveDown}"
                                                         Command="{Binding $parent[Window].((vm:NodeSettingsViewModel)DataContext).MoveNativeWrapperDownCommand}"
                                                         CommandParameter="{Binding}" />
                                                 <Button Content="✕"
@@ -340,11 +340,11 @@
                     <TextBlock Text="{x:Static p:Strings.NodeSettings_EnvOverridesTitle}" FontWeight="Bold" />
 
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <RadioButton Content="Inherit"
+                        <RadioButton Content="{x:Static p:Strings.NodeSettings_ModeInherit}"
                                      IsChecked="{Binding IsEnvironmentOverrideInherit, Mode=TwoWay}" />
-                        <RadioButton Content="None"
+                        <RadioButton Content="{x:Static p:Strings.NodeSettings_ModeNone}"
                                      IsChecked="{Binding IsEnvironmentOverrideNone, Mode=TwoWay}" />
-                        <RadioButton Content="Override"
+                        <RadioButton Content="{x:Static p:Strings.NodeSettings_ModeOverride}"
                                      IsChecked="{Binding IsEnvironmentOverrideOverride, Mode=TwoWay}" />
                     </StackPanel>
 
@@ -371,7 +371,7 @@
                     </StackPanel>
 
                     <StackPanel IsVisible="{Binding IsEnvironmentOverrideOverride}">
-                        <Button Content="+ Add variable"
+                        <Button Content="{x:Static p:Strings.Settings_AddVariable}"
                                 Command="{Binding AddEnvironmentOverrideCommand}"
                                 HorizontalAlignment="Left" />
 
@@ -380,12 +380,12 @@
                                 <DataTemplate>
                                     <Border Background="#10000000" CornerRadius="4" Padding="8" Margin="0,5,0,0">
                                         <Grid ColumnDefinitions="*, 10, *, 10, Auto" RowDefinitions="Auto, Auto">
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Key" />
-                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Value" />
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static p:Strings.Settings_EnvKeyLabel}" />
+                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="{x:Static p:Strings.Settings_EnvValueLabel}" />
 
                                             <TextBox Grid.Row="1" Grid.Column="0"
                                                      Text="{Binding Key, Mode=TwoWay}"
-                                                     Watermark="PROTONPATH" />
+                                                     Watermark="{x:Static p:Strings.Settings_EnvKeyWatermark}" />
 
                                             <TextBox Grid.Row="1" Grid.Column="2"
                                                      Text="{Binding Value, Mode=TwoWay}" />
@@ -419,7 +419,7 @@
                             Command="{Binding ClearThemeCommand}"
                             IsVisible="{Binding IsThemeExplicitlySelected}"/>
                 
-                    <TextBlock Text="System-Theme (System-Auswahl)"
+                    <TextBlock Text="{x:Static p:Strings.NodeSettings_SystemThemeTitle}"
                                FontWeight="SemiBold"
                                Margin="0,8,0,2" />
 

@@ -252,6 +252,22 @@
     <data name="NodeSettings_InheritedEmulatorNone" xml:space="preserve"><value>Geerbter Emulator: keiner</value></data>
     <data name="NodeSettings_BigModeThemeHint" xml:space="preserve"><value>BigMode Theme (Themes/&lt;Theme&gt;/theme.axaml)</value></data>
     <data name="NodeSettings_ThemeAuto" xml:space="preserve"><value>Auto (Konvention/Default)</value></data>
+    <data name="NodeSettings_BigModeArtworkSection" xml:space="preserve"><value>BigMode Artwork (pro Kategorie)</value></data>
+    <data name="NodeSettings_ArtworkLogoLabel" xml:space="preserve"><value>Logo</value></data>
+    <data name="NodeSettings_ArtworkWallpaperLabel" xml:space="preserve"><value>Wallpaper</value></data>
+    <data name="NodeSettings_ArtworkVideoLabel" xml:space="preserve"><value>Video</value></data>
+    <data name="NodeSettings_ArtworkMarqueeLabel" xml:space="preserve"><value>Marquee</value></data>
+    <data name="NodeSettings_ArtworkRemoveLogo" xml:space="preserve"><value>Logo entfernen</value></data>
+    <data name="NodeSettings_ArtworkRemoveWallpaper" xml:space="preserve"><value>Wallpaper entfernen</value></data>
+    <data name="NodeSettings_ArtworkRemoveVideo" xml:space="preserve"><value>Video entfernen</value></data>
+    <data name="NodeSettings_ArtworkRemoveMarquee" xml:space="preserve"><value>Marquee entfernen</value></data>
+    <data name="NodeSettings_ArtworkFallbackForItems" xml:space="preserve"><value>Als Fallback für Items verwenden</value></data>
+    <data name="NodeSettings_ArtworkVideoPreviewNotShown" xml:space="preserve"><value>(Vorschau wird in diesem Dialog derzeit nicht angezeigt)</value></data>
+    <data name="NodeSettings_NativeWrapperTitle" xml:space="preserve"><value>Native Wrapper</value></data>
+    <data name="NodeSettings_ModeInherit" xml:space="preserve"><value>Vererben</value></data>
+    <data name="NodeSettings_ModeNone" xml:space="preserve"><value>Keiner</value></data>
+    <data name="NodeSettings_ModeOverride" xml:space="preserve"><value>Überschreiben</value></data>
+    <data name="NodeSettings_SystemThemeTitle" xml:space="preserve"><value>System-Theme (System-Auswahl)</value></data>
     <data name="NodeSettings_PresentationAndAssets" xml:space="preserve"><value>Darstellung &amp; Assets</value></data>
     <data name="NodeSettings_CoverBoxart" xml:space="preserve"><value>Cover / Boxart</value></data>
     <data name="NodeSettings_CoverBoxartHint" xml:space="preserve"><value>Für Listenansicht</value></data>
