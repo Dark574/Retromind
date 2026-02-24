@@ -11,7 +11,7 @@
              Background="Black"
 
              ext:ThemeProperties.Name="Arcade"
-             ext:ThemeProperties.Author="PLACEHOLDER_AUTHOR"
+             ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.1.0"
              ext:ThemeProperties.SelectedScale="1.06"
              ext:ThemeProperties.UnselectedOpacity="0.75"
