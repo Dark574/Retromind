@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Collections.Specialized;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -27,6 +28,7 @@ public partial class EditMediaViewModel : ViewModelBase
     private readonly MediaItem _originalItem;
     private readonly FileManagementService _fileService;
     private readonly List<string> _nodePath;
+    private NotifyCollectionChangedEventHandler? _assetsChangedHandler;
     
     private readonly ObservableCollection<MediaNode> _rootNodes;
     private readonly MediaNode? _parentNode;
@@ -1449,7 +1451,8 @@ public partial class EditMediaViewModel : ViewModelBase
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
         _parentNode = parentNode;
         _settings = settings;
-        _originalItem.Assets.CollectionChanged += (_, _) => SortAssets();
+        _assetsChangedHandler = (_, _) => SortAssets();
+        _originalItem.Assets.CollectionChanged += _assetsChangedHandler;
 
         // Prefix commands
         GeneratePrefixCommand = new RelayCommand(GeneratePrefix);
@@ -1528,12 +1531,20 @@ public partial class EditMediaViewModel : ViewModelBase
         // Dialog closes itself (less window manager / modal noise)
         SaveAndCloseCommand = new RelayCommand<Window?>(win =>
         {
-            Save();
-            win?.Close(true);
+            try
+            {
+                Save();
+            }
+            finally
+            {
+                DetachAssetHandlers();
+                win?.Close(true);
+            }
         });
 
         CancelAndCloseCommand = new RelayCommand<Window?>(win =>
         {
+            DetachAssetHandlers();
             win?.Close(false);
         });
         
@@ -1636,6 +1647,15 @@ public partial class EditMediaViewModel : ViewModelBase
         // Assets do not need to be loaded separately because we bind directly to _originalItem.Assets
         // The FileService should ensure the assets list is up to date before opening this dialog
         // (via something like RefreshItemAssets)
+    }
+
+    private void DetachAssetHandlers()
+    {
+        if (_assetsChangedHandler == null)
+            return;
+
+        _originalItem.Assets.CollectionChanged -= _assetsChangedHandler;
+        _assetsChangedHandler = null;
     }
 
     private static readonly AssetType[] AssetTypeOrder =
