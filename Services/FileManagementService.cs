@@ -11,7 +11,8 @@ namespace Retromind.Services;
 
 /// <summary>
 /// Central service for file operations.
-/// Enforces naming convention (Title__Id_Type_Number) and manages physical files.
+/// Enforces naming convention (Title__Id_Type_Number).
+/// Manual/Music use Display__RM__Title__Id_Type_Number to preserve the original filename.
 /// </summary>
 public class FileManagementService
 {
@@ -19,6 +20,7 @@ public class FileManagementService
     private const string ItemIdSeparator = "__";
 
     // Regex for: Title__Id_Type_Number.Extension
+    // Manual/Music may use: Display__RM__Title__Id_Type_Number.Extension
     // Group 1: Prefix (e.g., "Super_Mario__A1B2C3D4")
     // Group 2: Type (e.g., "Wallpaper", "Manual")
     // Group 3: Number (e.g., "01")
@@ -59,6 +61,44 @@ public class FileManagementService
         return $"{cleanTitle}{ItemIdSeparator}{token}";
     }
 
+    private static string BuildItemAssetPrefixForAsset(MediaItem item, AssetType type, string? displayName)
+    {
+        var basePrefix = BuildItemAssetPrefix(item);
+        if (!AssetNameHelper.RequiresDisplayPrefix(type))
+            return basePrefix;
+
+        var cleanDisplay = SanitizeForFilename(displayName ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(cleanDisplay))
+            cleanDisplay = "Unknown";
+
+        return AssetNameHelper.BuildDisplayPrefix(cleanDisplay, basePrefix);
+    }
+
+    private static string BuildItemAssetPrefixForRename(MediaItem item, AssetType type, string newTitle, string? existingPrefix)
+    {
+        var basePrefix = BuildItemAssetPrefix(newTitle, item.Id);
+        if (!AssetNameHelper.RequiresDisplayPrefix(type))
+            return basePrefix;
+
+        var display = AssetNameHelper.ExtractDisplayPrefixOrFallback(existingPrefix ?? string.Empty);
+        display = SanitizeForFilename(display);
+        if (string.IsNullOrWhiteSpace(display))
+            display = "Unknown";
+
+        return AssetNameHelper.BuildDisplayPrefix(display, basePrefix);
+    }
+
+    private static bool MatchesItemAssetPrefix(string filePrefix, AssetType type, string itemPrefix)
+    {
+        if (!AssetNameHelper.RequiresDisplayPrefix(type))
+            return string.Equals(filePrefix, itemPrefix, StringComparison.OrdinalIgnoreCase);
+
+        if (AssetNameHelper.TrySplitDisplayPrefix(filePrefix, out _, out var suffix))
+            return string.Equals(suffix, itemPrefix, StringComparison.OrdinalIgnoreCase);
+
+        return false;
+    }
+
     private static string GetItemIdToken(string? itemId)
     {
         if (string.IsNullOrWhiteSpace(itemId))
@@ -84,7 +124,10 @@ public class FileManagementService
 
         string assetPrefix = entity switch
         {
-            MediaItem item => BuildItemAssetPrefix(item),
+            MediaItem item => BuildItemAssetPrefixForAsset(
+                item,
+                type,
+                Path.GetFileNameWithoutExtension(sourceFilePath)),
             MediaNode node => SanitizeForFilename(node.Name),
             _ => "Unknown"
         };
@@ -184,14 +227,15 @@ public class FileManagementService
             var match = AssetRegex.Match(fileName);
 
             string targetFileName;
+            var targetPrefix = BuildItemAssetPrefixForRename(item, asset.Type, newTitle, match.Success ? match.Groups[1].Value : Path.GetFileNameWithoutExtension(fileName));
             if (match.Success)
             {
                 var number = match.Groups[3].Value;
-                targetFileName = $"{newPrefix}_{asset.Type}_{number}{extension}";
+                targetFileName = $"{targetPrefix}_{asset.Type}_{number}{extension}";
             }
             else
             {
-                targetFileName = Path.GetFileName(GetNextAssetFileName(nodeFolder, newPrefix, asset.Type, extension, prefixIsSanitized: true));
+                targetFileName = Path.GetFileName(GetNextAssetFileName(nodeFolder, targetPrefix, asset.Type, extension, prefixIsSanitized: true));
             }
 
             var targetFolder = Path.Combine(nodeFolder, asset.Type.ToString());
@@ -201,7 +245,7 @@ public class FileManagementService
                 continue;
 
             if (File.Exists(targetFullPath))
-                targetFullPath = GetNextAssetFileName(nodeFolder, newPrefix, asset.Type, extension, prefixIsSanitized: true);
+                targetFullPath = GetNextAssetFileName(nodeFolder, targetPrefix, asset.Type, extension, prefixIsSanitized: true);
 
             try
             {
@@ -255,7 +299,7 @@ public class FileManagementService
             {
                 var match = AssetRegex.Match(Path.GetFileName(file));
                 if (match.Success &&
-                    match.Groups[1].Value.Equals(assetPrefix, StringComparison.OrdinalIgnoreCase) &&
+                    MatchesItemAssetPrefix(match.Groups[1].Value, type, assetPrefix) &&
                     match.Groups[2].Value.Equals(type.ToString(), StringComparison.OrdinalIgnoreCase))
                 {
                     results.Add(new MediaAsset
@@ -321,7 +365,7 @@ public class FileManagementService
                     if (!isDuplicate)
                     {
                         var item = itemList[0];
-                        var newPrefix = BuildItemAssetPrefix(item);
+                        var newPrefix = BuildItemAssetPrefixForAsset(item, type, legacyPrefix);
                         var targetPath = BuildTargetAssetPath(nodeFolder, typeFolder, newPrefix, type, number, extension);
                         if (string.Equals(entry.Path, targetPath, StringComparison.OrdinalIgnoreCase))
                             continue;
@@ -333,7 +377,7 @@ public class FileManagementService
                     }
 
                     var primaryItem = itemList[0];
-                    var primaryPrefix = BuildItemAssetPrefix(primaryItem);
+                    var primaryPrefix = BuildItemAssetPrefixForAsset(primaryItem, type, legacyPrefix);
                     var primaryTarget = BuildTargetAssetPath(nodeFolder, typeFolder, primaryPrefix, type, number, extension);
 
                     if (!TryMoveAssetFile(entry.Path, primaryTarget))
@@ -343,7 +387,7 @@ public class FileManagementService
 
                     foreach (var item in itemList.Skip(1))
                     {
-                        var itemPrefix = BuildItemAssetPrefix(item);
+                        var itemPrefix = BuildItemAssetPrefixForAsset(item, type, legacyPrefix);
                         var targetPath = BuildTargetAssetPath(nodeFolder, typeFolder, itemPrefix, type, number, extension);
                         if (File.Exists(targetPath))
                             targetPath = GetNextAssetFileName(nodeFolder, itemPrefix, type, extension, prefixIsSanitized: true);

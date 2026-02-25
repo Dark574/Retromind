@@ -597,7 +597,7 @@
                                         <Border Grid.Row="1" Background="#80000000" Padding="5">
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Type}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="{Binding RelativePath}" Foreground="#CCC" FontSize="9" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding RelativePath}"/>
+                                                <TextBlock Text="{Binding DisplayLabel}" Foreground="#CCC" FontSize="9" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding RelativePath}"/>
                                             </StackPanel>
                                         </Border>
                                     </Grid>
@@ -617,12 +617,13 @@
 
                             <!-- Selected asset info + delete button -->
                             <TextBlock Grid.Column="0"
-                                       Text="{Binding SelectedAsset.RelativePath, StringFormat='Delete: {0}', TargetNullValue=''}"
+                                       Text="{Binding SelectedAsset.DisplayLabel, StringFormat='Delete: {0}', TargetNullValue=''}"
                                        VerticalAlignment="Center"
                                        Foreground="Red"
                                        TextTrimming="CharacterEllipsis"
                                        Margin="0,0,10,0"
-                                       IsVisible="{Binding SelectedAsset, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                       IsVisible="{Binding SelectedAsset, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                       ToolTip.Tip="{Binding SelectedAsset.RelativePath}"/>
 
                             <Button Grid.Column="1"
                                     Content="{x:Static p:Strings.Button_Delete}"

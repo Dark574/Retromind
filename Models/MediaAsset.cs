@@ -82,6 +82,9 @@ public partial class MediaAsset : ObservableObject
 
             _absolutePath = null;
             OnPropertyChanged(nameof(AbsolutePath));
+            OnPropertyChanged(nameof(DisplayLabel));
         }
     }
+
+    public string DisplayLabel => AssetNameHelper.GetDisplayLabel(Type, RelativePath);
 }

@@ -140,7 +140,7 @@
                                 Padding="0"
                                 Background="Transparent"
                                 BorderThickness="0"
-                                ToolTip.Tip="{Binding RelativePath}"
+                                ToolTip.Tip="{Binding DisplayLabel}"
                                 Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenManualCommand}"
                                 CommandParameter="{Binding .}">
                             <!-- Icon is chosen based on the file extension (pdf, txt, html, ...) -->
