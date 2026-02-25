@@ -955,7 +955,7 @@ public partial class MainWindowViewModel : ViewModelBase
             // Respect user preference for automatic selection-based music preview
             if (item != null && _currentSettings.EnableSelectionMusicPreview)
             {
-                var musicPath = item.GetPrimaryAssetPath(AssetType.Music);
+                var musicPath = ResolveSelectionMusicPath(mediaVm, item);
                 if (!string.IsNullOrEmpty(musicPath))
                 {
                     var fullPath = AppPaths.ResolveDataPath(musicPath);
@@ -967,6 +967,39 @@ public partial class MainWindowViewModel : ViewModelBase
             // Either no item, no music asset, or preview disabled -> ensure music is stopped
             _audioService.StopMusic();
         }
+    }
+
+    private string? ResolveSelectionMusicPath(MediaAreaViewModel mediaVm, MediaItem item)
+    {
+        if (!IsRandomizeMusicActive(mediaVm.Node))
+            return item.GetPrimaryAssetPath(AssetType.Music);
+
+        var musicAssets = item.Assets
+            .Where(a => a.Type == AssetType.Music && !string.IsNullOrWhiteSpace(a.RelativePath))
+            .Select(a => a.RelativePath)
+            .ToList();
+
+        if (musicAssets.Count == 0)
+            return null;
+
+        if (musicAssets.Count == 1)
+            return musicAssets[0];
+
+        var current = item.GetPrimaryAssetPath(AssetType.Music);
+        var candidates = musicAssets;
+
+        if (!string.IsNullOrWhiteSpace(current))
+        {
+            candidates = musicAssets
+                .Where(path => !string.Equals(path, current, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        var picked = RandomHelper.PickRandom(candidates) ?? RandomHelper.PickRandom(musicAssets);
+        if (!string.IsNullOrWhiteSpace(picked))
+            item.SetActiveAsset(AssetType.Music, picked);
+
+        return picked;
     }
 
     /// <summary>
