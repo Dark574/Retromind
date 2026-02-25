@@ -1449,6 +1449,7 @@ public partial class EditMediaViewModel : ViewModelBase
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
         _parentNode = parentNode;
         _settings = settings;
+        _originalItem.Assets.CollectionChanged += (_, _) => SortAssets();
 
         // Prefix commands
         GeneratePrefixCommand = new RelayCommand(GeneratePrefix);
@@ -1549,6 +1550,8 @@ public partial class EditMediaViewModel : ViewModelBase
         // Ensure preview reflects the current primary file at startup
         OnPropertyChanged(nameof(PrimaryFileDisplayPath));
         OnPropertyChanged(nameof(PreviewText));
+
+        SortAssets();
     }
 
     private bool CanCopyPreview(Window? _)
@@ -1633,6 +1636,61 @@ public partial class EditMediaViewModel : ViewModelBase
         // Assets do not need to be loaded separately because we bind directly to _originalItem.Assets
         // The FileService should ensure the assets list is up to date before opening this dialog
         // (via something like RefreshItemAssets)
+    }
+
+    private static readonly AssetType[] AssetTypeOrder =
+    {
+        AssetType.Cover,
+        AssetType.Wallpaper,
+        AssetType.Logo,
+        AssetType.Video,
+        AssetType.Music,
+        AssetType.Marquee,
+        AssetType.Banner,
+        AssetType.Bezel,
+        AssetType.ControlPanel,
+        AssetType.Manual
+    };
+
+    private bool _isSortingAssets;
+
+    private void SortAssets()
+    {
+        if (_isSortingAssets)
+            return;
+
+        _isSortingAssets = true;
+        try
+        {
+            if (_originalItem.Assets.Count <= 1)
+                return;
+
+            var orderMap = new Dictionary<AssetType, int>(AssetTypeOrder.Length);
+            for (var i = 0; i < AssetTypeOrder.Length; i++)
+                orderMap[AssetTypeOrder[i]] = i;
+
+            var indexed = _originalItem.Assets
+                .Select((asset, index) => new { asset, index })
+                .ToList();
+
+            var sorted = indexed
+                .OrderBy(entry => orderMap.TryGetValue(entry.asset.Type, out var order) ? order : int.MaxValue)
+                .ThenBy(entry => entry.index)
+                .Select(entry => entry.asset)
+                .ToList();
+
+            for (var i = 0; i < sorted.Count; i++)
+            {
+                var asset = sorted[i];
+                var oldIndex = _originalItem.Assets.IndexOf(asset);
+                if (oldIndex != i)
+                    _originalItem.Assets.Move(oldIndex, i);
+            }
+        }
+        finally
+        {
+            _isSortingAssets = false;
+        }
     }
 
     partial void OnMediaTypeChanged(MediaType value)
