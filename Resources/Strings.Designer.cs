@@ -824,79 +824,79 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Settings_HeroicGogPathWatermark", resourceCulture);
             }
         }
-
+        
         public static string Settings_NativeWrapperTitle {
             get {
                 return ResourceManager.GetString("Settings_NativeWrapperTitle", resourceCulture);
             }
         }
-
+        
         public static string Settings_AddWrapper {
             get {
                 return ResourceManager.GetString("Settings_AddWrapper", resourceCulture);
             }
         }
-
+        
         public static string Settings_WrapperPathLabel {
             get {
                 return ResourceManager.GetString("Settings_WrapperPathLabel", resourceCulture);
             }
         }
-
+        
         public static string Settings_WrapperArgsLabel {
             get {
                 return ResourceManager.GetString("Settings_WrapperArgsLabel", resourceCulture);
             }
         }
-
+        
         public static string Settings_WrapperPathWatermark {
             get {
                 return ResourceManager.GetString("Settings_WrapperPathWatermark", resourceCulture);
             }
         }
-
+        
         public static string Settings_MoveUp {
             get {
                 return ResourceManager.GetString("Settings_MoveUp", resourceCulture);
             }
         }
-
+        
         public static string Settings_MoveDown {
             get {
                 return ResourceManager.GetString("Settings_MoveDown", resourceCulture);
             }
         }
-
+        
         public static string Settings_EmulatorEnvTitle {
             get {
                 return ResourceManager.GetString("Settings_EmulatorEnvTitle", resourceCulture);
             }
         }
-
+        
         public static string Settings_AddVariable {
             get {
                 return ResourceManager.GetString("Settings_AddVariable", resourceCulture);
             }
         }
-
+        
         public static string Settings_EnvKeyLabel {
             get {
                 return ResourceManager.GetString("Settings_EnvKeyLabel", resourceCulture);
             }
         }
-
+        
         public static string Settings_EnvKeyWatermark {
             get {
                 return ResourceManager.GetString("Settings_EnvKeyWatermark", resourceCulture);
             }
         }
-
+        
         public static string Settings_EnvValueLabel {
             get {
                 return ResourceManager.GetString("Settings_EnvValueLabel", resourceCulture);
             }
         }
-
+        
         public static string Settings_EnvValueWatermark {
             get {
                 return ResourceManager.GetString("Settings_EnvValueWatermark", resourceCulture);
@@ -1226,97 +1226,97 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("NodeSettings_ThemeAuto", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_BigModeArtworkSection {
             get {
                 return ResourceManager.GetString("NodeSettings_BigModeArtworkSection", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ArtworkLogoLabel {
             get {
                 return ResourceManager.GetString("NodeSettings_ArtworkLogoLabel", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ArtworkWallpaperLabel {
             get {
                 return ResourceManager.GetString("NodeSettings_ArtworkWallpaperLabel", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ArtworkVideoLabel {
             get {
                 return ResourceManager.GetString("NodeSettings_ArtworkVideoLabel", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ArtworkMarqueeLabel {
             get {
                 return ResourceManager.GetString("NodeSettings_ArtworkMarqueeLabel", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ArtworkRemoveLogo {
             get {
                 return ResourceManager.GetString("NodeSettings_ArtworkRemoveLogo", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ArtworkRemoveWallpaper {
             get {
                 return ResourceManager.GetString("NodeSettings_ArtworkRemoveWallpaper", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ArtworkRemoveVideo {
             get {
                 return ResourceManager.GetString("NodeSettings_ArtworkRemoveVideo", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ArtworkRemoveMarquee {
             get {
                 return ResourceManager.GetString("NodeSettings_ArtworkRemoveMarquee", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ArtworkFallbackForItems {
             get {
                 return ResourceManager.GetString("NodeSettings_ArtworkFallbackForItems", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ArtworkVideoPreviewNotShown {
             get {
                 return ResourceManager.GetString("NodeSettings_ArtworkVideoPreviewNotShown", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_NativeWrapperTitle {
             get {
                 return ResourceManager.GetString("NodeSettings_NativeWrapperTitle", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ModeInherit {
             get {
                 return ResourceManager.GetString("NodeSettings_ModeInherit", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ModeNone {
             get {
                 return ResourceManager.GetString("NodeSettings_ModeNone", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_ModeOverride {
             get {
                 return ResourceManager.GetString("NodeSettings_ModeOverride", resourceCulture);
             }
         }
-
+        
         public static string NodeSettings_SystemThemeTitle {
             get {
                 return ResourceManager.GetString("NodeSettings_SystemThemeTitle", resourceCulture);
@@ -1544,7 +1544,7 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Search.ScopesCollapseAll", resourceCulture);
             }
         }
-
+        
         public static string Search_ScopesPartialHint {
             get {
                 return ResourceManager.GetString("Search.ScopesPartialHint", resourceCulture);

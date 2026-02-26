@@ -211,7 +211,7 @@
     <data name="Launch.XdgPathHint" xml:space="preserve"><value>Relative to Retromind data folder or absolute path</value></data>
   
     <!-- MEDIA -->
-    <data name="Media.AddMusic" xml:space="preserve"><value>+ Music</value></data>
+    <data name="Media.AddMusic" xml:space="preserve"><value>Music</value></data>
     <data name="Media.EmulatorSelection" xml:space="preserve"><value>This applies to all games in this folder and subfolders that do not have their own emulator.</value></data>
     <data name="Media.LastPlayed" xml:space="preserve"><value>Last Played:</value></data>
     <data name="Media.Library" xml:space="preserve"><value>Library</value></data>
