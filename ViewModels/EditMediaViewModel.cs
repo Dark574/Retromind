@@ -1683,11 +1683,13 @@ public partial class EditMediaViewModel : ViewModelBase
         _isSortAssetsScheduled = true;
 
         // Defer sorting to avoid modifying the collection inside CollectionChanged.
-        UiThreadHelper.Post(() =>
+        // NOTE: UiThreadHelper.Post executes immediately when already on the UI thread,
+        // so we must use Dispatcher.UIThread.Post to ensure true deferral.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             _isSortAssetsScheduled = false;
             SortAssets();
-        });
+        }, Avalonia.Threading.DispatcherPriority.Background);
     }
 
     private void SortAssets()
