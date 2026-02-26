@@ -1735,7 +1735,8 @@ public partial class MainWindowViewModel
     {
         foreach (var node in nodes)
         {
-            if (node == target) return new List<MediaNode> { node };
+            if (ReferenceEquals(node, target) || node.Id == target.Id)
+                return new List<MediaNode> { node };
             
             var chain = GetNodeChain(target, node.Children);
             if (chain.Count > 0) 
