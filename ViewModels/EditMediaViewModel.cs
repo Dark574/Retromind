@@ -1451,7 +1451,7 @@ public partial class EditMediaViewModel : ViewModelBase
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
         _parentNode = parentNode;
         _settings = settings;
-        _assetsChangedHandler = (_, _) => SortAssets();
+        _assetsChangedHandler = (_, _) => ScheduleSortAssets();
         _originalItem.Assets.CollectionChanged += _assetsChangedHandler;
 
         // Prefix commands
@@ -1673,6 +1673,22 @@ public partial class EditMediaViewModel : ViewModelBase
     };
 
     private bool _isSortingAssets;
+    private bool _isSortAssetsScheduled;
+
+    private void ScheduleSortAssets()
+    {
+        if (_isSortingAssets || _isSortAssetsScheduled)
+            return;
+
+        _isSortAssetsScheduled = true;
+
+        // Defer sorting to avoid modifying the collection inside CollectionChanged.
+        UiThreadHelper.Post(() =>
+        {
+            _isSortAssetsScheduled = false;
+            SortAssets();
+        });
+    }
 
     private void SortAssets()
     {
