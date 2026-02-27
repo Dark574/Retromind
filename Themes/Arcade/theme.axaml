@@ -140,7 +140,7 @@
 
                                         <ext:CrossfadeImage x:Name="ArcadeBezel"
                                                             Url="{Binding ActiveBezelPath}"
-                                                            DecodeWidth="1024"
+                                                            DecodeWidth="768"
                                                             Stretch="UniformToFill"
                                                             FadeDurationMs="900"
                                                             HorizontalAlignment="Stretch"
