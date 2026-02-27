@@ -76,6 +76,14 @@ public class MetadataService
             var ok = await provider.ConnectAsync(cancellationToken).ConfigureAwait(false);
             return ok ? provider : null;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
         finally
         {
             gate.Release();

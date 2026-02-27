@@ -70,7 +70,7 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     private void InitializeScrapers()
     {
         AvailableScrapers.Clear();
-        foreach (var scraper in _settings.Scrapers)
+        foreach (var scraper in _settings.Scrapers.Where(s => s.Type != ScraperType.EmuMovies))
         {
             AvailableScrapers.Add(scraper);
         }
@@ -101,6 +101,14 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         catch (OperationCanceledException)
         {
             AppendLog("Scraping operation cancelled by user.");
+            IsBusy = false;
+            _cancellationTokenSource.Dispose();
+            _cancellationTokenSource = null;
+            return;
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Error: Could not connect to provider. {ex.Message}");
             IsBusy = false;
             _cancellationTokenSource.Dispose();
             _cancellationTokenSource = null;

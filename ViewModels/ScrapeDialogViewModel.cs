@@ -70,7 +70,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         SearchQuery = _targetItem.Title ?? string.Empty;
 
         AvailableScrapers.Clear();
-        foreach (var s in _settings.Scrapers)
+        foreach (var s in _settings.Scrapers.Where(s => s.Type != ScraperType.EmuMovies))
             AvailableScrapers.Add(s);
 
         SelectedScraper = AvailableScrapers.Count > 0 ? AvailableScrapers[0] : null;

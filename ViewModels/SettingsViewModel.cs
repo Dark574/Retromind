@@ -50,8 +50,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private string _heroicGogPathInput = string.Empty;
     
     // Filtered list of scraper types for the UI (hiding 'None')
+    // EmuMovies temporarily disabled until their API is back.
     public ScraperType[] AvailableScraperTypes { get; } = Enum.GetValues<ScraperType>()
-        .Where(t => t != ScraperType.None)
+        .Where(t => t != ScraperType.None && t != ScraperType.EmuMovies)
         .ToArray();
     
     // UI Collections
