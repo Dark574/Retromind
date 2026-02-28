@@ -1460,6 +1460,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("NodeSettings_InheritedWrappersInfoFormat", resourceCulture);
             }
         }
+
+        public static string NodeSettings_AdvancedLaunchTitle {
+            get {
+                return ResourceManager.GetString("NodeSettings_AdvancedLaunchTitle", resourceCulture);
+            }
+        }
         
         public static string NodeSettings_EnvOverridesTitle {
             get {

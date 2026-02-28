@@ -291,6 +291,7 @@
     <data name="NodeSettings_InheritedWrappersNone" xml:space="preserve"><value>Keine vererbten Wrapper</value></data>
     <data name="NodeSettings_InheritedWrappersEmptyFormat" xml:space="preserve"><value>Vererbt von {0}: keine Wrapper</value></data>
     <data name="NodeSettings_InheritedWrappersInfoFormat" xml:space="preserve"><value>Vererbt von {0}: {1} Wrapper</value></data>
+    <data name="NodeSettings_AdvancedLaunchTitle" xml:space="preserve"><value>Erweiterte Startoptionen</value></data>
     <data name="NodeSettings_EnvOverridesTitle" xml:space="preserve"><value>Umgebungsvariablen</value></data>
     <data name="NodeSettings_InheritedEnvNone" xml:space="preserve"><value>Keine vererbten Umgebungsvariablen</value></data>
     <data name="NodeSettings_InheritedEnvEmptyFormat" xml:space="preserve"><value>Vererbt von {0}: keine Umgebungsvariablen</value></data>
