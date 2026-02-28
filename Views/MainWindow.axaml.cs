@@ -40,6 +40,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(KeyUpEvent, OnKeyUp, RoutingStrategies.Tunnel);
     }
 
     // Override the method that is called when the window is closing.
@@ -451,18 +452,7 @@ public partial class MainWindow : Window
         // Try to locate the BigModeViewModel.
         // It can either be the FullScreenContent directly (ViewModel-first)
         // OR be the DataContext of a control (View-first).
-        BigModeViewModel? bigVm = null;
-
-        if (vm.FullScreenContent is BigModeViewModel directVm)
-        {
-            // Case 1: the content IS the view model.
-            bigVm = directVm;
-        }
-        else if (vm.FullScreenContent is Control { DataContext: BigModeViewModel contextVm })
-        {
-            // Case 2: the content is a control that holds the view model.
-            bigVm = contextVm;
-        }
+        var bigVm = ResolveBigModeViewModel(vm);
 
         // If we found the view model, forward the key to its commands.
         if (bigVm != null)
@@ -470,10 +460,12 @@ public partial class MainWindow : Window
             switch (e.Key)
             {
                 case Key.Up:
+                    bigVm.NotifyKeyboardScrollStart();
                     bigVm.SelectPreviousCommand.Execute(null);
                     e.Handled = true;
                     break;
                 case Key.Down:
+                    bigVm.NotifyKeyboardScrollStart();
                     bigVm.SelectNextCommand.Execute(null);
                     e.Handled = true;
                     break;
@@ -496,5 +488,34 @@ public partial class MainWindow : Window
                     break;
             }
         }
+    }
+
+    private void OnKeyUp(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        var bigVm = ResolveBigModeViewModel(vm);
+        if (bigVm == null)
+            return;
+
+        switch (e.Key)
+        {
+            case Key.Up:
+            case Key.Down:
+                bigVm.NotifyKeyboardScrollEnd();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private static BigModeViewModel? ResolveBigModeViewModel(MainWindowViewModel vm)
+    {
+        if (vm.FullScreenContent is BigModeViewModel directVm)
+            return directVm;
+
+        if (vm.FullScreenContent is Control { DataContext: BigModeViewModel contextVm })
+            return contextVm;
+
+        return null;
     }
 }

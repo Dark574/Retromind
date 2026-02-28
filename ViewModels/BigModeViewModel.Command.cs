@@ -216,6 +216,16 @@ public partial class BigModeViewModel
         TriggerPreviewPlaybackWithDebounce();
     }
 
+    public void NotifyKeyboardScrollStart()
+    {
+        SuspendPreviewForScroll();
+    }
+
+    public void NotifyKeyboardScrollEnd()
+    {
+        ResumePreviewAfterScroll();
+    }
+
     private void NavigateForDirection(GamepadService.GamepadDirection direction, bool playSound)
     {
         ResetAttractIdleTimer();
