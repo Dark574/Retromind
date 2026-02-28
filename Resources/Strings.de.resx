@@ -111,6 +111,7 @@
     <data name="Dialog.ConfirmMergeNodeAssetsFormat" xml:space="preserve"><value>Ziel-Assets für '{0}' existieren bereits. Zusammenführen und bei Konflikten automatisch umnummerieren?</value></data>
     <data name="Dialog.NoResult" xml:space="preserve"><value>Keine Ergebnisse gefunden (oder Filter leer).</value></data>
     <data name="Dialog.SearchTerm" xml:space="preserve"><value>Suchbegriff</value></data>
+    <data name="Dialog.TitleConfirm" xml:space="preserve"><value>Bestätigung</value></data>
     <data name="Dialog.Select.Cover" xml:space="preserve"><value>Cover auswählen</value></data>
     <data name="Dialog.Select.Logo" xml:space="preserve"><value>Logo auswählen</value></data>
     <data name="Dialog.Select.Music" xml:space="preserve"><value>Musik auswählen</value></data>

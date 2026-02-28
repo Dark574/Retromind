@@ -110,6 +110,7 @@
     <data name="Dialog.ConfirmMergeNodeAssetsFormat" xml:space="preserve"><value>Target assets for '{0}' already exist. Merge and auto-renumber to avoid conflicts?</value></data>
     <data name="Dialog.NoResult" xml:space="preserve"><value>No results found (or filters empty).</value></data>
     <data name="Dialog.SearchTerm" xml:space="preserve"><value>Search term</value></data>
+    <data name="Dialog.TitleConfirm" xml:space="preserve"><value>Confirm</value></data>
     <data name="Dialog.Select.Cover" xml:space="preserve"><value>Select Cover</value></data>
     <data name="Dialog.Select.Logo" xml:space="preserve"><value>Select Logo</value></data>
     <data name="Dialog.Select.Music" xml:space="preserve"><value>Select Music</value></data>
@@ -328,7 +329,7 @@
     <data name="Settings.PortableLaunchPaths" xml:space="preserve"><value>Store launch file paths relative to Retromind data folder (portable)</value></data>
     <data name="Settings.ProfileName" xml:space="preserve"><value>Profile Name</value></data>
     <data name="Settings.SectionEmulators" xml:space="preserve"><value>Emulator Profiles</value></data>
-    <data name="Settings.TabEmulators" xml:space="preserve"><value>Launcher /Emulators</value></data>
+    <data name="Settings.TabEmulators" xml:space="preserve"><value>Launcher / Emulators</value></data>
     <data name="Settings.TabMetadata" xml:space="preserve"><value>Meta Data</value></data>
     <data name="Settings.Title" xml:space="preserve"><value>Settings</value></data>
     <data name="Settings_Advanced" xml:space="preserve"><value>Advanced</value></data>

@@ -489,6 +489,12 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Dialog_TitleConfirm {
+            get {
+                return ResourceManager.GetString("Dialog.TitleConfirm", resourceCulture);
+            }
+        }
+        
         public static string Dialog_Select_Cover {
             get {
                 return ResourceManager.GetString("Dialog.Select.Cover", resourceCulture);
