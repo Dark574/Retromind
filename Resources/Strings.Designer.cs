@@ -1208,6 +1208,48 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("NodeSettings_DefaultEmulatorForFolder", resourceCulture);
             }
         }
+
+        public static string NodeSettings_ApplyEmulatorToExistingItems {
+            get {
+                return ResourceManager.GetString("NodeSettings_ApplyEmulatorToExistingItems", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ApplyEmulatorIncludeChildren {
+            get {
+                return ResourceManager.GetString("NodeSettings_ApplyEmulatorIncludeChildren", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ApplyEmulatorHint {
+            get {
+                return ResourceManager.GetString("NodeSettings_ApplyEmulatorHint", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ApplyEmulatorNoItems {
+            get {
+                return ResourceManager.GetString("NodeSettings_ApplyEmulatorNoItems", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ApplyEmulatorNoDefault {
+            get {
+                return ResourceManager.GetString("NodeSettings_ApplyEmulatorNoDefault", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ApplyEmulatorConfirmFormat {
+            get {
+                return ResourceManager.GetString("NodeSettings_ApplyEmulatorConfirmFormat", resourceCulture);
+            }
+        }
+
+        public static string NodeSettings_ApplyEmulatorScopeChildren {
+            get {
+                return ResourceManager.GetString("NodeSettings_ApplyEmulatorScopeChildren", resourceCulture);
+            }
+        }
         
         public static string NodeSettings_InheritedEmulatorInfoFormat {
             get {

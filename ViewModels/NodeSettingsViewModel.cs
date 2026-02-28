@@ -91,6 +91,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     [ObservableProperty] private string? _selectedTheme;
 
+    [ObservableProperty] private bool _applyDefaultEmulatorToExistingItems;
+    [ObservableProperty] private bool _applyDefaultEmulatorIncludeChildren;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasApplyDefaultEmulatorMessage))]
+    private string? _applyDefaultEmulatorMessage;
+
     public bool IsThemeExplicitlySelected => !string.IsNullOrWhiteSpace(SelectedTheme);
 
     private string? _inheritedEmulatorName;
@@ -141,6 +147,25 @@ public partial class NodeSettingsViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsEmulatorInherited));
         OnPropertyChanged(nameof(InheritedEmulatorInfo));
+        OnPropertyChanged(nameof(CanApplyDefaultEmulator));
+
+        if (!CanApplyDefaultEmulator)
+            ApplyDefaultEmulatorToExistingItems = false;
+
+        ApplyDefaultEmulatorMessage = null;
+    }
+
+    partial void OnApplyDefaultEmulatorToExistingItemsChanged(bool value)
+    {
+        if (!value)
+            ApplyDefaultEmulatorIncludeChildren = false;
+
+        ApplyDefaultEmulatorMessage = null;
+    }
+
+    partial void OnApplyDefaultEmulatorIncludeChildrenChanged(bool value)
+    {
+        ApplyDefaultEmulatorMessage = null;
     }
 
     partial void OnNodeLogoPathChanged(string? value)
@@ -259,6 +284,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
     }
 
     public bool HasInheritedEnvironmentOverrides => InheritedEnvironmentOverrides.Count > 0;
+
+    public bool CanApplyDefaultEmulator => ResolveEffectiveDefaultEmulatorId() != null;
+
+    public bool HasApplyDefaultEmulatorMessage => !string.IsNullOrWhiteSpace(ApplyDefaultEmulatorMessage);
 
     public string InheritedEnvironmentOverridesInfo
     {
@@ -718,6 +747,78 @@ public partial class NodeSettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(InheritedEmulatorInfo));
     }
 
+    private string? ResolveEffectiveDefaultEmulatorId()
+    {
+        if (SelectedEmulator != null &&
+            !string.IsNullOrWhiteSpace(SelectedEmulator.Id) &&
+            SelectedEmulator.Id != InheritEmulatorId)
+        {
+            return SelectedEmulator.Id;
+        }
+
+        var chain = GetNodeChain(_node, _rootNodes);
+        if (chain.Count <= 1)
+            return null;
+
+        for (var i = chain.Count - 2; i >= 0; i--)
+        {
+            var parent = chain[i];
+            if (!string.IsNullOrWhiteSpace(parent.DefaultEmulatorId))
+                return parent.DefaultEmulatorId;
+        }
+
+        return null;
+    }
+
+    private static bool IsEligibleForDefaultEmulatorApply(MediaItem item)
+    {
+        if (item.MediaType != MediaType.Native)
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(item.EmulatorId))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(item.LauncherPath))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(item.LauncherArgs))
+            return false;
+
+        return true;
+    }
+
+    private static void ApplyDefaultEmulatorToItem(MediaItem item)
+    {
+        item.MediaType = MediaType.Emulator;
+        item.EmulatorId = null;
+        item.LauncherPath = null;
+    }
+
+    private static List<MediaItem> CollectEligibleItemsForDefaultEmulator(
+        MediaNode node,
+        bool includeChildren)
+    {
+        var items = new List<MediaItem>();
+
+        void Walk(MediaNode current)
+        {
+            foreach (var item in current.Items)
+            {
+                if (IsEligibleForDefaultEmulatorApply(item))
+                    items.Add(item);
+            }
+
+            if (!includeChildren)
+                return;
+
+            foreach (var child in current.Children)
+                Walk(child);
+        }
+
+        Walk(node);
+        return items;
+    }
+
     private static List<MediaNode> GetNodeChain(MediaNode target, ObservableCollection<MediaNode> nodes)
     {
         foreach (var node in nodes)
@@ -812,6 +913,45 @@ public partial class NodeSettingsViewModel : ViewModelBase
         else
         {
             _node.DefaultEmulatorId = null;
+        }
+
+        if (ApplyDefaultEmulatorToExistingItems)
+        {
+            ApplyDefaultEmulatorMessage = null;
+
+            if (!CanApplyDefaultEmulator)
+            {
+                ApplyDefaultEmulatorMessage = Strings.NodeSettings_ApplyEmulatorNoDefault;
+                return;
+            }
+
+            var eligibleItems = CollectEligibleItemsForDefaultEmulator(
+                _node,
+                includeChildren: ApplyDefaultEmulatorIncludeChildren);
+
+            if (eligibleItems.Count == 0)
+            {
+                ApplyDefaultEmulatorMessage = Strings.NodeSettings_ApplyEmulatorNoItems;
+                return;
+            }
+
+            if (_confirmDialogAsync != null)
+            {
+                var scopeSuffix = ApplyDefaultEmulatorIncludeChildren
+                    ? Strings.NodeSettings_ApplyEmulatorScopeChildren
+                    : string.Empty;
+                var confirmMessage = string.Format(
+                    Strings.NodeSettings_ApplyEmulatorConfirmFormat,
+                    eligibleItems.Count,
+                    scopeSuffix);
+
+                var confirmed = await _confirmDialogAsync(confirmMessage);
+                if (!confirmed)
+                    eligibleItems.Clear();
+            }
+
+            foreach (var item in eligibleItems)
+                ApplyDefaultEmulatorToItem(item);
         }
         
         // Persist node-level artwork (Logo / Wallpaper / Video)

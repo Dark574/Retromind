@@ -249,6 +249,13 @@
     <data name="NodeSettings_Title" xml:space="preserve"><value>Kategorie Einstellungen</value></data>
     <data name="NodeSettings_DescriptionForBigMode" xml:space="preserve"><value>Beschreibung (für BigMode)</value></data>
     <data name="NodeSettings_DefaultEmulatorForFolder" xml:space="preserve"><value>Standard Emulator (für diesen Ordner)</value></data>
+    <data name="NodeSettings_ApplyEmulatorToExistingItems" xml:space="preserve"><value>Standard-Emulator auf vorhandene Einträge anwenden</value></data>
+    <data name="NodeSettings_ApplyEmulatorIncludeChildren" xml:space="preserve"><value>Unterkategorien einbeziehen</value></data>
+    <data name="NodeSettings_ApplyEmulatorHint" xml:space="preserve"><value>Nur Einträge, die aktuell als Native ohne benutzerdefinierten Launcher laufen, werden umgestellt.</value></data>
+    <data name="NodeSettings_ApplyEmulatorNoItems" xml:space="preserve"><value>Keine Einträge gefunden, die eine Emulator-Zuordnung benötigen.</value></data>
+    <data name="NodeSettings_ApplyEmulatorNoDefault" xml:space="preserve"><value>Kein Standard-Emulator verfügbar (weder in diesem Knoten noch geerbt).</value></data>
+    <data name="NodeSettings_ApplyEmulatorConfirmFormat" xml:space="preserve"><value>Standard-Emulator auf {0} Eintrag(e){1} anwenden? Diese werden so umgestellt, dass sie von diesem Knoten erben.</value></data>
+    <data name="NodeSettings_ApplyEmulatorScopeChildren" xml:space="preserve"><value> (inklusive Unterkategorien)</value></data>
     <data name="NodeSettings_InheritedEmulatorInfoFormat" xml:space="preserve"><value>Geerbter Emulator: {0} (von {1})</value></data>
     <data name="NodeSettings_InheritedEmulatorNone" xml:space="preserve"><value>Geerbter Emulator: keiner</value></data>
     <data name="NodeSettings_BigModeThemeHint" xml:space="preserve"><value>BigMode Theme (Themes/&lt;Theme&gt;/theme.axaml)</value></data>

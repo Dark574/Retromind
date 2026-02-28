@@ -257,6 +257,25 @@
                                IsVisible="{Binding IsEmulatorInherited}"
                                FontSize="11"
                                Foreground="#888888" />
+
+                    <StackPanel Spacing="4" Margin="0,4,0,0">
+                        <CheckBox Content="{x:Static p:Strings.NodeSettings_ApplyEmulatorToExistingItems}"
+                                  IsChecked="{Binding ApplyDefaultEmulatorToExistingItems}"
+                                  IsEnabled="{Binding CanApplyDefaultEmulator}"/>
+                        <CheckBox Content="{x:Static p:Strings.NodeSettings_ApplyEmulatorIncludeChildren}"
+                                  IsChecked="{Binding ApplyDefaultEmulatorIncludeChildren}"
+                                  IsVisible="{Binding ApplyDefaultEmulatorToExistingItems}"/>
+                        <TextBlock Text="{x:Static p:Strings.NodeSettings_ApplyEmulatorHint}"
+                                   FontSize="11"
+                                   Foreground="#888888"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding ApplyDefaultEmulatorToExistingItems}"/>
+                        <TextBlock Text="{Binding ApplyDefaultEmulatorMessage}"
+                                   FontSize="11"
+                                   Foreground="Tomato"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding HasApplyDefaultEmulatorMessage}"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Native wrapper chain (Linux) -->
