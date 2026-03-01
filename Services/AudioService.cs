@@ -18,12 +18,22 @@ public class AudioService
     private const int DefaultVolume = 70;
 
     private Process? _currentProcess;
+
+    // Incrementing playback id to identify the currently active process.
+    private int _playbackId;
+    private int _currentPlaybackId;
+    private int _stopRequestedPlaybackId;
     
     // Guard to prevent concurrent playback start/stop operations
     private readonly object _processLock = new();
 
     // Token source to cancel pending playback requests if the user switches tracks quickly
     private CancellationTokenSource? _playbackCts;
+
+    /// <summary>
+    /// Fired when the current track finishes playback naturally.
+    /// </summary>
+    public event Action<string>? MusicPlaybackEnded;
 
     /// <summary>
     /// Stops currently playing music and starts playback of the specified file.
@@ -46,6 +56,7 @@ public class AudioService
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
         var token = _playbackCts.Token;
+        var playbackId = Interlocked.Increment(ref _playbackId);
 
         // 2. Offload process creation to background thread
         await Task.Run(() =>
@@ -95,8 +106,6 @@ public class AudioService
                         // Construct arguments using the safer ArgumentList
                         startInfo.ArgumentList.Add("-nodisp");       // No graphical window
                         startInfo.ArgumentList.Add("-autoexit");     // Close when done
-                        startInfo.ArgumentList.Add("-loop");         // Loop count
-                        startInfo.ArgumentList.Add("0");             // 0 = infinite
                         startInfo.ArgumentList.Add("-loglevel");     // Log level
                         startInfo.ArgumentList.Add("quiet");         // Suppress output
                         startInfo.ArgumentList.Add("-volume");       // Volume control
@@ -109,6 +118,12 @@ public class AudioService
                     }
 
                     _currentProcess = Process.Start(startInfo);
+
+                    if (_currentProcess == null)
+                        return;
+
+                    _currentPlaybackId = playbackId;
+                    _ = MonitorProcessExitAsync(_currentProcess, playbackId, filePath, token);
                 }
                 catch (Exception ex)
                 {
@@ -142,6 +157,8 @@ public class AudioService
 
         try
         {
+            _stopRequestedPlaybackId = _currentPlaybackId;
+
             if (!_currentProcess.HasExited)
             {
                 _currentProcess.Kill();
@@ -161,5 +178,28 @@ public class AudioService
             _currentProcess.Dispose();
             _currentProcess = null;
         }
+    }
+
+    private async Task MonitorProcessExitAsync(Process process, int playbackId, string filePath, CancellationToken token)
+    {
+        try
+        {
+            await process.WaitForExitAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            return;
+        }
+
+        if (token.IsCancellationRequested)
+            return;
+
+        if (playbackId != Volatile.Read(ref _currentPlaybackId))
+            return;
+
+        if (playbackId == Volatile.Read(ref _stopRequestedPlaybackId))
+            return;
+
+        MusicPlaybackEnded?.Invoke(filePath);
     }
 }

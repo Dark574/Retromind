@@ -267,6 +267,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _currentSettings = preloadedSettings;
         _documentService = documentService;
         _fileService.LibraryChanged += MarkLibraryDirty;
+        _audioService.MusicPlaybackEnded += OnMusicPlaybackEnded;
 
         // Seed layout values early so bindings are stable before LoadData completes.
         _treePaneWidth = new GridLength(_currentSettings.TreeColumnWidth);
@@ -880,6 +881,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         
         _audioService.StopMusic();
+        _audioService.MusicPlaybackEnded -= OnMusicPlaybackEnded;
         
         _fileService.LibraryChanged -= MarkLibraryDirty;
         StopLibraryChangeTracking();
@@ -921,6 +923,34 @@ public partial class MainWindowViewModel : ViewModelBase
     private void OnMediaAreaRequestPlay(MediaItem item)
     {
         _ = PlayMediaAsync(item);
+    }
+
+    private void OnMusicPlaybackEnded(string filePath)
+    {
+        // Process exit happens on a background thread. Marshal to UI thread before touching VM state.
+        UiThreadHelper.Post(() => _ = RestartSelectionMusicAsync());
+    }
+
+    private async Task RestartSelectionMusicAsync()
+    {
+        if (!_currentSettings.EnableSelectionMusicPreview)
+            return;
+
+        var mediaVm = _currentMediaAreaVm;
+        var item = mediaVm?.SelectedMediaItem;
+
+        if (mediaVm == null || item == null)
+            return;
+
+        var musicPath = ResolveSelectionMusicPath(mediaVm, item);
+        if (string.IsNullOrWhiteSpace(musicPath))
+        {
+            _audioService.StopMusic();
+            return;
+        }
+
+        var fullPath = AppPaths.ResolveDataPath(musicPath);
+        await _audioService.PlayMusicAsync(fullPath);
     }
 
     private void OnMediaAreaPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
