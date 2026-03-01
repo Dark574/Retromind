@@ -108,7 +108,8 @@ public partial class MainWindowViewModel
         
         // Snapshot node path once (stable, avoids repeated computation)
         var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
-        var defaultMediaType = string.IsNullOrWhiteSpace(targetNode.DefaultEmulatorId)
+        var effectiveDefaultEmulatorId = ResolveEffectiveDefaultEmulatorId(targetNode);
+        var defaultMediaType = string.IsNullOrWhiteSpace(effectiveDefaultEmulatorId)
             ? MediaType.Native
             : MediaType.Emulator;
 
@@ -219,6 +220,8 @@ public partial class MainWindowViewModel
 
         if (itemsToAdd.Count == 0) return;
 
+        ApplyEffectiveDefaultEmulator(targetNode, itemsToAdd);
+
         await UiThreadHelper.InvokeAsync(() =>
         {
             foreach (var item in itemsToAdd)
@@ -277,6 +280,8 @@ public partial class MainWindowViewModel
             .ToList();
 
         if (itemsToAdd.Count == 0) return;
+
+        ApplyEffectiveDefaultEmulator(targetNode, itemsToAdd);
 
         await UiThreadHelper.InvokeAsync(() =>
         {
@@ -392,7 +397,8 @@ public partial class MainWindowViewModel
         if (result == null || result.Count == 0) return;
 
         var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
-        var defaultMediaType = string.IsNullOrWhiteSpace(targetNode.DefaultEmulatorId)
+        var effectiveDefaultEmulatorId = ResolveEffectiveDefaultEmulatorId(targetNode);
+        var defaultMediaType = string.IsNullOrWhiteSpace(effectiveDefaultEmulatorId)
             ? MediaType.Native
             : MediaType.Emulator;
 
@@ -1000,6 +1006,34 @@ public partial class MainWindowViewModel
             if (!string.IsNullOrEmpty(node.DefaultEmulatorId))
                 return _currentSettings.Emulators.FirstOrDefault(e => e.Id == node.DefaultEmulatorId);
         return null;
+    }
+
+    private string? ResolveEffectiveDefaultEmulatorId(MediaNode targetNode)
+    {
+        var chain = GetNodeChain(targetNode, RootItems);
+        chain.Reverse();
+        return chain.FirstOrDefault(n => !string.IsNullOrWhiteSpace(n.DefaultEmulatorId))?.DefaultEmulatorId;
+    }
+
+    private void ApplyEffectiveDefaultEmulator(MediaNode targetNode, IEnumerable<MediaItem> items)
+    {
+        var effectiveDefaultEmulatorId = ResolveEffectiveDefaultEmulatorId(targetNode);
+        if (string.IsNullOrWhiteSpace(effectiveDefaultEmulatorId))
+            return;
+
+        foreach (var item in items)
+        {
+            if (item.MediaType != MediaType.Native)
+                continue;
+
+            if (!string.IsNullOrWhiteSpace(item.EmulatorId))
+                continue;
+
+            if (!string.IsNullOrWhiteSpace(item.LauncherPath))
+                continue;
+
+            item.MediaType = MediaType.Emulator;
+        }
     }
 
     private async Task RescanAllAssetsAsync()
