@@ -236,6 +236,9 @@
                                                        <MenuItem Header="{x:Static p:Strings.Import_Gog}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportGogCommand}"
                                                                  CommandParameter="{Binding .}"/>
+                                                       <MenuItem Header="{x:Static p:Strings.Import_Epic}"
+                                                                 Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportEpicCommand}"
+                                                                 CommandParameter="{Binding .}"/>
                                                    </MenuItem>
                                                    <MenuItem Header="{x:Static p:Strings.Metadata_SearchMetadataAll}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeNodeCommand}"

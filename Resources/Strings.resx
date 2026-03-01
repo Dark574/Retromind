@@ -130,8 +130,12 @@
     <data name="Dialog_ConfirmImportSteamFormat" xml:space="preserve"><value>Found {0} Steam games. Import to '{1}'?</value></data>
     <data name="Dialog_NoGogInstallationsFound" xml:space="preserve"><value>No Heroic/GOG installations found.</value></data>
     <data name="Dialog_NoGogInstallationsFound_SelectPath" xml:space="preserve"><value>No Heroic/GOG installations found. Select the Heroic config folder manually? (Choose the folder that contains 'gog_store/installed.json' or the 'gog_store' folder.)</value></data>
+    <data name="Dialog_NoEpicInstallationsFound" xml:space="preserve"><value>No Heroic/Epic installations found.</value></data>
+    <data name="Dialog_NoEpicInstallationsFound_SelectPath" xml:space="preserve"><value>No Heroic/Epic installations found. Select the Heroic config folder manually? (Choose the folder that contains 'epic_store/installed.json' or the 'epic_store' folder.)</value></data>
     <data name="Dialog_SelectHeroicGogFolder" xml:space="preserve"><value>Select Heroic config folder (contains gog_store/installed.json)</value></data>
+    <data name="Dialog_SelectHeroicEpicFolder" xml:space="preserve"><value>Select Heroic config folder (contains epic_store/installed.json)</value></data>
     <data name="Dialog_ConfirmImportGogFormat" xml:space="preserve"><value>Found {0} GOG games. Import?</value></data>
+    <data name="Dialog_ConfirmImportEpicFormat" xml:space="preserve"><value>Found {0} Epic games. Import?</value></data>
     <data name="Dialog_ConfirmCombineMultiDiscFormat" xml:space="preserve"><value>You selected {0} files. Combine them into one multi-disc item?</value></data>
 
     <!-- EDITMEDIA -->
@@ -164,6 +168,7 @@
     <!-- IMPORT -->
     <data name="Import.Folder" xml:space="preserve"><value>Import (folder)...</value></data>
     <data name="Import.Gog" xml:space="preserve"><value>GOG (via Heroic)</value></data>
+    <data name="Import.Epic" xml:space="preserve"><value>Epic (via Heroic)</value></data>
     <data name="Import.Roms" xml:space="preserve"><value>Local Folder (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Steam library</value></data>
 
@@ -175,8 +180,11 @@
     <data name="Settings_SteamLibraryPathsHint" xml:space="preserve"><value>Optional. Add the Steam library root (e.g. /home/user/.local/share/Steam) or the 'steamapps' folder.</value></data>
     <data name="Settings_SteamLibraryPathWatermark" xml:space="preserve"><value>e.g. /home/user/.local/share/Steam</value></data>
     <data name="Settings_SectionHeroicGog" xml:space="preserve"><value>Heroic / GOG paths</value></data>
+    <data name="Settings_SectionHeroicEpic" xml:space="preserve"><value>Heroic / Epic paths</value></data>
     <data name="Settings_HeroicGogPathsHint" xml:space="preserve"><value>Optional. Add the Heroic config folder (e.g. /home/user/.config/heroic) or the 'gog_store' folder.</value></data>
+    <data name="Settings_HeroicEpicPathsHint" xml:space="preserve"><value>Optional. Add the Heroic config folder (e.g. /home/user/.config/heroic) or the 'epic_store' folder.</value></data>
     <data name="Settings_HeroicGogPathWatermark" xml:space="preserve"><value>e.g. /home/user/.config/heroic</value></data>
+    <data name="Settings_HeroicEpicPathWatermark" xml:space="preserve"><value>e.g. /home/user/.config/heroic</value></data>
     <data name="Settings_NativeWrapperTitle" xml:space="preserve"><value>Native Wrapper (Linux)</value></data>
     <data name="Settings_AddWrapper" xml:space="preserve"><value>+ Add wrapper</value></data>
     <data name="Settings_WrapperPathLabel" xml:space="preserve"><value>Path</value></data>

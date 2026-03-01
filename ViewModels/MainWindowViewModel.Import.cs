@@ -298,6 +298,67 @@ public partial class MainWindowViewModel
         await SaveData();
     }
 
+    private async Task ImportEpicAsync(MediaNode? targetNode)
+    {
+        if (targetNode == null) targetNode = SelectedNode;
+        if (targetNode == null || CurrentWindow is not { } owner) return;
+
+        var discoveredHeroicConfigs = new List<string>();
+        var items = await _storeService.ImportHeroicEpicAsync(discoveredConfigPaths: discoveredHeroicConfigs);
+        if (items.Count == 0)
+        {
+            var tryManual = await ShowConfirmDialog(owner, Strings.Dialog_NoEpicInstallationsFound_SelectPath);
+            if (!tryManual) return;
+
+            var storageProvider = StorageProvider ?? owner.StorageProvider;
+            var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = Strings.Dialog_SelectHeroicEpicFolder,
+                AllowMultiple = false
+            });
+
+            if (folders.Count == 0) return;
+            var manualPath = folders[0].Path.LocalPath;
+
+            discoveredHeroicConfigs.Clear();
+            items = await _storeService.ImportHeroicEpicAsync(manualPath, discoveredHeroicConfigs);
+
+            if (items.Count == 0)
+            {
+                await ShowConfirmDialog(owner, Strings.Dialog_NoEpicInstallationsFound);
+                return;
+            }
+        }
+
+        var message = string.Format(Strings.Dialog_ConfirmImportEpicFormat, items.Count);
+        if (!await ShowConfirmDialog(owner, message))
+            return;
+
+        StoreHeroicEpicConfigPaths(discoveredHeroicConfigs);
+
+        var itemsToAdd = items
+            .Where(item => !targetNode.Items.Any(x => x.Title == item.Title))
+            .ToList();
+
+        if (itemsToAdd.Count == 0) return;
+
+        ApplyEffectiveDefaultEmulator(targetNode, itemsToAdd);
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            foreach (var item in itemsToAdd)
+                targetNode.Items.Add(item);
+
+            MarkLibraryDirty();
+            SortMediaItems(targetNode.Items);
+
+            if (IsNodeInCurrentView(targetNode))
+                UpdateContent();
+        });
+
+        await SaveData();
+    }
+
     private void StoreHeroicGogConfigPaths(IEnumerable<string> configPaths)
     {
         if (configPaths == null)
@@ -333,6 +394,49 @@ public partial class MainWindowViewModel
             if (existing.Add(fullPath))
             {
                 _currentSettings.HeroicGogConfigPaths.Add(fullPath);
+                changed = true;
+            }
+        }
+
+        if (changed)
+            SaveSettingsOnly();
+    }
+
+    private void StoreHeroicEpicConfigPaths(IEnumerable<string> configPaths)
+    {
+        if (configPaths == null)
+            return;
+
+        _currentSettings.HeroicEpicConfigPaths ??= new List<string>();
+
+        var existing = new HashSet<string>(_currentSettings.HeroicEpicConfigPaths, StringComparer.OrdinalIgnoreCase);
+        var changed = false;
+
+        foreach (var path in configPaths)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                continue;
+
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(path);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (string.Equals(Path.GetFileName(fullPath), "installed.json", StringComparison.OrdinalIgnoreCase))
+            {
+                var parent = Directory.GetParent(fullPath)?.FullName;
+                if (!string.IsNullOrWhiteSpace(parent))
+                    fullPath = parent;
+            }
+
+            if (existing.Add(fullPath))
+            {
+                _currentSettings.HeroicEpicConfigPaths.Add(fullPath);
                 changed = true;
             }
         }

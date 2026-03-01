@@ -34,6 +34,10 @@ public class StoreImportService
     private readonly string _heroicGogConfigSuffix =
         Path.Combine(".config", "heroic", "gog_store", "installed.json");
 
+    // Path suffix for Heroic Launcher configuration (Epic store).
+    private readonly string _heroicEpicConfigSuffix =
+        Path.Combine(".config", "heroic", "epic_store", "installed.json");
+
     // Regex to parse Steam's ACF format lines: "key"		"value"
     // Captures the key in group 1 and the value in group 2.
     private static readonly Regex SteamAcfRegex = new("\"(.+?)\"\\s+\"(.+?)\"", RegexOptions.Compiled);
@@ -396,7 +400,7 @@ public class StoreImportService
                     {
                         foreach (var gameNode in gamesList)
                         {
-                            var item = ParseHeroicGameNode(gameNode);
+                            var item = ParseHeroicGameNode(gameNode, storeLabel: "GOG", uriPrefix: "gog://", developer: "GOG");
                             if (item != null)
                             {
                                 results.Add(item);
@@ -409,6 +413,63 @@ public class StoreImportService
         catch (Exception ex)
         {
             Debug.WriteLine($"[StoreImport] Heroic Import Error: {ex.Message}");
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Imports games installed via Heroic Games Launcher (Epic support).
+    /// </summary>
+    public async Task<List<MediaItem>> ImportHeroicEpicAsync(
+        string? manualConfigPath = null,
+        ICollection<string>? discoveredConfigPaths = null)
+    {
+        var results = new List<MediaItem>();
+
+        var configPaths = GetHeroicEpicConfigPaths(manualConfigPath);
+        if (configPaths.Count == 0)
+        {
+            Debug.WriteLine("[StoreImport] Heroic Epic config not found.");
+            return results;
+        }
+
+        if (discoveredConfigPaths != null)
+        {
+            foreach (var path in configPaths)
+                discoveredConfigPaths.Add(path);
+        }
+
+        try
+        {
+            foreach (var configPath in configPaths)
+            {
+                if (!File.Exists(configPath))
+                    continue;
+
+                var json = await File.ReadAllTextAsync(configPath);
+                var rootNode = JsonSerializer.Deserialize<JsonNode>(json);
+
+                if (rootNode is JsonObject obj && obj.TryGetPropertyValue("installed", out var installedNode))
+                {
+                    var gamesList = installedNode?.AsArray();
+                    if (gamesList != null)
+                    {
+                        foreach (var gameNode in gamesList)
+                        {
+                            var item = ParseHeroicGameNode(gameNode, storeLabel: "Epic", uriPrefix: "epic://", developer: "Epic Games");
+                            if (item != null)
+                            {
+                                results.Add(item);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[StoreImport] Heroic Epic Import Error: {ex.Message}");
         }
 
         return results;
@@ -443,6 +504,35 @@ public class StoreImportService
         return paths.ToList();
     }
 
+    private List<string> GetHeroicEpicConfigPaths(string? manualConfigPath)
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var manualResolved = ResolveHeroicEpicConfigPath(manualConfigPath);
+        if (!string.IsNullOrWhiteSpace(manualResolved) && File.Exists(manualResolved))
+            paths.Add(Path.GetFullPath(manualResolved));
+
+        if (_settings.HeroicEpicConfigPaths is { Count: > 0 })
+        {
+            foreach (var storedPath in _settings.HeroicEpicConfigPaths)
+            {
+                var resolved = ResolveHeroicEpicConfigPath(storedPath);
+                if (!string.IsNullOrWhiteSpace(resolved) && File.Exists(resolved))
+                    paths.Add(Path.GetFullPath(resolved));
+            }
+        }
+
+        foreach (var candidate in GetHeroicEpicCandidatePaths())
+        {
+            if (!File.Exists(candidate))
+                continue;
+
+            paths.Add(Path.GetFullPath(candidate));
+        }
+
+        return paths.ToList();
+    }
+
     private IEnumerable<string> GetHeroicGogCandidatePaths()
     {
         var xdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
@@ -451,6 +541,16 @@ public class StoreImportService
 
         foreach (var home in GetHomeCandidates())
             yield return Path.Combine(home, _heroicGogConfigSuffix);
+    }
+
+    private IEnumerable<string> GetHeroicEpicCandidatePaths()
+    {
+        var xdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        if (!string.IsNullOrWhiteSpace(xdgConfig) && Path.IsPathRooted(xdgConfig))
+            yield return Path.Combine(xdgConfig, "heroic", "epic_store", "installed.json");
+
+        foreach (var home in GetHomeCandidates())
+            yield return Path.Combine(home, _heroicEpicConfigSuffix);
     }
 
     private static string? ResolveHeroicGogConfigPath(string? inputPath)
@@ -501,13 +601,76 @@ public class StoreImportService
         return null;
     }
 
-    private MediaItem? ParseHeroicGameNode(JsonNode? gameNode)
+    private static string? ResolveHeroicEpicConfigPath(string? inputPath)
+    {
+        if (string.IsNullOrWhiteSpace(inputPath))
+            return null;
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(inputPath);
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (File.Exists(fullPath))
+            return fullPath;
+
+        if (!Directory.Exists(fullPath))
+            return null;
+
+        var fileName = Path.GetFileName(fullPath);
+
+        if (string.Equals(fileName, "epic_store", StringComparison.OrdinalIgnoreCase))
+        {
+            var candidate = Path.Combine(fullPath, "installed.json");
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        if (string.Equals(fileName, "heroic", StringComparison.OrdinalIgnoreCase))
+        {
+            var candidate = Path.Combine(fullPath, "epic_store", "installed.json");
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        var epicStoreCandidate = Path.Combine(fullPath, "epic_store", "installed.json");
+        if (File.Exists(epicStoreCandidate))
+            return epicStoreCandidate;
+
+        var installedCandidate = Path.Combine(fullPath, "installed.json");
+        if (File.Exists(installedCandidate))
+            return installedCandidate;
+
+        return null;
+    }
+
+    private static string? ReadJsonString(JsonNode? node, params string[] keys)
+    {
+        if (node is not JsonObject obj || keys.Length == 0)
+            return null;
+
+        foreach (var key in keys)
+        {
+            var value = obj[key]?.ToString();
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return null;
+    }
+
+    private MediaItem? ParseHeroicGameNode(JsonNode? gameNode, string storeLabel, string uriPrefix, string developer)
     {
         if (gameNode == null) return null;
 
-        var title = gameNode["title"]?.ToString();
-        var id = gameNode["appName"]?.ToString(); // GOG ID
-        var platform = gameNode["platform"]?.ToString() ?? "Unknown";
+        var title = ReadJsonString(gameNode, "title", "name");
+        var id = ReadJsonString(gameNode, "appName", "app_name", "appId", "app_id", "namespace");
+        var platform = ReadJsonString(gameNode, "platform") ?? "Unknown";
 
         if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(id)) return null;
 
@@ -525,10 +688,10 @@ public class StoreImportService
                     Label = "Heroic"
                 }
             },
-            LauncherArgs = $"gog://{id}",
+            LauncherArgs = $"{uriPrefix}{id}",
             MediaType = MediaType.Command,
-            Description = $"Imported from Heroic (GOG) - Platform: {platform}",
-            Developer = "GOG"
+            Description = $"Imported from Heroic ({storeLabel}) - Platform: {platform}",
+            Developer = developer
         };
     }
 }

@@ -38,6 +38,12 @@ public class AppSettings
     /// If empty, Retromind uses automatic discovery only.
     /// </summary>
     public List<string> HeroicGogConfigPaths { get; set; } = new();
+
+    /// <summary>
+    /// Optional manual Heroic Epic config paths (heroic folder, epic_store folder, or installed.json).
+    /// If empty, Retromind uses automatic discovery only.
+    /// </summary>
+    public List<string> HeroicEpicConfigPaths { get; set; } = new();
     
     // --- Native wrapper defaults (C: global -> node -> item) ---
 

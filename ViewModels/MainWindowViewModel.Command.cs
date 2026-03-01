@@ -61,6 +61,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaNode?> ImportRomsCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ImportSteamCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ImportGogCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> ImportEpicCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand<MediaItem?> ScrapeMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ScrapeNodeCommand { get; private set; } = null!;
@@ -98,6 +99,7 @@ public partial class MainWindowViewModel
         ImportRomsCommand = new AsyncRelayCommand<MediaNode?>(ImportRomsAsync, CanOperateOnNode);
         ImportSteamCommand = new AsyncRelayCommand<MediaNode?>(ImportSteamAsync, CanOperateOnNode);
         ImportGogCommand = new AsyncRelayCommand<MediaNode?>(ImportGogAsync, CanOperateOnNode);
+        ImportEpicCommand = new AsyncRelayCommand<MediaNode?>(ImportEpicAsync, CanOperateOnNode);
         
         ScrapeMediaCommand = new AsyncRelayCommand<MediaItem?>(ScrapeMediaAsync);
         ScrapeNodeCommand = new AsyncRelayCommand<MediaNode?>(ScrapeNodeAsync, CanOperateOnNode);
@@ -458,6 +460,7 @@ public partial class MainWindowViewModel
         ImportRomsCommand.NotifyCanExecuteChanged();
         ImportSteamCommand.NotifyCanExecuteChanged();
         ImportGogCommand.NotifyCanExecuteChanged();
+        ImportEpicCommand.NotifyCanExecuteChanged();
         ScrapeNodeCommand.NotifyCanExecuteChanged();
     }
     

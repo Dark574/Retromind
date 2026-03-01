@@ -603,9 +603,21 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Dialog_NoEpicInstallationsFound {
+            get {
+                return ResourceManager.GetString("Dialog_NoEpicInstallationsFound", resourceCulture);
+            }
+        }
+        
         public static string Dialog_NoGogInstallationsFound_SelectPath {
             get {
                 return ResourceManager.GetString("Dialog_NoGogInstallationsFound_SelectPath", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_NoEpicInstallationsFound_SelectPath {
+            get {
+                return ResourceManager.GetString("Dialog_NoEpicInstallationsFound_SelectPath", resourceCulture);
             }
         }
         
@@ -615,9 +627,21 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Dialog_SelectHeroicEpicFolder {
+            get {
+                return ResourceManager.GetString("Dialog_SelectHeroicEpicFolder", resourceCulture);
+            }
+        }
+        
         public static string Dialog_ConfirmImportGogFormat {
             get {
                 return ResourceManager.GetString("Dialog_ConfirmImportGogFormat", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_ConfirmImportEpicFormat {
+            get {
+                return ResourceManager.GetString("Dialog_ConfirmImportEpicFormat", resourceCulture);
             }
         }
         
@@ -765,6 +789,12 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Import_Epic {
+            get {
+                return ResourceManager.GetString("Import.Epic", resourceCulture);
+            }
+        }
+        
         public static string Import_Roms {
             get {
                 return ResourceManager.GetString("Import.Roms", resourceCulture);
@@ -819,15 +849,33 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Settings_SectionHeroicEpic {
+            get {
+                return ResourceManager.GetString("Settings_SectionHeroicEpic", resourceCulture);
+            }
+        }
+        
         public static string Settings_HeroicGogPathsHint {
             get {
                 return ResourceManager.GetString("Settings_HeroicGogPathsHint", resourceCulture);
             }
         }
         
+        public static string Settings_HeroicEpicPathsHint {
+            get {
+                return ResourceManager.GetString("Settings_HeroicEpicPathsHint", resourceCulture);
+            }
+        }
+        
         public static string Settings_HeroicGogPathWatermark {
             get {
                 return ResourceManager.GetString("Settings_HeroicGogPathWatermark", resourceCulture);
+            }
+        }
+        
+        public static string Settings_HeroicEpicPathWatermark {
+            get {
+                return ResourceManager.GetString("Settings_HeroicEpicPathWatermark", resourceCulture);
             }
         }
         
