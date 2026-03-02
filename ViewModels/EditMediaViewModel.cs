@@ -1895,7 +1895,7 @@ public partial class EditMediaViewModel : ViewModelBase
             {
                 new FilePickerFileType("Documents")
                 {
-                    Patterns = new[] { "*.pdf", "*.txt", "*.md", "*.rtf", "*.html", "*.htm", "*.jpg", "*.jpeg", "*.png" }
+                    Patterns = new[] { "*.pdf", "*.cbz", "*.txt", "*.md", "*.rtf", "*.html", "*.htm", "*.jpg", "*.jpeg", "*.png" }
                 }
             },
             _ => new[] { FilePickerFileTypes.ImageAll } // Default for Cover, Logo, Wallpaper, Marquee, etc

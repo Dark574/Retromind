@@ -34,6 +34,7 @@ public sealed class FileExtensionToGlyphConverter : IValueConverter
         return ext switch
         {
             ".pdf" => "📕",   // PDF / book-like
+            ".cbz" => "📕",
             ".txt" => "📝",
             ".md"  => "📝",
             ".rtf" => "📝",
