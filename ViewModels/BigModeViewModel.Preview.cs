@@ -400,6 +400,12 @@ public partial class BigModeViewModel
             return;
         }
 
+        // Keep content visibility state in sync even before playback starts
+        // (e.g. initial BigMode enter before NotifyViewReady) to avoid brief
+        // wallpaper flashes when the first selection has a video.
+        var targetVideoPath = CanShowVideo ? ResolvePreviewVideoPath() : null;
+        MainVideoHasContent = CanShowVideo && !string.IsNullOrEmpty(targetVideoPath);
+
         if (!_isViewReady || _isLaunching)
             return;
 
@@ -736,7 +742,9 @@ public partial class BigModeViewModel
 
         return IsGameListActive
             ? ResolveItemVideoPath(SelectedItem, node)
-            : ResolveNodeVideoPath(SelectedCategory);
+            : SelectedCategory != null && SelectedCategory.IsFallbackEnabled(AssetType.Video)
+                ? ResolveNodeVideoPath(SelectedCategory)
+                : null;
     }
 
     private string? ResolveItemVideoPath(MediaItem? item, MediaNode? node)

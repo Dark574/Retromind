@@ -28,8 +28,8 @@
              ext:ThemeProperties.MoveDurationMs="300">
 
     <UserControl.Resources>
-        <x:Double x:Key="LogoHeight">190</x:Double>
-        <x:Double x:Key="LogoWidth">900</x:Double>
+        <x:Double x:Key="LogoHeight">180</x:Double>
+        <x:Double x:Key="LogoWidth">860</x:Double>
         <x:Double x:Key="CoverWidth">165</x:Double>
         <x:Double x:Key="CoverHeight">245</x:Double>
         <CornerRadius x:Key="CoverRadius">12</CornerRadius>
@@ -38,6 +38,7 @@
 
         <SolidColorBrush x:Key="ChipBackground" Color="#3A3A3A" />
         <SolidColorBrush x:Key="ChipBorder" Color="#6A6A6A" />
+        <SolidColorBrush x:Key="CoverStripBackground" Color="#98000000" />
 
         <LinearGradientBrush x:Key="TopFade" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#CC000000" Offset="0" />
@@ -46,10 +47,10 @@
 
         <LinearGradientBrush x:Key="BottomFade" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#00000000" Offset="0" />
-            <GradientStop Color="#CC000000" Offset="1" />
+            <GradientStop Color="#3A000000" Offset="1" />
         </LinearGradientBrush>
 
-        <SolidColorBrush x:Key="BackgroundShade" Color="#44000000" />
+        <SolidColorBrush x:Key="BackgroundShade" Color="#06000000" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -86,36 +87,36 @@
         </Style>
     </UserControl.Styles>
 
-    <Panel>
-        <!-- BACKGROUND: wallpaper + video preview -->
-        <Grid x:Name="BackgroundVisual">
+    <Grid RowDefinitions="*,Auto">
+        <!-- BACKGROUND: wallpaper fallback remains fullscreen -->
+        <Grid x:Name="BackgroundVisual" Grid.RowSpan="2">
             <ext:CrossfadeImage Url="{Binding ActiveWallpaperPath}"
                                 DecodeWidth="1920"
                                 DisableCache="True"
                                 Stretch="UniformToFill"
-                                Opacity="0.45"
+                                Opacity="0.55"
                                 IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
-            <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
+            <ext:CrossfadeImage Url="{Binding ActiveCategoryWallpaperPath}"
                                 DecodeWidth="1920"
                                 DisableCache="True"
                                 Stretch="UniformToFill"
-                                Opacity="0.45"
-                                IsVisible="{Binding IsCategorySelectionActive}" />
-
-            <Border x:Name="VideoSlot"
-                    Opacity="{Binding IsVideoOverlayVisible, Converter={StaticResource BoolToOpacity}}"
-                    IsVisible="{Binding MainVideoHasContent}"
-                    Background="#000000"
-                    ClipToBounds="True" />
-
-            <Rectangle Fill="{StaticResource BackgroundShade}" />
-            <Rectangle Fill="{StaticResource TopFade}" VerticalAlignment="Top" Height="220" />
-            <Rectangle Fill="{StaticResource BottomFade}" VerticalAlignment="Bottom" Height="320" />
+                                Opacity="0.55"
+                                IsVisible="{Binding ActiveCategoryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
         </Grid>
 
-        <!-- FOREGROUND CONTENT -->
-        <Grid RowDefinitions="Auto,*" Margin="48,32,48,28">
+        <!-- Primary video is only drawn above the cover strip -->
+        <Border x:Name="VideoSlot"
+                Grid.Row="0"
+                IsVisible="{Binding MainVideoHasContent}"
+                Background="#000000"
+                ClipToBounds="True" />
+
+        <Rectangle Grid.Row="0" Fill="{StaticResource BackgroundShade}" />
+        <Rectangle Grid.Row="0" Fill="{StaticResource TopFade}" VerticalAlignment="Top" Height="220" />
+
+        <!-- TOP FOREGROUND CONTENT -->
+        <Grid Grid.Row="0" Margin="48,32,48,0">
             <!-- Logo + description -->
             <StackPanel x:Name="LogoVisual" Grid.Row="0" Spacing="18" MaxWidth="900" HorizontalAlignment="Left" Margin="0,0,0,16">
                 <!-- Game logo / title -->
@@ -145,7 +146,7 @@
 
                 <!-- Category logo / title -->
                 <StackPanel IsVisible="{Binding IsCategorySelectionActive}" Spacing="16" HorizontalAlignment="Left">
-                    <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+                    <ext:CrossfadeImage Url="{Binding ActiveCategoryLogoPath}"
                                         DecodeWidth="600"
                                         DisableCache="True"
                                         Stretch="Uniform"
@@ -154,7 +155,7 @@
                                         VerticalAlignment="Top"
                                         MaxWidth="{StaticResource LogoWidth}"
                                         MaxHeight="{StaticResource LogoHeight}"
-                                        IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                                        IsVisible="{Binding ActiveCategoryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
                     <TextBlock Text="{Binding SelectedCategory.Name}"
                                FontSize="42"
@@ -165,7 +166,7 @@
                                TextAlignment="Left"
                                HorizontalAlignment="Left"
                                MaxWidth="{StaticResource LogoWidth}"
-                               IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                               IsVisible="{Binding ActiveCategoryLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
                 </StackPanel>
 
                 <Border Margin="0,12,0,0"
@@ -215,63 +216,70 @@
                 </Border>
             </StackPanel>
 
-            <!-- Bottom area: info chips + horizontal cover row -->
-            <Grid Grid.Row="1" RowDefinitions="Auto,Auto" VerticalAlignment="Bottom">
-                <!-- Info chips (date, developer) -->
-                <StackPanel Grid.Row="0"
-                            Orientation="Horizontal"
-                            Spacing="10"
-                            Margin="0,0,0,10"
-                            HorizontalAlignment="Left"
-                            IsVisible="{Binding IsGameListActive}">
-                    <Border Background="{StaticResource ChipBackground}"
-                            BorderBrush="{StaticResource ChipBorder}"
-                            BorderThickness="1"
-                            CornerRadius="4"
-                            Padding="8,4"
-                            IsVisible="{Binding SelectedYear, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
-                        <TextBlock Text="{Binding SelectedYear}"
-                                   FontSize="13"
-                                   Foreground="#E0E0E0" />
-                    </Border>
+            <!-- Info chips (date, developer, genre, status) -->
+            <StackPanel Orientation="Horizontal"
+                        Spacing="10"
+                        Margin="0,0,0,10"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Bottom"
+                        IsVisible="{Binding IsGameListActive}">
+                <Border Background="{StaticResource ChipBackground}"
+                        BorderBrush="{StaticResource ChipBorder}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,4"
+                        IsVisible="{Binding SelectedYear, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding SelectedYear}"
+                               FontSize="13"
+                               Foreground="#E0E0E0" />
+                </Border>
 
-                    <Border Background="{StaticResource ChipBackground}"
-                            BorderBrush="{StaticResource ChipBorder}"
-                            BorderThickness="1"
-                            CornerRadius="4"
-                            Padding="8,4"
-                            IsVisible="{Binding SelectedDeveloper, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
-                        <TextBlock Text="{Binding SelectedDeveloper}"
-                                   FontSize="13"
-                                   Foreground="#E0E0E0"
-                                   TextTrimming="CharacterEllipsis" />
-                    </Border>
+                <Border Background="{StaticResource ChipBackground}"
+                        BorderBrush="{StaticResource ChipBorder}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,4"
+                        IsVisible="{Binding SelectedDeveloper, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding SelectedDeveloper}"
+                               FontSize="13"
+                               Foreground="#E0E0E0"
+                               TextTrimming="CharacterEllipsis" />
+                </Border>
 
-                    <Border Background="{StaticResource ChipBackground}"
-                            BorderBrush="{StaticResource ChipBorder}"
-                            BorderThickness="1"
-                            CornerRadius="4"
-                            Padding="8,4"
-                            IsVisible="{Binding SelectedItem.Genre, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
-                        <TextBlock Text="{Binding SelectedItem.Genre}"
-                                   FontSize="13"
-                                   Foreground="#E0E0E0"
-                                   TextTrimming="CharacterEllipsis" />
-                    </Border>
+                <Border Background="{StaticResource ChipBackground}"
+                        BorderBrush="{StaticResource ChipBorder}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,4"
+                        IsVisible="{Binding SelectedItem.Genre, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding SelectedItem.Genre}"
+                               FontSize="13"
+                               Foreground="#E0E0E0"
+                               TextTrimming="CharacterEllipsis" />
+                </Border>
 
-                    <Border Background="{StaticResource ChipBackground}"
-                            BorderBrush="{StaticResource ChipBorder}"
-                            BorderThickness="1"
-                            CornerRadius="4"
-                            Padding="8,4">
-                        <TextBlock Text="{Binding SelectedItem.Status}"
-                                   FontSize="13"
-                                   Foreground="#E0E0E0" />
-                    </Border>
-                </StackPanel>
+                <Border Background="{StaticResource ChipBackground}"
+                        BorderBrush="{StaticResource ChipBorder}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,4">
+                    <TextBlock Text="{Binding SelectedItem.Status}"
+                               FontSize="13"
+                               Foreground="#E0E0E0" />
+                </Border>
+            </StackPanel>
 
-                <!-- Bottom horizontal cover row -->
-                <Grid Grid.Row="1" VerticalAlignment="Bottom">
+        </Grid>
+
+        <!-- BOTTOM FOREGROUND CONTENT: horizontal cover row -->
+        <Grid Grid.Row="1"
+              Margin="0"
+              VerticalAlignment="Bottom"
+              Background="{StaticResource CoverStripBackground}"
+              ClipToBounds="False">
+            <Grid Margin="0"
+                  ClipToBounds="False">
+
                 <!-- Game list -->
                 <ListBox ItemsSource="{Binding Items}"
                          SelectedItem="{Binding SelectedItem}"
@@ -279,6 +287,7 @@
                          IsVisible="{Binding IsGameListActive}"
                          Background="Transparent"
                          BorderThickness="0"
+                         Padding="0"
                          ClipToBounds="False"
                          ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
@@ -338,6 +347,7 @@
                          IsVisible="{Binding IsCategorySelectionActive}"
                          Background="Transparent"
                          BorderThickness="0"
+                         Padding="0"
                          ClipToBounds="False"
                          ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
@@ -397,6 +407,5 @@
                 </ListBox>
             </Grid>
         </Grid>
-        </Grid>
-    </Panel>
+    </Grid>
 </UserControl>

@@ -81,6 +81,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private ObservableCollection<MediaNode> _currentCategories;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveCategoryLogoPath))]
+    [NotifyPropertyChangedFor(nameof(ActiveCategoryWallpaperPath))]
     private MediaNode? _selectedCategory;
 
     [ObservableProperty]
@@ -150,6 +152,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     // --- Misc UI state ---
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCategorySelectionActive))]
+    [NotifyPropertyChangedFor(nameof(ActiveCategoryLogoPath))]
+    [NotifyPropertyChangedFor(nameof(ActiveCategoryWallpaperPath))]
     [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
     [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
     [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
@@ -225,6 +229,15 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         ResolveArtworkForSelection(AssetType.Logo);
 
     /// <summary>
+    /// Resolved logo path for category selection view.
+    /// Node-level logo is only used when logo fallback is enabled on the node.
+    /// </summary>
+    public string? ActiveCategoryLogoPath =>
+        IsCategorySelectionActive && SelectedCategory?.LogoFallbackEnabled == true
+            ? SelectedCategory.PrimaryLogoAbsolutePath
+            : null;
+
+    /// <summary>
     /// True if the current selection can display any logo (item or fallback).
     /// Used by themes to collapse empty logo slots.
     /// </summary>
@@ -238,6 +251,15 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     public string? ActiveWallpaperPath =>
         ResolveArtworkForSelection(AssetType.Wallpaper);
+
+    /// <summary>
+    /// Resolved wallpaper path for category selection view.
+    /// Node-level wallpaper is only used when wallpaper fallback is enabled on the node.
+    /// </summary>
+    public string? ActiveCategoryWallpaperPath =>
+        IsCategorySelectionActive && SelectedCategory?.WallpaperFallbackEnabled == true
+            ? SelectedCategory.PrimaryWallpaperAbsolutePath
+            : null;
 
     /// <summary>
     /// Resolved video path for the currently selected item in context of the
