@@ -18,7 +18,9 @@ public class ImportService
     // Regex to detect Disk/Disc/Side/Part suffixes
     // Matches: " (Disk 1)", "_Disk1", " (Side A)", " - CD 1", etc.
     private static readonly Regex MultiDiscRegex = new Regex(
-        @"[\s_]*(\(?-?|\[)(Disk|Disc|CD|Side|Part)[\s_]*([0-9A-H]+)(\)?|\])",
+        // Require a clear separator (start/space/_/-/bracket) before Disc/Side tokens to avoid
+        // matching inside words like "Unterirdische" (contains "disc").
+        @"(?:^|[\s_\-]|\(|\[)\s*(?<kind>Disk|Disc|CD|Side|Part)\s*(?<token>[0-9A-H]+)(?:\s*(?:\)|\]))?",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>
@@ -75,10 +77,10 @@ public class ImportService
                         cleanTitle = originalTitle.Replace(match.Value, "").Trim();
 
                         // Extract disc indicator ("1", "2", "A", "B", ...)
-                        var token = match.Groups[3].Value.Trim();
+                        var token = match.Groups["token"].Value.Trim();
 
                         discIndex = ParseDiscIndex(token);
-                        discLabel = BuildDiscLabel(match.Groups[2].Value, token, discIndex);
+                        discLabel = BuildDiscLabel(match.Groups["kind"].Value, token, discIndex);
                     }
 
                     candidates.Add((cleanTitle, file, discIndex, discLabel));

@@ -18,7 +18,9 @@ public partial class MainWindowViewModel
     // Regex to detect Disk/Disc/Side/Part suffixes
     // Matches: " (Disk 1)", "_Disk1", " (Side A)", " - CD 1", etc.
     private static readonly System.Text.RegularExpressions.Regex MultiDiscRegex =
-        new(@"[\s_]*(\(?-?|\[)(Disk|Disc|CD|Side|Part)[\s_]*([0-9A-H]+)(\)?|\])",
+        // Require a clear separator (start/space/_/-/bracket) before Disc/Side tokens to avoid
+        // matching inside words like "Unterirdische" (contains "disc").
+        new(@"(?:^|[\s_\-]|\(|\[)\s*(?<kind>Disk|Disc|CD|Side|Part)\s*(?<token>[0-9A-H]+)(?:\s*(?:\)|\]))?",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
 
     private static int? ParseDiscIndex(string token)
@@ -64,8 +66,8 @@ public partial class MainWindowViewModel
         if (!match.Success)
             return (null, null);
 
-        var kind = match.Groups[2].Value.Trim();
-        var token = match.Groups[3].Value.Trim();
+        var kind = match.Groups["kind"].Value.Trim();
+        var token = match.Groups["token"].Value.Trim();
 
         var idx = ParseDiscIndex(token);
         var label = BuildDiscLabel(kind, token, idx);
