@@ -21,8 +21,14 @@ public static class ThemeLoader
 {
     private sealed record CachedXaml(string Content, DateTime LastWriteTimeUtc);
 
+    private const int MaxXamlCacheEntries = 40;
+
     private static readonly Dictionary<string, CachedXaml> XamlCache =
         new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, LinkedListNode<string>> XamlCacheNodes =
+        new(StringComparer.OrdinalIgnoreCase);
+    private static readonly LinkedList<string> XamlLruList = new();
+    private static readonly object XamlCacheLock = new();
 
     public static Theme LoadTheme(string filePath, bool setGlobalBasePath = true)
     {
@@ -185,15 +191,52 @@ public static class ThemeLoader
     {
         var lastWriteUtc = File.GetLastWriteTimeUtc(filePath);
 
-        if (XamlCache.TryGetValue(filePath, out var cached) &&
-            cached.LastWriteTimeUtc == lastWriteUtc)
+        lock (XamlCacheLock)
         {
-            return cached.Content;
+            if (XamlCache.TryGetValue(filePath, out var cached) &&
+                cached.LastWriteTimeUtc == lastWriteUtc)
+            {
+                TouchXamlCacheEntry(filePath);
+                return cached.Content;
+            }
         }
 
         var content = File.ReadAllText(filePath);
-        XamlCache[filePath] = new CachedXaml(content, lastWriteUtc);
+
+        lock (XamlCacheLock)
+        {
+            XamlCache[filePath] = new CachedXaml(content, lastWriteUtc);
+            TouchXamlCacheEntry(filePath);
+            TrimXamlCacheIfNeeded();
+        }
+
         return content;
+    }
+
+    private static void TouchXamlCacheEntry(string key)
+    {
+        if (XamlCacheNodes.TryGetValue(key, out var node))
+        {
+            XamlLruList.Remove(node);
+            XamlLruList.AddLast(node);
+            return;
+        }
+
+        var newNode = XamlLruList.AddLast(key);
+        XamlCacheNodes[key] = newNode;
+    }
+
+    private static void TrimXamlCacheIfNeeded()
+    {
+        while (XamlCache.Count > MaxXamlCacheEntries && XamlLruList.First != null)
+        {
+            var oldestNode = XamlLruList.First;
+            var oldestKey = oldestNode!.Value;
+
+            XamlLruList.RemoveFirst();
+            XamlCacheNodes.Remove(oldestKey);
+            XamlCache.Remove(oldestKey);
+        }
     }
 
     private static Control CreateErrorView(string message)

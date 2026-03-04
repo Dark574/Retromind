@@ -39,6 +39,10 @@ public partial class BigModeHostView : UserControl
     // The cached Theme contains a factory that can create fresh view instances
     // on demand, so we never reuse the same UserControl across different parents.
     private readonly Dictionary<string, Theme> _systemThemeCache = new(StringComparer.OrdinalIgnoreCase);
+    private const int SystemThemeCacheLimit = 20;
+    private readonly Dictionary<string, LinkedListNode<string>> _systemThemeLruNodes =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly LinkedList<string> _systemThemeLru = new();
 
     // Shared primary video control for the main preview channel.
     private readonly CrossfadeVideoSurfaceControl _primaryVideoControl;
@@ -416,6 +420,12 @@ public partial class BigModeHostView : UserControl
             }
 
             _systemThemeCache[id] = systemTheme;
+            TouchSystemThemeCache(id);
+            TrimSystemThemeCacheIfNeeded();
+        }
+        else
+        {
+            TouchSystemThemeCache(id);
         }
 
         // Always create a fresh view instance for the system layout host.
@@ -442,6 +452,32 @@ public partial class BigModeHostView : UserControl
         // per-system subtheme enables the primary channel.
         vm.CanShowVideo = vm.CanShowVideo || systemTheme.PrimaryVideoEnabled;
         vm.VideoFadeDurationMs = ThemeProperties.GetVideoFadeDurationMs(subView);
+    }
+
+    private void TouchSystemThemeCache(string key)
+    {
+        if (_systemThemeLruNodes.TryGetValue(key, out var node))
+        {
+            _systemThemeLru.Remove(node);
+            _systemThemeLru.AddLast(node);
+            return;
+        }
+
+        var newNode = _systemThemeLru.AddLast(key);
+        _systemThemeLruNodes[key] = newNode;
+    }
+
+    private void TrimSystemThemeCacheIfNeeded()
+    {
+        while (_systemThemeCache.Count > SystemThemeCacheLimit && _systemThemeLru.First != null)
+        {
+            var oldestNode = _systemThemeLru.First;
+            var oldestKey = oldestNode!.Value;
+
+            _systemThemeLru.RemoveFirst();
+            _systemThemeLruNodes.Remove(oldestKey);
+            _systemThemeCache.Remove(oldestKey);
+        }
     }
     
     private void UnhookThemeTuning()
