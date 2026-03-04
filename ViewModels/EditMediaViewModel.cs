@@ -20,7 +20,7 @@ using Retromind.Views;
 
 namespace Retromind.ViewModels;
 
-public partial class EditMediaViewModel : ViewModelBase
+public partial class EditMediaViewModel : ViewModelBase, IDisposable
 {
     private readonly EmulatorConfig? _inheritedEmulator;
     private EmulatorConfig? _resolvedInheritedEmulator;
@@ -1656,6 +1656,11 @@ public partial class EditMediaViewModel : ViewModelBase
 
         _originalItem.Assets.CollectionChanged -= _assetsChangedHandler;
         _assetsChangedHandler = null;
+    }
+
+    public void Dispose()
+    {
+        DetachAssetHandlers();
     }
 
     private static readonly AssetType[] AssetTypeOrder =
