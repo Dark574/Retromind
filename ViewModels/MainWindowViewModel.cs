@@ -61,6 +61,11 @@ public partial class MainWindowViewModel : ViewModelBase
     private MediaNode? _selectedNode;
     private object? _selectedNodeContent;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLibraryLoadingHint))]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyLibraryHint))]
+    private bool _isLibraryLoading;
+
     // Holds the currently loaded theme view. If null, standard desktop mode is shown.
     [ObservableProperty]
     private object? _fullScreenContent;
@@ -130,7 +135,13 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<MediaNode> RootItems
     {
         get => _rootItems;
-        set => SetProperty(ref _rootItems, value);
+        set
+        {
+            if (!SetProperty(ref _rootItems, value))
+                return;
+
+            OnPropertyChanged(nameof(ShowEmptyLibraryHint));
+        }
     }
 
     public MediaNode? SelectedNode
@@ -164,8 +175,21 @@ public partial class MainWindowViewModel : ViewModelBase
     public object? SelectedNodeContent
     {
         get => _selectedNodeContent;
-        set => SetProperty(ref _selectedNodeContent, value);
+        set
+        {
+            if (!SetProperty(ref _selectedNodeContent, value))
+                return;
+
+            OnPropertyChanged(nameof(ShowLibraryLoadingHint));
+            OnPropertyChanged(nameof(ShowEmptyLibraryHint));
+        }
     }
+
+    public bool ShowLibraryLoadingHint => IsLibraryLoading && SelectedNodeContent is null;
+
+    // Empty-library hint should only be shown for truly empty libraries,
+    // not while startup loading is still building the first content.
+    public bool ShowEmptyLibraryHint => !IsLibraryLoading && SelectedNodeContent is null && RootItems.Count == 0;
 
     public string? ResolvedSelectedItemLogoPath => ResolveSelectedItemAsset(AssetType.Logo);
     public string? ResolvedSelectedItemWallpaperPath => ResolveSelectedItemAsset(AssetType.Wallpaper);
@@ -313,10 +337,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public async Task LoadData()
     {
+        IsLibraryLoading = true;
+
         try 
         {
             RootItems = await _dataService.LoadAsync();
             Debug.WriteLine("[DEBUG] LoadData: RootItems loaded. Count = " + RootItems.Count);
+            OnPropertyChanged(nameof(ShowEmptyLibraryHint));
         
             _isLibraryDirty = false;
             _libraryDirtyVersion = 0;
@@ -329,9 +356,6 @@ public partial class MainWindowViewModel : ViewModelBase
     
             if (Application.Current != null)
                 Application.Current.RequestedThemeVariant = _currentSettings.IsDarkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
-
-            await RescanAllAssetsAsync();
-            SortAllNodesRecursive(RootItems);
 
             TreePaneWidth = new GridLength(_currentSettings.TreeColumnWidth);
             DetailPaneWidth = new GridLength(_currentSettings.DetailColumnWidth);
@@ -350,6 +374,13 @@ public partial class MainWindowViewModel : ViewModelBase
                 else if (RootItems.Count > 0) SelectedNode = RootItems[0];
             }
             else if (RootItems.Count > 0) SelectedNode = RootItems[0];
+
+            // Wait for the first selected node content to be built so the main view
+            // appears quickly and predictably before background warmup starts.
+            await AwaitCurrentContentUpdateAsync().ConfigureAwait(false);
+
+            // Heavy startup maintenance runs in the background after first content is visible.
+            _ = RunDeferredStartupWarmupAsync();
         }
         catch (Exception ex)
         {
@@ -357,7 +388,21 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         finally
         {
+            IsLibraryLoading = false;
             _loadDataTcs.TrySetResult(true);
+        }
+    }
+
+    private async Task RunDeferredStartupWarmupAsync()
+    {
+        try
+        {
+            await RescanAllAssetsAsync().ConfigureAwait(false);
+            await UiThreadHelper.InvokeAsync(() => SortAllNodesRecursive(RootItems)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[StartupWarmup] Failed: {ex.Message}");
         }
     }
 
@@ -467,6 +512,11 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         UpdateContent();  // Start the existing background task.
 
+        await AwaitCurrentContentUpdateAsync().ConfigureAwait(false);
+    }
+
+    private async Task AwaitCurrentContentUpdateAsync()
+    {
         var tcs = _updateContentTcs;
         if (tcs == null) return;
 
@@ -700,6 +750,8 @@ public partial class MainWindowViewModel : ViewModelBase
                     TrackNodeRecursive(node);
             }
         }
+
+        OnPropertyChanged(nameof(ShowEmptyLibraryHint));
     }
 
     private void OnNodeItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)

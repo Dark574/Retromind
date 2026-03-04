@@ -281,13 +281,19 @@
                    <!-- Remove the background so the wallpaper shows through completely -->
                    <Border Grid.Column="2" Background="Transparent"> <!-- Transparent! -->
                        <Grid>
+                           <ProgressBar IsIndeterminate="True"
+                                        Width="220"
+                                        Height="6"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        IsVisible="{Binding ShowLibraryLoadingHint}" />
                            <TextBlock Text="{x:Static p:Strings.Dialog_EmptyLibraryHint}"
                                       VerticalAlignment="Center"
                                       HorizontalAlignment="Center"
                                       Foreground="{Binding TextColor}"
                                       FontSize="16"
                                       FontStyle="Italic"
-                                      IsVisible="{Binding SelectedNodeContent, Converter={x:Static helpers:ObjectConverters.IsNull}}" />
+                                      IsVisible="{Binding ShowEmptyLibraryHint}" />
                            <ContentControl Content="{Binding SelectedNodeContent}"
                                            IsVisible="{Binding SelectedNodeContent, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
                        </Grid>
