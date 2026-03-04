@@ -40,6 +40,17 @@ public partial class ThemeProperties
     public static void SetSelectedGlowOpacity(AvaloniaObject element, double value) =>
         element.SetValue(SelectedGlowOpacityProperty, value);
 
+    public static readonly AttachedProperty<double> SelectedGlowRadiusProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, double>(
+            "SelectedGlowRadius",
+            defaultValue: 18.0);
+
+    public static double GetSelectedGlowRadius(AvaloniaObject element) =>
+        element.GetValue(SelectedGlowRadiusProperty);
+
+    public static void SetSelectedGlowRadius(AvaloniaObject element, double value) =>
+        element.SetValue(SelectedGlowRadiusProperty, value);
+
     /// <summary>
     /// Controls whether the BigMode host is allowed to apply generic selection
     /// effects (zoom/opacity/glow) for this ListBox. Default: true.

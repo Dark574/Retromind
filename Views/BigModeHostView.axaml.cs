@@ -497,6 +497,7 @@ public partial class BigModeHostView : UserControl
         var selectedScale = ThemeProperties.GetSelectedScale(themeRoot);
         var unselectedOpacity = ThemeProperties.GetUnselectedOpacity(themeRoot);
         var selectedGlowOpacity = ThemeProperties.GetSelectedGlowOpacity(themeRoot);
+        var selectedGlowRadius = ThemeProperties.GetSelectedGlowRadius(themeRoot);
         var circularWindowSize = ThemeProperties.GetCircularWindowSize(themeRoot);
 
         var fadeMs = ThemeProperties.GetFadeDurationMs(themeRoot);
@@ -541,7 +542,7 @@ public partial class BigModeHostView : UserControl
             _tunedListBoxes.Add(listBox);
 
             // Apply current selection state for realized containers.
-            ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, fadeMs, moveMs, accent);
+            ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, selectedGlowRadius, fadeMs, moveMs, accent);
         }
 
         // Spacing/Padding: opt-in via classes (theme authors can just add Classes="rm-panel"/"rm-header")
@@ -612,12 +613,13 @@ public partial class BigModeHostView : UserControl
         var selectedScale = ThemeProperties.GetSelectedScale(themeRoot);
         var unselectedOpacity = ThemeProperties.GetUnselectedOpacity(themeRoot);
         var selectedGlowOpacity = ThemeProperties.GetSelectedGlowOpacity(themeRoot);
+        var selectedGlowRadius = ThemeProperties.GetSelectedGlowRadius(themeRoot);
         var fadeMs = ThemeProperties.GetFadeDurationMs(themeRoot);
         var moveMs = ThemeProperties.GetMoveDurationMs(themeRoot);
         var accent = ThemeProperties.GetAccentColor(themeRoot);
 
         // Ensure newly realized container gets the correct visuals.
-        ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, fadeMs, moveMs, accent);
+        ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, selectedGlowRadius, fadeMs, moveMs, accent);
     }
 
     private void OnListBoxSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -631,11 +633,12 @@ public partial class BigModeHostView : UserControl
         var selectedScale = ThemeProperties.GetSelectedScale(themeRoot);
         var unselectedOpacity = ThemeProperties.GetUnselectedOpacity(themeRoot);
         var selectedGlowOpacity = ThemeProperties.GetSelectedGlowOpacity(themeRoot);
+        var selectedGlowRadius = ThemeProperties.GetSelectedGlowRadius(themeRoot);
         var fadeMs = ThemeProperties.GetFadeDurationMs(themeRoot);
         var moveMs = ThemeProperties.GetMoveDurationMs(themeRoot);
         var accent = ThemeProperties.GetAccentColor(themeRoot);
 
-        ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, fadeMs, moveMs, accent);
+        ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, selectedGlowRadius, fadeMs, moveMs, accent);
     }
 
     private static void ApplySelectionVisuals(
@@ -643,6 +646,7 @@ public partial class BigModeHostView : UserControl
         double selectedScale,
         double unselectedOpacity,
         double selectedGlowOpacity,
+        double selectedGlowRadius,
         int fadeMs,
         int moveMs,
         Color? accentColor)
@@ -681,7 +685,7 @@ public partial class BigModeHostView : UserControl
                 item.Effect = new DropShadowEffect
                 {
                     Color = glowColor,
-                    BlurRadius = 18,
+                    BlurRadius = Math.Clamp(selectedGlowRadius, 0.0, 96.0),
                     OffsetX = 0,
                     OffsetY = 0,
                     Opacity = Math.Clamp(selectedGlowOpacity, 0.0, 1.0)

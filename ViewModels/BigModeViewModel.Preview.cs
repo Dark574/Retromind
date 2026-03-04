@@ -253,6 +253,8 @@ public partial class BigModeViewModel
             _activePreviewIndex = index;
             MainVideoActiveSurfaceIndex = index;
             MediaPlayer = GetMediaPlayer(index);
+            IsVideoOverlayVisible = true;
+            IsVideoVisible = true;
 
             var videoFadeMs = Math.Max(0, VideoFadeDurationMs);
             var audioFadeMs = ResolveAudioFadeDurationMs(videoFadeMs);
@@ -873,9 +875,11 @@ public partial class BigModeViewModel
 
         _currentPreviewVideoPath = videoPath;
 
-        // Ensure the overlay exists before fading in.
+        // Cancel pending delayed overlay hides from previous stop/scroll actions.
+        Interlocked.Increment(ref _overlayFadeGeneration);
+
+        // Ensure the overlay exists while we switch to the next surface.
         IsVideoOverlayVisible = true;
-        IsVideoVisible = false;
 
         var gen = Interlocked.Increment(ref _previewPlayGeneration);
         Volatile.Write(ref _audioCrossfadeStartedGeneration, 0);
@@ -892,13 +896,6 @@ public partial class BigModeViewModel
 
         _ = StartPlaybackAfterRenderAsync(videoPath, gen, targetIndex, oldIndex);
         _ = FallbackStopOldAfterTimeoutAsync(oldIndex, targetIndex, gen);
-
-        // Fade in after the next render tick to avoid one-frame flashes.
-        UiThreadHelper.Post(() =>
-        {
-            if (gen == Volatile.Read(ref _previewPlayGeneration) && IsVideoOverlayVisible)
-                IsVideoVisible = true;
-        }, DispatcherPriority.Render);
     }
 
     private async Task StartPlaybackAfterRenderAsync(string videoPath, int generation, int targetIndex, int oldIndex)
@@ -1058,14 +1055,6 @@ public partial class BigModeViewModel
         _pausedPreviewVideoPath = _currentPreviewVideoPath;
         _pausedPreviewIndex = _activePreviewIndex;
 
-        // Hide the preview while scrolling, without tearing down playback state.
-        if (IsVideoVisible)
-        {
-            IsVideoVisible = false;
-            var fadeGen = Interlocked.Increment(ref _overlayFadeGeneration);
-            _ = HideOverlayAfterFadeAsync(fadeGen);
-        }
-
         if (_pausedPreviewIndex is 0 or 1)
         {
             var player = GetMediaPlayer(_pausedPreviewIndex);
@@ -1127,6 +1116,13 @@ public partial class BigModeViewModel
         _previewPausedForScroll = false;
         _pausedPreviewVideoPath = null;
         _pausedPreviewIndex = -1;
+    }
+
+    private void KeepVideoOverlayVisibleForUpcomingPlayback()
+    {
+        Interlocked.Increment(ref _overlayFadeGeneration);
+        IsVideoOverlayVisible = true;
+        IsVideoVisible = true;
     }
 
     private void ClearPendingPreviewStart(int generation)

@@ -317,6 +317,7 @@ Example:
              ext:ThemeProperties.SelectedScale="1.10"
              ext:ThemeProperties.UnselectedOpacity="0.60"
              ext:ThemeProperties.SelectedGlowOpacity="0.55"
+             ext:ThemeProperties.SelectedGlowRadius="22"
 
              ext:ThemeProperties.FadeDurationMs="250"
              ext:ThemeProperties.MoveDurationMs="250"
@@ -400,6 +401,7 @@ These values are used by the host to produce consistent “TV-like” selection 
 - `ThemeProperties.SelectedScale` (double, default: `1.06`)
 - `ThemeProperties.UnselectedOpacity` (double, default: `0.75`)
 - `ThemeProperties.SelectedGlowOpacity` (double, default: `0.35`)
+- `ThemeProperties.SelectedGlowRadius` (double, default: `18.0`) — blur radius for host-driven glow
 - `ThemeProperties.AccentColor` (Color?) — used for the glow color when set (fallback: gold)
 - `ThemeProperties.CircularWindowSize` (int, default: `9`)
 
@@ -408,6 +410,12 @@ Recommended ranges:
 - `SelectedScale`: 1.05–1.15
 - `UnselectedOpacity`: 0.45–0.80
 - `SelectedGlowOpacity`: 0.20–0.70
+- `SelectedGlowRadius`: 10–36 (higher values are softer/broader but more expensive)
+
+Note:
+- Even when `ThemeProperties.UseHostSelectionEffects="False"` is set on a `ListBox`,
+  you can still bind `SelectedGlowOpacity` / `SelectedGlowRadius` directly in your
+  theme XAML (for custom per-item glow implementations).
 
 #### Circular list windows (wrap-around)
 
@@ -561,6 +569,7 @@ instances in the theme:
 - Zoom of the selected item (`SelectedScale`)
 - Dimmed, unselected items (`UnselectedOpacity`)
 - A subtle glow around the selected item (`SelectedGlowOpacity`)
+- Glow size controlled by `SelectedGlowRadius`
 - Animated transitions (opacity / transform)
 
 These effects are convenient for "standard" lists, but they can conflict with
@@ -590,6 +599,7 @@ The host reads the global tuning values from the theme root:
              ext:ThemeProperties.SelectedScale="1.08"
              ext:ThemeProperties.UnselectedOpacity="0.70"
              ext:ThemeProperties.SelectedGlowOpacity="0.40"
+             ext:ThemeProperties.SelectedGlowRadius="20"
              ext:ThemeProperties.AccentColor="#00D1FF">
 </UserControl>
 ```
@@ -763,6 +773,7 @@ Either rely on host selection defaults, or intentionally tune your styles to mat
              ext:ThemeProperties.SelectedScale="1.12"
              ext:ThemeProperties.UnselectedOpacity="0.55"
              ext:ThemeProperties.SelectedGlowOpacity="0.50"
+             ext:ThemeProperties.SelectedGlowRadius="24"
              ext:ThemeProperties.FadeDurationMs="180"
              ext:ThemeProperties.MoveDurationMs="180"
              ext:ThemeProperties.PanelPadding="28"
@@ -978,7 +989,7 @@ They are **not** intended for per-item selection effects inside `ItemsControl`s
 For per-item selection visuals (zoom, glow, opacity) in lists, use:
 
 - the host’s selection tuning (`ThemeProperties.SelectedScale`,
-  `UnselectedOpacity`, `SelectedGlowOpacity`) which is applied to
+  `UnselectedOpacity`, `SelectedGlowOpacity`, `SelectedGlowRadius`) which is applied to
   `ListBoxItem`s by the host, or
 - local XAML logic inside the `ItemTemplate`  
   (e.g. `LayoutTransformControl` + `BoolToScaleConverter` bound to `IsSelected`).
