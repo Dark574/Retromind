@@ -204,7 +204,7 @@ public partial class BigModeViewModel
             return;
 
         _suspendPreviewDuringScroll = true;
-        StopVideo();
+        PausePreviewForScroll();
     }
 
     private void ResumePreviewAfterScroll()
@@ -213,6 +213,9 @@ public partial class BigModeViewModel
             return;
 
         _suspendPreviewDuringScroll = false;
+        if (TryResumePausedPreviewForCurrentSelection())
+            return;
+
         TriggerPreviewPlaybackWithDebounce();
     }
 

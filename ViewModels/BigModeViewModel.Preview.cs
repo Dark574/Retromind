@@ -101,6 +101,9 @@ public partial class BigModeViewModel
     private bool _mainVideoIsPlayingB;
 
     private bool _suspendPreviewDuringScroll;
+    private bool _previewPausedForScroll;
+    private string? _pausedPreviewVideoPath;
+    private int _pausedPreviewIndex = -1;
     
     /// <summary>
     /// Forces the main MediaPlayer instance to be recreated on the next playback start.
@@ -399,10 +402,7 @@ public partial class BigModeViewModel
             return;
 
         if (_suspendPreviewDuringScroll)
-        {
-            StopVideo();
             return;
-        }
 
         // Theme capability: if video is not allowed, ensure preview is stopped.
         if (!CanShowVideo)
@@ -1013,6 +1013,7 @@ public partial class BigModeViewModel
         CancelPreviewDebounce();
 
         ClearPendingPreviewStart();
+        ClearPausedPreviewState();
         IsVideoVisible = false;
 
         // Main channel: Reset status
@@ -1040,6 +1041,92 @@ public partial class BigModeViewModel
 
         // Main stop should not impact the background channel.
         EnsureSecondaryBackgroundPlayingIfReady();
+    }
+
+    private void PausePreviewForScroll()
+    {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(PausePreviewForScroll, DispatcherPriority.Background);
+            return;
+        }
+
+        if (_previewPausedForScroll)
+            return;
+
+        _previewPausedForScroll = true;
+        _pausedPreviewVideoPath = _currentPreviewVideoPath;
+        _pausedPreviewIndex = _activePreviewIndex;
+
+        // Hide the preview while scrolling, without tearing down playback state.
+        if (IsVideoVisible)
+        {
+            IsVideoVisible = false;
+            var fadeGen = Interlocked.Increment(ref _overlayFadeGeneration);
+            _ = HideOverlayAfterFadeAsync(fadeGen);
+        }
+
+        if (_pausedPreviewIndex is 0 or 1)
+        {
+            var player = GetMediaPlayer(_pausedPreviewIndex);
+            if (player != null)
+            {
+                try
+                {
+                    player.Pause();
+                }
+                catch
+                {
+                    // best-effort only
+                }
+            }
+        }
+    }
+
+    private bool TryResumePausedPreviewForCurrentSelection()
+    {
+        if (!_previewPausedForScroll)
+            return false;
+
+        _previewPausedForScroll = false;
+
+        var targetVideoPath = ResolvePreviewVideoPath();
+        if (string.IsNullOrEmpty(targetVideoPath) ||
+            string.IsNullOrEmpty(_pausedPreviewVideoPath) ||
+            !string.Equals(targetVideoPath, _pausedPreviewVideoPath, StringComparison.OrdinalIgnoreCase))
+        {
+            ClearPausedPreviewState();
+            return false;
+        }
+
+        // Ensure the overlay is visible again for the paused preview.
+        IsVideoOverlayVisible = true;
+        IsVideoVisible = true;
+
+        if (_pausedPreviewIndex is 0 or 1)
+        {
+            var player = GetMediaPlayer(_pausedPreviewIndex);
+            if (player != null)
+            {
+                try
+                {
+                    player.Play();
+                }
+                catch
+                {
+                    // best-effort only
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private void ClearPausedPreviewState()
+    {
+        _previewPausedForScroll = false;
+        _pausedPreviewVideoPath = null;
+        _pausedPreviewIndex = -1;
     }
 
     private void ClearPendingPreviewStart(int generation)
