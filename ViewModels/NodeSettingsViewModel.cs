@@ -848,16 +848,18 @@ public partial class NodeSettingsViewModel : ViewModelBase
                 return;
 
             // Example layout: Themes/Wheel/theme.axaml, Themes/Default/theme.axaml
-            foreach (var dir in Directory.EnumerateDirectories(themesRoot))
-            {
-                var name = Path.GetFileName(dir);
-                var themeFile = Path.Combine(dir, "theme.axaml");
-                if (File.Exists(themeFile))
+            var themePaths = Directory.EnumerateDirectories(themesRoot)
+                .Select(dir => new
                 {
-                    // Store as relative path under ThemesRoot (portable, stable when moved)
-                    AvailableThemes.Add($"{name}/theme.axaml");
-                }
-            }
+                    Name = Path.GetFileName(dir),
+                    ThemeFile = Path.Combine(dir, "theme.axaml")
+                })
+                .Where(x => File.Exists(x.ThemeFile))
+                .Select(x => $"{x.Name}/theme.axaml")
+                .OrderBy(path => path, StringComparer.CurrentCultureIgnoreCase);
+
+            foreach (var themePath in themePaths)
+                AvailableThemes.Add(themePath);
         }
         catch
         {
