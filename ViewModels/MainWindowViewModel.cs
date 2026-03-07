@@ -939,6 +939,7 @@ public partial class MainWindowViewModel : ViewModelBase
         StopLibraryChangeTracking();
         
         // Detach content VM handlers to avoid leaks.
+        DetachSearchAreaHandlers();
         DetachMediaAreaHandlers();
         
         _saveSettingsCts?.Cancel();
@@ -970,6 +971,14 @@ public partial class MainWindowViewModel : ViewModelBase
         _currentMediaAreaVm.Dispose();
 
         _currentMediaAreaVm = null;
+    }
+
+    private void DetachSearchAreaHandlers()
+    {
+        if (SelectedNodeContent is not SearchAreaViewModel searchVm)
+            return;
+
+        searchVm.Dispose();
     }
 
     private void OnMediaAreaRequestPlay(MediaItem item)
@@ -1172,6 +1181,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var previousStatus = previousVm?.SelectedStatus;
 
         // Any time we rebuild content, detach handlers from the previous VM.
+        DetachSearchAreaHandlers();
         DetachMediaAreaHandlers();
         
         if (SelectedNode is null)
