@@ -17,7 +17,7 @@
                 Margin="0,0,0,10"
                 CornerRadius="0,0,5,5">
 
-            <Grid ColumnDefinitions="Auto, *, Auto">
+            <Grid ColumnDefinitions="Auto, *">
                 <!-- Titelzeile -->
                 <TextBlock Grid.Column="0"
                            Text="{x:Static p:Strings.Search_GlobalShort}"
@@ -27,20 +27,20 @@
 
 
                 <!-- Right aligned: filters and scopes -->
-                <StackPanel Grid.Column="2"
+                <StackPanel Grid.Column="1"
                             Spacing="10"
-                            HorizontalAlignment="Right">
+                            HorizontalAlignment="Stretch">
 
                     <!-- Row 1: Unified search bar -->
-                    <Grid ColumnDefinitions="Auto, 20, Auto, 20, Auto, 20, Auto, 20, Auto, 20, Auto, 20, Auto"
-                          VerticalAlignment="Center"
-                          HorizontalAlignment="Right">
+                    <WrapPanel Orientation="Horizontal"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Right">
 
                         <!-- Random item from results -->
-                        <Button Grid.Column="0"
-                                Command="{Binding PlayRandomCommand}"
+                        <Button Command="{Binding PlayRandomCommand}"
                                 IsEnabled="{Binding HasResults}"
                                 HorizontalAlignment="Left"
+                                Margin="0,0,12,8"
                                 Padding="10,5">
                             <StackPanel Orientation="Horizontal" Spacing="5">
                                 <TextBlock Text="🎲"/>
@@ -49,8 +49,8 @@
                         </Button>
 
                         <!-- Favorites-only toggle -->
-                        <CheckBox Grid.Column="2"
-                                  IsChecked="{Binding OnlyFavorites}"
+                        <CheckBox IsChecked="{Binding OnlyFavorites}"
+                                  Margin="0,0,12,8"
                                   VerticalAlignment="Center"
                                   ToolTip.Tip="{x:Static p:Strings.Common_FavoritesOnlyHint}">
                             <StackPanel Orientation="Horizontal" Spacing="3">
@@ -60,26 +60,26 @@
                         </CheckBox>
 
                         <!-- Search title -->
-                        <TextBox Grid.Column="4"
-                                 Text="{Binding SearchText}"
+                        <TextBox Text="{Binding SearchText}"
                                  Watermark="{x:Static p:Strings.Dialog_TitleSearch}"
                                  Width="200"
                                  Height="28"
+                                 Margin="0,0,12,8"
                                  VerticalContentAlignment="Center"/>
 
                         <!-- Year -->
-                        <TextBox Grid.Column="6"
-                                 Text="{Binding SearchYear}"
+                        <TextBox Text="{Binding SearchYear}"
                                  Watermark="{x:Static p:Strings.Common_Year}"
                                  Width="150"
                                  Height="28"
+                                 Margin="0,0,12,8"
                                  VerticalContentAlignment="Center"/>
 
                         <!-- Status filter + clear -->
-                        <StackPanel Grid.Column="8"
-                                    Orientation="Horizontal"
+                        <StackPanel Orientation="Horizontal"
                                     Spacing="4"
-                                    VerticalAlignment="Center">
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,12,8">
                             <ComboBox ItemsSource="{Binding StatusOptions}"
                                       SelectedItem="{Binding SelectedStatusOption, Mode=TwoWay}"
                                       Width="130"
@@ -110,8 +110,7 @@
                         </StackPanel>
                         
                         <!-- Zoom (tile size) -->
-                        <StackPanel Grid.Column="10"
-                                    Orientation="Horizontal"
+                        <StackPanel Orientation="Horizontal"
                                     Spacing="6"
                                     VerticalAlignment="Center">
                             <TextBlock Text="{x:Static p:Strings.Zoom_Zoom}"
@@ -122,21 +121,22 @@
                                     Width="150"
                                     VerticalAlignment="Center"/>
                         </StackPanel>
-                    </Grid>
+                    </WrapPanel>
 
                     <!-- Row 2: Scopes -->
-                    <StackPanel Orientation="Horizontal"
-                                Spacing="10"
-                                VerticalAlignment="Center"
-                                HorizontalAlignment="Right"
-                                Margin="0,0,4,0">
+                    <WrapPanel Orientation="Horizontal"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Right"
+                               Margin="0,0,4,0">
                         <TextBlock Text="{Binding SelectedScopeSummary}"
                                    VerticalAlignment="Center"
-                                   FontWeight="Bold"/>
+                                   FontWeight="Bold"
+                                   Margin="0,0,10,8"/>
                         <Button Content="{x:Static p:Strings.Search_ScopesEdit}"
                                 Click="OnEditScopesClick"
+                                Margin="0,0,0,8"
                                 Padding="10,4"/>
-                    </StackPanel>
+                    </WrapPanel>
                 </StackPanel>
             </Grid>
         </Border>

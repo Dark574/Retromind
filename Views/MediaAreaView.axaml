@@ -9,7 +9,7 @@
 
     <Grid RowDefinitions="Auto, *">
         <!-- Header bar -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="10">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto, *" Margin="10">
                 
             <!-- Title / Logo -->
             <Grid Grid.Column="0"
@@ -30,12 +30,16 @@
             </Grid>
 
             <!-- Right side: Controls -->
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
+            <WrapPanel Grid.Column="1"
+                       Orientation="Horizontal"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center">
                     
                 <!-- Random Button -->
                 <Button Command="{Binding PlayRandomCommand}" 
                         ToolTip.Tip="{x:Static p:Strings.Tip_RandomGame}"
                         Padding="10,5"
+                        Margin="0,0,12,8"
                         IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsLaunchIdle}">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <TextBlock Text="🎲"/>
@@ -45,6 +49,7 @@
 
                 <!-- Favorites-only toggle -->
                 <CheckBox IsChecked="{Binding OnlyFavorites}"
+                          Margin="0,0,12,8"
                           VerticalAlignment="Center"
                           ToolTip.Tip="{x:Static p:Strings.Common_FavoritesOnlyHint}">
                     <StackPanel Orientation="Horizontal" Spacing="3">
@@ -57,13 +62,14 @@
                 <TextBox Text="{Binding SearchText}" 
                          Watermark="{x:Static p:Strings.Search_Search}" 
                          Width="200"
+                         Margin="0,0,12,8"
                          VerticalAlignment="Center"/>
 
                 <!-- Status filter + clear -->
                 <StackPanel Orientation="Horizontal"
                             Spacing="4"
                             VerticalAlignment="Center"
-                            Margin="5,0,0,0">
+                            Margin="0,0,12,8">
                     <ComboBox ItemsSource="{Binding StatusOptions}"
                               SelectedItem="{Binding SelectedStatusOption, Mode=TwoWay}"
                               Width="130"
@@ -100,7 +106,7 @@
                     <Slider Value="{Binding ItemWidth}" Minimum="50" Maximum="300" Width="150" />
                 </StackPanel>
 
-            </StackPanel>
+            </WrapPanel>
         </Grid>
 
         <!-- The Media-List -->
