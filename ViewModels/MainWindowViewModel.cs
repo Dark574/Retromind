@@ -112,6 +112,10 @@ public partial class MainWindowViewModel : ViewModelBase
     // Per-node selection memory for quick return after switching nodes.
     private readonly Dictionary<string, string> _lastSelectedMediaByNodeId = new(StringComparer.Ordinal);
 
+    // Remembers where the user came from before entering global search.
+    private string? _searchReturnNodeId;
+    private string? _searchReturnItemId;
+
     private static readonly HashSet<string> DirtyTrackedItemProperties = new(StringComparer.Ordinal)
     {
         nameof(MediaItem.IsFavorite)

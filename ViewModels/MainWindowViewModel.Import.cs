@@ -1052,6 +1052,17 @@ public partial class MainWindowViewModel
 
     private void OpenIntegratedSearch()
     {
+        // Toggle behavior: pressing search while search is already open jumps back.
+        if (SelectedNodeContent is SearchAreaViewModel activeSearchVm)
+        {
+            CloseIntegratedSearch(activeSearchVm);
+            return;
+        }
+
+        // Remember where the user came from so we can restore it on next toggle.
+        _searchReturnNodeId = SelectedNode?.Id;
+        _searchReturnItemId = _currentMediaAreaVm?.SelectedMediaItem?.Id;
+
         // Ensure any previous media-area handlers are detached before switching views.
         DetachMediaAreaHandlers();
         DetachSearchAreaHandlers();
@@ -1096,6 +1107,53 @@ public partial class MainWindowViewModel
             }
         };
         SelectedNodeContent = searchVm;
+    }
+
+    private void CloseIntegratedSearch(SearchAreaViewModel searchVm)
+    {
+        var selectedSearchItemId = searchVm.SelectedMediaItem?.Id;
+        var desiredItemId = selectedSearchItemId ?? _searchReturnItemId;
+
+        MediaNode? targetNode = null;
+
+        if (!string.IsNullOrWhiteSpace(selectedSearchItemId))
+            TryFindNodeByMediaId(RootItems, selectedSearchItemId, out targetNode);
+
+        if (targetNode == null && !string.IsNullOrWhiteSpace(_searchReturnNodeId))
+            targetNode = FindNodeById(RootItems, _searchReturnNodeId);
+
+        if (targetNode == null && !string.IsNullOrWhiteSpace(desiredItemId))
+            TryFindNodeByMediaId(RootItems, desiredItemId, out targetNode);
+
+        if (targetNode == null && RootItems.Count > 0)
+            targetNode = RootItems[0];
+
+        // Leave search mode now (dispose search VM) before restoring content.
+        DetachSearchAreaHandlers();
+
+        // Clear remembered return state once the toggle-back was requested.
+        _searchReturnNodeId = null;
+        _searchReturnItemId = null;
+
+        if (targetNode == null)
+        {
+            _selectedNode = null;
+            OnPropertyChanged(nameof(SelectedNode));
+            SelectedNodeContent = null;
+            _audioService.StopMusic();
+
+            OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(desiredItemId))
+            _lastSelectedMediaByNodeId[targetNode.Id] = desiredItemId;
+
+        ExpandPathToNode(RootItems, targetNode);
+        SelectedNode = targetNode;
     }
 
     // Wrappers for Assets
