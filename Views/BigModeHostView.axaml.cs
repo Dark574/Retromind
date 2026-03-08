@@ -193,6 +193,8 @@ public partial class BigModeHostView : UserControl
         // Theme-based video capability (no more slot-based shutdown)
         if (vm != null)
         {
+            vm.IsSystemViewActive = _isSystemHostTheme;
+
             // Base capability from outer theme
             vm.CanShowVideo = theme.PrimaryVideoEnabled;
             vm.VideoFadeDurationMs = ThemeProperties.GetVideoFadeDurationMs(themeRoot);

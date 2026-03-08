@@ -159,6 +159,12 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
     private bool _isGameListActive;
 
+    // True while BigMode runs the System Host theme (category-centric system browser).
+    // In this mode, category preview video should always come from the selected node,
+    // independent of item fallback toggles.
+    [ObservableProperty]
+    private bool _isSystemViewActive;
+
     public bool IsCategorySelectionActive => !IsGameListActive;
     
     [ObservableProperty]

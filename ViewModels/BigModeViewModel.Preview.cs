@@ -375,6 +375,13 @@ public partial class BigModeViewModel
         TriggerPreviewPlaybackWithDebounce();
     }
 
+    partial void OnIsSystemViewActiveChanged(bool value)
+    {
+        // Switching between normal category views and System Host view can change
+        // the preview source strategy for category mode (fallback-gated vs. always node video).
+        TriggerPreviewPlaybackWithDebounce();
+    }
+
     private void StopVideoIfPreviewPathChanged(string? targetVideoPath)
     {
         if (string.Equals(_currentPreviewVideoPath, targetVideoPath, StringComparison.OrdinalIgnoreCase))
@@ -742,9 +749,11 @@ public partial class BigModeViewModel
 
         return IsGameListActive
             ? ResolveItemVideoPath(SelectedItem, node)
-            : SelectedCategory != null && SelectedCategory.IsFallbackEnabled(AssetType.Video)
-                ? ResolveNodeVideoPath(SelectedCategory)
-                : null;
+            : SelectedCategory == null
+                ? null
+                : IsSystemViewActive || SelectedCategory.IsFallbackEnabled(AssetType.Video)
+                    ? ResolveNodeVideoPath(SelectedCategory)
+                    : null;
     }
 
     private string? ResolveItemVideoPath(MediaItem? item, MediaNode? node)
