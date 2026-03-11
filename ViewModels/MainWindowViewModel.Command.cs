@@ -1097,6 +1097,41 @@ public partial class MainWindowViewModel
         }
     }
 
+    private static int FindSortedInsertIndex(ObservableCollection<MediaItem> items, MediaItem candidate)
+    {
+        var comparer = Comparer<string?>.Default;
+        var low = 0;
+        var high = items.Count;
+
+        // Upper-bound insertion by title:
+        // new items with identical titles are placed after existing ones
+        // (matches stable behavior of the old full-sort path).
+        while (low < high)
+        {
+            var mid = low + ((high - low) / 2);
+            var compare = comparer.Compare(items[mid].Title, candidate.Title);
+
+            if (compare <= 0)
+                low = mid + 1;
+            else
+                high = mid;
+        }
+
+        return low;
+    }
+
+    private static void InsertMediaItemSorted(ObservableCollection<MediaItem> items, MediaItem item)
+    {
+        if (items.Count == 0)
+        {
+            items.Add(item);
+            return;
+        }
+
+        var insertIndex = FindSortedInsertIndex(items, item);
+        items.Insert(insertIndex, item);
+    }
+
     private void SortMediaItems(ObservableCollection<MediaItem> items)
     {
         // Optimization: Sorting an ObservableCollection in place triggers lots of CollectionChanged events.

@@ -155,7 +155,7 @@ public partial class MainWindowViewModel
         {
             foreach (var (item, assets) in scanned)
             {
-                targetNode.Items.Add(item);
+                InsertMediaItemSorted(targetNode.Items, item);
 
                 item.Assets.Clear();
                 foreach (var asset in assets)
@@ -163,7 +163,6 @@ public partial class MainWindowViewModel
             }
 
             MarkLibraryDirty();
-            SortMediaItems(targetNode.Items);
 
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
@@ -222,10 +221,9 @@ public partial class MainWindowViewModel
         await UiThreadHelper.InvokeAsync(() =>
         {
             foreach (var item in itemsToAdd)
-                targetNode.Items.Add(item);
+                InsertMediaItemSorted(targetNode.Items, item);
 
             MarkLibraryDirty();
-            SortMediaItems(targetNode.Items);
 
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
@@ -283,10 +281,9 @@ public partial class MainWindowViewModel
         await UiThreadHelper.InvokeAsync(() =>
         {
             foreach (var item in itemsToAdd)
-                targetNode.Items.Add(item);
+                InsertMediaItemSorted(targetNode.Items, item);
 
             MarkLibraryDirty();
-            SortMediaItems(targetNode.Items);
 
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
@@ -344,10 +341,9 @@ public partial class MainWindowViewModel
         await UiThreadHelper.InvokeAsync(() =>
         {
             foreach (var item in itemsToAdd)
-                targetNode.Items.Add(item);
+                InsertMediaItemSorted(targetNode.Items, item);
 
             MarkLibraryDirty();
-            SortMediaItems(targetNode.Items);
 
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
@@ -687,7 +683,7 @@ public partial class MainWindowViewModel
         {
             foreach (var (item, assets) in scanned)
             {
-                targetNode.Items.Add(item);
+                InsertMediaItemSorted(targetNode.Items, item);
                 newlyAddedItems.Add(item);
 
                 item.Assets.Clear();
@@ -696,7 +692,6 @@ public partial class MainWindowViewModel
             }
 
             MarkLibraryDirty();
-            SortMediaItems(targetNode.Items);
         });
 
         // 4) Remember the last created item as the "selectable" ID
