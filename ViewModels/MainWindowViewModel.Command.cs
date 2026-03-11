@@ -21,6 +21,8 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
+    private const int BulkSortedInsertThreshold = 32;
+
     private static readonly AssetType[] AssetFolderTypes = Enum.GetValues(typeof(AssetType))
         .Cast<AssetType>()
         .Where(type => type != AssetType.Unknown)
@@ -1097,10 +1099,10 @@ public partial class MainWindowViewModel
         }
     }
 
-    private static int FindSortedInsertIndex(ObservableCollection<MediaItem> items, MediaItem candidate)
+    private static int FindSortedInsertIndex(ObservableCollection<MediaItem> items, MediaItem candidate, int minIndex = 0)
     {
         var comparer = Comparer<string?>.Default;
-        var low = 0;
+        var low = Math.Clamp(minIndex, 0, items.Count);
         var high = items.Count;
 
         // Upper-bound insertion by title:
@@ -1120,6 +1122,21 @@ public partial class MainWindowViewModel
         return low;
     }
 
+    private static bool IsSortedByTitle(IReadOnlyList<MediaItem> items)
+    {
+        if (items.Count <= 1)
+            return true;
+
+        var comparer = Comparer<string?>.Default;
+        for (var i = 1; i < items.Count; i++)
+        {
+            if (comparer.Compare(items[i - 1].Title, items[i].Title) > 0)
+                return false;
+        }
+
+        return true;
+    }
+
     private static void InsertMediaItemSorted(ObservableCollection<MediaItem> items, MediaItem item)
     {
         if (items.Count == 0)
@@ -1130,6 +1147,40 @@ public partial class MainWindowViewModel
 
         var insertIndex = FindSortedInsertIndex(items, item);
         items.Insert(insertIndex, item);
+    }
+
+    private void InsertMediaItemsOptimized(ObservableCollection<MediaItem> items, IReadOnlyList<MediaItem> newItems)
+    {
+        if (newItems.Count == 0)
+            return;
+
+        // Safety net: if older data/path left this collection unsorted, repair once before
+        // binary insert to keep order correctness.
+        if (!IsSortedByTitle(items))
+            SortMediaItems(items);
+
+        if (newItems.Count < BulkSortedInsertThreshold)
+        {
+            foreach (var item in newItems)
+                InsertMediaItemSorted(items, item);
+            return;
+        }
+
+        // Bulk path:
+        // sort incoming items first and then keep a monotonic lower bound for binary search.
+        // This reduces comparisons/scans for large imports while preserving stable insertion.
+        var titleComparer = Comparer<string?>.Default;
+        var orderedNewItems = newItems
+            .OrderBy(item => item.Title, titleComparer)
+            .ToList();
+
+        var lowerBound = 0;
+        foreach (var item in orderedNewItems)
+        {
+            var insertIndex = FindSortedInsertIndex(items, item, lowerBound);
+            items.Insert(insertIndex, item);
+            lowerBound = insertIndex + 1;
+        }
     }
 
     private void SortMediaItems(ObservableCollection<MediaItem> items)

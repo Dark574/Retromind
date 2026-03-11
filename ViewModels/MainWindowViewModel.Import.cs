@@ -153,10 +153,11 @@ public partial class MainWindowViewModel
         // 3) Apply everything on UI thread (Items/Assets/Sort)
         await UiThreadHelper.InvokeAsync(() =>
         {
+            var newItems = scanned.Select(entry => entry.Item).ToList();
+            InsertMediaItemsOptimized(targetNode.Items, newItems);
+
             foreach (var (item, assets) in scanned)
             {
-                InsertMediaItemSorted(targetNode.Items, item);
-
                 item.Assets.Clear();
                 foreach (var asset in assets)
                     item.Assets.Add(asset);
@@ -220,8 +221,7 @@ public partial class MainWindowViewModel
 
         await UiThreadHelper.InvokeAsync(() =>
         {
-            foreach (var item in itemsToAdd)
-                InsertMediaItemSorted(targetNode.Items, item);
+            InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
 
             MarkLibraryDirty();
 
@@ -280,8 +280,7 @@ public partial class MainWindowViewModel
 
         await UiThreadHelper.InvokeAsync(() =>
         {
-            foreach (var item in itemsToAdd)
-                InsertMediaItemSorted(targetNode.Items, item);
+            InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
 
             MarkLibraryDirty();
 
@@ -340,8 +339,7 @@ public partial class MainWindowViewModel
 
         await UiThreadHelper.InvokeAsync(() =>
         {
-            foreach (var item in itemsToAdd)
-                InsertMediaItemSorted(targetNode.Items, item);
+            InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
 
             MarkLibraryDirty();
 
@@ -681,9 +679,11 @@ public partial class MainWindowViewModel
         // 3) Apply on UI thread: add items + assets
         await UiThreadHelper.InvokeAsync(() =>
         {
+            var newItems = scanned.Select(entry => entry.Item).ToList();
+            InsertMediaItemsOptimized(targetNode.Items, newItems);
+
             foreach (var (item, assets) in scanned)
             {
-                InsertMediaItemSorted(targetNode.Items, item);
                 newlyAddedItems.Add(item);
 
                 item.Assets.Clear();
