@@ -136,14 +136,9 @@ public partial class MainWindowViewModel
                 item.MediaType = MediaType.Emulator;
         }
 
-        var existingItems = targetNode.Items.ToList();
-
         // 2) Scan assets off the UI thread (filesystem only)
         var scanned = await Task.Run(() =>
         {
-            var itemsForMigration = existingItems.Concat(itemsToAdd).ToList();
-            _fileService.MigrateLegacyItemAssetsForNode(itemsForMigration, nodePath);
-
             var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(itemsToAdd.Count);
 
             foreach (MediaItem item in itemsToAdd)
@@ -670,14 +665,9 @@ public partial class MainWindowViewModel
 
         if (itemsToAdd.Count == 0) return;
 
-        var existingItems = targetNode.Items.ToList();
-
         // 2) Scan assets off-thread (filesystem only)
         var scanned = await Task.Run(() =>
         {
-            var itemsForMigration = existingItems.Concat(itemsToAdd).ToList();
-            _fileService.MigrateLegacyItemAssetsForNode(itemsForMigration, nodePath);
-
             var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(itemsToAdd.Count);
 
             foreach (var item in itemsToAdd)
@@ -1239,9 +1229,8 @@ public partial class MainWindowViewModel
         });
         
         // 1) Scan assets off the UI thread (filesystem only).
-        var scanResult = await Task.Run(() =>
+        var scanned = await Task.Run(() =>
         {
-            var migrated = _fileService.MigrateLegacyItemAssetsForNode(items, nodePath);
             var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(items.Count);
 
             foreach (var item in items)
@@ -1250,13 +1239,10 @@ public partial class MainWindowViewModel
                 list.Add((item, assets));
             }
 
-            return (Assets: list, Migrated: migrated);
+            return list;
         });
 
         var changed = false;
-        var scanned = scanResult.Assets;
-        if (scanResult.Migrated)
-            changed = true;
 
         // 2) Apply results on UI thread in batches to keep the UI responsive for very large nodes.
         const int batchSize = 500;
