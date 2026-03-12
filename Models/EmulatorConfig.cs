@@ -31,7 +31,7 @@ public partial class EmulatorConfig : ObservableObject
     /// Display name of the profile (e.g. "RetroArch SNES Core")
     /// </summary>
     [ObservableProperty]
-    private string _name = string.Empty; // initialize empty
+    private string _name = string.Empty;
 
     /// <summary>
     /// Full path to the executable file

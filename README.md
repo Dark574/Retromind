@@ -31,7 +31,8 @@ See `docs/CHANGELOG.md` for version history.
 - Global search across the library with filters (year, favorites, status)
 - Metadata scraping (depends on your API keys)
 - Optional BigMode / controller-friendly UI with runtime themes
-- Per-item manuals/documents and launcher wrappers
+- Per-item manuals/documents
+- set the launch parameters for your game exactly as you like with launch wrappers and env. variables
 
 ## Screenshots
 
@@ -53,6 +54,7 @@ See `docs/CHANGELOG.md` for version history.
 
 - Large, readable layout for couch / TV usage
 - Gamepad input support
+- you can design and add your own theme through axaml files
 
 ## Requirements
 - Linux (primary target)
