@@ -70,12 +70,21 @@ else
   echo "Notice: sidplayfp not found on build host (no SID playback in AppImage)."
 fi
 
-# Copy themes so that the AppImage has the same layout as the publish folder.
-if [ -d "$PUBLISH_DIR/Themes" ]; then
-  echo "Copying themes into AppDir..."
-  cp -a "$PUBLISH_DIR/Themes" "$APPDIR/usr/bin/"
-else
-  echo "Notice: No Themes directory found in publish output (expected at '$PUBLISH_DIR/Themes')."
+# Copy themes directly from repository source.
+# This avoids incomplete AppImage themes when publish output gets cleaned/partial.
+THEMES_SOURCE_DIR="$PROJECT_ROOT/Themes"
+if [ ! -d "$THEMES_SOURCE_DIR" ]; then
+  echo "ERROR: Themes source directory not found at '$THEMES_SOURCE_DIR'."
+  exit 1
+fi
+
+echo "Copying themes from '$THEMES_SOURCE_DIR' into AppDir..."
+cp -a "$THEMES_SOURCE_DIR" "$APPDIR/usr/bin/"
+
+THEME_FILE_COUNT="$(find "$APPDIR/usr/bin/Themes" -type f | wc -l | awk '{print $1}')"
+if [ "$THEME_FILE_COUNT" -eq 0 ]; then
+  echo "ERROR: No theme files were copied into AppDir (expected files under '$APPDIR/usr/bin/Themes')."
+  exit 1
 fi
 
 cp -a "$WORK_DIR/vlc/vlc" "$APPDIR/usr/lib/vlc/"
