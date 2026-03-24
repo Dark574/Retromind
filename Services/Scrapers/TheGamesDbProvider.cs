@@ -408,7 +408,7 @@ public class TheGamesDbProvider : IMetadataProvider
             if (string.IsNullOrWhiteSpace(result.MarqueeUrl))
             {
                 result.MarqueeUrl = resolved.FirstOrDefault(p =>
-                    ContainsAny(p, "marquee", "wheel", "banner", "clearlogo"));
+                    ContainsAny(p, "marquee", "wheel", "banner"));
             }
         }
         catch
