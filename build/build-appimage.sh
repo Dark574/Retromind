@@ -122,6 +122,7 @@ copy_lib "libwayland-cursor.so.0"
 copy_lib "libwayland-egl.so.1"
 copy_lib "libxkbcommon.so.0"
 copy_lib "libdecor-0.so.0"
+copy_lib "libSDL2-2.0.so.0"
 
 DESKTOP_FILE_NAME="io.github.dark574.Retromind.desktop"
 

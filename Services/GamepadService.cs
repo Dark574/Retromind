@@ -33,7 +33,9 @@ public sealed class GamepadService : IDisposable
     public event Action? OnNextTab;  // R1 / RB
     public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
 
-    private readonly Sdl _sdl = Sdl.GetApi();
+    private readonly Sdl _sdl;
+    private readonly bool _isSdlAvailable;
+    private bool _sdlUnavailableLogged;
 
     private readonly Dictionary<int, IntPtr> _activeControllers = new();
 
@@ -55,12 +57,38 @@ public sealed class GamepadService : IDisposable
     private int _lastAxisXState;
     private int _lastAxisYState;
 
+    public GamepadService()
+    {
+        try
+        {
+            _sdl = Sdl.GetApi();
+            _isSdlAvailable = true;
+        }
+        catch (Exception ex)
+        {
+            // SDL is optional. If it is not available, keep the app running without gamepad input.
+            _sdl = null!;
+            _isSdlAvailable = false;
+            Debug.WriteLine($"[Gamepad] SDL unavailable, gamepad disabled: {ex.Message}");
+        }
+    }
+
     public void StartMonitoring()
     {
         StopMonitoring();
 
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
+
+        if (!_isSdlAvailable)
+        {
+            if (!_sdlUnavailableLogged)
+            {
+                _sdlUnavailableLogged = true;
+                Debug.WriteLine("[Gamepad] Monitoring skipped: SDL2 runtime not available.");
+            }
+            return;
+        }
 
         if (!EnsureInitialized())
         {
@@ -79,17 +107,20 @@ public sealed class GamepadService : IDisposable
         _cts?.Cancel();
 
         // Best effort: close all controllers.
-        unsafe
+        if (_isSdlAvailable)
         {
-            foreach (var ptr in _activeControllers.Values)
+            unsafe
             {
-                try
+                foreach (var ptr in _activeControllers.Values)
                 {
-                    _sdl.GameControllerClose((GameController*)ptr);
-                }
-                catch
-                {
-                    // ignore
+                    try
+                    {
+                        _sdl.GameControllerClose((GameController*)ptr);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
                 }
             }
         }
@@ -109,20 +140,32 @@ public sealed class GamepadService : IDisposable
 
     private bool EnsureInitialized()
     {
+        if (!_isSdlAvailable)
+            return false;
+
         if (_isInitialized)
             return true;
 
         // We only need the GameController subsystem.
         // INIT_GAMECONTROLLER implies INIT_JOYSTICK.
-        if (_sdl.Init(Sdl.InitGamecontroller) < 0)
+        try
         {
-            Debug.WriteLine($"[SDL] Init failed: {_sdl.GetErrorS()}");
+            if (_sdl.Init(Sdl.InitGamecontroller) < 0)
+            {
+                Debug.WriteLine($"[SDL] Init failed: {_sdl.GetErrorS()}");
+                _isInitialized = false;
+                return false;
+            }
+
+            _isInitialized = true;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[SDL] Init exception: {ex.Message}");
             _isInitialized = false;
             return false;
         }
-
-        _isInitialized = true;
-        return true;
     }
 
     private async Task GameLoopAsync(CancellationToken token)
