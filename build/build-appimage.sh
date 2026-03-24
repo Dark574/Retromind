@@ -59,16 +59,55 @@ chmod +x "$APPDIR/AppRun"
 cp "$PUBLISH_DIR/Retromind" "$APPDIR/usr/bin/Retromind"
 chmod +x "$APPDIR/usr/bin/Retromind"
 
-# Try to bundle sidplayfp (SID player) for SID music playback.
-# If sidplayfp is not available on the build host, we just log a notice and continue.
-if command -v sidplayfp >/dev/null 2>&1; then
-  SIDPLAY_PATH="$(command -v sidplayfp)"
-  echo "Bundling sidplayfp from: $SIDPLAY_PATH"
-  cp "$SIDPLAY_PATH" "$APPDIR/usr/bin/sidplayfp"
-  chmod +x "$APPDIR/usr/bin/sidplayfp"
-else
-  echo "Notice: sidplayfp not found on build host (no SID playback in AppImage)."
-fi
+# Bundle optional audio helpers and their non-core shared libs.
+# This improves out-of-the-box audio support on target systems.
+copy_binary_deps() {
+  bin="$1"
+  if [ ! -x "$bin" ]; then
+    return 0
+  fi
+
+  ldd "$bin" 2>/dev/null \
+    | awk '
+        /=>/ {
+          if ($3 ~ /^\//) print $3
+        }
+        /^[[:space:]]*\/[^[:space:]]+/ {
+          print $1
+        }
+      ' \
+    | while IFS= read -r dep; do
+        [ -n "$dep" ] || continue
+        [ -e "$dep" ] || continue
+
+        # Do not bundle glibc/loader core libs from build host.
+        case "$dep" in
+          */ld-linux-*|*/libc.so.6|*/libm.so.6|*/libpthread.so.0|*/librt.so.1|*/libdl.so.2|*/libgcc_s.so.1|*/libstdc++.so.6)
+            continue
+            ;;
+        esac
+
+        cp -L "$dep" "$APPDIR/usr/lib/" || true
+      done
+}
+
+bundle_optional_binary() {
+  name="$1"
+  if ! command -v "$name" >/dev/null 2>&1; then
+    echo "Notice: $name not found on build host (feature may be unavailable in AppImage)."
+    return 0
+  fi
+
+  path="$(command -v "$name")"
+  echo "Bundling $name from: $path"
+  cp "$path" "$APPDIR/usr/bin/$name"
+  chmod +x "$APPDIR/usr/bin/$name"
+  copy_binary_deps "$path"
+}
+
+# SID playback + generic audio preview helper for AudioService.
+bundle_optional_binary "sidplayfp"
+bundle_optional_binary "ffplay"
 
 # Copy themes directly from repository source.
 # This avoids incomplete AppImage themes when publish output gets cleaned/partial.
