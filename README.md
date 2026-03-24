@@ -295,7 +295,7 @@ Retromind combines profile + item arguments into a single command line while exp
 
 ## API keys / Secrets (Scrapers)
 Retromind does **not** use any bundled default keys at runtime.  
-All scraper providers (TMDB, IGDB, Google Books, …) read their API credentials
+All scraper providers (TMDB, IGDB, TheGamesDB, Google Books, …) read their API credentials
 from the scraper configuration (e.g. via the settings dialog). If no key is
 configured, the corresponding scraper simply cannot be used.
 
@@ -325,6 +325,12 @@ You need to create your own API keys on the respective provider pages:
     - `Client ID`
     - `Client Secret`
   3. Enter both values in the IGDB scraper configuration in Retromind.
+
+- **TheGamesDB**
+  1. Create an account at:
+     https://thegamesdb.net/
+  2. Generate an API key in your account settings / API page.
+  3. Enter the key in the TheGamesDB scraper configuration in Retromind.
 
 - **Google Books (optional)**  
   The Google Books API can be used without a key in many cases, but you may

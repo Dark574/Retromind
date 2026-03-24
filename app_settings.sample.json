@@ -92,6 +92,19 @@
       "EncryptedClientSecret": "",
 
       "Username": null
+    },
+    {
+      "Id": "00000000-0000-0000-0000-000000000103",
+      "Name": "TheGamesDB",
+      "Type": 7,
+      "Language": "en-US",
+
+      "ClientId": null,
+      "EncryptedApiKey": "",
+      "EncryptedPassword": "",
+      "EncryptedClientSecret": "",
+
+      "Username": null
     }
   ]
 }

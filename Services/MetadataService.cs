@@ -97,6 +97,7 @@ public class MetadataService
         return config.Type switch
         {
             ScraperType.IGDB        => new IgdbProvider(config, _httpClient),
+            ScraperType.TheGamesDB  => new TheGamesDbProvider(config, _httpClient),
             ScraperType.EmuMovies   => new EmuMoviesProvider(config, _httpClient),
             ScraperType.OpenLibrary => new OpenLibraryProvider(config, _httpClient),
             ScraperType.TMDB        => new TmdbProvider(config, _httpClient),

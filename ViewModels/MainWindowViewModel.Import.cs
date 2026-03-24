@@ -827,6 +827,11 @@ public partial class MainWindowViewModel
 
             if (result.Rating.HasValue) item.Rating = result.Rating.Value;
             if (string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre)) item.Genre = result.Genre;
+            if (!string.IsNullOrWhiteSpace(result.Platform) &&
+                !item.Tags.Any(t => string.Equals(t, result.Platform, StringComparison.OrdinalIgnoreCase)))
+            {
+                item.Tags.Add(result.Platform);
+            }
 
             // Changes to the item -> dirty
             MarkLibraryDirty();
@@ -905,6 +910,13 @@ public partial class MainWindowViewModel
             if (item.Rating == 0 && result.Rating.HasValue)
             {
                 item.Rating = result.Rating.Value;
+                changed = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.Platform) &&
+                !item.Tags.Any(t => string.Equals(t, result.Platform, StringComparison.OrdinalIgnoreCase)))
+            {
+                item.Tags.Add(result.Platform);
                 changed = true;
             }
     

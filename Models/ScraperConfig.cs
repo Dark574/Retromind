@@ -87,11 +87,12 @@ public partial class ScraperConfig : ObservableObject
 
 public enum ScraperType
 {
-    None,
-    TMDB,
-    IGDB,
-    EmuMovies,
-    GoogleBooks,
-    OpenLibrary,
-    ComicVine
+    None = 0,
+    TMDB = 1,
+    IGDB = 2,
+    EmuMovies = 3,
+    GoogleBooks = 4,
+    OpenLibrary = 5,
+    ComicVine = 6,
+    TheGamesDB = 7
 }
