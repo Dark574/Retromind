@@ -818,6 +818,19 @@ public partial class MainWindowViewModel
 
             if (updateDev) item.Developer = result.Developer;
 
+            bool updateGenre = true;
+            if (!string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre) &&
+                !string.Equals(item.Genre, result.Genre, StringComparison.OrdinalIgnoreCase))
+            {
+                updateGenre = await ShowConfirmDialog(owner, $"Update Genre? Old: {item.Genre}, New: {result.Genre}");
+            }
+            else if (string.IsNullOrWhiteSpace(result.Genre))
+            {
+                updateGenre = false;
+            }
+
+            if (updateGenre) item.Genre = result.Genre;
+
             if (item.ReleaseDate.HasValue && result.ReleaseDate.HasValue && item.ReleaseDate.Value.Date != result.ReleaseDate.Value.Date)
             {
                 if (await ShowConfirmDialog(owner, $"Update Date? Old: {item.ReleaseDate.Value:d}, New: {result.ReleaseDate.Value:d}"))
@@ -826,7 +839,6 @@ public partial class MainWindowViewModel
             else if (!item.ReleaseDate.HasValue && result.ReleaseDate.HasValue) item.ReleaseDate = result.ReleaseDate;
 
             if (result.Rating.HasValue) item.Rating = result.Rating.Value;
-            if (string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre)) item.Genre = result.Genre;
             if (!string.IsNullOrWhiteSpace(result.Platform) &&
                 !item.Tags.Any(t => string.Equals(t, result.Platform, StringComparison.OrdinalIgnoreCase)))
             {
@@ -841,14 +853,25 @@ public partial class MainWindowViewModel
             {
                 try
                 {
-                    // DownloadAndSetAsset now uses AssetType
-                    if (!string.IsNullOrEmpty(result.CoverUrl)) 
+                    // Keep manual scrape behavior consistent with bulk scrape:
+                    // always import as additional assets when URLs are provided.
+                    if (!string.IsNullOrEmpty(result.CoverUrl))
                         await DownloadAndSetAsset(result.CoverUrl, item, nodePath, AssetType.Cover);
-                
-                    if (!string.IsNullOrEmpty(result.WallpaperUrl)) 
+
+                    if (!string.IsNullOrEmpty(result.WallpaperUrl))
                         await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
 
-                    // Other assets, if any (e.g. logo)...
+                    if (!string.IsNullOrEmpty(result.LogoUrl))
+                        await DownloadAndSetAsset(result.LogoUrl, item, nodePath, AssetType.Logo);
+
+                    if (!string.IsNullOrEmpty(result.MarqueeUrl))
+                        await DownloadAndSetAsset(result.MarqueeUrl, item, nodePath, AssetType.Marquee);
+
+                    if (!string.IsNullOrEmpty(result.BezelUrl))
+                        await DownloadAndSetAsset(result.BezelUrl, item, nodePath, AssetType.Bezel);
+
+                    if (!string.IsNullOrEmpty(result.ControlPanelUrl))
+                        await DownloadAndSetAsset(result.ControlPanelUrl, item, nodePath, AssetType.ControlPanel);
 
                     await SaveData(); // Save in the background
                 }

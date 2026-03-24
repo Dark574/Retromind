@@ -22,6 +22,7 @@ public class TheGamesDbProvider : IMetadataProvider
     private const string BaseUrl = "https://api.thegamesdb.net/v1";
     private const int MaxSearchResults = 40;
     private const int MaxPages = 5;
+    private const int MaxImageEnrichmentResults = 3;
 
     public TheGamesDbProvider(ScraperConfig config, HttpClient httpClient)
     {
@@ -68,7 +69,7 @@ public class TheGamesDbProvider : IMetadataProvider
                 var url =
                     $"{BaseUrl}/Games/ByGameName?apikey={Uri.EscapeDataString(apiKey)}&name={encodedQuery}" +
                     "&fields=overview,genres,publishers,players,platform,rating" +
-                    "&include=boxart,platform" +
+                    "&include=boxart,platform,genre" +
                     $"&filter%5Blanguage%5D={Uri.EscapeDataString(language)}" +
                     $"&page={page}";
 
@@ -83,12 +84,53 @@ public class TheGamesDbProvider : IMetadataProvider
                     break;
 
                 var platformData = root?["include"]?["platform"]?["data"];
+                var genreData = root?["include"]?["genre"]?["data"]
+                               ?? root?["include"]?["genres"]?["data"];
+                var developerData = root?["include"]?["developer"]?["data"]
+                                   ?? root?["include"]?["developers"]?["data"];
+                var publisherData = root?["include"]?["publisher"]?["data"]
+                                   ?? root?["include"]?["publishers"]?["data"];
                 var boxartData = root?["include"]?["boxart"]?["data"] as JsonObject;
                 var boxartBaseUrl = ResolveBoxartBaseUrl(root);
                 var platformNameById = await BuildPlatformNameMapAsync(apiKey, games, platformData, cancellationToken)
                     .ConfigureAwait(false);
+                var genreNameById = await BuildCompanyNameMapAsync(
+                        apiKey,
+                        games,
+                        genreData,
+                        "Genres/ByGenreID",
+                        static g => ExtractCompanyIds(g?["genres"]),
+                        cancellationToken,
+                        "genres",
+                        "genre")
+                    .ConfigureAwait(false);
+                var developerNameById = await BuildCompanyNameMapAsync(
+                        apiKey,
+                        games,
+                        developerData,
+                        "Developers/ByDeveloperID",
+                        static g => ExtractCompanyIds(g?["developers"]),
+                        cancellationToken,
+                        "developers",
+                        "developer",
+                        "publishers",
+                        "publisher")
+                    .ConfigureAwait(false);
+                var publisherNameById = await BuildCompanyNameMapAsync(
+                        apiKey,
+                        games,
+                        publisherData,
+                        "Publishers/ByPublisherID",
+                        static g => ExtractCompanyIds(g?["publishers"]),
+                        cancellationToken,
+                        "publishers",
+                        "publisher",
+                        "developers",
+                        "developer")
+                    .ConfigureAwait(false);
 
                 var countBeforePage = results.Count;
+                var imageEnrichmentCount = 0;
 
                 foreach (var game in games)
                 {
@@ -107,9 +149,8 @@ public class TheGamesDbProvider : IMetadataProvider
                         Id = id,
                         Title = title,
                         Description = game["overview"]?.ToString() ?? string.Empty,
-                        Developer = FirstStringFromArray(game["developers"] as JsonArray)
-                                    ?? FirstStringFromArray(game["publishers"] as JsonArray),
-                        Genre = JoinArrayValues(game["genres"] as JsonArray)
+                        Developer = ResolveCompanyName(game, developerNameById, publisherNameById),
+                        Genre = ResolveGenres(game, genreNameById)
                     };
 
                     var rawRatingText = game["rating"]?.ToString();
@@ -154,6 +195,16 @@ public class TheGamesDbProvider : IMetadataProvider
                                                 a => TypeEqualsOrContains(a["type"]?.ToString(), "wheel"))
                                             ?? SelectBoxartUrl(artArray, boxartBaseUrl,
                                                 a => TypeEqualsOrContains(a["type"]?.ToString(), "banner"));
+                    }
+
+                    var missingVisuals = string.IsNullOrWhiteSpace(result.LogoUrl)
+                                         || string.IsNullOrWhiteSpace(result.WallpaperUrl)
+                                         || string.IsNullOrWhiteSpace(result.MarqueeUrl);
+
+                    if (!string.IsNullOrWhiteSpace(id) && missingVisuals && imageEnrichmentCount < MaxImageEnrichmentResults)
+                    {
+                        await TryEnrichWithGameImagesAsync(apiKey, id, result, cancellationToken).ConfigureAwait(false);
+                        imageEnrichmentCount++;
                     }
 
                     results.Add(result);
@@ -301,6 +352,149 @@ public class TheGamesDbProvider : IMetadataProvider
         return double.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
     }
 
+    private async Task TryEnrichWithGameImagesAsync(
+        string apiKey,
+        string gameId,
+        ScraperSearchResult result,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/Games/Images?apikey={Uri.EscapeDataString(apiKey)}&games_id={Uri.EscapeDataString(gameId)}";
+            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return;
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            var root = JsonNode.Parse(json);
+            var data = root?["data"];
+            if (data == null)
+                return;
+
+            var baseUrl = data["base_url"]?["original"]?.ToString()
+                          ?? data["base_url"]?["large"]?.ToString()
+                          ?? data["base_url"]?["medium"]?.ToString()
+                          ?? string.Empty;
+
+            var candidates = new List<string>();
+            CollectImageCandidates(data["images"] ?? data, candidates);
+            if (candidates.Count == 0)
+                return;
+
+            var resolved = candidates
+                .Select(c => ToAbsoluteImageUrl(baseUrl, c))
+                .Where(IsLikelyImagePath)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (string.IsNullOrWhiteSpace(result.LogoUrl))
+            {
+                result.LogoUrl = resolved.FirstOrDefault(p =>
+                    ContainsAny(p, "clearlogo", "/logo/", "_logo", "logo/"));
+            }
+
+            if (string.IsNullOrWhiteSpace(result.CoverUrl))
+            {
+                result.CoverUrl = resolved.FirstOrDefault(p =>
+                    ContainsAny(p, "boxart/front", "boxart") && !ContainsAny(p, "back"));
+            }
+
+            if (string.IsNullOrWhiteSpace(result.WallpaperUrl))
+            {
+                result.WallpaperUrl = resolved.FirstOrDefault(p =>
+                    ContainsAny(p, "fanart", "screenshot", "background", "screenshots"));
+            }
+
+            if (string.IsNullOrWhiteSpace(result.MarqueeUrl))
+            {
+                result.MarqueeUrl = resolved.FirstOrDefault(p =>
+                    ContainsAny(p, "marquee", "wheel", "banner", "clearlogo"));
+            }
+        }
+        catch
+        {
+            // Best effort only.
+        }
+    }
+
+    private async Task<Dictionary<string, string>> BuildCompanyNameMapAsync(
+        string apiKey,
+        JsonArray games,
+        JsonNode? includeData,
+        string endpointPath,
+        Func<JsonNode?, IEnumerable<string>> idsSelector,
+        CancellationToken cancellationToken,
+        params string[] collectionKeys)
+    {
+        var map = ExtractIdNameMap(includeData);
+
+        var neededIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var game in games)
+        {
+            foreach (var id in idsSelector(game).Where(IsLikelyIdentifier))
+            {
+                if (!map.ContainsKey(id))
+                    neededIds.Add(id);
+            }
+        }
+
+        if (neededIds.Count == 0)
+            return map;
+
+        try
+        {
+            var idsCsv = string.Join(",", neededIds);
+            var url = $"{BaseUrl}/{endpointPath}?apikey={Uri.EscapeDataString(apiKey)}&id={Uri.EscapeDataString(idsCsv)}";
+
+            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return map;
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            var root = JsonNode.Parse(json);
+            var dataNode = root?["data"];
+            if (dataNode is JsonObject dataObj)
+            {
+                // Try requested collection keys first, then fall back to common names.
+                if (collectionKeys != null && collectionKeys.Length > 0)
+                {
+                    foreach (var key in collectionKeys)
+                    {
+                        if (string.IsNullOrWhiteSpace(key))
+                            continue;
+
+                        if (dataObj[key] != null)
+                        {
+                            dataNode = dataObj[key];
+                            break;
+                        }
+                    }
+                }
+
+                if (ReferenceEquals(dataNode, root?["data"]))
+                {
+                    dataNode = dataObj["developers"]
+                               ?? dataObj["publishers"]
+                               ?? dataObj["developer"]
+                               ?? dataObj["publisher"]
+                               ?? dataObj["genres"]
+                               ?? dataObj["genre"]
+                               ?? dataObj;
+                }
+            }
+
+            var resolved = ExtractIdNameMap(dataNode);
+            foreach (var kv in resolved)
+                map[kv.Key] = kv.Value;
+        }
+        catch
+        {
+            // Best effort: keep names already available via include payload.
+        }
+
+        return map;
+    }
+
     private async Task<Dictionary<string, string>> BuildPlatformNameMapAsync(
         string apiKey,
         JsonArray games,
@@ -393,6 +587,306 @@ public class TheGamesDbProvider : IMetadataProvider
                     yield return id;
             }
         }
+    }
+
+    private static string? ResolveCompanyName(
+        JsonNode game,
+        IReadOnlyDictionary<string, string> developerNameById,
+        IReadOnlyDictionary<string, string> publisherNameById)
+    {
+        var explicitDevName = FirstMeaningfulText(ExtractCompanyNames(game["developers"]));
+        if (!string.IsNullOrWhiteSpace(explicitDevName))
+            return explicitDevName;
+
+        foreach (var id in ExtractCompanyIds(game["developers"]))
+        {
+            if (developerNameById.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name))
+                return name;
+        }
+
+        var explicitPubName = FirstMeaningfulText(ExtractCompanyNames(game["publishers"]));
+        if (!string.IsNullOrWhiteSpace(explicitPubName))
+            return explicitPubName;
+
+        foreach (var id in ExtractCompanyIds(game["publishers"]))
+        {
+            if (publisherNameById.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name))
+                return name;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveGenres(
+        JsonNode game,
+        IReadOnlyDictionary<string, string> genreNameById)
+    {
+        var explicitNames = ExtractCompanyNames(game["genres"])
+            .Select(v => v.Trim())
+            .Where(v => !string.IsNullOrWhiteSpace(v) && !IsLikelyIdentifier(v))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (explicitNames.Count > 0)
+            return string.Join(", ", explicitNames);
+
+        var resolved = new List<string>();
+        foreach (var id in ExtractCompanyIds(game["genres"]))
+        {
+            if (genreNameById.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name))
+                resolved.Add(name);
+        }
+
+        resolved = resolved
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return resolved.Count > 0
+            ? string.Join(", ", resolved)
+            : null;
+    }
+
+    private static string? FirstMeaningfulText(IEnumerable<string> values)
+    {
+        return values
+            .Select(v => v?.Trim())
+            .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v) && !IsLikelyIdentifier(v));
+    }
+
+    private static IEnumerable<string> ExtractCompanyNames(JsonNode? node)
+    {
+        if (node == null)
+            yield break;
+
+        if (node is JsonArray arr)
+        {
+            foreach (var entry in arr)
+            {
+                if (entry == null)
+                    continue;
+
+                if (entry is JsonObject obj)
+                {
+                    var name = obj["name"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(name))
+                        yield return name;
+                }
+                else
+                {
+                    var raw = entry.ToString();
+                    if (!string.IsNullOrWhiteSpace(raw))
+                        yield return raw;
+                }
+            }
+
+            yield break;
+        }
+
+        if (node is JsonObject singleObj)
+        {
+            var name = singleObj["name"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(name))
+                yield return name;
+            yield break;
+        }
+
+        var single = node.ToString();
+        if (!string.IsNullOrWhiteSpace(single))
+            yield return single;
+    }
+
+    private static IEnumerable<string> ExtractCompanyIds(JsonNode? node)
+    {
+        if (node == null)
+            yield break;
+
+        static IEnumerable<string> SplitValues(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                yield break;
+
+            foreach (var part in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (!string.IsNullOrWhiteSpace(part))
+                    yield return part;
+            }
+        }
+
+        if (node is JsonArray arr)
+        {
+            foreach (var entry in arr)
+            {
+                if (entry == null)
+                    continue;
+
+                if (entry is JsonObject obj)
+                {
+                    foreach (var id in SplitValues(obj["id"]?.ToString()))
+                        yield return id;
+                }
+                else
+                {
+                    foreach (var id in SplitValues(entry.ToString()))
+                        yield return id;
+                }
+            }
+
+            yield break;
+        }
+
+        if (node is JsonObject singleObj)
+        {
+            foreach (var id in SplitValues(singleObj["id"]?.ToString()))
+                yield return id;
+            yield break;
+        }
+
+        foreach (var id in SplitValues(node.ToString()))
+            yield return id;
+    }
+
+    private static Dictionary<string, string> ExtractIdNameMap(JsonNode? node)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (node == null)
+            return result;
+
+        if (node is JsonObject obj)
+        {
+            foreach (var kv in obj)
+            {
+                if (kv.Value == null)
+                    continue;
+
+                if (kv.Value is JsonObject childObj)
+                {
+                    var id = childObj["id"]?.ToString();
+                    var name = ExtractDisplayName(childObj);
+
+                    if (string.IsNullOrWhiteSpace(id))
+                        id = kv.Key;
+
+                    if (!string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name))
+                        result[id] = name;
+                }
+                else
+                {
+                    // Sometimes payloads are keyed by id with plain string values.
+                    var valueText = kv.Value.ToString();
+                    if (IsLikelyIdentifier(kv.Key) && !string.IsNullOrWhiteSpace(valueText))
+                        result[kv.Key] = valueText;
+                }
+            }
+        }
+        else if (node is JsonArray arr)
+        {
+            foreach (var item in arr)
+            {
+                var id = item?["id"]?.ToString();
+                var name = item is JsonObject itemObj ? ExtractDisplayName(itemObj) : null;
+                if (!string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name))
+                    result[id] = name;
+            }
+        }
+
+        return result;
+    }
+
+    private static string? ExtractDisplayName(JsonObject obj)
+    {
+        return obj["name"]?.ToString()
+               ?? obj["genre"]?.ToString()
+               ?? obj["title"]?.ToString()
+               ?? obj["developer"]?.ToString()
+               ?? obj["publisher"]?.ToString()
+               ?? obj["platform"]?.ToString()
+               ?? obj["value"]?.ToString();
+    }
+
+    private static void CollectImageCandidates(JsonNode? node, List<string> sink)
+    {
+        if (node == null)
+            return;
+
+        if (node is JsonValue val)
+        {
+            var text = val.ToString();
+            if (IsLikelyImagePath(text))
+                sink.Add(text);
+            return;
+        }
+
+        if (node is JsonArray arr)
+        {
+            foreach (var child in arr)
+                CollectImageCandidates(child, sink);
+            return;
+        }
+
+        if (node is JsonObject obj)
+        {
+            var filename = obj["filename"]?.ToString();
+            if (IsLikelyImagePath(filename))
+                sink.Add(filename!);
+
+            var url = obj["url"]?.ToString();
+            if (IsLikelyImagePath(url))
+                sink.Add(url!);
+
+            foreach (var kv in obj)
+                CollectImageCandidates(kv.Value, sink);
+        }
+    }
+
+    private static bool IsLikelyImagePath(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var v = value.Trim();
+        return v.Contains(".jpg", StringComparison.OrdinalIgnoreCase)
+               || v.Contains(".jpeg", StringComparison.OrdinalIgnoreCase)
+               || v.Contains(".png", StringComparison.OrdinalIgnoreCase)
+               || v.Contains(".webp", StringComparison.OrdinalIgnoreCase)
+               || v.Contains("boxart", StringComparison.OrdinalIgnoreCase)
+               || v.Contains("fanart", StringComparison.OrdinalIgnoreCase)
+               || v.Contains("screenshot", StringComparison.OrdinalIgnoreCase)
+               || v.Contains("clearlogo", StringComparison.OrdinalIgnoreCase)
+               || v.Contains("marquee", StringComparison.OrdinalIgnoreCase)
+               || v.Contains("banner", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ToAbsoluteImageUrl(string baseUrl, string pathOrUrl)
+    {
+        if (pathOrUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || pathOrUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return pathOrUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return pathOrUrl;
+
+        return $"{baseUrl.TrimEnd('/')}/{pathOrUrl.TrimStart('/')}";
+    }
+
+    private static bool ContainsAny(string value, params string[] needles)
+    {
+        foreach (var needle in needles)
+        {
+            if (value.Contains(needle, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsLikelyIdentifier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return long.TryParse(value, out _);
     }
 
     private static Dictionary<string, string> ExtractPlatformNameMapFromInclude(JsonNode? platformData)

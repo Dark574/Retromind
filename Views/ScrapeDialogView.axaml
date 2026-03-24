@@ -88,18 +88,23 @@
                 <StackPanel Spacing="10">
                     <TextBlock Text="{x:Static p:Strings.Common_PreviewShort}" FontWeight="Bold" FontSize="16"/>
 
-                    <!-- Async preview image (downsampled) -->
-                    <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.CoverUrl}"
-                           helpers:AsyncImageHelper.DecodeWidth="400"
-                           Width="200" Height="300"
-                           Stretch="Uniform"
-                           IsVisible="{Binding SelectedResult.CoverUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="Source" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding SelectedResult.Source}" TextWrapping="Wrap"/>
 
-                    <TextBlock Text="{x:Static p:Strings.Common_CoverURL}" FontWeight="Bold"/>
-                    <TextBlock Text="{Binding SelectedResult.CoverUrl}" TextWrapping="Wrap" FontSize="10"/>
+                    <TextBlock Text="ID" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding SelectedResult.Id}" TextWrapping="Wrap"/>
 
                     <TextBlock Text="{x:Static p:Strings.Common_TitleEx}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Title}" TextWrapping="Wrap"/>
+
+                    <TextBlock Text="{x:Static p:Strings.Common_ReleaseDate}" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding SelectedResult.ReleaseDate, StringFormat={}{0:yyyy-MM-dd}}" />
+
+                    <TextBlock Text="{x:Static p:Strings.Common_Developer}" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding SelectedResult.Developer}" TextWrapping="Wrap"/>
+
+                    <TextBlock Text="{x:Static p:Strings.Common_Genre}" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding SelectedResult.Genre}" TextWrapping="Wrap"/>
 
                     <TextBlock Text="{x:Static p:Strings.Common_Description}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Description}" TextWrapping="Wrap" FontSize="12"/>
@@ -109,6 +114,68 @@
                     
                     <TextBlock Text="Platform" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Platform}" TextWrapping="Wrap"/>
+
+                    <Separator Margin="0,10,0,0"/>
+
+                    <StackPanel Spacing="5"
+                                IsVisible="{Binding SelectedResult.CoverUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="Cover" FontWeight="Bold"/>
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.CoverUrl}"
+                               helpers:AsyncImageHelper.DecodeWidth="500"
+                               Width="220" Height="320"
+                               Stretch="Uniform"/>
+                        <TextBlock Text="{Binding SelectedResult.CoverUrl}" TextWrapping="Wrap" FontSize="10"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="5"
+                                IsVisible="{Binding SelectedResult.WallpaperUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="Wallpaper" FontWeight="Bold"/>
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.WallpaperUrl}"
+                               helpers:AsyncImageHelper.DecodeWidth="700"
+                               Width="220" Height="124"
+                               Stretch="UniformToFill"/>
+                        <TextBlock Text="{Binding SelectedResult.WallpaperUrl}" TextWrapping="Wrap" FontSize="10"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="5"
+                                IsVisible="{Binding SelectedResult.LogoUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="Logo" FontWeight="Bold"/>
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.LogoUrl}"
+                               helpers:AsyncImageHelper.DecodeWidth="500"
+                               Width="220" Height="80"
+                               Stretch="Uniform"/>
+                        <TextBlock Text="{Binding SelectedResult.LogoUrl}" TextWrapping="Wrap" FontSize="10"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="5"
+                                IsVisible="{Binding SelectedResult.MarqueeUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="Marquee" FontWeight="Bold"/>
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.MarqueeUrl}"
+                               helpers:AsyncImageHelper.DecodeWidth="700"
+                               Width="220" Height="80"
+                               Stretch="Uniform"/>
+                        <TextBlock Text="{Binding SelectedResult.MarqueeUrl}" TextWrapping="Wrap" FontSize="10"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="5"
+                                IsVisible="{Binding SelectedResult.BezelUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="Bezel" FontWeight="Bold"/>
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.BezelUrl}"
+                               helpers:AsyncImageHelper.DecodeWidth="700"
+                               Width="220" Height="124"
+                               Stretch="Uniform"/>
+                        <TextBlock Text="{Binding SelectedResult.BezelUrl}" TextWrapping="Wrap" FontSize="10"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="5"
+                                IsVisible="{Binding SelectedResult.ControlPanelUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="Control Panel" FontWeight="Bold"/>
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.ControlPanelUrl}"
+                               helpers:AsyncImageHelper.DecodeWidth="700"
+                               Width="220" Height="124"
+                               Stretch="Uniform"/>
+                        <TextBlock Text="{Binding SelectedResult.ControlPanelUrl}" TextWrapping="Wrap" FontSize="10"/>
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
 
