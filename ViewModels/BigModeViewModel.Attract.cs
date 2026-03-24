@@ -232,7 +232,7 @@ public partial class BigModeViewModel
                     // Force dependent properties to refresh, even if some bindings
                     // missed intermediate notifications during the spin.
                     OnPropertyChanged(nameof(ActiveMarqueePath));
-                    OnPropertyChanged(nameof(ActiveBezelPath));
+                    RequestActiveBezelRefresh();
                     OnPropertyChanged(nameof(ActiveControlPanelPath));
 
                     // Keep game counter and preview in sync with the final attract-mode result.

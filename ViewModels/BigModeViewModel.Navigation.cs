@@ -357,6 +357,15 @@ public partial class BigModeViewModel
             // ignore
         }
 
+        try
+        {
+            DisposeActiveBezelDebounceTimer();
+        }
+        catch
+        {
+            // ignore
+        }
+
         var mainPlayerA = _mediaPlayerA;
         var mainPlayerB = _mediaPlayerB;
         var secondaryPlayer = _secondaryPlayer;

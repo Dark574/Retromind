@@ -72,7 +72,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     // --- Theme context / selection ---
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
-    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
     [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
     private MediaNode? _themeContextNode;
 
@@ -112,7 +111,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
-    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
     [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
     private MediaItem? _selectedItem;
 
@@ -154,7 +152,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(ActiveCategoryLogoPath))]
     [NotifyPropertyChangedFor(nameof(ActiveCategoryWallpaperPath))]
     [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
-    [NotifyPropertyChangedFor(nameof(ActiveBezelPath))]
     [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
     private bool _isGameListActive;
 
@@ -275,10 +272,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Resolved bezel artwork path for the currently selected item in context of the
-    /// active node. Resolution order: item → node. Does not apply theme defaults
+    /// active node. Resolution order: item → node. Does not apply theme defaults.
+    /// Updated with a short debounce to keep rapid list navigation smooth.
     /// </summary>
     public string? ActiveBezelPath =>
-        ResolveArtworkForSelection(AssetType.Bezel);
+        _activeBezelPathResolved;
 
     /// <summary>
     /// Resolved control panel artwork path for the currently selected item in context of the

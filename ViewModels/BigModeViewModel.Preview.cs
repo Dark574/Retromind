@@ -45,6 +45,7 @@ public partial class BigModeViewModel
     private static readonly TimeSpan PreviewDebounceMedium = TimeSpan.FromMilliseconds(200);
     private static readonly TimeSpan PreviewDebounceLarge = TimeSpan.FromMilliseconds(275);
     private static readonly TimeSpan PreviewDebounceHuge = TimeSpan.FromMilliseconds(350);
+    private static readonly TimeSpan BezelDebounceDelay = TimeSpan.FromMilliseconds(140);
 
     private static readonly TimeSpan VideoFadeOutDelay = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan VideoStartSettleDelay = TimeSpan.FromMilliseconds(75);
@@ -63,6 +64,8 @@ public partial class BigModeViewModel
 
     // --- Preview state ---
     private DispatcherTimer? _previewDebounceTimer;
+    private DispatcherTimer? _bezelDebounceTimer;
+    private string? _activeBezelPathResolved;
     
     // One-time estimate of overall library size to tune debounce for huge collections.
     private int? _estimatedTotalItems;
@@ -289,7 +292,7 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveWallpaperPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));
-        OnPropertyChanged(nameof(ActiveBezelPath));
+        RequestActiveBezelRefresh();
         OnPropertyChanged(nameof(ActiveControlPanelPath));
         if (IsGameListActive)
             ApplyNodeFallbackOverrides();
@@ -325,7 +328,7 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveWallpaperPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));
-        OnPropertyChanged(nameof(ActiveBezelPath));
+        RequestActiveBezelRefresh();
         OnPropertyChanged(nameof(ActiveControlPanelPath));
         
         TriggerPreviewPlaybackWithDebounce();
@@ -369,7 +372,7 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveWallpaperPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));
-        OnPropertyChanged(nameof(ActiveBezelPath));
+        RequestActiveBezelRefresh();
         OnPropertyChanged(nameof(ActiveControlPanelPath));
         
         TriggerPreviewPlaybackWithDebounce();
@@ -484,6 +487,86 @@ public partial class BigModeViewModel
             _previewDebounceTimer.IsEnabled = false;
             _previewDebounceTimer = null;
         }
+    }
+
+    private void RequestActiveBezelRefresh()
+    {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(RequestActiveBezelRefresh, DispatcherPriority.Background);
+            return;
+        }
+
+        // No active game selection -> clear immediately and stop pending updates.
+        if (!IsGameListActive || SelectedItem == null)
+        {
+            CancelActiveBezelDebounce();
+            SetActiveBezelPathResolved(null);
+            return;
+        }
+
+        EnsureActiveBezelDebounceTimer();
+        _bezelDebounceTimer!.Interval = BezelDebounceDelay;
+        _bezelDebounceTimer.IsEnabled = true;
+    }
+
+    private void EnsureActiveBezelDebounceTimer()
+    {
+        if (_bezelDebounceTimer != null)
+            return;
+
+        _bezelDebounceTimer = new DispatcherTimer
+        {
+            IsEnabled = false
+        };
+
+        _bezelDebounceTimer.Tick += OnActiveBezelDebounceTimerTick;
+    }
+
+    private void OnActiveBezelDebounceTimerTick(object? sender, EventArgs e)
+    {
+        if (_bezelDebounceTimer != null)
+            _bezelDebounceTimer.IsEnabled = false;
+
+        SetActiveBezelPathResolved(ResolveArtworkForSelection(AssetType.Bezel));
+    }
+
+    private void CancelActiveBezelDebounce()
+    {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(CancelActiveBezelDebounce, DispatcherPriority.Background);
+            return;
+        }
+
+        if (_bezelDebounceTimer != null)
+            _bezelDebounceTimer.IsEnabled = false;
+    }
+
+    private void DisposeActiveBezelDebounceTimer()
+    {
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(DisposeActiveBezelDebounceTimer, DispatcherPriority.Background);
+            return;
+        }
+
+        if (_bezelDebounceTimer != null)
+        {
+            _bezelDebounceTimer.Tick -= OnActiveBezelDebounceTimerTick;
+            _bezelDebounceTimer.Stop();
+            _bezelDebounceTimer.IsEnabled = false;
+            _bezelDebounceTimer = null;
+        }
+    }
+
+    private void SetActiveBezelPathResolved(string? value)
+    {
+        if (string.Equals(_activeBezelPathResolved, value, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        _activeBezelPathResolved = value;
+        OnPropertyChanged(nameof(ActiveBezelPath));
     }
 
     private TimeSpan GetAdaptivePreviewDebounceDelay()
