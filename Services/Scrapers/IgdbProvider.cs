@@ -31,6 +31,7 @@ public class IgdbProvider : IMetadataProvider
     private const string IgdbApiUrl = "https://api.igdb.com/v4/games";
     private const int TokenExpiryBufferSeconds = 60; // Buffer to avoid edge-case expirations
     private const int MaxRetries = 3;
+    private const int MaxSearchResults = 40;
 
     public IgdbProvider(ScraperConfig config, HttpClient httpClient)
     {
@@ -103,7 +104,7 @@ public class IgdbProvider : IMetadataProvider
 
     /// <summary>
     /// Searches IGDB for games matching the query.
-    /// Returns up to 20 results with metadata.
+    /// Returns up to <see cref="MaxSearchResults"/> results with metadata.
     /// </summary>
     public async Task<List<ScraperSearchResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
@@ -118,7 +119,7 @@ public class IgdbProvider : IMetadataProvider
         {
             // Query string with fields for metadata
             var igdbQuery =
-                $"search \"{query}\"; fields name, summary, first_release_date, total_rating, cover.url, artworks.url, screenshots.url, genres.name, involved_companies.company.name, platforms.name; limit 20;";
+                $"search \"{query}\"; fields name, summary, first_release_date, total_rating, cover.url, artworks.url, screenshots.url, genres.name, involved_companies.company.name, platforms.name; limit {MaxSearchResults};";
 
             // Send request with retry logic
             using var response = await SendWithRetryAsync(async token =>

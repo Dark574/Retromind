@@ -15,6 +15,8 @@ public class GoogleBooksProvider : IMetadataProvider
 {
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
+    private const int MaxSearchResults = 40;
+    private const int GooglePageSize = 40;
 
     public GoogleBooksProvider(ScraperConfig config, HttpClient httpClient)
     {
@@ -35,81 +37,94 @@ public class GoogleBooksProvider : IMetadataProvider
             // Optional: &key={apiKey}
             
             var encodedQuery = HttpUtility.UrlEncode(query);
-            var url = $"https://www.googleapis.com/books/v1/volumes?q={encodedQuery}&maxResults=20";
-            
-            // API key (optional): user-specified key only.
-            string apiKey = _config.ApiKey ?? string.Empty;
+            var apiKey = _config.ApiKey ?? string.Empty;
 
-            if (!string.IsNullOrWhiteSpace(apiKey))
+            var results = new List<ScraperSearchResult>(MaxSearchResults);
+            var seenIds = new HashSet<string>(StringComparer.Ordinal);
+
+            for (var startIndex = 0; results.Count < MaxSearchResults; startIndex += GooglePageSize)
             {
-                url += $"&key={apiKey}";
-            }
+                var pageSize = Math.Min(GooglePageSize, MaxSearchResults - results.Count);
+                var url = $"https://www.googleapis.com/books/v1/volumes?q={encodedQuery}&maxResults={pageSize}&startIndex={startIndex}";
 
-            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+                // API key (optional): user-specified key only.
+                if (!string.IsNullOrWhiteSpace(apiKey))
+                    url += $"&key={apiKey}";
 
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var doc = JsonNode.Parse(json);
-            
-            var items = doc?["items"]?.AsArray();
-            var results = new List<ScraperSearchResult>();
+                using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
 
-            if (items == null) return results;
+                var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                var doc = JsonNode.Parse(json);
 
-            foreach (var item in items)
-            {
-                var info = item?["volumeInfo"];
-                if (info == null) continue;
+                var totalItems = doc?["totalItems"]?.GetValue<int>() ?? 0;
+                var items = doc?["items"]?.AsArray();
+                if (items == null || items.Count == 0)
+                    break;
 
-                var id = item?["id"]?.ToString() ?? "";
-                var title = info["title"]?.ToString() ?? "Unknown";
-                var subtitle = info["subtitle"]?.ToString();
-                if (!string.IsNullOrEmpty(subtitle)) title += $" - {subtitle}";
-
-                var authors = info["authors"]?.AsArray();
-                var authorStr = "";
-                if (authors != null && authors.Count > 0)
-                    authorStr = authors[0]?.ToString() ?? "";
-
-                if (!string.IsNullOrEmpty(authorStr))
-                    title += $" ({authorStr})";
-
-                var desc = info["description"]?.ToString() ?? "";
-                var publishedDate = info["publishedDate"]?.ToString(); // "YYYY-MM-DD" or simple "YYYY"
-
-                var res = new ScraperSearchResult
+                foreach (var item in items)
                 {
-                    Source = "GoogleBooks",
-                    Id = id,
-                    Title = title,
-                    Description = desc
-                };
+                    var info = item?["volumeInfo"];
+                    if (info == null) continue;
 
-                // Parse date.
-                if (!string.IsNullOrEmpty(publishedDate))
-                {
-                    if (DateTime.TryParse(publishedDate, out var date))
-                        res.ReleaseDate = date;
-                    else if (int.TryParse(publishedDate, out int year)) // only year
-                        res.ReleaseDate = new DateTime(year, 1, 1);
-                }
+                    var id = item?["id"]?.ToString() ?? "";
+                    if (!seenIds.Add(id))
+                        continue;
 
-                // Google returns "imageLinks" with "thumbnail" and "smallThumbnail".
-                var images = info["imageLinks"];
-                var thumb = images?["thumbnail"]?.ToString();
-                
-                // Google thumbnails are often http://; prefer https:// for safety.
-                if (!string.IsNullOrEmpty(thumb))
-                {
-                    res.CoverUrl = thumb.Replace("http://", "https://");
+                    var title = info["title"]?.ToString() ?? "Unknown";
+                    var subtitle = info["subtitle"]?.ToString();
+                    if (!string.IsNullOrEmpty(subtitle)) title += $" - {subtitle}";
+
+                    var authors = info["authors"]?.AsArray();
+                    var authorStr = "";
+                    if (authors != null && authors.Count > 0)
+                        authorStr = authors[0]?.ToString() ?? "";
+
+                    if (!string.IsNullOrEmpty(authorStr))
+                        title += $" ({authorStr})";
+
+                    var desc = info["description"]?.ToString() ?? "";
+                    var publishedDate = info["publishedDate"]?.ToString(); // "YYYY-MM-DD" or simple "YYYY"
+
+                    var res = new ScraperSearchResult
+                    {
+                        Source = "GoogleBooks",
+                        Id = id,
+                        Title = title,
+                        Description = desc
+                    };
+
+                    // Parse date.
+                    if (!string.IsNullOrEmpty(publishedDate))
+                    {
+                        if (DateTime.TryParse(publishedDate, out var date))
+                            res.ReleaseDate = date;
+                        else if (int.TryParse(publishedDate, out int year)) // only year
+                            res.ReleaseDate = new DateTime(year, 1, 1);
+                    }
+
+                    // Google returns "imageLinks" with "thumbnail" and "smallThumbnail".
+                    var images = info["imageLinks"];
+                    var thumb = images?["thumbnail"]?.ToString();
                     
-                    // Higher resolution trick:
-                    // Many Google thumbnails include a &zoom=1 parameter.
-                    // In some cases &zoom=0 or removing the flag yields a bigger image,
-                    // but behavior is not guaranteed, so we keep the original for now.
+                    // Google thumbnails are often http://; prefer https:// for safety.
+                    if (!string.IsNullOrEmpty(thumb))
+                    {
+                        res.CoverUrl = thumb.Replace("http://", "https://");
+                        
+                        // Higher resolution trick:
+                        // Many Google thumbnails include a &zoom=1 parameter.
+                        // In some cases &zoom=0 or removing the flag yields a bigger image,
+                        // but behavior is not guaranteed, so we keep the original for now.
+                    }
+
+                    results.Add(res);
+                    if (results.Count >= MaxSearchResults)
+                        break;
                 }
 
-                results.Add(res);
+                if (totalItems > 0 && startIndex + pageSize >= totalItems)
+                    break;
             }
 
             return results;

@@ -18,7 +18,7 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
 {
-    private const int MaxResults = 200;
+    private const int MaxResults = 40;
 
     private readonly MetadataService _metadataService;
     private readonly MediaItem _targetItem;

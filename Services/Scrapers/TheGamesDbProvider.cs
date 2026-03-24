@@ -20,6 +20,8 @@ public class TheGamesDbProvider : IMetadataProvider
     private readonly HttpClient _httpClient;
 
     private const string BaseUrl = "https://api.thegamesdb.net/v1";
+    private const int MaxSearchResults = 40;
+    private const int MaxPages = 5;
 
     public TheGamesDbProvider(ScraperConfig config, HttpClient httpClient)
     {
@@ -58,95 +60,110 @@ public class TheGamesDbProvider : IMetadataProvider
         {
             var encodedQuery = Uri.EscapeDataString(query);
             var language = NormalizeLanguage(_config.Language);
+            var results = new List<ScraperSearchResult>(MaxSearchResults);
+            var seen = new HashSet<string>(StringComparer.Ordinal);
 
-            var url =
-                $"{BaseUrl}/Games/ByGameName?apikey={Uri.EscapeDataString(apiKey)}&name={encodedQuery}" +
-                "&fields=overview,genres,publishers,players,platform,rating" +
-                "&include=boxart,platform" +
-                $"&filter%5Blanguage%5D={Uri.EscapeDataString(language)}";
-
-            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var root = JsonNode.Parse(json);
-
-            var games = root?["data"]?["games"]?.AsArray();
-            if (games == null || games.Count == 0)
-                return new List<ScraperSearchResult>();
-
-            var platformData = root?["include"]?["platform"]?["data"];
-            var boxartData = root?["include"]?["boxart"]?["data"] as JsonObject;
-            var boxartBaseUrl = ResolveBoxartBaseUrl(root);
-            var platformNameById = await BuildPlatformNameMapAsync(apiKey, games, platformData, cancellationToken)
-                .ConfigureAwait(false);
-
-            var results = new List<ScraperSearchResult>(games.Count);
-
-            foreach (var game in games)
+            for (var page = 1; page <= MaxPages && results.Count < MaxSearchResults; page++)
             {
-                if (game == null)
-                    continue;
+                var url =
+                    $"{BaseUrl}/Games/ByGameName?apikey={Uri.EscapeDataString(apiKey)}&name={encodedQuery}" +
+                    "&fields=overview,genres,publishers,players,platform,rating" +
+                    "&include=boxart,platform" +
+                    $"&filter%5Blanguage%5D={Uri.EscapeDataString(language)}" +
+                    $"&page={page}";
 
-                var id = game["id"]?.ToString() ?? string.Empty;
-                var title = game["game_title"]?.ToString() ?? "Unknown";
+                using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
 
-                var result = new ScraperSearchResult
+                var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                var root = JsonNode.Parse(json);
+
+                var games = root?["data"]?["games"]?.AsArray();
+                if (games == null || games.Count == 0)
+                    break;
+
+                var platformData = root?["include"]?["platform"]?["data"];
+                var boxartData = root?["include"]?["boxart"]?["data"] as JsonObject;
+                var boxartBaseUrl = ResolveBoxartBaseUrl(root);
+                var platformNameById = await BuildPlatformNameMapAsync(apiKey, games, platformData, cancellationToken)
+                    .ConfigureAwait(false);
+
+                var countBeforePage = results.Count;
+
+                foreach (var game in games)
                 {
-                    Source = "TheGamesDB",
-                    Id = id,
-                    Title = title,
-                    Description = game["overview"]?.ToString() ?? string.Empty,
-                    Developer = FirstStringFromArray(game["developers"] as JsonArray)
-                                ?? FirstStringFromArray(game["publishers"] as JsonArray),
-                    Genre = JoinArrayValues(game["genres"] as JsonArray)
-                };
+                    if (game == null)
+                        continue;
 
-                var rawRatingText = game["rating"]?.ToString();
-                if (TryParseRating(rawRatingText, out var rawRating))
-                {
-                    result.Rating = rawRating;
-                }
+                    var id = game["id"]?.ToString() ?? string.Empty;
+                    var title = game["game_title"]?.ToString() ?? "Unknown";
+                    var dedupeKey = string.IsNullOrWhiteSpace(id) ? title : id;
+                    if (!seen.Add(dedupeKey))
+                        continue;
 
-                if (DateTime.TryParse(game["release_date"]?.ToString(), out var releaseDate))
-                {
-                    result.ReleaseDate = releaseDate;
-                }
+                    var result = new ScraperSearchResult
+                    {
+                        Source = "TheGamesDB",
+                        Id = id,
+                        Title = title,
+                        Description = game["overview"]?.ToString() ?? string.Empty,
+                        Developer = FirstStringFromArray(game["developers"] as JsonArray)
+                                    ?? FirstStringFromArray(game["publishers"] as JsonArray),
+                        Genre = JoinArrayValues(game["genres"] as JsonArray)
+                    };
 
-                result.Platform = ResolvePlatform(game, platformNameById);
+                    var rawRatingText = game["rating"]?.ToString();
+                    if (TryParseRating(rawRatingText, out var rawRating))
+                    {
+                        result.Rating = rawRating;
+                    }
 
-                if (!string.IsNullOrWhiteSpace(id) && boxartData != null && boxartData[id] is JsonArray artArray)
-                {
-                    result.CoverUrl = SelectBoxartUrl(artArray, boxartBaseUrl,
-                        a => string.Equals(a["type"]?.ToString(), "boxart", StringComparison.OrdinalIgnoreCase) &&
-                             string.Equals(a["side"]?.ToString(), "front", StringComparison.OrdinalIgnoreCase))
-                                     ?? SelectBoxartUrl(artArray, boxartBaseUrl,
-                                         a => string.Equals(a["type"]?.ToString(), "boxart", StringComparison.OrdinalIgnoreCase))
-                                     ?? SelectBoxartUrl(artArray, boxartBaseUrl, _ => true);
+                    if (DateTime.TryParse(game["release_date"]?.ToString(), out var releaseDate))
+                    {
+                        result.ReleaseDate = releaseDate;
+                    }
 
-                    result.WallpaperUrl = SelectBoxartUrl(artArray, boxartBaseUrl,
-                        a => string.Equals(a["type"]?.ToString(), "fanart", StringComparison.OrdinalIgnoreCase))
+                    result.Platform = ResolvePlatform(game, platformNameById);
+
+                    if (!string.IsNullOrWhiteSpace(id) && boxartData != null && boxartData[id] is JsonArray artArray)
+                    {
+                        result.CoverUrl = SelectBoxartUrl(artArray, boxartBaseUrl,
+                            a => string.Equals(a["type"]?.ToString(), "boxart", StringComparison.OrdinalIgnoreCase) &&
+                                 string.Equals(a["side"]?.ToString(), "front", StringComparison.OrdinalIgnoreCase))
                                          ?? SelectBoxartUrl(artArray, boxartBaseUrl,
-                                             a => string.Equals(a["type"]?.ToString(), "screenshot", StringComparison.OrdinalIgnoreCase))
+                                             a => string.Equals(a["type"]?.ToString(), "boxart", StringComparison.OrdinalIgnoreCase))
+                                         ?? SelectBoxartUrl(artArray, boxartBaseUrl, _ => true);
+
+                        result.WallpaperUrl = SelectBoxartUrl(artArray, boxartBaseUrl,
+                            a => string.Equals(a["type"]?.ToString(), "fanart", StringComparison.OrdinalIgnoreCase))
+                                             ?? SelectBoxartUrl(artArray, boxartBaseUrl,
+                                                 a => string.Equals(a["type"]?.ToString(), "screenshot", StringComparison.OrdinalIgnoreCase))
+                                             ?? SelectBoxartUrl(artArray, boxartBaseUrl,
+                                                 a => string.Equals(a["type"]?.ToString(), "banner", StringComparison.OrdinalIgnoreCase));
+
+                        // TheGamesDB artwork naming can vary by entry (clearlogo/logo variants).
+                        result.LogoUrl = SelectBoxartUrl(artArray, boxartBaseUrl,
+                            a => TypeEqualsOrContains(a["type"]?.ToString(), "clearlogo"))
                                          ?? SelectBoxartUrl(artArray, boxartBaseUrl,
-                                             a => string.Equals(a["type"]?.ToString(), "banner", StringComparison.OrdinalIgnoreCase));
+                                             a => TypeEqualsOrContains(a["type"]?.ToString(), "logo"));
 
-                    // TheGamesDB artwork naming can vary by entry (clearlogo/logo variants).
-                    result.LogoUrl = SelectBoxartUrl(artArray, boxartBaseUrl,
-                        a => TypeEqualsOrContains(a["type"]?.ToString(), "clearlogo"))
-                                     ?? SelectBoxartUrl(artArray, boxartBaseUrl,
-                                         a => TypeEqualsOrContains(a["type"]?.ToString(), "logo"));
+                        // For arcade systems (e.g. MAME), marquee can appear as "marquee" or banner-like artwork.
+                        result.MarqueeUrl = SelectBoxartUrl(artArray, boxartBaseUrl,
+                            a => TypeEqualsOrContains(a["type"]?.ToString(), "marquee"))
+                                            ?? SelectBoxartUrl(artArray, boxartBaseUrl,
+                                                a => TypeEqualsOrContains(a["type"]?.ToString(), "wheel"))
+                                            ?? SelectBoxartUrl(artArray, boxartBaseUrl,
+                                                a => TypeEqualsOrContains(a["type"]?.ToString(), "banner"));
+                    }
 
-                    // For arcade systems (e.g. MAME), marquee can appear as "marquee" or banner-like artwork.
-                    result.MarqueeUrl = SelectBoxartUrl(artArray, boxartBaseUrl,
-                        a => TypeEqualsOrContains(a["type"]?.ToString(), "marquee"))
-                                        ?? SelectBoxartUrl(artArray, boxartBaseUrl,
-                                            a => TypeEqualsOrContains(a["type"]?.ToString(), "wheel"))
-                                        ?? SelectBoxartUrl(artArray, boxartBaseUrl,
-                                            a => TypeEqualsOrContains(a["type"]?.ToString(), "banner"));
+                    results.Add(result);
+                    if (results.Count >= MaxSearchResults)
+                        break;
                 }
 
-                results.Add(result);
+                // If pagination is ignored by the API and we keep receiving the same page, stop early.
+                if (results.Count == countBeforePage)
+                    break;
             }
 
             return results;

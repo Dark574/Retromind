@@ -14,6 +14,7 @@ public class OpenLibraryProvider : IMetadataProvider
 {
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
+    private const int MaxSearchResults = 40;
 
     public OpenLibraryProvider(ScraperConfig config, HttpClient httpClient)
     {
@@ -34,7 +35,7 @@ public class OpenLibraryProvider : IMetadataProvider
         {
             // API: https://openlibrary.org/dev/docs/api/search
             var encodedQuery = HttpUtility.UrlEncode(query);
-            var url = $"https://openlibrary.org/search.json?q={encodedQuery}&limit=20";
+            var url = $"https://openlibrary.org/search.json?q={encodedQuery}&limit={MaxSearchResults}";
 
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.UserAgent.ParseAdd("Retromind/1.0 (OpenSource Media Manager)");

@@ -16,6 +16,8 @@ public class TmdbProvider : IMetadataProvider
     private readonly HttpClient _httpClient;
     private const string BaseUrl = "https://api.themoviedb.org/3";
     private const string ImageBaseUrl = "https://image.tmdb.org/t/p/original";
+    private const int MaxSearchResults = 40;
+    private const int MaxPages = 5;
 
     public TmdbProvider(ScraperConfig config, HttpClient httpClient)
     {
@@ -66,58 +68,71 @@ public class TmdbProvider : IMetadataProvider
             // Use the configured language, fallback to en-US.
             var lang = string.IsNullOrEmpty(_config.Language) ? "en-US" : _config.Language;
 
-            var url = $"{BaseUrl}/search/multi?api_key={apiKey}&query={encodedQuery}&language={lang}";
+            var results = new List<ScraperSearchResult>(MaxSearchResults);
+            var seen = new HashSet<string>(StringComparer.Ordinal);
 
-            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var doc = JsonNode.Parse(json);
-
-            var items = doc?["results"]?.AsArray();
-            var results = new List<ScraperSearchResult>();
-
-            if (items == null) return results;
-
-            foreach (var item in items)
+            for (var page = 1; page <= MaxPages && results.Count < MaxSearchResults; page++)
             {
-                var mediaType = item?["media_type"]?.ToString(); // "movie" or "tv"
-                if (mediaType != "movie" && mediaType != "tv") continue;
+                var url = $"{BaseUrl}/search/multi?api_key={apiKey}&query={encodedQuery}&language={lang}&page={page}";
+                using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
 
-                var id = item?["id"]?.ToString() ?? "";
-                var title = mediaType == "movie" ? item?["title"]?.ToString() : item?["name"]?.ToString();
-                var release = mediaType == "movie" ? item?["release_date"]?.ToString() : item?["first_air_date"]?.ToString();
-                var overview = item?["overview"]?.ToString() ?? "";
-                // TMDB rating is 0–10, Retromind uses 0–100 – convert to percentage.
-                var rating = item?["vote_average"]?.GetValue<double>() * 10;
+                var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                var doc = JsonNode.Parse(json);
+                var items = doc?["results"]?.AsArray();
+                if (items == null || items.Count == 0)
+                    break;
 
-                var posterPath = item?["poster_path"]?.ToString();
-                var backdropPath = item?["backdrop_path"]?.ToString();
+                var totalPages = doc?["total_pages"]?.GetValue<int>() ?? 0;
 
-                var res = new ScraperSearchResult
+                foreach (var item in items)
                 {
-                    Source = "TMDB",
-                    Id = id,
-                    Title = title ?? "Unknown",
-                    Description = overview,
-                    Rating = rating
-                };
+                    var mediaType = item?["media_type"]?.ToString(); // "movie" or "tv"
+                    if (mediaType != "movie" && mediaType != "tv") continue;
 
-                if (DateTime.TryParse(release, out var date))
-                    res.ReleaseDate = date;
+                    var id = item?["id"]?.ToString() ?? "";
+                    if (!seen.Add($"{mediaType}:{id}"))
+                        continue;
 
-                if (!string.IsNullOrEmpty(posterPath))
-                    res.CoverUrl = ImageBaseUrl + posterPath;
+                    var title = mediaType == "movie" ? item?["title"]?.ToString() : item?["name"]?.ToString();
+                    var release = mediaType == "movie" ? item?["release_date"]?.ToString() : item?["first_air_date"]?.ToString();
+                    var overview = item?["overview"]?.ToString() ?? "";
+                    // TMDB rating is 0–10, Retromind uses 0–100 – convert to percentage.
+                    var rating = item?["vote_average"]?.GetValue<double>() * 10;
 
-                if (!string.IsNullOrEmpty(backdropPath))
-                    res.WallpaperUrl = ImageBaseUrl + backdropPath;
-                
-                // TMDB does not expose logo images in the basic search result.
-                // For logos you'd need a separate "images" request per item,
-                // which would significantly increase API traffic and latency.
-                // For now we skip logos for performance reasons.
+                    var posterPath = item?["poster_path"]?.ToString();
+                    var backdropPath = item?["backdrop_path"]?.ToString();
 
-                results.Add(res);
+                    var res = new ScraperSearchResult
+                    {
+                        Source = "TMDB",
+                        Id = id,
+                        Title = title ?? "Unknown",
+                        Description = overview,
+                        Rating = rating
+                    };
+
+                    if (DateTime.TryParse(release, out var date))
+                        res.ReleaseDate = date;
+
+                    if (!string.IsNullOrEmpty(posterPath))
+                        res.CoverUrl = ImageBaseUrl + posterPath;
+
+                    if (!string.IsNullOrEmpty(backdropPath))
+                        res.WallpaperUrl = ImageBaseUrl + backdropPath;
+                    
+                    // TMDB does not expose logo images in the basic search result.
+                    // For logos you'd need a separate "images" request per item,
+                    // which would significantly increase API traffic and latency.
+                    // For now we skip logos for performance reasons.
+
+                    results.Add(res);
+                    if (results.Count >= MaxSearchResults)
+                        break;
+                }
+
+                if (totalPages > 0 && page >= totalPages)
+                    break;
             }
 
             return results;

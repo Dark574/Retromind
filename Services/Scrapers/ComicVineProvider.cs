@@ -15,6 +15,7 @@ public class ComicVineProvider : IMetadataProvider
 {
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
+    private const int MaxSearchResults = 40;
 
     public ComicVineProvider(ScraperConfig config, HttpClient httpClient)
     {
@@ -49,7 +50,7 @@ public class ComicVineProvider : IMetadataProvider
             qs["format"] = "json";
             qs["query"] = query;
             qs["resources"] = "volume,issue";
-            qs["limit"] = "20";
+            qs["limit"] = MaxSearchResults.ToString();
             builder.Query = qs.ToString();
             var url = builder.Uri;
 
