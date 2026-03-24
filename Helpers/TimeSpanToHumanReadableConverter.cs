@@ -25,12 +25,12 @@ public class TimeSpanToHumanReadableConverter : IValueConverter
             if (span.TotalMinutes < 1) 
                 return "< 1m";
             
-            // More than an hour: "5h 30m"
+            // More than an hour: "5h 30m" / "2d 3h 15m"
             if (span.TotalHours >= 1)
             {
-                // Use string interpolation with invariant formatting for 'h' and 'm' suffixes, 
-                // or move the format string itself to resources if you want "5 Std 30 Min".
-                // For now, compact "h/m" is universally understood in gaming context.
+                if (span.Days > 0)
+                    return $"{span.Days}d {span.Hours}h {span.Minutes}m";
+
                 return $"{(int)span.TotalHours}h {span.Minutes}m";
             }
             
