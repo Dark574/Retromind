@@ -70,7 +70,7 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     private void InitializeScrapers()
     {
         AvailableScrapers.Clear();
-        foreach (var scraper in _settings.Scrapers.Where(s => s.Type != ScraperType.EmuMovies))
+        foreach (var scraper in _settings.Scrapers.Where(s => s.Type != ScraperType.None && s.Type != ScraperType.EmuMovies))
         {
             AvailableScrapers.Add(scraper);
         }

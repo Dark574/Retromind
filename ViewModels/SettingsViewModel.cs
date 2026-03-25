@@ -56,10 +56,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _heroicEpicPathInput = string.Empty;
     
-    // Filtered list of scraper types for the UI (hiding 'None')
-    // EmuMovies temporarily disabled until their API is back.
+    // Available scraper types for the UI.
+    // Keep "None" so new entries can stay intentionally unconfigured.
+    // EmuMovies is temporarily disabled until their API is back.
     public ScraperType[] AvailableScraperTypes { get; } = Enum.GetValues<ScraperType>()
-        .Where(t => t != ScraperType.None && t != ScraperType.EmuMovies)
+        .Where(t => t != ScraperType.EmuMovies)
         .ToArray();
     
     // UI Collections
@@ -263,7 +264,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         AddHeroicEpicPathCommand = new RelayCommand(AddHeroicEpicPath);
         RemoveHeroicEpicPathCommand = new RelayCommand(RemoveHeroicEpicPath, () => SelectedHeroicEpicPath != null);
         
-        SaveCommand = new RelayCommand(Save);
+        SaveCommand = new RelayCommand(Save, CanSave);
         BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync, () => SelectedEmulator != null);
         BrowseSteamLibraryPathCommand = new AsyncRelayCommand(BrowseSteamLibraryPathAsync);
         BrowseHeroicGogPathCommand = new AsyncRelayCommand(BrowseHeroicGogPathAsync);
@@ -353,7 +354,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         if (e.PropertyName == nameof(ScraperConfig.Type))
         {
             RefreshHintProperties();
+            SaveCommand.NotifyCanExecuteChanged();
         }
+    }
+
+    private bool CanSave()
+    {
+        // Prevent persisting half-configured scraper entries.
+        return Scrapers.All(s => s.Type != ScraperType.None);
     }
 
     private void RefreshHintProperties()
@@ -443,18 +451,15 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     private void AddScraper()
     {
-        var defaultType = AvailableScraperTypes.Length > 0
-            ? AvailableScraperTypes[0]
-            : ScraperType.IGDB;
-
         var newScraper = new ScraperConfig
         {
-            // Ensure the selected value exists in AvailableScraperTypes.
-            Type = defaultType
+            // Start unconfigured; user picks the provider manually.
+            Type = ScraperType.None
         };
         
         Scrapers.Add(newScraper);
         SelectedScraper = newScraper;
+        SaveCommand.NotifyCanExecuteChanged();
     }
 
     private void RemoveScraper()
@@ -466,6 +471,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             
             Scrapers.Remove(SelectedScraper);
             SelectedScraper = null;
+            SaveCommand.NotifyCanExecuteChanged();
         }
     }
     
@@ -487,6 +493,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     
     private void Save()
     {
+        if (!CanSave())
+            return;
+
         // Persist emulator wrapper & env configuration from UI into the selected emulator model
         if (SelectedEmulator != null)
         {
