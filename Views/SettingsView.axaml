@@ -218,14 +218,14 @@
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{x:Static p:Strings.Metadata_Client}" FontWeight="Bold" />
-                                            <TextBlock Text="{x:Static p:Strings.Hint_IgdbCredentials}" FontSize="10" Opacity="0.6" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
+                                            <TextBlock Text="{x:Static p:Strings.Hint_Required}" FontSize="10" Foreground="Red" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
                                         </StackPanel>
                                         <TextBox Text="{Binding ClientId}" />
                                     </StackPanel>
                                     <StackPanel Margin="0,10,0,0">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{x:Static p:Strings.Metadata_ClientSecret}" FontWeight="Bold" />
-                                            <TextBlock Text="{x:Static p:Strings.Hint_IgdbCredentials}" FontSize="10" Opacity="0.6" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
+                                            <TextBlock Text="{x:Static p:Strings.Hint_Required}" FontSize="10" Foreground="Red" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
                                         </StackPanel>
                                         <TextBox Text="{Binding ClientSecret}" PasswordChar="*" />
                                     </StackPanel>
@@ -250,19 +250,12 @@
                                 </StackPanel>
                                 
                                 <!-- API Key (TMDB & Others) -->
-                                <StackPanel>
-                                    <StackPanel.IsVisible>
-                                        <MultiBinding Converter="{x:Static BoolConverters.And}">
-                                            <Binding Path="!$parent[Window].((vm:SettingsViewModel)DataContext).IsIgdbSelected"/>
-                                            <Binding Path="!$parent[Window].((vm:SettingsViewModel)DataContext).IsEmuMoviesSelected"/>
-                                        </MultiBinding>
-                                    </StackPanel.IsVisible>
-
+                                <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsApiKeyUsedSelected}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{x:Static p:Strings.Metadata_ApiKey}" FontWeight="Bold" />
-                                        <TextBlock Text="{x:Static p:Strings.Hint_TmdbKey}" 
-                                                   IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsTmdbSelected}"
-                                                   FontSize="10" Opacity="0.6" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
+                                        <TextBlock Text="{x:Static p:Strings.Hint_Required}"
+                                                   IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsApiKeyRequiredSelected}"
+                                                   FontSize="10" Foreground="Red" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
                                     </StackPanel>
                                     <TextBox Text="{Binding ApiKey}" PasswordChar="*" />
                                 </StackPanel>

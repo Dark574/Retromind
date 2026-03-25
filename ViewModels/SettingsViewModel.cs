@@ -300,6 +300,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public bool IsEmuMoviesSelected => SelectedScraper?.Type == ScraperType.EmuMovies;
     public bool IsTheGamesDbSelected => SelectedScraper?.Type == ScraperType.TheGamesDB;
     public bool IsGoogleBooksSelected => SelectedScraper?.Type == ScraperType.GoogleBooks;
+    public bool IsComicVineSelected => SelectedScraper?.Type == ScraperType.ComicVine;
+    public bool IsApiKeyUsedSelected => IsTmdbSelected || IsTheGamesDbSelected || IsComicVineSelected || IsGoogleBooksSelected;
+    public bool IsApiKeyRequiredSelected => IsTmdbSelected || IsTheGamesDbSelected || IsComicVineSelected;
     public bool IsLanguageSelectionSupported => IsTmdbSelected || IsTheGamesDbSelected || IsGoogleBooksSelected;
     
     // Handle property changes on the selected scraper to update UI hints
@@ -360,6 +363,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsEmuMoviesSelected));
         OnPropertyChanged(nameof(IsTheGamesDbSelected));
         OnPropertyChanged(nameof(IsGoogleBooksSelected));
+        OnPropertyChanged(nameof(IsComicVineSelected));
+        OnPropertyChanged(nameof(IsApiKeyUsedSelected));
+        OnPropertyChanged(nameof(IsApiKeyRequiredSelected));
         OnPropertyChanged(nameof(IsLanguageSelectionSupported));
     }
 
