@@ -61,7 +61,7 @@ Replace this list for each release:
 ## 5. System requirements
 
 - Linux x86_64
-- GLibC: Built on Manjaro (currently glibc 2.43), compatibility with older distros is not guaranteed
+- GLibC: GLIBC >= 2.36 (Debian 12 "bookworm" baseline)
 - OpenGL/Vulkan‑capable GPU (recommended)
 - .NET runtime is bundled in the AppImage (self‑contained), no separate installation required
 
