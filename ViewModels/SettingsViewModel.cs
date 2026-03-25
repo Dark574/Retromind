@@ -298,6 +298,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public bool IsTmdbSelected => SelectedScraper?.Type == ScraperType.TMDB;
     public bool IsIgdbSelected => SelectedScraper?.Type == ScraperType.IGDB;
     public bool IsEmuMoviesSelected => SelectedScraper?.Type == ScraperType.EmuMovies;
+    public bool IsTheGamesDbSelected => SelectedScraper?.Type == ScraperType.TheGamesDB;
+    public bool IsGoogleBooksSelected => SelectedScraper?.Type == ScraperType.GoogleBooks;
+    public bool IsLanguageSelectionSupported => IsTmdbSelected || IsTheGamesDbSelected || IsGoogleBooksSelected;
     
     // Handle property changes on the selected scraper to update UI hints
     partial void OnSelectedScraperChanged(ScraperConfig? oldValue, ScraperConfig? newValue)
@@ -355,6 +358,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsTmdbSelected));
         OnPropertyChanged(nameof(IsIgdbSelected));
         OnPropertyChanged(nameof(IsEmuMoviesSelected));
+        OnPropertyChanged(nameof(IsTheGamesDbSelected));
+        OnPropertyChanged(nameof(IsGoogleBooksSelected));
+        OnPropertyChanged(nameof(IsLanguageSelectionSupported));
     }
 
     // --- Emulator wrapper editor actions ---

@@ -38,6 +38,7 @@ public class GoogleBooksProvider : IMetadataProvider
             
             var encodedQuery = HttpUtility.UrlEncode(query);
             var apiKey = _config.ApiKey ?? string.Empty;
+            var language = NormalizeLanguage(_config.Language);
 
             var results = new List<ScraperSearchResult>(MaxSearchResults);
             var seenIds = new HashSet<string>(StringComparer.Ordinal);
@@ -46,6 +47,9 @@ public class GoogleBooksProvider : IMetadataProvider
             {
                 var pageSize = Math.Min(GooglePageSize, MaxSearchResults - results.Count);
                 var url = $"https://www.googleapis.com/books/v1/volumes?q={encodedQuery}&maxResults={pageSize}&startIndex={startIndex}";
+
+                if (!string.IsNullOrWhiteSpace(language))
+                    url += $"&langRestrict={HttpUtility.UrlEncode(language)}";
 
                 // API key (optional): user-specified key only.
                 if (!string.IsNullOrWhiteSpace(apiKey))
@@ -137,5 +141,17 @@ public class GoogleBooksProvider : IMetadataProvider
         {
             throw new Exception($"GoogleBooks Error: {ex.Message}", ex);
         }
+    }
+
+    private static string NormalizeLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+            return "en";
+
+        var dashIndex = language.IndexOf('-');
+        if (dashIndex > 0)
+            language = language[..dashIndex];
+
+        return language.Trim().ToLowerInvariant();
     }
 }

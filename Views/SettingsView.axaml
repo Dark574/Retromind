@@ -267,8 +267,8 @@
                                     <TextBox Text="{Binding ApiKey}" PasswordChar="*" />
                                 </StackPanel>
 
-                                <!-- Language (Specific to TMDB) -->
-                                <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsTmdbSelected}">
+                                <!-- Language (Supported by selected scraper) -->
+                                <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsLanguageSelectionSupported}">
                                     <TextBlock Text="{x:Static p:Strings.Metadata_DataLanguage}" FontWeight="Bold" Margin="0,10,0,2"/>
                                     <ComboBox SelectedItem="{Binding Language}" HorizontalAlignment="Stretch">
                                         <ComboBox.Items>
