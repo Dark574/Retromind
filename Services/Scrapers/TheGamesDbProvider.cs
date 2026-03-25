@@ -68,7 +68,7 @@ public class TheGamesDbProvider : IMetadataProvider
             {
                 var url =
                     $"{BaseUrl}/Games/ByGameName?apikey={Uri.EscapeDataString(apiKey)}&name={encodedQuery}" +
-                    "&fields=overview,genres,publishers,players,platform,rating" +
+                    "&fields=overview,genres,developers,publishers,players,platform,rating" +
                     "&include=boxart,platform,genre" +
                     $"&filter%5Blanguage%5D={Uri.EscapeDataString(language)}" +
                     $"&page={page}";
@@ -99,7 +99,7 @@ public class TheGamesDbProvider : IMetadataProvider
                         games,
                         genreData,
                         "Genres/ByGenreID",
-                        static g => ExtractCompanyIds(g?["genres"]),
+                        static g => ExtractCompanyIds(FirstPresent(g, "genres", "genre")),
                         cancellationToken,
                         "genres",
                         "genre")
@@ -109,7 +109,7 @@ public class TheGamesDbProvider : IMetadataProvider
                         games,
                         developerData,
                         "Developers/ByDeveloperID",
-                        static g => ExtractCompanyIds(g?["developers"]),
+                        static g => ExtractCompanyIds(FirstPresent(g, "developers", "developer")),
                         cancellationToken,
                         "developers",
                         "developer",
@@ -121,7 +121,7 @@ public class TheGamesDbProvider : IMetadataProvider
                         games,
                         publisherData,
                         "Publishers/ByPublisherID",
-                        static g => ExtractCompanyIds(g?["publishers"]),
+                        static g => ExtractCompanyIds(FirstPresent(g, "publishers", "publisher")),
                         cancellationToken,
                         "publishers",
                         "publisher",
@@ -594,21 +594,24 @@ public class TheGamesDbProvider : IMetadataProvider
         IReadOnlyDictionary<string, string> developerNameById,
         IReadOnlyDictionary<string, string> publisherNameById)
     {
-        var explicitDevName = FirstMeaningfulText(ExtractCompanyNames(game["developers"]));
+        var developersNode = FirstPresent(game, "developers", "developer");
+        var publishersNode = FirstPresent(game, "publishers", "publisher");
+
+        var explicitDevName = FirstMeaningfulText(ExtractCompanyNames(developersNode));
         if (!string.IsNullOrWhiteSpace(explicitDevName))
             return explicitDevName;
 
-        foreach (var id in ExtractCompanyIds(game["developers"]))
+        foreach (var id in ExtractCompanyIds(developersNode))
         {
             if (developerNameById.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name))
                 return name;
         }
 
-        var explicitPubName = FirstMeaningfulText(ExtractCompanyNames(game["publishers"]));
+        var explicitPubName = FirstMeaningfulText(ExtractCompanyNames(publishersNode));
         if (!string.IsNullOrWhiteSpace(explicitPubName))
             return explicitPubName;
 
-        foreach (var id in ExtractCompanyIds(game["publishers"]))
+        foreach (var id in ExtractCompanyIds(publishersNode))
         {
             if (publisherNameById.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name))
                 return name;
@@ -621,7 +624,9 @@ public class TheGamesDbProvider : IMetadataProvider
         JsonNode game,
         IReadOnlyDictionary<string, string> genreNameById)
     {
-        var explicitNames = ExtractCompanyNames(game["genres"])
+        var genresNode = FirstPresent(game, "genres", "genre");
+
+        var explicitNames = ExtractCompanyNames(genresNode)
             .Select(v => v.Trim())
             .Where(v => !string.IsNullOrWhiteSpace(v) && !IsLikelyIdentifier(v))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -631,7 +636,7 @@ public class TheGamesDbProvider : IMetadataProvider
             return string.Join(", ", explicitNames);
 
         var resolved = new List<string>();
-        foreach (var id in ExtractCompanyIds(game["genres"]))
+        foreach (var id in ExtractCompanyIds(genresNode))
         {
             if (genreNameById.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name))
                 resolved.Add(name);
@@ -743,6 +748,24 @@ public class TheGamesDbProvider : IMetadataProvider
 
         foreach (var id in SplitValues(node.ToString()))
             yield return id;
+    }
+
+    private static JsonNode? FirstPresent(JsonNode? parent, params string[] keys)
+    {
+        if (parent == null || keys == null || keys.Length == 0)
+            return null;
+
+        foreach (var key in keys)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+
+            var candidate = parent[key];
+            if (candidate != null)
+                return candidate;
+        }
+
+        return null;
     }
 
     private static Dictionary<string, string> ExtractIdNameMap(JsonNode? node)
