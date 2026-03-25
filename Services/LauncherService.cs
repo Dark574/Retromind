@@ -113,6 +113,7 @@ public sealed class LauncherService
 
             // xdg-open expects the URI as a single argument
             psi.ArgumentList.Add(target);
+            SanitizeAppImageRuntimeEnvironment(psi);
             ApplyEnvironmentOverrides(psi, environmentOverrides);
 
             return Process.Start(psi);
@@ -127,6 +128,7 @@ public sealed class LauncherService
             UseShellExecute = !hasEnvOverrides
         };
         startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, target, launchFilePath: null);
+        SanitizeAppImageRuntimeEnvironment(startInfo);
         ApplyEnvironmentOverrides(startInfo, environmentOverrides);
         ApplyXdgOverrides(startInfo, item);
         return Process.Start(startInfo);
@@ -181,6 +183,8 @@ public sealed class LauncherService
                 var isProton = isUmu || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
                 prefixInitialized = ConfigureWinePrefix(item, nodePath, startInfo, isProton, isUmu);
             }
+            
+            SanitizeAppImageRuntimeEnvironment(startInfo);
 
             // Apply environment overrides (node/emulator/item merged by caller when provided).
             if (environmentOverrides is { Count: > 0 })
@@ -632,6 +636,97 @@ public sealed class LauncherService
             return;
 
         startInfo.EnvironmentVariables["WINEARCH"] = normalized;
+    }
+
+    private static void SanitizeAppImageRuntimeEnvironment(ProcessStartInfo startInfo)
+    {
+        // Environment variable overrides require direct execution.
+        if (startInfo.UseShellExecute)
+            return;
+
+        var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
+        var appDir = Environment.GetEnvironmentVariable("APPDIR");
+        if (string.IsNullOrWhiteSpace(appImage) && string.IsNullOrWhiteSpace(appDir))
+            return;
+
+        if (startInfo.EnvironmentVariables.ContainsKey("LD_LIBRARY_PATH"))
+        {
+            var currentLd = startInfo.EnvironmentVariables["LD_LIBRARY_PATH"];
+            if (!string.IsNullOrWhiteSpace(currentLd))
+            {
+                var appDirPrefixes = BuildAppImageLdPrefixes(appDir);
+                var filtered = currentLd
+                    .Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(path =>
+                        !string.IsNullOrWhiteSpace(path) &&
+                        !IsAppImageInjectedLdSegment(path, appDirPrefixes))
+                    .ToArray();
+
+                if (filtered.Length == 0)
+                    startInfo.EnvironmentVariables.Remove("LD_LIBRARY_PATH");
+                else
+                    startInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = string.Join(':', filtered);
+            }
+        }
+        
+        // Prevent AppImage-bundled VLC plugins from being forced into external processes.
+        if (startInfo.EnvironmentVariables.ContainsKey("VLC_PLUGIN_PATH"))
+            startInfo.EnvironmentVariables.Remove("VLC_PLUGIN_PATH");
+    }
+
+    private static string[] BuildAppImageLdPrefixes(string? appDir)
+    {
+        if (string.IsNullOrWhiteSpace(appDir))
+            return Array.Empty<string>();
+
+        return
+        [
+            NormalizePathForComparison(Path.Combine(appDir, "usr", "lib", "vlc", "lib")),
+            NormalizePathForComparison(Path.Combine(appDir, "usr", "lib"))
+        ];
+    }
+
+    private static bool IsAppImageInjectedLdSegment(string segment, IReadOnlyList<string> appDirPrefixes)
+    {
+        var normalizedSegment = NormalizePathForComparison(segment);
+        if (string.IsNullOrWhiteSpace(normalizedSegment))
+            return false;
+
+        foreach (var prefix in appDirPrefixes)
+        {
+            if (string.IsNullOrWhiteSpace(prefix))
+                continue;
+
+            if (normalizedSegment.Equals(prefix, StringComparison.Ordinal))
+                return true;
+
+            if (normalizedSegment.StartsWith(prefix + "/", StringComparison.Ordinal))
+                return true;
+        }
+
+        // Fallback for AppImage runtimes where APPDIR is missing but mount paths leaked.
+        if (normalizedSegment.StartsWith("/tmp/.mount_", StringComparison.Ordinal))
+        {
+            if (normalizedSegment.Contains("/usr/lib/vlc/lib", StringComparison.Ordinal))
+                return true;
+
+            if (normalizedSegment.EndsWith("/usr/lib", StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static string NormalizePathForComparison(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return string.Empty;
+
+        var value = path.Replace('\\', '/').Trim();
+        while (value.EndsWith("/", StringComparison.Ordinal))
+            value = value[..^1];
+
+        return value;
     }
 
     private static string QuoteIfNeeded(string path)
