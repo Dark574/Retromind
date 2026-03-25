@@ -58,31 +58,21 @@ public partial class MediaAreaView : UserControl
     }
     
     /// <summary>
-    /// Called once when the control is loaded. Scrolls the current SelectedMediaItem
-    /// into view so that the last-used item is visible after restoring a node
+    /// Called once when the control is loaded to initialize viewport-related layout state.
     /// </summary>
     private void OnLoadedOnce(object? sender, RoutedEventArgs e)
     {
         // We only need this once per view instance.
         this.Loaded -= OnLoadedOnce;
 
-        // Defer to the UI thread after layout so that containers are created.
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (DataContext is not MediaAreaViewModel vm)
-                return;
+        if (DataContext is not MediaAreaViewModel vm)
+            return;
 
-            _mediaList ??= this.FindControl<ListBox>("MediaList");
-            if (_mediaList is null)
-                return;
+        _mediaList ??= this.FindControl<ListBox>("MediaList");
+        if (_mediaList is null)
+            return;
 
-            vm.ViewportWidth = _mediaList.Bounds.Width;
-
-            if (vm.SelectedMediaItem is null)
-                return;
-
-            ScrollItemIntoView(vm.SelectedMediaItem);
-        }, DispatcherPriority.Background);
+        vm.ViewportWidth = _mediaList.Bounds.Width;
     }
 
     private void OnMediaListSizeChanged(object? sender, SizeChangedEventArgs e)
@@ -107,7 +97,7 @@ public partial class MediaAreaView : UserControl
             {
                 Dispatcher.UIThread.Post(
                     () => ScrollItemIntoView(vm.SelectedMediaItem),
-                    DispatcherPriority.Background);
+                    DispatcherPriority.Loaded);
             }
         }
     }
