@@ -65,12 +65,13 @@ See `docs/CHANGELOG.md` for version history.
 This project ships a build script that creates a portable **AppImage** containing:
 - a self-contained .NET build (no system .NET required)
 - bundled **LibVLC + plugins** (video playback required)
+- helper/runtime libraries exported from a Debian 12 (bookworm) build container
 
 Note: When using the AppImage, you do not need a system-wide VLC installation because LibVLC is bundled.
 The Wayland/X11 note below still applies because it affects how video is embedded into the Avalonia window.
 
 ### Requirements (host)
-- Docker (for reproducible LibVLC export)
+- Docker (for the full reproducible bookworm build pipeline)
 - `curl` (to download `appimagetool` if missing)
 
 ### Build

@@ -1,0 +1,15 @@
+.git
+.idea
+.build-work
+dist
+bin
+obj
+Library
+app_settings.json
+retromind_tree.json
+retromind_tree.json.bak
+retromind_tree.json.tmp
+retromind_tree.bak
+retromind_tree.tmp
+*.user
+*.suo

@@ -1,0 +1,163 @@
+FROM debian:bookworm
+
+# Full AppImage build toolchain in Debian 12 (bookworm):
+# - dotnet publish (self-contained)
+# - VLC / LibVLC runtime export
+# - optional helper tools (ffplay, sidplayfp) + runtime deps
+# - Wayland runtime libs used by Avalonia on Linux
+ENV DOTNET_ROOT=/usr/share/dotnet
+ENV PATH="${DOTNET_ROOT}:${PATH}"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       ca-certificates \
+       curl \
+       ffmpeg \
+       sidplayfp \
+       vlc \
+       libvlc-dev \
+       libavcodec-dev \
+       libavformat-dev \
+       libavutil-dev \
+       libswresample-dev \
+       libswscale-dev \
+       libwayland-client0 \
+       libwayland-cursor0 \
+       libwayland-egl1 \
+       libxkbcommon0 \
+       libdecor-0-0 \
+       libsdl2-2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
+    && chmod +x /tmp/dotnet-install.sh \
+    && /tmp/dotnet-install.sh --channel 10.0 --install-dir "$DOTNET_ROOT" \
+    && ln -sf "$DOTNET_ROOT/dotnet" /usr/bin/dotnet \
+    && dotnet --info \
+    && rm -f /tmp/dotnet-install.sh
+
+WORKDIR /src
+COPY . /src
+
+RUN dotnet publish Retromind.csproj -c Release -r linux-x64 \
+      --self-contained true \
+      -p:PublishSingleFile=true \
+      -p:IncludeNativeLibrariesForSelfExtract=true \
+      -p:PublishTrimmed=false
+
+RUN set -eux; \
+    mkdir -p /out/publish /out/vlc/lib /out/tools/bin /out/tools/lib /out/runtime-libs; \
+    cp -a /src/bin/Release/net10.0/linux-x64/publish/. /out/publish/; \
+    \
+    # VLC plugins + LibVLC core
+    cp -a /usr/lib/x86_64-linux-gnu/vlc /out/vlc/; \
+    cp -a /usr/lib/x86_64-linux-gnu/libvlc.so*     /out/vlc/lib/; \
+    cp -a /usr/lib/x86_64-linux-gnu/libvlccore.so* /out/vlc/lib/; \
+    \
+    # FFmpeg core + common codec/container libs used by VLC in this image
+    cp -a /usr/lib/x86_64-linux-gnu/libavcodec.so*    /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libavformat.so*   /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libavutil.so*     /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libswresample.so* /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libswscale.so*    /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libvpx.so*        /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libjpeg.so*       /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libtheora*.so*    /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libcodec2.so*     /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libjxl*.so*       /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/librav1e.so*      /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libshine.so*      /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libSvtAv1Enc.so*  /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libx264.so*       /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libx265.so*       /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libFLAC.so*       /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libdav1d.so*      /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libvorbis*.so*    /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libopus.so*       /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libogg.so*        /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libmp3lame.so*    /out/vlc/lib/ || true; \
+    cp -a /usr/lib/x86_64-linux-gnu/libidn.so*        /out/vlc/lib/ || true; \
+    \
+    # Drop VDPAU plugin tree to keep bundle size/deps lower.
+    rm -rf /out/vlc/vlc/plugins/vdpau; \
+    \
+    # Drop optional plugins that pull additional dependencies we do not need
+    # for Retromind's local preview use-cases.
+    rm -f /out/vlc/vlc/plugins/codec/libsdl_image_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/codec/liba52_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/access/libcdda_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/services_discovery/libupnp_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/control/liblirc_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/lua/liblua_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/access/libnfs_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/demux/libmod_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/stream_out/libstream_out_chromecast_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/demux/libsid_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/audio_filter/libspatialaudio_plugin.so; \
+    rm -f /out/vlc/vlc/plugins/meta_engine/libtaglib_plugin.so; \
+    \
+    copy_binary_deps() { \
+      bin="$1"; \
+      ldd "$bin" 2>/dev/null \
+        | awk '\
+            /=>/ { if ($3 ~ /^\//) print $3 } \
+            /^[[:space:]]*\/[^[:space:]]+/ { print $1 } \
+          ' \
+        | while IFS= read -r dep; do \
+            [ -n "$dep" ] || continue; \
+            [ -e "$dep" ] || continue; \
+            case "$dep" in \
+              */ld-linux-*|*/libc.so.6|*/libm.so.6|*/libpthread.so.0|*/librt.so.1|*/libdl.so.2|*/libgcc_s.so.1|*/libstdc++.so.6) \
+                continue \
+                ;; \
+            esac; \
+            cp -L "$dep" /out/tools/lib/ || true; \
+          done; \
+    }; \
+    \
+    bundle_tool() { \
+      tool_name="$1"; \
+      shift; \
+      resolved=""; \
+      for candidate in "$@"; do \
+        if [ -x "$candidate" ]; then \
+          resolved="$candidate"; \
+          break; \
+        fi; \
+      done; \
+      if [ -z "$resolved" ]; then \
+        echo "Notice: tool '$tool_name' not found in image."; \
+        return 0; \
+      fi; \
+      cp "$resolved" "/out/tools/bin/$tool_name"; \
+      chmod +x "/out/tools/bin/$tool_name"; \
+      copy_binary_deps "$resolved"; \
+    }; \
+    \
+    bundle_tool sidplayfp /usr/bin/sidplayfp /usr/games/sidplayfp; \
+    bundle_tool ffplay /usr/bin/ffplay; \
+    \
+    copy_runtime_lib() { \
+      name="$1"; \
+      path=""; \
+      for dir in /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /usr/lib /lib; do \
+        if [ -e "$dir/$name" ]; then \
+          path="$dir/$name"; \
+          break; \
+        fi; \
+      done; \
+      if [ -n "$path" ]; then \
+        cp -L "$path" /out/runtime-libs/; \
+      else \
+        echo "Notice: runtime lib '$name' not found in image."; \
+      fi; \
+    }; \
+    \
+    copy_runtime_lib libwayland-client.so.0; \
+    copy_runtime_lib libwayland-cursor.so.0; \
+    copy_runtime_lib libwayland-egl.so.1; \
+    copy_runtime_lib libxkbcommon.so.0; \
+    copy_runtime_lib libdecor-0.so.0; \
+    copy_runtime_lib libSDL2-2.0.so.0
+
+CMD ["bash", "-lc", "echo 'Retromind bookworm builder image ready.'"]

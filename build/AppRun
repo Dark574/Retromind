@@ -4,7 +4,8 @@ set -eu
 HERE="$(dirname "$(readlink -f "$0")")"
 
 # Prefer bundled VLC libs
-export LD_LIBRARY_PATH="$HERE/usr/lib/vlc/lib:$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
+# Include helper libs under usr/lib/vlc/vlc as some VLC plugins depend on them.
+export LD_LIBRARY_PATH="$HERE/usr/lib/vlc/lib:$HERE/usr/lib/vlc/vlc:$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 export VLC_PLUGIN_PATH="$HERE/usr/lib/vlc/vlc/plugins"
 # Prefer bundled helper binaries (ffplay/sidplayfp) if present.
 export PATH="$HERE/usr/bin:${PATH:-}"

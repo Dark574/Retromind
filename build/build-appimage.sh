@@ -5,33 +5,18 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$PROJECT_ROOT/build"
 OUT_DIR="$PROJECT_ROOT/dist"
 WORK_DIR="$PROJECT_ROOT/.build-work"
-
-PUBLISH_DIR="$PROJECT_ROOT/bin/Release/net10.0/linux-x64/publish"
 APPDIR="$WORK_DIR/AppDir"
+BUILDER_IMAGE="retromind-appimage-builder:bookworm"
 
 echo "[1/8] Prepare folders..."
 rm -rf "$WORK_DIR"
 mkdir -p "$OUT_DIR" "$WORK_DIR"
 
-echo "[2/8] Publish self-contained (linux-x64)..."
-cd "$PROJECT_ROOT"
-dotnet publish Retromind.csproj -c Release -r linux-x64 \
-  --self-contained true \
-  -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
-  -p:PublishTrimmed=false
+echo "[2/8] Build Debian Bookworm appimage builder image..."
+docker build -f "$BUILD_DIR/Dockerfile.appimage" -t "$BUILDER_IMAGE" "$PROJECT_ROOT"
 
-if [ ! -f "$PUBLISH_DIR/Retromind" ]; then
-  echo "ERROR: Publish output not found at '$PUBLISH_DIR/Retromind'."
-  echo "       Check the dotnet publish step above for errors."
-  exit 1
-fi
-
-echo "[3/8] Build VLC export container image..."
-docker build -f "$BUILD_DIR/Dockerfile.vlc" -t retromind-vlc-export:stable-slim "$PROJECT_ROOT/build"
-
-echo "[4/8] Export VLC libs/plugins from container..."
-CID="$(docker create retromind-vlc-export:stable-slim)"
+echo "[3/8] Export publish output + runtime bundles from container..."
+CID="$(docker create "$BUILDER_IMAGE")"
 # Ensure the container always gets removed, even on failure.
 cleanup_container() {
   if [ -n "${CID:-}" ]; then
@@ -40,77 +25,56 @@ cleanup_container() {
 }
 trap cleanup_container EXIT
 
+docker cp "$CID:/out/publish" "$WORK_DIR/publish"
 docker cp "$CID:/out/vlc" "$WORK_DIR/vlc"
+docker cp "$CID:/out/tools" "$WORK_DIR/tools"
+docker cp "$CID:/out/runtime-libs" "$WORK_DIR/runtime-libs"
 cleanup_container
 trap - EXIT
 
-if [ ! -d "$WORK_DIR/vlc" ]; then
-  echo "ERROR: VLC export directory '$WORK_DIR/vlc' not found."
-  echo "       Check Dockerfile.vlc and the docker cp step."
+if [ ! -f "$WORK_DIR/publish/Retromind" ]; then
+  echo "ERROR: Publish output not found at '$WORK_DIR/publish/Retromind'."
+  echo "       Check Dockerfile.appimage and the docker cp step."
   exit 1
 fi
 
-echo "[5/8] Build AppDir layout..."
+if [ ! -d "$WORK_DIR/vlc" ]; then
+  echo "ERROR: VLC export directory '$WORK_DIR/vlc' not found."
+  echo "       Check Dockerfile.appimage and the docker cp step."
+  exit 1
+fi
+
+echo "[4/8] Build AppDir layout..."
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib/vlc" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/metainfo"
 
 cp "$BUILD_DIR/AppRun" "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun"
 
-cp "$PUBLISH_DIR/Retromind" "$APPDIR/usr/bin/Retromind"
+cp -a "$WORK_DIR/publish/." "$APPDIR/usr/bin/"
 chmod +x "$APPDIR/usr/bin/Retromind"
 
-# Bundle optional audio helpers and their non-core shared libs.
-# This improves out-of-the-box audio support on target systems.
-copy_binary_deps() {
-  bin="$1"
-  if [ ! -x "$bin" ]; then
-    return 0
+for helper in sidplayfp ffplay; do
+  if [ -f "$WORK_DIR/tools/bin/$helper" ]; then
+    echo "Bundling $helper from Debian bookworm builder image."
+    cp "$WORK_DIR/tools/bin/$helper" "$APPDIR/usr/bin/$helper"
+    chmod +x "$APPDIR/usr/bin/$helper"
+  else
+    echo "Notice: $helper not found in builder output (feature may be unavailable in AppImage)."
   fi
+done
 
-  ldd "$bin" 2>/dev/null \
-    | awk '
-        /=>/ {
-          if ($3 ~ /^\//) print $3
-        }
-        /^[[:space:]]*\/[^[:space:]]+/ {
-          print $1
-        }
-      ' \
-    | while IFS= read -r dep; do
-        [ -n "$dep" ] || continue
-        [ -e "$dep" ] || continue
+if [ -d "$WORK_DIR/tools/lib" ]; then
+  cp -a "$WORK_DIR/tools/lib/." "$APPDIR/usr/lib/" || true
+fi
 
-        # Do not bundle glibc/loader core libs from build host.
-        case "$dep" in
-          */ld-linux-*|*/libc.so.6|*/libm.so.6|*/libpthread.so.0|*/librt.so.1|*/libdl.so.2|*/libgcc_s.so.1|*/libstdc++.so.6)
-            continue
-            ;;
-        esac
+cp -a "$WORK_DIR/vlc/vlc" "$APPDIR/usr/lib/vlc/"
+cp -a "$WORK_DIR/vlc/lib" "$APPDIR/usr/lib/vlc/"
 
-        cp -L "$dep" "$APPDIR/usr/lib/" || true
-      done
-}
+if [ -d "$WORK_DIR/runtime-libs" ]; then
+  cp -a "$WORK_DIR/runtime-libs/." "$APPDIR/usr/lib/" || true
+fi
 
-bundle_optional_binary() {
-  name="$1"
-  if ! command -v "$name" >/dev/null 2>&1; then
-    echo "Notice: $name not found on build host (feature may be unavailable in AppImage)."
-    return 0
-  fi
-
-  path="$(command -v "$name")"
-  echo "Bundling $name from: $path"
-  cp "$path" "$APPDIR/usr/bin/$name"
-  chmod +x "$APPDIR/usr/bin/$name"
-  copy_binary_deps "$path"
-}
-
-# SID playback + generic audio preview helper for AudioService.
-bundle_optional_binary "sidplayfp"
-bundle_optional_binary "ffplay"
-
-# Copy themes directly from repository source.
-# This avoids incomplete AppImage themes when publish output gets cleaned/partial.
+echo "[5/8] Copy themes and app metadata..."
 THEMES_SOURCE_DIR="$PROJECT_ROOT/Themes"
 if [ ! -d "$THEMES_SOURCE_DIR" ]; then
   echo "ERROR: Themes source directory not found at '$THEMES_SOURCE_DIR'."
@@ -125,43 +89,6 @@ if [ "$THEME_FILE_COUNT" -eq 0 ]; then
   echo "ERROR: No theme files were copied into AppDir (expected files under '$APPDIR/usr/bin/Themes')."
   exit 1
 fi
-
-cp -a "$WORK_DIR/vlc/vlc" "$APPDIR/usr/lib/vlc/"
-cp -a "$WORK_DIR/vlc/lib" "$APPDIR/usr/lib/vlc/"
-
-# --- Wayland runtime libs (for true Wayland backend) ---
-echo "[6/8] Bundle Wayland runtime libs (if available on build host)..."
-copy_lib() {
-  name="$1"
-  path=""
-
-  if command -v ldconfig >/dev/null 2>&1; then
-    path="$(ldconfig -p 2>/dev/null | awk -v n="$name" '$1==n {print $NF; exit}')"
-  fi
-
-  if [ -z "$path" ]; then
-    for dir in /usr/lib /usr/lib64 /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /lib64; do
-      if [ -e "$dir/$name" ]; then
-        path="$dir/$name"
-        break
-      fi
-    done
-  fi
-
-  if [ -n "$path" ] && [ -e "$path" ]; then
-    echo "  + $name -> $path"
-    cp -L "$path" "$APPDIR/usr/lib/"
-  else
-    echo "  - missing: $name"
-  fi
-}
-
-copy_lib "libwayland-client.so.0"
-copy_lib "libwayland-cursor.so.0"
-copy_lib "libwayland-egl.so.1"
-copy_lib "libxkbcommon.so.0"
-copy_lib "libdecor-0.so.0"
-copy_lib "libSDL2-2.0.so.0"
 
 DESKTOP_FILE_NAME="io.github.dark574.Retromind.desktop"
 
@@ -208,14 +135,14 @@ if [ -d "$PROJECT_ROOT/Licenses" ]; then
   cp -r "$PROJECT_ROOT/Licenses/." "$DOC_DIR/Licenses/"
 fi
 
-echo "[7/8] Download appimagetool (if missing)..."
+echo "[6/8] Download appimagetool (if missing)..."
 APPIMAGETOOL="$WORK_DIR/appimagetool"
 if [ ! -x "$APPIMAGETOOL" ]; then
   curl -L -o "$APPIMAGETOOL" "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
   chmod +x "$APPIMAGETOOL"
 fi
 
-echo "Debug: listing desktop files..."
+echo "[7/8] Debug: listing desktop files..."
 find "$APPDIR" -maxdepth 4 -type f -name "*.desktop" -print
 
 echo "[8/8] Build AppImage..."
