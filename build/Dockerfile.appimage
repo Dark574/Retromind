@@ -7,6 +7,9 @@ FROM debian:bookworm
 # - Wayland runtime libs used by Avalonia on Linux
 ENV DOTNET_ROOT=/usr/share/dotnet
 ENV PATH="${DOTNET_ROOT}:${PATH}"
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
+ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+ENV DOTNET_NOLOGO=1
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -45,7 +48,7 @@ RUN dotnet publish Retromind.csproj -c Release -r linux-x64 \
       -p:IncludeNativeLibrariesForSelfExtract=true \
       -p:PublishTrimmed=false
 
-RUN set -eux; \
+RUN set -eu; \
     mkdir -p /out/publish /out/vlc/lib /out/tools/bin /out/tools/lib /out/runtime-libs; \
     cp -a /src/bin/Release/net10.0/linux-x64/publish/. /out/publish/; \
     \
