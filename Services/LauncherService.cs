@@ -121,11 +121,13 @@ public sealed class LauncherService
 
         // Otherwise treat as executable command
         var hasEnvOverrides = environmentOverrides is { Count: > 0 };
+        var forceDirectExec = hasEnvOverrides || IsRunningInsideAppImageRuntime();
         var startInfo = new ProcessStartInfo
         {
             FileName = target,
             Arguments = item.LauncherArgs ?? string.Empty,
-            UseShellExecute = !hasEnvOverrides
+            // In AppImage mode we force direct exec so runtime env sanitization can always apply.
+            UseShellExecute = !forceDirectExec
         };
         startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, target, launchFilePath: null);
         SanitizeAppImageRuntimeEnvironment(startInfo);
@@ -167,9 +169,11 @@ public sealed class LauncherService
                 ((environmentOverrides == null) &&
                  ((inheritedConfig?.EnvironmentOverrides?.Count ?? 0) > 0 ||
                   (item.EnvironmentOverrides?.Count ?? 0) > 0));
+            var isAppImageRuntime = IsRunningInsideAppImageRuntime();
 
             // Ensure env vars + wrapper arguments are honored (shell exec can drop env vars).
-            var requiresDirectExec = shouldApplyPrefix ||
+            var requiresDirectExec = isAppImageRuntime ||
+                                     shouldApplyPrefix ||
                                      hasEnvOverrides ||
                                      (nativeWrappers is { Count: > 0 }) ||
                                      !string.IsNullOrWhiteSpace(args);
@@ -672,6 +676,12 @@ public sealed class LauncherService
         // Prevent AppImage-bundled VLC plugins from being forced into external processes.
         if (startInfo.EnvironmentVariables.ContainsKey("VLC_PLUGIN_PATH"))
             startInfo.EnvironmentVariables.Remove("VLC_PLUGIN_PATH");
+    }
+
+    private static bool IsRunningInsideAppImageRuntime()
+    {
+        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPIMAGE")) ||
+               !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPDIR"));
     }
 
     private static string[] BuildAppImageLdPrefixes(string? appDir)
