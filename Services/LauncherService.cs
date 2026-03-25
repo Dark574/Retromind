@@ -131,6 +131,7 @@ public sealed class LauncherService
         };
         startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, target, launchFilePath: null);
         SanitizeAppImageRuntimeEnvironment(startInfo);
+        SanitizeFlatpakPortableEnvironment(startInfo);
         ApplyEnvironmentOverrides(startInfo, environmentOverrides);
         ApplyXdgOverrides(startInfo, item);
         return Process.Start(startInfo);
@@ -189,6 +190,7 @@ public sealed class LauncherService
             }
             
             SanitizeAppImageRuntimeEnvironment(startInfo);
+            SanitizeFlatpakPortableEnvironment(startInfo);
 
             // Apply environment overrides (node/emulator/item merged by caller when provided).
             if (environmentOverrides is { Count: > 0 })
@@ -682,6 +684,69 @@ public sealed class LauncherService
     {
         return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPIMAGE")) ||
                !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPDIR"));
+    }
+
+    private static void SanitizeFlatpakPortableEnvironment(ProcessStartInfo startInfo)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            return;
+
+        if (!IsFlatpakLaunch(startInfo))
+            return;
+
+        var portableHomeRoot = NormalizePathForComparison(Path.Combine(AppPaths.DataRoot, "Home"));
+        if (string.IsNullOrWhiteSpace(portableHomeRoot))
+            return;
+
+        RemoveIfPortableXdgPath(startInfo, "XDG_CONFIG_HOME", portableHomeRoot);
+        RemoveIfPortableXdgPath(startInfo, "XDG_DATA_HOME", portableHomeRoot);
+        RemoveIfPortableXdgPath(startInfo, "XDG_CACHE_HOME", portableHomeRoot);
+        RemoveIfPortableXdgPath(startInfo, "XDG_STATE_HOME", portableHomeRoot);
+    }
+
+    private static bool IsFlatpakLaunch(ProcessStartInfo startInfo)
+    {
+        var fileName = Path.GetFileName(startInfo.FileName)?.Trim();
+        if (string.IsNullOrWhiteSpace(fileName))
+            return false;
+
+        if (string.Equals(fileName, "flatpak", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!string.Equals(fileName, "env", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(startInfo.Arguments))
+            return false;
+
+        var args = startInfo.Arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var arg in args)
+        {
+            if (arg.StartsWith("-", StringComparison.Ordinal))
+                continue;
+
+            var token = Path.GetFileName(arg.Trim('"', '\''));
+            return string.Equals(token, "flatpak", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
+    }
+
+    private static void RemoveIfPortableXdgPath(ProcessStartInfo startInfo, string key, string portableHomeRoot)
+    {
+        if (!startInfo.EnvironmentVariables.ContainsKey(key))
+            return;
+
+        var value = startInfo.EnvironmentVariables[key];
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        var normalizedValue = NormalizePathForComparison(value);
+        if (normalizedValue.Equals(portableHomeRoot, StringComparison.Ordinal) ||
+            normalizedValue.StartsWith(portableHomeRoot + "/", StringComparison.Ordinal))
+        {
+            startInfo.EnvironmentVariables.Remove(key);
+        }
     }
 
     private static string[] BuildAppImageLdPrefixes(string? appDir)
