@@ -164,7 +164,7 @@
     <data name="Hint.TimePlayed" xml:space="preserve"><value>Nur für Steam/GOG/Skripte nötig. Name des eigentlichen Spiel-Prozesses (ohne .exe), damit die Spielzeit korrekt erfasst wird.</value></data>
     <data name="Hint.WorkingDirectory" xml:space="preserve"><value>Optional. Wenn leer, wird der Ordner der Startdatei verwendet. Beeinflusst relative Pfade.</value></data>
     <data name="Hint.XdgSection" xml:space="preserve"><value>Optional. XDG ist der Linux-Standard für Speicherorte von config/data/cache/state. Gilt nur für native Starts. Ein Basisordner kann config/data/cache/state automatisch befüllen.</value></data>
-    <data name="Hint.TmdbKey" xml:space="preserve"><value>(Optional: Für Standardschlüssel leer lassen)</value></data>
+    <data name="Hint.TmdbKey" xml:space="preserve"><value>(Optional)</value></data>
 
     <!-- IMPORT -->
     <data name="Import.Folder" xml:space="preserve"><value>Importieren (Ordner)...</value></data>

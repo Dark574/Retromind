@@ -256,6 +256,9 @@
                                         <TextBlock Text="{x:Static p:Strings.Hint_Required}"
                                                    IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsApiKeyRequiredSelected}"
                                                    FontSize="10" Foreground="Red" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
+                                        <TextBlock Text="{x:Static p:Strings.Hint_TmdbKey}"
+                                                   IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsGoogleBooksSelected}"
+                                                   FontSize="10" Opacity="0.6" VerticalAlignment="Bottom" Margin="5,0,0,2"/>
                                     </StackPanel>
                                     <TextBox Text="{Binding ApiKey}" PasswordChar="*" />
                                 </StackPanel>
