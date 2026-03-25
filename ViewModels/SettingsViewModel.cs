@@ -443,9 +443,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     private void AddScraper()
     {
-        var newScraper = new ScraperConfig 
-        { 
-            // Default: Name="New Scraper", Type=None
+        var defaultType = AvailableScraperTypes.Length > 0
+            ? AvailableScraperTypes[0]
+            : ScraperType.IGDB;
+
+        var newScraper = new ScraperConfig
+        {
+            // Ensure the selected value exists in AvailableScraperTypes.
+            Type = defaultType
         };
         
         Scrapers.Add(newScraper);
