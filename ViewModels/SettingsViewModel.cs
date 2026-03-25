@@ -62,6 +62,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public ScraperType[] AvailableScraperTypes { get; } = Enum.GetValues<ScraperType>()
         .Where(t => t != ScraperType.EmuMovies)
         .ToArray();
+
+    public EmulatorConfig.XdgOverrideMode[] AvailableEmulatorXdgModes { get; } = Enum.GetValues<EmulatorConfig.XdgOverrideMode>();
     
     // UI Collections
     public ObservableCollection<EmulatorConfig> Emulators { get; } = new();
@@ -163,6 +165,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private bool _useGlobalWrapperDefaults;
 
     public bool IsEmulatorWrapperListEnabled => !UseGlobalWrapperDefaults;
+
+    public bool IsEmulatorXdgCustomSelected => SelectedEmulator?.XdgMode == EmulatorConfig.XdgOverrideMode.Custom;
 
     /// <summary>
     /// UI collection bound to the emulator wrapper editor
@@ -320,6 +324,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedEmulatorChanged(EmulatorConfig? oldValue, EmulatorConfig? newValue)
     {
+        if (oldValue != null)
+            oldValue.PropertyChanged -= OnEmulatorPropertyChanged;
+
+        if (newValue != null)
+            newValue.PropertyChanged += OnEmulatorPropertyChanged;
+
         // Rebuild wrapper UI collection based on the newly selected emulator
         EmulatorNativeWrappers.Clear();
         EmulatorEnvironmentOverrides.Clear();
@@ -347,6 +357,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         
         MoveEmulatorWrapperUpCommand.NotifyCanExecuteChanged();
         MoveEmulatorWrapperDownCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(IsEmulatorXdgCustomSelected));
+    }
+
+    private void OnEmulatorPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(EmulatorConfig.XdgMode))
+            OnPropertyChanged(nameof(IsEmulatorXdgCustomSelected));
     }
 
     private void OnScraperPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -740,5 +757,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         if (SelectedScraper != null)
             SelectedScraper.PropertyChanged -= OnScraperPropertyChanged;
+
+        if (SelectedEmulator != null)
+            SelectedEmulator.PropertyChanged -= OnEmulatorPropertyChanged;
     }
 }

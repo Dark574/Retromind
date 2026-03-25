@@ -18,6 +18,7 @@ namespace Retromind.Services;
 public sealed class LauncherService
 {
     private const int MinPlayTimeSeconds = 5;
+    private const string PasswdPath = "/etc/passwd";
 
     private readonly string _libraryRootPath;
     private readonly AppSettings _settings;
@@ -114,6 +115,7 @@ public sealed class LauncherService
             // xdg-open expects the URI as a single argument
             psi.ArgumentList.Add(target);
             SanitizeAppImageRuntimeEnvironment(psi);
+            SanitizeStorePortableEnvironment(psi, target);
             ApplyEnvironmentOverrides(psi, environmentOverrides);
 
             return Process.Start(psi);
@@ -131,7 +133,8 @@ public sealed class LauncherService
         };
         startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, target, launchFilePath: null);
         SanitizeAppImageRuntimeEnvironment(startInfo);
-        SanitizeFlatpakPortableEnvironment(startInfo);
+        SanitizeFlatpakPortableEnvironment(startInfo, item.LauncherArgs);
+        SanitizeStorePortableEnvironment(startInfo, item.LauncherArgs);
         ApplyEnvironmentOverrides(startInfo, environmentOverrides);
         ApplyXdgOverrides(startInfo, item);
         return Process.Start(startInfo);
@@ -190,7 +193,8 @@ public sealed class LauncherService
             }
             
             SanitizeAppImageRuntimeEnvironment(startInfo);
-            SanitizeFlatpakPortableEnvironment(startInfo);
+            SanitizeFlatpakPortableEnvironment(startInfo, args);
+            SanitizeStorePortableEnvironment(startInfo, args);
 
             // Apply environment overrides (node/emulator/item merged by caller when provided).
             if (environmentOverrides is { Count: > 0 })
@@ -208,6 +212,7 @@ public sealed class LauncherService
                     ApplyEnvironmentOverrides(startInfo, item.EnvironmentOverrides);
             }
 
+            ApplyEmulatorXdgOverrides(startInfo, inheritedConfig);
             ApplyXdgOverrides(startInfo, item);
 
             if (shouldApplyPrefix && !prefixInitialized)
@@ -632,6 +637,44 @@ public sealed class LauncherService
         startInfo.EnvironmentVariables[key] = resolved;
     }
 
+    private static void ApplyEmulatorXdgOverrides(ProcessStartInfo startInfo, EmulatorConfig? emulator)
+    {
+        if (emulator == null)
+            return;
+
+        switch (emulator.XdgMode)
+        {
+            case EmulatorConfig.XdgOverrideMode.Inherit:
+                return;
+
+            case EmulatorConfig.XdgOverrideMode.Host:
+                startInfo.EnvironmentVariables.Remove("XDG_CONFIG_HOME");
+                startInfo.EnvironmentVariables.Remove("XDG_DATA_HOME");
+                startInfo.EnvironmentVariables.Remove("XDG_CACHE_HOME");
+                startInfo.EnvironmentVariables.Remove("XDG_STATE_HOME");
+                return;
+
+            case EmulatorConfig.XdgOverrideMode.Custom:
+                SetXdgPath(startInfo, "XDG_CONFIG_HOME", emulator.XdgConfigPath);
+                SetXdgPath(startInfo, "XDG_DATA_HOME", emulator.XdgDataPath);
+                SetXdgPath(startInfo, "XDG_CACHE_HOME", emulator.XdgCachePath);
+                SetXdgPath(startInfo, "XDG_STATE_HOME", emulator.XdgStatePath);
+                return;
+        }
+    }
+
+    private static void SetXdgPath(ProcessStartInfo startInfo, string key, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        var resolved = Path.IsPathRooted(value)
+            ? value
+            : AppPaths.ResolveDataPath(value);
+
+        startInfo.EnvironmentVariables[key] = resolved;
+    }
+
     private static void ApplyWineArchOverride(ProcessStartInfo startInfo, string? wineArchOverride)
     {
         if (string.IsNullOrWhiteSpace(wineArchOverride))
@@ -686,12 +729,12 @@ public sealed class LauncherService
                !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPDIR"));
     }
 
-    private static void SanitizeFlatpakPortableEnvironment(ProcessStartInfo startInfo)
+    private static void SanitizeFlatpakPortableEnvironment(ProcessStartInfo startInfo, string? launchArgsHint = null)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             return;
 
-        if (!IsFlatpakLaunch(startInfo))
+        if (!IsFlatpakLaunch(startInfo, launchArgsHint))
             return;
 
         var portableHomeRoot = NormalizePathForComparison(Path.Combine(AppPaths.DataRoot, "Home"));
@@ -704,7 +747,7 @@ public sealed class LauncherService
         RemoveIfPortableXdgPath(startInfo, "XDG_STATE_HOME", portableHomeRoot);
     }
 
-    private static bool IsFlatpakLaunch(ProcessStartInfo startInfo)
+    private static bool IsFlatpakLaunch(ProcessStartInfo startInfo, string? launchArgsHint)
     {
         var fileName = Path.GetFileName(startInfo.FileName)?.Trim();
         if (string.IsNullOrWhiteSpace(fileName))
@@ -716,20 +759,12 @@ public sealed class LauncherService
         if (!string.Equals(fileName, "env", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        if (string.IsNullOrWhiteSpace(startInfo.Arguments))
+        var commandToken = TryGetFirstExecutableTokenFromEnvArgs(startInfo.Arguments ?? launchArgsHint);
+        if (string.IsNullOrWhiteSpace(commandToken))
             return false;
 
-        var args = startInfo.Arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var arg in args)
-        {
-            if (arg.StartsWith("-", StringComparison.Ordinal))
-                continue;
-
-            var token = Path.GetFileName(arg.Trim('"', '\''));
-            return string.Equals(token, "flatpak", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return false;
+        var token = Path.GetFileName(commandToken.Trim('"', '\''));
+        return string.Equals(token, "flatpak", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void RemoveIfPortableXdgPath(ProcessStartInfo startInfo, string key, string portableHomeRoot)
@@ -747,6 +782,157 @@ public sealed class LauncherService
         {
             startInfo.EnvironmentVariables.Remove(key);
         }
+    }
+
+    private static void SanitizeStorePortableEnvironment(ProcessStartInfo startInfo, string? launchArgsHint)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            return;
+
+        if (!IsStoreLaunch(startInfo, launchArgsHint))
+            return;
+
+        var portableHomeRoot = NormalizePathForComparison(Path.Combine(AppPaths.DataRoot, "Home"));
+        if (string.IsNullOrWhiteSpace(portableHomeRoot))
+            return;
+
+        RemoveIfPortableXdgPath(startInfo, "XDG_CONFIG_HOME", portableHomeRoot);
+        RemoveIfPortableXdgPath(startInfo, "XDG_DATA_HOME", portableHomeRoot);
+        RemoveIfPortableXdgPath(startInfo, "XDG_CACHE_HOME", portableHomeRoot);
+        RemoveIfPortableXdgPath(startInfo, "XDG_STATE_HOME", portableHomeRoot);
+        RemoveIfPortableXdgPath(startInfo, "DOTNET_CLI_HOME", portableHomeRoot);
+
+        if (!startInfo.EnvironmentVariables.ContainsKey("HOME"))
+            return;
+
+        var homeValue = startInfo.EnvironmentVariables["HOME"];
+        if (string.IsNullOrWhiteSpace(homeValue))
+            return;
+
+        var normalizedHome = NormalizePathForComparison(homeValue);
+        if (!normalizedHome.Equals(portableHomeRoot, StringComparison.Ordinal) &&
+            !normalizedHome.StartsWith(portableHomeRoot + "/", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var realHome = TryGetRealUserHomePath();
+        if (!string.IsNullOrWhiteSpace(realHome))
+            startInfo.EnvironmentVariables["HOME"] = realHome;
+        else
+            startInfo.EnvironmentVariables.Remove("HOME");
+    }
+
+    private static bool IsStoreLaunch(ProcessStartInfo startInfo, string? launchArgsHint)
+    {
+        var fileName = Path.GetFileName(startInfo.FileName)?.Trim();
+        if (string.IsNullOrWhiteSpace(fileName))
+            return false;
+
+        if (IsStoreCommandToken(fileName))
+            return true;
+
+        if (string.Equals(fileName, "xdg-open", StringComparison.OrdinalIgnoreCase))
+            return LooksLikeStoreUri(launchArgsHint);
+
+        if (!string.Equals(fileName, "env", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var commandToken = TryGetFirstExecutableTokenFromEnvArgs(startInfo.Arguments ?? launchArgsHint);
+        if (string.IsNullOrWhiteSpace(commandToken))
+            return false;
+
+        return IsStoreCommandToken(commandToken);
+    }
+
+    private static bool IsStoreCommandToken(string token)
+    {
+        var executable = Path.GetFileName(token.Trim('"', '\''));
+        return string.Equals(executable, "steam", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(executable, "heroic", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool LooksLikeStoreUri(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var trimmed = value.Trim();
+        return trimmed.StartsWith("steam://", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("heroic://", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("gog://", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("epic://", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? TryGetFirstExecutableTokenFromEnvArgs(string? arguments)
+    {
+        if (string.IsNullOrWhiteSpace(arguments))
+            return null;
+
+        var args = arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var skipNext = false;
+        foreach (var arg in args)
+        {
+            if (skipNext)
+            {
+                skipNext = false;
+                continue;
+            }
+
+            if (string.Equals(arg, "--", StringComparison.Ordinal))
+                continue;
+
+            // Common env options that consume the next token.
+            if (arg is "-u" or "--unset" or "-C" or "--chdir" or "-S" or "--split-string")
+            {
+                skipNext = true;
+                continue;
+            }
+
+            // Long options with inline value.
+            if (arg.StartsWith("--unset=", StringComparison.Ordinal) ||
+                arg.StartsWith("--chdir=", StringComparison.Ordinal) ||
+                arg.StartsWith("--split-string=", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (arg.StartsWith("-", StringComparison.Ordinal))
+                continue;
+
+            return arg;
+        }
+
+        return null;
+    }
+
+    private static string? TryGetRealUserHomePath()
+    {
+        try
+        {
+            var userName = Environment.UserName;
+            if (string.IsNullOrWhiteSpace(userName))
+                return null;
+
+            if (!File.Exists(PasswdPath))
+                return null;
+
+            foreach (var line in File.ReadLines(PasswdPath))
+            {
+                if (!line.StartsWith(userName + ":", StringComparison.Ordinal))
+                    continue;
+
+                var parts = line.Split(':');
+                if (parts.Length > 5 && !string.IsNullOrWhiteSpace(parts[5]))
+                    return parts[5];
+            }
+        }
+        catch
+        {
+            // Best-effort.
+        }
+
+        return null;
     }
 
     private static string[] BuildAppImageLdPrefixes(string? appDir)

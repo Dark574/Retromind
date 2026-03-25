@@ -21,6 +21,19 @@ public partial class EmulatorConfig : ObservableObject
         None,
         Override
     }
+
+    /// <summary>
+    /// XDG environment handling mode for emulator launches.
+    /// Inherit: keep process environment as-is.
+    /// Host: remove XDG_* overrides so host defaults are used.
+    /// Custom: apply explicit XDG_* paths from this profile.
+    /// </summary>
+    public enum XdgOverrideMode
+    {
+        Inherit,
+        Host,
+        Custom
+    }
     
     /// <summary>
     /// Unique identifier for this profile
@@ -63,6 +76,21 @@ public partial class EmulatorConfig : ObservableObject
     /// </summary>
     [ObservableProperty]
     private WrapperMode _nativeWrapperMode = WrapperMode.Inherit;
+
+    /// <summary>
+    /// Controls how XDG_* variables are handled when this emulator profile launches.
+    /// </summary>
+    [ObservableProperty]
+    private XdgOverrideMode _xdgMode = XdgOverrideMode.Inherit;
+
+    /// <summary>
+    /// Optional custom XDG paths used when <see cref="XdgOverrideMode"/> is set to Custom.
+    /// Relative paths are resolved against AppPaths.DataRoot.
+    /// </summary>
+    [ObservableProperty] private string? _xdgConfigPath;
+    [ObservableProperty] private string? _xdgDataPath;
+    [ObservableProperty] private string? _xdgCachePath;
+    [ObservableProperty] private string? _xdgStatePath;
 
     /// <summary>
     /// Optional emulator-level wrapper chain. Only used when <see cref="NativeWrapperMode"/> is Override

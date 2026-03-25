@@ -77,6 +77,36 @@
                                                   ToolTip.Tip="{x:Static p:Strings.Settings_UsePlaylistForMultiDisc_Hint}" />
                                     </StackPanel>
                                 </Expander>
+
+                                <!-- Emulator XDG context -->
+                                <StackPanel Spacing="6" Margin="0,10,0,0">
+                                    <TextBlock Text="XDG Context" FontWeight="Bold" />
+                                    <TextBlock Text="Inherit: keep environment. Host: remove XDG overrides. Custom: set explicit XDG paths."
+                                               Opacity="0.65" TextWrapping="Wrap" />
+                                    <ComboBox ItemsSource="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).AvailableEmulatorXdgModes}"
+                                              SelectedItem="{Binding XdgMode}"
+                                              HorizontalAlignment="Stretch" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="8"
+                                            IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsEmulatorXdgCustomSelected}">
+                                    <StackPanel>
+                                        <TextBlock Text="XDG_CONFIG_HOME" FontWeight="Bold" />
+                                        <TextBox Text="{Binding XdgConfigPath}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="XDG_DATA_HOME" FontWeight="Bold" />
+                                        <TextBox Text="{Binding XdgDataPath}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="XDG_CACHE_HOME" FontWeight="Bold" />
+                                        <TextBox Text="{Binding XdgCachePath}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="XDG_STATE_HOME" FontWeight="Bold" />
+                                        <TextBox Text="{Binding XdgStatePath}" />
+                                    </StackPanel>
+                                </StackPanel>
                                 
                                 <!-- Native wrapper chain (Linux, emulator-level) -->
                                 <StackPanel Spacing="8" Margin="0,10,0,0"
