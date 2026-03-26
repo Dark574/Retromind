@@ -141,7 +141,17 @@ public partial class App : Application
         // 3) Background task exceptions
         TaskScheduler.UnobservedTaskException += (_, e) =>
         {
-            LogUnhandled("Unobserved task exception.", e.Exception);
+            if (IsBenignDbusServiceUnknown(e.Exception))
+            {
+                LogUnhandled("Handled benign DBus ServiceUnknown (non-fatal environment gap).", e.Exception);
+            }
+            else
+            {
+                LogUnhandled("Unobserved task exception.", e.Exception);
+            }
+
+            // Prevent noisy finalizer-thread rethrow logs for already captured background errors.
+            e.SetObserved();
         };
     }
 
@@ -149,6 +159,33 @@ public partial class App : Application
     {
         if (ex is not ArgumentOutOfRangeException { ParamName: "key" }) return false;
         return ex.StackTrace?.Contains("Randr15ScreensImpl", StringComparison.Ordinal) == true;
+    }
+
+    private static bool IsBenignDbusServiceUnknown(Exception? ex)
+    {
+        if (ex == null)
+            return false;
+
+        if (ContainsDbusServiceUnknownMarker(ex))
+            return true;
+
+        if (ex is not AggregateException aggregate)
+            return false;
+
+        foreach (var inner in aggregate.Flatten().InnerExceptions)
+        {
+            if (ContainsDbusServiceUnknownMarker(inner))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool ContainsDbusServiceUnknownMarker(Exception ex)
+    {
+        var detail = ex.ToString();
+        return detail.Contains("org.freedesktop.DBus.Error.ServiceUnknown", StringComparison.Ordinal) &&
+               detail.Contains("The name is not activatable", StringComparison.Ordinal);
     }
 
     private static void LogUnhandled(string message, Exception? ex)
