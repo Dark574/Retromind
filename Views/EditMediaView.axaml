@@ -411,7 +411,7 @@
 
                                                     <TextBox Grid.Row="1" Grid.Column="0"
                                                              Text="{Binding Path, Mode=TwoWay}"
-                                                             Watermark="gamemoderun / mangohud / env / gamescope" />
+                                                             Watermark="{x:Static p:Strings.Settings_WrapperPathWatermark}" />
 
                                                     <TextBox Grid.Row="1" Grid.Column="2"
                                                              Text="{Binding Args, Mode=TwoWay}" />
