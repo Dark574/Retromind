@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Presenters;
 using Avalonia.Data;
 using Avalonia.Input;
@@ -137,11 +138,18 @@ public partial class BigModeHostView : UserControl
             return;
 
         if (_themePresenter.Content is Control currentThemeRoot)
+        {
             AnimateVisualSlots(currentThemeRoot);
+            if (isItemChange)
+                RequestSelectionArtifactRepaint(currentThemeRoot);
+        }
 
         // For SystemHost, also animate the right-hand system layout on item changes.
         if (isItemChange && _isSystemHostTheme && _systemLayoutHost?.Content is Control systemRoot)
+        {
             AnimateVisualSlots(systemRoot);
+            RequestSelectionArtifactRepaint(systemRoot);
+        }
     }
 
     private static void AnimateVisualSlots(Control themeRoot)
@@ -150,6 +158,33 @@ public partial class BigModeHostView : UserControl
         ThemeTransitionHelper.AnimateSecondaryVisual(themeRoot);
         ThemeTransitionHelper.AnimateBackgroundVisual(themeRoot);
     }
+
+    private void RequestSelectionArtifactRepaint(Control root)
+    {
+        void InvalidatePass()
+        {
+            root.InvalidateVisual();
+
+            foreach (var lb in root.GetVisualDescendants().OfType<ListBox>())
+            {
+                lb.InvalidateVisual();
+
+                for (int i = 0; i < lb.ItemCount; i++)
+                {
+                    if (lb.ContainerFromIndex(i) is ListBoxItem item)
+                        item.InvalidateVisual();
+                }
+            }
+
+            if (this.GetVisualRoot() is Visual visualRoot)
+                visualRoot.InvalidateVisual();
+        }
+
+        // Run one immediate and two render-tick invalidations to flush stale composition snapshots.
+        InvalidatePass();
+        Dispatcher.UIThread.Post(InvalidatePass, DispatcherPriority.Render);
+        Dispatcher.UIThread.Post(InvalidatePass, DispatcherPriority.Background);
+    }
     
     public void SetThemeContent(Control themeRoot, Theme theme)
     {
@@ -157,6 +192,7 @@ public partial class BigModeHostView : UserControl
 
         // Ensure bindings in the theme root resolve to the BigModeViewModel
         themeRoot.DataContext = DataContext;
+        themeRoot.UseLayoutRounding = true;
 
         _themePresenter.Content = themeRoot;
 
@@ -224,6 +260,7 @@ public partial class BigModeHostView : UserControl
         
         // Layout settles asynchronously; schedule VM "view ready" after render ticks
         NotifyViewReadyAfterRender(DataContext!);
+
     }
 
     /// <summary>
@@ -535,9 +572,20 @@ public partial class BigModeHostView : UserControl
             if (lb is not ListBox listBox)
                 continue;
 
+            // BigMode is controller/keyboard driven; disable pointer hit-testing on nav lists
+            // to avoid pointerover-related stale visuals on some compositors.
+            listBox.IsHitTestVisible = false;
+            listBox.UseLayoutRounding = true;
+            listBox.ClipToBounds = true;
+            EnsureListViewportBackground(listBox);
+
             // Themes can explicitly disable the generic host effect.
             if (!ThemeProperties.GetUseHostSelectionEffects(listBox))
                 continue;
+
+            // BigMode navigation is driven by ViewModel/gamepad; keyboard focus on ListBox
+            // can leave stale focus visuals on the initially focused row.
+            listBox.Focusable = false;
             
             listBox.SelectionChanged += OnListBoxSelectionChanged;
             listBox.ContainerPrepared += OnListBoxContainerPrepared;
@@ -622,6 +670,7 @@ public partial class BigModeHostView : UserControl
 
         // Ensure newly realized container gets the correct visuals.
         ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, selectedGlowRadius, fadeMs, moveMs, accent);
+
     }
 
     private void OnListBoxSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -641,6 +690,7 @@ public partial class BigModeHostView : UserControl
         var accent = ThemeProperties.GetAccentColor(themeRoot);
 
         ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, selectedGlowRadius, fadeMs, moveMs, accent);
+
     }
 
     private static void ApplySelectionVisuals(
@@ -655,6 +705,11 @@ public partial class BigModeHostView : UserControl
     {
         var fadeDuration = TimeSpan.FromMilliseconds(Math.Clamp(fadeMs, 0, 5000));
         var moveDuration = TimeSpan.FromMilliseconds(Math.Clamp(moveMs, 0, 5000));
+        var highlight = accentColor.HasValue
+            ? Color.FromArgb(0x5A, accentColor.Value.R, accentColor.Value.G, accentColor.Value.B)
+            : Color.FromArgb(0x5A, 0x3E, 0x8F, 0xBD);
+        var selectedBrush = new SolidColorBrush(highlight);
+        var unselectedBrush = ResolveUnselectedRowBackground(listBox);
 
         // Walk realized containers only (virtualization-friendly).
         for (int i = 0; i < listBox.ItemCount; i++)
@@ -663,21 +718,40 @@ public partial class BigModeHostView : UserControl
                 continue;
 
             var isSelected = item.IsSelected;
+            item.UseLayoutRounding = true;
+
+            // Enforce deterministic selection visuals at local-value precedence.
+            // This prevents stale pointer/focus style overlays from showing a second marker.
+            // Always paint a real row fill for unselected items. On some Linux compositors,
+            // fully transparent rows can leave stale highlight pixels.
+            item.Background = isSelected ? selectedBrush : unselectedBrush;
+            item.BorderBrush = Brushes.Transparent;
+            item.BorderThickness = new Thickness(0);
 
             // Base values
             item.Opacity = isSelected ? 1.0 : Math.Clamp(unselectedOpacity, 0.0, 1.0);
             item.RenderTransformOrigin = RelativePoint.Center;
 
-            // Ensure transform exists
-            if (item.RenderTransform is not ScaleTransform st)
+            // Apply scaling only when explicitly requested (> 1), otherwise keep text crisp.
+            var normalizedSelectedScale = Math.Clamp(selectedScale, 0.1, 4.0);
+            var applyScale = normalizedSelectedScale > 1.001;
+            if (!applyScale)
             {
-                st = new ScaleTransform(1, 1);
-                item.RenderTransform = st;
+                item.RenderTransform = null;
             }
+            else
+            {
+                // Ensure transform exists
+                if (item.RenderTransform is not ScaleTransform st)
+                {
+                    st = new ScaleTransform(1, 1);
+                    item.RenderTransform = st;
+                }
 
-            var scale = isSelected ? Math.Clamp(selectedScale, 0.1, 4.0) : 1.0;
-            st.ScaleX = scale;
-            st.ScaleY = scale;
+                var scale = isSelected ? normalizedSelectedScale : 1.0;
+                st.ScaleX = scale;
+                st.ScaleY = scale;
+            }
 
             // Selected glow as a subtle drop shadow on the whole container
             if (isSelected && selectedGlowOpacity > 0.001)
@@ -702,8 +776,6 @@ public partial class BigModeHostView : UserControl
             item.Transitions = new Transitions
             {
                 new DoubleTransition { Property = OpacityProperty, Duration = fadeDuration, Easing = new CubicEaseOut() },
-                // ScaleTransform changes are animated via RenderTransform property transition.
-                // We transition the whole RenderTransform, which is good enough here.
                 new TransformOperationsTransition { Property = Visual.RenderTransformProperty, Duration = moveDuration, Easing = new CubicEaseOut() }
             };
         }
@@ -717,18 +789,57 @@ public partial class BigModeHostView : UserControl
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
 
-        // After the initial layout, explicitly set keyboard focus into the theme content
-        // so the first arrow key does not just move focus into the window.
-        if (_themePresenter.Content is Control themeRoot)
-        {
-            // Prefer the first ListBox in the theme (main navigation).
-            var focusTarget =
-                themeRoot.GetVisualDescendants().OfType<ListBox>().FirstOrDefault()
-                ?? themeRoot as IInputElement;
-
-            focusTarget?.Focus();
-        }
         if (viewModel is Retromind.ViewModels.BigModeViewModel vm)
             vm.NotifyViewReady();
     }
+
+    private static IBrush ResolveUnselectedRowBackground(ListBox listBox)
+    {
+        foreach (var ancestor in listBox.GetVisualAncestors())
+        {
+            ISolidColorBrush? solid = ancestor switch
+            {
+                Border { Background: ISolidColorBrush b } when b.Color.A > 0 => b,
+                Panel { Background: ISolidColorBrush p } when p.Color.A > 0 => p,
+                TemplatedControl { Background: ISolidColorBrush t } when t.Color.A > 0 => t,
+                _ => null
+            };
+
+            if (solid == null)
+                continue;
+
+            // Keep the theme hue but force a meaningful alpha to overwrite stale pixels.
+            var c = solid.Color;
+            return new SolidColorBrush(Color.FromArgb(0x44, c.R, c.G, c.B));
+        }
+
+        return new SolidColorBrush(Color.FromArgb(0x44, 0x20, 0x23, 0x2A));
+    }
+
+    private static void EnsureListViewportBackground(ListBox listBox)
+    {
+        if (listBox.Background is ISolidColorBrush ownBg && ownBg.Color.A >= 0x30)
+            return;
+
+        foreach (var ancestor in listBox.GetVisualAncestors())
+        {
+            ISolidColorBrush? solid = ancestor switch
+            {
+                Border { Background: ISolidColorBrush b } when b.Color.A > 0 => b,
+                Panel { Background: ISolidColorBrush p } when p.Color.A > 0 => p,
+                TemplatedControl { Background: ISolidColorBrush t } when t.Color.A > 0 => t,
+                _ => null
+            };
+
+            if (solid == null)
+                continue;
+
+            var c = solid.Color;
+            listBox.Background = new SolidColorBrush(Color.FromArgb(0x66, c.R, c.G, c.B));
+            return;
+        }
+
+        listBox.Background = new SolidColorBrush(Color.FromArgb(0x66, 0x20, 0x23, 0x2A));
+    }
+
 }

@@ -56,6 +56,18 @@
         <!-- Playtime formatting -->
         <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
     </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="ListBox.bm-nav-list ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+    </UserControl.Styles>
     
     <!-- Background layer + actual content -->
     <Grid>
@@ -93,7 +105,9 @@
 
                     <!-- Big title (selected game) -->
                     <Border Grid.Row="1"
-                            Margin="0,0,0,24">
+                            Height="{StaticResource LogoHeight}"
+                            Margin="0,0,0,24"
+                            ClipToBounds="True">
                         <StackPanel Spacing="6">
                             <Grid Height="{StaticResource LogoHeight}"
                                   IsVisible="{Binding HasDisplayLogo}">
@@ -141,13 +155,14 @@
                                        FontSize="18"
                                        FontWeight="Bold"
                                        Foreground="White"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Left"
                                        TextWrapping="Wrap"
                                        MaxLines="2"
                                        TextTrimming="CharacterEllipsis"
                                        IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
                                 <TextBlock.RenderTransform>
-                                    <!-- Less negative = moves to the right -->
-                                    <TranslateTransform X="-12" />
+                                    <TranslateTransform X="0" />
                                 </TextBlock.RenderTransform>
                                 <TextBlock.Transitions>
                                     <StaticResource ResourceKey="TitleTransitions" />
@@ -160,14 +175,20 @@
 
                     <!-- Category list (e.g. systems) -->
                     <ListBox Grid.Row="2"
+                             Classes="bm-nav-list"
                              ItemsSource="{Binding CurrentCategories}"
                              SelectedItem="{Binding SelectedCategory}"
-                             Background="Transparent"
+                             Background="#6620232A"
                              BorderThickness="0"
                              Padding="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              IsVisible="{Binding IsCategorySelectionActive}">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding Name}"
@@ -181,14 +202,20 @@
 
                     <!-- Game list -->
                     <ListBox Grid.Row="2"
+                             Classes="bm-nav-list"
                              ItemsSource="{Binding Items}"
                              SelectedItem="{Binding SelectedItem}"
-                             Background="Transparent"
+                             Background="#6620232A"
                              BorderThickness="0"
                              Padding="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              IsVisible="{Binding IsGameListActive}">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding Title}"

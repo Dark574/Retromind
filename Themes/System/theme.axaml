@@ -12,6 +12,18 @@
              <!-- ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"> -->
 
+    <UserControl.Styles>
+        <Style Selector="ListBox.bm-nav-list ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid ColumnDefinitions="0.20*,0.80*"
           Margin="40,30">
 
@@ -32,12 +44,18 @@
 
                 <!-- System list -->
                 <ListBox Grid.Row="1"
+                         Classes="bm-nav-list"
                          ItemsSource="{Binding CurrentCategories}"
                          SelectedItem="{Binding SelectedCategory}"
-                         Background="Transparent"
+                         Background="#6620232A"
                          BorderThickness="0"
                          Padding="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding Name}"
