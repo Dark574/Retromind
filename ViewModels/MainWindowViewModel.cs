@@ -83,7 +83,6 @@ public partial class MainWindowViewModel : ViewModelBase
     // Keeps the currently active content VM so we can detach event handlers (prevents leaks).
     private MediaAreaViewModel? _currentMediaAreaVm;
     
-    // Mockable StorageProvider for Unit Tests
     public IStorageProvider? StorageProvider { get; set; }
     
     // Command to open per-item manuals/documents with the system viewer.
@@ -100,7 +99,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private int _pendingBigModeEntry;
 
-    // --- Library Dirty Tracking + Debounced Library Save (NEW) ---
+    // --- Library Dirty Tracking + Debounced Library Save ---
     private bool _isLibraryDirty;
     private int _libraryDirtyVersion;
 
@@ -415,27 +414,27 @@ public partial class MainWindowViewModel : ViewModelBase
         bool changed = false;
 
         MediaNode? selectedNode = null;
-        if (!string.IsNullOrWhiteSpace(_currentSettings.LastSelectedNodeId))
+        if (_currentSettings.LastSelectedNodeId is { Length: > 0 } nodeId)
         {
-            selectedNode = FindNodeById(RootItems, _currentSettings.LastSelectedNodeId);
-            if (selectedNode == null)
+            selectedNode = FindNodeById(RootItems, nodeId);
+            if (selectedNode is null)
             {
                 _currentSettings.LastSelectedNodeId = null;
                 changed = true;
             }
         }
 
-        if (selectedNode == null)
+        if (selectedNode is null)
         {
-            if (!string.IsNullOrWhiteSpace(_currentSettings.LastSelectedMediaId))
+            if (_currentSettings.LastSelectedMediaId is { Length: > 0 })
             {
                 _currentSettings.LastSelectedMediaId = null;
                 changed = true;
             }
         }
-        else if (!string.IsNullOrWhiteSpace(_currentSettings.LastSelectedMediaId))
+        else if (_currentSettings.LastSelectedMediaId is { Length: > 0 } mediaId)
         {
-            if (!IsMediaIdInNodeSubtree(selectedNode, _currentSettings.LastSelectedMediaId!))
+            if (!IsMediaIdInNodeSubtree(selectedNode, mediaId))
             {
                 _currentSettings.LastSelectedMediaId = null;
                 changed = true;
@@ -453,20 +452,21 @@ public partial class MainWindowViewModel : ViewModelBase
             }
             else
             {
+                var itemId = _currentSettings.LastBigModeSelectedNodeId;
+
                 if (_currentSettings.LastBigModeWasItemView)
                 {
-                    var itemId = _currentSettings.LastBigModeSelectedNodeId;
-                    if (pathEndNode == null || string.IsNullOrWhiteSpace(itemId) ||
-                        !pathEndNode.Items.Any(i => i.Id == itemId))
+                    if (pathEndNode is null || string.IsNullOrWhiteSpace(itemId) ||
+                        pathEndNode.Items.All(i => i.Id == itemId))
                     {
                         _currentSettings.LastBigModeWasItemView = false;
                         _currentSettings.LastBigModeSelectedNodeId = pathEndNode?.Id;
                         changed = true;
                     }
                 }
-                else if (!string.IsNullOrWhiteSpace(_currentSettings.LastBigModeSelectedNodeId))
+                else if (itemId is { Length: > 0 })
                 {
-                    if (!currentLevel.Any(n => n.Id == _currentSettings.LastBigModeSelectedNodeId))
+                    if (currentLevel.All(n => n.Id != itemId))
                     {
                         _currentSettings.LastBigModeSelectedNodeId = null;
                         changed = true;
@@ -919,11 +919,20 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Shutdown] Final save failed: {ex.Message}");
+            Console.WriteLine($"[Shutdown] Final save failed: {ex.Message}");
             // best effort: still continue cleanup so the app can exit
         }
-
-        Cleanup();
+        finally
+        {
+            try
+            {
+                Cleanup();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Shutdown] Cleanup failed: {ex}");
+            }    
+        }
     }
     
     /// <summary>
@@ -1104,14 +1113,11 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <param name="asset">Manual asset to open (Type must be Manual).</param>
     private void OpenManual(MediaAsset? asset)
     {
-        if (asset == null)
+        if (asset is not { Type: AssetType.Manual } ||
+            string.IsNullOrWhiteSpace(asset.RelativePath))
+        {
             return;
-
-        if (asset.Type != AssetType.Manual)
-            return;
-
-        if (string.IsNullOrWhiteSpace(asset.RelativePath))
-            return;
+        }
 
         try
         {
@@ -1129,9 +1135,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// into LibraryRelative paths, then persists the updated library
     /// This is intended as a one-time operation when switching to a portable setup
     /// </summary>
-    public async Task ConvertLaunchPathsToPortableAsync()
+    private async Task ConvertLaunchPathsToPortableAsync()
     {
-        if (RootItems == null || RootItems.Count == 0)
+        if (RootItems?.Count == 0)
             return;
 
         try
@@ -1148,17 +1154,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
             if (migrated <= 0)
             {
-                Debug.WriteLine("[Migration] No launch file paths needed conversion.");
+                Console.WriteLine("[Migration] No launch file paths needed conversion.");
                 return;
             }
 
-            Debug.WriteLine($"[Migration] Converted {migrated} launch file paths to LibraryRelative.");
+            Console.WriteLine($"[Migration] Converted {migrated} launch file paths to LibraryRelative.");
             var json = await Task.Run(() => _dataService.Serialize(snapshot!)).ConfigureAwait(false);
             await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Migration] ConvertLaunchPathsToPortableAsync failed: {ex}");
+            Console.WriteLine($"[Migration] ConvertLaunchPathsToPortableAsync failed: {ex}");
         }
     }
     
