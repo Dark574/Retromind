@@ -32,7 +32,9 @@ See `docs/CHANGELOG.md` for version history.
 - Metadata scraping (depends on your API keys)
 - Optional BigMode / controller-friendly UI with runtime themes
 - Per-item manuals/documents
-- set the launch parameters for your game exactly as you like with launch wrappers and env. variables
+- Flexible launch configuration with wrappers, environment variables, and per-item arguments
+- Portable library layout with relative paths (USB/external drive friendly)
+- Optional AppImage portable HOME/XDG mode (best-effort, app-dependent)
 
 ## Screenshots
 
