@@ -1137,7 +1137,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     private async Task ConvertLaunchPathsToPortableAsync()
     {
-        if (RootItems?.Count == 0)
+        if (RootItems.Count == 0)
             return;
 
         try
