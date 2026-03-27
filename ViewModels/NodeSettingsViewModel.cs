@@ -1114,29 +1114,29 @@ public partial class NodeSettingsViewModel : ViewModelBase
         string oldName,
         string newName)
     {
-        if (string.Equals(oldName, newName, StringComparison.Ordinal))
+        if (string.Equals(oldName, newName, StringComparison.Ordinal) ||
+            _nodePath.Count == 0)
+        {
             return (true, false);
-
-        if (_nodePath.Count == 0)
-            return (true, false);
+        }
 
         var oldSegments = new List<string>(_nodePath);
-        var newSegments = new List<string>(_nodePath);
+        var newSegments = new List<string>(oldSegments);
         newSegments[^1] = newName;
 
         var oldFolder = ResolveNodeFolder(oldSegments);
         var newFolder = ResolveNodeFolder(newSegments);
 
-        if (string.Equals(oldFolder, newFolder, StringComparison.OrdinalIgnoreCase))
+        if (!Directory.Exists(oldFolder) ||
+            string.Equals(oldFolder, newFolder, StringComparison.OrdinalIgnoreCase))
+        {
             return (true, false);
-
-        if (!Directory.Exists(oldFolder))
-            return (true, false);
+        }
 
         try
         {
             var hasAssets = HasAnyAssetFolders(oldFolder);
-            if (hasAssets && Directory.Exists(newFolder) && _confirmDialogAsync != null)
+            if (hasAssets && Directory.Exists(newFolder) && _confirmDialogAsync is not null)
             {
                 var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeAssetsFormat, newName);
                 if (!await _confirmDialogAsync(mergeMessage))
@@ -1164,8 +1164,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
             NodeVideoPath = _node.PrimaryVideoPath;
             NodeMarqueePath = _node.PrimaryMarqueePath;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[Rename] Failed: {ex}");
             return (false, false);
         }
 
