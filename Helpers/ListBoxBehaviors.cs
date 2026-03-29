@@ -99,6 +99,35 @@ public static class ListBoxBehaviors
     private static IDisposable? GetCenterSelectedItemSubscription(AvaloniaObject element)
         => element.GetValue(CenterSelectedItemSubscriptionProperty);
 
+    // Internal state for the "always center" behavior:
+    // we run a stronger centering pass only for the first non-null selection.
+    private static readonly AttachedProperty<bool> HasCenteredInitiallyProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, bool>(
+            "HasCenteredInitially",
+            typeof(ListBoxBehaviors));
+
+    private static void SetHasCenteredInitially(AvaloniaObject element, bool value)
+        => element.SetValue(HasCenteredInitiallyProperty, value);
+
+    private static bool GetHasCenteredInitially(AvaloniaObject element)
+        => element.GetValue(HasCenteredInitiallyProperty);
+
+    // Monotonic request id used to cancel outdated vertical centering retries/timers.
+    private static readonly AttachedProperty<int> VerticalCenterRequestIdProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, int>(
+            "VerticalCenterRequestId",
+            typeof(ListBoxBehaviors));
+
+    private static int BeginVerticalCenterRequest(AvaloniaObject element)
+    {
+        var next = element.GetValue(VerticalCenterRequestIdProperty) + 1;
+        element.SetValue(VerticalCenterRequestIdProperty, next);
+        return next;
+    }
+
+    private static bool IsCurrentVerticalCenterRequest(AvaloniaObject element, int requestId)
+        => element.GetValue(VerticalCenterRequestIdProperty) == requestId;
+
     private static readonly AttachedProperty<IDisposable?> CenterSelectedItemHorizontalSubscriptionProperty =
         AvaloniaProperty.RegisterAttached<ListBox, IDisposable?>(
             "CenterSelectedItemHorizontalSubscription",
@@ -180,12 +209,36 @@ public static class ListBoxBehaviors
 
             if (enable)
             {
+                SetHasCenteredInitially(listBox, false);
+
                 var subscription = listBox
                     .GetObservable(SelectingItemsControl.SelectedItemProperty)
-                    .Subscribe(new ActionObserver<object?>(_ => QueueCenterCurrentSelection(listBox)));
+                    .Subscribe(new ActionObserver<object?>(_ =>
+                    {
+                        if (listBox.SelectedItem == null)
+                            return;
+
+                        if (!GetHasCenteredInitially(listBox))
+                        {
+                            SetHasCenteredInitially(listBox, true);
+                            QueueCenterCurrentSelectionStabilized(listBox);
+                            return;
+                        }
+
+                        QueueCenterCurrentSelection(listBox);
+                    }));
 
                 SetCenterSelectedItemSubscription(listBox, subscription);
-                QueueCenterCurrentSelection(listBox);
+
+                if (listBox.SelectedItem != null)
+                {
+                    SetHasCenteredInitially(listBox, true);
+                    QueueCenterCurrentSelectionStabilized(listBox);
+                }
+                else
+                {
+                    QueueCenterCurrentSelection(listBox);
+                }
             }
         });
 
@@ -282,12 +335,48 @@ public static class ListBoxBehaviors
 
     private static void QueueCenterCurrentSelection(ListBox listBox)
     {
-        if (listBox.SelectedItem != null)
-            listBox.ScrollIntoView(listBox.SelectedItem);
+        if (listBox.SelectedItem == null)
+            return;
+
+        var requestId = BeginVerticalCenterRequest(listBox);
+
+        // Try immediate centering first to avoid visible edge->center jumps on rapid navigation.
+        if (TryCenterCurrentSelection(listBox, requestId, allowScrollIntoView: false))
+            return;
 
         // Delay the centering until after layout has updated; otherwise
         // container positions and viewport size may be outdated.
-        Dispatcher.UIThread.Post(() => CenterCurrentSelection(listBox, remainingAttempts: 8), DispatcherPriority.Render);
+        Dispatcher.UIThread.Post(
+            () => CenterCurrentSelection(listBox, remainingAttempts: 8, requestId, allowScrollIntoView: false),
+            DispatcherPriority.Render);
+    }
+
+    /// <summary>
+    /// Stronger initial centering pass:
+    /// run one immediate render-pass center plus a few delayed re-centers so
+    /// the very first visible state is already centered after layout settles.
+    /// </summary>
+    private static void QueueCenterCurrentSelectionStabilized(ListBox listBox)
+    {
+        if (listBox.SelectedItem == null)
+            return;
+
+        var requestId = BeginVerticalCenterRequest(listBox);
+
+        // One initial coarse realization pass is fine here (startup only).
+        listBox.ScrollIntoView(listBox.SelectedItem);
+
+        Dispatcher.UIThread.Post(
+            () => CenterCurrentSelection(listBox, remainingAttempts: 24, requestId, allowScrollIntoView: true),
+            DispatcherPriority.Render);
+
+        var delaysMs = new[] { 16, 40, 80, 140, 220, 340, 500, 700, 1000, 1300 };
+        foreach (var delayMs in delaysMs)
+        {
+            DispatcherTimer.RunOnce(
+                () => CenterCurrentSelection(listBox, remainingAttempts: 12, requestId, allowScrollIntoView: true),
+                TimeSpan.FromMilliseconds(delayMs));
+        }
     }
 
     private static void QueueCenterCurrentSelectionHorizontal(ListBox listBox)
@@ -316,21 +405,44 @@ public static class ListBoxBehaviors
         }
     }
     
-    private static void CenterCurrentSelection(ListBox listBox, int remainingAttempts)
+    private static void CenterCurrentSelection(
+        ListBox listBox,
+        int remainingAttempts,
+        int requestId,
+        bool allowScrollIntoView)
     {
-        if (listBox.SelectedItem == null)
+        if (TryCenterCurrentSelection(listBox, requestId, allowScrollIntoView))
             return;
 
-        // Try to find the container (ListBoxItem) for the selected item
-        if (listBox.ContainerFromItem(listBox.SelectedItem) is not Control container)
+        if (remainingAttempts > 0)
         {
-            if (remainingAttempts > 0)
-            {
-                Dispatcher.UIThread.Post(
-                    () => CenterCurrentSelection(listBox, remainingAttempts - 1),
-                    DispatcherPriority.Render);
-            }
-            return;
+            Dispatcher.UIThread.Post(
+                () => CenterCurrentSelection(listBox, remainingAttempts - 1, requestId, allowScrollIntoView),
+                DispatcherPriority.Render);
+        }
+    }
+
+    private static bool TryCenterCurrentSelection(
+        ListBox listBox,
+        int requestId,
+        bool allowScrollIntoView)
+    {
+        if (!IsCurrentVerticalCenterRequest(listBox, requestId))
+            return true;
+
+        if (listBox.SelectedItem == null)
+            return true;
+
+        var selectedItem = listBox.SelectedItem;
+
+        // Try to find the container (ListBoxItem) for the selected item
+        if (listBox.ContainerFromItem(selectedItem) is not Control container)
+        {
+            // Only force realization during the initial "stabilized" centering pass.
+            // During rapid user navigation this can cause visible jumps.
+            if (allowScrollIntoView)
+                listBox.ScrollIntoView(selectedItem);
+            return false;
         }
 
         // Find the ScrollViewer inside the ListBox visual tree
@@ -341,19 +453,13 @@ public static class ListBoxBehaviors
 
         if (scrollViewer == null)
         {
-            if (remainingAttempts > 0)
-            {
-                Dispatcher.UIThread.Post(
-                    () => CenterCurrentSelection(listBox, remainingAttempts - 1),
-                    DispatcherPriority.Render);
-            }
-            return;
+            return false;
         }
 
         // Transform the item's top-left into the ScrollViewer's coordinate space
         var p = container.TranslatePoint(new Point(0, 0), scrollViewer);
         if (p == null)
-            return;
+            return false;
 
         var itemTopLeft = p.Value;
 
@@ -364,13 +470,7 @@ public static class ListBoxBehaviors
 
         if (viewportHeight <= 0 || itemHeight <= 0)
         {
-            if (remainingAttempts > 0)
-            {
-                Dispatcher.UIThread.Post(
-                    () => CenterCurrentSelection(listBox, remainingAttempts - 1),
-                    DispatcherPriority.Render);
-            }
-            return;
+            return false;
         }
 
         var currentOffset = scrollViewer.Offset;
@@ -383,6 +483,7 @@ public static class ListBoxBehaviors
         var newOffset = new Vector(currentOffset.X, clampedOffsetY);
 
         scrollViewer.Offset = newOffset;
+        return true;
     }
 
     private static void CenterCurrentSelectionHorizontal(ListBox listBox, int remainingAttempts)
