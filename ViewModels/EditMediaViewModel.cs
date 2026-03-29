@@ -174,18 +174,53 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
             var folder = Path.GetFullPath(Path.Combine(AppPaths.LibraryRoot, PrefixPath));
             Directory.CreateDirectory(folder);
-
-            Process.Start(new ProcessStartInfo
+            
+            var psi = new ProcessStartInfo
             {
                 FileName = "xdg-open",
                 UseShellExecute = false,
                 ArgumentList = { folder }
-            })?.Dispose();
+            };
+            
+            SanitizeEnvironmentForHostProcess(psi);
+            Process.Start(psi)?.Dispose();
         }
         catch
         {
             // best-effort: opening a folder must not break the dialog
         }
+    }
+
+    private static void SanitizeEnvironmentForHostProcess(ProcessStartInfo psi)
+    {
+        // Avoid AppImage-shipped libs shadowing host libs for desktop helpers.
+        psi.Environment.Remove("LD_LIBRARY_PATH");
+        psi.Environment.Remove("VLC_PLUGIN_PATH");
+
+        // Remove AppImage-injected PATH segments (APPDIR/usr/bin) when possible
+        // so host helper binaries resolve from the system.
+        if (!psi.Environment.TryGetValue("PATH", out var pathValue) ||
+            string.IsNullOrWhiteSpace(pathValue))
+        {
+            return;
+        }
+
+        var appDir = Environment.GetEnvironmentVariable("APPDIR");
+        if (string.IsNullOrWhiteSpace(appDir))
+            return;
+
+        var separator = Path.PathSeparator;
+        var filteredSegments = pathValue
+            .Split(separator, StringSplitOptions.RemoveEmptyEntries)
+            .Where(segment =>
+                !segment.Equals(appDir, StringComparison.Ordinal) &&
+                !segment.StartsWith(appDir + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            .ToArray();
+
+        if (filteredSegments.Length == 0)
+            return;
+
+        psi.Environment["PATH"] = string.Join(separator, filteredSegments);
     }
 
     private void ClearPrefix()
