@@ -467,24 +467,23 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
     private void ApplyXdgOverridesForPreview(Dictionary<string, string> env)
     {
-        if (MediaType != MediaType.Native)
+        // Keep preview behavior aligned with runtime launch behavior:
+        // item-level XDG applies to Native + Emulator, but not Command.
+        if (MediaType == MediaType.Command)
             return;
 
-        ApplyXdgOverrideIfMissing(env, "XDG_CONFIG_HOME", XdgConfigPath);
-        ApplyXdgOverrideIfMissing(env, "XDG_DATA_HOME", XdgDataPath);
-        ApplyXdgOverrideIfMissing(env, "XDG_CACHE_HOME", XdgCachePath);
-        ApplyXdgOverrideIfMissing(env, "XDG_STATE_HOME", XdgStatePath);
+        ApplyXdgOverride(env, "XDG_CONFIG_HOME", XdgConfigPath);
+        ApplyXdgOverride(env, "XDG_DATA_HOME", XdgDataPath);
+        ApplyXdgOverride(env, "XDG_CACHE_HOME", XdgCachePath);
+        ApplyXdgOverride(env, "XDG_STATE_HOME", XdgStatePath);
     }
 
-    private static void ApplyXdgOverrideIfMissing(
+    private static void ApplyXdgOverride(
         Dictionary<string, string> env,
         string key,
         string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            return;
-
-        if (env.ContainsKey(key))
             return;
 
         var resolved = Path.IsPathRooted(value)

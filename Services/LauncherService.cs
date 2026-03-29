@@ -613,21 +613,25 @@ public sealed class LauncherService
 
     private static void ApplyXdgOverrides(ProcessStartInfo startInfo, MediaItem item)
     {
-        if (item.MediaType != MediaType.Native)
+        // Item-level XDG overrides apply to Native and Emulator launches.
+        // Command entries (URL/protocol/external command) are excluded.
+        if (item.MediaType == MediaType.Command)
             return;
 
-        ApplyXdgPath(startInfo, "XDG_CONFIG_HOME", item.XdgConfigPath);
-        ApplyXdgPath(startInfo, "XDG_DATA_HOME", item.XdgDataPath);
-        ApplyXdgPath(startInfo, "XDG_CACHE_HOME", item.XdgCachePath);
-        ApplyXdgPath(startInfo, "XDG_STATE_HOME", item.XdgStatePath);
+        // Priority model:
+        // Item overrides should win over emulator-level XDG and base environment.
+        ApplyXdgPath(startInfo, "XDG_CONFIG_HOME", item.XdgConfigPath, overwriteExisting: true);
+        ApplyXdgPath(startInfo, "XDG_DATA_HOME", item.XdgDataPath, overwriteExisting: true);
+        ApplyXdgPath(startInfo, "XDG_CACHE_HOME", item.XdgCachePath, overwriteExisting: true);
+        ApplyXdgPath(startInfo, "XDG_STATE_HOME", item.XdgStatePath, overwriteExisting: true);
     }
 
-    private static void ApplyXdgPath(ProcessStartInfo startInfo, string key, string? value)
+    private static void ApplyXdgPath(ProcessStartInfo startInfo, string key, string? value, bool overwriteExisting = false)
     {
         if (string.IsNullOrWhiteSpace(value))
             return;
 
-        if (startInfo.EnvironmentVariables.ContainsKey(key))
+        if (!overwriteExisting && startInfo.EnvironmentVariables.ContainsKey(key))
             return;
 
         var resolved = Path.IsPathRooted(value)
