@@ -140,12 +140,11 @@ public partial class BigModeHostView : UserControl
         if (_themePresenter.Content is Control currentThemeRoot)
         {
             AnimateVisualSlots(currentThemeRoot);
-            if (isItemChange)
-                RequestSelectionArtifactRepaint(currentThemeRoot);
+            RequestSelectionArtifactRepaint(currentThemeRoot);
         }
 
-        // For SystemHost, also animate the right-hand system layout on item changes.
-        if (isItemChange && _isSystemHostTheme && _systemLayoutHost?.Content is Control systemRoot)
+        // For SystemHost, also animate/repaint the right-hand system layout.
+        if (_isSystemHostTheme && _systemLayoutHost?.Content is Control systemRoot)
         {
             AnimateVisualSlots(systemRoot);
             RequestSelectionArtifactRepaint(systemRoot);
@@ -250,6 +249,7 @@ public partial class BigModeHostView : UserControl
         
         // Initial visual animations for the newly set theme
         AnimateVisualSlots(themeRoot);
+        RequestSelectionArtifactRepaint(themeRoot);
 
         // If this is the SystemHost theme, initialize the right-hand system layout
         // immediately for the current SelectedCategory
@@ -413,6 +413,7 @@ public partial class BigModeHostView : UserControl
         if (node is null)
         {
             _systemLayoutHost.Content = null;
+            PruneDetachedTunedListBoxes();
             vm.CanShowVideo = false;
             return;
         }
@@ -446,6 +447,7 @@ public partial class BigModeHostView : UserControl
                     catch
                     {
                         _systemLayoutHost.Content = null;
+                        PruneDetachedTunedListBoxes();
                         vm.CanShowVideo = false;
                         return;
                     }
@@ -453,6 +455,7 @@ public partial class BigModeHostView : UserControl
                 else
                 {
                     _systemLayoutHost.Content = null;
+                    PruneDetachedTunedListBoxes();
                     vm.CanShowVideo = false;
                     return;
                 }
@@ -474,8 +477,10 @@ public partial class BigModeHostView : UserControl
         subView.DataContext = vm;
 
         _systemLayoutHost.Content = subView;
+        ApplyThemeTuning(subView);
 
         AnimateVisualSlots(subView);
+        RequestSelectionArtifactRepaint(subView);
 
         // When we are inside the SystemHost theme, the per-system subtheme
         // can define its own primary video slot. Attach the shared primary
@@ -530,8 +535,24 @@ public partial class BigModeHostView : UserControl
         _tunedListBoxes.Clear();
     }
 
+    private void PruneDetachedTunedListBoxes()
+    {
+        for (var i = _tunedListBoxes.Count - 1; i >= 0; i--)
+        {
+            var listBox = _tunedListBoxes[i];
+            if (listBox.GetVisualRoot() != null)
+                continue;
+
+            listBox.SelectionChanged -= OnListBoxSelectionChanged;
+            listBox.ContainerPrepared -= OnListBoxContainerPrepared;
+            _tunedListBoxes.RemoveAt(i);
+        }
+    }
+
     private void ApplyThemeTuning(Control themeRoot)
     {
+        PruneDetachedTunedListBoxes();
+
         // Read tuning values from theme root (attached properties).
         var selectedScale = ThemeProperties.GetSelectedScale(themeRoot);
         var unselectedOpacity = ThemeProperties.GetUnselectedOpacity(themeRoot);
@@ -560,8 +581,6 @@ public partial class BigModeHostView : UserControl
 
         var accent = ThemeProperties.GetAccentColor(themeRoot);
 
-        var fadeDuration = TimeSpan.FromMilliseconds(Math.Clamp(fadeMs, 0, 5000));
-
         if (DataContext is Retromind.ViewModels.BigModeViewModel vm)
             vm.CircularWindowSize = circularWindowSize;
         
@@ -572,24 +591,27 @@ public partial class BigModeHostView : UserControl
             if (lb is not ListBox listBox)
                 continue;
 
-            // BigMode is controller/keyboard driven; disable pointer hit-testing on nav lists
-            // to avoid pointerover-related stale visuals on some compositors.
-            listBox.IsHitTestVisible = false;
-            listBox.UseLayoutRounding = true;
-            listBox.ClipToBounds = true;
-            EnsureListViewportBackground(listBox);
+            if (ThemeProperties.GetUseHostListGuardrails(listBox))
+            {
+                // BigMode is controller/keyboard driven; disable pointer hit-testing on nav lists
+                // to avoid pointerover-related stale visuals on some compositors.
+                listBox.IsHitTestVisible = false;
+                listBox.UseLayoutRounding = true;
+                listBox.ClipToBounds = true;
+                listBox.Focusable = false;
+                EnsureListViewportBackground(listBox);
+            }
 
             // Themes can explicitly disable the generic host effect.
             if (!ThemeProperties.GetUseHostSelectionEffects(listBox))
                 continue;
 
-            // BigMode navigation is driven by ViewModel/gamepad; keyboard focus on ListBox
-            // can leave stale focus visuals on the initially focused row.
-            listBox.Focusable = false;
-            
-            listBox.SelectionChanged += OnListBoxSelectionChanged;
-            listBox.ContainerPrepared += OnListBoxContainerPrepared;
-            _tunedListBoxes.Add(listBox);
+            if (!_tunedListBoxes.Contains(listBox))
+            {
+                listBox.SelectionChanged += OnListBoxSelectionChanged;
+                listBox.ContainerPrepared += OnListBoxContainerPrepared;
+                _tunedListBoxes.Add(listBox);
+            }
 
             // Apply current selection state for realized containers.
             ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, selectedGlowRadius, fadeMs, moveMs, accent);
@@ -657,7 +679,7 @@ public partial class BigModeHostView : UserControl
         if (sender is not ListBox listBox)
             return;
 
-        if (_themePresenter.Content is not Control themeRoot)
+        if (!TryResolveTuningRoot(listBox, out var themeRoot))
             return;
 
         var selectedScale = ThemeProperties.GetSelectedScale(themeRoot);
@@ -678,7 +700,7 @@ public partial class BigModeHostView : UserControl
         if (sender is not ListBox listBox)
             return;
 
-        if (_themePresenter.Content is not Control themeRoot)
+        if (!TryResolveTuningRoot(listBox, out var themeRoot))
             return;
 
         var selectedScale = ThemeProperties.GetSelectedScale(themeRoot);
@@ -691,6 +713,48 @@ public partial class BigModeHostView : UserControl
 
         ApplySelectionVisuals(listBox, selectedScale, unselectedOpacity, selectedGlowOpacity, selectedGlowRadius, fadeMs, moveMs, accent);
 
+    }
+
+    private bool TryResolveTuningRoot(ListBox listBox, out Control themeRoot)
+    {
+        if (HasLocalTuningProps(listBox))
+        {
+            themeRoot = listBox;
+            return true;
+        }
+
+        foreach (var ancestor in listBox.GetVisualAncestors())
+        {
+            if (ancestor is not Control control)
+                continue;
+
+            if (!HasLocalTuningProps(control))
+                continue;
+
+            themeRoot = control;
+            return true;
+        }
+
+        if (_themePresenter.Content is Control fallback)
+        {
+            themeRoot = fallback;
+            return true;
+        }
+
+        themeRoot = null!;
+        return false;
+    }
+
+    private static bool HasLocalTuningProps(AvaloniaObject obj)
+    {
+        return obj.IsSet(ThemeProperties.NameProperty) ||
+               obj.IsSet(ThemeProperties.SelectedScaleProperty) ||
+               obj.IsSet(ThemeProperties.UnselectedOpacityProperty) ||
+               obj.IsSet(ThemeProperties.SelectedGlowOpacityProperty) ||
+               obj.IsSet(ThemeProperties.SelectedGlowRadiusProperty) ||
+               obj.IsSet(ThemeProperties.FadeDurationMsProperty) ||
+               obj.IsSet(ThemeProperties.MoveDurationMsProperty) ||
+               obj.IsSet(ThemeProperties.AccentColorProperty);
     }
 
     private static void ApplySelectionVisuals(

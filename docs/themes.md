@@ -404,6 +404,8 @@ These values are used by the host to produce consistent “TV-like” selection 
 - `ThemeProperties.SelectedGlowRadius` (double, default: `18.0`) — blur radius for host-driven glow
 - `ThemeProperties.AccentColor` (Color?) — used for the glow color when set (fallback: gold)
 - `ThemeProperties.CircularWindowSize` (int, default: `9`)
+- `ThemeProperties.UseHostSelectionEffects` (bool, default: `true`) — host paints deterministic selected/unselected rows
+- `ThemeProperties.UseHostListGuardrails` (bool, default: `true`) — host applies compositor-safe ListBox defaults (focus/hit-test/layout/background)
 
 Recommended ranges:
 
@@ -416,6 +418,8 @@ Note:
 - Even when `ThemeProperties.UseHostSelectionEffects="False"` is set on a `ListBox`,
   you can still bind `SelectedGlowOpacity` / `SelectedGlowRadius` directly in your
   theme XAML (for custom per-item glow implementations).
+- `UseHostListGuardrails` is recommended for all navigation lists; disable it only
+  when your theme intentionally needs mouse-driven ListBox interaction.
 
 #### Circular list windows (wrap-around)
 

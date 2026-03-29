@@ -68,6 +68,22 @@ public partial class ThemeProperties
         element.SetValue(UseHostSelectionEffectsProperty, value);
 
     /// <summary>
+    /// Controls whether the BigMode host applies defensive ListBox guardrails
+    /// (hit-testing/focus/layout/background hardening) to reduce compositor artifacts.
+    /// Default: true.
+    /// </summary>
+    public static readonly AttachedProperty<bool> UseHostListGuardrailsProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "UseHostListGuardrails",
+            defaultValue: true);
+
+    public static bool GetUseHostListGuardrails(AvaloniaObject element) =>
+        element.GetValue(UseHostListGuardrailsProperty);
+
+    public static void SetUseHostListGuardrails(AvaloniaObject element, bool value) =>
+        element.SetValue(UseHostListGuardrailsProperty, value);
+
+    /// <summary>
     /// Controls the size of circular list windows used by themes that bind to
     /// BigModeViewModel.CircularItems. Values <= 0 will show the full list.
     /// </summary>
