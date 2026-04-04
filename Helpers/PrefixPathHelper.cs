@@ -50,4 +50,54 @@ public static class PrefixPathHelper
         var driveC = Path.Combine(path, "drive_c");
         return Directory.Exists(driveC);
     }
+
+    public static bool TryMakeLibraryRelativeIfInsideLibraryRoot(
+        string absolutePath,
+        string libraryRoot,
+        out string relativePath)
+    {
+        relativePath = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(absolutePath) || string.IsNullOrWhiteSpace(libraryRoot))
+            return false;
+
+        if (!Path.IsPathRooted(absolutePath))
+            return false;
+
+        try
+        {
+            var normalizedLibraryRoot = Path.GetFullPath(libraryRoot);
+            var normalizedLibraryRootWithSep = normalizedLibraryRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? normalizedLibraryRoot
+                : normalizedLibraryRoot + Path.DirectorySeparatorChar;
+            var normalizedAbsolute = Path.GetFullPath(absolutePath);
+
+            if (!normalizedAbsolute.StartsWith(normalizedLibraryRootWithSep, StringComparison.Ordinal) &&
+                !string.Equals(normalizedAbsolute, normalizedLibraryRoot, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            relativePath = Path.GetRelativePath(normalizedLibraryRoot, normalizedAbsolute);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static string? ConvertPathToLibraryRelativeIfInsideLibraryRoot(string? path, string libraryRoot)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return path;
+
+        var trimmed = path.Trim();
+        if (!Path.IsPathRooted(trimmed))
+            return trimmed;
+
+        return TryMakeLibraryRelativeIfInsideLibraryRoot(trimmed, libraryRoot, out var relativePath)
+            ? relativePath
+            : trimmed;
+    }
 }
