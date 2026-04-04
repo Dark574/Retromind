@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
+using Retromind.Helpers;
 
 namespace Retromind.Services;
 
@@ -40,7 +40,7 @@ public sealed class DocumentService : IDocumentService
                 CreateNoWindow = true
             };
             
-            SanitizeEnvironmentForHostProcess(psi);
+            HostProcessEnvironmentSanitizer.Sanitize(psi);
 
             var process = Process.Start(psi);
             process?.Dispose();
@@ -54,39 +54,4 @@ public sealed class DocumentService : IDocumentService
         }
     }
 
-    /// <summary>
-    /// External host tools (xdg-open/kde-open) must not inherit AppImage library overrides.
-    /// Otherwise host binaries can load bundled OpenSSL/libcurl versions and fail at startup.
-    /// </summary>
-    private static void SanitizeEnvironmentForHostProcess(ProcessStartInfo psi)
-    {
-        // Avoid AppImage-shipped libs shadowing host libs for desktop helpers.
-        psi.Environment.Remove("LD_LIBRARY_PATH");
-        psi.Environment.Remove("VLC_PLUGIN_PATH");
-
-        // Also remove AppImage-injected PATH segments (APPDIR/usr/bin) when possible
-        // so host helper binaries resolve from the system.
-        if (!psi.Environment.TryGetValue("PATH", out var pathValue) ||
-            string.IsNullOrWhiteSpace(pathValue))
-        {
-            return;
-        }
-
-        var appDir = Environment.GetEnvironmentVariable("APPDIR");
-        if (string.IsNullOrWhiteSpace(appDir))
-            return;
-
-        var separator = Path.PathSeparator;
-        var filteredSegments = pathValue
-            .Split(separator, StringSplitOptions.RemoveEmptyEntries)
-            .Where(segment =>
-                !segment.Equals(appDir, StringComparison.Ordinal) &&
-                !segment.StartsWith(appDir + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-            .ToArray();
-
-        if (filteredSegments.Length == 0)
-            return;
-
-        psi.Environment["PATH"] = string.Join(separator, filteredSegments);
-    }
 }

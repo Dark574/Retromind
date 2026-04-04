@@ -182,45 +182,13 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 ArgumentList = { folder }
             };
             
-            SanitizeEnvironmentForHostProcess(psi);
+            HostProcessEnvironmentSanitizer.Sanitize(psi);
             Process.Start(psi)?.Dispose();
         }
         catch
         {
             // best-effort: opening a folder must not break the dialog
         }
-    }
-
-    private static void SanitizeEnvironmentForHostProcess(ProcessStartInfo psi)
-    {
-        // Avoid AppImage-shipped libs shadowing host libs for desktop helpers.
-        psi.Environment.Remove("LD_LIBRARY_PATH");
-        psi.Environment.Remove("VLC_PLUGIN_PATH");
-
-        // Remove AppImage-injected PATH segments (APPDIR/usr/bin) when possible
-        // so host helper binaries resolve from the system.
-        if (!psi.Environment.TryGetValue("PATH", out var pathValue) ||
-            string.IsNullOrWhiteSpace(pathValue))
-        {
-            return;
-        }
-
-        var appDir = Environment.GetEnvironmentVariable("APPDIR");
-        if (string.IsNullOrWhiteSpace(appDir))
-            return;
-
-        var separator = Path.PathSeparator;
-        var filteredSegments = pathValue
-            .Split(separator, StringSplitOptions.RemoveEmptyEntries)
-            .Where(segment =>
-                !segment.Equals(appDir, StringComparison.Ordinal) &&
-                !segment.StartsWith(appDir + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-            .ToArray();
-
-        if (filteredSegments.Length == 0)
-            return;
-
-        psi.Environment["PATH"] = string.Join(separator, filteredSegments);
     }
 
     private void ClearPrefix()
