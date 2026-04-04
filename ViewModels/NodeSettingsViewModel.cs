@@ -246,6 +246,60 @@ public partial class NodeSettingsViewModel : ViewModelBase
             => new LaunchWrapper { Path = Path?.Trim() ?? string.Empty, Args = string.IsNullOrWhiteSpace(Args) ? null : Args };
     }
 
+    private static bool TryMakeDataRelativeIfInsideDataRoot(string absolutePath, out string relativePath)
+    {
+        relativePath = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(absolutePath))
+            return false;
+
+        if (!Path.IsPathRooted(absolutePath))
+            return false;
+
+        var dataRoot = Path.GetFullPath(AppPaths.DataRoot);
+        var dataRootWithSep = dataRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? dataRoot
+            : dataRoot + Path.DirectorySeparatorChar;
+        var fullPath = Path.GetFullPath(absolutePath);
+
+        if (string.Equals(fullPath, dataRoot, StringComparison.Ordinal) ||
+            fullPath.StartsWith(dataRootWithSep, StringComparison.Ordinal))
+        {
+            relativePath = Path.GetRelativePath(dataRoot, fullPath);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string ConvertPathToPortableIfInsideDataRoot(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return string.Empty;
+
+        var trimmed = path.Trim();
+        if (!Path.IsPathRooted(trimmed))
+            return trimmed;
+
+        return TryMakeDataRelativeIfInsideDataRoot(trimmed, out var relativePath)
+            ? relativePath
+            : trimmed;
+    }
+
+    private static void ConvertWrapperPathsToPortable(List<LaunchWrapper> wrappers)
+    {
+        if (wrappers.Count == 0)
+            return;
+
+        foreach (var wrapper in wrappers)
+        {
+            if (wrapper == null || string.IsNullOrWhiteSpace(wrapper.Path))
+                continue;
+
+            wrapper.Path = ConvertPathToPortableIfInsideDataRoot(wrapper.Path);
+        }
+    }
+
     public sealed partial class EnvVarRow : ObservableObject
     {
         [ObservableProperty] private string _key = string.Empty;
@@ -979,10 +1033,15 @@ public partial class NodeSettingsViewModel : ViewModelBase
                 break;
 
             case WrapperMode.Override:
-                _node.NativeWrappersOverride = NativeWrappers
+                var wrapperOverrides = NativeWrappers
                     .Select(x => x.ToModel())
                     .Where(x => !string.IsNullOrWhiteSpace(x.Path))
                     .ToList();
+
+                if (_settings.PreferPortableLaunchPaths)
+                    ConvertWrapperPathsToPortable(wrapperOverrides);
+
+                _node.NativeWrappersOverride = wrapperOverrides;
                 break;
         }
 

@@ -114,6 +114,7 @@ public sealed class LauncherService
 
             // xdg-open expects the URI as a single argument
             psi.ArgumentList.Add(target);
+            HostProcessEnvironmentSanitizer.Sanitize(psi);
             SanitizeAppImageRuntimeEnvironment(psi);
             SanitizeStorePortableEnvironment(psi, target, forceStoreCompatSanitization: true);
             ApplyEnvironmentOverrides(psi, environmentOverrides);
@@ -352,7 +353,11 @@ public sealed class LauncherService
                 ? template.Replace("{file}", current, StringComparison.Ordinal)
                 : $"{template} {current}";
 
-            outerFileName = w.Path.Trim();
+            var resolvedWrapperPath = ResolveConfiguredExecutablePath(w.Path);
+            if (string.IsNullOrWhiteSpace(resolvedWrapperPath))
+                continue;
+
+            outerFileName = resolvedWrapperPath;
             outerArgs = NormalizeWhitespace(argsWithChild);
             current = string.IsNullOrWhiteSpace(outerArgs)
                 ? outerFileName

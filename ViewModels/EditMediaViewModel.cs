@@ -868,6 +868,34 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         return false;
     }
+
+    private static string ConvertPathToPortableIfInsideDataRoot(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return string.Empty;
+
+        var trimmed = path.Trim();
+        if (!Path.IsPathRooted(trimmed))
+            return trimmed;
+
+        return TryMakeDataRelativeIfInsideDataRoot(trimmed, out var relativePath)
+            ? relativePath
+            : trimmed;
+    }
+
+    private static void ConvertWrapperPathsToPortable(List<LaunchWrapper> wrappers)
+    {
+        if (wrappers.Count == 0)
+            return;
+
+        foreach (var wrapper in wrappers)
+        {
+            if (wrapper == null || string.IsNullOrWhiteSpace(wrapper.Path))
+                continue;
+
+            wrapper.Path = ConvertPathToPortableIfInsideDataRoot(wrapper.Path);
+        }
+    }
     
     public enum WrapperMode
     {
@@ -2961,10 +2989,15 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 break;
 
             case WrapperMode.Override:
-                _originalItem.NativeWrappersOverride = NativeWrappers
+                var wrapperOverrides = NativeWrappers
                     .Select(x => x.ToModel())
                     .Where(x => !string.IsNullOrWhiteSpace(x.Path))
                     .ToList();
+
+                if (_settings.PreferPortableLaunchPaths)
+                    ConvertWrapperPathsToPortable(wrapperOverrides);
+
+                _originalItem.NativeWrappersOverride = wrapperOverrides;
                 break;
         }
         

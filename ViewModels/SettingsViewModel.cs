@@ -590,6 +590,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                     .Where(x => !string.IsNullOrWhiteSpace(x.Path))
                     .ToList();
 
+                if (PreferPortableLaunchPaths)
+                    ConvertWrapperPathsToPortable(wrappers);
+
                 SelectedEmulator.NativeWrappersOverride = wrappers;
                 SelectedEmulator.NativeWrapperMode = wrappers.Count == 0
                     ? EmulatorConfig.WrapperMode.None
@@ -616,6 +619,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
                 ConvertEmulatorPathsToPortable(emulator);
             }
+
+            ConvertWrapperPathsToPortable(_appSettings.DefaultNativeWrappers);
         }
         
         // Persist changes back to the main settings object
@@ -698,6 +703,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         emulator.XdgDataPath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgDataPath);
         emulator.XdgCachePath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgCachePath);
         emulator.XdgStatePath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgStatePath);
+        ConvertWrapperPathsToPortable(emulator.NativeWrappersOverride);
 
         if (emulator.EnvironmentOverrides is not { Count: > 0 })
             return;
@@ -729,6 +735,20 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         return TryMakeDataRelativeIfInsideDataRoot(trimmed, out var relativePath)
             ? relativePath
             : trimmed;
+    }
+
+    private static void ConvertWrapperPathsToPortable(System.Collections.Generic.List<LaunchWrapper>? wrappers)
+    {
+        if (wrappers is not { Count: > 0 })
+            return;
+
+        foreach (var wrapper in wrappers)
+        {
+            if (wrapper == null || string.IsNullOrWhiteSpace(wrapper.Path))
+                continue;
+
+            wrapper.Path = ConvertPathToPortableIfInsideDataRoot(wrapper.Path) ?? wrapper.Path;
+        }
     }
 
     private async Task BrowseSteamLibraryPathAsync()

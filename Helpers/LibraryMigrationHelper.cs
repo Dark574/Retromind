@@ -57,6 +57,7 @@ public static class LibraryMigrationHelper
         var migrated = 0;
 
         migrated += MigrateEnvironmentOverrides(node.EnvironmentOverrides, dataRoot, dataRootWithSep);
+        migrated += MigrateWrappers(node.NativeWrappersOverride, dataRoot, dataRootWithSep);
 
         // Migrate launch-related data for this node's items.
         foreach (var item in node.Items)
@@ -138,7 +139,32 @@ public static class LibraryMigrationHelper
             migrated++;
         }
 
+        migrated += MigrateWrappers(item.NativeWrappersOverride, dataRoot, dataRootWithSep);
         migrated += MigrateEnvironmentOverrides(item.EnvironmentOverrides, dataRoot, dataRootWithSep);
+        return migrated;
+    }
+
+    private static int MigrateWrappers(
+        List<LaunchWrapper>? wrappers,
+        string dataRoot,
+        string dataRootWithSep)
+    {
+        if (wrappers == null || wrappers.Count == 0)
+            return 0;
+
+        var migrated = 0;
+        foreach (var wrapper in wrappers)
+        {
+            if (wrapper == null || string.IsNullOrWhiteSpace(wrapper.Path))
+                continue;
+
+            if (!TryMakeDataRootRelative(wrapper.Path, dataRoot, dataRootWithSep, out var relative))
+                continue;
+
+            wrapper.Path = relative;
+            migrated++;
+        }
+
         return migrated;
     }
 
