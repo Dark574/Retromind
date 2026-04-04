@@ -165,6 +165,9 @@ Important behavior:
 - This setting affects the **Retromind AppImage process** itself.
 - External launches (native apps, emulators, scripts, Steam/UMU/Proton wrappers) default to **host HOME/XDG** for compatibility.
 - If you want portable child-process storage, set emulator/item overrides (`XDG_*`, optional `HOME`) explicitly.
+- Portable mode is therefore **two-step**:
+  1) Retromind itself is portable via `UsePortableHomeInAppImage`
+  2) each launched tool/app is portable via emulator/item `XDG_*`/`HOME` overrides
 
 Enable in `app_settings.json`:
 
@@ -178,6 +181,11 @@ Notes:
 - Existing `HOME`/`XDG_*` environment variables are not overridden if already set (unless forced mode is enabled).
 - New emulator profiles default to **Host** XDG context for compatibility.
 - In emulator settings, you can use presets to quickly set portable `XDG_*` (and optional `HOME`) per profile.
+
+Switching back to normal mode:
+- Set `"UsePortableHomeInAppImage": false` and restart Retromind.
+- Retromind and external launches will use the host defaults again (unless you set explicit per-emulator/per-item overrides).
+- Existing files under `Retromind/Home/` are kept as-is; they are not deleted automatically.
 
 ### Portable layout on USB sticks / external drives
 

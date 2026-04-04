@@ -8,6 +8,10 @@ namespace Retromind.Helpers;
 /// </summary>
 public static class AppImageToolResolver
 {
+    public static bool IsAppImageRuntime()
+        => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPIMAGE")) ||
+           !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPDIR"));
+
     public static string? ResolveBundledExecutable(string executableName)
     {
         if (string.IsNullOrWhiteSpace(executableName))

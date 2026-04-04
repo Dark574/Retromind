@@ -121,8 +121,9 @@ public class AudioService
                         Debug.WriteLine($"[AudioService] Playing via {startInfo.FileName}: {filePath}");
                     }
 
-                    // Keep AppImage runtime env for bundled tools; sanitize only host fallback launches.
-                    if (bundledExecutable == null)
+                    // Keep AppImage runtime env for bundled tools.
+                    // Only sanitize host fallback launches inside AppImage runtime.
+                    if (bundledExecutable == null && AppImageToolResolver.IsAppImageRuntime())
                         HostProcessEnvironmentSanitizer.Sanitize(startInfo);
                     _currentProcess = Process.Start(startInfo);
 

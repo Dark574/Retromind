@@ -52,8 +52,9 @@ public class SoundEffectService
                 // The file path is added last
                 startInfo.ArgumentList.Add(filePath);
 
-                // Keep AppImage runtime env for bundled tools; sanitize only host fallback launches.
-                if (bundledExecutable == null)
+                // Keep AppImage runtime env for bundled tools.
+                // Only sanitize host fallback launches inside AppImage runtime.
+                if (bundledExecutable == null && AppImageToolResolver.IsAppImageRuntime())
                     HostProcessEnvironmentSanitizer.Sanitize(startInfo);
 
                 // We start the process but don't hold a reference to it.
