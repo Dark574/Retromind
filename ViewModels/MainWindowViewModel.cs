@@ -143,6 +143,7 @@ public partial class MainWindowViewModel : ViewModelBase
             if (!SetProperty(ref _rootItems, value))
                 return;
 
+            RefreshTreeVisibility();
             OnPropertyChanged(nameof(ShowEmptyLibraryHint));
         }
     }
@@ -351,6 +352,7 @@ public partial class MainWindowViewModel : ViewModelBase
             _isLibraryDirty = false;
             _libraryDirtyVersion = 0;
             ResetLibraryChangeTracking();
+            InitializeParentalStateAfterLoad();
             
             OnPropertyChanged(nameof(IsDarkTheme));
             OnPropertyChanged(nameof(PanelBackground));
@@ -373,10 +375,26 @@ public partial class MainWindowViewModel : ViewModelBase
             if (!string.IsNullOrEmpty(_currentSettings.LastSelectedNodeId))
             {
                 var node = FindNodeById(RootItems, _currentSettings.LastSelectedNodeId);
-                if (node != null) { SelectedNode = node; ExpandPathToNode(RootItems, node); }
-                else if (RootItems.Count > 0) SelectedNode = RootItems[0];
+                if (node != null && node.IsVisibleInTree)
+                {
+                    SelectedNode = node;
+                    ExpandPathToNode(RootItems, node);
+                }
+                else
+                {
+                    var firstVisible = FindFirstVisibleNode();
+                    if (firstVisible != null)
+                        ExpandPathToNode(RootItems, firstVisible);
+                    SelectedNode = firstVisible;
+                }
             }
-            else if (RootItems.Count > 0) SelectedNode = RootItems[0];
+            else
+            {
+                var firstVisible = FindFirstVisibleNode();
+                if (firstVisible != null)
+                    ExpandPathToNode(RootItems, firstVisible);
+                SelectedNode = firstVisible;
+            }
 
             // Wait for the first selected node content to be built so the main view
             // appears quickly and predictably before background warmup starts.
@@ -755,6 +773,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
 
+        RefreshTreeVisibility();
         OnPropertyChanged(nameof(ShowEmptyLibraryHint));
     }
 
@@ -777,6 +796,8 @@ public partial class MainWindowViewModel : ViewModelBase
                     TrackItem(item);
             }
         }
+
+        RefreshTreeVisibility();
     }
 
     private void OnNodeChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -798,6 +819,8 @@ public partial class MainWindowViewModel : ViewModelBase
                     TrackNodeRecursive(node);
             }
         }
+
+        RefreshTreeVisibility();
     }
 
     private void OnItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -805,10 +828,22 @@ public partial class MainWindowViewModel : ViewModelBase
         if (sender is not MediaItem)
             return;
 
-        if (string.IsNullOrWhiteSpace(e.PropertyName) ||
-            DirtyTrackedItemProperties.Contains(e.PropertyName))
+        var isProtectionProperty = e.PropertyName == nameof(MediaItem.IsProtected);
+        var skipDirtyTracking = isProtectionProperty;
+
+        if (!skipDirtyTracking &&
+            (string.IsNullOrWhiteSpace(e.PropertyName) ||
+             DirtyTrackedItemProperties.Contains(e.PropertyName)))
         {
             MarkLibraryDirtyAndSaveSoon();
+        }
+
+        if (isProtectionProperty)
+        {
+            if (_isApplyingProtectionChanges)
+                return;
+
+            ScheduleParentalProtectionRefresh();
         }
 
         // If assets of the currently selected item change, refresh the wallpaper (and related resolved paths).
@@ -908,6 +943,7 @@ public partial class MainWindowViewModel : ViewModelBase
         // Cancel pending debounces so we don't race with our final flush.
         _saveSettingsCts?.Cancel();
         _saveLibraryCts?.Cancel();
+        _parentalRefreshCts?.Cancel();
 
         try
         {
@@ -962,6 +998,10 @@ public partial class MainWindowViewModel : ViewModelBase
         _saveLibraryCts?.Cancel();
         _saveLibraryCts?.Dispose();
         _saveLibraryCts = null;
+
+        _parentalRefreshCts?.Cancel();
+        _parentalRefreshCts?.Dispose();
+        _parentalRefreshCts = null;
 
         _updateContentCts?.Cancel();
         _updateContentCts?.Dispose();
@@ -1203,6 +1243,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Capture the node we want to load to prevent race conditions
         var nodeToLoad = SelectedNode;
+        var filterProtected = IsParentalFilterActive;
 
         // Run the heavy collection logic in a background task
         var updateTask = Task.Run(async () =>
@@ -1215,7 +1256,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 // - the flat item list for this node (including children)
                 // - and the randomization plan for cover/wallpaper/music.
                 var (allItems, randomizationPlan) =
-                    await BuildDisplayItemsWithRandomizationAsync(nodeToLoad, token);
+                    await BuildDisplayItemsWithRandomizationAsync(nodeToLoad, token, filterProtected);
 
                 if (token.IsCancellationRequested) return;
 
@@ -1327,11 +1368,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task<(List<MediaItem> Items,
             List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)> RandomizationPlan)>
-        BuildDisplayItemsWithRandomizationAsync(MediaNode node, CancellationToken token)
+        BuildDisplayItemsWithRandomizationAsync(MediaNode node, CancellationToken token, bool filterProtected)
     {
         // 1. Collect items (recursive) using UI-thread snapshots for safety.
         var itemList = new List<MediaItem>();
-        await CollectItemsRecursiveSnapshotAsync(node, itemList, token);
+        await CollectItemsRecursiveSnapshotAsync(node, itemList, token, filterProtected);
 
         token.ThrowIfCancellationRequested();
 
@@ -1424,7 +1465,11 @@ public partial class MainWindowViewModel : ViewModelBase
         return (itemList, randomizationPlan);
     }
 
-    private async Task CollectItemsRecursiveSnapshotAsync(MediaNode node, List<MediaItem> targetList, CancellationToken token)
+    private async Task CollectItemsRecursiveSnapshotAsync(
+        MediaNode node,
+        List<MediaItem> targetList,
+        CancellationToken token,
+        bool filterProtected)
     {
         token.ThrowIfCancellationRequested();
 
@@ -1437,12 +1482,15 @@ public partial class MainWindowViewModel : ViewModelBase
             children = node.Children.ToList();
         });
 
-        targetList.AddRange(items);
+        if (filterProtected)
+            targetList.AddRange(items.Where(item => !item.IsProtected));
+        else
+            targetList.AddRange(items);
 
         foreach (var child in children)
         {
             token.ThrowIfCancellationRequested();
-            await CollectItemsRecursiveSnapshotAsync(child, targetList, token);
+            await CollectItemsRecursiveSnapshotAsync(child, targetList, token, filterProtected);
         }
     }
 

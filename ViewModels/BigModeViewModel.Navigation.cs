@@ -73,7 +73,10 @@ public partial class BigModeViewModel
                     if (nodeToEnter == null)
                         throw new Exception($"Node '{nodeId}' not found in navigation path.");
 
-                    _navigationStack.Push(currentLevel);
+                    if (_parentalFilterActive && !ShouldShowNode(nodeToEnter))
+                        throw new Exception($"Node '{nodeId}' hidden by parental filter.");
+
+                    _navigationStack.Push(BuildVisibleCategories(currentLevel));
                     _titleStack.Push(CategoryTitle);
                     _navigationPath.Push(nodeToEnter);
 
@@ -82,7 +85,7 @@ public partial class BigModeViewModel
                 }
             }
 
-            CurrentCategories = currentLevel;
+            CurrentCategories = BuildVisibleCategories(currentLevel);
 
             // 4) Restore view mode (categories vs. games) and selection.
             if (_settings.LastBigModeWasItemView)
@@ -91,17 +94,26 @@ public partial class BigModeViewModel
                 // Only switch to the item view if there are actually items
                 if (parentNode != null && parentNode.Items is { Count: > 0 })
                 {
-                    IsGameListActive = true;
-                    Items = parentNode.Items;
-                    SelectedCategory = parentNode;
+                    var visibleItems = BuildVisibleItems(parentNode);
+                    if (visibleItems.Count == 0)
+                    {
+                        _settings.LastBigModeWasItemView = false;
+                        _settings.LastBigModeSelectedNodeId = null;
+                    }
+                    else
+                    {
+                        IsGameListActive = true;
+                        Items = visibleItems;
+                        SelectedCategory = parentNode;
 
-                    // Ensure ThemeContextNode is set in item view too, to trigger preview consistently.
-                    ThemeContextNode = parentNode;
-                    
-                    var item = parentNode.Items.FirstOrDefault(i => i.Id == _settings.LastBigModeSelectedNodeId);
-                    SelectedItem = item ?? Items.FirstOrDefault();
+                        // Ensure ThemeContextNode is set in item view too, to trigger preview consistently.
+                        ThemeContextNode = parentNode;
+                        
+                        var item = visibleItems.FirstOrDefault(i => i.Id == _settings.LastBigModeSelectedNodeId);
+                        SelectedItem = item ?? Items.FirstOrDefault();
 
-                    return;
+                        return;
+                    }
                 }
                 
                 // Fallback: If the saved item view is no longer relevant
@@ -118,18 +130,27 @@ public partial class BigModeViewModel
                 var parentNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
                 if (parentNode != null && CurrentCategories.Count == 0 && parentNode.Items is { Count: > 0 })
                 {
-                    IsGameListActive = true;
-                    Items = parentNode.Items;
-                    SelectedCategory = parentNode;
-                    ThemeContextNode = parentNode;
+                    var visibleItems = BuildVisibleItems(parentNode);
+                    if (visibleItems.Count == 0)
+                    {
+                        _settings.LastBigModeWasItemView = false;
+                        _settings.LastBigModeSelectedNodeId = null;
+                    }
+                    else
+                    {
+                        IsGameListActive = true;
+                        Items = visibleItems;
+                        SelectedCategory = parentNode;
+                        ThemeContextNode = parentNode;
 
-                    var item = parentNode.Items.FirstOrDefault(i => i.Id == _settings.LastBigModeSelectedNodeId)
-                               ?? parentNode.Items.FirstOrDefault();
-                    SelectedItem = item;
+                        var item = visibleItems.FirstOrDefault(i => i.Id == _settings.LastBigModeSelectedNodeId)
+                                   ?? visibleItems.FirstOrDefault();
+                        SelectedItem = item;
 
-                    _settings.LastBigModeWasItemView = true;
-                    _settings.LastBigModeSelectedNodeId = item?.Id;
-                    return;
+                        _settings.LastBigModeWasItemView = true;
+                        _settings.LastBigModeSelectedNodeId = item?.Id;
+                        return;
+                    }
                 }
             }
             
@@ -190,8 +211,8 @@ public partial class BigModeViewModel
         Items = new ObservableCollection<MediaItem>();
 
         CategoryTitle = Strings.BigMode_MainMenu;
-        CurrentCategories = _rootNodes;
-        SelectedCategory = _rootNodes.FirstOrDefault();
+        CurrentCategories = BuildVisibleCategories(_rootNodes);
+        SelectedCategory = CurrentCategories.FirstOrDefault();
         SelectedItem = null;
         CurrentNode = SelectedCategory;
 

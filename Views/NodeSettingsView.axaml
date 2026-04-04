@@ -46,6 +46,18 @@
                         <TextBlock Text="{x:Static p:Strings.NodeSettings_DescriptionForBigMode}"/>
                         <TextBox Text="{Binding Description}" AcceptsReturn="True" Height="60" TextWrapping="Wrap"/>
                     </StackPanel>
+
+                    <StackPanel Spacing="5" Margin="0,4,0,0">
+                        <TextBlock Text="{Binding ParentalProtectionSectionTitle}" />
+                        <ToggleButton IsChecked="{Binding ParentalProtectionEnabled, Mode=TwoWay}"
+                                      Content="{Binding ParentalProtectionToggleText}"
+                                      HorizontalAlignment="Left"
+                                      Padding="10,4" />
+                        <TextBlock Text="{Binding ParentalProtectionHint}"
+                                   FontSize="11"
+                                   Foreground="#888888"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- NODE ARTWORK (Logo / Wallpaper / Video) -->

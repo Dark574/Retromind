@@ -25,6 +25,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private readonly AppSettings _appSettings;
     private bool _disposed;
 
+    private static string T(string key, string fallback)
+        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
+
     // Currently selected emulator profile
     [ObservableProperty] 
     [NotifyCanExecuteChangedFor(nameof(RemoveEmulatorCommand))]
@@ -134,6 +137,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             OnPropertyChanged();
         }
     }
+
+    public string ParentalSectionTitle => T("Settings_SectionParental", "Parental control");
+    public string ChangeParentalPasswordText => T("Settings_ChangeParentalPassword", "Change parental password");
     
     /// <summary>
     /// Lightweight UI row for editing a single wrapper (Path + Args) on emulator level
@@ -209,6 +215,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IAsyncRelayCommand BrowseHeroicGogPathCommand { get; }
     public IAsyncRelayCommand BrowseHeroicEpicPathCommand { get; }
     public IAsyncRelayCommand ConvertExistingToPortableCommand { get; }
+    public IAsyncRelayCommand ChangeParentalPasswordCommand { get; }
 
     // Emulator wrapper editor commands
     public IRelayCommand AddEmulatorWrapperCommand { get; }
@@ -230,6 +237,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     /// The main window view model is responsible for performing the actual migration
     /// </summary>
     public event Func<Task>? RequestPortableMigration;
+    
+    /// <summary>
+    /// Raised when the user requests to change the parental-control password.
+    /// The main window view model owns the parental lock flow and handles this request.
+    /// </summary>
+    public event Func<Task>? RequestParentalPasswordChange;
 
     // Optional dependency injection for file dialogs (better for testing)
     public IStorageProvider? StorageProvider { get; set; }
@@ -290,6 +303,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         
         // command to request migration to portable launch paths
         ConvertExistingToPortableCommand = new AsyncRelayCommand(ConvertExistingToPortableAsync);
+        ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
         
         // Emulator-wrapper commands
         AddEmulatorWrapperCommand = new RelayCommand(AddEmulatorWrapper);
@@ -567,6 +581,21 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             {
                 // Best-effort: migration errors are handled by the subscriber
             }
+        }
+    }
+
+    private async Task ChangeParentalPasswordAsync()
+    {
+        if (RequestParentalPasswordChange == null)
+            return;
+
+        try
+        {
+            await RequestParentalPasswordChange.Invoke();
+        }
+        catch
+        {
+            // best-effort: caller owns error handling/UI feedback
         }
     }
     

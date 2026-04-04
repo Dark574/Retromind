@@ -86,6 +86,12 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     [ObservableProperty] private bool _isFavorite;
 
+    /// <summary>
+    /// Marks the item as protected by parental controls.
+    /// Protected items are hidden while the parental lock is active.
+    /// </summary>
+    [ObservableProperty] private bool _isProtected;
+
     [ObservableProperty]
     private ObservableCollection<string> _tags = new();
 

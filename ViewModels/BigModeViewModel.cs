@@ -37,6 +37,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     // --- Navigation state ---
     private readonly ObservableCollection<MediaNode> _rootNodes;
+    private readonly bool _parentalFilterActive;
     private readonly Stack<ObservableCollection<MediaNode>> _navigationStack = new();
     private readonly Stack<string> _titleStack = new();
     private readonly Stack<MediaNode> _navigationPath = new();
@@ -367,16 +368,18 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         AppSettings settings,
         Theme theme,
         SoundEffectService soundEffectService,
-        GamepadService gamepadService)
+        GamepadService gamepadService,
+        bool parentalFilterActive = false)
     {
         _rootNodes = rootNodes ?? throw new ArgumentNullException(nameof(rootNodes));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _theme = theme ?? throw new ArgumentNullException(nameof(theme));
         _soundEffectService = soundEffectService ?? throw new ArgumentNullException(nameof(soundEffectService));
         _gamepadService = gamepadService ?? throw new ArgumentNullException(nameof(gamepadService));
+        _parentalFilterActive = parentalFilterActive;
 
         // Start at root categories.
-        CurrentCategories = _rootNodes;
+        CurrentCategories = BuildVisibleCategories(_rootNodes);
 
         // Root = no node context -> default/root theme selection logic
         ThemeContextNode = null;
@@ -481,6 +484,50 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         
         // Start attract-mode timer (if configured by the theme)
         InitializeAttractModeTimer();
+    }
+
+    private ObservableCollection<MediaNode> BuildVisibleCategories(IEnumerable<MediaNode> source)
+    {
+        if (!_parentalFilterActive)
+            return new ObservableCollection<MediaNode>(source);
+
+        var list = new List<MediaNode>();
+        foreach (var node in source)
+        {
+            if (ShouldShowNode(node))
+                list.Add(node);
+        }
+
+        return new ObservableCollection<MediaNode>(list);
+    }
+
+    private ObservableCollection<MediaItem> BuildVisibleItems(MediaNode node)
+    {
+        if (!_parentalFilterActive)
+            return node.Items;
+
+        var visible = node.Items.Where(item => !item.IsProtected).ToList();
+        return new ObservableCollection<MediaItem>(visible);
+    }
+
+    private bool ShouldShowNode(MediaNode node)
+    {
+        if (!_parentalFilterActive)
+            return true;
+
+        if (node.Children.Count == 0 && node.Items.Count == 0)
+            return true;
+
+        if (node.Items.Any(item => !item.IsProtected))
+            return true;
+
+        foreach (var child in node.Children)
+        {
+            if (ShouldShowNode(child))
+                return true;
+        }
+
+        return false;
     }
 
     private MediaPlayer CreateMediaPlayerForSurface(LibVlcVideoSurface surface, int index)

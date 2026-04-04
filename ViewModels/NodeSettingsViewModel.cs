@@ -22,6 +22,9 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class NodeSettingsViewModel : ViewModelBase
 {
+    private static string T(string key, string fallback)
+        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
+
     private static readonly AssetType[] AssetFolderTypes = Enum.GetValues(typeof(AssetType))
         .Cast<AssetType>()
         .Where(type => type != AssetType.Unknown)
@@ -128,10 +131,18 @@ public partial class NodeSettingsViewModel : ViewModelBase
     [ObservableProperty] private bool _nodeWallpaperFallbackEnabled = false;
     [ObservableProperty] private bool _nodeVideoFallbackEnabled = false;
     [ObservableProperty] private bool _nodeMarqueeFallbackEnabled = false;
+    [ObservableProperty] private bool _parentalProtectionEnabled;
+    private bool _initialParentalProtectionEnabled;
 
     public string? NodeLogoPreviewPath => ResolvePreviewPath(NodeLogoPath);
     public string? NodeWallpaperPreviewPath => ResolvePreviewPath(NodeWallpaperPath);
     public string? NodeMarqueePreviewPath => ResolvePreviewPath(NodeMarqueePath);
+    public string ParentalProtectionSectionTitle => T("NodeSettings_Parental_Title", "Parental control");
+    public string ParentalProtectionHint => T("NodeSettings_Parental_Hint", "If enabled, all items in this node and child nodes are protected.");
+    public string ParentalProtectionToggleText =>
+        ParentalProtectionEnabled
+            ? T("NodeSettings_Parental_StateOn", "Parental protection is enabled")
+            : T("NodeSettings_Parental_StateOff", "Parental protection is disabled");
     
     // System-theme selection is always available because it is used by SystemHost
     // when this node is selected in a parent host.
@@ -176,6 +187,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     partial void OnNodeMarqueePathChanged(string? value)
         => OnPropertyChanged(nameof(NodeMarqueePreviewPath));
+
+    partial void OnParentalProtectionEnabledChanged(bool value)
+        => OnPropertyChanged(nameof(ParentalProtectionToggleText));
 
     partial void OnNameChanged(string value)
     {
@@ -754,6 +768,87 @@ public partial class NodeSettingsViewModel : ViewModelBase
         NodeWallpaperFallbackEnabled = _node.WallpaperFallbackEnabled;
         NodeVideoFallbackEnabled = _node.VideoFallbackEnabled;
         NodeMarqueeFallbackEnabled = _node.MarqueeFallbackEnabled;
+
+        ParentalProtectionEnabled = IsNodeEffectivelyProtected(_node);
+        _initialParentalProtectionEnabled = ParentalProtectionEnabled;
+    }
+
+    private static bool AreAllItemsProtectedInSubtree(MediaNode node, out bool hasAnyItems)
+    {
+        hasAnyItems = false;
+        var allProtected = true;
+
+        foreach (var item in node.Items)
+        {
+            hasAnyItems = true;
+            if (!item.IsProtected)
+                allProtected = false;
+        }
+
+        foreach (var child in node.Children)
+        {
+            var childAllProtected = AreAllItemsProtectedInSubtree(child, out var childHasItems);
+            if (!childHasItems)
+                continue;
+
+            hasAnyItems = true;
+            if (!childAllProtected)
+                allProtected = false;
+        }
+
+        return allProtected;
+    }
+
+    private static bool IsNodeEffectivelyProtected(MediaNode node)
+    {
+        var allProtected = AreAllItemsProtectedInSubtree(node, out var hasAnyItems);
+        return hasAnyItems ? allProtected : node.AutoProtectNewChildren;
+    }
+
+    private static void ApplyNodeProtectionRecursive(MediaNode node, bool isProtected)
+    {
+        node.AutoProtectNewChildren = isProtected;
+
+        foreach (var item in node.Items)
+            item.IsProtected = isProtected;
+
+        foreach (var child in node.Children)
+            ApplyNodeProtectionRecursive(child, isProtected);
+    }
+
+    private static void RecalculateAutoProtectStates(IEnumerable<MediaNode> roots)
+    {
+        foreach (var root in roots)
+            RecalculateAutoProtectStateRecursive(root, out _);
+    }
+
+    private static bool RecalculateAutoProtectStateRecursive(MediaNode node, out bool hasAnyItems)
+    {
+        hasAnyItems = false;
+        var allProtected = true;
+
+        foreach (var item in node.Items)
+        {
+            hasAnyItems = true;
+            if (!item.IsProtected)
+                allProtected = false;
+        }
+
+        foreach (var child in node.Children)
+        {
+            var childAllProtected = RecalculateAutoProtectStateRecursive(child, out var childHasItems);
+            if (!childHasItems)
+                continue;
+
+            hasAnyItems = true;
+            if (!childAllProtected)
+                allProtected = false;
+        }
+
+        if (hasAnyItems)
+            node.AutoProtectNewChildren = allProtected;
+
+        return allProtected;
     }
 
     private void InitializeEmulators()
@@ -969,6 +1064,13 @@ public partial class NodeSettingsViewModel : ViewModelBase
         else
         {
             _node.DefaultEmulatorId = null;
+        }
+
+        if (ParentalProtectionEnabled != _initialParentalProtectionEnabled)
+        {
+            ApplyNodeProtectionRecursive(_node, ParentalProtectionEnabled);
+            RecalculateAutoProtectStates(_rootNodes);
+            _initialParentalProtectionEnabled = ParentalProtectionEnabled;
         }
 
         if (ApplyDefaultEmulatorToExistingItems)

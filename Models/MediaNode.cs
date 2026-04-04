@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Retromind.Helpers;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -61,6 +62,14 @@ public partial class MediaNode : ObservableObject
     [ObservableProperty] 
     private bool _isExpanded; 
 
+    /// <summary>
+    /// UI-only visibility flag used by the tree when parental filtering is active.
+    /// Not persisted to disk.
+    /// </summary>
+    [ObservableProperty]
+    [property: JsonIgnore]
+    private bool _isVisibleInTree = true;
+
     // --- Configuration (Inheritable) ---
 
     /// <summary>
@@ -76,6 +85,12 @@ public partial class MediaNode : ObservableObject
     /// </summary>
     [ObservableProperty] 
     private bool? _randomizeMusic;
+
+    /// <summary>
+    /// When true, newly created/imported items in this node are protected by default.
+    /// </summary>
+    [ObservableProperty]
+    private bool _autoProtectNewChildren;
     
     /// <summary>
     /// ID of the default emulator profile for items in this node.

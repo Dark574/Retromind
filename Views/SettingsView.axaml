@@ -348,6 +348,13 @@
 
                         <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
 
+                        <TextBlock Text="{Binding ParentalSectionTitle}" FontWeight="Bold" FontSize="16" />
+                        <Button Content="{Binding ChangeParentalPasswordText}"
+                                Command="{Binding ChangeParentalPasswordCommand}"
+                                HorizontalAlignment="Left" />
+
+                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
+
                         <TextBlock Text="{x:Static p:Strings.Settings_SectionSteamLibrary}" FontWeight="Bold" FontSize="16" />
                         <TextBlock Text="{x:Static p:Strings.Settings_SteamLibraryPathsHint}"
                                    Opacity="0.6" TextWrapping="Wrap" />

@@ -13,10 +13,16 @@
 
     <UserControl.Resources>
         <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
+        <helpers:BoolToOpacityConverter x:Key="VisibleWhenTrue" TrueOpacity="1" FalseOpacity="0" />
+        <helpers:BoolToOpacityConverter x:Key="VisibleWhenFalse" TrueOpacity="0" FalseOpacity="1" />
         
         <!-- Pencil icon geometry (vector) -->
         <Geometry x:Key="IconPencilGeometry">
             M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.83H5v-.92l8.06-8.06.92.92L5.92 20.08zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z
+        </Geometry>
+        <!-- Key icon geometry (vector, so color can be styled) -->
+        <Geometry x:Key="IconKeyGeometry">
+            M7 14.4A4.9 4.9 0 1 1 11.61 8H22V9.4H20.6V11.1H19.2V12.8H17.8V11.1H16.4V9.8H11.61A4.9 4.9 0 0 1 7 14.4ZM7 12A2.5 2.5 0 1 0 7 7A2.5 2.5 0 0 0 7 12Z
         </Geometry>
         <!-- Maps file extensions like .pdf / .txt to simple glyph icons -->
         <helpers:FileExtensionToGlyphConverter x:Key="FileExtensionToGlyphConverter" />
@@ -105,6 +111,34 @@
                                VerticalAlignment="Center"
                                HorizontalAlignment="Center" />
                 </ToggleButton>
+
+                <Button x:Name="ProtectionButton"
+                        Width="30" Height="30"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Margin="36,0,0,0"
+                        IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowParentalProtectionButton}"
+                        ToolTip.Tip="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ParentalProtectButtonToolTip}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ToggleItemProtectionCommand}"
+                        CommandParameter="{Binding .}">
+                    <Grid>
+                        <PathIcon Data="{StaticResource IconKeyGeometry}"
+                                  Width="18" Height="18"
+                                  Foreground="Gray"
+                                  Opacity="{Binding IsProtected, Converter={StaticResource VisibleWhenFalse}}"
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Center" />
+                        <PathIcon Data="{StaticResource IconKeyGeometry}"
+                                  Width="18" Height="18"
+                                  Foreground="Gold"
+                                  Opacity="{Binding IsProtected, Converter={StaticResource VisibleWhenTrue}}"
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Center" />
+                    </Grid>
+                </Button>
             </Grid>
 
             <!-- Play button -->

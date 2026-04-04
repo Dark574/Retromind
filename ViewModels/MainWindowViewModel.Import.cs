@@ -136,6 +136,8 @@ public partial class MainWindowViewModel
                 item.MediaType = MediaType.Emulator;
         }
 
+        ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
+
         // 2) Scan assets off the UI thread (filesystem only)
         var scanned = await Task.Run(() =>
         {
@@ -218,6 +220,7 @@ public partial class MainWindowViewModel
         if (itemsToAdd.Count == 0) return;
 
         ApplyEffectiveDefaultEmulator(targetNode, itemsToAdd);
+        ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
 
         await UiThreadHelper.InvokeAsync(() =>
         {
@@ -277,6 +280,7 @@ public partial class MainWindowViewModel
         if (itemsToAdd.Count == 0) return;
 
         ApplyEffectiveDefaultEmulator(targetNode, itemsToAdd);
+        ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
 
         await UiThreadHelper.InvokeAsync(() =>
         {
@@ -336,6 +340,7 @@ public partial class MainWindowViewModel
         if (itemsToAdd.Count == 0) return;
 
         ApplyEffectiveDefaultEmulator(targetNode, itemsToAdd);
+        ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
 
         await UiThreadHelper.InvokeAsync(() =>
         {
@@ -658,6 +663,8 @@ public partial class MainWindowViewModel
         }
 
         if (itemsToAdd.Count == 0) return;
+
+        ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
 
         // 2) Scan assets off-thread (filesystem only)
         var scanned = await Task.Run(() =>
@@ -1091,7 +1098,7 @@ public partial class MainWindowViewModel
         // Force refresh of selection
         OnPropertyChanged(nameof(SelectedNode));
         
-        var searchVm = new SearchAreaViewModel(RootItems) { ItemWidth = ItemWidth };
+        var searchVm = new SearchAreaViewModel(RootItems, IsParentalFilterActive) { ItemWidth = ItemWidth };
         searchVm.RequestPlay += item => {_ = PlayMediaAsync(item); }; // Now using Async method
         
         searchVm.PropertyChanged += (s, e) => 
@@ -1145,8 +1152,11 @@ public partial class MainWindowViewModel
         if (targetNode == null && !string.IsNullOrWhiteSpace(desiredItemId))
             TryFindNodeByMediaId(RootItems, desiredItemId, out targetNode);
 
-        if (targetNode == null && RootItems.Count > 0)
-            targetNode = RootItems[0];
+        if (targetNode != null && !targetNode.IsVisibleInTree)
+            targetNode = null;
+
+        if (targetNode == null)
+            targetNode = FindFirstVisibleNode();
 
         // Leave search mode now (dispose search VM) before restoring content.
         DetachSearchAreaHandlers();

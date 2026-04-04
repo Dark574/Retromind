@@ -349,12 +349,16 @@ public partial class BigModeViewModel
 
             if (node.Children is { Count: > 0 })
             {
+                var visibleChildren = BuildVisibleCategories(node.Children);
+                if (visibleChildren.Count == 0)
+                    return;
+
                 _navigationStack.Push(CurrentCategories);
                 _titleStack.Push(CategoryTitle);
                 _navigationPath.Push(node);
 
                 CategoryTitle = node.Name;
-                CurrentCategories = node.Children;
+                CurrentCategories = visibleChildren;
 
                 // Theme context becomes the current node.
                 ThemeContextNode = node;
@@ -367,6 +371,10 @@ public partial class BigModeViewModel
 
             if (node.Items is { Count: > 0 })
             {
+                var visibleItems = BuildVisibleItems(node);
+                if (visibleItems.Count == 0)
+                    return;
+
                 _navigationStack.Push(CurrentCategories);
                 _titleStack.Push(CategoryTitle);
 
@@ -377,7 +385,7 @@ public partial class BigModeViewModel
                 CurrentNode = node;
                 SelectedCategory = node;
 
-                Items = node.Items;
+                Items = visibleItems;
                 IsGameListActive = true;
 
                 // Theme context is also the leaf node.
@@ -427,7 +435,7 @@ public partial class BigModeViewModel
             Items = new ObservableCollection<MediaItem>();
             SelectedItem = null;
 
-            var previousList = _navigationStack.Count > 0 ? _navigationStack.Pop() : _rootNodes;
+            var previousList = _navigationStack.Count > 0 ? _navigationStack.Pop() : BuildVisibleCategories(_rootNodes);
             var previousTitle = _titleStack.Count > 0 ? _titleStack.Pop() : Strings.BigMode_MainMenu;
 
             CurrentCategories = previousList;
@@ -451,7 +459,7 @@ public partial class BigModeViewModel
         }
 
         // If we are already at root, exit BigMode completely.
-        if (CurrentCategories == _rootNodes)
+        if (_navigationStack.Count == 0 && _navigationPath.Count == 0)
         {
             ThemeContextNode = null;
             RequestClose?.Invoke();

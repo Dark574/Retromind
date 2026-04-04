@@ -52,6 +52,10 @@ public partial class MainWindowViewModel
     
     public IAsyncRelayCommand<MediaItem?> EditMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> DeleteMediaCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> ToggleItemProtectionCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> ToggleNodeProtectionCommand { get; private set; } = null!;
+    public IAsyncRelayCommand ToggleParentalLockCommand { get; private set; } = null!;
+    public IAsyncRelayCommand ChangeParentalPasswordCommand { get; private set; } = null!;
     
     // PlayCommand is special, it fires and forgets mostly, but async is better for UI responsiveness
     public IAsyncRelayCommand<MediaItem?> PlayCommand { get; private set; } = null!;
@@ -90,6 +94,10 @@ public partial class MainWindowViewModel
         
         EditMediaCommand = new AsyncRelayCommand<MediaItem?>(EditMediaAsync);
         DeleteMediaCommand = new AsyncRelayCommand<MediaItem?>(DeleteMediaAsync);
+        ToggleItemProtectionCommand = new AsyncRelayCommand<MediaItem?>(ToggleItemProtectionAsync);
+        ToggleNodeProtectionCommand = new AsyncRelayCommand<MediaNode?>(ToggleNodeProtectionAsync);
+        ToggleParentalLockCommand = new AsyncRelayCommand(ToggleParentalLockAsync);
+        ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
         PlayCommand = new AsyncRelayCommand<MediaItem?>(PlayMediaAsync);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
@@ -156,8 +164,8 @@ public partial class MainWindowViewModel
         _audioService.StopMusic();
 
         // Ensure we have a valid node selection once the library is loaded.
-        if (SelectedNode == null && RootItems.Count > 0)
-            SelectedNode = RootItems[0];
+        if (SelectedNode == null)
+            SelectedNode = FindFirstVisibleNode();
 
         // Switch main window to fullscreen while BigMode is active.
         var window = CurrentWindow;
@@ -178,7 +186,8 @@ public partial class MainWindowViewModel
             _currentSettings,
             initialTheme,
             _soundEffectService,
-            _gamepadService);
+            _gamepadService,
+            IsParentalFilterActive);
 
         // Connect launch requests from BigMode to the central Play logic
         bigVm.RequestPlay += async item => await PlayMediaAsync(item);
@@ -483,10 +492,14 @@ public partial class MainWindowViewModel
                 }
                 else
                 {
-                    parentNode.Children.Add(new MediaNode(name, NodeType.Group));
+                    parentNode.Children.Add(new MediaNode(name, NodeType.Group)
+                    {
+                        AutoProtectNewChildren = parentNode.AutoProtectNewChildren
+                    });
                     parentNode.IsExpanded = true; 
                 }
                 
+                RefreshTreeVisibility();
                 MarkLibraryDirty();
                 await SaveData();
             }
@@ -985,6 +998,11 @@ public partial class MainWindowViewModel
                 return;
 
             await ConvertLaunchPathsToPortableAsync();
+        };
+
+        settingsVm.RequestParentalPasswordChange += async () =>
+        {
+            await ChangeParentalPasswordAsync(owner);
         };
         
         await dialog.ShowDialog(owner);

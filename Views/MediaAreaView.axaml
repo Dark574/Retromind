@@ -219,6 +219,9 @@
                                             <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddManual}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddManualToMediaCommand}"
                                                       CommandParameter="{Binding .}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ParentalToggleProtectionText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ToggleItemProtectionCommand}"
+                                                      CommandParameter="{Binding .}" />
                                             <Separator/>
                                             <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"

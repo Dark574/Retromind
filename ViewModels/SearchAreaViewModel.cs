@@ -37,6 +37,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     private readonly HashSet<MediaNode> _trackedRootNodes = new();
     private readonly HashSet<string> _selectedScopeNodeIds = new(StringComparer.Ordinal);
     private bool _hasExplicitScopeSelection;
+    private bool _parentalFilterActive;
 
     private CancellationTokenSource? _searchCts;
     private bool _disposed;
@@ -127,11 +128,12 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _hasAnyRoots;
 
-    public SearchAreaViewModel(IEnumerable<MediaNode> rootNodes)
+    public SearchAreaViewModel(IEnumerable<MediaNode> rootNodes, bool parentalFilterActive = false)
     {
         if (rootNodes == null)
             throw new ArgumentNullException(nameof(rootNodes));
 
+        _parentalFilterActive = parentalFilterActive;
         _rootNodesSnapshot = rootNodes.ToList();
         _rootNodesObservable = rootNodes as ObservableCollection<MediaNode>;
         if (_rootNodesObservable != null)
@@ -179,6 +181,15 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     partial void OnItemWidthChanged(double value) => RebuildRows();
 
     partial void OnViewportWidthChanged(double value) => RebuildRows();
+
+    public void SetParentalFilterActive(bool active)
+    {
+        if (_parentalFilterActive == active)
+            return;
+
+        _parentalFilterActive = active;
+        RequestSearch();
+    }
 
     private IEnumerable<MediaNode> RootNodes => _rootNodesObservable ?? _rootNodesSnapshot;
 
@@ -396,6 +407,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 filterYear,
                 favoritesOnly,
                 statusFilter,
+                _parentalFilterActive,
                 token);
         }
 
@@ -533,6 +545,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         int? filterYear,
         bool favoritesOnly,
         PlayStatus? statusFilter,
+        bool parentalFilterActive,
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -552,6 +565,9 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             token.ThrowIfCancellationRequested();
 
             var item = items[i];
+
+            if (parentalFilterActive && item.IsProtected)
+                continue;
 
             if (!Matches(item, query, filterYear, favoritesOnly, statusFilter))
                 continue;
@@ -577,6 +593,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 filterYear,
                 favoritesOnly,
                 statusFilter,
+                parentalFilterActive,
                 token);
         }
     }

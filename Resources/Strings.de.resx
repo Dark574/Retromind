@@ -86,6 +86,29 @@
     <data name="Common_SelectFile" xml:space="preserve"><value>Datei wählen</value></data>
     <data name="Common_Delete" xml:space="preserve"><value>Löschen</value></data>
 
+    <!-- PARENTAL -->
+    <data name="Parental.Lock.Setup" xml:space="preserve"><value>Sperre einrichten</value></data>
+    <data name="Parental.Lock.Unlock" xml:space="preserve"><value>Entsperren</value></data>
+    <data name="Parental.Lock.Lock" xml:space="preserve"><value>Sperren</value></data>
+    <data name="Parental.Lock.Tooltip.Setup" xml:space="preserve"><value>Passwort für Jugendschutz einrichten</value></data>
+    <data name="Parental.Lock.Tooltip.Unlock" xml:space="preserve"><value>Geschützte Inhalte entsperren</value></data>
+    <data name="Parental.Lock.Tooltip.Lock" xml:space="preserve"><value>Geschützte Inhalte sperren</value></data>
+    <data name="Parental.ChangePassword.Short" xml:space="preserve"><value>PW ändern</value></data>
+    <data name="Parental.ChangePassword.Tooltip" xml:space="preserve"><value>Jugendschutz-Passwort ändern</value></data>
+    <data name="Parental.ToggleProtection" xml:space="preserve"><value>Jugendschutz umschalten</value></data>
+    <data name="Parental.ProtectButton" xml:space="preserve"><value>Schutz</value></data>
+    <data name="Parental.ProtectButton.Tooltip" xml:space="preserve"><value>Jugendschutz für dieses Medium umschalten</value></data>
+    <data name="Parental.Dialog.Title" xml:space="preserve"><value>Jugendschutz</value></data>
+    <data name="Parental.Dialog.SetupMessage" xml:space="preserve"><value>Passwort für den Jugendschutz festlegen.</value></data>
+    <data name="Parental.Dialog.EnterPasswordMessage" xml:space="preserve"><value>Jugendschutz-Passwort eingeben.</value></data>
+    <data name="Parental.Dialog.ChangeCurrentMessage" xml:space="preserve"><value>Aktuelles Passwort eingeben.</value></data>
+    <data name="Parental.Dialog.ChangeNewMessage" xml:space="preserve"><value>Neues Passwort eingeben.</value></data>
+    <data name="Parental.Dialog.WrongPassword" xml:space="preserve"><value>Falsches Passwort.</value></data>
+    <data name="Parental.Validation.NewPasswordSameAsCurrent" xml:space="preserve"><value>Das neue Passwort muss sich unterscheiden.</value></data>
+    <data name="Parental.Validation.PasswordRequired" xml:space="preserve"><value>Passwort ist erforderlich.</value></data>
+    <data name="Parental.Validation.PasswordsDoNotMatch" xml:space="preserve"><value>Passwörter stimmen nicht überein.</value></data>
+    <data name="Parental.Prompt.ConfirmPassword" xml:space="preserve"><value>Passwort bestätigen</value></data>
+
     <!-- CTX -->
     <data name="Ctx.Category.Add" xml:space="preserve"><value>Kategorie hinzufügen</value></data>
     <data name="Ctx.ImportRoms" xml:space="preserve"><value>ROMs importieren...</value></data>
@@ -177,6 +200,8 @@
     <data name="Settings.TabMisc" xml:space="preserve"><value>Sonstiges</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Startpfade</value></data>
     <data name="Settings_SectionMusic" xml:space="preserve"><value>Musik</value></data>
+    <data name="Settings_SectionParental" xml:space="preserve"><value>Jugendschutz</value></data>
+    <data name="Settings_ChangeParentalPassword" xml:space="preserve"><value>Jugendschutz-Passwort ändern</value></data>
     <data name="Settings_SectionSteamLibrary" xml:space="preserve"><value>Steam-Bibliothekspfade</value></data>
     <data name="Settings_SteamLibraryPathsHint" xml:space="preserve"><value>Optional. Füge den Steam-Bibliotheksordner hinzu (z. B. /home/user/.local/share/Steam) oder direkt den Ordner 'steamapps'.</value></data>
     <data name="Settings_SteamLibraryPathWatermark" xml:space="preserve"><value>z. B. /home/user/.local/share/Steam</value></data>
@@ -309,6 +334,10 @@
     <data name="NodeSettings_InheritedEnvNone" xml:space="preserve"><value>Keine vererbten Umgebungsvariablen</value></data>
     <data name="NodeSettings_InheritedEnvEmptyFormat" xml:space="preserve"><value>Vererbt von {0}: keine Umgebungsvariablen</value></data>
     <data name="NodeSettings_InheritedEnvInfoFormat" xml:space="preserve"><value>Vererbt von {0}: {1} Variablen</value></data>
+    <data name="NodeSettings_Parental_Title" xml:space="preserve"><value>Jugendschutz</value></data>
+    <data name="NodeSettings_Parental_Hint" xml:space="preserve"><value>Wenn aktiv, werden alle Einträge in diesem Ordner und allen Unterordnern geschützt.</value></data>
+    <data name="NodeSettings_Parental_StateOn" xml:space="preserve"><value>Jugendschutz ist aktiviert</value></data>
+    <data name="NodeSettings_Parental_StateOff" xml:space="preserve"><value>Jugendschutz ist deaktiviert</value></data>
     <data name="NodeSettings_RenameFailed" xml:space="preserve"><value>Ordner konnte nicht umbenannt werden; Name wurde nicht gespeichert.</value></data>
     
     

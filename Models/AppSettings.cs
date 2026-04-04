@@ -72,6 +72,18 @@ public class AppSettings
     /// When false, selection never starts background music automatically
     /// </summary>
     public bool EnableSelectionMusicPreview { get; set; } = true;
+
+    /// <summary>
+    /// Encrypted parental-control password (AES via SecurityHelper).
+    /// Empty/null means parental lock is not configured.
+    /// </summary>
+    public string? ParentalLockPasswordEncrypted { get; set; }
+
+    /// <summary>
+    /// Whether the parental lock is currently unlocked for this profile.
+    /// If false and a password is configured, protected media is hidden.
+    /// </summary>
+    public bool ParentalLockUnlocked { get; set; } = true;
     
     // --- UI Layout ---
 
