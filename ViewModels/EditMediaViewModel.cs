@@ -318,6 +318,10 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             CreateNoWindow = true
         };
 
+        // Start from a host-compatible baseline (avoid inheriting portable AppImage HOME/XDG by default).
+        // Explicit per-item/per-emulator overrides are applied afterwards and can still opt back into portable.
+        HostProcessEnvironmentSanitizer.Sanitize(startInfo);
+
         foreach (var arg in arguments)
             startInfo.ArgumentList.Add(arg);
 
@@ -428,9 +432,36 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             env[row.Key.Trim()] = row.Value ?? string.Empty;
         }
 
+        ApplyEmulatorXdgOverridesForPreview(env, emulator);
         ApplyXdgOverridesForPreview(env);
 
         return env;
+    }
+
+    private static void ApplyEmulatorXdgOverridesForPreview(Dictionary<string, string> env, EmulatorConfig? emulator)
+    {
+        if (emulator == null)
+            return;
+
+        switch (emulator.XdgMode)
+        {
+            case EmulatorConfig.XdgOverrideMode.Inherit:
+                return;
+
+            case EmulatorConfig.XdgOverrideMode.Host:
+                env.Remove("XDG_CONFIG_HOME");
+                env.Remove("XDG_DATA_HOME");
+                env.Remove("XDG_CACHE_HOME");
+                env.Remove("XDG_STATE_HOME");
+                return;
+
+            case EmulatorConfig.XdgOverrideMode.Custom:
+                ApplyXdgOverride(env, "XDG_CONFIG_HOME", emulator.XdgConfigPath);
+                ApplyXdgOverride(env, "XDG_DATA_HOME", emulator.XdgDataPath);
+                ApplyXdgOverride(env, "XDG_CACHE_HOME", emulator.XdgCachePath);
+                ApplyXdgOverride(env, "XDG_STATE_HOME", emulator.XdgStatePath);
+                return;
+        }
     }
 
     private void ApplyXdgOverridesForPreview(Dictionary<string, string> env)
