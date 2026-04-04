@@ -115,7 +115,7 @@ public sealed class LauncherService
             // xdg-open expects the URI as a single argument
             psi.ArgumentList.Add(target);
             SanitizeAppImageRuntimeEnvironment(psi);
-            SanitizeStorePortableEnvironment(psi, target);
+            SanitizeStorePortableEnvironment(psi, target, forceStoreCompatSanitization: true);
             ApplyEnvironmentOverrides(psi, environmentOverrides);
 
             return Process.Start(psi);
@@ -134,7 +134,7 @@ public sealed class LauncherService
         startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, target, launchFilePath: null);
         SanitizeAppImageRuntimeEnvironment(startInfo);
         SanitizeFlatpakPortableEnvironment(startInfo, item.LauncherArgs);
-        SanitizeStorePortableEnvironment(startInfo, item.LauncherArgs);
+        SanitizeStorePortableEnvironment(startInfo, item.LauncherArgs, forceStoreCompatSanitization: true);
         ApplyEnvironmentOverrides(startInfo, environmentOverrides);
         ApplyXdgOverrides(startInfo, item);
         return Process.Start(startInfo);
@@ -184,17 +184,16 @@ public sealed class LauncherService
 
             startInfo.UseShellExecute = requiresDirectExec ? false : useShellExecute;
 
+            var isUmuLaunch = IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
+            var isProtonLaunch = isUmuLaunch || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
+
             var prefixInitialized = true;
             if (shouldApplyPrefix)
-            {
-                var isUmu = IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
-                var isProton = isUmu || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
-                prefixInitialized = ConfigureWinePrefix(item, nodePath, startInfo, isProton, isUmu);
-            }
+                prefixInitialized = ConfigureWinePrefix(item, nodePath, startInfo, isProtonLaunch, isUmuLaunch);
             
             SanitizeAppImageRuntimeEnvironment(startInfo);
             SanitizeFlatpakPortableEnvironment(startInfo, args);
-            SanitizeStorePortableEnvironment(startInfo, args);
+            SanitizeStorePortableEnvironment(startInfo, args, forceStoreCompatSanitization: true);
 
             // Apply environment overrides (node/emulator/item merged by caller when provided).
             if (environmentOverrides is { Count: > 0 })
@@ -252,7 +251,7 @@ public sealed class LauncherService
             var templateArgs = string.IsNullOrWhiteSpace(item.LauncherArgs) ? "{file}" : item.LauncherArgs;
             var args = BuildArgumentsString(launchFilePath, templateArgs);
 
-            var fileName = item.LauncherPath;
+            var fileName = ResolveConfiguredExecutablePath(item.LauncherPath);
             var useShellExecute = false;
 
             // If there is a wrapper chain, wrap the item-level launcher as inner command.
@@ -277,7 +276,7 @@ public sealed class LauncherService
             var templateArgs = CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
             var args = BuildArgumentsString(launchFilePath, templateArgs);
 
-            var fileName = inheritedConfig.Path;
+            var fileName = ResolveConfiguredExecutablePath(inheritedConfig.Path);
             var useShellExecute = false;
 
             // Apply wrapper chain around the emulator command if present
@@ -552,6 +551,27 @@ public sealed class LauncherService
         return string.Empty;
     }
 
+    private static string ResolveConfiguredExecutablePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return string.Empty;
+
+        var trimmed = path.Trim();
+        if (Path.IsPathRooted(trimmed))
+            return trimmed;
+
+        // Keep command tokens (e.g. "flatpak", "retroarch") PATH-resolved.
+        // Relative paths with separators are treated as DataRoot-relative for portability.
+        if (!trimmed.Contains('/') &&
+            !trimmed.Contains('\\') &&
+            !trimmed.StartsWith(".", StringComparison.Ordinal))
+        {
+            return trimmed;
+        }
+
+        return AppPaths.ResolveDataPath(trimmed);
+    }
+
     private static string? ResolveWorkingDirectoryOverride(string? overrideDirectory)
     {
         if (string.IsNullOrWhiteSpace(overrideDirectory))
@@ -788,13 +808,20 @@ public sealed class LauncherService
         }
     }
 
-    private static void SanitizeStorePortableEnvironment(ProcessStartInfo startInfo, string? launchArgsHint)
+    private static void SanitizeStorePortableEnvironment(
+        ProcessStartInfo startInfo,
+        string? launchArgsHint,
+        bool forceStoreCompatSanitization = false)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             return;
 
-        if (!IsStoreLaunch(startInfo, launchArgsHint))
+        if (!forceStoreCompatSanitization &&
+            !IsStoreLaunch(startInfo, launchArgsHint) &&
+            !IsSteamCompatLaunch(startInfo, launchArgsHint))
+        {
             return;
+        }
 
         var portableHomeRoot = NormalizePathForComparison(Path.Combine(AppPaths.DataRoot, "Home"));
         if (string.IsNullOrWhiteSpace(portableHomeRoot))
@@ -908,6 +935,39 @@ public sealed class LauncherService
         }
 
         return null;
+    }
+
+    private static bool IsSteamCompatLaunch(ProcessStartInfo startInfo, string? launchArgsHint)
+    {
+        var fileName = Path.GetFileName(startInfo.FileName)?.Trim();
+        if (string.IsNullOrWhiteSpace(fileName))
+            return false;
+
+        if (IsSteamCompatCommandToken(fileName))
+            return true;
+
+        if (string.Equals(fileName, "env", StringComparison.OrdinalIgnoreCase))
+        {
+            var commandToken = TryGetFirstExecutableTokenFromEnvArgs(startInfo.Arguments ?? launchArgsHint);
+            if (!string.IsNullOrWhiteSpace(commandToken))
+                return IsSteamCompatCommandToken(commandToken);
+        }
+
+        // Wrapper case: e.g. "gamemoderun umu-run ...".
+        var firstArgToken = SplitCommandLinePreservingArgs(startInfo.Arguments ?? launchArgsHint ?? string.Empty).FileName;
+        return IsSteamCompatCommandToken(firstArgToken);
+    }
+
+    private static bool IsSteamCompatCommandToken(string token)
+    {
+        var executable = Path.GetFileName(token.Trim('"', '\''));
+        if (string.IsNullOrWhiteSpace(executable))
+            return false;
+
+        if (executable.StartsWith("umu", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return executable.Contains("proton", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? TryGetRealUserHomePath()

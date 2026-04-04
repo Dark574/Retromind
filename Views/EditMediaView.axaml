@@ -174,6 +174,18 @@
                                     </Grid>
                                 </StackPanel>
 
+                                <StackPanel Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Button Content="{x:Static p:Strings.Settings_EmulatorXdgPresetPortable}"
+                                                Command="{Binding ApplyPortableXdgPresetCommand}" />
+                                        <Button Content="{x:Static p:Strings.Settings_EmulatorXdgPresetPortableHome}"
+                                                Command="{Binding ApplyPortableXdgAndHomePresetCommand}" />
+                                    </StackPanel>
+                                    <TextBlock Text="{x:Static p:Strings.Settings_EmulatorXdgPresetTip}"
+                                               Opacity="0.6"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
                                 <StackPanel>
                                     <TextBlock Text="{x:Static p:Strings.Launch_XdgConfig}" Margin="0,0,0,5" />
                                     <Grid ColumnDefinitions="*, 10, Auto">

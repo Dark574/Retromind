@@ -34,7 +34,7 @@ See `docs/CHANGELOG.md` for version history.
 - Per-item manuals/documents
 - Flexible launch configuration with wrappers, environment variables, and per-item arguments
 - Portable library layout with relative paths (USB/external drive friendly)
-- Optional AppImage portable HOME/XDG mode (best-effort, app-dependent)
+- Optional AppImage portable HOME/XDG mode for Retromind runtime, with per-emulator overrides for child processes
 
 ## Screenshots
 
@@ -159,8 +159,12 @@ well (e.g. smoother BigMode videos, lower CPU load).
 ### AppImage portable HOME/XDG mode
 
 Retromind can optionally redirect `HOME` and the `XDG_*` paths into a local
-`Home/` folder next to the AppImage for full portability. This affects runtime
-data written by games, launchers, and runtimes that respect `HOME` or XDG.
+`Home/` folder next to the AppImage.
+
+Important behavior:
+- This setting affects the **Retromind AppImage process** itself.
+- External launches (native apps, emulators, scripts, Steam/UMU/Proton wrappers) default to **host HOME/XDG** for compatibility.
+- If you want portable child-process storage, set emulator/item overrides (`XDG_*`, optional `HOME`) explicitly.
 
 Enable in `app_settings.json`:
 
@@ -171,7 +175,9 @@ Enable in `app_settings.json`:
 Notes:
 - Only applies when running as **AppImage**.
 - Requires a **restart** to take effect.
-- Existing `HOME`/`XDG_*` environment variables are not overridden if already set.
+- Existing `HOME`/`XDG_*` environment variables are not overridden if already set (unless forced mode is enabled).
+- New emulator profiles default to **Host** XDG context for compatibility.
+- In emulator settings, you can use presets to quickly set portable `XDG_*` (and optional `HOME`) per profile.
 
 ### Portable layout on USB sticks / external drives
 
@@ -184,9 +190,12 @@ together with your ROMs and native games. The core idea:
   resolve these relative paths correctly, regardless of the exact mountpoint or user name.
 
 To enable relative launch paths, turn on **Prefer portable launch paths** in settings.
-This will store new imports under the data root as `LibraryRelative` paths and migrate
-existing items during library saves. You can also trigger a one-time migration from
-the settings dialog.
+This will:
+- store new imports under the data root as `LibraryRelative` paths
+- migrate existing item launch paths during library saves
+- normalize emulator settings paths (emulator executable, `XDG_*`, and known path-like env vars such as `HOME`/`DOTNET_CLI_HOME`/`PROTONPATH`) to data-root-relative values when possible
+
+You can also trigger a one-time migration from the settings dialog.
 
 A practical layout might look like this:
 ```text
@@ -219,8 +228,9 @@ remember a **per-item Wine prefix** in the library:
 Note:
 
 - The prefix itself is portable within Retromind’s folder.
-- Game saves and configs that a title writes into `~/.config` or `~/.local/share` remain
-  user-specific and are not automatically moved with the USB stick.
+- Game saves/configs remain host-user specific by default.
+- If needed, you can override `XDG_*` (and optionally `HOME`) per emulator/item.
+- Even with overrides, full portability is launcher-dependent; some tools still rely on host state.
 
 ### Native games on the stick
 

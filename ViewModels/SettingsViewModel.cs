@@ -10,6 +10,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 
@@ -28,6 +29,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     [ObservableProperty] 
     [NotifyCanExecuteChangedFor(nameof(RemoveEmulatorCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowsePathCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyPortableXdgPresetCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyPortableXdgAndHomePresetCommand))]
     private EmulatorConfig? _selectedEmulator;
 
     // Currently selected scraper config
@@ -102,8 +105,17 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 return;
 
             _appSettings.UsePortableHomeInAppImage = value;
+            if (!value)
+                _appSettings.ForcePortableHomeInAppImage = false;
             OnPropertyChanged();
         }
+    }
+
+    public void SetPortableHomeInAppImageMode(bool enabled, bool force)
+    {
+        _appSettings.UsePortableHomeInAppImage = enabled;
+        _appSettings.ForcePortableHomeInAppImage = enabled && force;
+        OnPropertyChanged(nameof(UsePortableHomeInAppImage));
     }
     
     /// <summary>
@@ -207,6 +219,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     // Emulator environment editor commands
     public IRelayCommand AddEmulatorEnvVarCommand { get; }
     public IRelayCommand<EnvVarRow?> RemoveEmulatorEnvVarCommand { get; }
+    public IRelayCommand ApplyPortableXdgPresetCommand { get; }
+    public IRelayCommand ApplyPortableXdgAndHomePresetCommand { get; }
 
     public event Action? RequestClose;
     
@@ -296,6 +310,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         // Emulator env-var editor commands
         AddEmulatorEnvVarCommand = new RelayCommand(AddEmulatorEnvVar);
         RemoveEmulatorEnvVarCommand = new RelayCommand<EnvVarRow?>(RemoveEmulatorEnvVar);
+        ApplyPortableXdgPresetCommand = new RelayCommand(ApplyPortableXdgPreset, () => SelectedEmulator != null);
+        ApplyPortableXdgAndHomePresetCommand = new RelayCommand(ApplyPortableXdgAndHomePreset, () => SelectedEmulator != null);
     }
 
     // --- Computed Properties for UI Hints ---
@@ -447,6 +463,52 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         if (row == null) return;
         EmulatorEnvironmentOverrides.Remove(row);
     }
+
+    private void ApplyPortableXdgPreset()
+    {
+        ApplyPortableOverrides(includeHome: false);
+    }
+
+    private void ApplyPortableXdgAndHomePreset()
+    {
+        ApplyPortableOverrides(includeHome: true);
+    }
+
+    private void ApplyPortableOverrides(bool includeHome)
+    {
+        if (SelectedEmulator == null)
+            return;
+
+        SelectedEmulator.XdgMode = EmulatorConfig.XdgOverrideMode.Custom;
+        SelectedEmulator.XdgConfigPath = "Home/.config";
+        SelectedEmulator.XdgDataPath = "Home/.local/share";
+        SelectedEmulator.XdgCachePath = "Home/.cache";
+        SelectedEmulator.XdgStatePath = "Home/.local/state";
+
+        if (includeHome)
+            UpsertEmulatorEnvVar("HOME", "Home");
+    }
+
+    private void UpsertEmulatorEnvVar(string key, string value)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        var existing = EmulatorEnvironmentOverrides
+            .FirstOrDefault(row => string.Equals(row.Key?.Trim(), key, StringComparison.OrdinalIgnoreCase));
+
+        if (existing != null)
+        {
+            existing.Value = value;
+            return;
+        }
+
+        EmulatorEnvironmentOverrides.Add(new EnvVarRow
+        {
+            Key = key,
+            Value = value
+        });
+    }
     
     // --- Actions ---
 
@@ -544,6 +606,17 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 SelectedEmulator.EnvironmentOverrides[row.Key.Trim()] = row.Value ?? string.Empty;
             }
         }
+
+        if (PreferPortableLaunchPaths)
+        {
+            foreach (var emulator in Emulators)
+            {
+                if (emulator == null)
+                    continue;
+
+                ConvertEmulatorPathsToPortable(emulator);
+            }
+        }
         
         // Persist changes back to the main settings object
         _appSettings.Emulators.Clear();
@@ -579,8 +652,83 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         if (result != null && result.Count > 0)
         {
-            SelectedEmulator.Path = result[0].Path.LocalPath;
+            var path = result[0].Path.LocalPath;
+            if (PreferPortableLaunchPaths &&
+                TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
+            {
+                SelectedEmulator.Path = relativePath;
+            }
+            else
+            {
+                SelectedEmulator.Path = path;
+            }
         }
+    }
+
+    private static bool TryMakeDataRelativeIfInsideDataRoot(string absolutePath, out string relativePath)
+    {
+        relativePath = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(absolutePath))
+            return false;
+
+        if (!Path.IsPathRooted(absolutePath))
+            return false;
+
+        var dataRoot = Path.GetFullPath(AppPaths.DataRoot);
+        var dataRootWithSep = dataRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? dataRoot
+            : dataRoot + Path.DirectorySeparatorChar;
+        var fullPath = Path.GetFullPath(absolutePath);
+
+        if (string.Equals(fullPath, dataRoot, StringComparison.Ordinal) ||
+            fullPath.StartsWith(dataRootWithSep, StringComparison.Ordinal))
+        {
+            relativePath = Path.GetRelativePath(dataRoot, fullPath);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void ConvertEmulatorPathsToPortable(EmulatorConfig emulator)
+    {
+        emulator.Path = ConvertPathToPortableIfInsideDataRoot(emulator.Path) ?? emulator.Path;
+        emulator.XdgConfigPath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgConfigPath);
+        emulator.XdgDataPath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgDataPath);
+        emulator.XdgCachePath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgCachePath);
+        emulator.XdgStatePath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgStatePath);
+
+        if (emulator.EnvironmentOverrides is not { Count: > 0 })
+            return;
+
+        var keys = emulator.EnvironmentOverrides.Keys.ToList();
+        foreach (var key in keys)
+        {
+            if (!EnvironmentPathHelper.IsDataRootPathKey(key))
+                continue;
+
+            if (!emulator.EnvironmentOverrides.TryGetValue(key, out var rawValue))
+                continue;
+
+            var converted = ConvertPathToPortableIfInsideDataRoot(rawValue);
+            if (!string.IsNullOrWhiteSpace(converted))
+                emulator.EnvironmentOverrides[key] = converted;
+        }
+    }
+
+    private static string? ConvertPathToPortableIfInsideDataRoot(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return path;
+
+        var trimmed = path.Trim();
+        if (!Path.IsPathRooted(trimmed))
+            return trimmed;
+
+        return TryMakeDataRelativeIfInsideDataRoot(trimmed, out var relativePath)
+            ? relativePath
+            : trimmed;
     }
 
     private async Task BrowseSteamLibraryPathAsync()

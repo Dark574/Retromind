@@ -28,6 +28,12 @@ public class AppSettings
     public bool UsePortableHomeInAppImage { get; set; } = false;
 
     /// <summary>
+    /// When true (and UsePortableHomeInAppImage is enabled), Retromind always overrides
+    /// HOME and XDG_* variables inside the AppImage runtime, even if they are already set.
+    /// </summary>
+    public bool ForcePortableHomeInAppImage { get; set; } = false;
+
+    /// <summary>
     /// Optional manual Steam library paths (folders containing steamapps or steamapps itself).
     /// If empty, Retromind uses automatic discovery only.
     /// </summary>

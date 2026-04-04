@@ -79,9 +79,10 @@ public partial class EmulatorConfig : ObservableObject
 
     /// <summary>
     /// Controls how XDG_* variables are handled when this emulator profile launches.
+    /// Default is Host for compatibility with external launchers/runtimes.
     /// </summary>
     [ObservableProperty]
-    private XdgOverrideMode _xdgMode = XdgOverrideMode.Inherit;
+    private XdgOverrideMode _xdgMode = XdgOverrideMode.Host;
 
     /// <summary>
     /// Optional custom XDG paths used when <see cref="XdgOverrideMode"/> is set to Custom.

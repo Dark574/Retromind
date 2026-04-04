@@ -6,6 +6,8 @@ namespace Retromind.Helpers;
 
 public static class PortableEnvironment
 {
+    private readonly record struct PortableHomeMode(bool Enabled, bool Force);
+
     public static void ApplyPortableXdgPaths()
     {
         // AppImage-specific behavior: only apply if running from an AppImage.
@@ -14,7 +16,8 @@ public static class PortableEnvironment
         if (string.IsNullOrWhiteSpace(appImage) && string.IsNullOrWhiteSpace(appDir))
             return;
 
-        if (!ShouldUsePortableHome())
+        var mode = ReadPortableHomeMode();
+        if (!mode.Enabled)
             return;
 
         var dataRoot = AppPaths.DataRoot;
@@ -34,38 +37,61 @@ public static class PortableEnvironment
         CreateDirectorySafe(xdgState);
         CreateDirectorySafe(dotnetHome);
 
-        SetIfMissing("HOME", homeRoot);
-        SetIfMissing("XDG_CONFIG_HOME", xdgConfig);
-        SetIfMissing("XDG_DATA_HOME", xdgData);
-        SetIfMissing("XDG_CACHE_HOME", xdgCache);
-        SetIfMissing("XDG_STATE_HOME", xdgState);
-        SetIfMissing("DOTNET_CLI_HOME", dotnetHome);
+        if (mode.Force)
+        {
+            SetAlways("HOME", homeRoot);
+            SetAlways("XDG_CONFIG_HOME", xdgConfig);
+            SetAlways("XDG_DATA_HOME", xdgData);
+            SetAlways("XDG_CACHE_HOME", xdgCache);
+            SetAlways("XDG_STATE_HOME", xdgState);
+            SetAlways("DOTNET_CLI_HOME", dotnetHome);
+        }
+        else
+        {
+            SetIfMissing("HOME", homeRoot);
+            SetIfMissing("XDG_CONFIG_HOME", xdgConfig);
+            SetIfMissing("XDG_DATA_HOME", xdgData);
+            SetIfMissing("XDG_CACHE_HOME", xdgCache);
+            SetIfMissing("XDG_STATE_HOME", xdgState);
+            SetIfMissing("DOTNET_CLI_HOME", dotnetHome);
+        }
     }
 
-    private static bool ShouldUsePortableHome()
+    private static PortableHomeMode ReadPortableHomeMode()
     {
         var settingsPath = Path.Combine(AppPaths.DataRoot, "app_settings.json");
         if (!File.Exists(settingsPath))
-            return false;
+            return default;
 
         try
         {
             using var stream = File.OpenRead(settingsPath);
             using var doc = JsonDocument.Parse(stream);
             if (doc.RootElement.ValueKind != JsonValueKind.Object)
-                return false;
+                return default;
 
             if (!doc.RootElement.TryGetProperty("UsePortableHomeInAppImage", out var prop))
-                return false;
+                return default;
 
-            if (prop.ValueKind is JsonValueKind.True or JsonValueKind.False)
-                return prop.GetBoolean();
+            if (prop.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                return default;
 
-            return false;
+            var enabled = prop.GetBoolean();
+            if (!enabled)
+                return default;
+
+            var force = false;
+            if (doc.RootElement.TryGetProperty("ForcePortableHomeInAppImage", out var forceProp) &&
+                forceProp.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                force = forceProp.GetBoolean();
+            }
+
+            return new PortableHomeMode(Enabled: true, Force: force);
         }
         catch
         {
-            return false;
+            return default;
         }
     }
 
@@ -76,6 +102,14 @@ public static class PortableEnvironment
 
         var existing = Environment.GetEnvironmentVariable(key);
         if (!string.IsNullOrWhiteSpace(existing))
+            return;
+
+        Environment.SetEnvironmentVariable(key, value);
+    }
+
+    private static void SetAlways(string key, string value)
+    {
+        if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
             return;
 
         Environment.SetEnvironmentVariable(key, value);

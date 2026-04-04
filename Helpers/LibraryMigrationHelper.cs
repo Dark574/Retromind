@@ -2,24 +2,37 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using Retromind.Models;
 
 namespace Retromind.Helpers;
 
 /// <summary>
 /// One-time helper to migrate launcher file paths for portable setups.
-/// Converts absolute file paths that reside under AppPaths.DataRoot into
-/// LibraryRelative paths, so the library becomes robust when the Retromind
-/// folder is moved together with the games
+/// Converts absolute launch-related paths that reside under AppPaths.DataRoot
+/// into portable relative paths, so the library becomes robust when the
+/// Retromind folder is moved together with media and launcher files.
 /// </summary>
 public static class LibraryMigrationHelper
 {
+    private static readonly HashSet<string> EnvironmentPathKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "PROTONPATH",
+        "STEAM_COMPAT_DATA_PATH",
+        "HOME",
+        "DOTNET_CLI_HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_CACHE_HOME",
+        "XDG_STATE_HOME"
+    };
+
     /// <summary>
-    /// Scans the entire media tree and converts absolute launch file paths
-    /// that live inside AppPaths.DataRoot into LibraryRelative paths
+    /// Scans the entire media tree and converts absolute launch-related paths
+    /// that live inside AppPaths.DataRoot into portable relative paths.
     ///
     /// This is safe to call multiple times; already-migrated entries are skipped
-    /// Returns the number of MediaFileRef entries that were modified
+    /// Returns the number of modified fields/entries.
     /// </summary>
     public static int MigrateLaunchFilePathsToLibraryRelative(ObservableCollection<MediaNode> rootNodes)
     {
@@ -43,51 +56,31 @@ public static class LibraryMigrationHelper
     {
         var migrated = 0;
 
-        // Migrate all launch files for this node's items
+        migrated += MigrateEnvironmentOverrides(node.EnvironmentOverrides, dataRoot, dataRootWithSep);
+
+        // Migrate launch-related data for this node's items.
         foreach (var item in node.Items)
         {
-            if (item.Files == null || item.Files.Count == 0)
-                continue;
-
-            foreach (var fileRef in item.Files)
+            if (item.Files is { Count: > 0 })
             {
-                if (fileRef == null)
-                    continue;
-
-                if (fileRef.Kind != MediaFileKind.Absolute)
-                    continue;
-
-                if (string.IsNullOrWhiteSpace(fileRef.Path))
-                    continue;
-
-                var path = fileRef.Path;
-                if (!Path.IsPathRooted(path))
-                    continue;
-
-                try
+                foreach (var fileRef in item.Files)
                 {
-                    var normalizedAbsolute = Path.GetFullPath(path);
-
-                    // Only migrate if the file is actually under DataRoot
-                    if (!normalizedAbsolute.StartsWith(dataRootWithSep, StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(normalizedAbsolute, dataRoot, StringComparison.OrdinalIgnoreCase))
-                    {
+                    if (fileRef == null ||
+                        fileRef.Kind != MediaFileKind.Absolute ||
+                        string.IsNullOrWhiteSpace(fileRef.Path) ||
+                        !Path.IsPathRooted(fileRef.Path))
                         continue;
-                    }
 
-                    // Compute path relative to DataRoot and switch kind to LibraryRelative
-                    var relative = Path.GetRelativePath(dataRoot, normalizedAbsolute);
+                    if (!TryMakeDataRootRelative(fileRef.Path, dataRoot, dataRootWithSep, out var relative))
+                        continue;
 
                     fileRef.Kind = MediaFileKind.LibraryRelative;
                     fileRef.Path = relative;
-
                     migrated++;
                 }
-                catch
-                {
-                    // Best-effort migration: if anything fails, keep the original absolute path
-                }
             }
+
+            migrated += MigrateItemLaunchSettings(item, dataRoot, dataRootWithSep);
         }
 
         // Recurse into children
@@ -97,5 +90,115 @@ public static class LibraryMigrationHelper
         }
 
         return migrated;
+    }
+
+    private static int MigrateItemLaunchSettings(MediaItem item, string dataRoot, string dataRootWithSep)
+    {
+        var migrated = 0;
+
+        if (TryMakeDataRootRelative(item.LauncherPath, dataRoot, dataRootWithSep, out var launcherPath))
+        {
+            item.LauncherPath = launcherPath;
+            migrated++;
+        }
+
+        if (TryMakeDataRootRelative(item.WorkingDirectory, dataRoot, dataRootWithSep, out var workingDirectory))
+        {
+            item.WorkingDirectory = workingDirectory;
+            migrated++;
+        }
+
+        if (TryMakeDataRootRelative(item.XdgConfigPath, dataRoot, dataRootWithSep, out var xdgConfig))
+        {
+            item.XdgConfigPath = xdgConfig;
+            migrated++;
+        }
+
+        if (TryMakeDataRootRelative(item.XdgDataPath, dataRoot, dataRootWithSep, out var xdgData))
+        {
+            item.XdgDataPath = xdgData;
+            migrated++;
+        }
+
+        if (TryMakeDataRootRelative(item.XdgCachePath, dataRoot, dataRootWithSep, out var xdgCache))
+        {
+            item.XdgCachePath = xdgCache;
+            migrated++;
+        }
+
+        if (TryMakeDataRootRelative(item.XdgStatePath, dataRoot, dataRootWithSep, out var xdgState))
+        {
+            item.XdgStatePath = xdgState;
+            migrated++;
+        }
+
+        if (TryMakeDataRootRelative(item.XdgBasePath, dataRoot, dataRootWithSep, out var xdgBase))
+        {
+            item.XdgBasePath = xdgBase;
+            migrated++;
+        }
+
+        migrated += MigrateEnvironmentOverrides(item.EnvironmentOverrides, dataRoot, dataRootWithSep);
+        return migrated;
+    }
+
+    private static int MigrateEnvironmentOverrides(
+        Dictionary<string, string>? overrides,
+        string dataRoot,
+        string dataRootWithSep)
+    {
+        if (overrides == null || overrides.Count == 0)
+            return 0;
+
+        var migrated = 0;
+        var keys = overrides.Keys.ToList();
+        foreach (var key in keys)
+        {
+            if (!EnvironmentPathKeys.Contains(key))
+                continue;
+
+            if (!overrides.TryGetValue(key, out var value))
+                continue;
+
+            if (!TryMakeDataRootRelative(value, dataRoot, dataRootWithSep, out var relative))
+                continue;
+
+            overrides[key] = relative;
+            migrated++;
+        }
+
+        return migrated;
+    }
+
+    private static bool TryMakeDataRootRelative(
+        string? absolutePath,
+        string dataRoot,
+        string dataRootWithSep,
+        out string relativePath)
+    {
+        relativePath = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(absolutePath))
+            return false;
+
+        if (!Path.IsPathRooted(absolutePath))
+            return false;
+
+        try
+        {
+            var normalizedAbsolute = Path.GetFullPath(absolutePath);
+            if (!normalizedAbsolute.StartsWith(dataRootWithSep, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(normalizedAbsolute, dataRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            relativePath = Path.GetRelativePath(dataRoot, normalizedAbsolute);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

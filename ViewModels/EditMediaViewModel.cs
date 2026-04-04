@@ -1453,6 +1453,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     public IAsyncRelayCommand BrowseXdgStateCommand { get; }
     public IAsyncRelayCommand BrowseXdgBaseCommand { get; }
     public IRelayCommand ApplyXdgBaseCommand { get; }
+    public IRelayCommand ApplyPortableXdgPresetCommand { get; }
+    public IRelayCommand ApplyPortableXdgAndHomePresetCommand { get; }
     public IRelayCommand<Window?> SaveAndCloseCommand { get; }
     public IRelayCommand<Window?> CancelAndCloseCommand { get; }
 
@@ -1510,6 +1512,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         BrowseXdgStateCommand = new AsyncRelayCommand(BrowseXdgStateAsync);
         BrowseXdgBaseCommand = new AsyncRelayCommand(BrowseXdgBaseAsync);
         ApplyXdgBaseCommand = new RelayCommand(ApplyXdgBase, CanApplyXdgBase);
+        ApplyPortableXdgPresetCommand = new RelayCommand(ApplyPortableXdgPreset);
+        ApplyPortableXdgAndHomePresetCommand = new RelayCommand(ApplyPortableXdgAndHomePreset);
         
         // Generic asset commands
         ImportAssetCommand = new AsyncRelayCommand<AssetType>(ImportAssetAsync);
@@ -2687,7 +2691,22 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             AllowMultiple = false
         });
 
-        if (result != null && result.Count > 0) LauncherPath = result[0].Path.LocalPath;
+        if (result == null || result.Count == 0)
+            return;
+
+        var path = result[0].Path.LocalPath;
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        if (_settings.PreferPortableLaunchPaths &&
+            TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
+        {
+            LauncherPath = relativePath;
+        }
+        else
+        {
+            LauncherPath = path;
+        }
     }
 
     private async Task BrowseWorkingDirectoryAsync()
@@ -2776,6 +2795,53 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         XdgStatePath = Path.Combine(basePath, "state");
     }
 
+    private void ApplyPortableXdgPreset()
+    {
+        ApplyPortableXdgOverrides(includeHome: false);
+    }
+
+    private void ApplyPortableXdgAndHomePreset()
+    {
+        ApplyPortableXdgOverrides(includeHome: true);
+    }
+
+    private void ApplyPortableXdgOverrides(bool includeHome)
+    {
+        XdgConfigPath = "Home/.config";
+        XdgDataPath = "Home/.local/share";
+        XdgCachePath = "Home/.cache";
+        XdgStatePath = "Home/.local/state";
+
+        if (includeHome)
+            UpsertItemEnvironmentOverride("HOME", "Home");
+    }
+
+    private void UpsertItemEnvironmentOverride(string key, string value)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        var existing = EnvironmentOverrides
+            .FirstOrDefault(row => string.Equals(row.Key?.Trim(), key, StringComparison.OrdinalIgnoreCase));
+
+        if (existing != null)
+        {
+            existing.Key = key;
+            existing.Value = value;
+            existing.IsInherited = false;
+            existing.Source = Strings.Common_SourceItem;
+            return;
+        }
+
+        EnvironmentOverrides.Add(new EnvVarRow
+        {
+            Key = key,
+            Value = value,
+            IsInherited = false,
+            Source = Strings.Common_SourceItem
+        });
+    }
+
     private void Save()
     {
         // 1. Write metadata back to the original item
@@ -2852,7 +2918,17 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             case EmulatorProfileOption.OptionKind.Manual:
                 _originalItem.MediaType = MediaType.Emulator;
                 _originalItem.EmulatorId = null;
-                _originalItem.LauncherPath = LauncherPath;
+                if (_settings.PreferPortableLaunchPaths &&
+                    !string.IsNullOrWhiteSpace(LauncherPath) &&
+                    Path.IsPathRooted(LauncherPath) &&
+                    TryMakeDataRelativeIfInsideDataRoot(LauncherPath, out var relativeLauncherPath))
+                {
+                    _originalItem.LauncherPath = relativeLauncherPath;
+                }
+                else
+                {
+                    _originalItem.LauncherPath = LauncherPath;
+                }
                 break;
 
             case EmulatorProfileOption.OptionKind.Inherit:

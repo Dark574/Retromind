@@ -194,6 +194,11 @@
     <data name="Settings_MoveUp" xml:space="preserve"><value>Nach oben</value></data>
     <data name="Settings_MoveDown" xml:space="preserve"><value>Nach unten</value></data>
     <data name="Settings_EmulatorEnvTitle" xml:space="preserve"><value>Umgebungsvariablen</value></data>
+    <data name="Settings.EmulatorXdgContextTitle" xml:space="preserve"><value>XDG-Kontext</value></data>
+    <data name="Settings.EmulatorXdgContextHint" xml:space="preserve"><value>Vererben: Umgebung beibehalten.&#10;Host: Host-HOME/XDG verwenden.&#10;Benutzerdefiniert: explizite XDG-Pfade setzen.</value></data>
+    <data name="Settings.EmulatorXdgPresetPortable" xml:space="preserve"><value>Preset: Portables XDG</value></data>
+    <data name="Settings.EmulatorXdgPresetPortableHome" xml:space="preserve"><value>Preset: Portables XDG + HOME</value></data>
+    <data name="Settings.EmulatorXdgPresetTip" xml:space="preserve"><value>Kompatibilitäts-Tipp: Nur XDG ist oft robuster. Zusätzliches HOME kann Launcher stören, die Host-Benutzerzustand erwarten (z. B. Steam/UMU).</value></data>
     <data name="Settings_AddVariable" xml:space="preserve"><value>+ Variable hinzufügen</value></data>
     <data name="Settings_EnvKeyLabel" xml:space="preserve"><value>Schlüssel</value></data>
     <data name="Settings_EnvKeyWatermark" xml:space="preserve"><value>z. B. PROTONPATH</value></data>
@@ -342,7 +347,8 @@
     <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Zufällige Musik abspielen</value></data>
     <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>Wenn aktiviert, spielt die Auswahl im Hauptgrid automatisch die Musik (falls vorhanden).</value></data>
     <data name="Settings.PortableHome" xml:space="preserve"><value>Portables HOME/XDG für AppImage verwenden</value></data>
-    <data name="Settings.PortableHome.Hint" xml:space="preserve"><value>Leitet HOME und XDG-Ordner in einen lokalen Home/-Ordner neben der AppImage um (Neustart erforderlich).</value></data>
+    <data name="Settings.PortableHome.Hint" xml:space="preserve"><value>Leitet HOME/XDG für den Retromind-AppImage-Prozess in einen lokalen Home/-Ordner um (Neustart erforderlich). Externe Starts nutzen standardmäßig Host-HOME/XDG; für portable Child-Prozesse bitte Emulator-/Eintrag-Overrides setzen.</value></data>
+    <data name="Settings.PortableHome.WarningForceConfirm" xml:space="preserve"><value>Portables HOME/XDG im erzwungenen Modus aktivieren? Das gilt für den Retromind-AppImage-Prozess und kann Integrationen beeinflussen. Externe Starts bleiben standardmäßig bei Host-HOME/XDG, außer wenn pro Emulator/Eintrag überschrieben. Ein Neustart ist erforderlich.</value></data>
     <data name="Settings.UseGlobalWrapperDefaults" xml:space="preserve"><value>Globale Defaults verwenden</value></data>
     <data name="Settings.PortableLaunchPaths" xml:space="preserve"><value>Startpfade relativ zum Retromind-Datenordner speichern (portabel)</value></data>
     <data name="Settings.ProfileName" xml:space="preserve"><value>Profilname</value></data>
