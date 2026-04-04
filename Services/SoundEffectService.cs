@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 
 namespace Retromind.Services;
 
@@ -30,9 +31,10 @@ public class SoundEffectService
         {
             try
             {
+                var bundledExecutable = AppImageToolResolver.ResolveBundledExecutable(PlayerExecutable);
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = PlayerExecutable,
+                    FileName = bundledExecutable ?? PlayerExecutable,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardOutput = false, // We don't care about output for SFX
@@ -49,6 +51,10 @@ public class SoundEffectService
                 
                 // The file path is added last
                 startInfo.ArgumentList.Add(filePath);
+
+                // Keep AppImage runtime env for bundled tools; sanitize only host fallback launches.
+                if (bundledExecutable == null)
+                    HostProcessEnvironmentSanitizer.Sanitize(startInfo);
 
                 // We start the process but don't hold a reference to it.
                 // It will live and die on its own. "Fire and forget".

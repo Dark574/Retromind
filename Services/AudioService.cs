@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 
 namespace Retromind.Services;
 
@@ -84,10 +85,13 @@ public class AudioService
 
                     // Simple SID detection by extension
                     var isSid = filePath.EndsWith(".sid", StringComparison.OrdinalIgnoreCase);
+                    var executableToken = isSid ? "sidplayfp" : PlayerExecutable;
+                    var bundledExecutable = AppImageToolResolver.ResolveBundledExecutable(executableToken);
+                    var executablePath = bundledExecutable ?? executableToken;
 
                     if (isSid)
                     {
-                        startInfo.FileName = "sidplayfp";
+                        startInfo.FileName = executablePath;
                         startInfo.ArgumentList.Clear();
 
                         // Quiet mode (-q) to minimize console/log noise
@@ -96,12 +100,12 @@ public class AudioService
                         // SID file path
                         startInfo.ArgumentList.Add(filePath);
                         
-                        Debug.WriteLine($"[AudioService] Playing SID via sidplayfp: {filePath}");
+                        Debug.WriteLine($"[AudioService] Playing SID via {startInfo.FileName}: {filePath}");
                     }
                     else
                     {
                         // Default path: ffplay for "normal" audio formats (mp3, ogg, flac, wav, ...)
-                        startInfo.FileName = PlayerExecutable;
+                        startInfo.FileName = executablePath;
 
                         // Construct arguments using the safer ArgumentList
                         startInfo.ArgumentList.Add("-nodisp");       // No graphical window
@@ -114,9 +118,12 @@ public class AudioService
                         // The file path is added last
                         startInfo.ArgumentList.Add(filePath);
 
-                        Debug.WriteLine($"[AudioService] Playing via ffplay: {filePath}");
+                        Debug.WriteLine($"[AudioService] Playing via {startInfo.FileName}: {filePath}");
                     }
 
+                    // Keep AppImage runtime env for bundled tools; sanitize only host fallback launches.
+                    if (bundledExecutable == null)
+                        HostProcessEnvironmentSanitizer.Sanitize(startInfo);
                     _currentProcess = Process.Start(startInfo);
 
                     if (_currentProcess == null)
