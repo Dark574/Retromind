@@ -94,7 +94,6 @@
     <data name="Parental.Lock.Tooltip.Lock" xml:space="preserve"><value>Lock protected media</value></data>
     <data name="Parental.ChangePassword.Short" xml:space="preserve"><value>Change PW</value></data>
     <data name="Parental.ChangePassword.Tooltip" xml:space="preserve"><value>Change parental lock password</value></data>
-    <data name="Parental.ToggleProtection" xml:space="preserve"><value>Toggle parental protection</value></data>
     <data name="Parental.ProtectButton" xml:space="preserve"><value>Protect</value></data>
     <data name="Parental.ProtectButton.Tooltip" xml:space="preserve"><value>Toggle parental protection for this item</value></data>
     <data name="Parental.Dialog.Title" xml:space="preserve"><value>Parental Lock</value></data>

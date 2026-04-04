@@ -41,9 +41,6 @@ public partial class MainWindowViewModel
                 ? T("Parental.Lock.Tooltip.Unlock", "Unlock protected media")
                 : T("Parental.Lock.Tooltip.Lock", "Lock protected media");
 
-    public string ParentalToggleProtectionText =>
-        T("Parental.ToggleProtection", "Toggle parental protection");
-
     public string ParentalProtectButtonToolTip =>
         T("Parental.ProtectButton.Tooltip", "Toggle parental protection for this item");
 
@@ -64,7 +61,6 @@ public partial class MainWindowViewModel
         OnPropertyChanged(nameof(IsParentalFilterActive));
         OnPropertyChanged(nameof(ParentalLockButtonText));
         OnPropertyChanged(nameof(ParentalLockToolTip));
-        OnPropertyChanged(nameof(ParentalToggleProtectionText));
         OnPropertyChanged(nameof(ParentalProtectButtonToolTip));
         OnPropertyChanged(nameof(ShowParentalProtectionButton));
     }

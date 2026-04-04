@@ -95,7 +95,6 @@
     <data name="Parental.Lock.Tooltip.Lock" xml:space="preserve"><value>Geschützte Inhalte sperren</value></data>
     <data name="Parental.ChangePassword.Short" xml:space="preserve"><value>PW ändern</value></data>
     <data name="Parental.ChangePassword.Tooltip" xml:space="preserve"><value>Jugendschutz-Passwort ändern</value></data>
-    <data name="Parental.ToggleProtection" xml:space="preserve"><value>Jugendschutz umschalten</value></data>
     <data name="Parental.ProtectButton" xml:space="preserve"><value>Schutz</value></data>
     <data name="Parental.ProtectButton.Tooltip" xml:space="preserve"><value>Jugendschutz für dieses Medium umschalten</value></data>
     <data name="Parental.Dialog.Title" xml:space="preserve"><value>Jugendschutz</value></data>
