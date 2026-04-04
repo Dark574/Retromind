@@ -137,9 +137,49 @@ fi
 
 echo "[6/8] Download appimagetool (if missing)..."
 APPIMAGETOOL="$WORK_DIR/appimagetool"
-if [ ! -x "$APPIMAGETOOL" ]; then
-  curl -L -o "$APPIMAGETOOL" "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+APPIMAGETOOL_TMP="$WORK_DIR/appimagetool.tmp"
+
+is_elf_file() {
+  [ -f "$1" ] || return 1
+  magic="$(head -c 4 "$1" | od -An -tx1 | tr -d ' \n')"
+  [ "$magic" = "7f454c46" ]
+}
+
+download_appimagetool() {
+  url="$1"
+  rm -f "$APPIMAGETOOL_TMP"
+
+  echo "Downloading appimagetool from: $url"
+  if ! curl --fail --location \
+      --retry 5 --retry-delay 2 --retry-connrefused --retry-all-errors \
+      -o "$APPIMAGETOOL_TMP" "$url"; then
+    echo "Notice: download failed for $url"
+    rm -f "$APPIMAGETOOL_TMP"
+    return 1
+  fi
+
+  if ! is_elf_file "$APPIMAGETOOL_TMP"; then
+    echo "Notice: downloaded file is not a valid AppImage binary (likely HTML error page)."
+    if head -c 120 "$APPIMAGETOOL_TMP" | tr -d '\000' | grep -Eiq "<html|<body|gateway|error"; then
+      echo "Hint: server returned an HTML error response. Please retry in a few minutes."
+    fi
+    rm -f "$APPIMAGETOOL_TMP"
+    return 1
+  fi
+
+  mv "$APPIMAGETOOL_TMP" "$APPIMAGETOOL"
   chmod +x "$APPIMAGETOOL"
+  return 0
+}
+
+if [ ! -x "$APPIMAGETOOL" ] || ! is_elf_file "$APPIMAGETOOL"; then
+  rm -f "$APPIMAGETOOL"
+
+  if ! download_appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" \
+     && ! download_appimagetool "https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage"; then
+    echo "ERROR: Failed to download a valid appimagetool binary."
+    exit 1
+  fi
 fi
 
 echo "[7/8] Debug: listing desktop files..."
