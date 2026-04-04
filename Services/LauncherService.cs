@@ -1214,6 +1214,17 @@ public sealed class LauncherService
         if (!string.IsNullOrWhiteSpace(item.PrefixPath))
         {
             var storedPath = item.PrefixPath.Trim();
+            if (_settings.PreferPortableLaunchPaths)
+            {
+                var portableStoredPath =
+                    PrefixPathHelper.ConvertPathToLibraryRelativeIfInsideLibraryRoot(storedPath, _libraryRootPath);
+                if (!string.Equals(portableStoredPath, storedPath, StringComparison.Ordinal))
+                {
+                    storedPath = portableStoredPath ?? storedPath;
+                    relativePrefixPathToSave = storedPath;
+                }
+            }
+
             prefixPath = Path.IsPathRooted(storedPath)
                 ? Path.GetFullPath(storedPath)
                 : Path.Combine(_libraryRootPath, storedPath);

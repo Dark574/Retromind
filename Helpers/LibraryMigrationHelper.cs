@@ -43,16 +43,30 @@ public static class LibraryMigrationHelper
         var dataRootWithSep = dataRoot.EndsWith(Path.DirectorySeparatorChar)
             ? dataRoot
             : dataRoot + Path.DirectorySeparatorChar;
+        var libraryRoot = Path.GetFullPath(AppPaths.LibraryRoot);
+        var libraryRootWithSep = libraryRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? libraryRoot
+            : libraryRoot + Path.DirectorySeparatorChar;
 
         foreach (var root in rootNodes)
         {
-            migratedCount += MigrateNodeRecursive(root, dataRoot, dataRootWithSep);
+            migratedCount += MigrateNodeRecursive(
+                root,
+                dataRoot,
+                dataRootWithSep,
+                libraryRoot,
+                libraryRootWithSep);
         }
 
         return migratedCount;
     }
 
-    private static int MigrateNodeRecursive(MediaNode node, string dataRoot, string dataRootWithSep)
+    private static int MigrateNodeRecursive(
+        MediaNode node,
+        string dataRoot,
+        string dataRootWithSep,
+        string libraryRoot,
+        string libraryRootWithSep)
     {
         var migrated = 0;
 
@@ -81,19 +95,34 @@ public static class LibraryMigrationHelper
                 }
             }
 
-            migrated += MigrateItemLaunchSettings(item, dataRoot, dataRootWithSep);
+            migrated += MigrateItemLaunchSettings(
+                item,
+                dataRoot,
+                dataRootWithSep,
+                libraryRoot,
+                libraryRootWithSep);
         }
 
         // Recurse into children
         foreach (var child in node.Children)
         {
-            migrated += MigrateNodeRecursive(child, dataRoot, dataRootWithSep);
+            migrated += MigrateNodeRecursive(
+                child,
+                dataRoot,
+                dataRootWithSep,
+                libraryRoot,
+                libraryRootWithSep);
         }
 
         return migrated;
     }
 
-    private static int MigrateItemLaunchSettings(MediaItem item, string dataRoot, string dataRootWithSep)
+    private static int MigrateItemLaunchSettings(
+        MediaItem item,
+        string dataRoot,
+        string dataRootWithSep,
+        string libraryRoot,
+        string libraryRootWithSep)
     {
         var migrated = 0;
 
@@ -139,9 +168,47 @@ public static class LibraryMigrationHelper
             migrated++;
         }
 
+        if (TryMakeLibraryRootRelative(item.PrefixPath, libraryRoot, libraryRootWithSep, out var prefixPath))
+        {
+            item.PrefixPath = prefixPath;
+            migrated++;
+        }
+
         migrated += MigrateWrappers(item.NativeWrappersOverride, dataRoot, dataRootWithSep);
         migrated += MigrateEnvironmentOverrides(item.EnvironmentOverrides, dataRoot, dataRootWithSep);
         return migrated;
+    }
+
+    private static bool TryMakeLibraryRootRelative(
+        string? absolutePath,
+        string libraryRoot,
+        string libraryRootWithSep,
+        out string relativePath)
+    {
+        relativePath = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(absolutePath))
+            return false;
+
+        if (!Path.IsPathRooted(absolutePath))
+            return false;
+
+        try
+        {
+            var normalizedAbsolute = Path.GetFullPath(absolutePath);
+            if (!normalizedAbsolute.StartsWith(libraryRootWithSep, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(normalizedAbsolute, libraryRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            relativePath = Path.GetRelativePath(libraryRoot, normalizedAbsolute);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static int MigrateWrappers(

@@ -2892,8 +2892,17 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         _originalItem.Status = Status;
         _originalItem.Description = Description;
 
-        // Prefix: store null when not used
-        _originalItem.PrefixPath = string.IsNullOrWhiteSpace(PrefixPath) ? null : PrefixPath.Trim();
+        // Prefix: store null when not used.
+        // In portable mode, absolute paths inside LibraryRoot are normalized to library-relative.
+        var prefixPathToStore = string.IsNullOrWhiteSpace(PrefixPath) ? null : PrefixPath.Trim();
+        if (_settings.PreferPortableLaunchPaths && !string.IsNullOrWhiteSpace(prefixPathToStore))
+        {
+            prefixPathToStore = PrefixPathHelper.ConvertPathToLibraryRelativeIfInsideLibraryRoot(
+                prefixPathToStore,
+                AppPaths.LibraryRoot);
+        }
+
+        _originalItem.PrefixPath = string.IsNullOrWhiteSpace(prefixPathToStore) ? null : prefixPathToStore;
         _originalItem.WineArchOverride = WineArchSelection switch
         {
             WineArchOption.Win32 => "win32",
