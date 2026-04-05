@@ -135,10 +135,12 @@ public partial class MediaNode : ObservableObject
             if (ReferenceEquals(_assets, value))
                 return;
 
-            if (_assets != null)
-                _assets.CollectionChanged -= OnAssetsChanged;
+            // Unsubscribe old collection
+            _assets.CollectionChanged -= OnAssetsChanged;
 
-            _assets = value ?? new ObservableCollection<MediaAsset>();
+            _assets = value ?? throw new ArgumentNullException(nameof(value));
+            
+            // Subscribe new collection
             _assets.CollectionChanged += OnAssetsChanged;
             OnPropertyChanged();
 
@@ -215,7 +217,7 @@ public partial class MediaNode : ObservableObject
         };
     }
 
-    public string? GetPrimaryAssetAbsolutePath(AssetType type)
+    private string? GetPrimaryAssetAbsolutePath(AssetType type)
     {
         var relPath = GetPrimaryAssetPath(type);
         if (string.IsNullOrWhiteSpace(relPath))

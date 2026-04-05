@@ -103,12 +103,12 @@ public partial class MediaItem : ObservableObject
         {
             if (_assets == value) return;
 
-            // Unsubscribe old collection (if any)
+            // Unsubscribe old collection
             _assets.CollectionChanged -= OnAssetsChanged;
 
             _assets = value ?? throw new ArgumentNullException(nameof(value));
 
-            // Subscribe new collection (if not null)
+            // Subscribe new collection
             _assets.CollectionChanged += OnAssetsChanged;
 
             OnPropertyChanged();
