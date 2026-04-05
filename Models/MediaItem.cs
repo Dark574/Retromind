@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Helpers;
@@ -29,7 +28,7 @@ public partial class MediaItem : ObservableObject
     /// These are applied on top of the inherited environment and can be used to tweak
     /// Proton/Wine runners or emulators on a per-game basis
     /// </summary>
-    public Dictionary<string, string> EnvironmentOverrides { get; set; } = new();
+    public Dictionary<string, string> EnvironmentOverrides { get; init; } = new();
     
     /// <summary>
     /// Unique identifier for this item
@@ -105,18 +104,12 @@ public partial class MediaItem : ObservableObject
             if (_assets == value) return;
 
             // Unsubscribe old collection (if any)
-            if (_assets != null)
-            {
-                _assets.CollectionChanged -= OnAssetsChanged;
-            }
+            _assets.CollectionChanged -= OnAssetsChanged;
 
-            _assets = value;
+            _assets = value ?? throw new ArgumentNullException(nameof(value));
 
             // Subscribe new collection (if not null)
-            if (_assets != null)
-            {
-                _assets.CollectionChanged += OnAssetsChanged;
-            }
+            _assets.CollectionChanged += OnAssetsChanged;
 
             OnPropertyChanged();
         }
@@ -139,7 +132,7 @@ public partial class MediaItem : ObservableObject
     }
 
     // Helper for UI binding (returns ABSOLUTE path)
-    public string? GetPrimaryAssetAbsolutePath(AssetType type)
+    private string? GetPrimaryAssetAbsolutePath(AssetType type)
     {
         var relPath = GetPrimaryAssetPath(type);
         if (string.IsNullOrEmpty(relPath)) return null;
@@ -181,9 +174,6 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     public void RemoveManualAsset(MediaAsset manualAsset)
     {
-        if (manualAsset == null)
-            return;
-
         if (manualAsset.Type != AssetType.Manual)
             return;
 
@@ -325,8 +315,8 @@ public partial class MediaItem : ObservableObject
 
         // Prefer Index=1, then smallest Index, then first.
         var byIndex = Files
-            .Where(f => f.Index.HasValue && f.Index.Value > 0)
-            .OrderBy(f => f.Index!.Value)
+            .Where(f => f.Index is > 0)
+            .OrderBy(f => f.Index)
             .ToList();
 
         var disc1 = byIndex.FirstOrDefault(f => f.Index == 1);
