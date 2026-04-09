@@ -343,9 +343,15 @@ public class MediaDataService
             MediaType = item.MediaType,
             Description = item.Description,
             Developer = item.Developer,
+            Publisher = item.Publisher,
+            Platform = item.Platform,
+            Source = item.Source,
             Genre = item.Genre,
             Series = item.Series,
-            Players = item.Players,
+            ReleaseType = item.ReleaseType,
+            SortTitle = item.SortTitle,
+            PlayMode = item.PlayMode,
+            MaxPlayers = item.MaxPlayers,
             ReleaseDate = item.ReleaseDate,
             Rating = item.Rating,
             Status = item.Status,
@@ -367,7 +373,8 @@ public class MediaDataService
             PlayCount = item.PlayCount,
             TotalPlayTime = item.TotalPlayTime,
             NativeWrappersOverride = CloneWrappers(item.NativeWrappersOverride),
-            EnvironmentOverrides = CloneEnvironmentOverrides(item.EnvironmentOverrides)
+            EnvironmentOverrides = CloneEnvironmentOverrides(item.EnvironmentOverrides),
+            CustomFields = CloneEnvironmentOverrides(item.CustomFields)
         };
 
         var tags = new ObservableCollection<string>();

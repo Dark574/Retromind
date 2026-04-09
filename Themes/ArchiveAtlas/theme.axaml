@@ -353,7 +353,7 @@
                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedItem.Genre}" />
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Classes="Mono" Text="PLAYERS" />
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedItem.Players}" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedItem.MaxPlayers}" />
 
                             <TextBlock Grid.Row="2" Grid.Column="0" Classes="Mono" Text="RATING" />
                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedItem.Rating}" />

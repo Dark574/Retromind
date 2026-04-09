@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Helpers;
 
@@ -61,9 +62,15 @@ public partial class MediaItem : ObservableObject
 
     [ObservableProperty] private string _description = string.Empty;
     [ObservableProperty] private string? _developer;
+    [ObservableProperty] private string? _publisher;
+    [ObservableProperty] private string? _platform;
+    [ObservableProperty] private string? _source;
     [ObservableProperty] private string? _genre;
     [ObservableProperty] private string? _series;
-    [ObservableProperty] private string? _players;
+    [ObservableProperty] private string? _releaseType;
+    [ObservableProperty] private string? _sortTitle;
+    [ObservableProperty] private string? _playMode;
+    [ObservableProperty] private string? _maxPlayers;
 
     /// <summary>
     /// Original release date of the media
@@ -93,6 +100,9 @@ public partial class MediaItem : ObservableObject
 
     [ObservableProperty]
     private ObservableCollection<string> _tags = new();
+
+    [ObservableProperty]
+    private Dictionary<string, string> _customFields = new(StringComparer.Ordinal);
 
     private ObservableCollection<MediaAsset> _assets = new();
 
@@ -146,6 +156,18 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     public IReadOnlyList<MediaAsset> ManualAssets =>
         Assets.Where(a => a.Type == AssetType.Manual).ToList();
+
+    /// <summary>
+    /// Returns custom fields that have both a non-empty key and a non-empty value.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyList<KeyValuePair<string, string>> VisibleCustomFields =>
+        CustomFields
+            .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && !string.IsNullOrWhiteSpace(kv.Value))
+            .ToList();
+
+    [JsonIgnore]
+    public bool HasCustomFields => VisibleCustomFields.Count > 0;
 
     /// <summary>
     /// Adds a new manual/document asset for this item.
@@ -483,6 +505,12 @@ public partial class MediaItem : ObservableObject
         OnPropertyChanged(nameof(PrimaryControlPanelPath));
         OnPropertyChanged(nameof(ItemLogoPath));
         OnPropertyChanged(nameof(ManualAssets));
+    }
+
+    partial void OnCustomFieldsChanged(Dictionary<string, string> value)
+    {
+        OnPropertyChanged(nameof(VisibleCustomFields));
+        OnPropertyChanged(nameof(HasCustomFields));
     }
 }
 

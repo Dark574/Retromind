@@ -91,6 +91,12 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         [ObservableProperty] private bool _isInherited;
     }
 
+    public sealed partial class CustomFieldRow : ObservableObject
+    {
+        [ObservableProperty] private string _key = string.Empty;
+        [ObservableProperty] private string _value = string.Empty;
+    }
+
     public sealed class EmulatorProfileOption
     {
         public enum OptionKind
@@ -117,9 +123,12 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     /// Editable list of per-item environment overrides.
     /// </summary>
     public ObservableCollection<EnvVarRow> EnvironmentOverrides { get; } = new();
+    public ObservableCollection<CustomFieldRow> CustomFields { get; } = new();
 
     public IRelayCommand AddEnvironmentVariableCommand { get; }
     public IRelayCommand<EnvVarRow?> RemoveEnvironmentVariableCommand { get; }
+    public IRelayCommand AddCustomFieldCommand { get; }
+    public IRelayCommand<CustomFieldRow?> RemoveCustomFieldCommand { get; }
 
     public enum WineArchOption
     {
@@ -153,6 +162,17 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     {
         if (row == null) return;
         EnvironmentOverrides.Remove(row);
+    }
+
+    private void AddCustomField()
+    {
+        CustomFields.Add(new CustomFieldRow());
+    }
+
+    private void RemoveCustomField(CustomFieldRow? row)
+    {
+        if (row == null) return;
+        CustomFields.Remove(row);
     }
 
     
@@ -1280,7 +1300,15 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     private string _title = "";
     [ObservableProperty] private string _description = "";
     [ObservableProperty] private string? _developer;
+    [ObservableProperty] private string? _publisher;
+    [ObservableProperty] private string? _platform;
+    [ObservableProperty] private string? _source;
     [ObservableProperty] private string? _genre;
+    [ObservableProperty] private string? _series;
+    [ObservableProperty] private string? _releaseType;
+    [ObservableProperty] private string? _sortTitle;
+    [ObservableProperty] private string? _playMode;
+    [ObservableProperty] private string? _maxPlayers;
     [ObservableProperty] private DateTimeOffset? _releaseDate; 
     [ObservableProperty] private PlayStatus _status;
 
@@ -1529,6 +1557,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         // Environment overrides commands
         AddEnvironmentVariableCommand = new RelayCommand(AddEnvironmentVariable);
         RemoveEnvironmentVariableCommand = new RelayCommand<EnvVarRow?>(RemoveEnvironmentVariable);
+        AddCustomFieldCommand = new RelayCommand(AddCustomField);
+        RemoveCustomFieldCommand = new RelayCommand<CustomFieldRow?>(RemoveCustomField);
 
         // General commands.
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
@@ -1685,12 +1715,21 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     {
         // Load metadata into the temporary buffer
         Title = _originalItem.Title;
+        Publisher = _originalItem.Publisher;
+        Platform = _originalItem.Platform;
+        Source = _originalItem.Source;
         Developer = _originalItem.Developer;
         Genre = _originalItem.Genre;
+        Series = _originalItem.Series;
+        ReleaseType = _originalItem.ReleaseType;
+        SortTitle = _originalItem.SortTitle;
+        PlayMode = _originalItem.PlayMode;
+        MaxPlayers = _originalItem.MaxPlayers;
         ReleaseDate = _originalItem.ReleaseDate.HasValue ? new DateTimeOffset(_originalItem.ReleaseDate.Value) : null;
         Status = _originalItem.Status;
         Description = _originalItem.Description;
         MediaType = _originalItem.MediaType;
+        InitializeCustomFieldsFromItem();
         
         // Load launch configuration
         LauncherPath = _originalItem.LauncherPath;
@@ -1712,6 +1751,23 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         // Assets do not need to be loaded separately because we bind directly to _originalItem.Assets
         // The FileService should ensure the assets list is up to date before opening this dialog
         // (via something like RefreshItemAssets)
+    }
+
+    private void InitializeCustomFieldsFromItem()
+    {
+        CustomFields.Clear();
+
+        if (_originalItem.CustomFields == null || _originalItem.CustomFields.Count == 0)
+            return;
+
+        foreach (var kv in _originalItem.CustomFields.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            CustomFields.Add(new CustomFieldRow
+            {
+                Key = kv.Key,
+                Value = kv.Value
+            });
+        }
     }
 
     private void DetachAssetHandlers()
@@ -2886,11 +2942,20 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         }
 
         _originalItem.Title = newTitle;
+        _originalItem.Publisher = NormalizeOptionalText(Publisher);
+        _originalItem.Platform = NormalizeOptionalText(Platform);
+        _originalItem.Source = NormalizeOptionalText(Source);
         _originalItem.Developer = Developer;
         _originalItem.Genre = Genre;
+        _originalItem.Series = NormalizeOptionalText(Series);
+        _originalItem.ReleaseType = NormalizeOptionalText(ReleaseType);
+        _originalItem.SortTitle = NormalizeOptionalText(SortTitle);
+        _originalItem.PlayMode = NormalizeOptionalText(PlayMode);
+        _originalItem.MaxPlayers = NormalizeOptionalText(MaxPlayers);
         _originalItem.ReleaseDate = ReleaseDate?.DateTime;
         _originalItem.Status = Status;
         _originalItem.Description = Description;
+        _originalItem.CustomFields = BuildCustomFieldsDictionary();
 
         // Prefix: store null when not used.
         // In portable mode, absolute paths inside LibraryRoot are normalized to library-relative.
@@ -3025,6 +3090,29 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
             _originalItem.EnvironmentOverrides[row.Key.Trim()] = row.Value ?? string.Empty;
         }
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private Dictionary<string, string> BuildCustomFieldsDictionary()
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var row in CustomFields)
+        {
+            var key = row.Key?.Trim();
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+
+            var value = row.Value?.Trim();
+            if (string.IsNullOrWhiteSpace(value))
+                continue;
+
+            result[key] = value;
+        }
+
+        return result;
     }
 
     private static WineArchOption ResolveWineArchSelection(string? overrideValue, Dictionary<string, string> env)

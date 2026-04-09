@@ -62,9 +62,19 @@
     <data name="Common.Area" xml:space="preserve"><value>Bereiche:</value></data>
     <data name="Common.Description" xml:space="preserve"><value>Beschreibung:</value></data>
     <data name="Common.Developer" xml:space="preserve"><value>Entwickler</value></data>
+    <data name="Common.Publisher" xml:space="preserve"><value>Publisher</value></data>
     <data name="Common.FavoritesOnly" xml:space="preserve"><value>Nur Favoriten</value></data>
     <data name="Common.FavoritesOnlyHint" xml:space="preserve"><value>Nur Favoriten anzeigen.</value></data>
     <data name="Common.Genre" xml:space="preserve"><value>Genre</value></data>
+    <data name="Common.Platform" xml:space="preserve"><value>Plattform</value></data>
+    <data name="Common.Series" xml:space="preserve"><value>Serie</value></data>
+    <data name="Common.ReleaseType" xml:space="preserve"><value>Veröffentlichungstyp</value></data>
+    <data name="Common.SortTitle" xml:space="preserve"><value>Sortiertitel</value></data>
+    <data name="Common.PlayMode" xml:space="preserve"><value>Spielmodus</value></data>
+    <data name="Common.MaxPlayers" xml:space="preserve"><value>Max. Spieler</value></data>
+    <data name="Common.CustomFields" xml:space="preserve"><value>Benutzerdefinierte Felder</value></data>
+    <data name="Common.Key" xml:space="preserve"><value>Schlüssel</value></data>
+    <data name="Common.Value" xml:space="preserve"><value>Wert</value></data>
     <data name="Common.Name" xml:space="preserve"><value>Name:</value></data>
     <data name="Common.Options" xml:space="preserve"><value>Optionen:</value></data>
     <data name="Common.PreviewShort" xml:space="preserve"><value>Vorschau</value></data>

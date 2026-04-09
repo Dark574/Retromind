@@ -218,6 +218,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Common.Developer", resourceCulture);
             }
         }
+
+        public static string Common_Publisher {
+            get {
+                return ResourceManager.GetString("Common.Publisher", resourceCulture);
+            }
+        }
         
         public static string Common_FavoritesOnly {
             get {
@@ -234,6 +240,60 @@ namespace Retromind.Resources {
         public static string Common_Genre {
             get {
                 return ResourceManager.GetString("Common.Genre", resourceCulture);
+            }
+        }
+
+        public static string Common_Platform {
+            get {
+                return ResourceManager.GetString("Common.Platform", resourceCulture);
+            }
+        }
+
+        public static string Common_Series {
+            get {
+                return ResourceManager.GetString("Common.Series", resourceCulture);
+            }
+        }
+
+        public static string Common_ReleaseType {
+            get {
+                return ResourceManager.GetString("Common.ReleaseType", resourceCulture);
+            }
+        }
+
+        public static string Common_SortTitle {
+            get {
+                return ResourceManager.GetString("Common.SortTitle", resourceCulture);
+            }
+        }
+
+        public static string Common_PlayMode {
+            get {
+                return ResourceManager.GetString("Common.PlayMode", resourceCulture);
+            }
+        }
+
+        public static string Common_MaxPlayers {
+            get {
+                return ResourceManager.GetString("Common.MaxPlayers", resourceCulture);
+            }
+        }
+
+        public static string Common_CustomFields {
+            get {
+                return ResourceManager.GetString("Common.CustomFields", resourceCulture);
+            }
+        }
+
+        public static string Common_Key {
+            get {
+                return ResourceManager.GetString("Common.Key", resourceCulture);
+            }
+        }
+
+        public static string Common_Value {
+            get {
+                return ResourceManager.GetString("Common.Value", resourceCulture);
             }
         }
         

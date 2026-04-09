@@ -188,7 +188,9 @@
             </ItemsControl>
 
             <!-- 2) Metadata grid -->
-            <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,5">
+            <Grid ColumnDefinitions="Auto, *"
+                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                  Margin="0,5">
                 <Grid.Styles>
                     <Style Selector="TextBlock.Label">
                         <Setter Property="FontWeight" Value="SemiBold" />
@@ -203,41 +205,176 @@
                 </Grid.Styles>
 
                 <!-- Release date -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static p:Strings.Common_ReleaseDate}" Classes="Label" />
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_ReleaseDate}"
+                           Classes="Label"
+                           IsVisible="{Binding ReleaseDate, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
                 <TextBlock Grid.Row="0" Grid.Column="1"
                            Text="{Binding ReleaseDate, StringFormat='{}{0:yyyy-MM-dd}'}"
-                           Classes="Value" />
+                           Classes="Value"
+                           IsVisible="{Binding ReleaseDate, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
 
                 <!-- Developer -->
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static p:Strings.Common_Developer}" Classes="Label" />
-                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Developer}" Classes="Value" />
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_Developer}"
+                           Classes="Label"
+                           IsVisible="{Binding Developer, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Grid.Row="1" Grid.Column="1"
+                           Text="{Binding Developer}"
+                           Classes="Value"
+                           IsVisible="{Binding Developer, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                <!-- Publisher -->
+                <TextBlock Grid.Row="2" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_Publisher}"
+                           Classes="Label"
+                           IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Grid.Row="2" Grid.Column="1"
+                           Text="{Binding Publisher}"
+                           Classes="Value"
+                           IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
                 <!-- Genre -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="{x:Static p:Strings.Common_Genre}" Classes="Label" />
-                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Genre}" Classes="Value" />
+                <TextBlock Grid.Row="3" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_Genre}"
+                           Classes="Label"
+                           IsVisible="{Binding Genre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Grid.Row="3" Grid.Column="1"
+                           Text="{Binding Genre}"
+                           Classes="Value"
+                           IsVisible="{Binding Genre, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                <!-- Platform -->
+                <TextBlock Grid.Row="4" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_Platform}"
+                           Classes="Label"
+                           IsVisible="{Binding Platform, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Grid.Row="4" Grid.Column="1"
+                           Text="{Binding Platform}"
+                           Classes="Value"
+                           IsVisible="{Binding Platform, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                <!-- Series -->
+                <TextBlock Grid.Row="5" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_Series}"
+                           Classes="Label"
+                           IsVisible="{Binding Series, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Grid.Row="5" Grid.Column="1"
+                           Text="{Binding Series}"
+                           Classes="Value"
+                           IsVisible="{Binding Series, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                <!-- Source -->
+                <TextBlock Grid.Row="6" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_Source}"
+                           Classes="Label"
+                           IsVisible="{Binding Source, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Grid.Row="6" Grid.Column="1"
+                           Text="{Binding Source}"
+                           Classes="Value"
+                           IsVisible="{Binding Source, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                <!-- Release type -->
+                <TextBlock Grid.Row="7" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_ReleaseType}"
+                           Classes="Label"
+                           IsVisible="{Binding ReleaseType, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Grid.Row="7" Grid.Column="1"
+                           Text="{Binding ReleaseType}"
+                           Classes="Value"
+                           IsVisible="{Binding ReleaseType, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                <!-- Sort title -->
+                <TextBlock Grid.Row="8" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_SortTitle}"
+                           Classes="Label"
+                           IsVisible="{Binding SortTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Grid.Row="8" Grid.Column="1"
+                           Text="{Binding SortTitle}"
+                           Classes="Value"
+                           IsVisible="{Binding SortTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                <!-- Play mode -->
+                <TextBlock Grid.Row="9" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_PlayMode}"
+                           Classes="Label"
+                           IsVisible="{Binding PlayMode, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Grid.Row="9" Grid.Column="1"
+                           Text="{Binding PlayMode}"
+                           Classes="Value"
+                           IsVisible="{Binding PlayMode, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                <!-- Max players -->
+                <TextBlock Grid.Row="10" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_MaxPlayers}"
+                           Classes="Label"
+                           IsVisible="{Binding MaxPlayers, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Grid.Row="10" Grid.Column="1"
+                           Text="{Binding MaxPlayers}"
+                           Classes="Value"
+                           IsVisible="{Binding MaxPlayers, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
                 <!-- Last played -->
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="{x:Static p:Strings.Media_LastPlayed}" Classes="Label" />
-                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LastPlayed, StringFormat='{}{0:g}'}"
-                           Classes="Value" />
-
-                <!-- Play count -->
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="{x:Static p:Strings.Media_PlayCount}" Classes="Label" />
-                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding PlayCount}" Classes="Value" />
+                <TextBlock Grid.Row="11" Grid.Column="0"
+                           Text="{x:Static p:Strings.Media_LastPlayed}"
+                           Classes="Label"
+                           IsVisible="{Binding LastPlayed, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
+                <TextBlock Grid.Row="11" Grid.Column="1"
+                           Text="{Binding LastPlayed, StringFormat='{}{0:g}'}"
+                           Classes="Value"
+                           IsVisible="{Binding LastPlayed, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
 
                 <!-- Total play time -->
-                <TextBlock Grid.Row="5" Grid.Column="0" Text="{x:Static p:Strings.Media_PlayTime}" Classes="Label" />
-                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding TotalPlayTime, Converter={StaticResource TimeConverter}}" Classes="Value" />
-
-                <!-- Status -->
-                <TextBlock Grid.Row="6" Grid.Column="0" Text="{x:Static p:Strings.Common_Status}" Classes="Label" />
-                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Status}" Classes="Value" />
+                <TextBlock Grid.Row="12" Grid.Column="0" Text="{x:Static p:Strings.Media_PlayTime}" Classes="Label" />
+                <TextBlock Grid.Row="12" Grid.Column="1" Text="{Binding TotalPlayTime, Converter={StaticResource TimeConverter}}" Classes="Value" />
             </Grid>
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 
+            <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Status, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
+                <TextBlock Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_Status}"
+                           FontWeight="SemiBold"
+                           Foreground="Gray"
+                           Margin="0,0,10,8" />
+                <TextBlock Grid.Column="1" Text="{Binding Status}" Margin="0,0,0,8" />
+            </Grid>
+
+            <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0"
+                           Text="{x:Static p:Strings.Media_PlayCount}"
+                           FontWeight="SemiBold"
+                           Foreground="Gray"
+                           Margin="0,0,10,8" />
+                <TextBlock Grid.Column="1" Text="{Binding PlayCount}" Margin="0,0,0,8" />
+            </Grid>
+
+            <StackPanel Spacing="5" IsVisible="{Binding HasCustomFields}">
+                <TextBlock Text="{x:Static p:Strings.Common_CustomFields}" FontWeight="SemiBold" FontSize="16" />
+                <ItemsControl x:CompileBindings="False"
+                              ItemsSource="{Binding VisibleCustomFields}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,5">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding Key}"
+                                           FontWeight="SemiBold"
+                                           Foreground="Gray"
+                                           Margin="0,0,10,0" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Value}"
+                                           TextWrapping="Wrap" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <Separator Height="2" Background="Gray" Opacity="0.3" />
+
             <!-- 3) Summary -->
-            <StackPanel Spacing="5">
+            <StackPanel Spacing="5"
+                        IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                 <TextBlock Text="{x:Static p:Strings.Common_Summary}" FontWeight="SemiBold" FontSize="16" />
                 <TextBlock Text="{Binding Description}"
                            TextWrapping="Wrap"
