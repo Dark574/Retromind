@@ -1376,10 +1376,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
         token.ThrowIfCancellationRequested();
 
-        // Globally sort all collected items by title so aggregated views (root/areas)
-        // are truly alphabetical across all subcategories
-        itemList.Sort(static (a, b) =>
-            string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase));
+        // Globally sort by SortTitle (fallback: Title) so aggregated views
+        // keep a user-defined series order across subcategories.
+        itemList.Sort(MediaSortHelper.DisplayOrderComparer);
 
         // 2. Randomization logic (covers/wallpapers/music)
         bool randomizeMusic = false;

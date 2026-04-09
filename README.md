@@ -384,6 +384,11 @@ You can override this behavior for testing:
   dotnet run --project Retromind.csproj -- --avalonia-platform=auto
   ```
 
+## SortTitle
+- Retromind sorts media entries by `SortTitle` attribute if it is set.
+- If `SortTitle` is empty, Retromind falls back to `Title`.
+- This is useful for series ordering (for example: `Series 001 - ...`, `Series 002 - ...`).
+
 ## Architecture
 See [`docs/architecture.md`](docs/architecture.md).
 

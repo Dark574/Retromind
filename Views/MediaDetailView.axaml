@@ -189,7 +189,7 @@
 
             <!-- 2) Metadata grid -->
             <Grid ColumnDefinitions="Auto, *"
-                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                   Margin="0,5">
                 <Grid.Styles>
                     <Style Selector="TextBlock.Label">
@@ -284,49 +284,39 @@
                            Classes="Value"
                            IsVisible="{Binding ReleaseType, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
-                <!-- Sort title -->
-                <TextBlock Grid.Row="8" Grid.Column="0"
-                           Text="{x:Static p:Strings.Common_SortTitle}"
-                           Classes="Label"
-                           IsVisible="{Binding SortTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                <TextBlock Grid.Row="8" Grid.Column="1"
-                           Text="{Binding SortTitle}"
-                           Classes="Value"
-                           IsVisible="{Binding SortTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-
                 <!-- Play mode -->
-                <TextBlock Grid.Row="9" Grid.Column="0"
+                <TextBlock Grid.Row="8" Grid.Column="0"
                            Text="{x:Static p:Strings.Common_PlayMode}"
                            Classes="Label"
                            IsVisible="{Binding PlayMode, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                <TextBlock Grid.Row="9" Grid.Column="1"
+                <TextBlock Grid.Row="8" Grid.Column="1"
                            Text="{Binding PlayMode}"
                            Classes="Value"
                            IsVisible="{Binding PlayMode, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
                 <!-- Max players -->
-                <TextBlock Grid.Row="10" Grid.Column="0"
+                <TextBlock Grid.Row="9" Grid.Column="0"
                            Text="{x:Static p:Strings.Common_MaxPlayers}"
                            Classes="Label"
                            IsVisible="{Binding MaxPlayers, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                <TextBlock Grid.Row="10" Grid.Column="1"
+                <TextBlock Grid.Row="9" Grid.Column="1"
                            Text="{Binding MaxPlayers}"
                            Classes="Value"
                            IsVisible="{Binding MaxPlayers, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
                 <!-- Last played -->
-                <TextBlock Grid.Row="11" Grid.Column="0"
+                <TextBlock Grid.Row="10" Grid.Column="0"
                            Text="{x:Static p:Strings.Media_LastPlayed}"
                            Classes="Label"
                            IsVisible="{Binding LastPlayed, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
-                <TextBlock Grid.Row="11" Grid.Column="1"
+                <TextBlock Grid.Row="10" Grid.Column="1"
                            Text="{Binding LastPlayed, StringFormat='{}{0:g}'}"
                            Classes="Value"
                            IsVisible="{Binding LastPlayed, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
 
                 <!-- Total play time -->
-                <TextBlock Grid.Row="12" Grid.Column="0" Text="{x:Static p:Strings.Media_PlayTime}" Classes="Label" />
-                <TextBlock Grid.Row="12" Grid.Column="1" Text="{Binding TotalPlayTime, Converter={StaticResource TimeConverter}}" Classes="Value" />
+                <TextBlock Grid.Row="11" Grid.Column="0" Text="{x:Static p:Strings.Media_PlayTime}" Classes="Label" />
+                <TextBlock Grid.Row="11" Grid.Column="1" Text="{Binding TotalPlayTime, Converter={StaticResource TimeConverter}}" Classes="Value" />
             </Grid>
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />

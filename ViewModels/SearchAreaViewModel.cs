@@ -411,10 +411,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 token);
         }
 
-        // Global sort across all scopes, same as main MediaArea view:
-        // alphabetical by Title (case-insensitive)
-        results.Sort(static (a, b) =>
-            string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase));
+        // Global sort across all scopes: SortTitle first, fallback Title.
+        results.Sort(MediaSortHelper.DisplayOrderComparer);
         
         await UiThreadHelper.InvokeAsync(() =>
         {

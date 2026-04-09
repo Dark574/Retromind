@@ -1119,17 +1119,15 @@ public partial class MainWindowViewModel
 
     private static int FindSortedInsertIndex(ObservableCollection<MediaItem> items, MediaItem candidate, int minIndex = 0)
     {
-        var comparer = Comparer<string?>.Default;
         var low = Math.Clamp(minIndex, 0, items.Count);
         var high = items.Count;
 
-        // Upper-bound insertion by title:
-        // new items with identical titles are placed after existing ones
-        // (matches stable behavior of the old full-sort path).
+        // Upper-bound insertion by display order:
+        // SortTitle (fallback: Title). New equal items are placed after existing ones.
         while (low < high)
         {
             var mid = low + ((high - low) / 2);
-            var compare = comparer.Compare(items[mid].Title, candidate.Title);
+            var compare = MediaSortHelper.CompareForDisplayOrder(items[mid], candidate);
 
             if (compare <= 0)
                 low = mid + 1;
@@ -1140,15 +1138,14 @@ public partial class MainWindowViewModel
         return low;
     }
 
-    private static bool IsSortedByTitle(IReadOnlyList<MediaItem> items)
+    private static bool IsSortedByDisplayOrder(IReadOnlyList<MediaItem> items)
     {
         if (items.Count <= 1)
             return true;
 
-        var comparer = Comparer<string?>.Default;
         for (var i = 1; i < items.Count; i++)
         {
-            if (comparer.Compare(items[i - 1].Title, items[i].Title) > 0)
+            if (MediaSortHelper.CompareForDisplayOrder(items[i - 1], items[i]) > 0)
                 return false;
         }
 
@@ -1174,7 +1171,7 @@ public partial class MainWindowViewModel
 
         // Safety net: if older data/path left this collection unsorted, repair once before
         // binary insert to keep order correctness.
-        if (!IsSortedByTitle(items))
+        if (!IsSortedByDisplayOrder(items))
             SortMediaItems(items);
 
         if (newItems.Count < BulkSortedInsertThreshold)
@@ -1187,9 +1184,8 @@ public partial class MainWindowViewModel
         // Bulk path:
         // sort incoming items first and then keep a monotonic lower bound for binary search.
         // This reduces comparisons/scans for large imports while preserving stable insertion.
-        var titleComparer = Comparer<string?>.Default;
         var orderedNewItems = newItems
-            .OrderBy(item => item.Title, titleComparer)
+            .OrderBy(item => item, MediaSortHelper.DisplayOrderComparer)
             .ToList();
 
         var lowerBound = 0;
@@ -1207,7 +1203,7 @@ public partial class MainWindowViewModel
         // It's better to sort a List and then rebuild the collection if it's massively out of order,
         // but since we want to keep bindings alive, the Move() approach is acceptable unless items > 1000 per node.
         
-        var sorted = items.OrderBy(i => i.Title).ToList();
+        var sorted = items.OrderBy(i => i, MediaSortHelper.DisplayOrderComparer).ToList();
         for (var i = 0; i < sorted.Count; i++)
         {
             var oldIndex = items.IndexOf(sorted[i]);
