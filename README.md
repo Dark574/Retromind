@@ -28,7 +28,7 @@ See `docs/CHANGELOG.md` for version history.
 - Cover/grid view in the center
 - Details view on the right
 - Drag & drop categories in the tree to reorder or move between parents (merge prompt on conflicts)
-- Global search across the library with filters (year, favorites, status)
+- Global search with classic title search plus optional metadata power-query mode
 - Metadata scraping (depends on your API keys)
 - Optional BigMode / controller-friendly UI with runtime themes
 - Per-item manuals/documents
@@ -388,6 +388,31 @@ You can override this behavior for testing:
 - Retromind sorts media entries by `SortTitle` attribute if it is set.
 - If `SortTitle` is empty, Retromind falls back to `Title`.
 - This is useful for series ordering (for example: `Series 001 - ...`, `Series 002 - ...`).
+
+## Search (Power Query)
+- Available in both search fields: global search and local node search.
+- Plain text in the search field is title-only search.
+- Power query mode is enabled when at least one `key:value` or `key=value` term is present.
+- Power terms are combined with AND logic.
+- In mixed queries, plain words still search the title (example: `zelda platform:switch`).
+
+Supported keys (aliases included):
+- `title`, `sorttitle`, `description`/`notes`, `developer`, `publisher`, `platform`, `source`
+- `genre`, `series`, `releasetype`, `playmode`, `players`/`maxplayers`
+- `status`/`state`, `year`, `date`/`released`, `tag`/`tags`, `id`, `favorite`
+- Custom fields:
+  - `cf:<text>` searches custom field keys and values.
+  - `cfk:<text>` searches only custom field keys.
+  - `cfv:<text>` searches only custom field values.
+  - `cf.<fieldname>:<text>` searches a specific custom field key (example: `cf.rating:5`).
+
+Examples:
+- `zelda` -> title-only search
+- `platform:snes dev:nintendo`
+- `maxplayers:2 status:completed`
+- `year=1998 favorite=true`
+- `cf.rating:5`
+- `zelda platform:switch`
 
 ## Architecture
 See [`docs/architecture.md`](docs/architecture.md).
