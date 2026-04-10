@@ -29,7 +29,12 @@ public enum AssetType
     /// Game-related documents such as manuals, maps, guides, readme files, etc.
     /// Stored as generic file references (e.g. PDF, TXT, HTML)
     /// </summary>
-    Manual
+    Manual,
+    /// <summary>
+    /// Additional in-game or scene screenshots.
+    /// Can be used as secondary background artwork when no wallpaper exists.
+    /// </summary>
+    Screenshot
 }
 
 /// <summary>

@@ -29,7 +29,7 @@ public partial class MainWindowViewModel
         .ToArray();
 
     private static readonly Regex AssetFileRegex = new Regex(
-        @"^(.+)_(Wallpaper|Cover|Logo|Video|Marquee|Music|Banner|Bezel|ControlPanel|Manual)_(\d+)\..*$",
+        @"^(.+)_(Wallpaper|Cover|Logo|Video|Marquee|Music|Banner|Bezel|ControlPanel|Manual|Screenshot)_(\d+)\..*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public enum NodeDropPosition

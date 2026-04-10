@@ -70,7 +70,8 @@ public static class AssetResolver
         return type switch
         {
             AssetType.Cover        => item.PrimaryCoverPath,
-            AssetType.Wallpaper    => item.PrimaryWallpaperPath,
+            AssetType.Wallpaper    => item.PrimaryWallpaperPath ?? item.PrimaryScreenshotPath,
+            AssetType.Screenshot   => item.PrimaryScreenshotPath,
             AssetType.Logo         => item.PrimaryLogoPath,
             AssetType.Video        => item.PrimaryVideoPath,
             AssetType.Marquee      => item.PrimaryMarqueePath,

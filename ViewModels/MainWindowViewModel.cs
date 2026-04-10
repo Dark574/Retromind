@@ -850,6 +850,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (sender is MediaItem item &&
             !string.IsNullOrWhiteSpace(e.PropertyName) &&
             (e.PropertyName == nameof(MediaItem.PrimaryWallpaperPath) ||
+             e.PropertyName == nameof(MediaItem.PrimaryScreenshotPath) ||
              e.PropertyName == nameof(MediaItem.PrimaryLogoPath) ||
              e.PropertyName == nameof(MediaItem.PrimaryVideoPath) ||
              e.PropertyName == nameof(MediaItem.PrimaryMarqueePath)))

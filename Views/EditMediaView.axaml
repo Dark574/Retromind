@@ -609,6 +609,10 @@
                                         Command="{Binding ImportAssetCommand}"
                                         CommandParameter="{x:Static m:AssetType.Wallpaper}"
                                         Margin="0,0,5,5"/>
+                                <Button Content="{x:Static p:Strings.Button_Screenshot}"
+                                        Command="{Binding ImportAssetCommand}"
+                                        CommandParameter="{x:Static m:AssetType.Screenshot}"
+                                        Margin="0,0,5,5"/>
                                 <Button Content="{x:Static p:Strings.Button_Logo}"
                                         Command="{Binding ImportAssetCommand}"
                                         CommandParameter="{x:Static m:AssetType.Logo}"

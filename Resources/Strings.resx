@@ -46,6 +46,7 @@
     <data name="Button.Cover" xml:space="preserve"><value>Cover</value></data>
     <data name="Button.Logo" xml:space="preserve"><value>Logo</value></data>
     <data name="Button.Wall" xml:space="preserve"><value>Wall</value></data>
+    <data name="Button.Screenshot" xml:space="preserve"><value>Screenshot</value></data>
     <data name="Button.Delete" xml:space="preserve"><value>Delete</value></data>
     <data name="Button.Launch" xml:space="preserve"><value>Launch</value></data>
     <data name="Button_Search" xml:space="preserve"><value>Search</value></data>
@@ -147,6 +148,7 @@
     <data name="Dialog.Select.Logo" xml:space="preserve"><value>Select Logo</value></data>
     <data name="Dialog.Select.Music" xml:space="preserve"><value>Select Music</value></data>
     <data name="Dialog.Select.Wallpaper" xml:space="preserve"><value>Select Wallpaper</value></data>
+    <data name="Dialog.Select.Screenshot" xml:space="preserve"><value>Select Screenshot</value></data>
     <data name="Dialog.SelectWorkingDirectory" xml:space="preserve"><value>Select working directory</value></data>
     <data name="Dialog.SelectXdgCacheFolder" xml:space="preserve"><value>Select XDG cache folder</value></data>
     <data name="Dialog.SelectXdgConfigFolder" xml:space="preserve"><value>Select XDG config folder</value></data>

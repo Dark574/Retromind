@@ -31,7 +31,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         .ToArray();
 
     private static readonly Regex AssetFileRegex = new Regex(
-        @"^(.+)_(Wallpaper|Cover|Logo|Video|Marquee|Music|Banner|Bezel|ControlPanel|Manual)_(\d+)\..*$",
+        @"^(.+)_(Wallpaper|Cover|Logo|Video|Marquee|Music|Banner|Bezel|ControlPanel|Manual|Screenshot)_(\d+)\..*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     // Sentinel: "inherit / no default emulator".

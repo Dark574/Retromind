@@ -141,6 +141,12 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Button_Screenshot {
+            get {
+                return ResourceManager.GetString("Button.Screenshot", resourceCulture);
+            }
+        }
+        
         public static string Button_Delete {
             get {
                 return ResourceManager.GetString("Button.Delete", resourceCulture);
@@ -576,6 +582,12 @@ namespace Retromind.Resources {
         public static string Dialog_Select_Wallpaper {
             get {
                 return ResourceManager.GetString("Dialog.Select.Wallpaper", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_Select_Screenshot {
+            get {
+                return ResourceManager.GetString("Dialog.Select.Screenshot", resourceCulture);
             }
         }
         

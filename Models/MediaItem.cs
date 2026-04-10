@@ -217,6 +217,9 @@ public partial class MediaItem : ObservableObject
             case AssetType.Wallpaper:
                 OnPropertyChanged(nameof(PrimaryWallpaperPath));
                 break;
+            case AssetType.Screenshot:
+                OnPropertyChanged(nameof(PrimaryScreenshotPath));
+                break;
             case AssetType.Logo:
                 OnPropertyChanged(nameof(PrimaryLogoPath));
                 break;
@@ -250,6 +253,7 @@ public partial class MediaItem : ObservableObject
             _activeAssets.Clear();
             OnPropertyChanged(nameof(PrimaryCoverPath));
             OnPropertyChanged(nameof(PrimaryWallpaperPath));
+            OnPropertyChanged(nameof(PrimaryScreenshotPath));
             OnPropertyChanged(nameof(PrimaryLogoPath));
             OnPropertyChanged(nameof(PrimaryVideoPath));
             OnPropertyChanged(nameof(PrimaryMarqueePath));
@@ -279,6 +283,9 @@ public partial class MediaItem : ObservableObject
             case AssetType.Wallpaper:
                 OnPropertyChanged(nameof(PrimaryWallpaperPath));
                 break;
+            case AssetType.Screenshot:
+                OnPropertyChanged(nameof(PrimaryScreenshotPath));
+                break;
             case AssetType.Logo:
                 OnPropertyChanged(nameof(PrimaryLogoPath));
                 break;
@@ -303,6 +310,7 @@ public partial class MediaItem : ObservableObject
     // --- UI Properties (Binding Sources) ---
     public string? PrimaryCoverPath => GetPrimaryAssetAbsolutePath(AssetType.Cover);
     public string? PrimaryWallpaperPath => GetPrimaryAssetAbsolutePath(AssetType.Wallpaper);
+    public string? PrimaryScreenshotPath => GetPrimaryAssetAbsolutePath(AssetType.Screenshot);
     public string? PrimaryLogoPath => GetPrimaryAssetAbsolutePath(AssetType.Logo);
     public string? PrimaryVideoPath => GetPrimaryAssetAbsolutePath(AssetType.Video);
     public string? PrimaryMarqueePath => GetPrimaryAssetAbsolutePath(AssetType.Marquee);
@@ -476,6 +484,7 @@ public partial class MediaItem : ObservableObject
 
         OnPropertyChanged(nameof(PrimaryCoverPath));
         OnPropertyChanged(nameof(PrimaryWallpaperPath));
+        OnPropertyChanged(nameof(PrimaryScreenshotPath));
         OnPropertyChanged(nameof(PrimaryLogoPath));
         OnPropertyChanged(nameof(PrimaryVideoPath));
         OnPropertyChanged(nameof(PrimaryMarqueePath));
@@ -497,6 +506,7 @@ public partial class MediaItem : ObservableObject
     {
         OnPropertyChanged(nameof(PrimaryCoverPath));
         OnPropertyChanged(nameof(PrimaryWallpaperPath));
+        OnPropertyChanged(nameof(PrimaryScreenshotPath));
         OnPropertyChanged(nameof(PrimaryLogoPath));
         OnPropertyChanged(nameof(PrimaryVideoPath));
         OnPropertyChanged(nameof(PrimaryMarqueePath));

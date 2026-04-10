@@ -1788,6 +1788,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     {
         AssetType.Cover,
         AssetType.Wallpaper,
+        AssetType.Screenshot,
         AssetType.Logo,
         AssetType.Video,
         AssetType.Music,
