@@ -45,6 +45,8 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
         <PackageReference Include="Silk.NET.SDL" Version="2.22.0" />
         <PackageReference Include="System.Text.Json" Version="8.0.5" />
+        <!-- Security override for transitive Avalonia.FreeDesktop dependency (GHSA-xrw6-gwf8-vvr9 / CVE-2026-39959). -->
+        <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
     </ItemGroup>
 
     <ItemGroup>
