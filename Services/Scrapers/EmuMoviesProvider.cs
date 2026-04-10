@@ -238,6 +238,16 @@ public class EmuMoviesProvider : IMetadataProvider
                     case "Fanart":
                         item.WallpaperUrl = mediaUrl;
                         break;
+
+                    case "Screenshot":
+                    case "Screen Shot":
+                    case "ScreenShot":
+                    case "Gameplay":
+                    case "Ingame":
+                    case "In-Game":
+                        if (string.IsNullOrEmpty(item.ScreenshotUrl))
+                            item.ScreenshotUrl = mediaUrl;
+                        break;
                         
                     case "Logo":
                     case "Clear Logo":

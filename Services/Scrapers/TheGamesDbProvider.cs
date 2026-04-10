@@ -182,6 +182,11 @@ public class TheGamesDbProvider : IMetadataProvider
                                              ?? SelectBoxartUrl(artArray, boxartBaseUrl,
                                                  a => string.Equals(a["type"]?.ToString(), "banner", StringComparison.OrdinalIgnoreCase));
 
+                        result.ScreenshotUrl = SelectBoxartUrl(artArray, boxartBaseUrl,
+                            a => string.Equals(a["type"]?.ToString(), "screenshot", StringComparison.OrdinalIgnoreCase))
+                                              ?? SelectBoxartUrl(artArray, boxartBaseUrl,
+                                                  a => TypeEqualsOrContains(a["type"]?.ToString(), "screenshots"));
+
                         // TheGamesDB artwork naming can vary by entry (clearlogo/logo variants).
                         result.LogoUrl = SelectBoxartUrl(artArray, boxartBaseUrl,
                             a => TypeEqualsOrContains(a["type"]?.ToString(), "clearlogo"))
@@ -403,6 +408,12 @@ public class TheGamesDbProvider : IMetadataProvider
             {
                 result.WallpaperUrl = resolved.FirstOrDefault(p =>
                     ContainsAny(p, "fanart", "screenshot", "background", "screenshots"));
+            }
+
+            if (string.IsNullOrWhiteSpace(result.ScreenshotUrl))
+            {
+                result.ScreenshotUrl = resolved.FirstOrDefault(p =>
+                    ContainsAny(p, "screenshot", "screenshots", "screen"));
             }
 
             if (string.IsNullOrWhiteSpace(result.MarqueeUrl))

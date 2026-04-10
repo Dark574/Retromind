@@ -113,6 +113,7 @@ public class ComicVineProvider : IMetadataProvider
                 {
                     res.CoverUrl = image["medium_url"]?.ToString();
                     res.WallpaperUrl = image["screen_url"]?.ToString();
+                    res.ScreenshotUrl = image["screen_url"]?.ToString();
                 }
 
                 results.Add(res);

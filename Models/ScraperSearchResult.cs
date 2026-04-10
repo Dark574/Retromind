@@ -48,6 +48,11 @@ public class ScraperSearchResult
     public string? WallpaperUrl { get; set; }
 
     /// <summary>
+    /// URL to a screenshot image (ingame/scene capture).
+    /// </summary>
+    public string? ScreenshotUrl { get; set; }
+
+    /// <summary>
     /// URL to the transparent logo image (Clearlogo).
     /// </summary>
     public string? LogoUrl { get; set; }

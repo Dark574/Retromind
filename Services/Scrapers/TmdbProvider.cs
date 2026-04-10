@@ -119,7 +119,12 @@ public class TmdbProvider : IMetadataProvider
                         res.CoverUrl = ImageBaseUrl + posterPath;
 
                     if (!string.IsNullOrEmpty(backdropPath))
+                    {
                         res.WallpaperUrl = ImageBaseUrl + backdropPath;
+                        // TMDB search returns only one backdrop per result in this endpoint.
+                        // Reuse it as screenshot candidate so the scrape pipeline can also populate Screenshot assets.
+                        res.ScreenshotUrl = res.WallpaperUrl;
+                    }
                     
                     // TMDB does not expose logo images in the basic search result.
                     // For logos you'd need a separate "images" request per item,

@@ -198,6 +198,13 @@ public class IgdbProvider : IMetadataProvider
                     wallpaperRaw = screenshotArr[0]?["url"]?.ToString();
                 }
 
+                if (node["screenshots"] is JsonArray screenshotAssets && screenshotAssets.Count > 0)
+                {
+                    var screenshotRaw = screenshotAssets[0]?["url"]?.ToString();
+                    if (!string.IsNullOrEmpty(screenshotRaw))
+                        res.ScreenshotUrl = FixIgdbImageUrl(screenshotRaw, "t_1080p");
+                }
+
                 if (!string.IsNullOrEmpty(wallpaperRaw))
                 {
                     res.WallpaperUrl = FixIgdbImageUrl(wallpaperRaw, "t_1080p");

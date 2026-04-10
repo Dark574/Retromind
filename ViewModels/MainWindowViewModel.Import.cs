@@ -868,6 +868,9 @@ public partial class MainWindowViewModel
                     if (!string.IsNullOrEmpty(result.WallpaperUrl))
                         await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
 
+                    if (!string.IsNullOrEmpty(result.ScreenshotUrl))
+                        await DownloadAndSetAsset(result.ScreenshotUrl, item, nodePath, AssetType.Screenshot);
+
                     if (!string.IsNullOrEmpty(result.LogoUrl))
                         await DownloadAndSetAsset(result.LogoUrl, item, nodePath, AssetType.Logo);
 
@@ -965,6 +968,15 @@ public partial class MainWindowViewModel
                 if (!item.Assets.Any(a => a.Type == AssetType.Wallpaper))
                 {
                     await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
+                    changed = true;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(result.ScreenshotUrl))
+            {
+                if (!item.Assets.Any(a => a.Type == AssetType.Screenshot))
+                {
+                    await DownloadAndSetAsset(result.ScreenshotUrl, item, nodePath, AssetType.Screenshot);
                     changed = true;
                 }
             }

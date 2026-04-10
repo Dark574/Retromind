@@ -141,6 +141,16 @@
                     </StackPanel>
 
                     <StackPanel Spacing="5"
+                                IsVisible="{Binding SelectedResult.ScreenshotUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="Screenshot" FontWeight="Bold"/>
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.ScreenshotUrl}"
+                               helpers:AsyncImageHelper.DecodeWidth="700"
+                               Width="220" Height="124"
+                               Stretch="UniformToFill"/>
+                        <TextBlock Text="{Binding SelectedResult.ScreenshotUrl}" TextWrapping="Wrap" FontSize="10"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="5"
                                 IsVisible="{Binding SelectedResult.LogoUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <TextBlock Text="Logo" FontWeight="Bold"/>
                         <Image helpers:AsyncImageHelper.Url="{Binding SelectedResult.LogoUrl}"
