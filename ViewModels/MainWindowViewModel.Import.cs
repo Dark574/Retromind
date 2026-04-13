@@ -846,11 +846,15 @@ public partial class MainWindowViewModel
             else if (!item.ReleaseDate.HasValue && result.ReleaseDate.HasValue) item.ReleaseDate = result.ReleaseDate;
 
             if (result.Rating.HasValue) item.Rating = result.Rating.Value;
+            if (string.IsNullOrWhiteSpace(item.Platform) && !string.IsNullOrWhiteSpace(result.Platform))
+                item.Platform = result.Platform;
             if (!string.IsNullOrWhiteSpace(result.Platform) &&
                 !item.Tags.Any(t => string.Equals(t, result.Platform, StringComparison.OrdinalIgnoreCase)))
             {
                 item.Tags.Add(result.Platform);
             }
+
+            ApplyAdditionalScrapedMetadata(item, result, onlyWhenMissing: true);
 
             // Changes to the item -> dirty
             MarkLibraryDirty();
@@ -946,12 +950,21 @@ public partial class MainWindowViewModel
                 changed = true;
             }
 
+            if (string.IsNullOrWhiteSpace(item.Platform) && !string.IsNullOrWhiteSpace(result.Platform))
+            {
+                item.Platform = result.Platform;
+                changed = true;
+            }
+
             if (!string.IsNullOrWhiteSpace(result.Platform) &&
                 !item.Tags.Any(t => string.Equals(t, result.Platform, StringComparison.OrdinalIgnoreCase)))
             {
                 item.Tags.Add(result.Platform);
                 changed = true;
             }
+
+            if (ApplyAdditionalScrapedMetadata(item, result, onlyWhenMissing: true))
+                changed = true;
     
             // We simply download and add assets. FileService handles naming and numbering
             // (Cover_01, Cover_02, ...). For now we add only if there is no asset of that type yet.
@@ -1025,6 +1038,113 @@ public partial class MainWindowViewModel
         await dialog.ShowDialog(owner);
         await SaveData();
         if (IsNodeInCurrentView(node)) UpdateContent();
+    }
+
+    private static bool ApplyAdditionalScrapedMetadata(MediaItem item, ScraperSearchResult result, bool onlyWhenMissing)
+    {
+        var changed = false;
+
+        if (TryApplyText(item.Publisher, result.Publisher, onlyWhenMissing, out var publisher))
+        {
+            item.Publisher = publisher;
+            changed = true;
+        }
+
+        if (TryApplyText(item.Series, result.Series, onlyWhenMissing, out var series))
+        {
+            item.Series = series;
+            changed = true;
+        }
+
+        if (TryApplyText(item.ReleaseType, result.ReleaseType, onlyWhenMissing, out var releaseType))
+        {
+            item.ReleaseType = releaseType;
+            changed = true;
+        }
+
+        if (TryApplyText(item.SortTitle, result.SortTitle, onlyWhenMissing, out var sortTitle))
+        {
+            item.SortTitle = sortTitle;
+            changed = true;
+        }
+
+        if (TryApplyText(item.PlayMode, result.PlayMode, onlyWhenMissing, out var playMode))
+        {
+            item.PlayMode = playMode;
+            changed = true;
+        }
+
+        if (TryApplyText(item.MaxPlayers, result.MaxPlayers, onlyWhenMissing, out var maxPlayers))
+        {
+            item.MaxPlayers = maxPlayers;
+            changed = true;
+        }
+
+        if (TryApplyText(item.Source, result.Source, onlyWhenMissing, out var source))
+        {
+            item.Source = source;
+            changed = true;
+        }
+
+        if (MergeCustomFields(item, result.CustomFields, onlyWhenMissing))
+            changed = true;
+
+        return changed;
+    }
+
+    private static bool TryApplyText(string? current, string? incoming, bool onlyWhenMissing, out string updated)
+    {
+        updated = current ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(incoming))
+            return false;
+
+        if (onlyWhenMissing && !string.IsNullOrWhiteSpace(current))
+            return false;
+
+        if (string.Equals(current, incoming, StringComparison.Ordinal))
+            return false;
+
+        updated = incoming;
+        return true;
+    }
+
+    private static bool MergeCustomFields(MediaItem item, Dictionary<string, string>? incoming, bool onlyWhenMissing)
+    {
+        if (incoming == null || incoming.Count == 0)
+            return false;
+
+        var merged = new Dictionary<string, string>(
+            item.CustomFields ?? new Dictionary<string, string>(StringComparer.Ordinal),
+            StringComparer.Ordinal);
+
+        var changed = false;
+
+        foreach (var kv in incoming)
+        {
+            var key = kv.Key?.Trim();
+            var value = kv.Value?.Trim();
+            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
+                continue;
+
+            if (merged.TryGetValue(key, out var existing))
+            {
+                if (onlyWhenMissing && !string.IsNullOrWhiteSpace(existing))
+                    continue;
+
+                if (string.Equals(existing, value, StringComparison.Ordinal))
+                    continue;
+            }
+
+            merged[key] = value;
+            changed = true;
+        }
+
+        if (!changed)
+            return false;
+
+        item.CustomFields = merged;
+        return true;
     }
 
     private async Task DownloadAndSetAsset(string url, MediaItem item, List<string> nodePath, AssetType type)

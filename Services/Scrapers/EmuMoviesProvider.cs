@@ -180,6 +180,7 @@ public class EmuMoviesProvider : IMetadataProvider
                 Id = id,
                 Title = $"{title} ({system})",
                 Description = game?["Description"]?.ToString() ?? "",
+                MaxPlayers = game?["Players"]?.ToString()
             };
 
             // Load media (Async Call)

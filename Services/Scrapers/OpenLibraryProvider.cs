@@ -70,7 +70,11 @@ public class OpenLibraryProvider : IMetadataProvider
                     Source = "OpenLibrary",
                     Id = key,
                     Title = string.IsNullOrEmpty(author) ? title : $"{title} ({author})",
-                    Description = ""
+                    Description = "",
+                    SortTitle = book?["title_sort"]?.ToString(),
+                    Publisher = book?["publisher"]?.AsArray()?[0]?.ToString(),
+                    Series = book?["series"]?.AsArray()?[0]?.ToString(),
+                    ReleaseType = "Book"
                 };
 
                 if (int.TryParse(firstPublishYear, out int year))

@@ -105,8 +105,19 @@ public class ComicVineProvider : IMetadataProvider
                     Source = "ComicVine",
                     Id = id,
                     Title = title,
-                    Description = StripHtml(desc)
+                    Description = StripHtml(desc),
+                    Series = volumeName,
+                    SortTitle = name,
+                    ReleaseType = resType,
+                    Publisher = item?["publisher"]?["name"]?.ToString()
                 };
+
+                if (!string.IsNullOrWhiteSpace(issueNumber))
+                    res.CustomFields["IssueNumber"] = issueNumber;
+
+                var startYearValue = item?["start_year"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(startYearValue))
+                    res.CustomFields["StartYear"] = startYearValue;
 
                 var image = item?["image"];
                 if (image != null)

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Retromind.Models;
 
@@ -75,7 +77,13 @@ public class ScraperSearchResult
     // --- Additional Metadata ---
 
     public string? Developer { get; set; }
+    public string? Publisher { get; set; }
     public string? Genre { get; set; }
+    public string? Series { get; set; }
+    public string? ReleaseType { get; set; }
+    public string? SortTitle { get; set; }
+    public string? PlayMode { get; set; }
+    public string? MaxPlayers { get; set; }
     
     /// <summary>
     /// Platform / system name (e.g. "Amiga", "PC (Windows)", "SNES").
@@ -89,4 +97,16 @@ public class ScraperSearchResult
     /// Useful for debugging or UI badges.
     /// </summary>
     public string Source { get; set; } = "Unknown";
+
+    /// <summary>
+    /// Optional provider-specific metadata that has no dedicated first-class field.
+    /// </summary>
+    public Dictionary<string, string> CustomFields { get; set; } = new(StringComparer.Ordinal);
+
+    public bool HasCustomFields => CustomFields.Count > 0;
+
+    public IEnumerable<KeyValuePair<string, string>> VisibleCustomFields =>
+        CustomFields
+            .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && !string.IsNullOrWhiteSpace(kv.Value))
+            .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase);
 }

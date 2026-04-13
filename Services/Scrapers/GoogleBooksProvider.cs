@@ -95,7 +95,10 @@ public class GoogleBooksProvider : IMetadataProvider
                         Source = "GoogleBooks",
                         Id = id,
                         Title = title,
-                        Description = desc
+                        Description = desc,
+                        Publisher = info["publisher"]?.ToString(),
+                        SortTitle = info["title"]?.ToString(),
+                        ReleaseType = "Book"
                     };
 
                     // Parse date.

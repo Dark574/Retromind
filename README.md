@@ -329,6 +329,24 @@ A template is provided for local development experiments:
 > NOTE: The main Retromind application does **not** use `ApiSecrets` for
 > scraping. This template is only for custom tools or debugging scenarios.
 
+### Scraper metadata coverage
+
+The table below shows which metadata fields are currently populated by each provider.
+`Source` is populated for all providers.
+
+| Provider | Description | ReleaseDate | Rating | Developer | Genre | Platform | Publisher | Series | ReleaseType | SortTitle | PlayMode | MaxPlayers | CustomFields |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| IGDB | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | - | `IGDB.Slug` |
+| TheGamesDB | yes | yes | yes | yes | yes | yes | yes | - | - | - | - | yes | - |
+| TMDB | yes | yes | yes | - | - | - | - | - | yes | yes | - | - | - |
+| OpenLibrary | - | yes | - | - | - | - | yes | yes | yes | yes | - | - | - |
+| Google Books | yes | yes | - | - | - | - | yes | - | yes | yes | - | - | - |
+| ComicVine | yes | - | - | - | - | - | yes | yes | yes | yes | - | - | `IssueNumber`, `StartYear` |
+Notes:
+- `CustomFields` are provider-specific key/value pairs and may vary by API response quality.
+- Missing values are normal when the upstream provider does not return that field for a specific item.
+- EmuMovies is currently not listed here because its API is being reworked.
+
 ### Where to get API keys
 
 You need to create your own API keys on the respective provider pages:

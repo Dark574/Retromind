@@ -109,7 +109,11 @@ public class TmdbProvider : IMetadataProvider
                         Id = id,
                         Title = title ?? "Unknown",
                         Description = overview,
-                        Rating = rating
+                        Rating = rating,
+                        SortTitle = mediaType == "movie"
+                            ? item?["original_title"]?.ToString()
+                            : item?["original_name"]?.ToString(),
+                        ReleaseType = mediaType == "movie" ? "Movie" : "TV Series"
                     };
 
                     if (DateTime.TryParse(release, out var date))

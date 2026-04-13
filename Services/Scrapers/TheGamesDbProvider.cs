@@ -150,7 +150,9 @@ public class TheGamesDbProvider : IMetadataProvider
                         Title = title,
                         Description = game["overview"]?.ToString() ?? string.Empty,
                         Developer = ResolveCompanyName(game, developerNameById, publisherNameById),
-                        Genre = ResolveGenres(game, genreNameById)
+                        Publisher = ResolvePublisher(game, publisherNameById),
+                        Genre = ResolveGenres(game, genreNameById),
+                        MaxPlayers = game["players"]?.ToString()
                     };
 
                     var rawRatingText = game["rating"]?.ToString();
@@ -617,6 +619,25 @@ public class TheGamesDbProvider : IMetadataProvider
             if (developerNameById.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name))
                 return name;
         }
+
+        var explicitPubName = FirstMeaningfulText(ExtractCompanyNames(publishersNode));
+        if (!string.IsNullOrWhiteSpace(explicitPubName))
+            return explicitPubName;
+
+        foreach (var id in ExtractCompanyIds(publishersNode))
+        {
+            if (publisherNameById.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name))
+                return name;
+        }
+
+        return null;
+    }
+
+    private static string? ResolvePublisher(
+        JsonNode game,
+        IReadOnlyDictionary<string, string> publisherNameById)
+    {
+        var publishersNode = FirstPresent(game, "publishers", "publisher");
 
         var explicitPubName = FirstMeaningfulText(ExtractCompanyNames(publishersNode));
         if (!string.IsNullOrWhiteSpace(explicitPubName))

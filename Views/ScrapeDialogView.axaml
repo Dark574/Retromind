@@ -101,8 +101,38 @@
                     <TextBlock Text="{x:Static p:Strings.Common_Developer}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Developer}" TextWrapping="Wrap"/>
 
+                    <TextBlock Text="{x:Static p:Strings.Common_Publisher}" FontWeight="Bold" Margin="0,10,0,0"
+                               IsVisible="{Binding SelectedResult.Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="{Binding SelectedResult.Publisher}" TextWrapping="Wrap"
+                               IsVisible="{Binding SelectedResult.Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
                     <TextBlock Text="{x:Static p:Strings.Common_Genre}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Genre}" TextWrapping="Wrap"/>
+
+                    <TextBlock Text="{x:Static p:Strings.Common_Series}" FontWeight="Bold" Margin="0,10,0,0"
+                               IsVisible="{Binding SelectedResult.Series, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="{Binding SelectedResult.Series}" TextWrapping="Wrap"
+                               IsVisible="{Binding SelectedResult.Series, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                    <TextBlock Text="{x:Static p:Strings.Common_ReleaseType}" FontWeight="Bold" Margin="0,10,0,0"
+                               IsVisible="{Binding SelectedResult.ReleaseType, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="{Binding SelectedResult.ReleaseType}" TextWrapping="Wrap"
+                               IsVisible="{Binding SelectedResult.ReleaseType, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                    <TextBlock Text="{x:Static p:Strings.Common_SortTitle}" FontWeight="Bold" Margin="0,10,0,0"
+                               IsVisible="{Binding SelectedResult.SortTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="{Binding SelectedResult.SortTitle}" TextWrapping="Wrap"
+                               IsVisible="{Binding SelectedResult.SortTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                    <TextBlock Text="{x:Static p:Strings.Common_PlayMode}" FontWeight="Bold" Margin="0,10,0,0"
+                               IsVisible="{Binding SelectedResult.PlayMode, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="{Binding SelectedResult.PlayMode}" TextWrapping="Wrap"
+                               IsVisible="{Binding SelectedResult.PlayMode, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                    <TextBlock Text="{x:Static p:Strings.Common_MaxPlayers}" FontWeight="Bold" Margin="0,10,0,0"
+                               IsVisible="{Binding SelectedResult.MaxPlayers, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="{Binding SelectedResult.MaxPlayers}" TextWrapping="Wrap"
+                               IsVisible="{Binding SelectedResult.MaxPlayers, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
                     <TextBlock Text="{x:Static p:Strings.Common_Description}" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Description}" TextWrapping="Wrap" FontSize="12"/>
@@ -112,6 +142,21 @@
                     
                     <TextBlock Text="Platform" FontWeight="Bold" Margin="0,10,0,0"/>
                     <TextBlock Text="{Binding SelectedResult.Platform}" TextWrapping="Wrap"/>
+
+                    <TextBlock Text="{x:Static p:Strings.Common_CustomFields}" FontWeight="Bold" Margin="0,10,0,0"
+                               IsVisible="{Binding SelectedResult.HasCustomFields}"/>
+                    <ItemsControl ItemsSource="{Binding SelectedResult.VisibleCustomFields}"
+                                  IsVisible="{Binding SelectedResult.HasCustomFields}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock TextWrapping="Wrap">
+                                    <Run Text="{Binding Key}"/>
+                                    <Run Text=": "/>
+                                    <Run Text="{Binding Value}"/>
+                                </TextBlock>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </ScrollViewer>
 
