@@ -348,6 +348,68 @@
 
                         <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
 
+                        <TextBlock Text="{Binding ScraperImportSectionTitle}" FontWeight="Bold" FontSize="16" />
+                        <TextBlock Text="{Binding ScraperImportHint}"
+                                   Opacity="0.6" TextWrapping="Wrap" />
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{Binding ScraperExistingDataModeText}" FontWeight="Bold" />
+                            <ComboBox ItemsSource="{Binding AvailableScraperExistingDataModes}"
+                                      SelectedItem="{Binding ScraperExistingDataMode}"
+                                      HorizontalAlignment="Stretch" />
+                            <CheckBox Content="{Binding ScraperBulkAppendAssetsText}"
+                                      IsChecked="{Binding ScraperAppendAssetsDuringBulkScrape}" />
+                            <TextBlock Text="{Binding ScraperBulkAppendAssetsHint}"
+                                       Opacity="0.6"
+                                       Margin="20,0,0,0"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                            <Border Grid.Column="0"
+                                    BorderBrush="Gray"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="8">
+                                <StackPanel Spacing="5">
+                                    <TextBlock Text="{Binding ScraperMetadataFieldsText}" FontWeight="Bold" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_Description}" IsChecked="{Binding ScraperImportDescription}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_ReleaseDate}" IsChecked="{Binding ScraperImportReleaseDate}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_Rating}" IsChecked="{Binding ScraperImportRating}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_Developer}" IsChecked="{Binding ScraperImportDeveloper}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_Genre}" IsChecked="{Binding ScraperImportGenre}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_Platform}" IsChecked="{Binding ScraperImportPlatform}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_Publisher}" IsChecked="{Binding ScraperImportPublisher}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_Series}" IsChecked="{Binding ScraperImportSeries}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_ReleaseType}" IsChecked="{Binding ScraperImportReleaseType}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_SortTitle}" IsChecked="{Binding ScraperImportSortTitle}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_PlayMode}" IsChecked="{Binding ScraperImportPlayMode}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_MaxPlayers}" IsChecked="{Binding ScraperImportMaxPlayers}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_Source}" IsChecked="{Binding ScraperImportSource}" />
+                                    <CheckBox Content="{x:Static p:Strings.Common_CustomFields}" IsChecked="{Binding ScraperImportCustomFields}" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="1"
+                                    BorderBrush="Gray"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="8">
+                                <StackPanel Spacing="5">
+                                    <TextBlock Text="{Binding ScraperAssetFieldsText}" FontWeight="Bold" />
+                                    <CheckBox Content="{x:Static p:Strings.Button_Cover}" IsChecked="{Binding ScraperImportCover}" />
+                                    <CheckBox Content="{x:Static p:Strings.NodeSettings_ArtworkWallpaperLabel}" IsChecked="{Binding ScraperImportWallpaper}" />
+                                    <CheckBox Content="{x:Static p:Strings.Button_Screenshot}" IsChecked="{Binding ScraperImportScreenshot}" />
+                                    <CheckBox Content="{x:Static p:Strings.Button_Logo}" IsChecked="{Binding ScraperImportLogo}" />
+                                    <CheckBox Content="{x:Static p:Strings.NodeSettings_ArtworkMarqueeLabel}" IsChecked="{Binding ScraperImportMarquee}" />
+                                    <CheckBox Content="{x:Static p:Strings.Button_Bezel}" IsChecked="{Binding ScraperImportBezel}" />
+                                    <CheckBox Content="{x:Static p:Strings.Button_ControlPanel}" IsChecked="{Binding ScraperImportControlPanel}" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
+
                         <TextBlock Text="{Binding ParentalSectionTitle}" FontWeight="Bold" FontSize="16" />
                         <Button Content="{Binding ChangeParentalPasswordText}"
                                 Command="{Binding ChangeParentalPasswordCommand}"

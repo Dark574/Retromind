@@ -172,6 +172,9 @@
     <data name="Dialog_ConfirmImportGogFormat" xml:space="preserve"><value>{0} GOG-Spiele gefunden. Importieren?</value></data>
     <data name="Dialog_ConfirmImportEpicFormat" xml:space="preserve"><value>{0} Epic-Spiele gefunden. Importieren?</value></data>
     <data name="Dialog_ConfirmCombineMultiDiscFormat" xml:space="preserve"><value>Du hast {0} Dateien ausgewählt. Soll daraus ein Multi-Disc-Eintrag erstellt werden?</value></data>
+    <data name="Dialog.Scraper.AssetConflictFormat" xml:space="preserve"><value>Eintrag hat bereits {0}. Weiteres Asset hinzufügen?</value></data>
+    <data name="Dialog.Scraper.CustomFieldConflictFormat" xml:space="preserve"><value>Benutzerdefiniertes Feld '{0}' aktualisieren? Aktuell: '{1}' | Neu: '{2}'</value></data>
+    <data name="Dialog.Scraper.FieldConflictFormat" xml:space="preserve"><value>{0} aktualisieren? Aktuell: '{1}' | Neu: '{2}'</value></data>
 
     <!-- EDITMEDIA -->
     <data name="EditMedia.Tab_General" xml:space="preserve"><value>Allgemein</value></data>
@@ -211,6 +214,13 @@
     <data name="Settings.TabMisc" xml:space="preserve"><value>Sonstiges</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Startpfade</value></data>
     <data name="Settings_SectionMusic" xml:space="preserve"><value>Musik</value></data>
+    <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper-Import</value></data>
+    <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Gilt für manuellen Scrape und Massen-Scrape.</value></data>
+    <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Wenn bereits Daten vorhanden sind:</value></data>
+    <data name="Settings_ScraperBulkAssetConflictPrompt" xml:space="preserve"><value>Beim Massen-Scrape zusätzliche Grafiken anhängen, wenn bereits welche vorhanden sind</value></data>
+    <data name="Settings_ScraperBulkAssetConflictHint" xml:space="preserve"><value>Fehlende Grafiken werden immer importiert.</value></data>
+    <data name="Settings_ScraperMetadataFields" xml:space="preserve"><value>Metadatenfelder</value></data>
+    <data name="Settings_ScraperAssetFields" xml:space="preserve"><value>Grafiken / Assets</value></data>
     <data name="Settings_SectionParental" xml:space="preserve"><value>Jugendschutz</value></data>
     <data name="Settings_ChangeParentalPassword" xml:space="preserve"><value>Jugendschutz-Passwort ändern</value></data>
     <data name="Settings_SectionSteamLibrary" xml:space="preserve"><value>Steam-Bibliothekspfade</value></data>

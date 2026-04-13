@@ -800,102 +800,32 @@ public partial class MainWindowViewModel
         if (parentNode == null) return;
 
         var nodePath = PathHelper.GetNodePath(parentNode, RootItems);
+        var importSettings = GetScraperImportSettings();
 
         var vm = new ScrapeDialogViewModel(item, _currentSettings, _metadataService);
         
         vm.OnResultSelectedAsync += async (result) => 
         {
-            // Simple Conflict Resolution with User Confirmation
-            bool updateDesc = true;
-            if (!string.IsNullOrWhiteSpace(item.Description) && !string.IsNullOrWhiteSpace(result.Description) && item.Description != result.Description)
+            var changed = false;
+
+            if (await ApplyScrapedMetadataAsync(owner, item, result, importSettings, allowConflictPrompts: true))
+                changed = true;
+
+            if (await ApplyScrapedAssetsAsync(
+                    owner,
+                    item,
+                    result,
+                    nodePath,
+                    importSettings,
+                    allowConflictPromptsForAssets: true,
+                    appendAssetsOnConflictWithoutPrompt: false))
+                changed = true;
+
+            if (changed)
             {
-                var preview = item.Description.Length > 30 ? item.Description.Substring(0, 30) + "..." : item.Description;
-                updateDesc = await ShowConfirmDialog(owner, $"Update Description? Current: '{preview}'");
+                MarkLibraryDirty();
+                await SaveData();
             }
-            else if (string.IsNullOrWhiteSpace(result.Description)) updateDesc = false;
-
-            if (updateDesc) item.Description = result.Description;
-
-            bool updateDev = true;
-            if (!string.IsNullOrWhiteSpace(item.Developer) && !string.IsNullOrWhiteSpace(result.Developer) && !string.Equals(item.Developer, result.Developer, StringComparison.OrdinalIgnoreCase))
-            {
-                updateDev = await ShowConfirmDialog(owner, $"Update Developer? Old: {item.Developer}, New: {result.Developer}");
-            }
-            else if (string.IsNullOrWhiteSpace(result.Developer)) updateDev = false;
-
-            if (updateDev) item.Developer = result.Developer;
-
-            bool updateGenre = true;
-            if (!string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre) &&
-                !string.Equals(item.Genre, result.Genre, StringComparison.OrdinalIgnoreCase))
-            {
-                updateGenre = await ShowConfirmDialog(owner, $"Update Genre? Old: {item.Genre}, New: {result.Genre}");
-            }
-            else if (string.IsNullOrWhiteSpace(result.Genre))
-            {
-                updateGenre = false;
-            }
-
-            if (updateGenre) item.Genre = result.Genre;
-
-            if (item.ReleaseDate.HasValue && result.ReleaseDate.HasValue && item.ReleaseDate.Value.Date != result.ReleaseDate.Value.Date)
-            {
-                if (await ShowConfirmDialog(owner, $"Update Date? Old: {item.ReleaseDate.Value:d}, New: {result.ReleaseDate.Value:d}"))
-                    item.ReleaseDate = result.ReleaseDate;
-            }
-            else if (!item.ReleaseDate.HasValue && result.ReleaseDate.HasValue) item.ReleaseDate = result.ReleaseDate;
-
-            if (result.Rating.HasValue) item.Rating = result.Rating.Value;
-            if (string.IsNullOrWhiteSpace(item.Platform) && !string.IsNullOrWhiteSpace(result.Platform))
-                item.Platform = result.Platform;
-            if (!string.IsNullOrWhiteSpace(result.Platform) &&
-                !item.Tags.Any(t => string.Equals(t, result.Platform, StringComparison.OrdinalIgnoreCase)))
-            {
-                item.Tags.Add(result.Platform);
-            }
-
-            ApplyAdditionalScrapedMetadata(item, result, onlyWhenMissing: true);
-
-            // Changes to the item -> dirty
-            MarkLibraryDirty();
-            
-            // Move Downloads, Imports and Save to a background task (fire-and-forget)
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    // Keep manual scrape behavior consistent with bulk scrape:
-                    // always import as additional assets when URLs are provided.
-                    if (!string.IsNullOrEmpty(result.CoverUrl))
-                        await DownloadAndSetAsset(result.CoverUrl, item, nodePath, AssetType.Cover);
-
-                    if (!string.IsNullOrEmpty(result.WallpaperUrl))
-                        await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
-
-                    if (!string.IsNullOrEmpty(result.ScreenshotUrl))
-                        await DownloadAndSetAsset(result.ScreenshotUrl, item, nodePath, AssetType.Screenshot);
-
-                    if (!string.IsNullOrEmpty(result.LogoUrl))
-                        await DownloadAndSetAsset(result.LogoUrl, item, nodePath, AssetType.Logo);
-
-                    if (!string.IsNullOrEmpty(result.MarqueeUrl))
-                        await DownloadAndSetAsset(result.MarqueeUrl, item, nodePath, AssetType.Marquee);
-
-                    if (!string.IsNullOrEmpty(result.BezelUrl))
-                        await DownloadAndSetAsset(result.BezelUrl, item, nodePath, AssetType.Bezel);
-
-                    if (!string.IsNullOrEmpty(result.ControlPanelUrl))
-                        await DownloadAndSetAsset(result.ControlPanelUrl, item, nodePath, AssetType.ControlPanel);
-
-                    await SaveData(); // Save in the background
-                }
-                catch (Exception ex)
-                {
-                    // Log the error (e.g., show a notification or console later)
-                    Console.WriteLine($"Background scraping error: {ex.Message}");
-                    // Optional: Invoke on UI for a message box if critical
-                }
-            });
             
             // Close dialog manually if needed (finding window by DataContext)
             if (owner.OwnedWindows.FirstOrDefault(w => w.DataContext == vm) is Window dlg) dlg.Close();
@@ -910,6 +840,7 @@ public partial class MainWindowViewModel
         if (SelectedNode != null && node != null && node.Id == SelectedNode.Id && node != SelectedNode) node = SelectedNode;
         if (node == null) node = SelectedNode;
         if (node == null || CurrentWindow is not { } owner) return;
+        var importSettings = GetScraperImportSettings();
 
         var vm = new BulkScrapeViewModel(node, _currentSettings, _metadataService);
         vm.OnItemScrapedAsync = async (item, result) =>
@@ -919,116 +850,19 @@ public partial class MainWindowViewModel
             var nodePath = PathHelper.GetNodePath(parent, RootItems);
     
             var changed = false;
-            
-            if (string.IsNullOrWhiteSpace(item.Description) && !string.IsNullOrWhiteSpace(result.Description))
-            {
-                item.Description = result.Description;
+
+            if (await ApplyScrapedMetadataAsync(owner, item, result, importSettings, allowConflictPrompts: false))
                 changed = true;
-            }
 
-            if (string.IsNullOrWhiteSpace(item.Developer) && !string.IsNullOrWhiteSpace(result.Developer))
-            {
-                item.Developer = result.Developer;
+            if (await ApplyScrapedAssetsAsync(
+                    owner,
+                    item,
+                    result,
+                    nodePath,
+                    importSettings,
+                    allowConflictPromptsForAssets: false,
+                    appendAssetsOnConflictWithoutPrompt: importSettings.AppendAssetsDuringBulkScrape))
                 changed = true;
-            }
-
-            if (string.IsNullOrWhiteSpace(item.Genre) && !string.IsNullOrWhiteSpace(result.Genre))
-            {
-                item.Genre = result.Genre;
-                changed = true;
-            }
-
-            if (!item.ReleaseDate.HasValue && result.ReleaseDate.HasValue)
-            {
-                item.ReleaseDate = result.ReleaseDate;
-                changed = true;
-            }
-
-            if (item.Rating == 0 && result.Rating.HasValue)
-            {
-                item.Rating = result.Rating.Value;
-                changed = true;
-            }
-
-            if (string.IsNullOrWhiteSpace(item.Platform) && !string.IsNullOrWhiteSpace(result.Platform))
-            {
-                item.Platform = result.Platform;
-                changed = true;
-            }
-
-            if (!string.IsNullOrWhiteSpace(result.Platform) &&
-                !item.Tags.Any(t => string.Equals(t, result.Platform, StringComparison.OrdinalIgnoreCase)))
-            {
-                item.Tags.Add(result.Platform);
-                changed = true;
-            }
-
-            if (ApplyAdditionalScrapedMetadata(item, result, onlyWhenMissing: true))
-                changed = true;
-    
-            // We simply download and add assets. FileService handles naming and numbering
-            // (Cover_01, Cover_02, ...). For now we add only if there is no asset of that type yet.
-            if (!string.IsNullOrEmpty(result.CoverUrl))
-            {
-                if (!item.Assets.Any(a => a.Type == AssetType.Cover))
-                {
-                    await DownloadAndSetAsset(result.CoverUrl, item, nodePath, AssetType.Cover);
-                    changed = true;
-                }
-            }
-            if (!string.IsNullOrEmpty(result.WallpaperUrl))
-            {
-                if (!item.Assets.Any(a => a.Type == AssetType.Wallpaper))
-                {
-                    await DownloadAndSetAsset(result.WallpaperUrl, item, nodePath, AssetType.Wallpaper);
-                    changed = true;
-                }
-            }
-
-            if (!string.IsNullOrEmpty(result.ScreenshotUrl))
-            {
-                if (!item.Assets.Any(a => a.Type == AssetType.Screenshot))
-                {
-                    await DownloadAndSetAsset(result.ScreenshotUrl, item, nodePath, AssetType.Screenshot);
-                    changed = true;
-                }
-            }
-            
-            if (!string.IsNullOrEmpty(result.LogoUrl))
-            {
-                if (!item.Assets.Any(a => a.Type == AssetType.Logo))
-                {
-                    await DownloadAndSetAsset(result.LogoUrl, item, nodePath, AssetType.Logo);
-                    changed = true;
-                }
-            }
-
-            if (!string.IsNullOrEmpty(result.MarqueeUrl))
-            {
-                if (!item.Assets.Any(a => a.Type == AssetType.Marquee))
-                {
-                    await DownloadAndSetAsset(result.MarqueeUrl, item, nodePath, AssetType.Marquee);
-                    changed = true;
-                }
-            }
-
-            if (!string.IsNullOrEmpty(result.BezelUrl))
-            {
-                if (!item.Assets.Any(a => a.Type == AssetType.Bezel))
-                {
-                    await DownloadAndSetAsset(result.BezelUrl, item, nodePath, AssetType.Bezel);
-                    changed = true;
-                }
-            }
-
-            if (!string.IsNullOrEmpty(result.ControlPanelUrl))
-            {
-                if (!item.Assets.Any(a => a.Type == AssetType.ControlPanel))
-                {
-                    await DownloadAndSetAsset(result.ControlPanelUrl, item, nodePath, AssetType.ControlPanel);
-                    changed = true;
-                }
-            }
             
             if (changed)
                 MarkLibraryDirty();
@@ -1040,76 +874,399 @@ public partial class MainWindowViewModel
         if (IsNodeInCurrentView(node)) UpdateContent();
     }
 
-    private static bool ApplyAdditionalScrapedMetadata(MediaItem item, ScraperSearchResult result, bool onlyWhenMissing)
+    private ScraperImportSettings GetScraperImportSettings()
+    {
+        _currentSettings.ScraperImport ??= new ScraperImportSettings();
+        return _currentSettings.ScraperImport;
+    }
+
+    private async Task<bool> ApplyScrapedMetadataAsync(
+        Window owner,
+        MediaItem item,
+        ScraperSearchResult result,
+        ScraperImportSettings settings,
+        bool allowConflictPrompts)
     {
         var changed = false;
+        var mode = settings.ExistingDataMode;
 
-        if (TryApplyText(item.Publisher, result.Publisher, onlyWhenMissing, out var publisher))
+        if (settings.ImportDescription &&
+            await TryApplyStringFieldAsync(
+                owner,
+                T("Common.Description", "Description"),
+                item.Description,
+                result.Description,
+                value => item.Description = value,
+                allowConflictPrompts,
+                mode,
+                StringComparison.Ordinal))
         {
-            item.Publisher = publisher;
             changed = true;
         }
 
-        if (TryApplyText(item.Series, result.Series, onlyWhenMissing, out var series))
+        if (settings.ImportReleaseDate &&
+            await TryApplyDateFieldAsync(
+                owner,
+                T("Common.ReleaseDate", "Release Date"),
+                item.ReleaseDate,
+                result.ReleaseDate,
+                value => item.ReleaseDate = value,
+                allowConflictPrompts,
+                mode))
         {
-            item.Series = series;
             changed = true;
         }
 
-        if (TryApplyText(item.ReleaseType, result.ReleaseType, onlyWhenMissing, out var releaseType))
+        if (settings.ImportRating &&
+            await TryApplyRatingFieldAsync(
+                owner,
+                T("Common.Rating", "Rating"),
+                item.Rating,
+                result.Rating,
+                value => item.Rating = value,
+                allowConflictPrompts,
+                mode))
         {
-            item.ReleaseType = releaseType;
             changed = true;
         }
 
-        if (TryApplyText(item.SortTitle, result.SortTitle, onlyWhenMissing, out var sortTitle))
+        if (settings.ImportDeveloper &&
+            await TryApplyStringFieldAsync(
+                owner,
+                T("Common.Developer", "Developer"),
+                item.Developer,
+                result.Developer,
+                value => item.Developer = value,
+                allowConflictPrompts,
+                mode))
         {
-            item.SortTitle = sortTitle;
             changed = true;
         }
 
-        if (TryApplyText(item.PlayMode, result.PlayMode, onlyWhenMissing, out var playMode))
+        if (settings.ImportGenre &&
+            await TryApplyStringFieldAsync(
+                owner,
+                T("Common.Genre", "Genre"),
+                item.Genre,
+                result.Genre,
+                value => item.Genre = value,
+                allowConflictPrompts,
+                mode))
         {
-            item.PlayMode = playMode;
             changed = true;
         }
 
-        if (TryApplyText(item.MaxPlayers, result.MaxPlayers, onlyWhenMissing, out var maxPlayers))
+        if (settings.ImportPlatform)
         {
-            item.MaxPlayers = maxPlayers;
+            if (await TryApplyStringFieldAsync(
+                    owner,
+                    T("Common.Platform", "Platform"),
+                    item.Platform,
+                    result.Platform,
+                    value => item.Platform = value,
+                    allowConflictPrompts,
+                    mode))
+            {
+                changed = true;
+            }
+
+            var platform = result.Platform?.Trim();
+            if (!string.IsNullOrWhiteSpace(platform) &&
+                string.Equals(item.Platform?.Trim(), platform, StringComparison.OrdinalIgnoreCase) &&
+                !item.Tags.Any(t => string.Equals(t, platform, StringComparison.OrdinalIgnoreCase)))
+            {
+                item.Tags.Add(platform);
+                changed = true;
+            }
+        }
+
+        if (settings.ImportPublisher &&
+            await TryApplyStringFieldAsync(
+                owner,
+                T("Common.Publisher", "Publisher"),
+                item.Publisher,
+                result.Publisher,
+                value => item.Publisher = value,
+                allowConflictPrompts,
+                mode))
+        {
             changed = true;
         }
 
-        if (TryApplyText(item.Source, result.Source, onlyWhenMissing, out var source))
+        if (settings.ImportSeries &&
+            await TryApplyStringFieldAsync(
+                owner,
+                T("Common.Series", "Series"),
+                item.Series,
+                result.Series,
+                value => item.Series = value,
+                allowConflictPrompts,
+                mode))
         {
-            item.Source = source;
             changed = true;
         }
 
-        if (MergeCustomFields(item, result.CustomFields, onlyWhenMissing))
+        if (settings.ImportReleaseType &&
+            await TryApplyStringFieldAsync(
+                owner,
+                T("Common.ReleaseType", "Release Type"),
+                item.ReleaseType,
+                result.ReleaseType,
+                value => item.ReleaseType = value,
+                allowConflictPrompts,
+                mode))
+        {
+            changed = true;
+        }
+
+        if (settings.ImportSortTitle &&
+            await TryApplyStringFieldAsync(
+                owner,
+                T("Common.SortTitle", "Sort Title"),
+                item.SortTitle,
+                result.SortTitle,
+                value => item.SortTitle = value,
+                allowConflictPrompts,
+                mode))
+        {
+            changed = true;
+        }
+
+        if (settings.ImportPlayMode &&
+            await TryApplyStringFieldAsync(
+                owner,
+                T("Common.PlayMode", "Play Mode"),
+                item.PlayMode,
+                result.PlayMode,
+                value => item.PlayMode = value,
+                allowConflictPrompts,
+                mode))
+        {
+            changed = true;
+        }
+
+        if (settings.ImportMaxPlayers &&
+            await TryApplyStringFieldAsync(
+                owner,
+                T("Common.MaxPlayers", "Max Players"),
+                item.MaxPlayers,
+                result.MaxPlayers,
+                value => item.MaxPlayers = value,
+                allowConflictPrompts,
+                mode))
+        {
+            changed = true;
+        }
+
+        if (settings.ImportSource &&
+            await TryApplyStringFieldAsync(
+                owner,
+                T("Common.Source", "Source"),
+                item.Source,
+                result.Source,
+                value => item.Source = value,
+                allowConflictPrompts,
+                mode))
+        {
+            changed = true;
+        }
+
+        if (settings.ImportCustomFields &&
+            await MergeCustomFieldsAsync(owner, item, result.CustomFields, allowConflictPrompts, mode))
+        {
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private async Task<bool> ApplyScrapedAssetsAsync(
+        Window owner,
+        MediaItem item,
+        ScraperSearchResult result,
+        List<string> nodePath,
+        ScraperImportSettings settings,
+        bool allowConflictPromptsForAssets,
+        bool appendAssetsOnConflictWithoutPrompt)
+    {
+        var changed = false;
+        var mode = settings.ExistingDataMode;
+
+        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Cover, result.CoverUrl, settings.ImportCover, mode, T("Button.Cover", "Cover"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+            changed = true;
+
+        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Wallpaper, result.WallpaperUrl, settings.ImportWallpaper, mode, T("NodeSettings_ArtworkWallpaperLabel", "Wallpaper"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+            changed = true;
+
+        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Screenshot, result.ScreenshotUrl, settings.ImportScreenshot, mode, T("Button.Screenshot", "Screenshot"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+            changed = true;
+
+        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Logo, result.LogoUrl, settings.ImportLogo, mode, T("Button.Logo", "Logo"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+            changed = true;
+
+        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Marquee, result.MarqueeUrl, settings.ImportMarquee, mode, T("NodeSettings_ArtworkMarqueeLabel", "Marquee"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+            changed = true;
+
+        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Bezel, result.BezelUrl, settings.ImportBezel, mode, T("Button.Bezel", "Bezel"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+            changed = true;
+
+        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.ControlPanel, result.ControlPanelUrl, settings.ImportControlPanel, mode, T("Button.ControlPanel", "Control panel"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
             changed = true;
 
         return changed;
     }
 
-    private static bool TryApplyText(string? current, string? incoming, bool onlyWhenMissing, out string updated)
+    private async Task<bool> TryImportScrapedAssetAsync(
+        Window owner,
+        MediaItem item,
+        List<string> nodePath,
+        AssetType type,
+        string? url,
+        bool isEnabled,
+        ScraperExistingDataMode mode,
+        string assetLabel,
+        bool allowConflictPromptsForAssets,
+        bool appendAssetsOnConflictWithoutPrompt)
     {
-        updated = current ?? string.Empty;
+        if (!isEnabled || string.IsNullOrWhiteSpace(url))
+            return false;
 
+        var hasExisting = item.Assets.Any(a => a.Type == type);
+        if (hasExisting)
+        {
+            if (!allowConflictPromptsForAssets)
+                return appendAssetsOnConflictWithoutPrompt && await DownloadAndSetAsset(url, item, nodePath, type);
+
+            if (mode == ScraperExistingDataMode.OnlyMissing)
+                return false;
+
+            if (mode == ScraperExistingDataMode.AskOnConflict)
+            {
+                var message = string.Format(
+                    T("Dialog.Scraper.AssetConflictFormat", "Item already has {0}. Add another one?"),
+                    assetLabel);
+
+                if (!await ShowConfirmDialog(owner, message))
+                    return false;
+            }
+        }
+
+        return await DownloadAndSetAsset(url, item, nodePath, type);
+    }
+
+    private async Task<bool> TryApplyStringFieldAsync(
+        Window owner,
+        string fieldLabel,
+        string? currentValue,
+        string? incomingValue,
+        Action<string> applyValue,
+        bool allowConflictPrompts,
+        ScraperExistingDataMode mode,
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+    {
+        var incoming = incomingValue?.Trim();
         if (string.IsNullOrWhiteSpace(incoming))
             return false;
 
-        if (onlyWhenMissing && !string.IsNullOrWhiteSpace(current))
+        var current = currentValue?.Trim();
+        if (string.IsNullOrWhiteSpace(current))
+        {
+            applyValue(incoming);
+            return true;
+        }
+
+        if (string.Equals(current, incoming, comparison))
             return false;
 
-        if (string.Equals(current, incoming, StringComparison.Ordinal))
+        if (!await ShouldOverwriteExistingAsync(owner, fieldLabel, current, incoming, allowConflictPrompts, mode))
             return false;
 
-        updated = incoming;
+        applyValue(incoming);
         return true;
     }
 
-    private static bool MergeCustomFields(MediaItem item, Dictionary<string, string>? incoming, bool onlyWhenMissing)
+    private async Task<bool> TryApplyDateFieldAsync(
+        Window owner,
+        string fieldLabel,
+        DateTime? currentValue,
+        DateTime? incomingValue,
+        Action<DateTime?> applyValue,
+        bool allowConflictPrompts,
+        ScraperExistingDataMode mode)
+    {
+        if (!incomingValue.HasValue)
+            return false;
+
+        var incoming = incomingValue.Value.Date;
+        if (!currentValue.HasValue)
+        {
+            applyValue(incoming);
+            return true;
+        }
+
+        var current = currentValue.Value.Date;
+        if (current == incoming)
+            return false;
+
+        if (!await ShouldOverwriteExistingAsync(
+                owner,
+                fieldLabel,
+                current.ToShortDateString(),
+                incoming.ToShortDateString(),
+                allowConflictPrompts,
+                mode))
+        {
+            return false;
+        }
+
+        applyValue(incoming);
+        return true;
+    }
+
+    private async Task<bool> TryApplyRatingFieldAsync(
+        Window owner,
+        string fieldLabel,
+        double currentValue,
+        double? incomingValue,
+        Action<double> applyValue,
+        bool allowConflictPrompts,
+        ScraperExistingDataMode mode)
+    {
+        if (!incomingValue.HasValue)
+            return false;
+
+        var incoming = Math.Clamp(incomingValue.Value, 0d, 100d);
+        var hasCurrent = currentValue > 0d;
+        if (!hasCurrent)
+        {
+            applyValue(incoming);
+            return true;
+        }
+
+        if (Math.Abs(currentValue - incoming) < 0.0001d)
+            return false;
+
+        if (!await ShouldOverwriteExistingAsync(
+                owner,
+                fieldLabel,
+                currentValue.ToString("0.##"),
+                incoming.ToString("0.##"),
+                allowConflictPrompts,
+                mode))
+        {
+            return false;
+        }
+
+        applyValue(incoming);
+        return true;
+    }
+
+    private async Task<bool> MergeCustomFieldsAsync(
+        Window owner,
+        MediaItem item,
+        Dictionary<string, string>? incoming,
+        bool allowConflictPrompts,
+        ScraperExistingDataMode mode)
     {
         if (incoming == null || incoming.Count == 0)
             return false;
@@ -1127,12 +1284,31 @@ public partial class MainWindowViewModel
             if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
                 continue;
 
-            if (merged.TryGetValue(key, out var existing))
+            if (!merged.TryGetValue(key, out var existing) || string.IsNullOrWhiteSpace(existing))
             {
-                if (onlyWhenMissing && !string.IsNullOrWhiteSpace(existing))
+                merged[key] = value;
+                changed = true;
+                continue;
+            }
+
+            if (string.Equals(existing, value, StringComparison.Ordinal))
+                continue;
+
+            if (mode == ScraperExistingDataMode.OnlyMissing)
+                continue;
+
+            if (mode == ScraperExistingDataMode.AskOnConflict)
+            {
+                if (!allowConflictPrompts)
                     continue;
 
-                if (string.Equals(existing, value, StringComparison.Ordinal))
+                var message = string.Format(
+                    T("Dialog.Scraper.CustomFieldConflictFormat", "Update custom field '{0}'? Current: '{1}' | New: '{2}'"),
+                    key,
+                    BuildConflictPreview(existing),
+                    BuildConflictPreview(value));
+
+                if (!await ShowConfirmDialog(owner, message))
                     continue;
             }
 
@@ -1147,7 +1323,44 @@ public partial class MainWindowViewModel
         return true;
     }
 
-    private async Task DownloadAndSetAsset(string url, MediaItem item, List<string> nodePath, AssetType type)
+    private async Task<bool> ShouldOverwriteExistingAsync(
+        Window owner,
+        string fieldLabel,
+        string currentValue,
+        string incomingValue,
+        bool allowConflictPrompts,
+        ScraperExistingDataMode mode)
+    {
+        if (mode == ScraperExistingDataMode.OverwriteAlways)
+            return true;
+
+        if (mode == ScraperExistingDataMode.OnlyMissing)
+            return false;
+
+        if (!allowConflictPrompts)
+            return false;
+
+        var message = string.Format(
+            T("Dialog.Scraper.FieldConflictFormat", "Update {0}? Current: '{1}' | New: '{2}'"),
+            fieldLabel.Trim().TrimEnd(':'),
+            BuildConflictPreview(currentValue),
+            BuildConflictPreview(incomingValue));
+
+        return await ShowConfirmDialog(owner, message);
+    }
+
+    private static string BuildConflictPreview(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "-";
+
+        var compact = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return compact.Length <= 80
+            ? compact
+            : compact.Substring(0, 80) + "...";
+    }
+
+    private async Task<bool> DownloadAndSetAsset(string url, MediaItem item, List<string> nodePath, AssetType type)
     {
         string? tempPathWithExt = null;
         try
@@ -1187,7 +1400,7 @@ public partial class MainWindowViewModel
                 if (imported != null)
                 {
                     await UiThreadHelper.InvokeAsync(() => item.Assets.Add(imported));
-                    MarkLibraryDirty();
+                    return true;
                 }
             }
         }
@@ -1207,6 +1420,8 @@ public partial class MainWindowViewModel
                 // best effort cleanup
             }
         }
+
+        return false;
     }
 
     private void OpenIntegratedSearch()

@@ -171,6 +171,9 @@
     <data name="Dialog_ConfirmImportGogFormat" xml:space="preserve"><value>Found {0} GOG games. Import?</value></data>
     <data name="Dialog_ConfirmImportEpicFormat" xml:space="preserve"><value>Found {0} Epic games. Import?</value></data>
     <data name="Dialog_ConfirmCombineMultiDiscFormat" xml:space="preserve"><value>You selected {0} files. Combine them into one multi-disc item?</value></data>
+    <data name="Dialog.Scraper.AssetConflictFormat" xml:space="preserve"><value>Item already has {0}. Add another one?</value></data>
+    <data name="Dialog.Scraper.CustomFieldConflictFormat" xml:space="preserve"><value>Update custom field '{0}'? Current: '{1}' | New: '{2}'</value></data>
+    <data name="Dialog.Scraper.FieldConflictFormat" xml:space="preserve"><value>Update {0}? Current: '{1}' | New: '{2}'</value></data>
 
     <!-- EDITMEDIA -->
     <data name="EditMedia.Tab_General" xml:space="preserve"><value>General</value></data>
@@ -210,6 +213,13 @@
     <data name="Settings.TabMisc" xml:space="preserve"><value>Misc</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Launch paths</value></data>
     <data name="Settings_SectionMusic" xml:space="preserve"><value>Music</value></data>
+    <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper import</value></data>
+    <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Applies to both manual scrape and bulk scrape.</value></data>
+    <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>If data already exists:</value></data>
+    <data name="Settings_ScraperBulkAssetConflictPrompt" xml:space="preserve"><value>In bulk scrape, append new artwork when artwork already exists</value></data>
+    <data name="Settings_ScraperBulkAssetConflictHint" xml:space="preserve"><value>Missing artwork is always imported.</value></data>
+    <data name="Settings_ScraperMetadataFields" xml:space="preserve"><value>Metadata fields</value></data>
+    <data name="Settings_ScraperAssetFields" xml:space="preserve"><value>Artwork / assets</value></data>
     <data name="Settings_SectionParental" xml:space="preserve"><value>Parental control</value></data>
     <data name="Settings_ChangeParentalPassword" xml:space="preserve"><value>Change parental password</value></data>
     <data name="Settings_SectionSteamLibrary" xml:space="preserve"><value>Steam library paths</value></data>

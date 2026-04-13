@@ -138,6 +138,160 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private ScraperImportSettings ScraperImportSettings
+    {
+        get
+        {
+            _appSettings.ScraperImport ??= new ScraperImportSettings();
+            return _appSettings.ScraperImport;
+        }
+    }
+
+    public ScraperExistingDataMode[] AvailableScraperExistingDataModes { get; } =
+        Enum.GetValues<ScraperExistingDataMode>();
+
+    public ScraperExistingDataMode ScraperExistingDataMode
+    {
+        get => ScraperImportSettings.ExistingDataMode;
+        set
+        {
+            if (ScraperImportSettings.ExistingDataMode == value)
+                return;
+
+            ScraperImportSettings.ExistingDataMode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    // Metadata switches
+    public bool ScraperImportDescription
+    {
+        get => ScraperImportSettings.ImportDescription;
+        set { if (ScraperImportSettings.ImportDescription != value) { ScraperImportSettings.ImportDescription = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportReleaseDate
+    {
+        get => ScraperImportSettings.ImportReleaseDate;
+        set { if (ScraperImportSettings.ImportReleaseDate != value) { ScraperImportSettings.ImportReleaseDate = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportRating
+    {
+        get => ScraperImportSettings.ImportRating;
+        set { if (ScraperImportSettings.ImportRating != value) { ScraperImportSettings.ImportRating = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportDeveloper
+    {
+        get => ScraperImportSettings.ImportDeveloper;
+        set { if (ScraperImportSettings.ImportDeveloper != value) { ScraperImportSettings.ImportDeveloper = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportGenre
+    {
+        get => ScraperImportSettings.ImportGenre;
+        set { if (ScraperImportSettings.ImportGenre != value) { ScraperImportSettings.ImportGenre = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportPlatform
+    {
+        get => ScraperImportSettings.ImportPlatform;
+        set { if (ScraperImportSettings.ImportPlatform != value) { ScraperImportSettings.ImportPlatform = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportPublisher
+    {
+        get => ScraperImportSettings.ImportPublisher;
+        set { if (ScraperImportSettings.ImportPublisher != value) { ScraperImportSettings.ImportPublisher = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportSeries
+    {
+        get => ScraperImportSettings.ImportSeries;
+        set { if (ScraperImportSettings.ImportSeries != value) { ScraperImportSettings.ImportSeries = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportReleaseType
+    {
+        get => ScraperImportSettings.ImportReleaseType;
+        set { if (ScraperImportSettings.ImportReleaseType != value) { ScraperImportSettings.ImportReleaseType = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportSortTitle
+    {
+        get => ScraperImportSettings.ImportSortTitle;
+        set { if (ScraperImportSettings.ImportSortTitle != value) { ScraperImportSettings.ImportSortTitle = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportPlayMode
+    {
+        get => ScraperImportSettings.ImportPlayMode;
+        set { if (ScraperImportSettings.ImportPlayMode != value) { ScraperImportSettings.ImportPlayMode = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportMaxPlayers
+    {
+        get => ScraperImportSettings.ImportMaxPlayers;
+        set { if (ScraperImportSettings.ImportMaxPlayers != value) { ScraperImportSettings.ImportMaxPlayers = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportSource
+    {
+        get => ScraperImportSettings.ImportSource;
+        set { if (ScraperImportSettings.ImportSource != value) { ScraperImportSettings.ImportSource = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportCustomFields
+    {
+        get => ScraperImportSettings.ImportCustomFields;
+        set { if (ScraperImportSettings.ImportCustomFields != value) { ScraperImportSettings.ImportCustomFields = value; OnPropertyChanged(); } }
+    }
+
+    // Asset switches
+    public bool ScraperImportCover
+    {
+        get => ScraperImportSettings.ImportCover;
+        set { if (ScraperImportSettings.ImportCover != value) { ScraperImportSettings.ImportCover = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportWallpaper
+    {
+        get => ScraperImportSettings.ImportWallpaper;
+        set { if (ScraperImportSettings.ImportWallpaper != value) { ScraperImportSettings.ImportWallpaper = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportScreenshot
+    {
+        get => ScraperImportSettings.ImportScreenshot;
+        set { if (ScraperImportSettings.ImportScreenshot != value) { ScraperImportSettings.ImportScreenshot = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportLogo
+    {
+        get => ScraperImportSettings.ImportLogo;
+        set { if (ScraperImportSettings.ImportLogo != value) { ScraperImportSettings.ImportLogo = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportMarquee
+    {
+        get => ScraperImportSettings.ImportMarquee;
+        set { if (ScraperImportSettings.ImportMarquee != value) { ScraperImportSettings.ImportMarquee = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportBezel
+    {
+        get => ScraperImportSettings.ImportBezel;
+        set { if (ScraperImportSettings.ImportBezel != value) { ScraperImportSettings.ImportBezel = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperImportControlPanel
+    {
+        get => ScraperImportSettings.ImportControlPanel;
+        set { if (ScraperImportSettings.ImportControlPanel != value) { ScraperImportSettings.ImportControlPanel = value; OnPropertyChanged(); } }
+    }
+    public bool ScraperAppendAssetsDuringBulkScrape
+    {
+        get => ScraperImportSettings.AppendAssetsDuringBulkScrape;
+        set
+        {
+            if (ScraperImportSettings.AppendAssetsDuringBulkScrape != value)
+            {
+                ScraperImportSettings.AppendAssetsDuringBulkScrape = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string ScraperImportSectionTitle => T("Settings_SectionScraperImport", "Scraper import");
+    public string ScraperImportHint => T("Settings_ScraperImportHint", "Applies to both manual scrape and bulk scrape.");
+    public string ScraperExistingDataModeText => T("Settings_ScraperExistingDataMode", "If data already exists:");
+    public string ScraperBulkAppendAssetsText => T("Settings_ScraperBulkAssetConflictPrompt", "In bulk scrape, append new artwork when artwork already exists");
+    public string ScraperBulkAppendAssetsHint => T("Settings_ScraperBulkAssetConflictHint", "Missing artwork is always imported.");
+    public string ScraperMetadataFieldsText => T("Settings_ScraperMetadataFields", "Metadata fields");
+    public string ScraperAssetFieldsText => T("Settings_ScraperAssetFields", "Artwork / assets");
+
     public string ParentalSectionTitle => T("Settings_SectionParental", "Parental control");
     public string ChangeParentalPasswordText => T("Settings_ChangeParentalPassword", "Change parental password");
     

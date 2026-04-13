@@ -135,4 +135,9 @@ public class AppSettings
     /// List of configured metadata scrapers (API keys, credentials)
     /// </summary>
     public List<ScraperConfig> Scrapers { get; set; } = new();
+
+    /// <summary>
+    /// Global scraper import behavior for manual scrape and bulk scrape.
+    /// </summary>
+    public ScraperImportSettings ScraperImport { get; set; } = new();
 }
