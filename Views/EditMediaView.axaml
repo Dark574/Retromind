@@ -7,7 +7,7 @@
         x:Class="Retromind.Views.EditMediaView"
         x:DataType="vm:EditMediaViewModel"
         Title="{x:Static p:Strings.Dialog_EditMedia}"
-        Width="800" Height="800"
+        Width="800" Height="850"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         CanResize="False">
@@ -25,135 +25,10 @@
 
         <TabControl Grid.Row="0"
                     HorizontalContentAlignment="Stretch">
-            <!-- TAB 1: METADATA -->
+            <!-- TAB 1: Allgemein -->
             <TabItem Header="{x:Static p:Strings.EditMedia_Tab_General}" FontSize="16">
-                <!-- Removed extra padding from ScrollViewer for a tighter layout -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Spacing="15" Margin="10,10,20,50">
-                        <!-- Title -->
-                        <StackPanel>
-                            <TextBlock Text="{x:Static p:Strings.Common_Title}" FontWeight="Bold" Margin="0,0,0,5" />
-                            <TextBox Text="{Binding Title}" />
-                        </StackPanel>
-
-                        <!-- Developer & Publisher -->
-                        <Grid ColumnDefinitions="*, 15, *">
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{x:Static p:Strings.Common_Developer}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Developer}" />
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="{x:Static p:Strings.Common_Publisher}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Publisher}" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Genre & Platform -->
-                        <Grid ColumnDefinitions="*, 15, *">
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{x:Static p:Strings.Common_Genre}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Genre}" />
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="{x:Static p:Strings.Common_Platform}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Platform}" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Release date & Status -->
-                        <Grid ColumnDefinitions="*, 15, *">
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{x:Static p:Strings.Common_ReleaseDate}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <DatePicker SelectedDate="{Binding ReleaseDate}" HorizontalAlignment="Stretch" />
-                            </StackPanel>
-                            
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="{x:Static p:Strings.Common_Status}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <ComboBox ItemsSource="{Binding StatusOptions}"
-                                          SelectedItem="{Binding Status}"
-                                          HorizontalAlignment="Stretch" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Series & Source -->
-                        <Grid ColumnDefinitions="*, 15, *">
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{x:Static p:Strings.Common_Series}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Series}" />
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="{x:Static p:Strings.Common_Source}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Source}" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Release type & Sort title -->
-                        <Grid ColumnDefinitions="*, 15, *">
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{x:Static p:Strings.Common_ReleaseType}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding ReleaseType}" />
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="{x:Static p:Strings.Common_SortTitle}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding SortTitle}" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Play mode & Max players -->
-                        <Grid ColumnDefinitions="*, 15, *">
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{x:Static p:Strings.Common_PlayMode}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding PlayMode}" />
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="{x:Static p:Strings.Common_MaxPlayers}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding MaxPlayers}" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Description -->
-                        <StackPanel>
-                            <TextBlock Text="{x:Static p:Strings.Common_Summary}" FontWeight="Bold" Margin="0,0,0,5" />
-                            <TextBox Text="{Binding Description}"
-                                     AcceptsReturn="True"
-                                     TextWrapping="Wrap"
-                                     Height="100" />
-                        </StackPanel>
-
-                        <!-- Custom fields -->
-                        <StackPanel>
-                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,5">
-                                <TextBlock Grid.Column="0" Text="{x:Static p:Strings.Common_CustomFields}" FontWeight="Bold" VerticalAlignment="Center" />
-                                <Button Grid.Column="1"
-                                        Command="{Binding AddCustomFieldCommand}"
-                                        Content="{x:Static p:Strings.Button_Add}" />
-                            </Grid>
-
-                            <ItemsControl ItemsSource="{Binding CustomFields}" x:CompileBindings="False">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid ColumnDefinitions="*,10,*,10,Auto" Margin="0,0,0,6">
-                                            <TextBox Grid.Column="0"
-                                                     Text="{Binding Key}"
-                                                     Watermark="{x:Static p:Strings.Common_Key}" />
-                                            <TextBox Grid.Column="2"
-                                                     Text="{Binding Value}"
-                                                     Watermark="{x:Static p:Strings.Common_Value}" />
-                                            <Button Grid.Column="4"
-                                                    Content="{x:Static p:Strings.Button_Remove}"
-                                                    Command="{Binding $parent[Window].((vm:EditMediaViewModel)DataContext).RemoveCustomFieldCommand}"
-                                                    CommandParameter="{Binding .}" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-
+                    <StackPanel>
                         <!-- Separator -->
                         <Separator Opacity="0.5" Margin="0,10" />
                         <TextBlock Text="{x:Static p:Strings.Launch_Config}" FontWeight="Bold" FontSize="16" />
@@ -563,8 +438,140 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+            
+            <!-- TAB 2: METADATA -->
+            <TabItem Header="{x:Static p:Strings.Settings_TabMetadata}" FontSize="16">
+                <!-- Removed extra padding from ScrollViewer for a tighter layout -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="15" Margin="10,10,20,50">
+                        <!-- Title -->
+                        <StackPanel>
+                            <TextBlock Text="{x:Static p:Strings.Common_Title}" FontWeight="Bold" Margin="0,0,0,5" />
+                            <TextBox Text="{Binding Title}" />
+                        </StackPanel>
 
-            <!-- TAB 2: MEDIA -->
+                        <!-- Developer & Publisher -->
+                        <Grid ColumnDefinitions="*, 15, *">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="{x:Static p:Strings.Common_Developer}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <TextBox Text="{Binding Developer}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="{x:Static p:Strings.Common_Publisher}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <TextBox Text="{Binding Publisher}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Genre & Platform -->
+                        <Grid ColumnDefinitions="*, 15, *">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="{x:Static p:Strings.Common_Genre}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <TextBox Text="{Binding Genre}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="{x:Static p:Strings.Common_Platform}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <TextBox Text="{Binding Platform}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Release date & Status -->
+                        <Grid ColumnDefinitions="*, 15, *">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="{x:Static p:Strings.Common_ReleaseDate}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <DatePicker SelectedDate="{Binding ReleaseDate}" HorizontalAlignment="Stretch" />
+                            </StackPanel>
+                            
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="{x:Static p:Strings.Common_Status}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <ComboBox ItemsSource="{Binding StatusOptions}"
+                                          SelectedItem="{Binding Status}"
+                                          HorizontalAlignment="Stretch" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Series & Source -->
+                        <Grid ColumnDefinitions="*, 15, *">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="{x:Static p:Strings.Common_Series}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <TextBox Text="{Binding Series}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="{x:Static p:Strings.Common_Source}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <TextBox Text="{Binding Source}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Release type & Sort title -->
+                        <Grid ColumnDefinitions="*, 15, *">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="{x:Static p:Strings.Common_ReleaseType}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <TextBox Text="{Binding ReleaseType}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="{x:Static p:Strings.Common_SortTitle}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <TextBox Text="{Binding SortTitle}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Play mode & Max players -->
+                        <Grid ColumnDefinitions="*, 15, *">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="{x:Static p:Strings.Common_PlayMode}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <TextBox Text="{Binding PlayMode}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="{x:Static p:Strings.Common_MaxPlayers}" FontWeight="Bold" Margin="0,0,0,5" />
+                                <TextBox Text="{Binding MaxPlayers}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Description -->
+                        <StackPanel>
+                            <TextBlock Text="{x:Static p:Strings.Common_Summary}" FontWeight="Bold" Margin="0,0,0,5" />
+                            <TextBox Text="{Binding Description}"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     Height="100" />
+                        </StackPanel>
+
+                        <!-- Custom fields -->
+                        <StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,5">
+                                <TextBlock Grid.Column="0" Text="{x:Static p:Strings.Common_CustomFields}" FontWeight="Bold" VerticalAlignment="Center" />
+                                <Button Grid.Column="1"
+                                        Command="{Binding AddCustomFieldCommand}"
+                                        Content="{x:Static p:Strings.Button_Add}" />
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding CustomFields}" x:CompileBindings="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="*,10,*,10,Auto" Margin="0,0,0,6">
+                                            <TextBox Grid.Column="0"
+                                                     Text="{Binding Key}"
+                                                     Watermark="{x:Static p:Strings.Common_Key}" />
+                                            <TextBox Grid.Column="2"
+                                                     Text="{Binding Value}"
+                                                     Watermark="{x:Static p:Strings.Common_Value}" />
+                                            <Button Grid.Column="4"
+                                                    Content="{x:Static p:Strings.Button_Remove}"
+                                                    Command="{Binding $parent[Window].((vm:EditMediaViewModel)DataContext).RemoveCustomFieldCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 3: MEDIA -->
             <TabItem Header="{x:Static p:Strings.EditMedia_Tab_MediaAssets}" FontSize="16">
                 <Grid RowDefinitions="Auto, *, Auto" Margin="0,10,0,0">
                     
