@@ -223,7 +223,8 @@ public partial class MediaNode : ObservableObject
         if (string.IsNullOrWhiteSpace(relPath))
             return null;
 
-        return AppPaths.ResolveDataPath(relPath);
+        var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(relPath);
+        return string.IsNullOrWhiteSpace(fullPath) ? null : fullPath;
     }
     
     // --- Content ---

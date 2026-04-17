@@ -784,8 +784,9 @@ public partial class MainWindowViewModel
 
                 MarkLibraryDirty();
 
-                var fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
-                _ = _audioService.PlayMusicAsync(fullPath);
+                var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(asset.RelativePath);
+                if (!string.IsNullOrWhiteSpace(fullPath))
+                    _ = _audioService.PlayMusicAsync(fullPath);
 
                 await SaveData();
             }

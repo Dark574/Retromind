@@ -795,8 +795,9 @@ public partial class MainWindowViewModel
 
                 if (!string.IsNullOrEmpty(relativeMusicPath))
                 {
-                    var musicPath = AppPaths.ResolveDataPath(relativeMusicPath);
-                    _ = _audioService.PlayMusicAsync(musicPath);
+                    var musicPath = AppPaths.ResolveDataPathInsideRootOrEmpty(relativeMusicPath);
+                    if (!string.IsNullOrWhiteSpace(musicPath))
+                        _ = _audioService.PlayMusicAsync(musicPath);
                 }
             }
 

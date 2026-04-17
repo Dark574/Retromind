@@ -65,7 +65,7 @@ public partial class MediaAsset : ObservableObject
         {
             if (_absolutePath == null)
             {
-                _absolutePath = AppPaths.ResolveDataPath(RelativePath);
+                _absolutePath = AppPaths.ResolveDataPathInsideRootOrEmpty(RelativePath);
             }
             return _absolutePath;
         }

@@ -174,7 +174,8 @@ public class FileManagementService
         if (string.IsNullOrWhiteSpace(asset.RelativePath))
             return;
 
-        string fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
+        if (!AppPaths.TryResolveDataPathInsideRoot(asset.RelativePath, out var fullPath))
+            return;
 
         Helpers.AsyncImageHelper.InvalidateCache(fullPath);
 
@@ -215,7 +216,9 @@ public class FileManagementService
             if (asset == null || string.IsNullOrWhiteSpace(asset.RelativePath))
                 continue;
 
-            var fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
+            if (!AppPaths.TryResolveDataPathInsideRoot(asset.RelativePath, out var fullPath))
+                continue;
+
             if (!File.Exists(fullPath))
                 continue;
 

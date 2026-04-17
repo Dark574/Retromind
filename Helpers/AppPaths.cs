@@ -225,6 +225,70 @@ public static class AppPaths
     }
 
     /// <summary>
+    /// Resolves a stored path to an absolute path and ensures it stays inside <see cref="DataRoot"/>.
+    /// Intended for persisted "relative-to-DataRoot" content paths (assets/manuals/theme files).
+    /// Returns false when the path escapes DataRoot (e.g. via "..") or is otherwise invalid.
+    /// </summary>
+    public static bool TryResolveDataPathInsideRoot(string? path, out string fullPath)
+    {
+        fullPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        try
+        {
+            var candidate = Path.IsPathRooted(path)
+                ? Path.GetFullPath(path)
+                : Path.GetFullPath(Path.Combine(DataRoot, path));
+
+            if (!IsPathInsideDataRoot(candidate))
+                return false;
+
+            fullPath = candidate;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a path like <see cref="TryResolveDataPathInsideRoot"/> and returns
+    /// an empty string when resolution fails or escapes <see cref="DataRoot"/>.
+    /// </summary>
+    public static string ResolveDataPathInsideRootOrEmpty(string? path)
+    {
+        return TryResolveDataPathInsideRoot(path, out var fullPath)
+            ? fullPath
+            : string.Empty;
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="candidatePath"/> is equal to DataRoot
+    /// or located under DataRoot.
+    /// </summary>
+    public static bool IsPathInsideDataRoot(string candidatePath)
+    {
+        if (string.IsNullOrWhiteSpace(candidatePath))
+            return false;
+
+        var normalizedRoot = Path.GetFullPath(DataRoot);
+        var normalizedCandidate = Path.GetFullPath(candidatePath);
+
+        var rootWithSeparator = normalizedRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? normalizedRoot
+            : normalizedRoot + Path.DirectorySeparatorChar;
+
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        return string.Equals(normalizedCandidate, normalizedRoot, comparison) ||
+               normalizedCandidate.StartsWith(rootWithSeparator, comparison);
+    }
+
+    /// <summary>
     /// Converts an absolute path to a DataRoot-relative path (portable).
     /// If the path is already relative, it is returned normalized.
     /// </summary>

@@ -1095,7 +1095,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
         var musicAsset = item?.GetPrimaryAssetPath(AssetType.Music);
         if (!string.IsNullOrEmpty(musicAsset))
-            _ = _audioService.PlayMusicAsync(AppPaths.ResolveDataPath(musicAsset));
+        {
+            var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(musicAsset);
+            if (!string.IsNullOrWhiteSpace(fullPath))
+                _ = _audioService.PlayMusicAsync(fullPath);
+            else
+                _audioService.StopMusic();
+        }
         else
             _audioService.StopMusic();
     }
@@ -1175,7 +1181,13 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        var fullPath = AppPaths.ResolveDataPath(musicPath);
+        var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(musicPath);
+        if (string.IsNullOrWhiteSpace(fullPath))
+        {
+            _audioService.StopMusic();
+            return;
+        }
+
         await _audioService.PlayMusicAsync(fullPath);
     }
 
@@ -1214,9 +1226,12 @@ public partial class MainWindowViewModel : ViewModelBase
                 var musicPath = ResolveSelectionMusicPath(mediaVm, item);
                 if (!string.IsNullOrEmpty(musicPath))
                 {
-                    var fullPath = AppPaths.ResolveDataPath(musicPath);
-                    _ = _audioService.PlayMusicAsync(fullPath);
-                    return;
+                    var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(musicPath);
+                    if (!string.IsNullOrWhiteSpace(fullPath))
+                    {
+                        _ = _audioService.PlayMusicAsync(fullPath);
+                        return;
+                    }
                 }
             }
 
@@ -1273,8 +1288,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var fullPath = AppPaths.ResolveDataPath(asset.RelativePath);
-            _documentService.OpenDocument(fullPath);
+            var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(asset.RelativePath);
+            if (!string.IsNullOrWhiteSpace(fullPath))
+                _documentService.OpenDocument(fullPath);
         }
         catch
         {

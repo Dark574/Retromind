@@ -48,7 +48,9 @@ public static class AssetResolver
             var nodeRel = node.GetPrimaryAssetPath(type);
             if (!string.IsNullOrWhiteSpace(nodeRel))
             {
-                return AppPaths.ResolveDataPath(nodeRel!);
+                var resolved = AppPaths.ResolveDataPathInsideRootOrEmpty(nodeRel);
+                if (!string.IsNullOrWhiteSpace(resolved))
+                    return resolved;
             }
         }
 

@@ -36,7 +36,7 @@ public static class ThemeLoader
         if (!string.IsNullOrWhiteSpace(filePath) && !Path.IsPathRooted(filePath))
             filePath = Path.Combine(AppPaths.ThemesRoot, filePath);
 
-        filePath = AppPaths.ResolveDataPath(filePath);
+        filePath = AppPaths.ResolveDataPathInsideRootOrEmpty(filePath);
 
         if (string.IsNullOrWhiteSpace(filePath))
         {

@@ -855,8 +855,8 @@ public partial class BigModeViewModel
         var relativeVideoPath = item.GetPrimaryAssetPath(AssetType.Video);
         if (!string.IsNullOrEmpty(relativeVideoPath))
         {
-            var candidate = AppPaths.ResolveDataPath(relativeVideoPath);
-            if (File.Exists(candidate))
+            var candidate = AppPaths.ResolveDataPathInsideRootOrEmpty(relativeVideoPath);
+            if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
             {
                 videoPath = candidate;
                 hasItemVideo = true;
@@ -935,8 +935,8 @@ public partial class BigModeViewModel
         var videoAsset = node.Assets.FirstOrDefault(a => a.Type == AssetType.Video);
         if (!string.IsNullOrEmpty(videoAsset?.RelativePath))
         {
-            var candidate = AppPaths.ResolveDataPath(videoAsset.RelativePath);
-            if (File.Exists(candidate))
+            var candidate = AppPaths.ResolveDataPathInsideRootOrEmpty(videoAsset.RelativePath);
+            if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
                 videoPath = candidate;
         }
 

@@ -147,7 +147,8 @@ public partial class MediaItem : ObservableObject
         var relPath = GetPrimaryAssetPath(type);
         if (string.IsNullOrEmpty(relPath)) return null;
 
-        return AppPaths.ResolveDataPath(relPath);
+        var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(relPath);
+        return string.IsNullOrWhiteSpace(fullPath) ? null : fullPath;
     }
 
     /// <summary>
@@ -377,7 +378,8 @@ public partial class MediaItem : ObservableObject
             case MediaFileKind.LibraryRelative:
                 // Path is stored relative to the portable DataRoot (AppImage folder)
                 // Resolve it to an absolute path for launching
-                return AppPaths.ResolveDataPath(primary.Path);
+                var resolved = AppPaths.ResolveDataPathInsideRootOrEmpty(primary.Path);
+                return string.IsNullOrWhiteSpace(resolved) ? null : resolved;
 
             case MediaFileKind.Absolute:
                 // Return the stored absolute path as-is.

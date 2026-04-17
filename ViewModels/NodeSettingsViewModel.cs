@@ -1021,7 +1021,8 @@ public partial class NodeSettingsViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
-        return AppPaths.ResolveDataPath(path);
+        var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(path);
+        return string.IsNullOrWhiteSpace(fullPath) ? null : fullPath;
     }
     
     private async Task SaveAsync()

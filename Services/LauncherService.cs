@@ -456,7 +456,9 @@ public sealed class LauncherService
                         break;
 
                     case MediaFileKind.LibraryRelative:
-                        resolved = AppPaths.ResolveDataPath(f.Path);
+                        resolved = AppPaths.ResolveDataPathInsideRootOrEmpty(f.Path);
+                        if (string.IsNullOrWhiteSpace(resolved))
+                            continue;
                         break;
 
                     default:
