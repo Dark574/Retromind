@@ -94,9 +94,14 @@ public class IgdbProvider : IMetadataProvider
 
             var creds = GetCredentials();
 
-            // Build token request URL
-            var url = $"{TwitchTokenUrl}?client_id={creds.ClientId}&client_secret={creds.ClientSecret}&grant_type=client_credentials";
-            using var response = await _httpClient.PostAsync(url, null, cancellationToken).ConfigureAwait(false);
+            using var tokenRequestContent = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("client_id", creds.ClientId),
+                new KeyValuePair<string, string>("client_secret", creds.ClientSecret),
+                new KeyValuePair<string, string>("grant_type", "client_credentials")
+            });
+            using var response = await _httpClient.PostAsync(TwitchTokenUrl, tokenRequestContent, cancellationToken)
+                .ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
