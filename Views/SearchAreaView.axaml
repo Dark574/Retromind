@@ -62,53 +62,64 @@
                         <!-- Search title -->
                         <TextBox Text="{Binding SearchText}"
                                  Watermark="{x:Static p:Strings.Dialog_TitleSearch}"
-                                 Width="200"
+                                 Width="260"
                                  Height="28"
-                                 Margin="0,0,12,8"
+                                 Margin="0,0,6,8"
                                  VerticalContentAlignment="Center"/>
 
-                        <!-- Year -->
-                        <TextBox Text="{Binding SearchYear}"
-                                 Watermark="{x:Static p:Strings.Common_Year}"
-                                 Width="150"
-                                 Height="28"
-                                 Margin="0,0,12,8"
-                                 VerticalContentAlignment="Center"/>
+                        <Button Width="26"
+                                Height="28"
+                                Padding="0"
+                                Margin="0,0,6,8"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                Command="{Binding ClearSearchTextCommand}"
+                                ToolTip.Tip="{x:Static p:Strings.Search_ClearSearchTextTooltip}">
+                            <TextBlock Text="✕"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Button>
 
-                        <!-- Status filter + clear -->
-                        <StackPanel Orientation="Horizontal"
-                                    Spacing="4"
-                                    VerticalAlignment="Center"
-                                    Margin="0,0,12,8">
-                            <ComboBox ItemsSource="{Binding StatusOptions}"
-                                      SelectedItem="{Binding SelectedStatusOption, Mode=TwoWay}"
-                                      Width="130"
-                                      Height="28"
-                                      VerticalContentAlignment="Center"
-                                      PlaceholderText="Status">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Label}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
+                        <Button Width="26"
+                                Height="28"
+                                Padding="0"
+                                Margin="0,0,6,8"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                Click="OnOpenFilterBuilderClick"
+                                ToolTip.Tip="{x:Static p:Strings.Search_AddFieldFilterTooltip}">
+                            <Path Data="M 2 3 L 14 3 L 9 8 L 9 13 L 7 12 L 7 8 Z"
+                                  Width="12"
+                                  Height="12"
+                                  Stretch="Uniform"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+                        </Button>
 
-                            <!-- Clear status filter -->
-                            <Button Width="22"
-                                    Height="22"
-                                    Padding="0"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    HorizontalContentAlignment="Center"
-                                    VerticalContentAlignment="Center"
-                                    Command="{Binding ResetFiltersCommand}"
-                                    ToolTip.Tip="Reset all filters">
-                                <TextBlock Text="✕"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"/>
-                            </Button>
-                        </StackPanel>
-                        
+                        <Border Width="18"
+                                Height="18"
+                                Margin="0,0,12,8"
+                                VerticalAlignment="Center"
+                                CornerRadius="10"
+                                Background="LightGray"
+                                Cursor="Help">
+                            <ToolTip.Tip>
+                                <ToolTip MaxWidth="420">
+                                    <TextBlock Text="{x:Static p:Strings.Search_SyntaxHelpTooltip}"
+                                               TextWrapping="Wrap" />
+                                </ToolTip>
+                            </ToolTip.Tip>
+                            <TextBlock Text="?"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Foreground="Gray"/>
+                        </Border>
+
                         <!-- Zoom (tile size) -->
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6"

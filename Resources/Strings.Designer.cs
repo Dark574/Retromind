@@ -224,7 +224,7 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Common.Developer", resourceCulture);
             }
         }
-
+        
         public static string Common_Publisher {
             get {
                 return ResourceManager.GetString("Common.Publisher", resourceCulture);
@@ -248,55 +248,55 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Common.Genre", resourceCulture);
             }
         }
-
+        
         public static string Common_Platform {
             get {
                 return ResourceManager.GetString("Common.Platform", resourceCulture);
             }
         }
-
+        
         public static string Common_Series {
             get {
                 return ResourceManager.GetString("Common.Series", resourceCulture);
             }
         }
-
+        
         public static string Common_ReleaseType {
             get {
                 return ResourceManager.GetString("Common.ReleaseType", resourceCulture);
             }
         }
-
+        
         public static string Common_SortTitle {
             get {
                 return ResourceManager.GetString("Common.SortTitle", resourceCulture);
             }
         }
-
+        
         public static string Common_PlayMode {
             get {
                 return ResourceManager.GetString("Common.PlayMode", resourceCulture);
             }
         }
-
+        
         public static string Common_MaxPlayers {
             get {
                 return ResourceManager.GetString("Common.MaxPlayers", resourceCulture);
             }
         }
-
+        
         public static string Common_CustomFields {
             get {
                 return ResourceManager.GetString("Common.CustomFields", resourceCulture);
             }
         }
-
+        
         public static string Common_Key {
             get {
                 return ResourceManager.GetString("Common.Key", resourceCulture);
             }
         }
-
+        
         public static string Common_Value {
             get {
                 return ResourceManager.GetString("Common.Value", resourceCulture);
@@ -420,6 +420,126 @@ namespace Retromind.Resources {
         public static string Common_Delete {
             get {
                 return ResourceManager.GetString("Common_Delete", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Lock_Setup {
+            get {
+                return ResourceManager.GetString("Parental.Lock.Setup", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Lock_Unlock {
+            get {
+                return ResourceManager.GetString("Parental.Lock.Unlock", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Lock_Lock {
+            get {
+                return ResourceManager.GetString("Parental.Lock.Lock", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Lock_Tooltip_Setup {
+            get {
+                return ResourceManager.GetString("Parental.Lock.Tooltip.Setup", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Lock_Tooltip_Unlock {
+            get {
+                return ResourceManager.GetString("Parental.Lock.Tooltip.Unlock", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Lock_Tooltip_Lock {
+            get {
+                return ResourceManager.GetString("Parental.Lock.Tooltip.Lock", resourceCulture);
+            }
+        }
+        
+        public static string Parental_ChangePassword_Short {
+            get {
+                return ResourceManager.GetString("Parental.ChangePassword.Short", resourceCulture);
+            }
+        }
+        
+        public static string Parental_ChangePassword_Tooltip {
+            get {
+                return ResourceManager.GetString("Parental.ChangePassword.Tooltip", resourceCulture);
+            }
+        }
+        
+        public static string Parental_ProtectButton {
+            get {
+                return ResourceManager.GetString("Parental.ProtectButton", resourceCulture);
+            }
+        }
+        
+        public static string Parental_ProtectButton_Tooltip {
+            get {
+                return ResourceManager.GetString("Parental.ProtectButton.Tooltip", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Dialog_Title {
+            get {
+                return ResourceManager.GetString("Parental.Dialog.Title", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Dialog_SetupMessage {
+            get {
+                return ResourceManager.GetString("Parental.Dialog.SetupMessage", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Dialog_EnterPasswordMessage {
+            get {
+                return ResourceManager.GetString("Parental.Dialog.EnterPasswordMessage", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Dialog_ChangeCurrentMessage {
+            get {
+                return ResourceManager.GetString("Parental.Dialog.ChangeCurrentMessage", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Dialog_ChangeNewMessage {
+            get {
+                return ResourceManager.GetString("Parental.Dialog.ChangeNewMessage", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Dialog_WrongPassword {
+            get {
+                return ResourceManager.GetString("Parental.Dialog.WrongPassword", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Validation_NewPasswordSameAsCurrent {
+            get {
+                return ResourceManager.GetString("Parental.Validation.NewPasswordSameAsCurrent", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Validation_PasswordRequired {
+            get {
+                return ResourceManager.GetString("Parental.Validation.PasswordRequired", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Validation_PasswordsDoNotMatch {
+            get {
+                return ResourceManager.GetString("Parental.Validation.PasswordsDoNotMatch", resourceCulture);
+            }
+        }
+        
+        public static string Parental_Prompt_ConfirmPassword {
+            get {
+                return ResourceManager.GetString("Parental.Prompt.ConfirmPassword", resourceCulture);
             }
         }
         
@@ -723,6 +843,24 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Dialog_Scraper_AssetConflictFormat {
+            get {
+                return ResourceManager.GetString("Dialog.Scraper.AssetConflictFormat", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_Scraper_CustomFieldConflictFormat {
+            get {
+                return ResourceManager.GetString("Dialog.Scraper.CustomFieldConflictFormat", resourceCulture);
+            }
+        }
+        
+        public static string Dialog_Scraper_FieldConflictFormat {
+            get {
+                return ResourceManager.GetString("Dialog.Scraper.FieldConflictFormat", resourceCulture);
+            }
+        }
+        
         public static string EditMedia_Tab_General {
             get {
                 return ResourceManager.GetString("EditMedia.Tab_General", resourceCulture);
@@ -894,6 +1032,60 @@ namespace Retromind.Resources {
         public static string Settings_SectionMusic {
             get {
                 return ResourceManager.GetString("Settings_SectionMusic", resourceCulture);
+            }
+        }
+        
+        public static string Settings_SectionScraperImport {
+            get {
+                return ResourceManager.GetString("Settings_SectionScraperImport", resourceCulture);
+            }
+        }
+        
+        public static string Settings_ScraperImportHint {
+            get {
+                return ResourceManager.GetString("Settings_ScraperImportHint", resourceCulture);
+            }
+        }
+        
+        public static string Settings_ScraperExistingDataMode {
+            get {
+                return ResourceManager.GetString("Settings_ScraperExistingDataMode", resourceCulture);
+            }
+        }
+        
+        public static string Settings_ScraperBulkAssetConflictPrompt {
+            get {
+                return ResourceManager.GetString("Settings_ScraperBulkAssetConflictPrompt", resourceCulture);
+            }
+        }
+        
+        public static string Settings_ScraperBulkAssetConflictHint {
+            get {
+                return ResourceManager.GetString("Settings_ScraperBulkAssetConflictHint", resourceCulture);
+            }
+        }
+        
+        public static string Settings_ScraperMetadataFields {
+            get {
+                return ResourceManager.GetString("Settings_ScraperMetadataFields", resourceCulture);
+            }
+        }
+        
+        public static string Settings_ScraperAssetFields {
+            get {
+                return ResourceManager.GetString("Settings_ScraperAssetFields", resourceCulture);
+            }
+        }
+        
+        public static string Settings_SectionParental {
+            get {
+                return ResourceManager.GetString("Settings_SectionParental", resourceCulture);
+            }
+        }
+        
+        public static string Settings_ChangeParentalPassword {
+            get {
+                return ResourceManager.GetString("Settings_ChangeParentalPassword", resourceCulture);
             }
         }
         
@@ -1641,6 +1833,30 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string NodeSettings_Parental_Title {
+            get {
+                return ResourceManager.GetString("NodeSettings_Parental_Title", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_Parental_Hint {
+            get {
+                return ResourceManager.GetString("NodeSettings_Parental_Hint", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_Parental_StateOn {
+            get {
+                return ResourceManager.GetString("NodeSettings_Parental_StateOn", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_Parental_StateOff {
+            get {
+                return ResourceManager.GetString("NodeSettings_Parental_StateOff", resourceCulture);
+            }
+        }
+        
         public static string NodeSettings_RenameFailed {
             get {
                 return ResourceManager.GetString("NodeSettings_RenameFailed", resourceCulture);
@@ -1752,6 +1968,216 @@ namespace Retromind.Resources {
         public static string Search_ScopesPartialHint {
             get {
                 return ResourceManager.GetString("Search.ScopesPartialHint", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterBuilderTitle {
+            get {
+                return ResourceManager.GetString("Search.FilterBuilderTitle", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterBuilderIntro {
+            get {
+                return ResourceManager.GetString("Search.FilterBuilderIntro", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterBuilderField {
+            get {
+                return ResourceManager.GetString("Search.FilterBuilderField", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterBuilderValue {
+            get {
+                return ResourceManager.GetString("Search.FilterBuilderValue", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterBuilderApplyHint {
+            get {
+                return ResourceManager.GetString("Search.FilterBuilderApplyHint", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterBuilderAdd {
+            get {
+                return ResourceManager.GetString("Search.FilterBuilderAdd", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterBuilderReplace {
+            get {
+                return ResourceManager.GetString("Search.FilterBuilderReplace", resourceCulture);
+            }
+        }
+        
+        public static string Search_AddFieldFilterTooltip {
+            get {
+                return ResourceManager.GetString("Search.AddFieldFilterTooltip", resourceCulture);
+            }
+        }
+        
+        public static string Search_ClearSearchTextTooltip {
+            get {
+                return ResourceManager.GetString("Search.ClearSearchTextTooltip", resourceCulture);
+            }
+        }
+        
+        public static string Search_SyntaxHelpTooltip {
+            get {
+                return ResourceManager.GetString("Search.SyntaxHelpTooltip", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Title {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Title", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_SortTitle {
+            get {
+                return ResourceManager.GetString("Search.FilterField.SortTitle", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Description {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Description", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Developer {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Developer", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Publisher {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Publisher", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Platform {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Platform", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Source {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Source", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Genre {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Genre", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Series {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Series", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_ReleaseType {
+            get {
+                return ResourceManager.GetString("Search.FilterField.ReleaseType", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_PlayMode {
+            get {
+                return ResourceManager.GetString("Search.FilterField.PlayMode", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_MaxPlayers {
+            get {
+                return ResourceManager.GetString("Search.FilterField.MaxPlayers", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Status {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Status", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Year {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Year", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_ReleaseDate {
+            get {
+                return ResourceManager.GetString("Search.FilterField.ReleaseDate", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Tag {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Tag", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_CustomField {
+            get {
+                return ResourceManager.GetString("Search.FilterField.CustomField", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_CustomKey {
+            get {
+                return ResourceManager.GetString("Search.FilterField.CustomKey", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_CustomValue {
+            get {
+                return ResourceManager.GetString("Search.FilterField.CustomValue", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Id {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Id", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_Favorite {
+            get {
+                return ResourceManager.GetString("Search.FilterField.Favorite", resourceCulture);
+            }
+        }
+        
+        public static string Search_Field_Year {
+            get {
+                return ResourceManager.GetString("Search.Field.Year", resourceCulture);
+            }
+        }
+        
+        public static string Search_Field_Tag {
+            get {
+                return ResourceManager.GetString("Search.Field.Tag", resourceCulture);
+            }
+        }
+        
+        public static string Search_Field_Id {
+            get {
+                return ResourceManager.GetString("Search.Field.Id", resourceCulture);
+            }
+        }
+        
+        public static string Search_Field_Favorite {
+            get {
+                return ResourceManager.GetString("Search.Field.Favorite", resourceCulture);
             }
         }
         

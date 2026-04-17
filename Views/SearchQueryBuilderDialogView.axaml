@@ -1,0 +1,65 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:p="clr-namespace:Retromind.Resources"
+        x:Class="Retromind.Views.SearchQueryBuilderDialogView"
+        x:DataType="vm:SearchQueryBuilderViewModel"
+        Title="{x:Static p:Strings.Search_FilterBuilderTitle}"
+        Width="560"
+        Height="300"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Enter" Command="{Binding AddTokenCommand}" />
+        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding ReplaceSearchCommand}" />
+    </Window.KeyBindings>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="20">
+        <TextBlock Grid.Row="0"
+                   Text="{x:Static p:Strings.Search_FilterBuilderIntro}"
+                   Margin="0,0,0,14"
+                   TextWrapping="Wrap"
+                   Opacity="0.8"/>
+
+        <Grid Grid.Row="1" ColumnDefinitions="90,*" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0"
+                       Text="{x:Static p:Strings.Search_FilterBuilderField}"
+                       VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding FieldOptions}"
+                      SelectedItem="{Binding SelectedField, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Label}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="90,*" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0"
+                       Text="{x:Static p:Strings.Search_FilterBuilderValue}"
+                       VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding ValueSuggestions}"
+                      Text="{Binding ValueText, Mode=TwoWay}"
+                      IsEditable="True"
+                      MaxDropDownHeight="220"
+                      HorizontalAlignment="Stretch" />
+        </Grid>
+
+        <TextBlock Grid.Row="3"
+                   Text="{x:Static p:Strings.Search_FilterBuilderApplyHint}"
+                   Margin="0,0,0,16"
+                   TextWrapping="Wrap"
+                   Opacity="0.75"/>
+
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="10">
+            <Button Content="{x:Static p:Strings.Search_FilterBuilderAdd}" Command="{Binding AddTokenCommand}" />
+            <Button Content="{x:Static p:Strings.Search_FilterBuilderReplace}" Command="{Binding ReplaceSearchCommand}" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.ViewModels;
 
@@ -188,5 +192,43 @@ public partial class MediaAreaView : UserControl
             return;
 
         _mediaList.ScrollIntoView(row);
+    }
+
+    private async void OnOpenFilterBuilderClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MediaAreaViewModel vm)
+            return;
+
+        var owner = this.FindAncestorOfType<Window>() ?? TopLevel.GetTopLevel(this) as Window;
+        var suggestions = await BuildSuggestionsAsync(vm);
+        var builderVm = new SearchQueryBuilderViewModel(SearchQueryBuilderHelper.DefaultFields, suggestions);
+        var dialog = new SearchQueryBuilderDialogView { DataContext = builderVm };
+
+        builderVm.RequestClose += result =>
+        {
+            if (result.WasApplied)
+            {
+                vm.SearchText = SearchQueryBuilderHelper.ApplyTokenToSearch(
+                    vm.SearchText,
+                    result.Token,
+                    result.ReplaceSearch);
+            }
+
+            dialog.Close();
+        };
+
+        if (owner == null)
+        {
+            dialog.Show();
+            return;
+        }
+
+        await dialog.ShowDialog(owner);
+    }
+
+    private static Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> BuildSuggestionsAsync(MediaAreaViewModel vm)
+    {
+        var snapshot = vm.Node.Items.ToList();
+        return Task.Run(() => SearchQueryBuilderHelper.BuildSuggestions(snapshot));
     }
 }

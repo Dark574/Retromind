@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.ViewModels;
 
@@ -228,5 +230,55 @@ public partial class SearchAreaView : UserControl
         }
 
         await dialog.ShowDialog<bool>(owner);
+    }
+
+    private async void OnOpenFilterBuilderClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not SearchAreaViewModel vm)
+            return;
+
+        var owner = this.FindAncestorOfType<Window>() ?? TopLevel.GetTopLevel(this) as Window;
+        var suggestions = await BuildSuggestionsAsync(vm);
+        var builderVm = new SearchQueryBuilderViewModel(SearchQueryBuilderHelper.DefaultFields, suggestions);
+        var dialog = new SearchQueryBuilderDialogView { DataContext = builderVm };
+
+        builderVm.RequestClose += result =>
+        {
+            if (result.WasApplied)
+            {
+                vm.SearchText = SearchQueryBuilderHelper.ApplyTokenToSearch(
+                    vm.SearchText,
+                    result.Token,
+                    result.ReplaceSearch);
+            }
+
+            dialog.Close();
+        };
+
+        if (owner == null)
+        {
+            dialog.Show();
+            return;
+        }
+
+        await dialog.ShowDialog(owner);
+    }
+
+    private static Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> BuildSuggestionsAsync(SearchAreaViewModel vm)
+    {
+        var snapshot = new List<MediaItem>();
+        foreach (var root in vm.RootNodesSnapshot)
+            CollectItemsRecursive(root, snapshot);
+
+        return Task.Run(() => SearchQueryBuilderHelper.BuildSuggestions(snapshot));
+    }
+
+    private static void CollectItemsRecursive(MediaNode node, ICollection<MediaItem> target)
+    {
+        foreach (var item in node.Items)
+            target.Add(item);
+
+        foreach (var child in node.Children)
+            CollectItemsRecursive(child, target);
     }
 }

@@ -385,6 +385,52 @@
     <data name="Search.ScopesExpandAll" xml:space="preserve"><value>Expand all</value></data>
     <data name="Search.ScopesCollapseAll" xml:space="preserve"><value>Collapse all</value></data>
     <data name="Search.ScopesPartialHint" xml:space="preserve"><value>Partially selected: click clears all child nodes.</value></data>
+    <data name="Search.FilterBuilderTitle" xml:space="preserve"><value>Add Search Filter</value></data>
+    <data name="Search.FilterBuilderIntro" xml:space="preserve"><value>Build a filter and add it to the search text.</value></data>
+    <data name="Search.FilterBuilderField" xml:space="preserve"><value>Field</value></data>
+    <data name="Search.FilterBuilderValue" xml:space="preserve"><value>Value</value></data>
+    <data name="Search.FilterBuilderApplyHint" xml:space="preserve"><value>Use Add to append.
+Use Replace to overwrite the current search.
+Enter = Add, Ctrl+Enter = Replace.</value></data>
+    <data name="Search.FilterBuilderAdd" xml:space="preserve"><value>Add</value></data>
+    <data name="Search.FilterBuilderReplace" xml:space="preserve"><value>Replace</value></data>
+    <data name="Search.AddFieldFilterTooltip" xml:space="preserve"><value>Add field filter</value></data>
+    <data name="Search.ClearSearchTextTooltip" xml:space="preserve"><value>Clear search text</value></data>
+    <data name="Search.SyntaxHelpTooltip" xml:space="preserve"><value>Search syntax
+key:value or key=value
+Examples:
+platform:snes
+status=completed
+year:1998
+favorite:true
+zelda platform:switch
+Multiple terms: zelda platform:switch status:incomplete
+Use quotes for values with spaces.</value></data>
+    <data name="Search.FilterField.Title" xml:space="preserve"><value>Title</value></data>
+    <data name="Search.FilterField.SortTitle" xml:space="preserve"><value>Sort Title</value></data>
+    <data name="Search.FilterField.Description" xml:space="preserve"><value>Description</value></data>
+    <data name="Search.FilterField.Developer" xml:space="preserve"><value>Developer</value></data>
+    <data name="Search.FilterField.Publisher" xml:space="preserve"><value>Publisher</value></data>
+    <data name="Search.FilterField.Platform" xml:space="preserve"><value>Platform</value></data>
+    <data name="Search.FilterField.Source" xml:space="preserve"><value>Source</value></data>
+    <data name="Search.FilterField.Genre" xml:space="preserve"><value>Genre</value></data>
+    <data name="Search.FilterField.Series" xml:space="preserve"><value>Series</value></data>
+    <data name="Search.FilterField.ReleaseType" xml:space="preserve"><value>Release Type</value></data>
+    <data name="Search.FilterField.PlayMode" xml:space="preserve"><value>Play Mode</value></data>
+    <data name="Search.FilterField.MaxPlayers" xml:space="preserve"><value>Max Players</value></data>
+    <data name="Search.FilterField.Status" xml:space="preserve"><value>Status</value></data>
+    <data name="Search.FilterField.Year" xml:space="preserve"><value>Year</value></data>
+    <data name="Search.FilterField.ReleaseDate" xml:space="preserve"><value>Release Date</value></data>
+    <data name="Search.FilterField.Tag" xml:space="preserve"><value>Tag</value></data>
+    <data name="Search.FilterField.CustomField" xml:space="preserve"><value>Custom Fields</value></data>
+    <data name="Search.FilterField.CustomKey" xml:space="preserve"><value>Custom Key</value></data>
+    <data name="Search.FilterField.CustomValue" xml:space="preserve"><value>Custom Value</value></data>
+    <data name="Search.FilterField.Id" xml:space="preserve"><value>ID</value></data>
+    <data name="Search.FilterField.Favorite" xml:space="preserve"><value>Favorite</value></data>
+    <data name="Search.Field.Year" xml:space="preserve"><value>Year</value></data>
+    <data name="Search.Field.Tag" xml:space="preserve"><value>Tag</value></data>
+    <data name="Search.Field.Id" xml:space="preserve"><value>ID</value></data>
+    <data name="Search.Field.Favorite" xml:space="preserve"><value>Favorite</value></data>
   
     <!-- SETTINGS -->
     <data name="Settings.AddProfile" xml:space="preserve"><value>Add Profile</value></data>

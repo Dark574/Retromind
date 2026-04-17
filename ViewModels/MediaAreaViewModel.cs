@@ -133,6 +133,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     /// Command to reset all filters to defaults.
     /// </summary>
     public IRelayCommand ResetFiltersCommand { get; }
+    public IRelayCommand ClearSearchTextCommand { get; }
     
     public MediaAreaViewModel(MediaNode node, double initialItemWidth)
     {
@@ -150,6 +151,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         
         // Allow resetting all filters back to defaults
         ResetFiltersCommand = new RelayCommand(ResetFilters);
+        ClearSearchTextCommand = new RelayCommand(ClearSearchText);
         SelectedStatusOption = StatusOptions[0];
     }
 
@@ -234,6 +236,11 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         SearchText = string.Empty;
         OnlyFavorites = false;
         SelectedStatusOption = StatusOptions[0];
+    }
+
+    private void ClearSearchText()
+    {
+        SearchText = string.Empty;
     }
 
     private List<MediaItem> BuildMatches(string querySnapshot, CancellationToken token)

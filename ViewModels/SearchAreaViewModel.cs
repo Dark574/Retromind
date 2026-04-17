@@ -146,6 +146,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     /// Command to reset all filters to defaults.
     /// </summary>
     public IRelayCommand ResetFiltersCommand { get; }
+    public IRelayCommand ClearSearchTextCommand { get; }
     
     public event Action<MediaItem>? RequestPlay;
     
@@ -187,6 +188,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         
         // Allow resetting all filters back to defaults
         ResetFiltersCommand = new RelayCommand(ResetFilters);
+        ClearSearchTextCommand = new RelayCommand(ClearSearchText);
         SelectedStatusOption = StatusOptions[0];
     }
 
@@ -1052,6 +1054,11 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         OnlyFavorites = false;
         SelectedStatusOption = StatusOptions[0];
         ResetScopeSelectionToDefault();
+    }
+
+    private void ClearSearchText()
+    {
+        SearchText = string.Empty;
     }
 
     private void EnsureDefaultScopeSelection()
