@@ -88,17 +88,19 @@ See `Licenses/Sidplayfp.GPL-2.0.txt`
 
 ## Other NuGet Packages
 
-Retromind may use additional NuGet packages (e.g. helpers and small utilities), typically under permissive licenses such as MIT or BSD.
+Retromind currently references additional NuGet packages such as:
 
-Examples (non-exhaustive, update as needed):
+- `Avalonia.Fonts.Inter`
+- `Avalonia.Markup.Xaml.Loader`
+- `Avalonia.Themes.Fluent`
+- `Avalonia.Diagnostics` (Debug builds)
+- `LibVLCSharp.Avalonia`
+- `System.Text.Json`
+- `Tmds.DBus.Protocol`
 
-- **Package:** `Some.Package.Name` – License: MIT  
-  See: `Licenses/Some.Package.Name.MIT.txt`
+The exact dependency graph can vary by platform and build configuration because of transitive packages (for example `Avalonia.X11`, `SkiaSharp`, `HarfBuzzSharp`, `Tmds.DBus.Protocol` and others).
 
-- **Package:** `Another.Package` – License: BSD-2-Clause  
-  See: `Licenses/Another.Package.BSD-2-Clause.txt`
-
-Please consult the `Licenses/` directory for the complete list of third-party license texts included with this distribution.
+Please consult the `Licenses/` directory and package metadata for the complete, version-specific third-party license information in your distribution.
 
 ---
 
