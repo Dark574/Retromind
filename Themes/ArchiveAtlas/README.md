@@ -11,11 +11,10 @@ films, books, and other media types.
 - Catalog-style details panel on the right
 
 ## Fonts
-This theme ships with the following fonts (OFL licensed):
-- Fraunces (SemiBold)
-- IBM Plex Sans (Regular, SemiBold)
+This theme currently ships with:
 - IBM Plex Mono (Regular)
 
+Title/body fonts are resolved via system `Serif`/`Sans` families for now.
 See the license files in `Fonts/`.
 
 ## Optional background video
