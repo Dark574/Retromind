@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -82,6 +83,9 @@ public partial class MainWindowViewModel : ViewModelBase
     
     // Keeps the currently active content VM so we can detach event handlers (prevents leaks).
     private MediaAreaViewModel? _currentMediaAreaVm;
+    private SearchAreaViewModel? _currentSearchAreaVm;
+    private int _currentShownGameCount;
+    private int _totalLibraryGameCount;
     
     public IStorageProvider? StorageProvider { get; set; }
     
@@ -145,6 +149,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
             RefreshTreeVisibility();
             OnPropertyChanged(nameof(ShowEmptyLibraryHint));
+            UpdateLibraryGameCounters();
         }
     }
 
@@ -186,6 +191,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
             OnPropertyChanged(nameof(ShowLibraryLoadingHint));
             OnPropertyChanged(nameof(ShowEmptyLibraryHint));
+            UpdateLibraryGameCounters();
         }
     }
 
@@ -194,6 +200,11 @@ public partial class MainWindowViewModel : ViewModelBase
     // Empty-library hint should only be shown for truly empty libraries,
     // not while startup loading is still building the first content.
     public bool ShowEmptyLibraryHint => !IsLibraryLoading && SelectedNodeContent is null && RootItems.Count == 0;
+    public bool ShowLibraryGameCountSummary => TotalLibraryGameCount > 0;
+    public int CurrentShownGameCount => _currentShownGameCount;
+    public int TotalLibraryGameCount => _totalLibraryGameCount;
+    public string LibraryGameCountSummary =>
+        $"{CurrentShownGameCount.ToString("N0", CultureInfo.CurrentCulture)} angezeigt | {TotalLibraryGameCount.ToString("N0", CultureInfo.CurrentCulture)} gesamt";
 
     public string? ResolvedSelectedItemLogoPath => ResolveSelectedItemAsset(AssetType.Logo);
     public string? ResolvedSelectedItemWallpaperPath => ResolveSelectedItemAsset(AssetType.Wallpaper);
@@ -585,6 +596,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         _isLibraryDirty = true;
         _libraryDirtyVersion++;
+        UpdateLibraryGameCounters();
 
         DebouncedSaveLibrary();
     }
@@ -1022,6 +1034,7 @@ public partial class MainWindowViewModel : ViewModelBase
         // Unsubscribe events to avoid repeated invocations after content switches.
         _currentMediaAreaVm.RequestPlay -= OnMediaAreaRequestPlay;
         _currentMediaAreaVm.PropertyChanged -= OnMediaAreaPropertyChanged;
+        _currentMediaAreaVm.FilteredItems.CollectionChanged -= OnMediaAreaFilteredItemsChanged;
         _currentMediaAreaVm.Dispose();
 
         _currentMediaAreaVm = null;
@@ -1029,10 +1042,108 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void DetachSearchAreaHandlers()
     {
-        if (SelectedNodeContent is not SearchAreaViewModel searchVm)
+        if (_currentSearchAreaVm == null)
             return;
 
-        searchVm.Dispose();
+        _currentSearchAreaVm.RequestPlay -= OnSearchAreaRequestPlay;
+        _currentSearchAreaVm.PropertyChanged -= OnSearchAreaPropertyChanged;
+        _currentSearchAreaVm.SearchResults.CollectionChanged -= OnSearchAreaResultsChanged;
+        _currentSearchAreaVm.Dispose();
+        _currentSearchAreaVm = null;
+    }
+
+    private void AttachSearchAreaHandlers(SearchAreaViewModel searchVm)
+    {
+        _currentSearchAreaVm = searchVm;
+        searchVm.RequestPlay += OnSearchAreaRequestPlay;
+        searchVm.PropertyChanged += OnSearchAreaPropertyChanged;
+        searchVm.SearchResults.CollectionChanged += OnSearchAreaResultsChanged;
+    }
+
+    private void OnSearchAreaRequestPlay(MediaItem item)
+    {
+        _ = PlayMediaAsync(item);
+    }
+
+    private void OnSearchAreaPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is not SearchAreaViewModel searchVm)
+            return;
+
+        if (e.PropertyName == nameof(SearchAreaViewModel.ItemWidth))
+        {
+            ItemWidth = searchVm.ItemWidth;
+            SaveSettingsOnly();
+            return;
+        }
+
+        if (e.PropertyName != nameof(SearchAreaViewModel.SelectedMediaItem))
+            return;
+
+        var item = searchVm.SelectedMediaItem;
+
+        OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+        OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+        OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+        OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+
+        if (!_currentSettings.EnableSelectionMusicPreview)
+        {
+            _audioService.StopMusic();
+            return;
+        }
+
+        var musicAsset = item?.GetPrimaryAssetPath(AssetType.Music);
+        if (!string.IsNullOrEmpty(musicAsset))
+            _ = _audioService.PlayMusicAsync(AppPaths.ResolveDataPath(musicAsset));
+        else
+            _audioService.StopMusic();
+    }
+
+    private void OnSearchAreaResultsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        UpdateLibraryGameCounters();
+    }
+
+    private void OnMediaAreaFilteredItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        UpdateLibraryGameCounters();
+    }
+
+    private void UpdateLibraryGameCounters()
+    {
+        var shownCount = _currentMediaAreaVm?.FilteredItems.Count
+                         ?? _currentSearchAreaVm?.SearchResults.Count
+                         ?? 0;
+        var totalCount = CountAllGames(RootItems);
+
+        if (_currentShownGameCount != shownCount)
+        {
+            _currentShownGameCount = shownCount;
+            OnPropertyChanged(nameof(CurrentShownGameCount));
+            OnPropertyChanged(nameof(LibraryGameCountSummary));
+        }
+
+        if (_totalLibraryGameCount != totalCount)
+        {
+            _totalLibraryGameCount = totalCount;
+            OnPropertyChanged(nameof(TotalLibraryGameCount));
+            OnPropertyChanged(nameof(LibraryGameCountSummary));
+            OnPropertyChanged(nameof(ShowLibraryGameCountSummary));
+        }
+    }
+
+    private static int CountAllGames(IEnumerable<MediaNode> nodes)
+    {
+        var total = 0;
+        foreach (var node in nodes)
+        {
+            total += node.Items.Count;
+            if (node.Children.Count > 0)
+                total += CountAllGames(node.Children);
+        }
+
+        return total;
     }
 
     private void OnMediaAreaRequestPlay(MediaItem item)
@@ -1301,6 +1412,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     _currentMediaAreaVm = mediaVm;
                     mediaVm.RequestPlay += OnMediaAreaRequestPlay;
                     mediaVm.PropertyChanged += OnMediaAreaPropertyChanged;
+                    mediaVm.FilteredItems.CollectionChanged += OnMediaAreaFilteredItemsChanged;
 
                     string? itemIdToSelect = null;
                     var hadNodeSelection = false;

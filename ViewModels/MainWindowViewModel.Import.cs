@@ -1446,40 +1446,7 @@ public partial class MainWindowViewModel
         OnPropertyChanged(nameof(SelectedNode));
         
         var searchVm = new SearchAreaViewModel(RootItems, IsParentalFilterActive) { ItemWidth = ItemWidth };
-        searchVm.RequestPlay += item => {_ = PlayMediaAsync(item); }; // Now using Async method
-        
-        searchVm.PropertyChanged += (s, e) => 
-        {
-            if (e.PropertyName == nameof(SearchAreaViewModel.ItemWidth))
-            {
-                ItemWidth = searchVm.ItemWidth;
-                SaveSettingsOnly();
-                return;
-            }
-
-            if (e.PropertyName == nameof(SearchAreaViewModel.SelectedMediaItem))
-            {
-                var item = searchVm.SelectedMediaItem;
-
-                OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
-                OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
-                OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
-                OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
-
-                if (!_currentSettings.EnableSelectionMusicPreview)
-                {
-                    _audioService.StopMusic();
-                    return;
-                }
-
-                // Music logic with helper and assets
-                var musicAsset = item?.GetPrimaryAssetPath(AssetType.Music);
-                if (!string.IsNullOrEmpty(musicAsset))
-                    _ = _audioService.PlayMusicAsync(AppPaths.ResolveDataPath(musicAsset));
-                else
-                    _audioService.StopMusic();
-            }
-        };
+        AttachSearchAreaHandlers(searchVm);
         SelectedNodeContent = searchVm;
     }
 

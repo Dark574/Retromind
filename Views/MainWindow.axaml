@@ -112,7 +112,7 @@
                            Background="{Binding PanelBackground}">
 
                        <!-- We're putting the TreeView and header into a grid -->
-                       <Grid RowDefinitions="Auto, *">
+                       <Grid RowDefinitions="Auto, *, Auto">
 
                            <!-- Header bar with settings button -->
                            <!-- CORRECTED: Added one more "Car" column -->
@@ -287,6 +287,16 @@
                                    Foreground="{Binding TextColor}">
                                <TextBlock Text="{Binding ParentalLockButtonText}" FontSize="12" />
                            </Button>
+
+                           <TextBlock Grid.Row="2"
+                                      Text="{Binding LibraryGameCountSummary}"
+                                      IsVisible="{Binding ShowLibraryGameCountSummary}"
+                                      HorizontalAlignment="Center"
+                                      TextAlignment="Center"
+                                      Margin="10,6,10,10"
+                                      FontSize="14"
+                                      FontWeight="SemiBold"
+                                      Opacity="0.9" />
                        </Grid>
                    </Border>
 
