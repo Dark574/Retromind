@@ -135,24 +135,46 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     public IRelayCommand ResetFiltersCommand { get; }
     public IRelayCommand ClearSearchTextCommand { get; }
     
-    public MediaAreaViewModel(MediaNode node, double initialItemWidth)
+    public MediaAreaViewModel(
+        MediaNode node,
+        double initialItemWidth,
+        string initialSearchText = "",
+        bool initialOnlyFavorites = false,
+        PlayStatus? initialStatus = null)
     {
         Node = node ?? throw new ArgumentNullException(nameof(node));
         ItemWidth = initialItemWidth;
+
+        _searchText = initialSearchText ?? string.Empty;
+        _onlyFavorites = initialOnlyFavorites;
+        _selectedStatus = initialStatus;
 
         // Snapshot items for filtering. (If you later support live updates, we can sync this list.)
         _allItems = new List<MediaItem>(node.Items);
         foreach (var item in _allItems)
             item.PropertyChanged += OnItemPropertyChanged;
 
-        PopulateItems(_allItems);
+        var hasInitialFilter =
+            !string.IsNullOrWhiteSpace(_searchText) ||
+            _onlyFavorites ||
+            _selectedStatus.HasValue;
+
+        if (hasInitialFilter)
+        {
+            var initialMatches = BuildMatches(_searchText, CancellationToken.None);
+            PopulateItems(initialMatches);
+        }
+        else
+        {
+            PopulateItems(_allItems);
+        }
 
         DoubleClickCommand = new RelayCommand(OnDoubleClick);
         
         // Allow resetting all filters back to defaults
         ResetFiltersCommand = new RelayCommand(ResetFilters);
         ClearSearchTextCommand = new RelayCommand(ClearSearchText);
-        SelectedStatusOption = StatusOptions[0];
+        SelectedStatusOption = StatusOptions.FirstOrDefault(o => o.Value == _selectedStatus) ?? StatusOptions[0];
     }
 
     public ICommand DoubleClickCommand { get; }
@@ -248,9 +270,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         var query = querySnapshot?.Trim();
         var favoritesOnly = OnlyFavorites;
         var statusFilter = SelectedStatus;
-        var hasQuery = !string.IsNullOrWhiteSpace(query);
-        List<PowerQueryTerm> powerTerms = [];
-        var hasPowerQuery = hasQuery && TryParsePowerQuery(query!, out powerTerms);
+        var queryMatcher = SearchQueryMatcher.Create(query);
 
         if (string.IsNullOrWhiteSpace(query) && !favoritesOnly && statusFilter == null)
         {
@@ -273,22 +293,10 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
             if (statusFilter.HasValue && item.Status != statusFilter.Value)
                 continue;
             
-            if (hasQuery)
+            if (queryMatcher.IsActive)
             {
-                if (hasPowerQuery)
-                {
-                    if (!MatchesPowerQuery(item, powerTerms))
-                        continue;
-                }
-                else
-                {
-                    var title = item.Title;
-                    if (string.IsNullOrEmpty(title) ||
-                        !title.Contains(query!, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-                }
+                if (!queryMatcher.Matches(item))
+                    continue;
             }
 
             matches.Add(item);

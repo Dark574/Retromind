@@ -156,7 +156,7 @@
     <data name="Dialog.SelectXdgDataFolder" xml:space="preserve"><value>XDG-Datenordner auswählen</value></data>
     <data name="Dialog.SelectXdgStateFolder" xml:space="preserve"><value>XDG-State-Ordner auswählen</value></data>
     <data name="Dialog.SelectXdgBaseFolder" xml:space="preserve"><value>XDG-Basisordner auswählen</value></data>
-    <data name="Dialog.TitleSearch" xml:space="preserve"><value>Titel suchen...</value></data>
+    <data name="Dialog.TitleSearch" xml:space="preserve"><value>Titel oder Query suchen...</value></data>
     <data name="Dialog_ImportAssetTitle" xml:space="preserve"><value>Importiere {0}</value></data>
     <data name="Dialog_FileExtensionsPrompt" xml:space="preserve"><value>Dateiendungen (kommagetrennt):</value></data>
     <data name="Dialog_NoSteamGamesFound" xml:space="preserve"><value>Keine Steam-Spiele gefunden.</value></data>
@@ -376,7 +376,7 @@
     <!-- SEARCH -->
     <data name="Search.Global" xml:space="preserve"><value>Globale Suche öffnen</value></data>
     <data name="Search.GlobalShort" xml:space="preserve"><value>Globale Suche</value></data>
-    <data name="Search.Search" xml:space="preserve"><value>Suchen...</value></data>
+    <data name="Search.Search" xml:space="preserve"><value>Titel oder Query suchen...</value></data>
     <data name="Search.ScopesSelectedFormat" xml:space="preserve"><value>Knoten: {0} ausgewählt</value></data>
     <data name="Search.ScopesNoneSelected" xml:space="preserve"><value>Knoten: keine ausgewählt</value></data>
     <data name="Search.ScopesEdit" xml:space="preserve"><value>Knoten auswählen...</value></data>
@@ -388,10 +388,11 @@
     <data name="Search.ScopesCollapseAll" xml:space="preserve"><value>Alle einklappen</value></data>
     <data name="Search.ScopesPartialHint" xml:space="preserve"><value>Teilweise ausgewählt: Klick entfernt alle Unterknoten.</value></data>
     <data name="Search.FilterBuilderTitle" xml:space="preserve"><value>Suchfilter hinzufügen</value></data>
-    <data name="Search.FilterBuilderIntro" xml:space="preserve"><value>Filter zusammenstellen und in den Suchtext übernehmen.</value></data>
+    <data name="Search.FilterBuilderIntro" xml:space="preserve"><value>Feldfilter zusammenstellen und zur Query hinzufügen.</value></data>
     <data name="Search.FilterBuilderField" xml:space="preserve"><value>Feld</value></data>
     <data name="Search.FilterBuilderValue" xml:space="preserve"><value>Wert</value></data>
-    <data name="Search.FilterBuilderApplyHint" xml:space="preserve"><value>Mit Hinzufügen wird angehängt.
+    <data name="Search.FilterBuilderApplyHint" xml:space="preserve"><value>Wähle oben AND/OR und optional NOT/( ) aus.
+Mit Hinzufügen wird angehängt.
 Mit Ersetzen wird der aktuelle Suchtext überschrieben.
 Enter = Hinzufügen, Strg+Enter = Ersetzen.</value></data>
     <data name="Search.FilterBuilderAdd" xml:space="preserve"><value>Hinzufügen</value></data>
@@ -399,15 +400,20 @@ Enter = Hinzufügen, Strg+Enter = Ersetzen.</value></data>
     <data name="Search.AddFieldFilterTooltip" xml:space="preserve"><value>Feldfilter hinzufügen</value></data>
     <data name="Search.ClearSearchTextTooltip" xml:space="preserve"><value>Suchtext leeren</value></data>
     <data name="Search.SyntaxHelpTooltip" xml:space="preserve"><value>Suchsyntax
-key:value oder key=value
+Freitext sucht standardmäßig im Titel.
+field:value oder field=value
+has:field / missing:field
+Operatoren: AND, OR, NOT, ( )
+Leerzeichen zwischen Termen = AND
+Für Werte mit Leerzeichen Anführungszeichen verwenden.
+
 Beispiele:
-platform:snes
-status=completed
-year:1998
-favorite:true
-zelda platform:switch
-Mehrere Terme: zelda platform:switch status:incomplete
-Für Werte mit Leerzeichen Anführungszeichen verwenden.</value></data>
+genre:platformer
+genre:platformer AND platform:snes
+missing:genre OR missing:developer
+has:genre AND NOT genre:unknown
+(genre:platformer OR genre:metroidvania) AND NOT missing:rating
+zelda AND platform:switch</value></data>
     <data name="Search.FilterField.Title" xml:space="preserve"><value>Titel</value></data>
     <data name="Search.FilterField.SortTitle" xml:space="preserve"><value>Sortiertitel</value></data>
     <data name="Search.FilterField.Description" xml:space="preserve"><value>Beschreibung</value></data>

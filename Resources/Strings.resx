@@ -155,7 +155,7 @@
     <data name="Dialog.SelectXdgDataFolder" xml:space="preserve"><value>Select XDG data folder</value></data>
     <data name="Dialog.SelectXdgStateFolder" xml:space="preserve"><value>Select XDG state folder</value></data>
     <data name="Dialog.SelectXdgBaseFolder" xml:space="preserve"><value>Select XDG base folder</value></data>
-    <data name="Dialog.TitleSearch" xml:space="preserve"><value>Search title...</value></data>
+    <data name="Dialog.TitleSearch" xml:space="preserve"><value>Search title or query...</value></data>
     <data name="Dialog_ImportAssetTitle" xml:space="preserve"><value>Import {0}</value></data>
     <data name="Dialog_FileExtensionsPrompt" xml:space="preserve"><value>File extensions (comma separated):</value></data>
     <data name="Dialog_NoSteamGamesFound" xml:space="preserve"><value>No Steam games found.</value></data>
@@ -374,7 +374,7 @@
     <!-- SEARCH -->
     <data name="Search.Global" xml:space="preserve"><value>Open global search</value></data>
     <data name="Search.GlobalShort" xml:space="preserve"><value>Global search</value></data>
-    <data name="Search.Search" xml:space="preserve"><value>Search...</value></data>
+    <data name="Search.Search" xml:space="preserve"><value>Search title or query...</value></data>
     <data name="Search.ScopesSelectedFormat" xml:space="preserve"><value>Nodes: {0} selected</value></data>
     <data name="Search.ScopesNoneSelected" xml:space="preserve"><value>Nodes: none selected</value></data>
     <data name="Search.ScopesEdit" xml:space="preserve"><value>Select nodes...</value></data>
@@ -386,10 +386,11 @@
     <data name="Search.ScopesCollapseAll" xml:space="preserve"><value>Collapse all</value></data>
     <data name="Search.ScopesPartialHint" xml:space="preserve"><value>Partially selected: click clears all child nodes.</value></data>
     <data name="Search.FilterBuilderTitle" xml:space="preserve"><value>Add Search Filter</value></data>
-    <data name="Search.FilterBuilderIntro" xml:space="preserve"><value>Build a filter and add it to the search text.</value></data>
+    <data name="Search.FilterBuilderIntro" xml:space="preserve"><value>Build a field filter and add it to your query.</value></data>
     <data name="Search.FilterBuilderField" xml:space="preserve"><value>Field</value></data>
     <data name="Search.FilterBuilderValue" xml:space="preserve"><value>Value</value></data>
-    <data name="Search.FilterBuilderApplyHint" xml:space="preserve"><value>Use Add to append.
+    <data name="Search.FilterBuilderApplyHint" xml:space="preserve"><value>Choose AND/OR and optional NOT/( ) above.
+Use Add to append.
 Use Replace to overwrite the current search.
 Enter = Add, Ctrl+Enter = Replace.</value></data>
     <data name="Search.FilterBuilderAdd" xml:space="preserve"><value>Add</value></data>
@@ -397,15 +398,20 @@ Enter = Add, Ctrl+Enter = Replace.</value></data>
     <data name="Search.AddFieldFilterTooltip" xml:space="preserve"><value>Add field filter</value></data>
     <data name="Search.ClearSearchTextTooltip" xml:space="preserve"><value>Clear search text</value></data>
     <data name="Search.SyntaxHelpTooltip" xml:space="preserve"><value>Search syntax
-key:value or key=value
+Plain terms search title by default.
+field:value or field=value
+has:field / missing:field
+Operators: AND, OR, NOT, ( )
+Space between terms = AND
+Use quotes for values with spaces.
+
 Examples:
-platform:snes
-status=completed
-year:1998
-favorite:true
-zelda platform:switch
-Multiple terms: zelda platform:switch status:incomplete
-Use quotes for values with spaces.</value></data>
+genre:platformer
+genre:platformer AND platform:snes
+missing:genre OR missing:developer
+has:genre AND NOT genre:unknown
+(genre:platformer OR genre:metroidvania) AND NOT missing:rating
+zelda AND platform:switch</value></data>
     <data name="Search.FilterField.Title" xml:space="preserve"><value>Title</value></data>
     <data name="Search.FilterField.SortTitle" xml:space="preserve"><value>Sort Title</value></data>
     <data name="Search.FilterField.Description" xml:space="preserve"><value>Description</value></data>

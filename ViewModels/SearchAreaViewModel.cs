@@ -237,6 +237,18 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
     public IReadOnlyList<MediaNode> RootNodesSnapshot => RootNodes.ToList();
 
+    public IReadOnlyList<MediaNode> ScopeDialogRootNodesSnapshot
+    {
+        get
+        {
+            var roots = RootNodes;
+            if (!_parentalFilterActive)
+                return roots.ToList();
+
+            return roots.Where(n => n.IsVisibleInTree).ToList();
+        }
+    }
+
     public HashSet<string> GetSelectedScopeIdsSnapshot()
         => new(_selectedScopeNodeIds, StringComparer.Ordinal);
 
@@ -365,6 +377,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             return;
 
         var query = SearchText?.Trim();
+        var queryMatcher = SearchQueryMatcher.Create(query);
+        var showNodeHitCounts = queryMatcher.IsActive;
         var yearText = SearchYear?.Trim();
         var favoritesOnly = OnlyFavorites;
         var statusFilter = SelectedStatus;
@@ -387,6 +401,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 SearchResults.Clear();
                 ItemRows.Clear();
                 SelectedMediaItem = null;
+                ApplyNodeHitCountsToTree(RootNodes, counts: null, showCounts: false);
                 OnPropertyChanged(nameof(HasResults));
                 OnPropertyChanged(nameof(HasNoResults));
                 OnPropertyChanged(nameof(ShowNoResults));
@@ -415,6 +430,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 SearchResults.Clear();
                 ItemRows.Clear();
                 SelectedMediaItem = null;
+                ApplyNodeHitCountsToTree(RootNodes, counts: null, showCounts: showNodeHitCounts);
                 OnPropertyChanged(nameof(HasResults));
                 OnPropertyChanged(nameof(HasNoResults));
                 OnPropertyChanged(nameof(ShowNoResults));
@@ -425,6 +441,9 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
         var results = new List<MediaItem>(capacity: 256);
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        Dictionary<string, int>? nodeHitCounts = showNodeHitCounts
+            ? new Dictionary<string, int>(StringComparer.Ordinal)
+            : null;
 
         // Evaluate in background; only UI assignment is marshaled
         for (int i = 0; i < activeScopes.Count; i++)
@@ -434,11 +453,13 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 activeScopes[i],
                 results,
                 seen,
-                query,
+                queryMatcher,
                 filterYear,
                 favoritesOnly,
                 statusFilter,
                 _parentalFilterActive,
+                nodeHitCounts,
+                new List<string>(capacity: 16),
                 token);
         }
 
@@ -453,6 +474,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             SearchResults.ReplaceAll(results);
             EnsureSelectionIsValid(SearchResults);
             RebuildRows();
+            ApplyNodeHitCountsToTree(RootNodes, nodeHitCounts, showNodeHitCounts);
 
             OnPropertyChanged(nameof(HasResults));
             OnPropertyChanged(nameof(HasNoResults));
@@ -563,6 +585,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         foreach (var node in _trackedRootNodes.ToList())
             UntrackRootNode(node);
 
+        ApplyNodeHitCountsToTree(RootNodes, counts: null, showCounts: false);
         ItemRows.Clear();
     }
 
@@ -570,14 +593,17 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         MediaNode node,
         List<MediaItem> matches,
         HashSet<string> seen,
-        string? query,
+        SearchQueryMatcher queryMatcher,
         int? filterYear,
         bool favoritesOnly,
         PlayStatus? statusFilter,
         bool parentalFilterActive,
+        Dictionary<string, int>? nodeHitCounts,
+        List<string> nodePath,
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        nodePath.Add(node.Id);
 
         // Scan items in this node
         List<MediaItem> items = new();
@@ -598,8 +624,14 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             if (parentalFilterActive && item.IsProtected)
                 continue;
 
-            if (!Matches(item, query, filterYear, favoritesOnly, statusFilter))
+            if (!Matches(item, queryMatcher, filterYear, favoritesOnly, statusFilter))
                 continue;
+
+            if (nodeHitCounts != null)
+            {
+                for (var pathIndex = 0; pathIndex < nodePath.Count; pathIndex++)
+                    IncrementNodeHitCount(nodeHitCounts, nodePath[pathIndex]);
+            }
 
             if (string.IsNullOrWhiteSpace(item.Id))
             {
@@ -618,18 +650,22 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 children[i],
                 matches,
                 seen,
-                query,
+                queryMatcher,
                 filterYear,
                 favoritesOnly,
                 statusFilter,
                 parentalFilterActive,
+                nodeHitCounts,
+                nodePath,
                 token);
         }
+
+        nodePath.RemoveAt(nodePath.Count - 1);
     }
 
     private static bool Matches(
         MediaItem item,
-        string? query,
+        SearchQueryMatcher queryMatcher,
         int? filterYear,
         bool favoritesOnly,
         PlayStatus? statusFilter)
@@ -645,20 +681,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         // 3) Text filter:
         // - plain text: title-only (legacy behavior)
         // - power syntax (key:value / key=value): metadata-aware query
-        if (!string.IsNullOrWhiteSpace(query))
-        {
-            if (TryParsePowerQuery(query, out var powerTerms))
-            {
-                if (!MatchesPowerQuery(item, powerTerms))
-                    return false;
-            }
-            else
-            {
-                var title = item.Title;
-                if (string.IsNullOrEmpty(title) || !title.Contains(query, StringComparison.OrdinalIgnoreCase))
-                    return false;
-            }
-        }
+        if (queryMatcher.IsActive && !queryMatcher.Matches(item))
+            return false;
 
         // 4) Year filter
         if (filterYear.HasValue)
@@ -668,6 +692,43 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         }
 
         return true;
+    }
+
+    private static void IncrementNodeHitCount(IDictionary<string, int> counts, string nodeId)
+    {
+        if (!counts.TryAdd(nodeId, 1))
+            counts[nodeId]++;
+    }
+
+    private static void ApplyNodeHitCountsToTree(
+        IEnumerable<MediaNode> roots,
+        IReadOnlyDictionary<string, int>? counts,
+        bool showCounts)
+    {
+        foreach (var root in roots)
+            ApplyNodeHitCountsRecursive(root, counts, showCounts);
+    }
+
+    private static void ApplyNodeHitCountsRecursive(
+        MediaNode node,
+        IReadOnlyDictionary<string, int>? counts,
+        bool showCounts)
+    {
+        if (showCounts)
+        {
+            node.GlobalSearchHitCount = counts != null && counts.TryGetValue(node.Id, out var count)
+                ? count
+                : 0;
+            node.ShowGlobalSearchHitCount = true;
+        }
+        else
+        {
+            node.ShowGlobalSearchHitCount = false;
+            node.GlobalSearchHitCount = null;
+        }
+
+        foreach (var child in node.Children)
+            ApplyNodeHitCountsRecursive(child, counts, showCounts);
     }
 
     private static bool TryParsePowerQuery(string query, out List<PowerQueryTerm> terms)

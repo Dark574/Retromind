@@ -1434,9 +1434,16 @@ public partial class MainWindowViewModel
             return;
         }
 
+        if (_currentMediaAreaVm != null)
+        {
+            _searchUiState.SharedSearchText = _currentMediaAreaVm.SearchText ?? string.Empty;
+            _searchUiState.SharedOnlyFavorites = _currentMediaAreaVm.OnlyFavorites;
+        }
+
         // Remember where the user came from so we can restore it on next toggle.
         _searchReturnNodeId = SelectedNode?.Id;
         _searchReturnItemId = _currentMediaAreaVm?.SelectedMediaItem?.Id;
+        _pendingGlobalSearchSelectionItemId = _searchReturnItemId;
 
         // Ensure any previous media-area handlers are detached before switching views.
         DetachMediaAreaHandlers();
@@ -1447,12 +1454,17 @@ public partial class MainWindowViewModel
         OnPropertyChanged(nameof(SelectedNode));
         
         var searchVm = new SearchAreaViewModel(RootItems, IsParentalFilterActive) { ItemWidth = ItemWidth };
+        searchVm.OnlyFavorites = _searchUiState.SharedOnlyFavorites;
+        searchVm.SearchText = _searchUiState.SharedSearchText;
+        if (_searchUiState.HasGlobalScopeSelection)
+            searchVm.ApplyScopeSelection(_searchUiState.GlobalScopeNodeIds);
         AttachSearchAreaHandlers(searchVm);
         SelectedNodeContent = searchVm;
     }
 
     private void CloseIntegratedSearch(SearchAreaViewModel searchVm)
     {
+        _searchUiState.SharedSearchText = searchVm.SearchText ?? string.Empty;
         var selectedSearchItemId = searchVm.SelectedMediaItem?.Id;
         var desiredItemId = selectedSearchItemId ?? _searchReturnItemId;
 
@@ -1482,6 +1494,8 @@ public partial class MainWindowViewModel
 
         if (targetNode == null)
         {
+            _restoreSearchUiStateOnNextContentBuild = false;
+            _pendingGlobalSearchSelectionItemId = null;
             _selectedNode = null;
             OnPropertyChanged(nameof(SelectedNode));
             SelectedNodeContent = null;
@@ -1497,6 +1511,7 @@ public partial class MainWindowViewModel
         if (!string.IsNullOrWhiteSpace(desiredItemId))
             _lastSelectedMediaByNodeId[targetNode.Id] = desiredItemId;
 
+        _restoreSearchUiStateOnNextContentBuild = true;
         ExpandPathToNode(RootItems, targetNode);
         SelectedNode = targetNode;
     }

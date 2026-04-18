@@ -47,12 +47,30 @@ public partial class MediaNode : ObservableObject
     [ObservableProperty] 
     private string _name = string.Empty;
 
+    [ObservableProperty]
+    [property: JsonIgnore]
+    private int? _globalSearchHitCount;
+
+    [ObservableProperty]
+    [property: JsonIgnore]
+    private bool _showGlobalSearchHitCount;
+
+    [JsonIgnore]
+    public string TreeDisplayName =>
+        ShowGlobalSearchHitCount && GlobalSearchHitCount.HasValue
+            ? $"{Name} ({GlobalSearchHitCount.Value})"
+            : Name;
+
     /// <summary>
     /// Type of the node (Root Area vs. Group).
     /// Used for visual distinction (icons).
     /// </summary>
     [ObservableProperty] 
     private NodeType _type;
+
+    partial void OnNameChanged(string value) => OnPropertyChanged(nameof(TreeDisplayName));
+    partial void OnGlobalSearchHitCountChanged(int? value) => OnPropertyChanged(nameof(TreeDisplayName));
+    partial void OnShowGlobalSearchHitCountChanged(bool value) => OnPropertyChanged(nameof(TreeDisplayName));
 
     // --- UI State ---
 

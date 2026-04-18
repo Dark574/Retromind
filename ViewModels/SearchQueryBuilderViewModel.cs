@@ -5,10 +5,18 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
+using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
-public sealed record SearchQueryBuilderResult(bool WasApplied, bool ReplaceSearch, string Token);
+public sealed record SearchQueryBuilderResult(
+    bool WasApplied,
+    bool ReplaceSearch,
+    string Token,
+    string? JoinOperator = null);
+
+public sealed record SearchJoinOperatorOption(string Key, string Label);
+public sealed record SearchMatchModeOption(string Key, string Label);
 
 public partial class SearchQueryBuilderViewModel : ViewModelBase
 {
@@ -17,8 +25,15 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
     private const double MaxFieldComboMinWidth = 420;
 
     public ObservableCollection<SearchQueryFieldOption> FieldOptions { get; } = new();
+    public ObservableCollection<SearchJoinOperatorOption> JoinOperatorOptions { get; } = new();
+    public ObservableCollection<SearchMatchModeOption> MatchModeOptions { get; } = new();
     public ObservableCollection<string> ValueSuggestions { get; } = new();
     public double FieldComboMinWidth { get; }
+
+    public string JoinLabel { get; }
+    public string MatchModeLabel { get; }
+    public string NegateLabel { get; }
+    public string GroupLabel { get; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddTokenCommand))]
@@ -29,6 +44,23 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(AddTokenCommand))]
     [NotifyCanExecuteChangedFor(nameof(ReplaceSearchCommand))]
     private string _valueText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddTokenCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceSearchCommand))]
+    private SearchMatchModeOption? _selectedMatchMode;
+
+    [ObservableProperty]
+    private SearchJoinOperatorOption? _selectedJoinOperator;
+
+    [ObservableProperty]
+    private bool _negateToken;
+
+    [ObservableProperty]
+    private bool _wrapTokenInParentheses;
+
+    public bool IsValueInputEnabled =>
+        string.Equals(SelectedMatchMode?.Key, "contains", StringComparison.OrdinalIgnoreCase);
 
     public IRelayCommand AddTokenCommand { get; }
     public IRelayCommand ReplaceSearchCommand { get; }
@@ -45,12 +77,26 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
         foreach (var field in fields ?? throw new ArgumentNullException(nameof(fields)))
             FieldOptions.Add(field);
 
+        JoinLabel = T("Search.FilterBuilderJoin", "Join");
+        MatchModeLabel = T("Search.FilterBuilderMode", "Match");
+        NegateLabel = T("Search.FilterBuilderNot", "Negate (NOT)");
+        GroupLabel = T("Search.FilterBuilderGroup", "Wrap in parentheses");
+
+        MatchModeOptions.Add(new SearchMatchModeOption("contains", T("Search.FilterBuilderModeContains", "Contains")));
+        MatchModeOptions.Add(new SearchMatchModeOption("has", T("Search.FilterBuilderModeHas", "Has value")));
+        MatchModeOptions.Add(new SearchMatchModeOption("missing", T("Search.FilterBuilderModeMissing", "Is missing")));
+
+        JoinOperatorOptions.Add(new SearchJoinOperatorOption("AND", T("Search.FilterBuilderJoinAnd", "AND")));
+        JoinOperatorOptions.Add(new SearchJoinOperatorOption("OR", T("Search.FilterBuilderJoinOr", "OR")));
+
         FieldComboMinWidth = CalculateFieldComboMinWidth(FieldOptions);
 
         AddTokenCommand = new RelayCommand(() => Submit(replaceSearch: false), CanSubmit);
         ReplaceSearchCommand = new RelayCommand(() => Submit(replaceSearch: true), CanSubmit);
 
         SelectedField = FieldOptions.FirstOrDefault();
+        SelectedMatchMode = MatchModeOptions.FirstOrDefault();
+        SelectedJoinOperator = JoinOperatorOptions.FirstOrDefault();
     }
 
     private static double CalculateFieldComboMinWidth(IEnumerable<SearchQueryFieldOption> fields)
@@ -90,9 +136,22 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
         RefreshValueSuggestions();
     }
 
+    partial void OnSelectedMatchModeChanged(SearchMatchModeOption? value)
+    {
+        OnPropertyChanged(nameof(IsValueInputEnabled));
+        AddTokenCommand.NotifyCanExecuteChanged();
+        ReplaceSearchCommand.NotifyCanExecuteChanged();
+    }
+
     private bool CanSubmit()
     {
-        return SelectedField != null && !string.IsNullOrWhiteSpace(ValueText);
+        if (SelectedField == null || SelectedMatchMode == null)
+            return false;
+
+        if (!IsValueInputEnabled)
+            return true;
+
+        return !string.IsNullOrWhiteSpace(ValueText);
     }
 
     private void Submit(bool replaceSearch)
@@ -100,8 +159,29 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
         if (!CanSubmit() || SelectedField == null)
             return;
 
-        var token = SearchQueryBuilderHelper.BuildToken(SelectedField.Key, ValueText);
-        RequestClose?.Invoke(new SearchQueryBuilderResult(true, replaceSearch, token));
+        var token = BuildToken();
+        if (NegateToken)
+            token = $"NOT {token}";
+        if (WrapTokenInParentheses)
+            token = $"({token})";
+
+        RequestClose?.Invoke(new SearchQueryBuilderResult(
+            true,
+            replaceSearch,
+            token,
+            SelectedJoinOperator?.Key));
+    }
+
+    private string BuildToken()
+    {
+        var fieldKey = SelectedField?.Key ?? string.Empty;
+        var mode = SelectedMatchMode?.Key ?? "contains";
+        if (string.Equals(mode, "has", StringComparison.OrdinalIgnoreCase))
+            return $"has:{fieldKey}";
+        if (string.Equals(mode, "missing", StringComparison.OrdinalIgnoreCase))
+            return $"missing:{fieldKey}";
+
+        return SearchQueryBuilderHelper.BuildToken(fieldKey, ValueText);
     }
 
     private void RefreshValueSuggestions()
@@ -115,5 +195,11 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
 
         foreach (var value in values)
             ValueSuggestions.Add(value);
+    }
+
+    private static string T(string key, string fallback)
+    {
+        var value = Strings.ResourceManager.GetString(key, Strings.Culture);
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
     }
 }

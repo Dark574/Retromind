@@ -409,10 +409,13 @@ You can override this behavior for testing:
 
 ## Search (Power Query)
 - Available in both search fields: global search and local node search.
-- Plain text in the search field is title-only search.
-- Power query mode is enabled when at least one `key:value` or `key=value` term is present.
-- Power terms are combined with AND logic.
-- In mixed queries, plain words still search the title (example: `zelda platform:switch`).
+- Plain text terms search title by default.
+- Field terms: `key:value` or `key=value`.
+- Metadata completeness terms: `has:<field>` and `missing:<field>`.
+- Logical operators: `AND`, `OR`, `NOT`, and parentheses `(` `)`.
+- Space between terms is treated as `AND`.
+- In mixed queries, plain terms still search title (example: `zelda AND platform:switch`).
+- Use quotes for values with spaces (example: `developer:"Treasure Co. Ltd."`).
 
 Supported keys (aliases included):
 - `title`, `sorttitle`, `description`/`notes`, `developer`, `publisher`, `platform`, `source`
@@ -426,11 +429,14 @@ Supported keys (aliases included):
 
 Examples:
 - `zelda` -> title-only search
-- `platform:snes dev:nintendo`
-- `maxplayers:2 status:completed`
+- `platform:snes AND developer:nintendo`
+- `maxplayers:2 AND status:completed`
 - `year=1998 favorite=true`
+- `missing:genre OR missing:developer`
+- `has:genre AND NOT genre:unknown`
+- `(genre:platformer OR genre:metroidvania) AND NOT missing:rating`
 - `cf.rating:5`
-- `zelda platform:switch`
+- `zelda AND platform:switch`
 
 ## Architecture
 See [`docs/architecture.md`](docs/architecture.md).

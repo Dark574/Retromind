@@ -211,7 +211,8 @@ public partial class MediaAreaView : UserControl
                 vm.SearchText = SearchQueryBuilderHelper.ApplyTokenToSearch(
                     vm.SearchText,
                     result.Token,
-                    result.ReplaceSearch);
+                    result.ReplaceSearch,
+                    result.JoinOperator);
             }
 
             dialog.Close();

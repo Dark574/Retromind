@@ -269,7 +269,7 @@
                                                </ContextMenu>
                                            </Border.ContextMenu>
 
-                                           <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                           <TextBlock Text="{Binding TreeDisplayName}" VerticalAlignment="Center" />
                                        </Border>
                                    </TreeDataTemplate>
                                </TreeView.ItemTemplate>

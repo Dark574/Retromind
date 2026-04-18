@@ -205,7 +205,7 @@ public partial class SearchAreaView : UserControl
         _isScopeDialogOpen = true;
 
         var owner = this.FindAncestorOfType<Window>() ?? TopLevel.GetTopLevel(this) as Window;
-        var dialogVm = new SearchScopeDialogViewModel(vm.RootNodesSnapshot, vm.GetSelectedScopeIdsSnapshot());
+        var dialogVm = new SearchScopeDialogViewModel(vm.ScopeDialogRootNodesSnapshot, vm.GetSelectedScopeIdsSnapshot());
         var dialog = new SearchScopeDialogView { DataContext = dialogVm };
 
         dialogVm.RequestClose += result =>
@@ -249,7 +249,8 @@ public partial class SearchAreaView : UserControl
                 vm.SearchText = SearchQueryBuilderHelper.ApplyTokenToSearch(
                     vm.SearchText,
                     result.Token,
-                    result.ReplaceSearch);
+                    result.ReplaceSearch,
+                    result.JoinOperator);
             }
 
             dialog.Close();

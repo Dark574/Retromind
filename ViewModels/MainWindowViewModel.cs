@@ -118,6 +118,17 @@ public partial class MainWindowViewModel : ViewModelBase
     // Remembers where the user came from before entering global search.
     private string? _searchReturnNodeId;
     private string? _searchReturnItemId;
+    private string? _pendingGlobalSearchSelectionItemId;
+    private bool _restoreSearchUiStateOnNextContentBuild;
+    private readonly SearchUiState _searchUiState = new();
+
+    private sealed class SearchUiState
+    {
+        public string SharedSearchText { get; set; } = string.Empty;
+        public bool SharedOnlyFavorites { get; set; }
+        public HashSet<string> GlobalScopeNodeIds { get; } = new(StringComparer.Ordinal);
+        public bool HasGlobalScopeSelection { get; set; }
+    }
 
     private static readonly HashSet<string> DirtyTrackedItemProperties = new(StringComparer.Ordinal)
     {
@@ -1045,6 +1056,13 @@ public partial class MainWindowViewModel : ViewModelBase
         if (_currentSearchAreaVm == null)
             return;
 
+        _searchUiState.SharedSearchText = _currentSearchAreaVm.SearchText ?? string.Empty;
+        _searchUiState.SharedOnlyFavorites = _currentSearchAreaVm.OnlyFavorites;
+        _searchUiState.GlobalScopeNodeIds.Clear();
+        foreach (var id in _currentSearchAreaVm.GetSelectedScopeIdsSnapshot())
+            _searchUiState.GlobalScopeNodeIds.Add(id);
+        _searchUiState.HasGlobalScopeSelection = true;
+
         _currentSearchAreaVm.RequestPlay -= OnSearchAreaRequestPlay;
         _currentSearchAreaVm.PropertyChanged -= OnSearchAreaPropertyChanged;
         _currentSearchAreaVm.SearchResults.CollectionChanged -= OnSearchAreaResultsChanged;
@@ -1077,10 +1095,33 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        if (e.PropertyName == nameof(SearchAreaViewModel.SearchText))
+        {
+            _searchUiState.SharedSearchText = searchVm.SearchText ?? string.Empty;
+            return;
+        }
+
+        if (e.PropertyName == nameof(SearchAreaViewModel.OnlyFavorites))
+        {
+            _searchUiState.SharedOnlyFavorites = searchVm.OnlyFavorites;
+            return;
+        }
+
+        if (e.PropertyName == nameof(SearchAreaViewModel.SelectedScopeCount))
+        {
+            _searchUiState.GlobalScopeNodeIds.Clear();
+            foreach (var id in searchVm.GetSelectedScopeIdsSnapshot())
+                _searchUiState.GlobalScopeNodeIds.Add(id);
+            _searchUiState.HasGlobalScopeSelection = true;
+            return;
+        }
+
         if (e.PropertyName != nameof(SearchAreaViewModel.SelectedMediaItem))
             return;
 
         var item = searchVm.SelectedMediaItem;
+        if (item != null)
+            _pendingGlobalSearchSelectionItemId = null;
 
         OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
         OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
@@ -1108,7 +1149,26 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void OnSearchAreaResultsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        TryApplyPendingGlobalSearchSelection();
         UpdateLibraryGameCounters();
+    }
+
+    private void TryApplyPendingGlobalSearchSelection()
+    {
+        if (string.IsNullOrWhiteSpace(_pendingGlobalSearchSelectionItemId))
+            return;
+
+        var searchVm = _currentSearchAreaVm;
+        if (searchVm == null || searchVm.SelectedMediaItem != null)
+            return;
+
+        var pendingId = _pendingGlobalSearchSelectionItemId;
+        var candidate = searchVm.SearchResults.FirstOrDefault(i => i.Id == pendingId);
+        if (candidate == null)
+            return;
+
+        searchVm.SelectedMediaItem = candidate;
+        _pendingGlobalSearchSelectionItemId = null;
     }
 
     private void OnMediaAreaFilteredItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -1200,6 +1260,18 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             ItemWidth = mediaVm.ItemWidth;
             SaveSettingsOnly();
+            return;
+        }
+
+        if (args.PropertyName == nameof(MediaAreaViewModel.SearchText))
+        {
+            _searchUiState.SharedSearchText = mediaVm.SearchText ?? string.Empty;
+            return;
+        }
+
+        if (args.PropertyName == nameof(MediaAreaViewModel.OnlyFavorites))
+        {
+            _searchUiState.SharedOnlyFavorites = mediaVm.OnlyFavorites;
             return;
         }
 
@@ -1353,9 +1425,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Capture current filters before we dispose the old VM (so edits don't reset UI filters).
         var previousVm = _currentMediaAreaVm;
+        var hadSearchVm = _currentSearchAreaVm != null;
+        var restoreSearchUiState = _restoreSearchUiStateOnNextContentBuild;
+        _restoreSearchUiStateOnNextContentBuild = false;
         var previousNodeId = previousVm?.Node?.Id;
-        var previousSearchText = previousVm?.SearchText ?? string.Empty;
-        var previousOnlyFavorites = previousVm?.OnlyFavorites ?? false;
+        var previousSearchText = previousVm?.SearchText ?? _searchUiState.SharedSearchText;
+        var previousOnlyFavorites = previousVm?.OnlyFavorites ?? _searchUiState.SharedOnlyFavorites;
         var previousStatus = previousVm?.SelectedStatus;
 
         // Any time we rebuild content, detach handlers from the previous VM.
@@ -1416,14 +1491,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
                     ApplyRandomizationPlan(randomizationPlan);
 
-                    var mediaVm = new MediaAreaViewModel(displayNode, ItemWidth);
-
-                    if (previousVm != null && previousNodeId == nodeToLoad.Id)
-                    {
-                        mediaVm.OnlyFavorites = previousOnlyFavorites;
-                        mediaVm.SelectedStatus = previousStatus;
-                        mediaVm.SearchText = previousSearchText;
-                    }
+                    var preserveNodeFilters =
+                        (previousVm != null && previousNodeId == nodeToLoad.Id) || hadSearchVm || restoreSearchUiState;
+                    var mediaVm = new MediaAreaViewModel(
+                        displayNode,
+                        ItemWidth,
+                        initialSearchText: previousSearchText,
+                        initialOnlyFavorites: preserveNodeFilters && previousOnlyFavorites,
+                        initialStatus: preserveNodeFilters ? previousStatus : null);
 
                     _currentMediaAreaVm = mediaVm;
                     mediaVm.RequestPlay += OnMediaAreaRequestPlay;

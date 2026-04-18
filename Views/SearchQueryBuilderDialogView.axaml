@@ -5,8 +5,8 @@
         x:Class="Retromind.Views.SearchQueryBuilderDialogView"
         x:DataType="vm:SearchQueryBuilderViewModel"
         Title="{x:Static p:Strings.Search_FilterBuilderTitle}"
-        Width="560"
-        Height="300"
+        Width="620"
+        Height="360"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
 
@@ -15,7 +15,7 @@
         <KeyBinding Gesture="Ctrl+Enter" Command="{Binding ReplaceSearchCommand}" />
     </Window.KeyBindings>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="20">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" Margin="20">
         <TextBlock Grid.Row="0"
                    Text="{x:Static p:Strings.Search_FilterBuilderIntro}"
                    Margin="0,0,0,14"
@@ -40,23 +40,70 @@
 
         <Grid Grid.Row="2" ColumnDefinitions="90,*" Margin="0,0,0,10">
             <TextBlock Grid.Column="0"
+                       Text="{Binding MatchModeLabel}"
+                       VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding MatchModeOptions}"
+                      SelectedItem="{Binding SelectedMatchMode, Mode=TwoWay}"
+                      MinWidth="170"
+                      HorizontalAlignment="Left">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Label}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+        </Grid>
+
+        <Grid Grid.Row="3" ColumnDefinitions="90,*" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0"
                        Text="{x:Static p:Strings.Search_FilterBuilderValue}"
                        VerticalAlignment="Center"/>
             <ComboBox Grid.Column="1"
                       ItemsSource="{Binding ValueSuggestions}"
                       Text="{Binding ValueText, Mode=TwoWay}"
+                      IsEnabled="{Binding IsValueInputEnabled}"
                       IsEditable="True"
                       MaxDropDownHeight="220"
                       HorizontalAlignment="Stretch" />
         </Grid>
 
-        <TextBlock Grid.Row="3"
+        <Grid Grid.Row="4" ColumnDefinitions="90,*,Auto,Auto" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding JoinLabel}"
+                       VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding JoinOperatorOptions}"
+                      SelectedItem="{Binding SelectedJoinOperator, Mode=TwoWay}"
+                      MinWidth="110"
+                      HorizontalAlignment="Left">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Label}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <CheckBox Grid.Column="2"
+                      IsChecked="{Binding NegateToken, Mode=TwoWay}"
+                      Content="{Binding NegateLabel}"
+                      VerticalAlignment="Center"
+                      Margin="14,0,0,0"/>
+
+            <CheckBox Grid.Column="3"
+                      IsChecked="{Binding WrapTokenInParentheses, Mode=TwoWay}"
+                      Content="{Binding GroupLabel}"
+                      VerticalAlignment="Center"
+                      Margin="14,0,0,0"/>
+        </Grid>
+
+        <TextBlock Grid.Row="5"
                    Text="{x:Static p:Strings.Search_FilterBuilderApplyHint}"
                    Margin="0,0,0,16"
                    TextWrapping="Wrap"
                    Opacity="0.75"/>
 
-        <StackPanel Grid.Row="4"
+        <StackPanel Grid.Row="6"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="10">

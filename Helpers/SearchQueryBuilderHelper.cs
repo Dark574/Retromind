@@ -128,13 +128,24 @@ public static class SearchQueryBuilderHelper
         return $"{safeKey}:{safeValue}";
     }
 
-    public static string ApplyTokenToSearch(string currentSearchText, string token, bool replaceSearch)
+    public static string ApplyTokenToSearch(
+        string currentSearchText,
+        string token,
+        bool replaceSearch,
+        string? joinOperator = null)
     {
         if (replaceSearch || string.IsNullOrWhiteSpace(currentSearchText))
             return token;
 
         var prefix = currentSearchText.TrimEnd();
-        return string.IsNullOrEmpty(prefix) ? token : $"{prefix} {token}";
+        if (string.IsNullOrEmpty(prefix))
+            return token;
+
+        var normalizedJoin = string.Equals(joinOperator, "OR", StringComparison.OrdinalIgnoreCase)
+            ? "OR"
+            : "AND";
+
+        return $"{prefix} {normalizedJoin} {token}";
     }
 
     private static void AddIfNotEmpty(ISet<string> set, string? value)
