@@ -19,6 +19,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Resources;
 using Retromind.Services;
 
 namespace Retromind.ViewModels;
@@ -214,9 +215,11 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool ShowLibraryGameCountSummary => TotalLibraryGameCount > 0;
     public int CurrentShownGameCount => _currentShownGameCount;
     public int TotalLibraryGameCount => _totalLibraryGameCount;
-    public string LibraryGameCountSummary =>
-        $"{CurrentShownGameCount.ToString("N0", CultureInfo.CurrentCulture)} angezeigt | {TotalLibraryGameCount.ToString("N0", CultureInfo.CurrentCulture)} gesamt";
-
+    public string LibraryGameCountSummary => 
+        string.Format(Strings.Common_LibraryGameCountSummary, 
+            CurrentShownGameCount.ToString("N0", CultureInfo.CurrentCulture), 
+            TotalLibraryGameCount.ToString("N0", CultureInfo.CurrentCulture));
+    
     public string? ResolvedSelectedItemLogoPath => ResolveSelectedItemAsset(AssetType.Logo);
     public string? ResolvedSelectedItemWallpaperPath => ResolveSelectedItemAsset(AssetType.Wallpaper);
     public string? ResolvedSelectedItemVideoPath => ResolveSelectedItemAsset(AssetType.Video);

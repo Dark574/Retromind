@@ -2396,5 +2396,11 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Media.PlayTime", resourceCulture);
             }
         }
+        
+        public static string Common_LibraryGameCountSummary {
+            get {
+                return ResourceManager.GetString("Common.LibraryGameCountSummary", resourceCulture);
+            }
+        }
     }
 }

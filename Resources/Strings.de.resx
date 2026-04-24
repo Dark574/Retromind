@@ -489,4 +489,7 @@ zelda AND platform:switch</value></data>
     <data name="Media.PlayTime" xml:space="preserve">
         <value>Spieldauer:</value>
     </data>
+    <data name="Common.LibraryGameCountSummary" xml:space="preserve">
+        <value>{0} angezeigt | {1} gesamt</value>
+    </data>
 </root>
