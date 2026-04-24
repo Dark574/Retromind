@@ -184,6 +184,26 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(Title);
         var folderName = $"{_originalItem.Id}_{safeTitle}";
         PrefixPath = Path.Combine("Prefixes", folderName);
+
+        try
+        {
+            var prefixRoot = ResolvePrefixRoot();
+            if (string.IsNullOrWhiteSpace(prefixRoot))
+                return;
+
+            var env = BuildEffectiveEnvironmentOverrides();
+            var isUmu = IsUmuBased(env);
+            var isProton = isUmu || IsProtonBased(env);
+            var (compatRoot, winePrefix) = ResolvePrefixPathsForWinetricks(prefixRoot, isProton, isUmu);
+
+            Directory.CreateDirectory(compatRoot);
+            Directory.CreateDirectory(winePrefix);
+            EnsurePortableGamesDriveMapping(winePrefix);
+        }
+        catch
+        {
+            // best-effort: generation should still provide the path even if folder creation fails
+        }
     }
 
     private void OpenPrefixFolder()
@@ -247,10 +267,6 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         var env = BuildEffectiveEnvironmentOverrides();
         var isUmu = IsUmuBased(env);
         var isProton = isUmu || IsProtonBased(env);
-        var (compatRoot, winePrefix) = ResolvePrefixPathsForWinetricks(prefixRoot, isProton, isUmu);
-
-        if (!PrefixPathHelper.IsWinePrefixInitialized(winePrefix))
-            ApplyWineArchOverride(env, WineArchSelection);
 
         foreach (var key in env.Keys.ToList())
             env[key] = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(key, env[key]);
@@ -265,16 +281,24 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 protonWinetricksPath = Path.Combine(protonPathValue, "protonfixes", "winetricks");
                 if (!File.Exists(protonWinetricksPath))
                 {
+                    // Fallback: use host winetricks + Proton wine binaries when
+                    // Proton's bundled helper is unavailable.
                     useUmu = false;
                     ApplyProtonWineFallback(env, protonPathValue);
                 }
             }
+
+            var (compatRoot, winePrefix) = ResolvePrefixPathsForWinetricks(prefixRoot, isProton, useUmu);
+
+            if (!PrefixPathHelper.IsWinePrefixInitialized(winePrefix))
+                ApplyWineArchOverride(env, WineArchSelection);
 
             if (useUmu && isProton)
                 EnsureUmuWinetricksCwd(env);
 
             Directory.CreateDirectory(compatRoot);
             Directory.CreateDirectory(winePrefix);
+            EnsurePortableGamesDriveMapping(winePrefix);
 
             ApplyPrefixEnvironment(env, compatRoot, winePrefix, isProton);
 
@@ -295,9 +319,11 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 if (!string.IsNullOrWhiteSpace(protonWinetricksPath) &&
                     !File.Exists(protonWinetricksPath))
                 {
-                    AppendLog(logVm, $"Note: missing {protonWinetricksPath} (using system winetricks)");
+                    var modeNote = useUmu ? "using umu-run winetricks" : "using system winetricks";
+                    AppendLog(logVm, $"Note: missing {protonWinetricksPath} ({modeNote})");
                 }
             }
+            AppendLog(logVm, useUmu ? "Runner: umu-run winetricks" : "Runner: system winetricks");
             if (env.TryGetValue("STEAM_COMPAT_DATA_PATH", out var compatPath))
                 AppendLog(logVm, $"STEAM_COMPAT_DATA_PATH: {compatPath}");
             if (env.TryGetValue("WINEPREFIX", out var winePrefixValue))
@@ -539,6 +565,59 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         env["WINEARCH"] = value;
     }
 
+    private static void EnsurePortableGamesDriveMapping(string winePrefix)
+    {
+        if (string.IsNullOrWhiteSpace(winePrefix))
+            return;
+
+        try
+        {
+            var dosDevicesDir = Path.Combine(winePrefix, "dosdevices");
+            Directory.CreateDirectory(dosDevicesDir);
+
+            var driveCPath = Path.Combine(winePrefix, "drive_c");
+            Directory.CreateDirectory(driveCPath);
+            EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
+
+            var libraryRoot = Path.GetFullPath(AppPaths.LibraryRoot);
+            var gamesRoot = Path.Combine(libraryRoot, "Games");
+            Directory.CreateDirectory(gamesRoot);
+
+            var relativeTarget = Path.GetRelativePath(dosDevicesDir, gamesRoot);
+            EnsureDosDeviceMapping(dosDevicesDir, "d:", relativeTarget);
+        }
+        catch
+        {
+            // best-effort only: missing D: mapping must not block prefix operations
+        }
+    }
+
+    private static void EnsureDosDeviceMapping(string dosDevicesDir, string driveName, string relativeTarget)
+    {
+        if (string.IsNullOrWhiteSpace(driveName))
+            throw new ArgumentException("Drive name must not be empty.", nameof(driveName));
+
+        if (!driveName.EndsWith(":", StringComparison.Ordinal))
+            throw new ArgumentException("Drive name must end with ':' (e.g. 'd:').", nameof(driveName));
+
+        Directory.CreateDirectory(dosDevicesDir);
+
+        var linkPath = Path.Combine(dosDevicesDir, driveName);
+        var targetValue = relativeTarget.Replace('\\', '/');
+
+        if (File.Exists(linkPath) || Directory.Exists(linkPath))
+            return;
+
+        try
+        {
+            File.CreateSymbolicLink(linkPath, targetValue);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Winetricks] Failed to create dosdevices mapping {driveName} -> {relativeTarget}: {ex.Message}");
+        }
+    }
+
     private static void AppendWinetricksLogSummary(ProcessLogViewModel logVm, string winePrefix)
     {
         if (string.IsNullOrWhiteSpace(winePrefix))
@@ -695,39 +774,18 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         if (Directory.Exists(binDir))
         {
+            const string minimalHostPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
             var basePath = env.TryGetValue("PATH", out var existingPath)
                 ? existingPath
-                : Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+                : minimalHostPath;
             env["PATH"] = string.IsNullOrWhiteSpace(basePath)
                 ? binDir
                 : binDir + Path.PathSeparator + basePath;
         }
 
-        var lib64 = Path.Combine(protonPath, "files", "lib64");
-        var lib32 = Path.Combine(protonPath, "files", "lib");
-
-        var ldParts = new List<string>();
-        if (Directory.Exists(lib64)) ldParts.Add(lib64);
-        if (Directory.Exists(lib32)) ldParts.Add(lib32);
-
-        if (ldParts.Count > 0)
-        {
-            var existingLd = env.TryGetValue("LD_LIBRARY_PATH", out var ldPath)
-                ? ldPath
-                : Environment.GetEnvironmentVariable("LD_LIBRARY_PATH") ?? string.Empty;
-
-            env["LD_LIBRARY_PATH"] = string.IsNullOrWhiteSpace(existingLd)
-                ? string.Join(Path.PathSeparator, ldParts)
-                : string.Join(Path.PathSeparator, ldParts) + Path.PathSeparator + existingLd;
-        }
-
-        var dllPaths = new List<string>();
-        var wineLib64 = Path.Combine(lib64, "wine");
-        var wineLib32 = Path.Combine(lib32, "wine");
-        if (Directory.Exists(wineLib64)) dllPaths.Add(wineLib64);
-        if (Directory.Exists(wineLib32)) dllPaths.Add(wineLib32);
-        if (dllPaths.Count > 0)
-            env["WINEDLLPATH"] = string.Join(Path.PathSeparator, dllPaths);
+        // Do not force LD_LIBRARY_PATH/WINEDLLPATH here.
+        // Mixing Proton-bundled X11 libs with host drivers can break window creation
+        // (e.g. xf86vm assertions). Let the selected wine binary manage its runtime libs.
     }
 
     private string ResolveUmuRunnerPath()

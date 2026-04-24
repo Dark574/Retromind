@@ -161,19 +161,20 @@ public sealed class LauncherService
 
             startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, fileName, launchFilePath);
 
-            // Linux-only project: WINEPREFIX is only applied when explicitly requested
-            // Rules:
-            // - If the item already has PrefixPath -> always apply (Native wrappers included)
-            // - If launched via an emulator profile with UsesWinePrefix=true -> auto-create/apply
-            var shouldApplyPrefix =
-                !string.IsNullOrWhiteSpace(item.PrefixPath) ||
-                (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
-
             var hasEnvOverrides =
                 (environmentOverrides?.Count ?? 0) > 0 ||
                 ((environmentOverrides == null) &&
                  ((inheritedConfig?.EnvironmentOverrides?.Count ?? 0) > 0 ||
                   (item.EnvironmentOverrides?.Count ?? 0) > 0));
+            var isUmuLaunch = IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
+            var isProtonLaunch = isUmuLaunch || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
+
+            // Prefix management rules:
+            // - explicit item PrefixPath -> always apply
+            // - emulator profile with UsesWinePrefix=true -> apply
+            var shouldApplyPrefix =
+                !string.IsNullOrWhiteSpace(item.PrefixPath) ||
+                (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
             var isAppImageRuntime = IsRunningInsideAppImageRuntime();
 
             // Ensure env vars + wrapper arguments are honored (shell exec can drop env vars).
@@ -184,9 +185,6 @@ public sealed class LauncherService
                                      !string.IsNullOrWhiteSpace(args);
 
             startInfo.UseShellExecute = requiresDirectExec ? false : useShellExecute;
-
-            var isUmuLaunch = IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
-            var isProtonLaunch = isUmuLaunch || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
 
             var prefixInitialized = true;
             if (shouldApplyPrefix)
@@ -1249,23 +1247,30 @@ public sealed class LauncherService
 
         var prefixRoot = prefixPath;
         var winePrefixPath = prefixPath;
+        var launchWinePrefixPath = prefixPath;
 
         if (isUmu)
         {
             // UMU expects WINEPREFIX to be the compat root; it will create <root>/pfx as a symlink.
+            string pfxPath;
             if (PrefixPathHelper.IsPfxPath(prefixPath))
             {
+                pfxPath = prefixPath;
                 var parent = Directory.GetParent(prefixPath)?.FullName;
                 if (!string.IsNullOrWhiteSpace(parent))
                 {
                     prefixRoot = parent;
-                    winePrefixPath = parent;
                 }
             }
             else
             {
-                winePrefixPath = prefixPath;
+                pfxPath = Path.Combine(prefixPath, "pfx");
             }
+
+            var rootInitialized = PrefixPathHelper.IsWinePrefixInitialized(prefixRoot);
+            var pfxInitialized = PrefixPathHelper.IsWinePrefixInitialized(pfxPath);
+            winePrefixPath = rootInitialized && !pfxInitialized ? prefixRoot : pfxPath;
+            launchWinePrefixPath = prefixRoot;
         }
         else if (isProton)
         {
@@ -1322,18 +1327,33 @@ public sealed class LauncherService
 
         // Ensure basic prefix structure
         Directory.CreateDirectory(prefixRoot);
-        Directory.CreateDirectory(winePrefixPath);
-        
-        // drive_c + dosdevices are needed so we can add an additional portable D: drive.
-        var driveCPath    = Path.Combine(winePrefixPath, "drive_c");
-        var dosDevicesDir = Path.Combine(winePrefixPath, "dosdevices");
-        
-        Directory.CreateDirectory(driveCPath);
+
+        // For UMU we avoid pre-creating "<root>/pfx" (owned by umu-run),
+        // but still scaffold compat-root dosdevices so portable drive mappings remain available.
+        var scaffoldPrefixPath =
+            (isUmu && !string.Equals(winePrefixPath, prefixRoot, StringComparison.OrdinalIgnoreCase))
+                ? prefixRoot
+                : winePrefixPath;
+
+        Directory.CreateDirectory(scaffoldPrefixPath);
+
+        var dosDevicesDir = Path.Combine(scaffoldPrefixPath, "dosdevices");
         Directory.CreateDirectory(dosDevicesDir);
         
-        // Ensure C: mapping (relative to dosdevices)
-        //   c: -> ../drive_c
-        EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
+        // If UMU is expected to materialize/use "<compat-root>/pfx", avoid turning the compat
+        // root into a full classic Wine prefix (drive_c/c:). Keep only dosdevices for portable drives.
+        var isUmuCompatRootScaffold =
+            isUmu &&
+            string.Equals(scaffoldPrefixPath, prefixRoot, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(winePrefixPath, prefixRoot, StringComparison.OrdinalIgnoreCase);
+
+        if (!isUmuCompatRootScaffold)
+        {
+            // drive_c + c: mapping for regular Wine-style prefixes.
+            var driveCPath = Path.Combine(scaffoldPrefixPath, "drive_c");
+            Directory.CreateDirectory(driveCPath);
+            EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
+        }
         
         var libraryRoot = Path.GetFullPath(_libraryRootPath); // .../Library
         var prefixFull = Path.GetFullPath(prefixRoot);
@@ -1358,7 +1378,7 @@ public sealed class LauncherService
             startInfo.EnvironmentVariables["STEAM_COMPAT_DATA_PATH"] = prefixRoot;
 
         // Apply WINEPREFIX to the launched process
-        startInfo.EnvironmentVariables["WINEPREFIX"] = winePrefixPath;
+        startInfo.EnvironmentVariables["WINEPREFIX"] = launchWinePrefixPath;
 
         // Persist generated relative path (portable).
         if (relativePrefixPathToSave != null)
