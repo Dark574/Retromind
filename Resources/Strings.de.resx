@@ -365,7 +365,7 @@
     <data name="NodeSettings_ArtworkVideoPreviewNotShown" xml:space="preserve"><value>(Vorschau wird in diesem Dialog derzeit nicht angezeigt)</value></data>
     <data name="NodeSettings_NativeWrapperTitle" xml:space="preserve"><value>Native Wrapper</value></data>
     <data name="NodeSettings_ModeInherit" xml:space="preserve"><value>Vererben</value></data>
-    <data name="NodeSettings_ModeNone" xml:space="preserve"><value>Keiner</value></data>
+    <data name="NodeSettings_ModeNone" xml:space="preserve"><value>Keine</value></data>
     <data name="NodeSettings_ModeOverride" xml:space="preserve"><value>Überschreiben</value></data>
     <data name="NodeSettings_SystemThemeTitle" xml:space="preserve"><value>System-Theme (System-Auswahl)</value></data>
     <data name="NodeSettings_PresentationAndAssets" xml:space="preserve"><value>Darstellung &amp; Assets</value></data>
