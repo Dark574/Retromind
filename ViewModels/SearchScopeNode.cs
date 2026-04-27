@@ -78,15 +78,22 @@ public class SearchScopeNode : ObservableObject
         UpdateCheckStateFromChildren();
     }
 
-    public void UpdateCheckStateFromChildren()
+    private void UpdateCheckStateFromChildren()
     {
-        if (Children.Count == 0)
-            return;
+        if (Children.Count == 0) return;
 
-        var allTrue = Children.All(c => c.IsChecked == true);
-        var allFalse = Children.All(c => c.IsChecked == false);
-        var newValue = allTrue ? true : allFalse ? false : (bool?)null;
+        var hasTrue = false;
+        var hasFalse = false;
 
+        foreach (var child in Children)
+        {
+            if (child.IsChecked == true) hasTrue = true;
+            else if (child.IsChecked == false) hasFalse = true;
+        
+            if (hasTrue && hasFalse) break;
+        }
+
+        bool? newValue = hasTrue && !hasFalse ? true : hasFalse && !hasTrue ? false : null;
         SetIsChecked(newValue, updateChildren: false, updateParent: true);
     }
 
