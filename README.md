@@ -240,6 +240,48 @@ Note:
 - If needed, you can override `XDG_*` (and optionally `HOME`) per emulator/item.
 - Even with overrides, full portability is launcher-dependent; some tools still rely on host state.
 
+### Wine/Proton runner version management
+
+Retromind supports managed Wine/Proton runtime versions and lets you select them on:
+
+- emulator level (default for all items using that emulator)
+- item level (optional override)
+
+#### 1) Configure available runner versions
+
+In **Settings -> Runner** you can:
+
+- add external Wine/Proton directories manually
+- download/install GE-Proton releases (stored under `Emulators/ProtonVersions` in the portable root)
+- remove versions (with replacement selection when still in use)
+
+#### 2) Set emulator default runner
+
+In **Settings -> Emulators -> Advanced**:
+
+- enable **UseWinePrefix** for the emulator profile
+- set **Runner type** (`Auto`, `UmuProton`, `Wine`, `Generic`)
+- choose **Default runner version**
+
+Notes:
+
+- If `UseWinePrefix` is disabled, emulator-level default runner selection is disabled.
+- `Auto` keeps compatibility heuristics; explicit types (`UmuProton`/`Wine`) are recommended for fixed setups.
+
+#### 3) Optional item-level override
+
+In **Edit Item -> Prefix (Wine/Proton/UMU)**:
+
+- select a per-item **Wine/Proton version** to override the emulator default
+- leave it on **None** to inherit the emulator default
+- the dialog shows which runner is currently inherited from the emulator
+
+Effective priority:
+
+1. Item runner version (if set)
+2. Emulator default runner version
+3. No explicit runner version (launcher/env behavior only)
+
 ### Native games on the stick
 
 Native games that live under the `Retromind/` directory tree (e.g. `Retromind/NativeGames/MyGame/...`)
