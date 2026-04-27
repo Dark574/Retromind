@@ -1,0 +1,17 @@
+GE-Proton Notice
+================
+
+Retromind can optionally query release metadata and download selected
+GE-Proton builds from the upstream project:
+
+  https://github.com/GloriousEggroll/proton-ge-custom
+
+GitHub Releases API used by Retromind:
+
+  https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases
+
+The GE-Proton project, its binaries, names, trademarks, and license terms
+belong to their respective owners/maintainers.
+
+For exact license information, consult the upstream repository and the
+license files shipped with the downloaded GE-Proton release.
