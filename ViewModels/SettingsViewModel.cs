@@ -96,7 +96,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private RunnerVersionSelectionOption? _selectedRunnerReplacement;
 
     [ObservableProperty]
-    private RunnerVersionSelectionOption? _selectedEmulatorRunnerVersion;
+    private string? _selectedEmulatorRunnerVersionId;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadSelectedGeReleaseCommand))]
@@ -605,7 +605,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         if (_appSettings.RunnerVersions != null)
         {
             foreach (var version in _appSettings.RunnerVersions)
+            {
+                if (string.IsNullOrWhiteSpace(version.Id))
+                    version.Id = Guid.NewGuid().ToString();
+
                 RunnerVersions.Add(new RunnerVersionRow(version));
+            }
         }
 
         AddEmulatorCommand = new RelayCommand(AddEmulator);
@@ -739,15 +744,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         if (e.PropertyName == nameof(EmulatorConfig.UsesWinePrefix))
             OnPropertyChanged(nameof(IsEmulatorRunnerSelectionEnabled));
-
-        if (e.PropertyName == nameof(EmulatorConfig.RunnerType))
-            RebuildSelectedEmulatorRunnerVersionOptions();
-
-        if (e.PropertyName == nameof(EmulatorConfig.DefaultRunnerVersionId))
-        {
-            RecomputeRunnerUsageCounts();
-            RebuildRunnerReplacementOptions();
-        }
     }
 
     private void OnAnyEmulatorPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -757,8 +753,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         {
             RecomputeRunnerUsageCounts();
             RebuildRunnerReplacementOptions();
-            if (ReferenceEquals(sender, SelectedEmulator))
+
+            if (!ReferenceEquals(sender, SelectedEmulator))
+                return;
+
+            if (e.PropertyName == nameof(EmulatorConfig.RunnerType))
                 RebuildSelectedEmulatorRunnerVersionOptions();
+            else
+                SyncSelectedEmulatorRunnerVersionSelection();
         }
     }
 
@@ -794,14 +796,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         AddRunnerVersionCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnSelectedEmulatorRunnerVersionChanged(RunnerVersionSelectionOption? value)
+    partial void OnSelectedEmulatorRunnerVersionIdChanged(string? value)
     {
         if (SelectedEmulator == null)
             return;
 
-        SelectedEmulator.DefaultRunnerVersionId = string.IsNullOrWhiteSpace(value?.Id)
+        SelectedEmulator.DefaultRunnerVersionId = string.IsNullOrWhiteSpace(value)
             ? null
-            : value.Id;
+            : value;
     }
 
     partial void OnIsGeReleaseBusyChanged(bool value)
@@ -1436,10 +1438,16 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 kind: row.Kind));
         }
 
-        var defaultId = selected?.DefaultRunnerVersionId;
-        SelectedEmulatorRunnerVersion = SelectedEmulatorRunnerVersionOptions.FirstOrDefault(o =>
+        SyncSelectedEmulatorRunnerVersionSelection();
+    }
+
+    private void SyncSelectedEmulatorRunnerVersionSelection()
+    {
+        var defaultId = SelectedEmulator?.DefaultRunnerVersionId;
+        SelectedEmulatorRunnerVersionId = SelectedEmulatorRunnerVersionOptions.Any(o =>
             string.Equals(o.Id, defaultId, StringComparison.Ordinal))
-            ?? SelectedEmulatorRunnerVersionOptions.FirstOrDefault();
+            ? defaultId
+            : null;
     }
 
     private void RebuildRunnerReplacementOptions()
@@ -1675,6 +1683,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         if (!CanSave())
             return;
 
+        EnsureRunnerVersionIds();
+
         // Persist emulator wrapper & env configuration from UI into the selected emulator model
         if (SelectedEmulator != null)
         {
@@ -1748,6 +1758,25 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _appSettings.HeroicEpicConfigPaths.AddRange(HeroicEpicConfigPaths);
         
         RequestClose?.Invoke();
+    }
+
+    private void EnsureRunnerVersionIds()
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var runner in RunnerVersions)
+        {
+            var id = runner.Id?.Trim();
+            if (string.IsNullOrWhiteSpace(id) || !seen.Add(id))
+            {
+                id = Guid.NewGuid().ToString();
+                runner.Id = id;
+                seen.Add(id);
+            }
+            else if (!string.Equals(runner.Id, id, StringComparison.Ordinal))
+            {
+                runner.Id = id;
+            }
+        }
     }
 
     private async Task BrowsePathAsync()

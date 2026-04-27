@@ -282,6 +282,12 @@
     <data name="Settings_EnvValueWatermark" xml:space="preserve"><value>/path/to/proton</value></data>
     <data name="EditMedia_RunnerVersionLabel" xml:space="preserve"><value>Wine/Proton version</value></data>
     <data name="EditMedia_RunnerVersionHint" xml:space="preserve"><value>Optional per-item override. Takes precedence over emulator default.</value></data>
+    <data name="EditMedia_RunnerVersionKindWine" xml:space="preserve"><value>Wine</value></data>
+    <data name="EditMedia_RunnerVersionKindProton" xml:space="preserve"><value>Proton</value></data>
+    <data name="EditMedia_RunnerVersionInheritedMissingFormat" xml:space="preserve"><value>(missing: {0})</value></data>
+    <data name="EditMedia_RunnerVersionInheritedFromEmulatorFormat" xml:space="preserve"><value>Inherited from emulator: {0}.</value></data>
+    <data name="EditMedia_RunnerVersionInheritedFromEmulatorMatchFormat" xml:space="preserve"><value>Inherited from emulator: {0}. Item selection matches inherited value.</value></data>
+    <data name="EditMedia_RunnerVersionInheritedFromEmulatorOverrideFormat" xml:space="preserve"><value>Inherited from emulator: {0}. Item override is active.</value></data>
   
     <!-- LAUNCH -->
     <data name="Launch.Arguments" xml:space="preserve"><value>Arguments</value></data>

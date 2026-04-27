@@ -243,6 +243,10 @@
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
+                                    <TextBlock Text="{Binding InheritedRunnerVersionInfo}"
+                                               IsVisible="{Binding HasInheritedRunnerVersionInfo}"
+                                               Opacity="0.7"
+                                               FontSize="11" />
                                     <TextBlock Text="{Binding RunnerVersionHint}"
                                                Opacity="0.7"
                                                FontSize="11" />

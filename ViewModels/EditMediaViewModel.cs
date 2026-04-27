@@ -169,10 +169,14 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
     public string RunnerVersionLabel => T("EditMedia_RunnerVersionLabel", "Wine/Proton version");
     public string RunnerVersionHint => T("EditMedia_RunnerVersionHint", "Optional per-item override. Takes precedence over emulator default.");
+    public bool HasInheritedRunnerVersionInfo => !string.IsNullOrWhiteSpace(InheritedRunnerVersionInfo);
+    public string InheritedRunnerVersionInfo => _inheritedRunnerVersionInfo;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PreviewText))]
     private RunnerVersionOption? _selectedRunnerVersion;
+
+    private string _inheritedRunnerVersionInfo = string.Empty;
 
     private void AddEnvironmentVariable()
     {
@@ -1508,6 +1512,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         // Keep preview and "Copy" button state in sync with the new profile
         OnPropertyChanged(nameof(PreviewText));
         CopyPreviewCommand.NotifyCanExecuteChanged();
+        RefreshInheritedRunnerVersionInfo();
 
         RefreshInheritedWrappers();
         RebuildEnvironmentOverridesFromInheritance(CaptureCurrentEnvironmentOverrides());
@@ -1531,6 +1536,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     {
         OnPropertyChanged(nameof(PreviewText));
         CopyPreviewCommand.NotifyCanExecuteChanged();
+        RefreshInheritedRunnerVersionInfo();
     }
 
     partial void OnWorkingDirectoryChanged(string value)
@@ -2079,6 +2085,62 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             string.Equals(v.Id, _originalItem.RunnerVersionId, StringComparison.Ordinal));
 
         SelectedRunnerVersion = selected ?? AvailableRunnerVersions.FirstOrDefault();
+        RefreshInheritedRunnerVersionInfo();
+    }
+
+    private void RefreshInheritedRunnerVersionInfo()
+    {
+        var emulator = ResolveSelectedEmulatorConfig();
+        if (string.IsNullOrWhiteSpace(emulator?.DefaultRunnerVersionId))
+        {
+            SetInheritedRunnerVersionInfo(string.Empty);
+            return;
+        }
+
+        var defaultRunnerId = emulator.DefaultRunnerVersionId;
+        var configuredVersion = _settings.RunnerVersions.FirstOrDefault(v =>
+            string.Equals(v.Id, defaultRunnerId, StringComparison.Ordinal));
+
+        var runnerName = configuredVersion == null
+            ? string.Format(
+                T("EditMedia_RunnerVersionInheritedMissingFormat", "(missing: {0})"),
+                defaultRunnerId)
+            : string.IsNullOrWhiteSpace(configuredVersion.Name)
+                ? (configuredVersion.Kind == RunnerVersionKind.Wine
+                    ? $"({T("EditMedia_RunnerVersionKindWine", "Wine")})"
+                    : $"({T("EditMedia_RunnerVersionKindProton", "Proton")})")
+                : $"{configuredVersion.Name} ({(configuredVersion.Kind == RunnerVersionKind.Wine
+                    ? T("EditMedia_RunnerVersionKindWine", "Wine")
+                    : T("EditMedia_RunnerVersionKindProton", "Proton"))})";
+
+        var selectedItemRunnerId = SelectedRunnerVersion?.Id;
+        var hasItemRunnerSelection = !string.IsNullOrWhiteSpace(selectedItemRunnerId);
+        var overrideActive = hasItemRunnerSelection &&
+                             !string.Equals(selectedItemRunnerId, defaultRunnerId, StringComparison.Ordinal);
+
+        var message = string.Format(
+            overrideActive
+                ? T("EditMedia_RunnerVersionInheritedFromEmulatorOverrideFormat",
+                    "Inherited from emulator: {0}. Item override is active.")
+                : hasItemRunnerSelection
+                    ? T("EditMedia_RunnerVersionInheritedFromEmulatorMatchFormat",
+                        "Inherited from emulator: {0}. Item selection matches inherited value.")
+                    : T("EditMedia_RunnerVersionInheritedFromEmulatorFormat",
+                        "Inherited from emulator: {0}."),
+            runnerName);
+
+        SetInheritedRunnerVersionInfo(message);
+    }
+
+    private void SetInheritedRunnerVersionInfo(string value)
+    {
+        value ??= string.Empty;
+        if (string.Equals(_inheritedRunnerVersionInfo, value, StringComparison.Ordinal))
+            return;
+
+        _inheritedRunnerVersionInfo = value;
+        OnPropertyChanged(nameof(InheritedRunnerVersionInfo));
+        OnPropertyChanged(nameof(HasInheritedRunnerVersionInfo));
     }
 
     private void ResolveInheritedEmulatorInfo()

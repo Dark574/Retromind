@@ -91,12 +91,14 @@
                                                       HorizontalAlignment="Stretch" />
                                         </StackPanel>
 
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EmulatorRunnerVersionLabel}"
+                                        <StackPanel Spacing="4"
+                                                    DataContext="{Binding $parent[Window].((vm:SettingsViewModel)DataContext)}">
+                                            <TextBlock Text="{Binding EmulatorRunnerVersionLabel}"
                                                        FontWeight="Bold" />
-                                            <ComboBox ItemsSource="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).SelectedEmulatorRunnerVersionOptions}"
-                                                      SelectedItem="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).SelectedEmulatorRunnerVersion}"
-                                                      IsEnabled="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsEmulatorRunnerSelectionEnabled}"
+                                            <ComboBox ItemsSource="{Binding SelectedEmulatorRunnerVersionOptions}"
+                                                      SelectedValueBinding="{Binding Id}"
+                                                      SelectedValue="{Binding SelectedEmulatorRunnerVersionId, Mode=TwoWay}"
+                                                      IsEnabled="{Binding IsEmulatorRunnerSelectionEnabled}"
                                                       HorizontalAlignment="Stretch">
                                                 <ComboBox.ItemTemplate>
                                                     <DataTemplate>
@@ -104,8 +106,8 @@
                                                     </DataTemplate>
                                                 </ComboBox.ItemTemplate>
                                             </ComboBox>
-                                            <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EmulatorRunnerDisabledHint}"
-                                                       IsVisible="{Binding !$parent[Window].((vm:SettingsViewModel)DataContext).IsEmulatorRunnerSelectionEnabled}"
+                                            <TextBlock Text="{Binding EmulatorRunnerDisabledHint}"
+                                                       IsVisible="{Binding !IsEmulatorRunnerSelectionEnabled}"
                                                        Opacity="0.6"
                                                        TextWrapping="Wrap" />
                                         </StackPanel>
