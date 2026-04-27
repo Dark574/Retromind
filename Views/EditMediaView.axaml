@@ -234,6 +234,21 @@
                                 </StackPanel>
 
                                 <StackPanel Spacing="6">
+                                    <TextBlock Text="{Binding RunnerVersionLabel}" FontWeight="Bold" />
+                                    <ComboBox ItemsSource="{Binding AvailableRunnerVersions}"
+                                              SelectedItem="{Binding SelectedRunnerVersion}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock Text="{Binding RunnerVersionHint}"
+                                               Opacity="0.7"
+                                               FontSize="11" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
                                     <TextBlock Text="Prefix architecture" FontWeight="Bold" />
                                     <ComboBox ItemsSource="{Binding WineArchOptions}"
                                               SelectedItem="{Binding WineArchSelection}" />

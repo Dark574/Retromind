@@ -1,8 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO.Compression;
+using System.Formats.Tar;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -22,7 +28,16 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ViewModelBase, IDisposable
 {
+    private static readonly HttpClient GitHubHttpClient = CreateGitHubHttpClient();
+    private const string GeProtonReleasesApiUrl = "https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases";
+    private const int GeProtonPerPage = 100;
+    private const int GeProtonMaxPages = 6;
+    private const int GeProtonMaxItems = 300;
+
     private readonly AppSettings _appSettings;
+    private readonly ObservableCollection<MediaNode> _rootNodes;
+    private readonly Dictionary<string, int> _runnerUsageById = new(StringComparer.Ordinal);
+    private bool _hasAutoLoadedGeReleases;
     private bool _disposed;
 
     private static string T(string key, string fallback)
@@ -61,6 +76,41 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _heroicEpicPathInput = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemoveRunnerVersionCommand))]
+    [NotifyPropertyChangedFor(nameof(IsRunnerReplacementVisible))]
+    [NotifyPropertyChangedFor(nameof(RunnerReplacementHint))]
+    private RunnerVersionRow? _selectedRunnerVersion;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddRunnerVersionCommand))]
+    private string _runnerVersionNameInput = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddRunnerVersionCommand))]
+    private string _runnerVersionPathInput = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemoveRunnerVersionCommand))]
+    private RunnerVersionSelectionOption? _selectedRunnerReplacement;
+
+    [ObservableProperty]
+    private RunnerVersionSelectionOption? _selectedEmulatorRunnerVersion;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DownloadSelectedGeReleaseCommand))]
+    private GeProtonReleaseOption? _selectedGeProtonRelease;
+
+    [ObservableProperty]
+    private int _selectedSettingsTabIndex;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DownloadSelectedGeReleaseCommand))]
+    private bool _isGeReleaseBusy;
+
+    [ObservableProperty]
+    private string _geReleaseStatusText = string.Empty;
     
     // Available scraper types for the UI.
     // Keep "None" so new entries can stay intentionally unconfigured.
@@ -70,6 +120,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         .ToArray();
 
     public EmulatorConfig.XdgOverrideMode[] AvailableEmulatorXdgModes { get; } = Enum.GetValues<EmulatorConfig.XdgOverrideMode>();
+    public EmulatorConfig.RunnerIntent[] AvailableEmulatorRunnerTypes { get; } = Enum.GetValues<EmulatorConfig.RunnerIntent>();
     
     // UI Collections
     public ObservableCollection<EmulatorConfig> Emulators { get; } = new();
@@ -77,6 +128,10 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public ObservableCollection<string> SteamLibraryPaths { get; } = new();
     public ObservableCollection<string> HeroicGogConfigPaths { get; } = new();
     public ObservableCollection<string> HeroicEpicConfigPaths { get; } = new();
+    public ObservableCollection<RunnerVersionRow> RunnerVersions { get; } = new();
+    public ObservableCollection<RunnerVersionSelectionOption> SelectedEmulatorRunnerVersionOptions { get; } = new();
+    public ObservableCollection<RunnerVersionSelectionOption> RunnerReplacementOptions { get; } = new();
+    public ObservableCollection<GeProtonReleaseOption> GeProtonReleases { get; } = new();
 
     /// <summary>
     /// Controls whether newly selected launch file paths are stored as portable
@@ -294,6 +349,32 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     public string ParentalSectionTitle => T("Settings_SectionParental", "Parental control");
     public string ChangeParentalPasswordText => T("Settings_ChangeParentalPassword", "Change parental password");
+    public string SettingsTabEmulatorsShort => T("Settings_TabEmulatorsShort", "Emu");
+    public string SettingsTabMetadataShort => T("Settings_TabMetadataShort", "Meta");
+    public string SettingsTabRunnerShort => T("Settings_TabRunnerShort", "Runner");
+    public string SettingsTabMiscShort => T("Settings_TabMiscShort", "Misc");
+    public string RunnerVersionsTabTitle => T("Settings_TabRunnerVersions", "Wine-/Proton-Versionen");
+    public string RunnerVersionsSectionTitle => T("Settings_SectionRunnerVersions", "Wine/Proton versions");
+    public string RunnerVersionNameLabel => T("Settings_RunnerVersionNameLabel", "Name");
+    public string RunnerVersionPathLabel => T("Settings_RunnerVersionPathLabel", "Path");
+    public string RunnerVersionBrowseTitle => T("Settings_RunnerVersionBrowseTitle", "Select Wine/Proton directory");
+    public string RunnerVersionDefaultPathHint => T("Settings_RunnerVersionDefaultPathHint", "Managed downloads are stored under Emulators/ProtonVersions in the portable root.");
+    public string RunnerVersionUsageLabel => T("Settings_RunnerVersionUsageLabel", "Games using this version");
+    public string RunnerReplacementLabel => T("Settings_RunnerReplacementLabel", "Replace with");
+    public string RunnerReplacementHint => IsRunnerReplacementVisible
+        ? T("Settings_RunnerReplacementHint", "Select a replacement before removing this version.")
+        : string.Empty;
+    public string GeProtonSectionTitle => T("Settings_GeProtonSectionTitle", "GE-Proton download");
+    public string GeProtonSelectionLabel => T("Settings_GeProtonSelectionLabel", "Available releases");
+    public string GeProtonRefreshLabel => T("Settings_GeProtonRefreshLabel", "Refresh list");
+    public string GeProtonDownloadLabel => T("Settings_GeProtonDownloadLabel", "Download selected");
+    public string GeProtonStatusLabel => T("Settings_GeProtonStatusLabel", "Status");
+    public string EmulatorRunnerTypeLabel => T("Settings_EmulatorRunnerTypeLabel", "Runner type");
+    public string EmulatorRunnerVersionLabel => T("Settings_EmulatorRunnerVersionLabel", "Default runner version");
+    public string EmulatorRunnerDisabledHint => T("Settings_EmulatorRunnerDisabledHint", "Enable per-game prefixes to activate emulator-level defaults.");
+
+    public bool IsRunnerReplacementVisible => SelectedRunnerVersion?.UsedByGames > 0;
+    public bool IsEmulatorRunnerSelectionEnabled => SelectedEmulator?.UsesWinePrefix == true;
     
     /// <summary>
     /// Lightweight UI row for editing a single wrapper (Path + Args) on emulator level
@@ -330,6 +411,84 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         [ObservableProperty] private string _key = string.Empty;
         [ObservableProperty] private string _value = string.Empty;
+    }
+
+    public sealed partial class RunnerVersionRow : ObservableObject
+    {
+        [ObservableProperty] private string _id = Guid.NewGuid().ToString();
+        [ObservableProperty] private string _name = string.Empty;
+        [ObservableProperty] private RunnerVersionKind _kind = RunnerVersionKind.Proton;
+        [ObservableProperty] private RunnerVersionSourceType _sourceType = RunnerVersionSourceType.ExternalPath;
+        [ObservableProperty] private string _path = string.Empty;
+        [ObservableProperty] private string? _releaseTag;
+        [ObservableProperty] private int _usedByGames;
+
+        public string KindDisplay => Kind == RunnerVersionKind.Wine ? "Wine" : "Proton";
+        public string SourceDisplay => SourceType == RunnerVersionSourceType.ManagedDownload ? "ManagedDownload" : "ExternalPath";
+
+        public RunnerVersionRow()
+        {
+        }
+
+        public RunnerVersionRow(RunnerVersionConfig model)
+        {
+            Id = model.Id;
+            Name = model.Name ?? string.Empty;
+            Kind = model.Kind;
+            SourceType = model.SourceType;
+            Path = model.Path ?? string.Empty;
+            ReleaseTag = model.ReleaseTag;
+        }
+
+        public RunnerVersionConfig ToModel()
+            => new()
+            {
+                Id = Id,
+                Name = Name?.Trim() ?? string.Empty,
+                Kind = Kind,
+                SourceType = SourceType,
+                Path = Path?.Trim() ?? string.Empty,
+                ReleaseTag = string.IsNullOrWhiteSpace(ReleaseTag) ? null : ReleaseTag.Trim()
+            };
+
+        partial void OnKindChanged(RunnerVersionKind value)
+        {
+            OnPropertyChanged(nameof(KindDisplay));
+        }
+
+        partial void OnSourceTypeChanged(RunnerVersionSourceType value)
+        {
+            OnPropertyChanged(nameof(SourceDisplay));
+        }
+    }
+
+    public sealed class RunnerVersionSelectionOption
+    {
+        public RunnerVersionSelectionOption(string? id, string name, RunnerVersionKind? kind = null)
+        {
+            Id = id;
+            Name = name ?? string.Empty;
+            Kind = kind;
+        }
+
+        public string? Id { get; }
+        public string Name { get; }
+        public RunnerVersionKind? Kind { get; }
+    }
+
+    public sealed class GeProtonReleaseOption
+    {
+        public GeProtonReleaseOption(string tagName, string assetName, string downloadUrl)
+        {
+            TagName = tagName ?? string.Empty;
+            AssetName = assetName ?? string.Empty;
+            DownloadUrl = downloadUrl ?? string.Empty;
+        }
+
+        public string TagName { get; }
+        public string AssetName { get; }
+        public string DownloadUrl { get; }
+        public string DisplayName => string.IsNullOrWhiteSpace(AssetName) ? TagName : $"{TagName} ({AssetName})";
     }
     
     [ObservableProperty]
@@ -382,6 +541,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IRelayCommand<EnvVarRow?> RemoveEmulatorEnvVarCommand { get; }
     public IRelayCommand ApplyPortableXdgPresetCommand { get; }
     public IRelayCommand ApplyPortableXdgAndHomePresetCommand { get; }
+    public IRelayCommand AddRunnerVersionCommand { get; }
+    public IRelayCommand RemoveRunnerVersionCommand { get; }
+    public IAsyncRelayCommand BrowseRunnerVersionPathCommand { get; }
+    public IAsyncRelayCommand RefreshGeReleasesCommand { get; }
+    public IAsyncRelayCommand DownloadSelectedGeReleaseCommand { get; }
 
     public event Action? RequestClose;
     
@@ -398,12 +562,15 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     /// </summary>
     public event Func<Task>? RequestParentalPasswordChange;
 
+    public bool LibraryModified { get; private set; }
+
     // Optional dependency injection for file dialogs (better for testing)
     public IStorageProvider? StorageProvider { get; set; }
 
-    public SettingsViewModel(AppSettings settings)
+    public SettingsViewModel(AppSettings settings, ObservableCollection<MediaNode>? rootNodes = null)
     {
         _appSettings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
 
         // Load existing emulators
         foreach (var emu in _appSettings.Emulators) 
@@ -433,6 +600,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         {
             foreach (var path in _appSettings.HeroicEpicConfigPaths)
                 HeroicEpicConfigPaths.Add(path);
+        }
+
+        if (_appSettings.RunnerVersions != null)
+        {
+            foreach (var version in _appSettings.RunnerVersions)
+                RunnerVersions.Add(new RunnerVersionRow(version));
         }
 
         AddEmulatorCommand = new RelayCommand(AddEmulator);
@@ -480,6 +653,19 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         RemoveEmulatorEnvVarCommand = new RelayCommand<EnvVarRow?>(RemoveEmulatorEnvVar);
         ApplyPortableXdgPresetCommand = new RelayCommand(ApplyPortableXdgPreset, () => SelectedEmulator != null);
         ApplyPortableXdgAndHomePresetCommand = new RelayCommand(ApplyPortableXdgAndHomePreset, () => SelectedEmulator != null);
+        AddRunnerVersionCommand = new RelayCommand(AddRunnerVersion, CanAddRunnerVersion);
+        RemoveRunnerVersionCommand = new RelayCommand(RemoveRunnerVersion, CanRemoveRunnerVersion);
+        BrowseRunnerVersionPathCommand = new AsyncRelayCommand(BrowseRunnerVersionPathAsync);
+        RefreshGeReleasesCommand = new AsyncRelayCommand(RefreshGeReleasesAsync, () => !IsGeReleaseBusy);
+        DownloadSelectedGeReleaseCommand = new AsyncRelayCommand(DownloadSelectedGeReleaseAsync, CanDownloadSelectedGeRelease);
+
+        foreach (var emulator in Emulators)
+            emulator.PropertyChanged += OnAnyEmulatorPropertyChanged;
+
+        RecomputeRunnerUsageCounts();
+        RebuildSelectedEmulatorRunnerVersionOptions();
+        RebuildRunnerReplacementOptions();
+        GeReleaseStatusText = T("Settings_GeProtonStatusIdle", "Idle");
     }
 
     // --- Computed Properties for UI Hints ---
@@ -542,12 +728,38 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         MoveEmulatorWrapperUpCommand.NotifyCanExecuteChanged();
         MoveEmulatorWrapperDownCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(IsEmulatorXdgCustomSelected));
+        OnPropertyChanged(nameof(IsEmulatorRunnerSelectionEnabled));
+        RebuildSelectedEmulatorRunnerVersionOptions();
     }
 
     private void OnEmulatorPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(EmulatorConfig.XdgMode))
             OnPropertyChanged(nameof(IsEmulatorXdgCustomSelected));
+
+        if (e.PropertyName == nameof(EmulatorConfig.UsesWinePrefix))
+            OnPropertyChanged(nameof(IsEmulatorRunnerSelectionEnabled));
+
+        if (e.PropertyName == nameof(EmulatorConfig.RunnerType))
+            RebuildSelectedEmulatorRunnerVersionOptions();
+
+        if (e.PropertyName == nameof(EmulatorConfig.DefaultRunnerVersionId))
+        {
+            RecomputeRunnerUsageCounts();
+            RebuildRunnerReplacementOptions();
+        }
+    }
+
+    private void OnAnyEmulatorPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(EmulatorConfig.RunnerType) ||
+            e.PropertyName == nameof(EmulatorConfig.DefaultRunnerVersionId))
+        {
+            RecomputeRunnerUsageCounts();
+            RebuildRunnerReplacementOptions();
+            if (ReferenceEquals(sender, SelectedEmulator))
+                RebuildSelectedEmulatorRunnerVersionOptions();
+        }
     }
 
     private void OnScraperPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -557,6 +769,59 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             RefreshHintProperties();
             SaveCommand.NotifyCanExecuteChanged();
         }
+    }
+
+    partial void OnSelectedRunnerVersionChanged(RunnerVersionRow? value)
+    {
+        RebuildRunnerReplacementOptions();
+        RemoveRunnerVersionCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(IsRunnerReplacementVisible));
+        OnPropertyChanged(nameof(RunnerReplacementHint));
+    }
+
+    partial void OnSelectedRunnerReplacementChanged(RunnerVersionSelectionOption? value)
+    {
+        RemoveRunnerVersionCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnRunnerVersionNameInputChanged(string value)
+    {
+        AddRunnerVersionCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnRunnerVersionPathInputChanged(string value)
+    {
+        AddRunnerVersionCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSelectedEmulatorRunnerVersionChanged(RunnerVersionSelectionOption? value)
+    {
+        if (SelectedEmulator == null)
+            return;
+
+        SelectedEmulator.DefaultRunnerVersionId = string.IsNullOrWhiteSpace(value?.Id)
+            ? null
+            : value.Id;
+    }
+
+    partial void OnIsGeReleaseBusyChanged(bool value)
+    {
+        RefreshGeReleasesCommand.NotifyCanExecuteChanged();
+        DownloadSelectedGeReleaseCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSelectedSettingsTabIndexChanged(int value)
+    {
+        // Tab order in SettingsView:
+        // 0 = Emulators, 1 = Metadata, 2 = Wine/Proton versions, 3 = Misc.
+        if (value != 2)
+            return;
+
+        if (_hasAutoLoadedGeReleases || IsGeReleaseBusy || GeProtonReleases.Count > 0)
+            return;
+
+        _hasAutoLoadedGeReleases = true;
+        _ = RefreshGeReleasesAsync();
     }
 
     private bool CanSave()
@@ -677,12 +942,661 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             Value = value
         });
     }
+
+    private bool CanAddRunnerVersion()
+        => !string.IsNullOrWhiteSpace(RunnerVersionPathInput);
+
+    private void AddRunnerVersion()
+    {
+        var path = RunnerVersionPathInput?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        var normalizedPath = PreferPortableLaunchPaths
+            ? ConvertPathToPortableIfInsideDataRoot(path) ?? path
+            : path;
+
+        var name = string.IsNullOrWhiteSpace(RunnerVersionNameInput)
+            ? Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            : RunnerVersionNameInput.Trim();
+
+        var row = new RunnerVersionRow
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = name,
+            Kind = DetectRunnerKindFromPath(path),
+            SourceType = RunnerVersionSourceType.ExternalPath,
+            Path = normalizedPath
+        };
+
+        RunnerVersions.Add(row);
+        SelectedRunnerVersion = row;
+        RunnerVersionNameInput = string.Empty;
+        RunnerVersionPathInput = string.Empty;
+
+        RecomputeRunnerUsageCounts();
+        RebuildSelectedEmulatorRunnerVersionOptions();
+        RebuildRunnerReplacementOptions();
+    }
+
+    private bool CanRemoveRunnerVersion()
+    {
+        if (SelectedRunnerVersion == null)
+            return false;
+
+        if (SelectedRunnerVersion.UsedByGames <= 0)
+            return true;
+
+        return !string.IsNullOrWhiteSpace(SelectedRunnerReplacement?.Id);
+    }
+
+    private void RemoveRunnerVersion()
+    {
+        if (SelectedRunnerVersion == null)
+            return;
+
+        var removed = SelectedRunnerVersion;
+        var removedId = removed.Id;
+        var replacementId = SelectedRunnerReplacement?.Id;
+
+        if (removed.UsedByGames > 0 && string.IsNullOrWhiteSpace(replacementId))
+            return;
+
+        // Remap emulator-level defaults
+        foreach (var emulator in Emulators)
+        {
+            if (string.Equals(emulator.DefaultRunnerVersionId, removedId, StringComparison.Ordinal))
+                emulator.DefaultRunnerVersionId = replacementId;
+        }
+
+        // Remap item-level overrides
+        var libraryChanged = false;
+        if (_rootNodes.Count > 0)
+        {
+            foreach (var root in _rootNodes)
+            {
+                if (RemapRunnerVersionRecursive(root, removedId, replacementId))
+                    libraryChanged = true;
+            }
+        }
+
+        if (libraryChanged)
+            LibraryModified = true;
+
+        RunnerVersions.Remove(removed);
+        SelectedRunnerVersion = RunnerVersions.FirstOrDefault();
+
+        RecomputeRunnerUsageCounts();
+        RebuildSelectedEmulatorRunnerVersionOptions();
+        RebuildRunnerReplacementOptions();
+    }
+
+    private async Task BrowseRunnerVersionPathAsync()
+    {
+        var provider = ResolveStorageProvider();
+        if (provider == null) return;
+
+        var result = await provider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = RunnerVersionBrowseTitle,
+            AllowMultiple = false
+        });
+
+        if (result == null || result.Count == 0)
+            return;
+
+        RunnerVersionPathInput = result[0].Path.LocalPath;
+    }
+
+    private bool CanDownloadSelectedGeRelease()
+        => !IsGeReleaseBusy && SelectedGeProtonRelease != null;
+
+    private async Task RefreshGeReleasesAsync()
+    {
+        if (IsGeReleaseBusy)
+            return;
+
+        IsGeReleaseBusy = true;
+        GeReleaseStatusText = T("Settings_GeProtonStatusLoading", "Loading release list...");
+
+        try
+        {
+            var releases = await FetchGeProtonReleasesAsync();
+
+            GeProtonReleases.Clear();
+            foreach (var release in releases)
+                GeProtonReleases.Add(release);
+
+            SelectedGeProtonRelease = GeProtonReleases.FirstOrDefault();
+
+            GeReleaseStatusText = releases.Count > 0
+                ? string.Format(T("Settings_GeProtonStatusLoadedFormat", "Loaded {0} release(s)."), releases.Count)
+                : T("Settings_GeProtonStatusNoReleases", "No downloadable GE-Proton release found.");
+        }
+        catch (Exception ex)
+        {
+            GeReleaseStatusText = string.Format(
+                T("Settings_GeProtonStatusLoadFailedFormat", "Failed to load release list: {0}"),
+                ex.Message);
+        }
+        finally
+        {
+            IsGeReleaseBusy = false;
+        }
+    }
+
+    private async Task DownloadSelectedGeReleaseAsync()
+    {
+        var selected = SelectedGeProtonRelease;
+        if (!CanDownloadSelectedGeRelease() || selected == null)
+            return;
+
+        IsGeReleaseBusy = true;
+        GeReleaseStatusText = string.Format(
+            T("Settings_GeProtonStatusDownloadingFormat", "Downloading {0} ..."),
+            selected.TagName);
+
+        try
+        {
+            var relativePath = await DownloadAndInstallGeReleaseAsync(selected);
+
+            var existing = RunnerVersions.FirstOrDefault(r =>
+                string.Equals(r.Path, relativePath, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                existing.SourceType = RunnerVersionSourceType.ManagedDownload;
+                existing.Kind = RunnerVersionKind.Proton;
+                existing.ReleaseTag = selected.TagName;
+                SelectedRunnerVersion = existing;
+            }
+            else
+            {
+                var folderName = Path.GetFileName(relativePath);
+                var row = new RunnerVersionRow
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = folderName,
+                    Kind = RunnerVersionKind.Proton,
+                    SourceType = RunnerVersionSourceType.ManagedDownload,
+                    Path = relativePath,
+                    ReleaseTag = selected.TagName
+                };
+
+                RunnerVersions.Add(row);
+                SelectedRunnerVersion = row;
+            }
+
+            RecomputeRunnerUsageCounts();
+            RebuildSelectedEmulatorRunnerVersionOptions();
+            RebuildRunnerReplacementOptions();
+
+            GeReleaseStatusText = string.Format(
+                T("Settings_GeProtonStatusInstalledFormat", "Installed: {0}"),
+                relativePath);
+        }
+        catch (Exception ex)
+        {
+            GeReleaseStatusText = string.Format(
+                T("Settings_GeProtonStatusInstallFailedFormat", "Installation failed: {0}"),
+                ex.Message);
+        }
+        finally
+        {
+            IsGeReleaseBusy = false;
+        }
+    }
+
+    private static async Task<List<GeProtonReleaseOption>> FetchGeProtonReleasesAsync()
+    {
+        var result = new List<GeProtonReleaseOption>();
+
+        for (var page = 1; page <= GeProtonMaxPages; page++)
+        {
+            var url = $"{GeProtonReleasesApiUrl}?per_page={GeProtonPerPage}&page={page}";
+            using var response = await GitHubHttpClient.GetAsync(url).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            await using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            using var json = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
+
+            if (json.RootElement.ValueKind != JsonValueKind.Array)
+                break;
+
+            var releaseCountOnPage = json.RootElement.GetArrayLength();
+            if (releaseCountOnPage == 0)
+                break;
+
+            foreach (var release in json.RootElement.EnumerateArray())
+            {
+                if (!TryGetStringProperty(release, "tag_name", out var tagName))
+                    continue;
+
+                if (release.TryGetProperty("draft", out var draftProp) && draftProp.ValueKind == JsonValueKind.True)
+                    continue;
+
+                if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+                    continue;
+
+                foreach (var asset in assets.EnumerateArray())
+                {
+                    if (!TryGetStringProperty(asset, "name", out var assetName))
+                        continue;
+
+                    if (!assetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (!TryGetStringProperty(asset, "browser_download_url", out var downloadUrl))
+                        continue;
+
+                    result.Add(new GeProtonReleaseOption(tagName, assetName, downloadUrl));
+                    break; // One download asset per release is enough.
+                }
+
+                if (result.Count >= GeProtonMaxItems)
+                    return result;
+            }
+
+            if (releaseCountOnPage < GeProtonPerPage)
+                break;
+        }
+
+        return result;
+    }
+
+    private static bool TryGetStringProperty(JsonElement element, string propertyName, out string value)
+    {
+        value = string.Empty;
+        if (!element.TryGetProperty(propertyName, out var property))
+            return false;
+
+        if (property.ValueKind != JsonValueKind.String)
+            return false;
+
+        value = property.GetString() ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static async Task<string> DownloadAndInstallGeReleaseAsync(GeProtonReleaseOption release)
+    {
+        if (release == null)
+            throw new ArgumentNullException(nameof(release));
+
+        var baseRelativePath = Path.Combine("Emulators", "ProtonVersions");
+        var baseAbsolutePath = AppPaths.ResolveDataPath(baseRelativePath);
+        Directory.CreateDirectory(baseAbsolutePath);
+
+        var tempArchivePath = Path.Combine(Path.GetTempPath(), $"retromind_ge_{Guid.NewGuid():N}.tar.gz");
+
+        try
+        {
+            await using (var remote = await GitHubHttpClient.GetStreamAsync(release.DownloadUrl).ConfigureAwait(false))
+            await using (var local = File.Create(tempArchivePath))
+            {
+                await remote.CopyToAsync(local).ConfigureAwait(false);
+            }
+
+            var rootFolder = DetectArchiveRootFolderName(tempArchivePath);
+            if (string.IsNullOrWhiteSpace(rootFolder))
+            {
+                rootFolder = Path.GetFileNameWithoutExtension(
+                    Path.GetFileNameWithoutExtension(release.AssetName));
+            }
+
+            rootFolder = SanitizeFolderName(rootFolder);
+            if (string.IsNullOrWhiteSpace(rootFolder))
+                throw new InvalidOperationException("Unable to determine installation folder name.");
+
+            var targetDir = Path.Combine(baseAbsolutePath, rootFolder);
+            var relativeInstalledPath = NormalizeRelativePath(Path.Combine(baseRelativePath, rootFolder));
+
+            if (Directory.Exists(targetDir))
+                return relativeInstalledPath;
+
+            var stagingDir = Path.Combine(baseAbsolutePath, $".tmp_ge_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(stagingDir);
+
+            try
+            {
+                await using var archiveStream = File.OpenRead(tempArchivePath);
+                await using var gzipStream = new GZipStream(archiveStream, CompressionMode.Decompress);
+                TarFile.ExtractToDirectory(gzipStream, stagingDir, overwriteFiles: false);
+
+                var expectedRoot = Path.Combine(stagingDir, rootFolder);
+                if (Directory.Exists(expectedRoot))
+                {
+                    Directory.Move(expectedRoot, targetDir);
+                }
+                else
+                {
+                    var extractedDirs = Directory.GetDirectories(stagingDir);
+                    if (extractedDirs.Length == 1)
+                    {
+                        Directory.Move(extractedDirs[0], targetDir);
+                    }
+                    else
+                    {
+                        Directory.CreateDirectory(targetDir);
+                        MoveDirectoryContents(stagingDir, targetDir);
+                    }
+                }
+            }
+            finally
+            {
+                try
+                {
+                    if (Directory.Exists(stagingDir))
+                        Directory.Delete(stagingDir, recursive: true);
+                }
+                catch
+                {
+                    // best-effort cleanup
+                }
+            }
+
+            return relativeInstalledPath;
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(tempArchivePath))
+                    File.Delete(tempArchivePath);
+            }
+            catch
+            {
+                // best-effort cleanup
+            }
+        }
+    }
+
+    private static string DetectArchiveRootFolderName(string tarGzPath)
+    {
+        if (string.IsNullOrWhiteSpace(tarGzPath) || !File.Exists(tarGzPath))
+            return string.Empty;
+
+        using var fileStream = File.OpenRead(tarGzPath);
+        using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress);
+        using var tarReader = new TarReader(gzipStream, leaveOpen: false);
+
+        TarEntry? entry;
+        while ((entry = tarReader.GetNextEntry()) != null)
+        {
+            var name = entry.Name?.Trim('/', '\\');
+            if (string.IsNullOrWhiteSpace(name))
+                continue;
+
+            var firstSegment = name.Split(new[] { '/', '\\' }, 2)[0];
+            if (!string.IsNullOrWhiteSpace(firstSegment))
+                return firstSegment;
+        }
+
+        return string.Empty;
+    }
+
+    private static void MoveDirectoryContents(string sourceDir, string destinationDir)
+    {
+        if (!Directory.Exists(sourceDir))
+            return;
+
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (var dir in Directory.GetDirectories(sourceDir))
+        {
+            var target = Path.Combine(destinationDir, Path.GetFileName(dir));
+            if (Directory.Exists(target))
+                throw new IOException($"Target directory already exists: {target}");
+
+            Directory.Move(dir, target);
+        }
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var target = Path.Combine(destinationDir, Path.GetFileName(file));
+            if (File.Exists(target))
+                throw new IOException($"Target file already exists: {target}");
+
+            File.Move(file, target);
+        }
+    }
+
+    private static string SanitizeFolderName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var result = value.Trim();
+        foreach (var c in Path.GetInvalidFileNameChars())
+            result = result.Replace(c.ToString(), string.Empty, StringComparison.Ordinal);
+
+        return result.Trim();
+    }
+
+    private static string NormalizeRelativePath(string path)
+        => (path ?? string.Empty).Replace('\\', '/');
+
+    private static RunnerVersionKind DetectRunnerKindFromPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return RunnerVersionKind.Proton;
+
+        var trimmed = path.Trim();
+        var normalized = trimmed.Replace('\\', '/');
+        var lower = normalized.ToLowerInvariant();
+
+        if (lower.Contains("/wine") || lower.Contains("wine64"))
+            return RunnerVersionKind.Wine;
+
+        if (lower.Contains("proton"))
+            return RunnerVersionKind.Proton;
+
+        try
+        {
+            var candidateDir = Directory.Exists(trimmed)
+                ? trimmed
+                : (File.Exists(trimmed) ? Path.GetDirectoryName(trimmed) : null);
+
+            if (!string.IsNullOrWhiteSpace(candidateDir))
+            {
+                var wineBin = Path.Combine(candidateDir, "bin", "wine");
+                var wineBin64 = Path.Combine(candidateDir, "bin", "wine64");
+                if (File.Exists(wineBin) || File.Exists(wineBin64))
+                    return RunnerVersionKind.Wine;
+
+                var protonScript = Path.Combine(candidateDir, "proton");
+                var protonFixes = Path.Combine(candidateDir, "protonfixes");
+                if (File.Exists(protonScript) || Directory.Exists(protonFixes))
+                    return RunnerVersionKind.Proton;
+            }
+        }
+        catch
+        {
+            // best-effort detection
+        }
+
+        return RunnerVersionKind.Proton;
+    }
+
+    private void RebuildSelectedEmulatorRunnerVersionOptions()
+    {
+        SelectedEmulatorRunnerVersionOptions.Clear();
+        SelectedEmulatorRunnerVersionOptions.Add(new RunnerVersionSelectionOption(
+            id: null,
+            name: Strings.NodeSettings_ModeNone));
+
+        var selected = SelectedEmulator;
+        var intent = InferEffectiveRunnerIntent(selected);
+
+        foreach (var row in OrderRunnerRowsForIntent(intent))
+        {
+            var suffix = row.Kind == RunnerVersionKind.Wine ? "Wine" : "Proton";
+            SelectedEmulatorRunnerVersionOptions.Add(new RunnerVersionSelectionOption(
+                id: row.Id,
+                name: $"{row.Name} ({suffix})",
+                kind: row.Kind));
+        }
+
+        var defaultId = selected?.DefaultRunnerVersionId;
+        SelectedEmulatorRunnerVersion = SelectedEmulatorRunnerVersionOptions.FirstOrDefault(o =>
+            string.Equals(o.Id, defaultId, StringComparison.Ordinal))
+            ?? SelectedEmulatorRunnerVersionOptions.FirstOrDefault();
+    }
+
+    private void RebuildRunnerReplacementOptions()
+    {
+        RunnerReplacementOptions.Clear();
+
+        if (SelectedRunnerVersion == null)
+        {
+            SelectedRunnerReplacement = null;
+            return;
+        }
+
+        foreach (var row in RunnerVersions.Where(r => !string.Equals(r.Id, SelectedRunnerVersion.Id, StringComparison.Ordinal)))
+        {
+            var suffix = row.Kind == RunnerVersionKind.Wine ? "Wine" : "Proton";
+            RunnerReplacementOptions.Add(new RunnerVersionSelectionOption(
+                id: row.Id,
+                name: $"{row.Name} ({suffix})",
+                kind: row.Kind));
+        }
+
+        var preferredKind = SelectedRunnerVersion.Kind;
+        SelectedRunnerReplacement = RunnerReplacementOptions.FirstOrDefault(o => o.Kind == preferredKind)
+            ?? RunnerReplacementOptions.FirstOrDefault();
+    }
+
+    private IEnumerable<RunnerVersionRow> OrderRunnerRowsForIntent(EmulatorConfig.RunnerIntent intent)
+    {
+        RunnerVersionKind? preferredKind = intent switch
+        {
+            EmulatorConfig.RunnerIntent.UmuProton => RunnerVersionKind.Proton,
+            EmulatorConfig.RunnerIntent.Wine => RunnerVersionKind.Wine,
+            _ => null
+        };
+
+        return RunnerVersions
+            .OrderBy(r => preferredKind.HasValue && r.Kind == preferredKind.Value ? 0 : 1)
+            .ThenBy(r => r.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static EmulatorConfig.RunnerIntent InferEffectiveRunnerIntent(EmulatorConfig? emulator)
+    {
+        if (emulator == null)
+            return EmulatorConfig.RunnerIntent.Auto;
+
+        if (emulator.RunnerType != EmulatorConfig.RunnerIntent.Auto)
+            return emulator.RunnerType;
+
+        var executable = emulator.Path ?? string.Empty;
+        if (executable.Contains("umu", StringComparison.OrdinalIgnoreCase) ||
+            executable.Contains("proton", StringComparison.OrdinalIgnoreCase) ||
+            emulator.EnvironmentOverrides.Keys.Any(k => string.Equals(k, "PROTONPATH", StringComparison.OrdinalIgnoreCase)))
+        {
+            return EmulatorConfig.RunnerIntent.UmuProton;
+        }
+
+        if (executable.Contains("wine", StringComparison.OrdinalIgnoreCase) ||
+            emulator.EnvironmentOverrides.Keys.Any(k => string.Equals(k, "WINE", StringComparison.OrdinalIgnoreCase)))
+        {
+            return EmulatorConfig.RunnerIntent.Wine;
+        }
+
+        return EmulatorConfig.RunnerIntent.Generic;
+    }
+
+    private void RecomputeRunnerUsageCounts()
+    {
+        _runnerUsageById.Clear();
+
+        if (_rootNodes.Count > 0)
+        {
+            foreach (var root in _rootNodes)
+                CountRunnerUsageRecursive(root, inheritedDefaultEmulatorId: null);
+        }
+
+        foreach (var row in RunnerVersions)
+        {
+            row.UsedByGames = _runnerUsageById.TryGetValue(row.Id, out var count)
+                ? count
+                : 0;
+        }
+
+        OnPropertyChanged(nameof(IsRunnerReplacementVisible));
+        OnPropertyChanged(nameof(RunnerReplacementHint));
+        RemoveRunnerVersionCommand.NotifyCanExecuteChanged();
+    }
+
+    private void CountRunnerUsageRecursive(MediaNode node, string? inheritedDefaultEmulatorId)
+    {
+        var effectiveDefaultEmulatorId = !string.IsNullOrWhiteSpace(node.DefaultEmulatorId)
+            ? node.DefaultEmulatorId
+            : inheritedDefaultEmulatorId;
+
+        foreach (var item in node.Items)
+        {
+            var runnerId = ResolveEffectiveRunnerVersionId(item, effectiveDefaultEmulatorId);
+            if (string.IsNullOrWhiteSpace(runnerId))
+                continue;
+
+            _runnerUsageById[runnerId] = _runnerUsageById.TryGetValue(runnerId, out var count)
+                ? count + 1
+                : 1;
+        }
+
+        foreach (var child in node.Children)
+            CountRunnerUsageRecursive(child, effectiveDefaultEmulatorId);
+    }
+
+    private string? ResolveEffectiveRunnerVersionId(MediaItem item, string? inheritedDefaultEmulatorId)
+    {
+        if (!string.IsNullOrWhiteSpace(item.RunnerVersionId))
+            return item.RunnerVersionId;
+
+        if (item.MediaType != MediaType.Emulator)
+            return null;
+
+        EmulatorConfig? emulator = null;
+        if (!string.IsNullOrWhiteSpace(item.EmulatorId))
+        {
+            emulator = Emulators.FirstOrDefault(e => string.Equals(e.Id, item.EmulatorId, StringComparison.Ordinal));
+        }
+        else if (string.IsNullOrWhiteSpace(item.LauncherPath) && !string.IsNullOrWhiteSpace(inheritedDefaultEmulatorId))
+        {
+            emulator = Emulators.FirstOrDefault(e => string.Equals(e.Id, inheritedDefaultEmulatorId, StringComparison.Ordinal));
+        }
+
+        return emulator?.DefaultRunnerVersionId;
+    }
+
+    private static bool RemapRunnerVersionRecursive(MediaNode node, string removedId, string? replacementId)
+    {
+        var changed = false;
+
+        foreach (var item in node.Items)
+        {
+            if (string.Equals(item.RunnerVersionId, removedId, StringComparison.Ordinal))
+            {
+                item.RunnerVersionId = replacementId;
+                changed = true;
+            }
+        }
+
+        foreach (var child in node.Children)
+        {
+            if (RemapRunnerVersionRecursive(child, removedId, replacementId))
+                changed = true;
+        }
+
+        return changed;
+    }
     
     // --- Actions ---
 
     private void AddEmulator()
     {
         var newEmu = new EmulatorConfig { Name = Strings.Profile_New };
+        newEmu.PropertyChanged += OnAnyEmulatorPropertyChanged;
         Emulators.Add(newEmu);
         SelectedEmulator = newEmu; 
     }
@@ -691,8 +1605,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         if (SelectedEmulator != null)
         {
+            SelectedEmulator.PropertyChanged -= OnAnyEmulatorPropertyChanged;
             Emulators.Remove(SelectedEmulator);
             SelectedEmulator = null;
+            RecomputeRunnerUsageCounts();
+            RebuildSelectedEmulatorRunnerVersionOptions();
         }
     }
 
@@ -804,6 +1721,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             }
 
             ConvertWrapperPathsToPortable(_appSettings.DefaultNativeWrappers);
+
+            foreach (var runner in RunnerVersions)
+            {
+                runner.Path = ConvertPathToPortableIfInsideDataRoot(runner.Path) ?? runner.Path;
+            }
         }
         
         // Persist changes back to the main settings object
@@ -812,6 +1734,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         _appSettings.Scrapers.Clear();
         _appSettings.Scrapers.AddRange(Scrapers);
+
+        _appSettings.RunnerVersions.Clear();
+        _appSettings.RunnerVersions.AddRange(RunnerVersions.Select(r => r.ToModel()));
 
         _appSettings.SteamLibraryPaths.Clear();
         _appSettings.SteamLibraryPaths.AddRange(SteamLibraryPaths);
@@ -1099,6 +2024,20 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         return provider;
     }
 
+    private static HttpClient CreateGitHubHttpClient()
+    {
+        var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(90)
+        };
+
+        client.DefaultRequestHeaders.UserAgent.Clear();
+        client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("Retromind", "1.0"));
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+
+        return client;
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -1111,5 +2050,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         if (SelectedEmulator != null)
             SelectedEmulator.PropertyChanged -= OnEmulatorPropertyChanged;
+
+        foreach (var emulator in Emulators)
+            emulator.PropertyChanged -= OnAnyEmulatorPropertyChanged;
     }
 }

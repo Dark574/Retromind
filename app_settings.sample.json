@@ -19,6 +19,17 @@
   "LastBigModeSelectedNodeId": null,
   "LastBigModeWasItemView": true,
 
+  "RunnerVersions": [
+    {
+      "Id": "10000000-0000-0000-0000-000000000001",
+      "Name": "GE-Proton10-34",
+      "Kind": 0,
+      "SourceType": 1,
+      "Path": "Emulators/ProtonVersions/GE-Proton10-34",
+      "ReleaseTag": null
+    }
+  ],
+
   "Emulators": [
     {
       "Id": "00000000-0000-0000-0000-000000000001",
@@ -27,6 +38,8 @@
       "Arguments": "{file}",
       "UsePlaylistForMultiDisc": false,
       "UsesWinePrefix": true,
+      "RunnerType": 1,
+      "DefaultRunnerVersionId": "10000000-0000-0000-0000-000000000001",
       "NativeWrapperMode": 0,
       "NativeWrappersOverride": [],
       "EnvironmentOverrides": {
@@ -40,6 +53,8 @@
       "Arguments": "-conf {file}",
       "UsePlaylistForMultiDisc": false,
       "UsesWinePrefix": false,
+      "RunnerType": 0,
+      "DefaultRunnerVersionId": null,
       "NativeWrapperMode": 0,
       "NativeWrappersOverride": null,
       "EnvironmentOverrides": {}
@@ -51,6 +66,8 @@
       "Arguments": "run org.mamedev.MAME {fileBase}",
       "UsePlaylistForMultiDisc": false,
       "UsesWinePrefix": false,
+      "RunnerType": 0,
+      "DefaultRunnerVersionId": null,
       "NativeWrapperMode": 0,
       "NativeWrappersOverride": null,
       "EnvironmentOverrides": {}
@@ -62,6 +79,8 @@
       "Arguments": "{file} -fullscreen",
       "UsePlaylistForMultiDisc": false,
       "UsesWinePrefix": false,
+      "RunnerType": 0,
+      "DefaultRunnerVersionId": null,
       "NativeWrapperMode": 0,
       "NativeWrappersOverride": null,
       "EnvironmentOverrides": {}

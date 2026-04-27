@@ -213,6 +213,10 @@
     <data name="Settings.TabMisc" xml:space="preserve"><value>Misc</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Launch paths</value></data>
     <data name="Settings_SectionMusic" xml:space="preserve"><value>Music</value></data>
+    <data name="Settings_TabEmulatorsShort" xml:space="preserve"><value>Emu</value></data>
+    <data name="Settings_TabMetadataShort" xml:space="preserve"><value>Meta</value></data>
+    <data name="Settings_TabRunnerShort" xml:space="preserve"><value>Runner</value></data>
+    <data name="Settings_TabMiscShort" xml:space="preserve"><value>Misc</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Applies to both manual scrape and bulk scrape.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>If data already exists:</value></data>
@@ -222,6 +226,33 @@
     <data name="Settings_ScraperAssetFields" xml:space="preserve"><value>Artwork / assets</value></data>
     <data name="Settings_SectionParental" xml:space="preserve"><value>Parental control</value></data>
     <data name="Settings_ChangeParentalPassword" xml:space="preserve"><value>Change parental password</value></data>
+    <data name="Settings_TabRunnerVersions" xml:space="preserve"><value>Wine-/Proton-Versionen</value></data>
+    <data name="Settings_SectionRunnerVersions" xml:space="preserve"><value>Wine/Proton versions</value></data>
+    <data name="Settings_RunnerVersionNameLabel" xml:space="preserve"><value>Name</value></data>
+    <data name="Settings_RunnerVersionPathLabel" xml:space="preserve"><value>Path</value></data>
+    <data name="Settings_RunnerVersionKindLabel" xml:space="preserve"><value>Type</value></data>
+    <data name="Settings_RunnerVersionSourceLabel" xml:space="preserve"><value>Source</value></data>
+    <data name="Settings_RunnerVersionBrowseTitle" xml:space="preserve"><value>Select Wine/Proton directory</value></data>
+    <data name="Settings_RunnerVersionDefaultPathHint" xml:space="preserve"><value>Managed downloads are stored under Emulators/ProtonVersions in the portable root.</value></data>
+    <data name="Settings_RunnerVersionUsageLabel" xml:space="preserve"><value>Games using this version</value></data>
+    <data name="Settings_RunnerReplacementLabel" xml:space="preserve"><value>Replace with</value></data>
+    <data name="Settings_RunnerReplacementHint" xml:space="preserve"><value>Select a replacement before removing this version.</value></data>
+    <data name="Settings_GeProtonSectionTitle" xml:space="preserve"><value>GE-Proton download</value></data>
+    <data name="Settings_GeProtonSelectionLabel" xml:space="preserve"><value>Available releases</value></data>
+    <data name="Settings_GeProtonRefreshLabel" xml:space="preserve"><value>Refresh list</value></data>
+    <data name="Settings_GeProtonDownloadLabel" xml:space="preserve"><value>Download selected</value></data>
+    <data name="Settings_GeProtonStatusLabel" xml:space="preserve"><value>Status</value></data>
+    <data name="Settings_GeProtonStatusIdle" xml:space="preserve"><value>Idle</value></data>
+    <data name="Settings_GeProtonStatusLoading" xml:space="preserve"><value>Loading release list...</value></data>
+    <data name="Settings_GeProtonStatusLoadedFormat" xml:space="preserve"><value>Loaded {0} release(s).</value></data>
+    <data name="Settings_GeProtonStatusNoReleases" xml:space="preserve"><value>No downloadable GE-Proton release found.</value></data>
+    <data name="Settings_GeProtonStatusLoadFailedFormat" xml:space="preserve"><value>Failed to load release list: {0}</value></data>
+    <data name="Settings_GeProtonStatusDownloadingFormat" xml:space="preserve"><value>Downloading {0} ...</value></data>
+    <data name="Settings_GeProtonStatusInstalledFormat" xml:space="preserve"><value>Installed: {0}</value></data>
+    <data name="Settings_GeProtonStatusInstallFailedFormat" xml:space="preserve"><value>Installation failed: {0}</value></data>
+    <data name="Settings_EmulatorRunnerTypeLabel" xml:space="preserve"><value>Runner type</value></data>
+    <data name="Settings_EmulatorRunnerVersionLabel" xml:space="preserve"><value>Default runner version</value></data>
+    <data name="Settings_EmulatorRunnerDisabledHint" xml:space="preserve"><value>Enable per-game prefixes to activate emulator-level defaults.</value></data>
     <data name="Settings_SectionSteamLibrary" xml:space="preserve"><value>Steam library paths</value></data>
     <data name="Settings_SteamLibraryPathsHint" xml:space="preserve"><value>Optional. Add the Steam library root (e.g. /home/user/.local/share/Steam) or the 'steamapps' folder.</value></data>
     <data name="Settings_SteamLibraryPathWatermark" xml:space="preserve"><value>e.g. /home/user/.local/share/Steam</value></data>
@@ -249,6 +280,8 @@
     <data name="Settings_EnvKeyWatermark" xml:space="preserve"><value>e.g. PROTONPATH</value></data>
     <data name="Settings_EnvValueLabel" xml:space="preserve"><value>Value</value></data>
     <data name="Settings_EnvValueWatermark" xml:space="preserve"><value>/path/to/proton</value></data>
+    <data name="EditMedia_RunnerVersionLabel" xml:space="preserve"><value>Wine/Proton version</value></data>
+    <data name="EditMedia_RunnerVersionHint" xml:space="preserve"><value>Optional per-item override. Takes precedence over emulator default.</value></data>
   
     <!-- LAUNCH -->
     <data name="Launch.Arguments" xml:space="preserve"><value>Arguments</value></data>

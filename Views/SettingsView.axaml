@@ -9,13 +9,24 @@
         Width="750" Height="550"
         WindowStartupLocation="CenterOwner">
 
-    <Grid RowDefinitions="Auto, *, Auto" Margin="20">
+    <Grid RowDefinitions="*, Auto" Margin="20">
         
         <!-- Main Content with Tabs -->
-        <TabControl Grid.Row="1">
+        <TabControl Grid.Row="0"
+                    SelectedIndex="{Binding SelectedSettingsTabIndex, Mode=TwoWay}">
+            <TabControl.Styles>
+                <Style Selector="TabControl > TabItem">
+                    <Setter Property="FontSize" Value="18" />
+                    <Setter Property="Padding" Value="10,6" />
+                </Style>
+            </TabControl.Styles>
             
             <!-- TAB 1: EMULATORS -->
-            <TabItem Header="{x:Static p:Strings.Settings_TabEmulators}">
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock Text="{Binding SettingsTabEmulatorsShort}"
+                               ToolTip.Tip="{x:Static p:Strings.Settings_TabEmulators}" />
+                </TabItem.Header>
                 <Grid ColumnDefinitions="200, 20, *">
                     <!-- LEFT: List of emulators -->
                     <Grid Grid.Column="0" RowDefinitions="*, Auto">
@@ -71,6 +82,33 @@
                                         <CheckBox Content="{x:Static p:Strings.Settings_UseWinePrefix}"
                                                   IsChecked="{Binding UsesWinePrefix}"
                                                   ToolTip.Tip="{x:Static p:Strings.Settings_UseWinePrefix_Hint}" />
+
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EmulatorRunnerTypeLabel}"
+                                                       FontWeight="Bold" />
+                                            <ComboBox ItemsSource="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).AvailableEmulatorRunnerTypes}"
+                                                      SelectedItem="{Binding RunnerType}"
+                                                      HorizontalAlignment="Stretch" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EmulatorRunnerVersionLabel}"
+                                                       FontWeight="Bold" />
+                                            <ComboBox ItemsSource="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).SelectedEmulatorRunnerVersionOptions}"
+                                                      SelectedItem="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).SelectedEmulatorRunnerVersion}"
+                                                      IsEnabled="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsEmulatorRunnerSelectionEnabled}"
+                                                      HorizontalAlignment="Stretch">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Name}" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                            <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).EmulatorRunnerDisabledHint}"
+                                                       IsVisible="{Binding !$parent[Window].((vm:SettingsViewModel)DataContext).IsEmulatorRunnerSelectionEnabled}"
+                                                       Opacity="0.6"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
 
                                         <CheckBox Content="{x:Static p:Strings.Settings_UsePlaylistForMultiDisc}"
                                                   IsChecked="{Binding UsePlaylistForMultiDisc}"
@@ -205,7 +243,11 @@
             </TabItem>
             
             <!-- TAB 2: METADATA (SCRAPER) -->
-            <TabItem Header="{x:Static p:Strings.Settings_TabMetadata}">
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock Text="{Binding SettingsTabMetadataShort}"
+                               ToolTip.Tip="{x:Static p:Strings.Settings_TabMetadata}" />
+                </TabItem.Header>
                 <Grid ColumnDefinitions="200, 20, *">
                     <!-- LEFT: List of scrapers -->
                     <Grid Grid.Column="0" RowDefinitions="*, Auto">
@@ -323,8 +365,119 @@
                 </Grid>
             </TabItem>
 
-            <!-- TAB 3: MISC -->
-            <TabItem Header="{x:Static p:Strings.Settings_TabMisc}">
+            <!-- TAB 3: RUNNER VERSIONS -->
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock Text="{Binding SettingsTabRunnerShort}"
+                               ToolTip.Tip="{Binding RunnerVersionsTabTitle}" />
+                </TabItem.Header>
+                <Grid ColumnDefinitions="260, 20, *">
+                    <Grid Grid.Column="0" RowDefinitions="Auto, *, Auto" RowSpacing="8">
+                        <TextBlock Grid.Row="0"
+                                   Text="{Binding RunnerVersionsSectionTitle}"
+                                   FontWeight="Bold"
+                                   FontSize="16" />
+
+                        <ListBox Grid.Row="1"
+                                 ItemsSource="{Binding RunnerVersions}"
+                                 SelectedItem="{Binding SelectedRunnerVersion}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" />
+                                        <TextBlock Text="{Binding KindDisplay}" Opacity="0.8" FontSize="11" />
+                                        <TextBlock Text="{Binding Path}" Opacity="0.7" FontSize="11" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <Button Grid.Row="2"
+                                Content="{x:Static p:Strings.Button_Remove}"
+                                Command="{Binding RemoveRunnerVersionCommand}" />
+                    </Grid>
+
+                    <ScrollViewer Grid.Column="2">
+                        <StackPanel Spacing="10" Margin="0,0,8,0">
+                            <TextBlock Text="{Binding RunnerVersionDefaultPathHint}"
+                                       Opacity="0.6"
+                                       TextWrapping="Wrap" />
+
+                            <StackPanel>
+                                <TextBlock Text="{Binding RunnerVersionNameLabel}" FontWeight="Bold" />
+                                <TextBox Text="{Binding RunnerVersionNameInput}" />
+                            </StackPanel>
+
+                            <StackPanel>
+                                <TextBlock Text="{Binding RunnerVersionPathLabel}" FontWeight="Bold" />
+                                <Grid ColumnDefinitions="*, Auto" ColumnSpacing="8">
+                                    <TextBox Grid.Column="0" Text="{Binding RunnerVersionPathInput}" />
+                                    <Button Grid.Column="1"
+                                            Content="{x:Static p:Strings.Button_Browse}"
+                                            Command="{Binding BrowseRunnerVersionPathCommand}" />
+                                </Grid>
+                            </StackPanel>
+
+                            <Button Content="{x:Static p:Strings.Button_Add}"
+                                    Command="{Binding AddRunnerVersionCommand}"
+                                    HorizontalAlignment="Left" />
+
+                            <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5" />
+
+                            <TextBlock Text="{Binding GeProtonSectionTitle}" FontWeight="Bold" FontSize="16" />
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{Binding GeProtonSelectionLabel}" FontWeight="Bold" />
+                                <ComboBox ItemsSource="{Binding GeProtonReleases}"
+                                          SelectedItem="{Binding SelectedGeProtonRelease}"
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Content="{Binding GeProtonRefreshLabel}"
+                                            Command="{Binding RefreshGeReleasesCommand}" />
+                                    <Button Content="{Binding GeProtonDownloadLabel}"
+                                            Command="{Binding DownloadSelectedGeReleaseCommand}" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding GeProtonStatusLabel}" FontWeight="Bold" />
+                                <TextBlock Text="{Binding GeReleaseStatusText}"
+                                           Opacity="0.7"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5" />
+
+                            <TextBlock Text="{Binding RunnerVersionUsageLabel}" FontWeight="Bold" />
+                            <TextBlock Text="{Binding SelectedRunnerVersion.UsedByGames}" FontSize="20" FontWeight="Bold" />
+
+                            <StackPanel IsVisible="{Binding IsRunnerReplacementVisible}" Spacing="6">
+                                <TextBlock Text="{Binding RunnerReplacementLabel}" FontWeight="Bold" />
+                                <ComboBox ItemsSource="{Binding RunnerReplacementOptions}"
+                                          SelectedItem="{Binding SelectedRunnerReplacement}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Name}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBlock Text="{Binding RunnerReplacementHint}"
+                                           Opacity="0.6"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 4: MISC -->
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock Text="{Binding SettingsTabMiscShort}"
+                               ToolTip.Tip="{x:Static p:Strings.Settings_TabMisc}" />
+                </TabItem.Header>
                 <ScrollViewer>
                     <StackPanel Spacing="15" Margin="0,0,10,0">
                         <TextBlock Text="{x:Static p:Strings.Settings_SectionLaunchPaths}" FontWeight="Bold" FontSize="16" />
@@ -490,7 +643,7 @@
         </TabControl>
 
         <!-- Footer Buttons -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
             <Button Content="{x:Static p:Strings.Button_Save}" Command="{Binding SaveCommand}" Classes="accent"
                     IsDefault="True" />
         </StackPanel>

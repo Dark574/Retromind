@@ -368,6 +368,7 @@ public class MediaDataService
             XdgBasePath = item.XdgBasePath,
             PrefixPath = item.PrefixPath,
             WineArchOverride = item.WineArchOverride,
+            RunnerVersionId = item.RunnerVersionId,
             OverrideWatchProcess = item.OverrideWatchProcess,
             LastPlayed = item.LastPlayed,
             PlayCount = item.PlayCount,

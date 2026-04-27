@@ -9,6 +9,14 @@ namespace Retromind.Models;
 /// </summary>
 public partial class EmulatorConfig : ObservableObject
 {
+    public enum RunnerIntent
+    {
+        Auto,
+        UmuProton,
+        Wine,
+        Generic
+    }
+
     /// <summary>
     /// Wrapper inheritance mode at emulator level
     /// Inherit: no explicit wrappers here, let Node/Item decide
@@ -69,6 +77,20 @@ public partial class EmulatorConfig : ObservableObject
     // For runners like UMU/Proton/Wine that benefit from per-game prefixes
     [ObservableProperty]
     private bool _usesWinePrefix;
+
+    /// <summary>
+    /// Intent hint for runtime version filtering and environment wiring.
+    /// Auto keeps backward-compatible heuristics.
+    /// </summary>
+    [ObservableProperty]
+    private RunnerIntent _runnerType = RunnerIntent.Auto;
+
+    /// <summary>
+    /// Optional default Wine/Proton runtime version used by items that inherit this emulator.
+    /// Item-level selection can override this.
+    /// </summary>
+    [ObservableProperty]
+    private string? _defaultRunnerVersionId;
     
     /// <summary>
     /// Emulator-level wrapper mode. See <see cref="WrapperMode"/> for semantics

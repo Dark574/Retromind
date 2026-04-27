@@ -440,6 +440,12 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private string? _wineArchOverride;
 
     /// <summary>
+    /// Optional per-item runtime version override (Wine/Proton).
+    /// When set, this takes precedence over emulator-level runner selection.
+    /// </summary>
+    [ObservableProperty] private string? _runnerVersionId;
+
+    /// <summary>
     /// Optional: Name of the process to watch for playtime tracking (e.g. "hl2_linux")
     /// Useful if the launcher exits immediately (like Steam)
     /// </summary>

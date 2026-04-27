@@ -22,6 +22,9 @@ namespace Retromind.ViewModels;
 
 public partial class EditMediaViewModel : ViewModelBase, IDisposable
 {
+    private static string T(string key, string fallback)
+        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
+
     private readonly EmulatorConfig? _inheritedEmulator;
     private EmulatorConfig? _resolvedInheritedEmulator;
     private string? _resolvedInheritedEmulatorSource;
@@ -119,11 +122,26 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         public EmulatorConfig? Emulator { get; }
     }
 
+    public sealed class RunnerVersionOption
+    {
+        public RunnerVersionOption(string? id, string name, RunnerVersionKind? kind = null)
+        {
+            Id = id;
+            Name = name ?? string.Empty;
+            Kind = kind;
+        }
+
+        public string? Id { get; }
+        public string Name { get; }
+        public RunnerVersionKind? Kind { get; }
+    }
+
     /// <summary>
     /// Editable list of per-item environment overrides.
     /// </summary>
     public ObservableCollection<EnvVarRow> EnvironmentOverrides { get; } = new();
     public ObservableCollection<CustomFieldRow> CustomFields { get; } = new();
+    public ObservableCollection<RunnerVersionOption> AvailableRunnerVersions { get; } = new();
 
     public IRelayCommand AddEnvironmentVariableCommand { get; }
     public IRelayCommand<EnvVarRow?> RemoveEnvironmentVariableCommand { get; }
@@ -148,6 +166,13 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     public bool IsWineArchOverrideActive => WineArchSelection != WineArchOption.Auto;
 
     public bool ShowWineArchExistingPrefixWarning => HasPrefix && IsWineArchOverrideActive;
+
+    public string RunnerVersionLabel => T("EditMedia_RunnerVersionLabel", "Wine/Proton version");
+    public string RunnerVersionHint => T("EditMedia_RunnerVersionHint", "Optional per-item override. Takes precedence over emulator default.");
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreviewText))]
+    private RunnerVersionOption? _selectedRunnerVersion;
 
     private void AddEnvironmentVariable()
     {
@@ -442,6 +467,15 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(emulator?.DefaultRunnerVersionId))
+        {
+            RunnerVersionEnvironmentHelper.ApplyRunnerToEnvironment(
+                env,
+                _settings,
+                emulator,
+                emulator.DefaultRunnerVersionId);
+        }
+
         if (_parentNode != null && _rootNodes.Count > 0)
         {
             var chain = GetNodeChain(_parentNode, _rootNodes);
@@ -476,6 +510,15 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 continue;
 
             env[row.Key.Trim()] = row.Value ?? string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(SelectedRunnerVersion?.Id))
+        {
+            RunnerVersionEnvironmentHelper.ApplyRunnerToEnvironment(
+                env,
+                _settings,
+                emulator,
+                SelectedRunnerVersion.Id);
         }
 
         ApplyEmulatorXdgOverridesForPreview(env, emulator);
@@ -1484,6 +1527,12 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         CopyPreviewCommand.NotifyCanExecuteChanged();
     }
 
+    partial void OnSelectedRunnerVersionChanged(RunnerVersionOption? value)
+    {
+        OnPropertyChanged(nameof(PreviewText));
+        CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
+
     partial void OnWorkingDirectoryChanged(string value)
     {
         OnPropertyChanged(nameof(PreviewText));
@@ -1703,6 +1752,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         
         LoadItemData();
         InitializeEmulators(settings);
+        InitializeRunnerVersions(settings);
         InitializeNativeWrapperUiFromItem();
         RefreshInheritedWrappers();
         InitializeEnvironmentOverridesFromItem();
@@ -2003,6 +2053,32 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         }
 
         SelectedEmulatorProfile ??= AvailableEmulators.FirstOrDefault();
+    }
+
+    private void InitializeRunnerVersions(AppSettings settings)
+    {
+        AvailableRunnerVersions.Clear();
+        AvailableRunnerVersions.Add(new RunnerVersionOption(
+            id: null,
+            name: Strings.NodeSettings_ModeNone));
+
+        foreach (var version in settings.RunnerVersions.OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var suffix = version.Kind == RunnerVersionKind.Wine ? "Wine" : "Proton";
+            var name = string.IsNullOrWhiteSpace(version.Name)
+                ? $"({suffix})"
+                : $"{version.Name} ({suffix})";
+
+            AvailableRunnerVersions.Add(new RunnerVersionOption(
+                id: version.Id,
+                name: name,
+                kind: version.Kind));
+        }
+
+        var selected = AvailableRunnerVersions.FirstOrDefault(v =>
+            string.Equals(v.Id, _originalItem.RunnerVersionId, StringComparison.Ordinal));
+
+        SelectedRunnerVersion = selected ?? AvailableRunnerVersions.FirstOrDefault();
     }
 
     private void ResolveInheritedEmulatorInfo()
@@ -3033,6 +3109,9 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             WineArchOption.Win64 => "win64",
             _ => null
         };
+        _originalItem.RunnerVersionId = string.IsNullOrWhiteSpace(SelectedRunnerVersion?.Id)
+            ? null
+            : SelectedRunnerVersion.Id;
         
         // Always store per-item launcher arguments (used for both Native and Emulator modes)
         _originalItem.LauncherArgs = LauncherArgs;

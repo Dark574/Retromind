@@ -137,6 +137,11 @@ public class AppSettings
     public List<ScraperConfig> Scrapers { get; set; } = new();
 
     /// <summary>
+    /// Configured Wine/Proton runner versions available for emulator and per-item selection.
+    /// </summary>
+    public List<RunnerVersionConfig> RunnerVersions { get; set; } = new();
+
+    /// <summary>
     /// Global scraper import behavior for manual scrape and bulk scrape.
     /// </summary>
     public ScraperImportSettings ScraperImport { get; set; } = new();

@@ -832,6 +832,16 @@ public partial class MainWindowViewModel
             }
         }
 
+        // Emulator-level runner default (legacy env vars can still override later).
+        if (!string.IsNullOrWhiteSpace(emulator?.DefaultRunnerVersionId))
+        {
+            RunnerVersionEnvironmentHelper.ApplyRunnerToEnvironment(
+                env,
+                _currentSettings,
+                emulator,
+                emulator.DefaultRunnerVersionId);
+        }
+
         // Node-level inheritance (nearest override wins, tri-state via null/empty/non-empty).
         var chain = GetNodeChain(parentNode, RootItems);
         chain.Reverse(); // Leaf (parent) first
@@ -864,6 +874,16 @@ public partial class MainWindowViewModel
 
                 env[kv.Key.Trim()] = kv.Value ?? string.Empty;
             }
+        }
+
+        // Per-item runner selection wins over inherited environment.
+        if (!string.IsNullOrWhiteSpace(item.RunnerVersionId))
+        {
+            RunnerVersionEnvironmentHelper.ApplyRunnerToEnvironment(
+                env,
+                _currentSettings,
+                emulator,
+                item.RunnerVersionId);
         }
 
         return env.Count > 0 ? env : null;
@@ -982,7 +1002,7 @@ public partial class MainWindowViewModel
     {
         if (CurrentWindow is not { } owner) return;
 
-        var settingsVm = new SettingsViewModel(_currentSettings);
+        var settingsVm = new SettingsViewModel(_currentSettings, RootItems);
         var dialog = new SettingsView
         {
             DataContext = settingsVm
@@ -1007,7 +1027,9 @@ public partial class MainWindowViewModel
         };
         
         await dialog.ShowDialog(owner);
-        SaveSettingsOnly();
+        if (settingsVm.LibraryModified)
+            MarkLibraryDirty();
+        await SaveData();
     }
 
     /// <summary>
