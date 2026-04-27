@@ -255,6 +255,14 @@ In **Settings -> Runner** you can:
 - download/install GE-Proton releases (stored under `Emulators/ProtonVersions` in the portable root)
 - remove versions (with replacement selection when still in use)
 
+GE-Proton source:
+
+- Repository: https://github.com/GloriousEggroll/proton-ge-custom
+- Releases API used by Retromind: https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases
+
+Retromind does not claim ownership of GE-Proton. Names, trademarks, and licenses remain with their respective owners.
+Thanks to GloriousEggroll and all contributors for maintaining and publishing GE-Proton.
+
 #### 2) Set emulator default runner
 
 In **Settings -> Emulators -> Advanced**:

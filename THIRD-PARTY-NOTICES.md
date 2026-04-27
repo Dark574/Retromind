@@ -86,6 +86,20 @@ See `Licenses/Sidplayfp.GPL-2.0.txt`
 
 ---
 
+## GE-Proton (optional user download source)
+
+**Component:** GE-Proton (GloriousEggroll Proton builds)  
+**Repository:** https://github.com/GloriousEggroll/proton-ge-custom  
+**Releases API (queried by Retromind):** https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases  
+**License:** See upstream repository license and release assets.
+
+Retromind can optionally fetch GE-Proton release metadata from GitHub and download user-selected release archives.
+These binaries are provided by upstream and are not authored by Retromind.
+
+See: `Licenses/GE-Proton.Notice.txt`
+
+---
+
 ## Other NuGet Packages
 
 Retromind currently references additional NuGet packages such as:
