@@ -11,6 +11,7 @@ namespace Retromind.ViewModels;
 
 public sealed record SearchJoinOperatorOption(string Key, string Label);
 public sealed record SearchMatchModeOption(string Key, string Label);
+public sealed record SearchComparisonOperatorOption(string Prefix, string Label);
 public sealed record SearchQueryBuilderApplyResult(
     bool ReplaceSearch,
     string Token,
@@ -25,6 +26,7 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
     public ObservableCollection<SearchQueryFieldOption> FieldOptions { get; } = new();
     public ObservableCollection<SearchJoinOperatorOption> JoinOperatorOptions { get; } = new();
     public ObservableCollection<SearchMatchModeOption> MatchModeOptions { get; } = new();
+    public ObservableCollection<SearchComparisonOperatorOption> YearComparisonOptions { get; } = new();
     public ObservableCollection<string> ValueSuggestions { get; } = new();
     public double FieldComboMinWidth { get; }
 
@@ -53,6 +55,11 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
     private SearchJoinOperatorOption? _selectedJoinOperator;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddTokenCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceSearchCommand))]
+    private SearchComparisonOperatorOption? _selectedYearComparison;
+
+    [ObservableProperty]
     private bool _negateToken;
 
     [ObservableProperty]
@@ -60,6 +67,9 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
 
     public bool IsValueInputEnabled =>
         string.Equals(SelectedMatchMode?.Key, "contains", StringComparison.OrdinalIgnoreCase);
+    public bool ShowYearComparisonOperator => IsValueInputEnabled && IsYearFieldSelected;
+    private bool IsYearFieldSelected =>
+        string.Equals(SelectedField?.Key, "year", StringComparison.OrdinalIgnoreCase);
 
     public IRelayCommand AddTokenCommand { get; }
     public IRelayCommand ReplaceSearchCommand { get; }
@@ -90,6 +100,11 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
 
         JoinOperatorOptions.Add(new SearchJoinOperatorOption("AND", T("Search.FilterBuilderJoinAnd", "AND")));
         JoinOperatorOptions.Add(new SearchJoinOperatorOption("OR", T("Search.FilterBuilderJoinOr", "OR")));
+        YearComparisonOptions.Add(new SearchComparisonOperatorOption(string.Empty, "="));
+        YearComparisonOptions.Add(new SearchComparisonOperatorOption(">", ">"));
+        YearComparisonOptions.Add(new SearchComparisonOperatorOption(">=", ">="));
+        YearComparisonOptions.Add(new SearchComparisonOperatorOption("<", "<"));
+        YearComparisonOptions.Add(new SearchComparisonOperatorOption("<=", "<="));
 
         FieldComboMinWidth = CalculateFieldComboMinWidth(FieldOptions);
 
@@ -100,6 +115,7 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
         SelectedField = FieldOptions.FirstOrDefault();
         SelectedMatchMode = MatchModeOptions.FirstOrDefault();
         SelectedJoinOperator = JoinOperatorOptions.FirstOrDefault();
+        SelectedYearComparison = YearComparisonOptions.FirstOrDefault();
     }
 
     private static double CalculateFieldComboMinWidth(IEnumerable<SearchQueryFieldOption> fields)
@@ -137,11 +153,15 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
     partial void OnSelectedFieldChanged(SearchQueryFieldOption? value)
     {
         RefreshValueSuggestions();
+        OnPropertyChanged(nameof(ShowYearComparisonOperator));
+        AddTokenCommand.NotifyCanExecuteChanged();
+        ReplaceSearchCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedMatchModeChanged(SearchMatchModeOption? value)
     {
         OnPropertyChanged(nameof(IsValueInputEnabled));
+        OnPropertyChanged(nameof(ShowYearComparisonOperator));
         AddTokenCommand.NotifyCanExecuteChanged();
         ReplaceSearchCommand.NotifyCanExecuteChanged();
     }
@@ -153,6 +173,9 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
 
         if (!IsValueInputEnabled)
             return true;
+
+        if (IsYearFieldSelected)
+            return TryParseYearValue(ValueText, out _);
 
         return !string.IsNullOrWhiteSpace(ValueText);
     }
@@ -185,6 +208,11 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
             return $"has:{fieldKey}";
         if (string.Equals(mode, "missing", StringComparison.OrdinalIgnoreCase))
             return $"missing:{fieldKey}";
+        if (IsYearFieldSelected && TryParseYearValue(ValueText, out var normalizedYear))
+        {
+            var prefix = SelectedYearComparison?.Prefix ?? string.Empty;
+            return SearchQueryBuilderHelper.BuildToken(fieldKey, $"{prefix}{normalizedYear}");
+        }
 
         return SearchQueryBuilderHelper.BuildToken(fieldKey, ValueText);
     }
@@ -205,6 +233,27 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
     private void ClearSearch()
     {
         RequestClearSearch?.Invoke();
+    }
+
+    private static bool TryParseYearValue(string? raw, out string yearText)
+    {
+        yearText = string.Empty;
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        var text = raw.Trim();
+        if (text.StartsWith(">=", StringComparison.Ordinal) || text.StartsWith("<=", StringComparison.Ordinal))
+            text = text[2..].Trim();
+        else if (text.StartsWith(">", StringComparison.Ordinal) ||
+                 text.StartsWith("<", StringComparison.Ordinal) ||
+                 text.StartsWith("=", StringComparison.Ordinal))
+            text = text[1..].Trim();
+
+        if (!int.TryParse(text, out var year))
+            return false;
+
+        yearText = year.ToString();
+        return true;
     }
 
     private static string T(string key, string fallback)

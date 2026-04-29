@@ -451,6 +451,7 @@ Für Werte mit Leerzeichen Anführungszeichen verwenden.
 Beispiele:
 genre:platformer
 genre:platformer AND platform:snes
+year:>=1995 AND year:&lt;2000
 missing:genre OR missing:developer
 has:genre AND NOT genre:unknown
 (genre:platformer OR genre:metroidvania) AND NOT missing:rating
@@ -472,6 +473,7 @@ zelda AND platform:switch</value></data>
     <data name="Search.FilterField.ReleaseDate" xml:space="preserve"><value>Veröffentlichungsdatum</value></data>
     <data name="Search.FilterField.Tag" xml:space="preserve"><value>Tag</value></data>
     <data name="Search.FilterField.CustomField" xml:space="preserve"><value>Benutzerdefinierte Felder</value></data>
+    <data name="Search.FilterField.CustomNamedPrefix" xml:space="preserve"><value>Benutzerdefiniertes Feld</value></data>
     <data name="Search.FilterField.CustomKey" xml:space="preserve"><value>Benutzerdefinierter Schlüssel</value></data>
     <data name="Search.FilterField.CustomValue" xml:space="preserve"><value>Benutzerdefinierter Wert</value></data>
     <data name="Search.FilterField.Id" xml:space="preserve"><value>ID</value></data>

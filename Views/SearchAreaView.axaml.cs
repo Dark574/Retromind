@@ -238,8 +238,8 @@ public partial class SearchAreaView : UserControl
             return;
 
         var owner = this.FindAncestorOfType<Window>() ?? TopLevel.GetTopLevel(this) as Window;
-        var suggestions = await BuildSuggestionsAsync(vm);
-        var builderVm = new SearchQueryBuilderViewModel(SearchQueryBuilderHelper.DefaultFields, suggestions);
+        var builderData = await BuildBuilderDataAsync(vm);
+        var builderVm = new SearchQueryBuilderViewModel(builderData.Fields, builderData.SuggestionsByField);
         var dialog = new SearchQueryBuilderDialogView { DataContext = builderVm };
 
         builderVm.RequestApply += result =>
@@ -259,13 +259,13 @@ public partial class SearchAreaView : UserControl
         await dialog.ShowDialog(owner);
     }
 
-    private static Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> BuildSuggestionsAsync(SearchAreaViewModel vm)
+    private static Task<SearchQueryBuilderData> BuildBuilderDataAsync(SearchAreaViewModel vm)
     {
         var snapshot = new List<MediaItem>();
         foreach (var root in vm.RootNodesSnapshot)
             CollectItemsRecursive(root, snapshot);
 
-        return Task.Run(() => SearchQueryBuilderHelper.BuildSuggestions(snapshot));
+        return Task.Run(() => SearchQueryBuilderHelper.BuildData(snapshot));
     }
 
     private static void CollectItemsRecursive(MediaNode node, ICollection<MediaItem> target)

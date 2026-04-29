@@ -55,11 +55,23 @@
             </ComboBox>
         </Grid>
 
-        <Grid Grid.Row="3" ColumnDefinitions="90,*" Margin="0,0,0,10">
+        <Grid Grid.Row="3" ColumnDefinitions="90,Auto,*" Margin="0,0,0,10">
             <TextBlock Grid.Column="0"
                        Text="{x:Static p:Strings.Search_FilterBuilderValue}"
                        VerticalAlignment="Center"/>
             <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding YearComparisonOptions}"
+                      SelectedItem="{Binding SelectedYearComparison, Mode=TwoWay}"
+                      IsVisible="{Binding ShowYearComparisonOperator}"
+                      MinWidth="72"
+                      Margin="0,0,8,0">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Label}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <ComboBox Grid.Column="2"
                       ItemsSource="{Binding ValueSuggestions}"
                       Text="{Binding ValueText, Mode=TwoWay}"
                       IsEnabled="{Binding IsValueInputEnabled}"

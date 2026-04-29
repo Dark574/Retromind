@@ -385,6 +385,12 @@ public sealed class SearchQueryMatcher
             customKey = key[3..];
             return !string.IsNullOrWhiteSpace(customKey);
         }
+        if (key.StartsWith("cfu.", StringComparison.OrdinalIgnoreCase) && key.Length > 4)
+        {
+            field = QueryField.CustomNamedKey;
+            customKey = Uri.UnescapeDataString(key[4..]);
+            return !string.IsNullOrWhiteSpace(customKey);
+        }
 
         switch (key.ToLowerInvariant())
         {
@@ -635,10 +641,44 @@ public sealed class SearchQueryMatcher
         if (!releaseDate.HasValue)
             return false;
 
-        if (int.TryParse(rawValue, out var year))
-            return releaseDate.Value.Year == year;
+        if (TryParseYearComparison(rawValue, out var expectedYear, out var comparison))
+        {
+            var actualYear = releaseDate.Value.Year;
+            return comparison switch
+            {
+                ">" => actualYear > expectedYear,
+                ">=" => actualYear >= expectedYear,
+                "<" => actualYear < expectedYear,
+                "<=" => actualYear <= expectedYear,
+                _ => actualYear == expectedYear
+            };
+        }
 
         return ContainsIgnoreCase(releaseDate.Value.ToString("yyyy-MM-dd"), rawValue);
+    }
+
+    private static bool TryParseYearComparison(string rawValue, out int year, out string comparison)
+    {
+        year = 0;
+        comparison = "=";
+        if (string.IsNullOrWhiteSpace(rawValue))
+            return false;
+
+        var text = rawValue.Trim();
+        if (text.StartsWith(">=", StringComparison.Ordinal) || text.StartsWith("<=", StringComparison.Ordinal))
+        {
+            comparison = text[..2];
+            text = text[2..].Trim();
+        }
+        else if (text.StartsWith(">", StringComparison.Ordinal) ||
+                 text.StartsWith("<", StringComparison.Ordinal) ||
+                 text.StartsWith("=", StringComparison.Ordinal))
+        {
+            comparison = text[..1];
+            text = text[1..].Trim();
+        }
+
+        return int.TryParse(text, out year);
     }
 
     private static bool MatchesFavorite(bool isFavorite, string rawValue)

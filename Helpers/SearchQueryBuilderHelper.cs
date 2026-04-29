@@ -7,12 +7,17 @@ using Retromind.Resources;
 namespace Retromind.Helpers;
 
 public sealed record SearchQueryFieldOption(string Key, string Label);
+public sealed record SearchQueryBuilderData(
+    IReadOnlyList<SearchQueryFieldOption> Fields,
+    IReadOnlyDictionary<string, IReadOnlyList<string>> SuggestionsByField);
 
 public static class SearchQueryBuilderHelper
 {
     private const int MaxSuggestionsPerField = 250;
+    private const string CustomFieldPrefix = "cf.";
+    private const string CustomFieldEncodedPrefix = "cfu.";
 
-    public static IReadOnlyList<SearchQueryFieldOption> DefaultFields { get; } = new[]
+    private static IReadOnlyList<SearchQueryFieldOption> BaseFields { get; } = new[]
     {
         new SearchQueryFieldOption("title", GetFilterFieldLabel("Search.FilterField.Title", "Title")),
         new SearchQueryFieldOption("sorttitle", GetFilterFieldLabel("Search.FilterField.SortTitle", "Sort Title")),
@@ -30,14 +35,11 @@ public static class SearchQueryBuilderHelper
         new SearchQueryFieldOption("year", GetFilterFieldLabel("Search.FilterField.Year", "Year")),
         new SearchQueryFieldOption("date", GetFilterFieldLabel("Search.FilterField.ReleaseDate", "Release Date")),
         new SearchQueryFieldOption("tag", GetFilterFieldLabel("Search.FilterField.Tag", "Tag")),
-        new SearchQueryFieldOption("customfield", GetFilterFieldLabel("Search.FilterField.CustomField", "Custom Fields")),
-        new SearchQueryFieldOption("customkey", GetFilterFieldLabel("Search.FilterField.CustomKey", "Custom Key")),
-        new SearchQueryFieldOption("customvalue", GetFilterFieldLabel("Search.FilterField.CustomValue", "Custom Value")),
         new SearchQueryFieldOption("id", GetFilterFieldLabel("Search.FilterField.Id", "ID")),
         new SearchQueryFieldOption("favorite", GetFilterFieldLabel("Search.FilterField.Favorite", "Favorite"))
     };
 
-    public static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildSuggestions(IEnumerable<MediaItem> items)
+    public static SearchQueryBuilderData BuildData(IEnumerable<MediaItem> items)
     {
         var buckets = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
         {
@@ -57,12 +59,10 @@ public static class SearchQueryBuilderHelper
             ["year"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             ["date"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             ["tag"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            ["customfield"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            ["customkey"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            ["customvalue"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             ["id"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             ["favorite"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         };
+        var customFieldKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var item in items)
         {
@@ -92,10 +92,11 @@ public static class SearchQueryBuilderHelper
 
             foreach (var pair in item.CustomFields)
             {
-                AddIfNotEmpty(buckets["customfield"], pair.Key);
-                AddIfNotEmpty(buckets["customfield"], pair.Value);
-                AddIfNotEmpty(buckets["customkey"], pair.Key);
-                AddIfNotEmpty(buckets["customvalue"], pair.Value);
+                customFieldKeys.Add(pair.Key);
+
+                var dynamicFieldKey = BuildDynamicCustomFieldKey(pair.Key);
+                var customValuesBucket = GetOrCreateBucket(buckets, dynamicFieldKey);
+                AddIfNotEmpty(customValuesBucket, pair.Value);
             }
         }
 
@@ -115,7 +116,19 @@ public static class SearchQueryBuilderHelper
             result[pair.Key] = ordered;
         }
 
-        return result;
+        var customFieldPrefixLabel = GetFilterFieldLabel("Search.FilterField.CustomNamedPrefix", "Custom Field");
+        var dynamicCustomFields = customFieldKeys
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .Select(key => key.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .Select(key => new SearchQueryFieldOption(
+                BuildDynamicCustomFieldKey(key),
+                $"{customFieldPrefixLabel}: {key}"))
+            .ToList();
+
+        var fields = BaseFields.Concat(dynamicCustomFields).ToList();
+        return new SearchQueryBuilderData(fields, result);
     }
 
     public static string BuildToken(string fieldKey, string value)
@@ -152,6 +165,40 @@ public static class SearchQueryBuilderHelper
     {
         if (!string.IsNullOrWhiteSpace(value))
             set.Add(value.Trim());
+    }
+
+    private static HashSet<string> GetOrCreateBucket(
+        IDictionary<string, HashSet<string>> buckets,
+        string fieldKey)
+    {
+        if (buckets.TryGetValue(fieldKey, out var bucket))
+            return bucket;
+
+        bucket = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        buckets[fieldKey] = bucket;
+        return bucket;
+    }
+
+    private static string BuildDynamicCustomFieldKey(string customFieldKey)
+    {
+        var trimmed = customFieldKey.Trim();
+        if (trimmed.Length == 0)
+            return CustomFieldPrefix;
+
+        return IsSimpleCustomFieldKey(trimmed)
+            ? $"{CustomFieldPrefix}{trimmed}"
+            : $"{CustomFieldEncodedPrefix}{Uri.EscapeDataString(trimmed)}";
+    }
+
+    private static bool IsSimpleCustomFieldKey(string value)
+    {
+        foreach (var ch in value)
+        {
+            if (!(char.IsLetterOrDigit(ch) || ch is '_' or '-' or '.'))
+                return false;
+        }
+
+        return true;
     }
 
     private static string GetFilterFieldLabel(string resourceKey, string fallback)

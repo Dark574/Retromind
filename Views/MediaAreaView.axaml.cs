@@ -200,8 +200,8 @@ public partial class MediaAreaView : UserControl
             return;
 
         var owner = this.FindAncestorOfType<Window>() ?? TopLevel.GetTopLevel(this) as Window;
-        var suggestions = await BuildSuggestionsAsync(vm);
-        var builderVm = new SearchQueryBuilderViewModel(SearchQueryBuilderHelper.DefaultFields, suggestions);
+        var builderData = await BuildBuilderDataAsync(vm);
+        var builderVm = new SearchQueryBuilderViewModel(builderData.Fields, builderData.SuggestionsByField);
         var dialog = new SearchQueryBuilderDialogView { DataContext = builderVm };
 
         builderVm.RequestApply += result =>
@@ -221,9 +221,9 @@ public partial class MediaAreaView : UserControl
         await dialog.ShowDialog(owner);
     }
 
-    private static Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> BuildSuggestionsAsync(MediaAreaViewModel vm)
+    private static Task<SearchQueryBuilderData> BuildBuilderDataAsync(MediaAreaViewModel vm)
     {
         var snapshot = vm.Node.Items.ToList();
-        return Task.Run(() => SearchQueryBuilderHelper.BuildSuggestions(snapshot));
+        return Task.Run(() => SearchQueryBuilderHelper.BuildData(snapshot));
     }
 }

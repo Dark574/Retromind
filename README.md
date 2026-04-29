@@ -462,6 +462,7 @@ You can override this behavior for testing:
 - Plain text terms search title by default.
 - Field terms: `key:value` or `key=value`.
 - Metadata completeness terms: `has:<field>` and `missing:<field>`.
+- Year comparisons: `year:>=YYYY`, `year:>YYYY`, `year:<=YYYY`, `year:<YYYY` (or exact `year:YYYY` / `year=YYYY`).
 - Logical operators: `AND`, `OR`, `NOT`, and parentheses `(` `)`.
 - Space between terms is treated as `AND`.
 - In mixed queries, plain terms still search title (example: `zelda AND platform:switch`).
@@ -482,6 +483,7 @@ Examples:
 - `platform:snes AND developer:nintendo`
 - `maxplayers:2 AND status:completed`
 - `year=1998 favorite=true`
+- `year:>=1995 AND year:<2000`
 - `missing:genre OR missing:developer`
 - `has:genre AND NOT genre:unknown`
 - `(genre:platformer OR genre:metroidvania) AND NOT missing:rating`
