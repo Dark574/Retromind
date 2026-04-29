@@ -433,9 +433,11 @@
     <data name="Search.FilterBuilderApplyHint" xml:space="preserve"><value>Wähle oben AND/OR und optional NOT/( ) aus.
 Mit Hinzufügen wird angehängt.
 Mit Ersetzen wird der aktuelle Suchtext überschrieben.
+Der Dialog bleibt offen, damit du weitere Filter ergänzen kannst.
 Enter = Hinzufügen, Strg+Enter = Ersetzen.</value></data>
     <data name="Search.FilterBuilderAdd" xml:space="preserve"><value>Hinzufügen</value></data>
     <data name="Search.FilterBuilderReplace" xml:space="preserve"><value>Ersetzen</value></data>
+    <data name="Search.FilterBuilderClear" xml:space="preserve"><value>Term löschen</value></data>
     <data name="Search.AddFieldFilterTooltip" xml:space="preserve"><value>Feldfilter hinzufügen</value></data>
     <data name="Search.ClearSearchTextTooltip" xml:space="preserve"><value>Suchtext leeren</value></data>
     <data name="Search.SyntaxHelpTooltip" xml:space="preserve"><value>Suchsyntax

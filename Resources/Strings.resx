@@ -431,9 +431,11 @@
     <data name="Search.FilterBuilderApplyHint" xml:space="preserve"><value>Choose AND/OR and optional NOT/( ) above.
 Use Add to append.
 Use Replace to overwrite the current search.
+The dialog stays open so you can keep adding filters.
 Enter = Add, Ctrl+Enter = Replace.</value></data>
     <data name="Search.FilterBuilderAdd" xml:space="preserve"><value>Add</value></data>
     <data name="Search.FilterBuilderReplace" xml:space="preserve"><value>Replace</value></data>
+    <data name="Search.FilterBuilderClear" xml:space="preserve"><value>Clear term</value></data>
     <data name="Search.AddFieldFilterTooltip" xml:space="preserve"><value>Add field filter</value></data>
     <data name="Search.ClearSearchTextTooltip" xml:space="preserve"><value>Clear search text</value></data>
     <data name="Search.SyntaxHelpTooltip" xml:space="preserve"><value>Search syntax

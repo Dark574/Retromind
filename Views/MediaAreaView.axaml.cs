@@ -204,19 +204,13 @@ public partial class MediaAreaView : UserControl
         var builderVm = new SearchQueryBuilderViewModel(SearchQueryBuilderHelper.DefaultFields, suggestions);
         var dialog = new SearchQueryBuilderDialogView { DataContext = builderVm };
 
-        builderVm.RequestClose += result =>
-        {
-            if (result.WasApplied)
-            {
-                vm.SearchText = SearchQueryBuilderHelper.ApplyTokenToSearch(
-                    vm.SearchText,
-                    result.Token,
-                    result.ReplaceSearch,
-                    result.JoinOperator);
-            }
-
-            dialog.Close();
-        };
+        builderVm.RequestApply += result =>
+            vm.SearchText = SearchQueryBuilderHelper.ApplyTokenToSearch(
+                vm.SearchText,
+                result.Token,
+                result.ReplaceSearch,
+                result.JoinOperator);
+        builderVm.RequestClearSearch += () => vm.SearchText = string.Empty;
 
         if (owner == null)
         {

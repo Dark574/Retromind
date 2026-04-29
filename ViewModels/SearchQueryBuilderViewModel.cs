@@ -9,14 +9,12 @@ using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
-public sealed record SearchQueryBuilderResult(
-    bool WasApplied,
+public sealed record SearchJoinOperatorOption(string Key, string Label);
+public sealed record SearchMatchModeOption(string Key, string Label);
+public sealed record SearchQueryBuilderApplyResult(
     bool ReplaceSearch,
     string Token,
     string? JoinOperator = null);
-
-public sealed record SearchJoinOperatorOption(string Key, string Label);
-public sealed record SearchMatchModeOption(string Key, string Label);
 
 public partial class SearchQueryBuilderViewModel : ViewModelBase
 {
@@ -34,6 +32,7 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
     public string MatchModeLabel { get; }
     public string NegateLabel { get; }
     public string GroupLabel { get; }
+    public string ClearLabel { get; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddTokenCommand))]
@@ -64,8 +63,10 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
 
     public IRelayCommand AddTokenCommand { get; }
     public IRelayCommand ReplaceSearchCommand { get; }
+    public IRelayCommand ClearSearchCommand { get; }
 
-    public event Action<SearchQueryBuilderResult>? RequestClose;
+    public event Action<SearchQueryBuilderApplyResult>? RequestApply;
+    public event Action? RequestClearSearch;
 
     public SearchQueryBuilderViewModel(
         IEnumerable<SearchQueryFieldOption> fields,
@@ -81,6 +82,7 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
         MatchModeLabel = T("Search.FilterBuilderMode", "Match");
         NegateLabel = T("Search.FilterBuilderNot", "Negate (NOT)");
         GroupLabel = T("Search.FilterBuilderGroup", "Wrap in parentheses");
+        ClearLabel = T("Search.FilterBuilderClear", "Clear term");
 
         MatchModeOptions.Add(new SearchMatchModeOption("contains", T("Search.FilterBuilderModeContains", "Contains")));
         MatchModeOptions.Add(new SearchMatchModeOption("has", T("Search.FilterBuilderModeHas", "Has value")));
@@ -93,6 +95,7 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
 
         AddTokenCommand = new RelayCommand(() => Submit(replaceSearch: false), CanSubmit);
         ReplaceSearchCommand = new RelayCommand(() => Submit(replaceSearch: true), CanSubmit);
+        ClearSearchCommand = new RelayCommand(ClearSearch);
 
         SelectedField = FieldOptions.FirstOrDefault();
         SelectedMatchMode = MatchModeOptions.FirstOrDefault();
@@ -165,11 +168,13 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
         if (WrapTokenInParentheses)
             token = $"({token})";
 
-        RequestClose?.Invoke(new SearchQueryBuilderResult(
-            true,
+        RequestApply?.Invoke(new SearchQueryBuilderApplyResult(
             replaceSearch,
             token,
             SelectedJoinOperator?.Key));
+
+        if (IsValueInputEnabled)
+            ValueText = string.Empty;
     }
 
     private string BuildToken()
@@ -195,6 +200,11 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
 
         foreach (var value in values)
             ValueSuggestions.Add(value);
+    }
+
+    private void ClearSearch()
+    {
+        RequestClearSearch?.Invoke();
     }
 
     private static string T(string key, string fallback)
