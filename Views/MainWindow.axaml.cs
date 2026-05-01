@@ -32,7 +32,7 @@ public partial class MainWindow : Window
     private Control? _dropIndicatorTarget;
     private MainWindowViewModel.NodeDropPosition? _dropIndicatorPosition;
 
-    private static readonly TimeSpan TypeSearchResetDelay = TimeSpan.FromMilliseconds(800);
+    private static readonly TimeSpan TypeSearchResetDelay = TimeSpan.FromMilliseconds(2000);
     private string _typeSearchBuffer = string.Empty;
     private DateTime _typeSearchLastUtc = DateTime.MinValue;
     
@@ -365,18 +365,21 @@ public partial class MainWindow : Window
             return;
 
         var now = DateTime.UtcNow;
-        if (now - _typeSearchLastUtc > TypeSearchResetDelay)
-            _typeSearchBuffer = input;
+        var nextBuffer = now - _typeSearchLastUtc > TypeSearchResetDelay
+            ? input
+            : _typeSearchBuffer + input;
+
+        if (TrySelectMediaByPrefix(mediaVm, nextBuffer))
+        {
+            _typeSearchBuffer = nextBuffer;
+        }
         else
-            _typeSearchBuffer += input;
+        {
+            // Keep the search reactive: avoid getting stuck in a long unmatched buffer.
+            _typeSearchBuffer = input;
+        }
 
         _typeSearchLastUtc = now;
-
-        if (!TrySelectMediaByPrefix(mediaVm, _typeSearchBuffer) && _typeSearchBuffer.Length > input.Length)
-        {
-            _typeSearchBuffer = input;
-            TrySelectMediaByPrefix(mediaVm, _typeSearchBuffer);
-        }
 
         e.Handled = true;
     }
