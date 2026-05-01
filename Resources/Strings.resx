@@ -220,7 +220,7 @@
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Applies to both manual scrape and bulk scrape.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>If data already exists:</value></data>
-    <data name="Settings_ScraperBulkAssetConflictPrompt" xml:space="preserve"><value>In bulk scrape, append new artwork when artwork already exists</value></data>
+    <data name="Settings_ScraperBulkAssetConflictPrompt" xml:space="preserve"><value>In manual and bulk scrape, append new artwork when artwork already exists</value></data>
     <data name="Settings_ScraperBulkAssetConflictHint" xml:space="preserve"><value>Missing artwork is always imported.</value></data>
     <data name="Settings_ScraperMetadataFields" xml:space="preserve"><value>Metadata fields</value></data>
     <data name="Settings_ScraperAssetFields" xml:space="preserve"><value>Artwork / assets</value></data>

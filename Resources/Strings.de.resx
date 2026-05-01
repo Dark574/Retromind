@@ -221,7 +221,7 @@
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper-Import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Gilt für manuellen Scrape und Massen-Scrape.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Wenn bereits Daten vorhanden sind:</value></data>
-    <data name="Settings_ScraperBulkAssetConflictPrompt" xml:space="preserve"><value>Beim Massen-Scrape zusätzliche Grafiken anhängen, wenn bereits welche vorhanden sind</value></data>
+    <data name="Settings_ScraperBulkAssetConflictPrompt" xml:space="preserve"><value>Beim manuellen und Massen-Scrape zusätzliche Grafiken anhängen, wenn bereits welche vorhanden sind</value></data>
     <data name="Settings_ScraperBulkAssetConflictHint" xml:space="preserve"><value>Fehlende Grafiken werden immer importiert.</value></data>
     <data name="Settings_ScraperMetadataFields" xml:space="preserve"><value>Metadatenfelder</value></data>
     <data name="Settings_ScraperAssetFields" xml:space="preserve"><value>Grafiken / Assets</value></data>

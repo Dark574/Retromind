@@ -37,7 +37,7 @@ public class ScraperImportSettings
     public bool ImportControlPanel { get; set; } = true;
 
     /// <summary>
-    /// Non-interactive bulk scrape behavior for existing asset types:
+    /// Non-interactive scrape behavior for existing asset types:
     /// false = skip when an asset already exists, true = append new asset anyway.
     /// Uses legacy JSON key for backward compatibility.
     /// </summary>

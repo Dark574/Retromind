@@ -819,7 +819,7 @@ public partial class MainWindowViewModel
                     nodePath,
                     importSettings,
                     allowConflictPromptsForAssets: true,
-                    appendAssetsOnConflictWithoutPrompt: false))
+                    appendAssetsOnConflictWithoutPrompt: importSettings.AppendAssetsDuringBulkScrape))
                 changed = true;
 
             if (changed)
@@ -1135,8 +1135,11 @@ public partial class MainWindowViewModel
         var hasExisting = item.Assets.Any(a => a.Type == type);
         if (hasExisting)
         {
+            if (appendAssetsOnConflictWithoutPrompt)
+                return await DownloadAndSetAsset(url, item, nodePath, type);
+
             if (!allowConflictPromptsForAssets)
-                return appendAssetsOnConflictWithoutPrompt && await DownloadAndSetAsset(url, item, nodePath, type);
+                return false;
 
             if (mode == ScraperExistingDataMode.OnlyMissing)
                 return false;

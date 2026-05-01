@@ -342,7 +342,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string ScraperImportSectionTitle => T("Settings_SectionScraperImport", "Scraper import");
     public string ScraperImportHint => T("Settings_ScraperImportHint", "Applies to both manual scrape and bulk scrape.");
     public string ScraperExistingDataModeText => T("Settings_ScraperExistingDataMode", "If data already exists:");
-    public string ScraperBulkAppendAssetsText => T("Settings_ScraperBulkAssetConflictPrompt", "In bulk scrape, append new artwork when artwork already exists");
+    public string ScraperBulkAppendAssetsText => T("Settings_ScraperBulkAssetConflictPrompt", "In manual and bulk scrape, append new artwork when artwork already exists");
     public string ScraperBulkAppendAssetsHint => T("Settings_ScraperBulkAssetConflictHint", "Missing artwork is always imported.");
     public string ScraperMetadataFieldsText => T("Settings_ScraperMetadataFields", "Metadata fields");
     public string ScraperAssetFieldsText => T("Settings_ScraperAssetFields", "Artwork / assets");
