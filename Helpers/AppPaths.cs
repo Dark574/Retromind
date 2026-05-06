@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -49,6 +50,8 @@ public static class AppPaths
     /// <summary>
     /// Ensures Themes exist in DataRoot (portable).
     /// Copies missing shipped Themes from AppContext.BaseDirectory.
+    /// Also restores missing theme directories (directories containing theme.axaml)
+    /// from shipped content.
     /// Updates shipped themes only if they remain unmodified locally.
     /// </summary>
     public static void EnsurePortableThemes()
@@ -83,6 +86,8 @@ public static class AppPaths
                     File.Copy(entry, target, overwrite: false);
                 }
             }
+
+            RestoreMissingThemeDirectories(shippedThemesRoot);
         }
         catch
         {
@@ -102,15 +107,23 @@ public static class AppPaths
             }
 
             var manifest = TryReadThemeManifest(targetDir);
-            if (manifest == null)
-                return;
+            if (!IsThemeManifestUsable(manifest))
+            {
+                if (!TryRecoverThemeManifest(targetDir, shippedDir))
+                    return;
+
+                manifest = TryReadThemeManifest(targetDir);
+                if (!IsThemeManifestUsable(manifest))
+                    return;
+            }
+            var verifiedManifest = manifest!;
 
             var targetHash = ComputeDirectoryHash(targetDir);
-            if (!string.Equals(targetHash, manifest.InstalledHash, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(targetHash, verifiedManifest.InstalledHash, StringComparison.OrdinalIgnoreCase))
                 return; // User modified the theme locally.
 
             var shippedHash = ComputeDirectoryHash(shippedDir);
-            if (string.Equals(shippedHash, manifest.SourceHash, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(shippedHash, verifiedManifest.SourceHash, StringComparison.OrdinalIgnoreCase))
                 return; // No shipped updates.
 
             Directory.Delete(targetDir, recursive: true);
@@ -120,6 +133,112 @@ public static class AppPaths
         catch
         {
             // best-effort; never break startup due to theme sync
+        }
+    }
+
+    private static bool IsThemeManifestUsable(ThemeManifest? manifest)
+    {
+        return manifest != null &&
+               !string.IsNullOrWhiteSpace(manifest.SourceHash) &&
+               !string.IsNullOrWhiteSpace(manifest.InstalledHash);
+    }
+
+    private static bool TryRecoverThemeManifest(string targetDir, string shippedDir)
+    {
+        try
+        {
+            if (!AreDirectoryContentsEquivalent(targetDir, shippedDir))
+                return false;
+
+            WriteThemeManifest(targetDir, shippedDir);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool AreDirectoryContentsEquivalent(string leftDir, string rightDir)
+    {
+        var leftFiles = Directory.GetFiles(leftDir, "*", SearchOption.AllDirectories)
+            .Where(path => !string.Equals(Path.GetFileName(path), ThemeManifestFileName, StringComparison.OrdinalIgnoreCase))
+            .Select(path => Path.GetRelativePath(leftDir, path).Replace('\\', '/'))
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var rightFiles = Directory.GetFiles(rightDir, "*", SearchOption.AllDirectories)
+            .Where(path => !string.Equals(Path.GetFileName(path), ThemeManifestFileName, StringComparison.OrdinalIgnoreCase))
+            .Select(path => Path.GetRelativePath(rightDir, path).Replace('\\', '/'))
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (leftFiles.Length != rightFiles.Length)
+            return false;
+
+        for (var i = 0; i < leftFiles.Length; i++)
+        {
+            if (!string.Equals(leftFiles[i], rightFiles[i], StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var leftPath = Path.Combine(leftDir, leftFiles[i]);
+            var rightPath = Path.Combine(rightDir, rightFiles[i]);
+            if (!AreFilesEquivalent(leftPath, rightPath))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool AreFilesEquivalent(string leftPath, string rightPath)
+    {
+        var leftInfo = new FileInfo(leftPath);
+        var rightInfo = new FileInfo(rightPath);
+        if (leftInfo.Length != rightInfo.Length)
+            return false;
+
+        const int bufferSize = 81920;
+        using var leftStream = new FileStream(leftPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize);
+        using var rightStream = new FileStream(rightPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize);
+
+        var leftBuffer = new byte[bufferSize];
+        var rightBuffer = new byte[bufferSize];
+
+        while (true)
+        {
+            var leftRead = leftStream.Read(leftBuffer, 0, leftBuffer.Length);
+            var rightRead = rightStream.Read(rightBuffer, 0, rightBuffer.Length);
+
+            if (leftRead != rightRead)
+                return false;
+
+            if (leftRead == 0)
+                return true;
+
+            for (var i = 0; i < leftRead; i++)
+            {
+                if (leftBuffer[i] != rightBuffer[i])
+                    return false;
+            }
+        }
+    }
+
+    private static void RestoreMissingThemeDirectories(string shippedThemesRoot)
+    {
+        var shippedThemeFiles = Directory.GetFiles(shippedThemesRoot, "theme.axaml", SearchOption.AllDirectories);
+        foreach (var shippedThemeFile in shippedThemeFiles)
+        {
+            var shippedThemeDir = Path.GetDirectoryName(shippedThemeFile);
+            if (string.IsNullOrWhiteSpace(shippedThemeDir))
+                continue;
+
+            var relativeThemeDir = Path.GetRelativePath(shippedThemesRoot, shippedThemeDir);
+            var targetThemeDir = Path.Combine(ThemesRoot, relativeThemeDir);
+            if (Directory.Exists(targetThemeDir))
+                continue;
+
+            CopyDirectoryRecursive(shippedThemeDir, targetThemeDir);
+            WriteThemeManifest(targetThemeDir, shippedThemeDir);
         }
     }
 
