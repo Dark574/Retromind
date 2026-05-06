@@ -11,6 +11,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Presenters;
 using Avalonia.Data;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -58,6 +59,14 @@ public partial class BigModeHostView : UserControl
     // Track hooked list boxes so we can unhook on theme swap (avoid leaks)
     private readonly List<ListBox> _tunedListBoxes = new();
 
+    // Global mouse-cursor idle behavior for BigMode (applies to all themes).
+    private static readonly TimeSpan MouseCursorHideDelay = TimeSpan.FromSeconds(3);
+    private static readonly Cursor HiddenCursor = new(StandardCursorType.None);
+    private readonly DispatcherTimer _mouseCursorTimer = new() { Interval = MouseCursorHideDelay };
+    private TopLevel? _cursorTopLevel;
+    private Cursor? _cursorBeforeBigMode;
+    private bool _isCursorHidden;
+
     public BigModeHostView()
     {
         InitializeComponent();
@@ -97,9 +106,19 @@ public partial class BigModeHostView : UserControl
         
         // React when BigModeViewModel is swapped so we can subscribe to property changes.
         DataContextChanged += OnDataContextChanged;
+
+        _mouseCursorTimer.Tick += OnMouseCursorTimerTick;
+        AddHandler(PointerMovedEvent, OnBigModePointerMoved,
+            RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        StartMouseCursorAutoHide();
+    }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
@@ -114,6 +133,7 @@ public partial class BigModeHostView : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        StopMouseCursorAutoHide();
         base.OnDetachedFromVisualTree(e);
 
         if (_vmNotifications != null)
@@ -123,6 +143,73 @@ public partial class BigModeHostView : UserControl
         }
 
         UnhookThemeTuning();
+    }
+
+    private void StartMouseCursorAutoHide()
+    {
+        _cursorTopLevel = TopLevel.GetTopLevel(this);
+        if (_cursorTopLevel is null)
+            return;
+
+        _cursorBeforeBigMode = _cursorTopLevel.Cursor;
+        ShowMouseCursor();
+        RestartMouseCursorTimer();
+    }
+
+    private void StopMouseCursorAutoHide()
+    {
+        _mouseCursorTimer.Stop();
+
+        if (_cursorTopLevel != null)
+            _cursorTopLevel.Cursor = _cursorBeforeBigMode;
+
+        _cursorTopLevel = null;
+        _cursorBeforeBigMode = null;
+        _isCursorHidden = false;
+    }
+
+    private void OnBigModePointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (e.Pointer.Type != PointerType.Mouse || _cursorTopLevel is null)
+            return;
+
+        if (_isCursorHidden)
+            ShowMouseCursor();
+
+        RestartMouseCursorTimer();
+    }
+
+    private void OnMouseCursorTimerTick(object? sender, EventArgs e)
+    {
+        _mouseCursorTimer.Stop();
+        HideMouseCursor();
+    }
+
+    private void RestartMouseCursorTimer()
+    {
+        if (_cursorTopLevel is null)
+            return;
+
+        _mouseCursorTimer.Stop();
+        _mouseCursorTimer.Start();
+    }
+
+    private void HideMouseCursor()
+    {
+        if (_cursorTopLevel is null || _isCursorHidden)
+            return;
+
+        _cursorTopLevel.Cursor = HiddenCursor;
+        _isCursorHidden = true;
+    }
+
+    private void ShowMouseCursor()
+    {
+        if (_cursorTopLevel is null)
+            return;
+
+        _cursorTopLevel.Cursor = _cursorBeforeBigMode;
+        _isCursorHidden = false;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
