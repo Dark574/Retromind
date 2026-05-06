@@ -55,7 +55,7 @@
                             <Grid ColumnDefinitions="*, 10, Auto">
                                 <TextBox Grid.Column="0"
                                          Text="{Binding LauncherPath}"
-                                         Watermark="{x:Static p:Strings.Launch_LauncherPathHint}" />
+                                         PlaceholderText="{x:Static p:Strings.Launch_LauncherPathHint}" />
                                 <Button Grid.Column="2" Content="..." Command="{Binding BrowseLauncherCommand}" />
                             </Grid>
                         </StackPanel>
@@ -67,7 +67,7 @@
                                 <TextBox Grid.Column="0"
                                          Text="{Binding PrimaryFileDisplayPath}"
                                          IsReadOnly="True"
-                                         Watermark="No launch file selected" />
+                                         PlaceholderText="No launch file selected" />
                                 <Button Grid.Column="2"
                                         Content="Change..."
                                         Command="{Binding ChangePrimaryFileCommand}" />
@@ -88,7 +88,7 @@
                             <Grid ColumnDefinitions="*, 10, Auto">
                                 <TextBox Grid.Column="0"
                                          Text="{Binding WorkingDirectory}"
-                                         Watermark="{x:Static p:Strings.Launch_WorkingDirectoryHint}" />
+                                         PlaceholderText="{x:Static p:Strings.Launch_WorkingDirectoryHint}" />
                                 <Button Grid.Column="2"
                                         Content="{x:Static p:Strings.Button_Browse}"
                                         Command="{Binding BrowseWorkingDirectoryCommand}" />
@@ -120,7 +120,7 @@
                                     <Grid ColumnDefinitions="*, 10, Auto, 6, Auto">
                                         <TextBox Grid.Column="0"
                                                  Text="{Binding XdgBasePath}"
-                                                 Watermark="{x:Static p:Strings.Launch_XdgBaseHint}" />
+                                                 PlaceholderText="{x:Static p:Strings.Launch_XdgBaseHint}" />
                                         <Button Grid.Column="2"
                                                 Content="{x:Static p:Strings.Button_Browse}"
                                                 Command="{Binding BrowseXdgBaseCommand}" />
@@ -147,7 +147,7 @@
                                     <Grid ColumnDefinitions="*, 10, Auto">
                                         <TextBox Grid.Column="0"
                                                  Text="{Binding XdgConfigPath}"
-                                                 Watermark="{x:Static p:Strings.Launch_XdgPathHint}" />
+                                                 PlaceholderText="{x:Static p:Strings.Launch_XdgPathHint}" />
                                         <Button Grid.Column="2"
                                                 Content="{x:Static p:Strings.Button_Browse}"
                                                 Command="{Binding BrowseXdgConfigCommand}" />
@@ -159,7 +159,7 @@
                                     <Grid ColumnDefinitions="*, 10, Auto">
                                         <TextBox Grid.Column="0"
                                                  Text="{Binding XdgDataPath}"
-                                                 Watermark="{x:Static p:Strings.Launch_XdgPathHint}" />
+                                                 PlaceholderText="{x:Static p:Strings.Launch_XdgPathHint}" />
                                         <Button Grid.Column="2"
                                                 Content="{x:Static p:Strings.Button_Browse}"
                                                 Command="{Binding BrowseXdgDataCommand}" />
@@ -171,7 +171,7 @@
                                     <Grid ColumnDefinitions="*, 10, Auto">
                                         <TextBox Grid.Column="0"
                                                  Text="{Binding XdgCachePath}"
-                                                 Watermark="{x:Static p:Strings.Launch_XdgPathHint}" />
+                                                 PlaceholderText="{x:Static p:Strings.Launch_XdgPathHint}" />
                                         <Button Grid.Column="2"
                                                 Content="{x:Static p:Strings.Button_Browse}"
                                                 Command="{Binding BrowseXdgCacheCommand}" />
@@ -183,7 +183,7 @@
                                     <Grid ColumnDefinitions="*, 10, Auto">
                                         <TextBox Grid.Column="0"
                                                  Text="{Binding XdgStatePath}"
-                                                 Watermark="{x:Static p:Strings.Launch_XdgPathHint}" />
+                                                 PlaceholderText="{x:Static p:Strings.Launch_XdgPathHint}" />
                                         <Button Grid.Column="2"
                                                 Content="{x:Static p:Strings.Button_Browse}"
                                                 Command="{Binding BrowseXdgStateCommand}" />
@@ -205,7 +205,7 @@
                                                FontSize="12" FontWeight="Bold" Foreground="Gray"/>
                                 </Border>
                             </StackPanel>
-                            <TextBox Text="{Binding OverrideWatchProcess}" Watermark="{x:Static p:Strings.Media_WatermarkOverrideWatchProcess}" />
+                            <TextBox Text="{Binding OverrideWatchProcess}" PlaceholderText="{x:Static p:Strings.Media_WatermarkOverrideWatchProcess}" />
                         </StackPanel>
 
                         <!-- Arguments: always visible -->
@@ -214,11 +214,11 @@
 
                             <TextBox IsVisible="{Binding IsNativeMode}"
                                      Text="{Binding LauncherArgs, Mode=TwoWay}"
-                                     Watermark="{x:Static p:Strings.Launch_ArgumentsHintShort}" />
+                                     PlaceholderText="{x:Static p:Strings.Launch_ArgumentsHintShort}" />
 
                             <TextBox IsVisible="{Binding !IsNativeMode}"
                                      Text="{Binding LauncherArgs, Mode=TwoWay}"
-                                     Watermark="{x:Static p:Strings.Launch_ArgumentsHintLong}" />
+                                     PlaceholderText="{x:Static p:Strings.Launch_ArgumentsHintLong}" />
                         </StackPanel>
 
                         <!-- Prefix (Wine/Proton/UMU) -->
@@ -230,7 +230,7 @@
                                 <StackPanel>
                                     <TextBlock Text="PrefixPath (relative to Library/)" FontWeight="Bold" />
                                     <TextBox Text="{Binding PrefixPath, Mode=TwoWay}"
-                                             Watermark="Prefixes/itemId_Title" />
+                                             PlaceholderText="Prefixes/itemId_Title" />
                                 </StackPanel>
 
                                 <StackPanel Spacing="6">
@@ -285,7 +285,7 @@
                                     <Grid ColumnDefinitions="*, Auto">
                                         <TextBox Grid.Column="0"
                                                  Text="{Binding WinetricksVerbs, Mode=TwoWay}"
-                                                 Watermark="dotnet48 xna40 d3dx9" />
+                                                 PlaceholderText="dotnet48 xna40 d3dx9" />
                                         <Button Grid.Column="1"
                                                 Content="Run Winetricks"
                                                 Command="{Binding RunWinetricksCommand}"
@@ -314,11 +314,11 @@
                                             <Grid ColumnDefinitions="2*, 3*, Auto, Auto" Margin="0,2,0,2" HorizontalAlignment="Stretch">
                                                 <TextBox Grid.Column="0"
                                                          Text="{Binding Key, Mode=TwoWay}"
-                                                         Watermark="VAR_NAME (e.g. PROTONPATH)" />
+                                                         PlaceholderText="VAR_NAME (e.g. PROTONPATH)" />
                                                 <TextBox Grid.Column="1"
                                                          Text="{Binding Value, Mode=TwoWay}"
                                                          Margin="4,0,4,0"
-                                                         Watermark="value" />
+                                                         PlaceholderText="value" />
                                                 <TextBlock Grid.Column="2"
                                                            Text="{Binding Source}"
                                                            FontSize="11"
@@ -398,7 +398,7 @@
 
                                                     <TextBox Grid.Row="1" Grid.Column="0"
                                                              Text="{Binding Path, Mode=TwoWay}"
-                                                             Watermark="{x:Static p:Strings.Settings_WrapperPathWatermark}" />
+                                                             PlaceholderText="{x:Static p:Strings.Settings_WrapperPathWatermark}" />
 
                                                     <TextBox Grid.Row="1" Grid.Column="2"
                                                              Text="{Binding Args, Mode=TwoWay}" />
@@ -573,10 +573,10 @@
                                         <Grid ColumnDefinitions="*,10,*,10,Auto" Margin="0,0,0,6">
                                             <TextBox Grid.Column="0"
                                                      Text="{Binding Key}"
-                                                     Watermark="{x:Static p:Strings.Common_Key}" />
+                                                     PlaceholderText="{x:Static p:Strings.Common_Key}" />
                                             <TextBox Grid.Column="2"
                                                      Text="{Binding Value}"
-                                                     Watermark="{x:Static p:Strings.Common_Value}" />
+                                                     PlaceholderText="{x:Static p:Strings.Common_Value}" />
                                             <Button Grid.Column="4"
                                                     Content="{x:Static p:Strings.Button_Remove}"
                                                     Command="{Binding $parent[Window].((vm:EditMediaViewModel)DataContext).RemoveCustomFieldCommand}"

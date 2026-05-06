@@ -60,7 +60,7 @@
                 
                 <!-- Search -->
                 <TextBox Text="{Binding SearchText}" 
-                         Watermark="{x:Static p:Strings.Search_Search}" 
+                         PlaceholderText="{x:Static p:Strings.Search_Search}" 
                          Width="260"
                          Margin="0,0,6,8"
                          VerticalAlignment="Center"/>

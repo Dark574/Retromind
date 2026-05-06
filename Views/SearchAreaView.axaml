@@ -61,7 +61,7 @@
 
                         <!-- Search title -->
                         <TextBox Text="{Binding SearchText}"
-                                 Watermark="{x:Static p:Strings.Dialog_TitleSearch}"
+                                 PlaceholderText="{x:Static p:Strings.Dialog_TitleSearch}"
                                  Width="260"
                                  Height="28"
                                  Margin="0,0,6,8"

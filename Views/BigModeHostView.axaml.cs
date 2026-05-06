@@ -175,7 +175,7 @@ public partial class BigModeHostView : UserControl
                 }
             }
 
-            if (this.GetVisualRoot() is Visual visualRoot)
+            if (VisualRoot is Visual visualRoot)
                 visualRoot.InvalidateVisual();
         }
 
@@ -540,7 +540,7 @@ public partial class BigModeHostView : UserControl
         for (var i = _tunedListBoxes.Count - 1; i >= 0; i--)
         {
             var listBox = _tunedListBoxes[i];
-            if (listBox.GetVisualRoot() != null)
+            if (listBox.IsAttachedToVisualTree())
                 continue;
 
             listBox.SelectionChanged -= OnListBoxSelectionChanged;

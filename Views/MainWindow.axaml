@@ -15,7 +15,7 @@
         x:Name="MainWin"
         Title="{x:Static p:Strings.App_Title}"
         
-        SystemDecorations="None" 
+        WindowDecorations="None"
         Background="{Binding WindowBackground}"
         ExtendClientAreaToDecorationsHint="False"
         ExtendClientAreaTitleBarHeightHint="-1"

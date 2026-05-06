@@ -107,7 +107,6 @@ Retromind currently references additional NuGet packages such as:
 - `Avalonia.Fonts.Inter`
 - `Avalonia.Markup.Xaml.Loader`
 - `Avalonia.Themes.Fluent`
-- `Avalonia.Diagnostics` (Debug builds)
 - `LibVLCSharp.Avalonia`
 - `System.Text.Json`
 - `Tmds.DBus.Protocol`

@@ -346,7 +346,7 @@
 
                                                     <TextBox Grid.Row="1" Grid.Column="0"
                                                              Text="{Binding Path, Mode=TwoWay}"
-                                                             Watermark="{x:Static p:Strings.Settings_WrapperPathWatermark}" />
+                                                             PlaceholderText="{x:Static p:Strings.Settings_WrapperPathWatermark}" />
 
                                                     <TextBox Grid.Row="1" Grid.Column="2"
                                                              Text="{Binding Args, Mode=TwoWay}" />
@@ -422,7 +422,7 @@
 
                                                     <TextBox Grid.Row="1" Grid.Column="0"
                                                              Text="{Binding Key, Mode=TwoWay}"
-                                                             Watermark="{x:Static p:Strings.Settings_EnvKeyWatermark}" />
+                                                             PlaceholderText="{x:Static p:Strings.Settings_EnvKeyWatermark}" />
 
                                                     <TextBox Grid.Row="1" Grid.Column="2"
                                                              Text="{Binding Value, Mode=TwoWay}" />

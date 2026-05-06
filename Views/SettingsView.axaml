@@ -179,7 +179,7 @@
 
                                                              <TextBox Grid.Row="1" Grid.Column="0"
                                                                      Text="{Binding Path, Mode=TwoWay}"
-                                                                     Watermark="{x:Static p:Strings.Settings_WrapperPathWatermark}" />
+                                                                     PlaceholderText="{x:Static p:Strings.Settings_WrapperPathWatermark}" />
 
                                                             <TextBox Grid.Row="1" Grid.Column="2"
                                                                      Text="{Binding Args, Mode=TwoWay}" />
@@ -221,12 +221,12 @@
                                                     <StackPanel Grid.Column="0">
                                                         <TextBlock Text="{x:Static p:Strings.Settings_EnvKeyLabel}" />
                                                         <TextBox Text="{Binding Key, Mode=TwoWay}"
-                                                                 Watermark="{x:Static p:Strings.Settings_EnvKeyWatermark}" />
+                                                                 PlaceholderText="{x:Static p:Strings.Settings_EnvKeyWatermark}" />
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="2">
                                                         <TextBlock Text="{x:Static p:Strings.Settings_EnvValueLabel}" />
                                                         <TextBox Text="{Binding Value, Mode=TwoWay}"
-                                                                 Watermark="{x:Static p:Strings.Settings_EnvValueWatermark}" />
+                                                                 PlaceholderText="{x:Static p:Strings.Settings_EnvValueWatermark}" />
                                                     </StackPanel>
                                                     <Button Grid.Column="3"
                                                             Content="✕"
@@ -581,7 +581,7 @@
                         <Grid ColumnDefinitions="*, Auto, Auto, Auto" ColumnSpacing="8">
                             <TextBox Grid.Column="0"
                                      Text="{Binding SteamLibraryPathInput}"
-                                     Watermark="{x:Static p:Strings.Settings_SteamLibraryPathWatermark}" />
+                                     PlaceholderText="{x:Static p:Strings.Settings_SteamLibraryPathWatermark}" />
                             <Button Grid.Column="1"
                                     Content="{x:Static p:Strings.Button_Browse}"
                                     Command="{Binding BrowseSteamLibraryPathCommand}" />
@@ -604,7 +604,7 @@
                         <Grid ColumnDefinitions="*, Auto, Auto, Auto" ColumnSpacing="8">
                             <TextBox Grid.Column="0"
                                      Text="{Binding HeroicGogPathInput}"
-                                     Watermark="{x:Static p:Strings.Settings_HeroicGogPathWatermark}" />
+                                     PlaceholderText="{x:Static p:Strings.Settings_HeroicGogPathWatermark}" />
                             <Button Grid.Column="1"
                                     Content="{x:Static p:Strings.Button_Browse}"
                                     Command="{Binding BrowseHeroicGogPathCommand}" />
@@ -627,7 +627,7 @@
                         <Grid ColumnDefinitions="*, Auto, Auto, Auto" ColumnSpacing="8">
                             <TextBox Grid.Column="0"
                                      Text="{Binding HeroicEpicPathInput}"
-                                     Watermark="{x:Static p:Strings.Settings_HeroicEpicPathWatermark}" />
+                                     PlaceholderText="{x:Static p:Strings.Settings_HeroicEpicPathWatermark}" />
                             <Button Grid.Column="1"
                                     Content="{x:Static p:Strings.Button_Browse}"
                                     Command="{Binding BrowseHeroicEpicPathCommand}" />

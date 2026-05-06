@@ -28,6 +28,7 @@ public partial class MainWindow : Window
 
     private MediaNode? _draggedNode;
     private Point? _dragStartPoint;
+    private PointerPressedEventArgs? _dragStartPressedEvent;
     private bool _dragInProgress;
     private Control? _dropIndicatorTarget;
     private MainWindowViewModel.NodeDropPosition? _dropIndicatorPosition;
@@ -155,11 +156,12 @@ public partial class MainWindow : Window
 
         _draggedNode = node;
         _dragStartPoint = e.GetPosition(this);
+        _dragStartPressedEvent = e;
     }
 
     private async void OnTreeNodePointerMoved(object? sender, PointerEventArgs e)
     {
-        if (_dragInProgress || _draggedNode == null || _dragStartPoint == null)
+        if (_dragInProgress || _draggedNode == null || _dragStartPoint == null || _dragStartPressedEvent == null)
             return;
 
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
@@ -178,7 +180,7 @@ public partial class MainWindow : Window
 
         try
         {
-            await DragDrop.DoDragDropAsync(e, data, DragDropEffects.Move);
+            await DragDrop.DoDragDropAsync(_dragStartPressedEvent, data, DragDropEffects.Move);
         }
         finally
         {
@@ -304,6 +306,7 @@ public partial class MainWindow : Window
     {
         _draggedNode = null;
         _dragStartPoint = null;
+        _dragStartPressedEvent = null;
         _dragInProgress = false;
         ClearDropIndicator();
     }
