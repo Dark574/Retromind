@@ -106,18 +106,17 @@
                     <!-- Big title (selected game) -->
                     <Border Grid.Row="1"
                             MinHeight="{StaticResource LogoHeight}"
-                            Margin="0,0,0,24"
-                            ClipToBounds="True">
+                            Margin="0,0,0,24">
                         <StackPanel Spacing="6">
                             <!-- Item logo only -->
-                            <Grid Height="{StaticResource LogoHeight}"
+                            <Grid MinHeight="{StaticResource LogoHeight}"
                                   IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
                                 <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryLogoPath}"
                                                     DecodeWidth="512"
                                                     DisableCache="True"
                                                     FadeDelayMs="120"
                                                     FadeDurationMs="1000"
-                                                    Height="{StaticResource LogoHeight}"
+                                                    MaxHeight="{StaticResource LogoHeight}"
                                                     Stretch="Uniform"
                                                     HorizontalAlignment="Stretch"
                                                     VerticalAlignment="Center">
@@ -130,9 +129,27 @@
                                 </ext:CrossfadeImage>
                             </Grid>
 
-                            <!-- No item-logo: always show title first, then optional fallback-logo -->
+                            <!-- No item-logo: show optional node fallback logo first, then title -->
                             <StackPanel Spacing="2"
                                         IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
+                                <ext:CrossfadeImage Url="{Binding ActiveLogoPath}"
+                                                    DecodeWidth="512"
+                                                    DisableCache="True"
+                                                    FadeDelayMs="120"
+                                                    FadeDurationMs="1000"
+                                                    MaxHeight="40"
+                                                    Stretch="Uniform"
+                                                    HorizontalAlignment="Stretch"
+                                                    VerticalAlignment="Center"
+                                                    IsVisible="{Binding ActiveLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                                    <ext:CrossfadeImage.RenderTransform>
+                                        <TranslateTransform X="0" />
+                                    </ext:CrossfadeImage.RenderTransform>
+                                    <ext:CrossfadeImage.Transitions>
+                                        <StaticResource ResourceKey="TitleTransitions" />
+                                    </ext:CrossfadeImage.Transitions>
+                                </ext:CrossfadeImage>
+
                                 <TextBlock Text="{Binding SelectedItem.Title}"
                                            FontSize="18"
                                            FontWeight="Bold"
@@ -149,24 +166,6 @@
                                         <StaticResource ResourceKey="TitleTransitions" />
                                     </TextBlock.Transitions>
                                 </TextBlock>
-
-                                <ext:CrossfadeImage Url="{Binding ActiveLogoPath}"
-                                                    DecodeWidth="512"
-                                                    DisableCache="True"
-                                                    FadeDelayMs="120"
-                                                    FadeDurationMs="1000"
-                                                    Height="{StaticResource LogoHeight}"
-                                                    Stretch="Uniform"
-                                                    HorizontalAlignment="Stretch"
-                                                    VerticalAlignment="Center"
-                                                    IsVisible="{Binding ActiveLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
-                                    <ext:CrossfadeImage.RenderTransform>
-                                        <TranslateTransform X="0" />
-                                    </ext:CrossfadeImage.RenderTransform>
-                                    <ext:CrossfadeImage.Transitions>
-                                        <StaticResource ResourceKey="TitleTransitions" />
-                                    </ext:CrossfadeImage.Transitions>
-                                </ext:CrossfadeImage>
                             </StackPanel>
                         </StackPanel>
                     </Border>
