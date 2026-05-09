@@ -494,6 +494,18 @@ public partial class MainWindow : Window
                     break;
             }
         }
+
+        if (e.Handled)
+            return;
+
+        // Desktop mode: ESC clears the current selection (and therefore stops preview music).
+        if (e.Key == Key.Escape &&
+            e.KeyModifiers == KeyModifiers.None &&
+            !IsTextInputFocused() &&
+            vm.TryClearActiveSelection())
+        {
+            e.Handled = true;
+        }
     }
 
     private void OnKeyUp(object? sender, KeyEventArgs e)

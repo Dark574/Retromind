@@ -959,6 +959,27 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Clears the currently selected media item in the active center view (node or global search).
+    /// Returns true if a selection was cleared.
+    /// </summary>
+    public bool TryClearActiveSelection()
+    {
+        if (_currentMediaAreaVm?.SelectedMediaItem != null)
+        {
+            _currentMediaAreaVm.SelectedMediaItem = null;
+            return true;
+        }
+
+        if (_currentSearchAreaVm?.SelectedMediaItem != null)
+        {
+            _currentSearchAreaVm.SelectedMediaItem = null;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Flushes pending saves (best effort) and then performs cleanup.
     /// Must be awaited from the UI during window closing to avoid deadlocks.
     /// </summary>
