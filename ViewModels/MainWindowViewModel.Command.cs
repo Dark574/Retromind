@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Threading;
 using Avalonia.Controls;
@@ -22,15 +21,6 @@ namespace Retromind.ViewModels;
 public partial class MainWindowViewModel
 {
     private const int BulkSortedInsertThreshold = 32;
-
-    private static readonly AssetType[] AssetFolderTypes = Enum.GetValues(typeof(AssetType))
-        .Cast<AssetType>()
-        .Where(type => type != AssetType.Unknown)
-        .ToArray();
-
-    private static readonly Regex AssetFileRegex = new Regex(
-        @"^(.+)_(Wallpaper|Cover|Logo|Video|Marquee|Music|Banner|Bezel|ControlPanel|Manual|Screenshot)_(\d+)\..*$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public enum NodeDropPosition
     {
@@ -1327,7 +1317,7 @@ public partial class MainWindowViewModel
             {
                 try
                 {
-                    var hasAssets = HasAnyAssetFolders(oldFolder);
+                    var hasAssets = NodeAssetFolderHelper.HasAnyAssetFolders(oldFolder);
                     if (hasAssets && Directory.Exists(newFolder))
                     {
                         var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeAssetsFormat, sourceNode.Name);
@@ -1340,17 +1330,17 @@ public partial class MainWindowViewModel
                     if (hasAssets)
                     {
                         var renamedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                        if (!MoveAssetFoldersRecursive(sourceNode, oldPathSegments, newPathSegments, renamedFiles))
+                        if (!NodeAssetFolderHelper.MoveAssetFoldersRecursive(sourceNode, oldPathSegments, newPathSegments, renamedFiles))
                             return false;
 
                         var oldRelativePrefix = Path.GetRelativePath(AppPaths.DataRoot, oldFolder);
                         var newRelativePrefix = Path.GetRelativePath(AppPaths.DataRoot, newFolder);
 
-                        UpdateAssetPathsRecursive(sourceNode, oldRelativePrefix, newRelativePrefix, renamedFiles);
+                        NodeAssetFolderHelper.UpdateAssetPathsRecursive(sourceNode, oldRelativePrefix, newRelativePrefix, renamedFiles);
                     }
                     else
                     {
-                        TryDeleteDirectory(oldFolder);
+                        NodeAssetFolderHelper.DeleteDirectoryIfEmpty(oldFolder);
                     }
                 }
                 catch (Exception ex)
@@ -1420,95 +1410,6 @@ public partial class MainWindowViewModel
         return segments;
     }
 
-    private static void UpdateAssetPathsRecursive(
-        MediaNode node,
-        string oldPrefix,
-        string newPrefix,
-        IReadOnlyDictionary<string, string>? renamedFiles)
-    {
-        UpdateNodeAssetPaths(node, oldPrefix, newPrefix, renamedFiles);
-
-        foreach (var item in node.Items)
-        {
-            UpdateAssetPaths(item.Assets, oldPrefix, newPrefix, renamedFiles);
-
-            item.ResetActiveAssets();
-            item.NotifyAssetPathsChanged();
-        }
-
-        foreach (var child in node.Children)
-        {
-            UpdateAssetPathsRecursive(child, oldPrefix, newPrefix, renamedFiles);
-        }
-    }
-
-    private static void UpdateNodeAssetPaths(
-        MediaNode node,
-        string oldPrefix,
-        string newPrefix,
-        IReadOnlyDictionary<string, string>? renamedFiles)
-    {
-        var activeByType = new Dictionary<AssetType, string?>();
-        foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
-        {
-            if (type == AssetType.Unknown)
-                continue;
-
-            activeByType[type] = node.GetPrimaryAssetPath(type);
-        }
-
-        UpdateAssetPaths(node.Assets, oldPrefix, newPrefix, renamedFiles);
-
-        foreach (var kvp in activeByType)
-        {
-            var activePath = kvp.Value;
-            if (string.IsNullOrWhiteSpace(activePath))
-                continue;
-
-            var updated = TryMapRenamedPath(activePath, renamedFiles, out var mapped)
-                ? mapped
-                : ReplaceRelativePrefix(activePath, oldPrefix, newPrefix);
-            if (!string.Equals(updated, activePath, StringComparison.OrdinalIgnoreCase))
-                node.SetActiveAsset(kvp.Key, updated);
-        }
-    }
-
-    private static void UpdateAssetPaths(
-        IEnumerable<MediaAsset> assets,
-        string oldPrefix,
-        string newPrefix,
-        IReadOnlyDictionary<string, string>? renamedFiles)
-    {
-        foreach (var asset in assets)
-        {
-            if (string.IsNullOrWhiteSpace(asset.RelativePath))
-                continue;
-
-            if (TryMapRenamedPath(asset.RelativePath, renamedFiles, out var mapped))
-                asset.RelativePath = mapped;
-            else
-                asset.RelativePath = ReplaceRelativePrefix(asset.RelativePath, oldPrefix, newPrefix);
-        }
-    }
-
-    private static bool TryMapRenamedPath(
-        string path,
-        IReadOnlyDictionary<string, string>? renamedFiles,
-        out string mapped)
-    {
-        mapped = string.Empty;
-
-        if (renamedFiles == null || renamedFiles.Count == 0)
-            return false;
-
-        var normalized = NormalizeRelativePath(path);
-        if (!renamedFiles.TryGetValue(normalized, out var mappedValue))
-            return false;
-
-        mapped = mappedValue;
-        return true;
-    }
-
     private static void MergeNodes(MediaNode source, MediaNode target)
     {
         if (ReferenceEquals(source, target))
@@ -1517,13 +1418,13 @@ public partial class MainWindowViewModel
         var existingAssets = new HashSet<(AssetType Type, string Path)>(target.Assets.Count);
         foreach (var asset in target.Assets)
         {
-            var path = NormalizeRelativePath(asset.RelativePath ?? string.Empty);
+            var path = NodeAssetFolderHelper.NormalizeRelativePath(asset.RelativePath ?? string.Empty);
             existingAssets.Add((asset.Type, path));
         }
 
         foreach (var asset in source.Assets.ToList())
         {
-            var path = NormalizeRelativePath(asset.RelativePath ?? string.Empty);
+            var path = NodeAssetFolderHelper.NormalizeRelativePath(asset.RelativePath ?? string.Empty);
             if (existingAssets.Add((asset.Type, path)))
                 target.Assets.Add(asset);
         }
@@ -1537,239 +1438,6 @@ public partial class MainWindowViewModel
         source.Assets.Clear();
         source.Items.Clear();
         source.Children.Clear();
-    }
-
-    private static bool HasAnyAssetFolders(string nodeFolder)
-    {
-        if (string.IsNullOrWhiteSpace(nodeFolder))
-            return false;
-
-        if (!Directory.Exists(nodeFolder))
-            return false;
-
-        foreach (var type in AssetFolderTypes)
-        {
-            var folder = Path.Combine(nodeFolder, type.ToString());
-            if (Directory.Exists(folder))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool MoveAssetFoldersRecursive(
-        MediaNode node,
-        List<string> oldBaseSegments,
-        List<string> newBaseSegments,
-        Dictionary<string, string> renamedFiles)
-    {
-        var relativeSegments = new List<string>();
-        return MoveAssetFoldersRecursive(node, oldBaseSegments, newBaseSegments, relativeSegments, renamedFiles);
-    }
-
-    private static bool MoveAssetFoldersRecursive(
-        MediaNode node,
-        IReadOnlyList<string> oldBaseSegments,
-        IReadOnlyList<string> newBaseSegments,
-        List<string> relativeSegments,
-        Dictionary<string, string> renamedFiles)
-    {
-        var oldSegments = new List<string>(oldBaseSegments.Count + relativeSegments.Count);
-        oldSegments.AddRange(oldBaseSegments);
-        oldSegments.AddRange(relativeSegments);
-
-        var newSegments = new List<string>(newBaseSegments.Count + relativeSegments.Count);
-        newSegments.AddRange(newBaseSegments);
-        newSegments.AddRange(relativeSegments);
-
-        if (!MoveAssetFoldersForNode(oldSegments, newSegments, renamedFiles))
-            return false;
-
-        foreach (var child in node.Children)
-        {
-            relativeSegments.Add(child.Name);
-            if (!MoveAssetFoldersRecursive(child, oldBaseSegments, newBaseSegments, relativeSegments, renamedFiles))
-                return false;
-            relativeSegments.RemoveAt(relativeSegments.Count - 1);
-        }
-
-        var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
-        TryDeleteDirectory(oldFolder);
-
-        return true;
-    }
-
-    private static bool MoveAssetFoldersForNode(
-        List<string> oldSegments,
-        List<string> newSegments,
-        Dictionary<string, string> renamedFiles)
-    {
-        var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
-        if (!Directory.Exists(oldFolder))
-            return true;
-
-        var newFolder = PathHelper.ResolveNodeFolder(newSegments, AppPaths.LibraryRoot);
-
-        foreach (var type in AssetFolderTypes)
-        {
-            var oldTypeFolder = Path.Combine(oldFolder, type.ToString());
-            if (!Directory.Exists(oldTypeFolder))
-                continue;
-
-            var newTypeFolder = Path.Combine(newFolder, type.ToString());
-
-            if (!Directory.Exists(newTypeFolder))
-            {
-                var newParentDir = Path.GetDirectoryName(newTypeFolder);
-                if (!string.IsNullOrWhiteSpace(newParentDir) && !Directory.Exists(newParentDir))
-                    Directory.CreateDirectory(newParentDir);
-
-                Directory.Move(oldTypeFolder, newTypeFolder);
-                continue;
-            }
-
-            foreach (var file in Directory.EnumerateFiles(oldTypeFolder))
-            {
-                var fileName = Path.GetFileName(file);
-                if (string.IsNullOrWhiteSpace(fileName))
-                    continue;
-
-                var targetPath = Path.Combine(newTypeFolder, fileName);
-                if (File.Exists(targetPath))
-                {
-                    targetPath = GetRenumberedAssetPath(newTypeFolder, fileName);
-                    var oldRelative = NormalizeRelativePath(Path.GetRelativePath(AppPaths.DataRoot, file));
-                    var newRelative = NormalizeRelativePath(Path.GetRelativePath(AppPaths.DataRoot, targetPath));
-                    if (!string.Equals(oldRelative, newRelative, StringComparison.OrdinalIgnoreCase))
-                        renamedFiles[oldRelative] = newRelative;
-                }
-
-                File.Move(file, targetPath);
-            }
-
-            TryDeleteDirectory(oldTypeFolder);
-        }
-
-        return true;
-    }
-
-    private static string GetRenumberedAssetPath(string targetFolder, string fileName)
-    {
-        var match = AssetFileRegex.Match(fileName);
-        if (match.Success)
-        {
-            var baseTitle = match.Groups[1].Value;
-            var typeToken = match.Groups[2].Value;
-            var extension = Path.GetExtension(fileName);
-            var prefix = $"{baseTitle}_{typeToken}_";
-            var next = GetNextAssetNumber(targetFolder, prefix);
-            return GetUniqueNameWithPrefix(targetFolder, prefix, extension, next);
-        }
-
-        return GetFallbackRenamedPath(targetFolder, fileName);
-    }
-
-    private static int GetNextAssetNumber(string targetFolder, string prefix)
-    {
-        var max = 0;
-        foreach (var file in Directory.EnumerateFiles(targetFolder))
-        {
-            var name = Path.GetFileName(file);
-            if (string.IsNullOrWhiteSpace(name))
-                continue;
-
-            if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var remainder = name.Substring(prefix.Length);
-            var dotIndex = remainder.IndexOf('.');
-            if (dotIndex <= 0)
-                continue;
-
-            var numberPart = remainder.Substring(0, dotIndex);
-            if (int.TryParse(numberPart, out var number) && number > max)
-                max = number;
-        }
-
-        return max + 1;
-    }
-
-    private static string GetUniqueNameWithPrefix(string targetFolder, string prefix, string extension, int startNumber)
-    {
-        var counter = Math.Max(startNumber, 1);
-        while (true)
-        {
-            var name = $"{prefix}{counter:D2}{extension}";
-            var candidate = Path.Combine(targetFolder, name);
-            if (!File.Exists(candidate))
-                return candidate;
-
-            counter++;
-        }
-    }
-
-    private static string GetFallbackRenamedPath(string targetFolder, string fileName)
-    {
-        var baseName = Path.GetFileNameWithoutExtension(fileName);
-        var extension = Path.GetExtension(fileName);
-        var counter = 1;
-
-        while (true)
-        {
-            var candidateName = $"{baseName}_Moved_{counter:D2}{extension}";
-            var candidatePath = Path.Combine(targetFolder, candidateName);
-            if (!File.Exists(candidatePath))
-                return candidatePath;
-
-            counter++;
-        }
-    }
-
-    private static void TryDeleteDirectory(string path)
-    {
-        try
-        {
-            if (!Directory.Exists(path))
-                return;
-
-            if (Directory.EnumerateFileSystemEntries(path).Any())
-                return;
-
-            Directory.Delete(path);
-        }
-        catch
-        {
-            // best effort cleanup
-        }
-    }
-
-    private static string ReplaceRelativePrefix(string path, string oldPrefix, string newPrefix)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return path;
-
-        var normalizedPath = NormalizeRelativePath(path);
-        var normalizedOld = NormalizeRelativePath(oldPrefix);
-        var normalizedNew = NormalizeRelativePath(newPrefix);
-
-        if (string.Equals(normalizedPath, normalizedOld, StringComparison.OrdinalIgnoreCase))
-            return normalizedNew;
-
-        var oldWithSlash = normalizedOld.EndsWith("/", StringComparison.Ordinal) ? normalizedOld : normalizedOld + "/";
-        if (normalizedPath.StartsWith(oldWithSlash, StringComparison.OrdinalIgnoreCase))
-        {
-            var normalizedNewWithSlash = normalizedNew.EndsWith("/", StringComparison.Ordinal)
-                ? normalizedNew
-                : normalizedNew + "/";
-            return normalizedNewWithSlash + normalizedPath.Substring(oldWithSlash.Length);
-        }
-
-        return path;
-    }
-
-    private static string NormalizeRelativePath(string path)
-    {
-        return path.Replace('\\', '/').Trim();
     }
 
     private bool RemoveNodeRecursive(ObservableCollection<MediaNode> nodes, MediaNode nodeToDelete)
