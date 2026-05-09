@@ -682,7 +682,7 @@ public partial class EditMediaViewModel
         if (string.IsNullOrWhiteSpace(candidate))
             return "umu-run";
 
-        if (!ContainsUmuToken(candidate))
+        if (!LaunchRuntimeHelper.ContainsUmuToken(candidate))
             return "umu-run";
 
         return ResolveExecutablePath(candidate);
@@ -722,7 +722,8 @@ public partial class EditMediaViewModel
         if (MediaType == MediaType.Emulator && IsManualEmulator && !string.IsNullOrWhiteSpace(LauncherPath))
             pathCandidate = LauncherPath;
 
-        return !string.IsNullOrWhiteSpace(pathCandidate) && ContainsProtonToken(pathCandidate);
+        return !string.IsNullOrWhiteSpace(pathCandidate) &&
+               LaunchRuntimeHelper.ContainsProtonToken(pathCandidate);
     }
 
     private static bool ContainsProtonHints(Dictionary<string, string> env)
@@ -740,17 +741,12 @@ public partial class EditMediaViewModel
         if (MediaType == MediaType.Emulator && IsManualEmulator && !string.IsNullOrWhiteSpace(LauncherPath))
             pathCandidate = LauncherPath;
 
-        return !string.IsNullOrWhiteSpace(pathCandidate) && ContainsUmuToken(pathCandidate);
+        return !string.IsNullOrWhiteSpace(pathCandidate) &&
+               LaunchRuntimeHelper.ContainsUmuToken(pathCandidate);
     }
 
     private static bool ContainsUmuHints(Dictionary<string, string> env)
         => env.Keys.Any(k => k.StartsWith("UMU_", StringComparison.OrdinalIgnoreCase));
-
-    private static bool ContainsUmuToken(string path)
-        => path.Contains("umu", StringComparison.OrdinalIgnoreCase);
-
-    private static bool ContainsProtonToken(string path)
-        => path.Contains("proton", StringComparison.OrdinalIgnoreCase);
 
     private static List<string> SplitArgs(string input)
     {

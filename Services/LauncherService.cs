@@ -1337,14 +1337,14 @@ public sealed class LauncherService
             return true;
         }
 
-        if (ContainsProtonToken(item.LauncherPath) ||
-            ContainsProtonToken(inheritedConfig?.Path))
+        if (LaunchRuntimeHelper.ContainsProtonToken(item.LauncherPath) ||
+            LaunchRuntimeHelper.ContainsProtonToken(inheritedConfig?.Path))
         {
             return true;
         }
 
         return nativeWrappers != null &&
-               nativeWrappers.Any(w => ContainsProtonToken(w.Path));
+               nativeWrappers.Any(w => LaunchRuntimeHelper.ContainsProtonToken(w.Path));
     }
 
     private static bool HasProtonHints(IReadOnlyDictionary<string, string>? env)
@@ -1368,30 +1368,19 @@ public sealed class LauncherService
             return true;
         }
 
-        if (ContainsUmuToken(item.LauncherPath) ||
-            ContainsUmuToken(inheritedConfig?.Path))
+        if (LaunchRuntimeHelper.ContainsUmuToken(item.LauncherPath) ||
+            LaunchRuntimeHelper.ContainsUmuToken(inheritedConfig?.Path))
         {
             return true;
         }
 
         return nativeWrappers != null &&
-               nativeWrappers.Any(w => ContainsUmuToken(w.Path));
+               nativeWrappers.Any(w => LaunchRuntimeHelper.ContainsUmuToken(w.Path));
     }
 
     private static bool HasUmuHints(IReadOnlyDictionary<string, string>? env)
         => env != null && env.Keys.Any(k =>
             k.StartsWith("UMU_", StringComparison.OrdinalIgnoreCase));
-
-    private static bool ContainsUmuToken(string? path)
-        => !string.IsNullOrWhiteSpace(path) &&
-           path.Contains("umu", StringComparison.OrdinalIgnoreCase);
-
-    private static bool ContainsProtonToken(string? path)
-        => !string.IsNullOrWhiteSpace(path) &&
-           path.Contains("proton", StringComparison.OrdinalIgnoreCase);
-
-
-    
 
     /// <summary>
     /// Ensures a dosdevices mapping like "d:" -> "../../Games" exists.
