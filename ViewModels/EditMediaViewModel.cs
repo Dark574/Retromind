@@ -968,60 +968,6 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     }
     
     // --- Native wrapper chain (Tri-state; item-level) ---
-
-    private static bool TryMakeDataRelativeIfInsideDataRoot(string absolutePath, out string relativePath)
-    {
-        relativePath = string.Empty;
-
-        if (string.IsNullOrWhiteSpace(absolutePath))
-            return false;
-
-        if (!Path.IsPathRooted(absolutePath))
-            return false;
-
-        var dataRoot = Path.GetFullPath(AppPaths.DataRoot);
-        var dataRootWithSep = dataRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? dataRoot
-            : dataRoot + Path.DirectorySeparatorChar;
-        var fullPath = Path.GetFullPath(absolutePath);
-
-        if (string.Equals(fullPath, dataRoot, StringComparison.Ordinal) ||
-            fullPath.StartsWith(dataRootWithSep, StringComparison.Ordinal))
-        {
-            relativePath = Path.GetRelativePath(dataRoot, fullPath);
-            return true;
-        }
-
-        return false;
-    }
-
-    private static string ConvertPathToPortableIfInsideDataRoot(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return string.Empty;
-
-        var trimmed = path.Trim();
-        if (!Path.IsPathRooted(trimmed))
-            return trimmed;
-
-        return TryMakeDataRelativeIfInsideDataRoot(trimmed, out var relativePath)
-            ? relativePath
-            : trimmed;
-    }
-
-    private static void ConvertWrapperPathsToPortable(List<LaunchWrapper> wrappers)
-    {
-        if (wrappers.Count == 0)
-            return;
-
-        foreach (var wrapper in wrappers)
-        {
-            if (wrapper == null || string.IsNullOrWhiteSpace(wrapper.Path))
-                continue;
-
-            wrapper.Path = ConvertPathToPortableIfInsideDataRoot(wrapper.Path);
-        }
-    }
     
     public enum WrapperMode
     {
@@ -2915,7 +2861,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         if (_settings.PreferPortableLaunchPaths)
         {
-            if (TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
+            if (PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
             {
                 storedPath = relativePath;
                 storedKind = MediaFileKind.LibraryRelative;
@@ -2980,7 +2926,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             return;
 
         if (_settings.PreferPortableLaunchPaths &&
-            TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
+            PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
         {
             LauncherPath = relativePath;
         }
@@ -3008,7 +2954,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             return;
 
         if (_settings.PreferPortableLaunchPaths &&
-            TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
+            PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
         {
             WorkingDirectory = relativePath;
         }
@@ -3051,7 +2997,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             return;
 
         if (_settings.PreferPortableLaunchPaths &&
-            TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
+            PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
         {
             setPath(relativePath);
         }
@@ -3223,7 +3169,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 if (_settings.PreferPortableLaunchPaths &&
                     !string.IsNullOrWhiteSpace(LauncherPath) &&
                     Path.IsPathRooted(LauncherPath) &&
-                    TryMakeDataRelativeIfInsideDataRoot(LauncherPath, out var relativeLauncherPath))
+                    PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(LauncherPath, out var relativeLauncherPath))
                 {
                     _originalItem.LauncherPath = relativeLauncherPath;
                 }
@@ -3270,7 +3216,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                     .ToList();
 
                 if (_settings.PreferPortableLaunchPaths)
-                    ConvertWrapperPathsToPortable(wrapperOverrides);
+                    PortablePathHelper.ConvertWrapperPathsToPortable(wrapperOverrides);
 
                 _originalItem.NativeWrappersOverride = wrapperOverrides;
                 break;

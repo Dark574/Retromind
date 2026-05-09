@@ -980,7 +980,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             return;
 
         var normalizedPath = PreferPortableLaunchPaths
-            ? ConvertPathToPortableIfInsideDataRoot(path) ?? path
+            ? PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(path) ?? path
             : path;
 
         var name = string.IsNullOrWhiteSpace(RunnerVersionNameInput)
@@ -1726,7 +1726,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                     .ToList();
 
                 if (PreferPortableLaunchPaths)
-                    ConvertWrapperPathsToPortable(wrappers);
+                    PortablePathHelper.ConvertWrapperPathsToPortable(wrappers);
 
                 SelectedEmulator.NativeWrappersOverride = wrappers;
                 SelectedEmulator.NativeWrapperMode = wrappers.Count == 0
@@ -1755,11 +1755,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 ConvertEmulatorPathsToPortable(emulator);
             }
 
-            ConvertWrapperPathsToPortable(_appSettings.DefaultNativeWrappers);
+            PortablePathHelper.ConvertWrapperPathsToPortable(_appSettings.DefaultNativeWrappers);
 
             foreach (var runner in RunnerVersions)
             {
-                runner.Path = ConvertPathToPortableIfInsideDataRoot(runner.Path) ?? runner.Path;
+                runner.Path = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(runner.Path) ?? runner.Path;
             }
         }
         
@@ -1821,7 +1821,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         {
             var path = result[0].Path.LocalPath;
             if (PreferPortableLaunchPaths &&
-                TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
+                PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(path, out var relativePath))
             {
                 SelectedEmulator.Path = relativePath;
             }
@@ -1832,40 +1832,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private static bool TryMakeDataRelativeIfInsideDataRoot(string absolutePath, out string relativePath)
-    {
-        relativePath = string.Empty;
-
-        if (string.IsNullOrWhiteSpace(absolutePath))
-            return false;
-
-        if (!Path.IsPathRooted(absolutePath))
-            return false;
-
-        var dataRoot = Path.GetFullPath(AppPaths.DataRoot);
-        var dataRootWithSep = dataRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? dataRoot
-            : dataRoot + Path.DirectorySeparatorChar;
-        var fullPath = Path.GetFullPath(absolutePath);
-
-        if (string.Equals(fullPath, dataRoot, StringComparison.Ordinal) ||
-            fullPath.StartsWith(dataRootWithSep, StringComparison.Ordinal))
-        {
-            relativePath = Path.GetRelativePath(dataRoot, fullPath);
-            return true;
-        }
-
-        return false;
-    }
-
     private static void ConvertEmulatorPathsToPortable(EmulatorConfig emulator)
     {
-        emulator.Path = ConvertPathToPortableIfInsideDataRoot(emulator.Path) ?? emulator.Path;
-        emulator.XdgConfigPath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgConfigPath);
-        emulator.XdgDataPath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgDataPath);
-        emulator.XdgCachePath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgCachePath);
-        emulator.XdgStatePath = ConvertPathToPortableIfInsideDataRoot(emulator.XdgStatePath);
-        ConvertWrapperPathsToPortable(emulator.NativeWrappersOverride);
+        emulator.Path = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(emulator.Path) ?? emulator.Path;
+        emulator.XdgConfigPath = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(emulator.XdgConfigPath);
+        emulator.XdgDataPath = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(emulator.XdgDataPath);
+        emulator.XdgCachePath = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(emulator.XdgCachePath);
+        emulator.XdgStatePath = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(emulator.XdgStatePath);
+        PortablePathHelper.ConvertWrapperPathsToPortable(emulator.NativeWrappersOverride);
 
         if (emulator.EnvironmentOverrides is not { Count: > 0 })
             return;
@@ -1879,37 +1853,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             if (!emulator.EnvironmentOverrides.TryGetValue(key, out var rawValue))
                 continue;
 
-            var converted = ConvertPathToPortableIfInsideDataRoot(rawValue);
+            var converted = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(rawValue);
             if (!string.IsNullOrWhiteSpace(converted))
                 emulator.EnvironmentOverrides[key] = converted;
-        }
-    }
-
-    private static string? ConvertPathToPortableIfInsideDataRoot(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return path;
-
-        var trimmed = path.Trim();
-        if (!Path.IsPathRooted(trimmed))
-            return trimmed;
-
-        return TryMakeDataRelativeIfInsideDataRoot(trimmed, out var relativePath)
-            ? relativePath
-            : trimmed;
-    }
-
-    private static void ConvertWrapperPathsToPortable(System.Collections.Generic.List<LaunchWrapper>? wrappers)
-    {
-        if (wrappers is not { Count: > 0 })
-            return;
-
-        foreach (var wrapper in wrappers)
-        {
-            if (wrapper == null || string.IsNullOrWhiteSpace(wrapper.Path))
-                continue;
-
-            wrapper.Path = ConvertPathToPortableIfInsideDataRoot(wrapper.Path) ?? wrapper.Path;
         }
     }
 
