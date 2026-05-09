@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Retromind.Models;
 
 namespace Retromind.Helpers;
@@ -22,9 +21,9 @@ public static class NodeAssetFolderHelper
         .Where(type => type != AssetType.Unknown)
         .ToArray();
 
-    private static readonly Regex AssetFileRegex = new Regex(
-        @"^(.+)_(Wallpaper|Cover|Logo|Video|Marquee|Music|Banner|Bezel|ControlPanel|Manual|Screenshot)_(\d+)\..*$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly HashSet<string> AssetTypeTokens = new HashSet<string>(
+        AssetFolderTypes.Select(type => type.ToString()),
+        StringComparer.OrdinalIgnoreCase);
 
     public static void UpdateAssetPathsRecursive(
         MediaNode node,
@@ -525,11 +524,8 @@ public static class NodeAssetFolderHelper
 
     private static string GetRenumberedAssetFileName(string fileName, HashSet<string> reservedNames)
     {
-        var match = AssetFileRegex.Match(fileName);
-        if (match.Success)
+        if (TryParseNumberedAssetName(fileName, out var baseTitle, out var typeToken))
         {
-            var baseTitle = match.Groups[1].Value;
-            var typeToken = match.Groups[2].Value;
             var extension = Path.GetExtension(fileName);
             var prefix = $"{baseTitle}_{typeToken}_";
             var next = GetNextAssetNumber(reservedNames, prefix);
@@ -537,6 +533,47 @@ public static class NodeAssetFolderHelper
         }
 
         return GetFallbackRenamedFileName(fileName, reservedNames);
+    }
+
+    private static bool TryParseNumberedAssetName(string fileName, out string baseTitle, out string typeToken)
+    {
+        baseTitle = string.Empty;
+        typeToken = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(fileName))
+            return false;
+
+        var extension = Path.GetExtension(fileName);
+        if (string.IsNullOrWhiteSpace(extension))
+            return false;
+
+        var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+        if (string.IsNullOrWhiteSpace(nameWithoutExtension))
+            return false;
+
+        var lastUnderscore = nameWithoutExtension.LastIndexOf('_');
+        if (lastUnderscore <= 0 || lastUnderscore >= nameWithoutExtension.Length - 1)
+            return false;
+
+        var numberPart = nameWithoutExtension[(lastUnderscore + 1)..];
+        if (!int.TryParse(numberPart, out var number) || number < 0)
+            return false;
+
+        var beforeNumber = nameWithoutExtension[..lastUnderscore];
+        var secondLastUnderscore = beforeNumber.LastIndexOf('_');
+        if (secondLastUnderscore <= 0 || secondLastUnderscore >= beforeNumber.Length - 1)
+            return false;
+
+        var parsedTypeToken = beforeNumber[(secondLastUnderscore + 1)..];
+        if (!AssetTypeTokens.Contains(parsedTypeToken))
+            return false;
+
+        baseTitle = beforeNumber[..secondLastUnderscore];
+        if (string.IsNullOrWhiteSpace(baseTitle))
+            return false;
+
+        typeToken = parsedTypeToken;
+        return true;
     }
 
     private static int GetNextAssetNumber(HashSet<string> reservedNames, string prefix)
