@@ -16,6 +16,13 @@ public static class NodeAssetFolderHelper
         public string? StagingPath { get; set; }
     }
 
+    private sealed class TargetFolderReservation
+    {
+        public HashSet<string> ReservedNames { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> NextNumberByPrefix { get; } =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    }
+
     private static readonly AssetType[] AssetFolderTypes = Enum.GetValues(typeof(AssetType))
         .Cast<AssetType>()
         .Where(type => type != AssetType.Unknown)
@@ -74,7 +81,7 @@ public static class NodeAssetFolderHelper
         var relativeSegments = new List<string>();
         var plannedMoves = new List<PlannedFileMove>();
         var plannedRenamedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var reservedNamesByFolder = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var reservationsByFolder = new Dictionary<string, TargetFolderReservation>(StringComparer.OrdinalIgnoreCase);
 
         if (!TryPlanAssetFolderMovesRecursive(
                 node,
@@ -83,7 +90,7 @@ public static class NodeAssetFolderHelper
                 relativeSegments,
                 plannedMoves,
                 plannedRenamedFiles,
-                reservedNamesByFolder))
+                reservationsByFolder))
         {
             return false;
         }
@@ -229,7 +236,7 @@ public static class NodeAssetFolderHelper
         List<string> relativeSegments,
         List<PlannedFileMove> plannedMoves,
         Dictionary<string, string> plannedRenamedFiles,
-        Dictionary<string, HashSet<string>> reservedNamesByFolder)
+        Dictionary<string, TargetFolderReservation> reservationsByFolder)
     {
         var oldSegments = new List<string>(oldBaseSegments.Count + relativeSegments.Count);
         oldSegments.AddRange(oldBaseSegments);
@@ -244,7 +251,7 @@ public static class NodeAssetFolderHelper
                 newSegments,
                 plannedMoves,
                 plannedRenamedFiles,
-                reservedNamesByFolder))
+                reservationsByFolder))
         {
             return false;
         }
@@ -259,7 +266,7 @@ public static class NodeAssetFolderHelper
                     relativeSegments,
                     plannedMoves,
                     plannedRenamedFiles,
-                    reservedNamesByFolder))
+                    reservationsByFolder))
             {
                 return false;
             }
@@ -275,7 +282,7 @@ public static class NodeAssetFolderHelper
         List<string> newSegments,
         List<PlannedFileMove> plannedMoves,
         Dictionary<string, string> plannedRenamedFiles,
-        Dictionary<string, HashSet<string>> reservedNamesByFolder)
+        Dictionary<string, TargetFolderReservation> reservationsByFolder)
     {
         var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
         if (!Directory.Exists(oldFolder))
@@ -293,7 +300,7 @@ public static class NodeAssetFolderHelper
             if (string.Equals(oldTypeFolder, newTypeFolder, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var reservedNames = GetReservedFileNames(newTypeFolder, reservedNamesByFolder);
+            var reservation = GetTargetFolderReservation(newTypeFolder, reservationsByFolder);
 
             foreach (var file in Directory.EnumerateFiles(oldTypeFolder))
             {
@@ -304,9 +311,9 @@ public static class NodeAssetFolderHelper
                 var targetFileName = fileName;
                 string? renamedRelativePath = null;
 
-                if (!reservedNames.Add(targetFileName))
+                if (!ReserveFileName(reservation, targetFileName))
                 {
-                    targetFileName = GetRenumberedAssetFileName(fileName, reservedNames);
+                    targetFileName = GetRenumberedAssetFileName(fileName, reservation);
                     if (string.IsNullOrWhiteSpace(targetFileName))
                     {
                         Debug.WriteLine($"[NodeAssetFolderHelper] Failed to allocate renamed target for '{file}'.");
@@ -341,26 +348,44 @@ public static class NodeAssetFolderHelper
         return true;
     }
 
-    private static HashSet<string> GetReservedFileNames(
+    private static TargetFolderReservation GetTargetFolderReservation(
         string targetFolder,
-        Dictionary<string, HashSet<string>> reservedNamesByFolder)
+        Dictionary<string, TargetFolderReservation> reservationsByFolder)
     {
-        if (reservedNamesByFolder.TryGetValue(targetFolder, out var existing))
+        if (reservationsByFolder.TryGetValue(targetFolder, out var existing))
             return existing;
 
-        var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var reservation = new TargetFolderReservation();
         if (Directory.Exists(targetFolder))
         {
             foreach (var existingFile in Directory.EnumerateFiles(targetFolder))
             {
                 var existingName = Path.GetFileName(existingFile);
                 if (!string.IsNullOrWhiteSpace(existingName))
-                    reserved.Add(existingName);
+                    ReserveFileName(reservation, existingName);
             }
         }
 
-        reservedNamesByFolder[targetFolder] = reserved;
-        return reserved;
+        reservationsByFolder[targetFolder] = reservation;
+        return reservation;
+    }
+
+    private static bool ReserveFileName(TargetFolderReservation reservation, string fileName)
+    {
+        if (!reservation.ReservedNames.Add(fileName))
+            return false;
+
+        if (!TryParseNumberedAssetName(fileName, out var baseTitle, out var typeToken, out var number))
+            return true;
+
+        var prefix = $"{baseTitle}_{typeToken}_";
+        var candidateNext = number + 1;
+
+        if (reservation.NextNumberByPrefix.TryGetValue(prefix, out var current) && current >= candidateNext)
+            return true;
+
+        reservation.NextNumberByPrefix[prefix] = candidateNext;
+        return true;
     }
 
     private static bool TryExecutePlannedMoves(
@@ -522,23 +547,28 @@ public static class NodeAssetFolderHelper
         DeleteDirectoryIfEmpty(oldFolder);
     }
 
-    private static string GetRenumberedAssetFileName(string fileName, HashSet<string> reservedNames)
+    private static string GetRenumberedAssetFileName(string fileName, TargetFolderReservation reservation)
     {
-        if (TryParseNumberedAssetName(fileName, out var baseTitle, out var typeToken))
+        if (TryParseNumberedAssetName(fileName, out var baseTitle, out var typeToken, out _))
         {
             var extension = Path.GetExtension(fileName);
             var prefix = $"{baseTitle}_{typeToken}_";
-            var next = GetNextAssetNumber(reservedNames, prefix);
-            return GetUniqueNameWithPrefix(reservedNames, prefix, extension, next);
+            var next = GetNextAssetNumber(reservation, prefix);
+            return GetUniqueNameWithPrefix(reservation, prefix, extension, next);
         }
 
-        return GetFallbackRenamedFileName(fileName, reservedNames);
+        return GetFallbackRenamedFileName(fileName, reservation);
     }
 
-    private static bool TryParseNumberedAssetName(string fileName, out string baseTitle, out string typeToken)
+    private static bool TryParseNumberedAssetName(
+        string fileName,
+        out string baseTitle,
+        out string typeToken,
+        out int number)
     {
         baseTitle = string.Empty;
         typeToken = string.Empty;
+        number = 0;
 
         if (string.IsNullOrWhiteSpace(fileName))
             return false;
@@ -556,7 +586,7 @@ public static class NodeAssetFolderHelper
             return false;
 
         var numberPart = nameWithoutExtension[(lastUnderscore + 1)..];
-        if (!int.TryParse(numberPart, out var number) || number < 0)
+        if (!int.TryParse(numberPart, out number) || number < 0)
             return false;
 
         var beforeNumber = nameWithoutExtension[..lastUnderscore];
@@ -576,10 +606,13 @@ public static class NodeAssetFolderHelper
         return true;
     }
 
-    private static int GetNextAssetNumber(HashSet<string> reservedNames, string prefix)
+    private static int GetNextAssetNumber(TargetFolderReservation reservation, string prefix)
     {
+        if (reservation.NextNumberByPrefix.TryGetValue(prefix, out var cachedNext))
+            return cachedNext;
+
         var max = 0;
-        foreach (var name in reservedNames)
+        foreach (var name in reservation.ReservedNames)
         {
             if (string.IsNullOrWhiteSpace(name))
                 continue;
@@ -597,11 +630,13 @@ public static class NodeAssetFolderHelper
                 max = number;
         }
 
-        return max + 1;
+        var next = max + 1;
+        reservation.NextNumberByPrefix[prefix] = next;
+        return next;
     }
 
     private static string GetUniqueNameWithPrefix(
-        HashSet<string> reservedNames,
+        TargetFolderReservation reservation,
         string prefix,
         string extension,
         int startNumber)
@@ -610,14 +645,14 @@ public static class NodeAssetFolderHelper
         while (true)
         {
             var name = $"{prefix}{counter:D2}{extension}";
-            if (reservedNames.Add(name))
+            if (ReserveFileName(reservation, name))
                 return name;
 
             counter++;
         }
     }
 
-    private static string GetFallbackRenamedFileName(string fileName, HashSet<string> reservedNames)
+    private static string GetFallbackRenamedFileName(string fileName, TargetFolderReservation reservation)
     {
         var baseName = Path.GetFileNameWithoutExtension(fileName);
         var extension = Path.GetExtension(fileName);
@@ -626,7 +661,7 @@ public static class NodeAssetFolderHelper
         while (true)
         {
             var candidateName = $"{baseName}_Moved_{counter:D2}{extension}";
-            if (reservedNames.Add(candidateName))
+            if (ReserveFileName(reservation, candidateName))
                 return candidateName;
 
             counter++;
