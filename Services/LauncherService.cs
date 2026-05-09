@@ -272,7 +272,7 @@ public sealed class LauncherService
         // 2) Inherited emulator profile
         if (inheritedConfig != null)
         {
-            var templateArgs = CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
+            var templateArgs = LaunchArgumentHelper.CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
             var args = BuildArgumentsString(launchFilePath, templateArgs);
 
             var fileName = ResolveConfiguredExecutablePath(inheritedConfig.Path);
@@ -356,7 +356,7 @@ public sealed class LauncherService
                 continue;
 
             outerFileName = resolvedWrapperPath;
-            outerArgs = NormalizeWhitespace(argsWithChild);
+            outerArgs = LaunchArgumentHelper.NormalizeWhitespace(argsWithChild);
             current = string.IsNullOrWhiteSpace(outerArgs)
                 ? outerFileName
                 : $"{outerFileName} {outerArgs}";
@@ -1118,28 +1118,6 @@ public sealed class LauncherService
         return (fileName.ToString(), args);
     }
 
-    private static string CombineTemplateArguments(string? baseArgs, string? itemArgs)
-    {
-        baseArgs ??= string.Empty;
-        itemArgs ??= string.Empty;
-
-        if (string.IsNullOrWhiteSpace(itemArgs))
-            return baseArgs;
-
-        // Smart injection:
-        // If both base and item arguments contain "{file}",
-        // we inject the item argument string into the base template at "{file}" position.
-        // This allows users to control the relative position of {file} inside their custom args.
-        if (baseArgs.Contains("{file}", StringComparison.Ordinal) &&
-            itemArgs.Contains("{file}", StringComparison.Ordinal))
-        {
-            return baseArgs.Replace("{file}", itemArgs, StringComparison.Ordinal);
-        }
-
-        // Otherwise, append item args to the base args.
-        return $"{baseArgs} {itemArgs}".Trim();
-    }
-
     private static string BuildNativeArguments(string? templateArgs)
     {
         if (string.IsNullOrWhiteSpace(templateArgs))
@@ -1149,51 +1127,7 @@ public sealed class LauncherService
         var args = templateArgs;
         args = args.Replace("\"{file}\"", string.Empty, StringComparison.Ordinal);
         args = args.Replace("{file}", string.Empty, StringComparison.Ordinal);
-        return NormalizeWhitespace(args);
-    }
-
-    private static string NormalizeWhitespace(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return string.Empty;
-
-        // Simple, allocation-light normalization.
-        // (Avoid Regex here; this can run often during preview/launch.)
-        Span<char> buffer = stackalloc char[value.Length];
-        int w = 0;
-        bool lastWasSpace = false;
-
-        for (int i = 0; i < value.Length; i++)
-        {
-            var c = value[i];
-            if (char.IsWhiteSpace(c))
-            {
-                if (lastWasSpace) continue;
-                buffer[w++] = ' ';
-                lastWasSpace = true;
-            }
-            else
-            {
-                buffer[w++] = c;
-                lastWasSpace = false;
-            }
-        }
-
-        // Trim one leading/trailing space if present
-        int start = 0;
-        int length = w;
-
-        if (length > 0 && buffer[0] == ' ')
-        {
-            start++;
-            length--;
-        }
-        if (length > 0 && buffer[start + length - 1] == ' ')
-        {
-            length--;
-        }
-
-        return length <= 0 ? string.Empty : new string(buffer.Slice(start, length));
+        return LaunchArgumentHelper.NormalizeWhitespace(args);
     }
 
     private bool ConfigureWinePrefix(
