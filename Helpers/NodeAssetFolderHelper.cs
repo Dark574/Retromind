@@ -9,6 +9,8 @@ namespace Retromind.Helpers;
 
 public static class NodeAssetFolderHelper
 {
+    private const int MaxNodeTraversalDepth = 256;
+
     private sealed class PlannedFileMove
     {
         public required string SourcePath { get; init; }
@@ -38,6 +40,24 @@ public static class NodeAssetFolderHelper
         string newPrefix,
         IReadOnlyDictionary<string, string>? renamedFiles)
     {
+        var visitedNodes = new HashSet<MediaNode>();
+        if (!TryUpdateAssetPathsRecursive(node, oldPrefix, newPrefix, renamedFiles, visitedNodes, depth: 0))
+        {
+            Debug.WriteLine("[NodeAssetFolderHelper] Asset path update aborted due to invalid node traversal.");
+        }
+    }
+
+    private static bool TryUpdateAssetPathsRecursive(
+        MediaNode node,
+        string oldPrefix,
+        string newPrefix,
+        IReadOnlyDictionary<string, string>? renamedFiles,
+        HashSet<MediaNode> visitedNodes,
+        int depth)
+    {
+        if (!TryBeginNodeTraversal(node, visitedNodes, depth, nameof(UpdateAssetPathsRecursive)))
+            return false;
+
         UpdateNodeAssetPaths(node, oldPrefix, newPrefix, renamedFiles);
 
         foreach (var item in node.Items)
@@ -50,8 +70,19 @@ public static class NodeAssetFolderHelper
 
         foreach (var child in node.Children)
         {
-            UpdateAssetPathsRecursive(child, oldPrefix, newPrefix, renamedFiles);
+            if (!TryUpdateAssetPathsRecursive(
+                    child,
+                    oldPrefix,
+                    newPrefix,
+                    renamedFiles,
+                    visitedNodes,
+                    depth + 1))
+            {
+                return false;
+            }
         }
+
+        return true;
     }
 
     public static bool HasAnyAssetFolders(string nodeFolder)
@@ -82,6 +113,7 @@ public static class NodeAssetFolderHelper
         var plannedMoves = new List<PlannedFileMove>();
         var plannedRenamedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var reservationsByFolder = new Dictionary<string, TargetFolderReservation>(StringComparer.OrdinalIgnoreCase);
+        var visitedNodes = new HashSet<MediaNode>();
 
         if (!TryPlanAssetFolderMovesRecursive(
                 node,
@@ -90,7 +122,9 @@ public static class NodeAssetFolderHelper
                 relativeSegments,
                 plannedMoves,
                 plannedRenamedFiles,
-                reservationsByFolder))
+                reservationsByFolder,
+                visitedNodes,
+                depth: 0))
         {
             return false;
         }
@@ -236,8 +270,13 @@ public static class NodeAssetFolderHelper
         List<string> relativeSegments,
         List<PlannedFileMove> plannedMoves,
         Dictionary<string, string> plannedRenamedFiles,
-        Dictionary<string, TargetFolderReservation> reservationsByFolder)
+        Dictionary<string, TargetFolderReservation> reservationsByFolder,
+        HashSet<MediaNode> visitedNodes,
+        int depth)
     {
+        if (!TryBeginNodeTraversal(node, visitedNodes, depth, nameof(MoveAssetFoldersRecursive)))
+            return false;
+
         var oldSegments = new List<string>(oldBaseSegments.Count + relativeSegments.Count);
         oldSegments.AddRange(oldBaseSegments);
         oldSegments.AddRange(relativeSegments);
@@ -259,19 +298,22 @@ public static class NodeAssetFolderHelper
         foreach (var child in node.Children)
         {
             relativeSegments.Add(child.Name);
-            if (!TryPlanAssetFolderMovesRecursive(
-                    child,
-                    oldBaseSegments,
-                    newBaseSegments,
-                    relativeSegments,
-                    plannedMoves,
-                    plannedRenamedFiles,
-                    reservationsByFolder))
+            var childPlanned = TryPlanAssetFolderMovesRecursive(
+                child,
+                oldBaseSegments,
+                newBaseSegments,
+                relativeSegments,
+                plannedMoves,
+                plannedRenamedFiles,
+                reservationsByFolder,
+                visitedNodes,
+                depth + 1);
+            relativeSegments.RemoveAt(relativeSegments.Count - 1);
+
+            if (!childPlanned)
             {
                 return false;
             }
-
-            relativeSegments.RemoveAt(relativeSegments.Count - 1);
         }
 
         return true;
@@ -529,6 +571,23 @@ public static class NodeAssetFolderHelper
         IReadOnlyList<string> oldBaseSegments,
         List<string> relativeSegments)
     {
+        var visitedNodes = new HashSet<MediaNode>();
+        if (!TryCleanupEmptyOldFoldersRecursive(node, oldBaseSegments, relativeSegments, visitedNodes, depth: 0))
+        {
+            Debug.WriteLine("[NodeAssetFolderHelper] Empty-folder cleanup aborted due to invalid node traversal.");
+        }
+    }
+
+    private static bool TryCleanupEmptyOldFoldersRecursive(
+        MediaNode node,
+        IReadOnlyList<string> oldBaseSegments,
+        List<string> relativeSegments,
+        HashSet<MediaNode> visitedNodes,
+        int depth)
+    {
+        if (!TryBeginNodeTraversal(node, visitedNodes, depth, nameof(CleanupEmptyOldFoldersRecursive)))
+            return false;
+
         var oldSegments = new List<string>(oldBaseSegments.Count + relativeSegments.Count);
         oldSegments.AddRange(oldBaseSegments);
         oldSegments.AddRange(relativeSegments);
@@ -536,8 +595,16 @@ public static class NodeAssetFolderHelper
         foreach (var child in node.Children)
         {
             relativeSegments.Add(child.Name);
-            CleanupEmptyOldFoldersRecursive(child, oldBaseSegments, relativeSegments);
+            var childCleanup = TryCleanupEmptyOldFoldersRecursive(
+                child,
+                oldBaseSegments,
+                relativeSegments,
+                visitedNodes,
+                depth + 1);
             relativeSegments.RemoveAt(relativeSegments.Count - 1);
+
+            if (!childCleanup)
+                return false;
         }
 
         var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
@@ -545,6 +612,28 @@ public static class NodeAssetFolderHelper
             DeleteDirectoryIfEmpty(Path.Combine(oldFolder, type.ToString()));
 
         DeleteDirectoryIfEmpty(oldFolder);
+        return true;
+    }
+
+    private static bool TryBeginNodeTraversal(
+        MediaNode node,
+        HashSet<MediaNode> visitedNodes,
+        int depth,
+        string operationName)
+    {
+        if (depth > MaxNodeTraversalDepth)
+        {
+            Debug.WriteLine(
+                $"[NodeAssetFolderHelper] {operationName} aborted: max depth {MaxNodeTraversalDepth} exceeded at node '{node.Name}' ({node.Id}).");
+            return false;
+        }
+
+        if (visitedNodes.Add(node))
+            return true;
+
+        Debug.WriteLine(
+            $"[NodeAssetFolderHelper] {operationName} aborted: cycle/shared reference detected at node '{node.Name}' ({node.Id}).");
+        return false;
     }
 
     private static string GetRenumberedAssetFileName(string fileName, TargetFolderReservation reservation)
