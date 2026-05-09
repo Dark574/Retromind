@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Retromind.Models;
 
 namespace Retromind.Helpers;
@@ -18,14 +19,14 @@ public static class MediaSortHelper
         if (right is null)
             return 1;
 
-        var bySortTitle = CompareNaturalInvariant(
+        var bySortTitle = CompareNaturalCurrentCulture(
             GetSortKey(left),
             GetSortKey(right));
 
         if (bySortTitle != 0)
             return bySortTitle;
 
-        var byTitle = CompareNaturalInvariant(left.Title, right.Title);
+        var byTitle = CompareNaturalCurrentCulture(left.Title, right.Title);
         if (byTitle != 0)
             return byTitle;
 
@@ -47,10 +48,15 @@ public static class MediaSortHelper
     /// Compares strings case-insensitively with numeric ordering for digit runs.
     /// Example: "Tomb Raider 2" sorts before "Tomb Raider 10".
     /// </summary>
-    private static int CompareNaturalInvariant(string? left, string? right)
+    private static int CompareNaturalCurrentCulture(string? left, string? right)
     {
         left ??= string.Empty;
         right ??= string.Empty;
+
+        var compareInfo = CultureInfo.CurrentCulture.CompareInfo;
+        const CompareOptions options =
+            CompareOptions.IgnoreCase |
+            CompareOptions.IgnoreNonSpace;
 
         var leftIndex = 0;
         var rightIndex = 0;
@@ -72,13 +78,32 @@ public static class MediaSortHelper
                 continue;
             }
 
-            var leftUpper = char.ToUpperInvariant(leftChar);
-            var rightUpper = char.ToUpperInvariant(rightChar);
-            if (leftUpper != rightUpper)
-                return leftUpper < rightUpper ? -1 : 1;
+            if (leftIsDigit != rightIsDigit)
+            {
+                var byKind = compareInfo.Compare(left, leftIndex, 1, right, rightIndex, 1, options);
+                if (byKind != 0)
+                    return byKind;
 
-            leftIndex++;
-            rightIndex++;
+                leftIndex++;
+                rightIndex++;
+                continue;
+            }
+
+            var leftStart = leftIndex;
+            while (leftIndex < left.Length && !IsAsciiDigit(left[leftIndex]))
+                leftIndex++;
+
+            var rightStart = rightIndex;
+            while (rightIndex < right.Length && !IsAsciiDigit(right[rightIndex]))
+                rightIndex++;
+
+            var byText = compareInfo.Compare(
+                left, leftStart, leftIndex - leftStart,
+                right, rightStart, rightIndex - rightStart,
+                options);
+
+            if (byText != 0)
+                return byText;
         }
 
         if (leftIndex < left.Length)
