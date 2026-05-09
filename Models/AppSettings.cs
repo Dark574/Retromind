@@ -74,6 +74,12 @@ public class AppSettings
     public bool EnableSelectionMusicPreview { get; set; } = true;
 
     /// <summary>
+    /// When true, common leading articles in the title (culture-specific, e.g. "A", "An", "The")
+    /// are ignored for title-based sorting. Explicit SortTitle values are never modified.
+    /// </summary>
+    public bool IgnoreLeadingArticlesInSort { get; set; } = false;
+
+    /// <summary>
     /// Encrypted parental-control password (AES via SecurityHelper).
     /// Empty/null means parental lock is not configured.
     /// </summary>

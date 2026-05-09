@@ -213,6 +213,9 @@
     <!-- SETTINGS -->
     <data name="Settings.TabMisc" xml:space="preserve"><value>Sonstiges</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Startpfade</value></data>
+    <data name="Settings_SectionSorting" xml:space="preserve"><value>Sortierung</value></data>
+    <data name="Settings_IgnoreLeadingArticlesInSort" xml:space="preserve"><value>Führende Artikel bei der Titelsortierung ignorieren</value></data>
+    <data name="Settings_IgnoreLeadingArticlesInSort_Hint" xml:space="preserve"><value>Gilt nur für Titel. Sort Title wird immer unverändert verwendet.</value></data>
     <data name="Settings_SectionMusic" xml:space="preserve"><value>Musik</value></data>
     <data name="Settings_TabEmulatorsShort" xml:space="preserve"><value>Emu</value></data>
     <data name="Settings_TabMetadataShort" xml:space="preserve"><value>Meta</value></data>

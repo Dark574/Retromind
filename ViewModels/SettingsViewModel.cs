@@ -193,6 +193,24 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// Controls whether leading title articles should be ignored during title-based sorting.
+    /// Explicit SortTitle values are never modified by this option.
+    /// </summary>
+    public bool IgnoreLeadingArticlesInSort
+    {
+        get => _appSettings.IgnoreLeadingArticlesInSort;
+        set
+        {
+            if (_appSettings.IgnoreLeadingArticlesInSort == value)
+                return;
+
+            _appSettings.IgnoreLeadingArticlesInSort = value;
+            MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(value);
+            OnPropertyChanged();
+        }
+    }
+
     private ScraperImportSettings ScraperImportSettings
     {
         get
@@ -340,6 +358,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     }
 
     public string ScraperImportSectionTitle => T("Settings_SectionScraperImport", "Scraper import");
+    public string SortingSectionTitle => T("Settings_SectionSorting", "Sorting");
+    public string IgnoreLeadingArticlesInSortText =>
+        T("Settings_IgnoreLeadingArticlesInSort", "Ignore leading articles in title sorting");
+    public string IgnoreLeadingArticlesInSortHint =>
+        T("Settings_IgnoreLeadingArticlesInSort_Hint", "Applies to Title only. Sort Title is always used as entered.");
     public string ScraperImportHint => T("Settings_ScraperImportHint", "Applies to both manual scrape and bulk scrape.");
     public string ScraperExistingDataModeText => T("Settings_ScraperExistingDataMode", "If data already exists:");
     public string ScraperBulkAppendAssetsText => T("Settings_ScraperBulkAssetConflictPrompt", "In manual and bulk scrape, append new artwork when artwork already exists");
@@ -571,6 +594,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         _appSettings = settings ?? throw new ArgumentNullException(nameof(settings));
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
+
+        MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(_appSettings.IgnoreLeadingArticlesInSort);
 
         // Load existing emulators
         foreach (var emu in _appSettings.Emulators) 

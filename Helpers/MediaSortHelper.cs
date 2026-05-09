@@ -1,14 +1,30 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Retromind.Models;
 
 namespace Retromind.Helpers;
 
 public static class MediaSortHelper
 {
+    private static bool _ignoreLeadingArticlesInTitleSort;
+
+    private static readonly Dictionary<string, string[]> LeadingArticlesByLanguage = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["en"] = ["the", "an", "a"],
+        ["de"] = ["der", "die", "das", "einer", "einem", "einen", "eine", "ein"]
+    };
+
+    private static readonly StringComparer ArticleComparer = StringComparer.OrdinalIgnoreCase;
+
     public static IComparer<MediaItem> DisplayOrderComparer { get; } =
         Comparer<MediaItem>.Create(CompareForDisplayOrder);
+
+    public static void SetIgnoreLeadingArticlesInTitleSort(bool enabled)
+    {
+        _ignoreLeadingArticlesInTitleSort = enabled;
+    }
 
     public static int CompareForDisplayOrder(MediaItem? left, MediaItem? right)
     {
@@ -20,20 +36,22 @@ public static class MediaSortHelper
             return 1;
 
         var bySortTitle = CompareNaturalCurrentCulture(
-            GetSortKey(left),
-            GetSortKey(right));
+            GetPrimarySortKey(left),
+            GetPrimarySortKey(right));
 
         if (bySortTitle != 0)
             return bySortTitle;
 
-        var byTitle = CompareNaturalCurrentCulture(left.Title, right.Title);
+        var byTitle = CompareNaturalCurrentCulture(
+            GetTitleSortKey(left.Title),
+            GetTitleSortKey(right.Title));
         if (byTitle != 0)
             return byTitle;
 
         return string.Compare(left.Id, right.Id, StringComparison.OrdinalIgnoreCase);
     }
 
-    public static string GetSortKey(MediaItem item)
+    private static string GetPrimarySortKey(MediaItem item)
     {
         if (item == null)
             return string.Empty;
@@ -41,7 +59,17 @@ public static class MediaSortHelper
         if (!string.IsNullOrWhiteSpace(item.SortTitle))
             return item.SortTitle.Trim();
 
-        return item.Title?.Trim() ?? string.Empty;
+        return GetTitleSortKey(item.Title);
+    }
+
+    private static string GetTitleSortKey(string? title)
+    {
+        var trimmed = title?.Trim() ?? string.Empty;
+        if (!_ignoreLeadingArticlesInTitleSort || string.IsNullOrWhiteSpace(trimmed))
+            return trimmed;
+
+        var stripped = StripLeadingArticle(trimmed);
+        return string.IsNullOrWhiteSpace(stripped) ? trimmed : stripped;
     }
 
     /// <summary>
@@ -159,5 +187,73 @@ public static class MediaSortHelper
     private static bool IsAsciiDigit(char value)
     {
         return value is >= '0' and <= '9';
+    }
+
+    private static string StripLeadingArticle(string value)
+    {
+        var culture = CultureInfo.CurrentCulture;
+        var articles = GetApplicableArticles(culture);
+        if (articles.Count == 0)
+            return value;
+
+        var compareInfo = culture.CompareInfo;
+        const CompareOptions options =
+            CompareOptions.IgnoreCase |
+            CompareOptions.IgnoreNonSpace;
+
+        foreach (var article in articles)
+        {
+            if (string.IsNullOrWhiteSpace(article))
+                continue;
+
+            if (value.Length <= article.Length)
+                continue;
+
+            if (!compareInfo.IsPrefix(value, article, options))
+                continue;
+
+            // Articles should only match as standalone first word.
+            var boundary = value[article.Length];
+            if (!char.IsWhiteSpace(boundary))
+                continue;
+
+            return value.Substring(article.Length).TrimStart();
+        }
+
+        return value;
+    }
+
+    private static IReadOnlyList<string> GetApplicableArticles(CultureInfo culture)
+    {
+        var language = culture.TwoLetterISOLanguageName;
+        var merged = new List<string>();
+
+        if (LeadingArticlesByLanguage.TryGetValue(language, out var languageArticles))
+            AppendUnique(merged, languageArticles);
+
+        // Always include English fallback so common library titles ("The ...")
+        // behave naturally even on non-English system locales.
+        if (!string.Equals(language, "en", StringComparison.OrdinalIgnoreCase) &&
+            LeadingArticlesByLanguage.TryGetValue("en", out var englishArticles))
+        {
+            AppendUnique(merged, englishArticles);
+        }
+
+        merged.Sort((left, right) => right.Length.CompareTo(left.Length));
+        return merged;
+    }
+
+    private static void AppendUnique(List<string> destination, IEnumerable<string> source)
+    {
+        foreach (var article in source)
+        {
+            if (string.IsNullOrWhiteSpace(article))
+                continue;
+
+            if (destination.Any(existing => ArticleComparer.Equals(existing, article)))
+                continue;
+
+            destination.Add(article);
+        }
     }
 }

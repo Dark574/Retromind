@@ -7,6 +7,7 @@
   "DefaultNativeWrappers": [],
   "VlcHardwareDecodeMode": "none",
   "EnableSelectionMusicPreview": true,
+  "IgnoreLeadingArticlesInSort": false,
 
   "TreeColumnWidth": 260,
   "DetailColumnWidth": 380,

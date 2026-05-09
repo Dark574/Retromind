@@ -212,6 +212,9 @@
     <!-- SETTINGS -->
     <data name="Settings.TabMisc" xml:space="preserve"><value>Misc</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Launch paths</value></data>
+    <data name="Settings_SectionSorting" xml:space="preserve"><value>Sorting</value></data>
+    <data name="Settings_IgnoreLeadingArticlesInSort" xml:space="preserve"><value>Ignore leading articles in title sorting</value></data>
+    <data name="Settings_IgnoreLeadingArticlesInSort_Hint" xml:space="preserve"><value>Applies to Title only. Sort Title is always used as entered.</value></data>
     <data name="Settings_SectionMusic" xml:space="preserve"><value>Music</value></data>
     <data name="Settings_TabEmulatorsShort" xml:space="preserve"><value>Emu</value></data>
     <data name="Settings_TabMetadataShort" xml:space="preserve"><value>Meta</value></data>

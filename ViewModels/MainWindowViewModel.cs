@@ -319,6 +319,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _httpClient = httpClient;
         _currentSettings = preloadedSettings;
         _documentService = documentService;
+        MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(_currentSettings.IgnoreLeadingArticlesInSort);
         _fileService.LibraryChanged += MarkLibraryDirty;
         _audioService.MusicPlaybackEnded += OnMusicPlaybackEnded;
 

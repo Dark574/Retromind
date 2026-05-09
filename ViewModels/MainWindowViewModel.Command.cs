@@ -1002,6 +1002,7 @@ public partial class MainWindowViewModel
     {
         if (CurrentWindow is not { } owner) return;
 
+        var ignoreLeadingArticlesBefore = _currentSettings.IgnoreLeadingArticlesInSort;
         var settingsVm = new SettingsViewModel(_currentSettings, RootItems);
         var dialog = new SettingsView
         {
@@ -1027,6 +1028,13 @@ public partial class MainWindowViewModel
         };
         
         await dialog.ShowDialog(owner);
+
+        var ignoreLeadingArticlesChanged =
+            ignoreLeadingArticlesBefore != _currentSettings.IgnoreLeadingArticlesInSort;
+
+        if (ignoreLeadingArticlesChanged)
+            await UpdateContentAsync();
+
         if (settingsVm.LibraryModified)
             MarkLibraryDirty();
         await SaveData();

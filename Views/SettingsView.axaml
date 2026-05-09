@@ -496,6 +496,13 @@
 
                         <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
 
+                        <TextBlock Text="{Binding SortingSectionTitle}" FontWeight="Bold" FontSize="16" />
+                        <CheckBox Content="{Binding IgnoreLeadingArticlesInSortText}"
+                                  IsChecked="{Binding IgnoreLeadingArticlesInSort}"
+                                  ToolTip.Tip="{Binding IgnoreLeadingArticlesInSortHint}" />
+
+                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
+
                         <TextBlock Text="{x:Static p:Strings.Settings_SectionMusic}" FontWeight="Bold" FontSize="16" />
                         <CheckBox Content="{x:Static p:Strings.Settings_PlayRandomMusic}"
                                   IsChecked="{Binding EnableSelectionMusicPreview}"
