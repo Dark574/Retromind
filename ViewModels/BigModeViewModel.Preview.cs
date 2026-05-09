@@ -65,7 +65,6 @@ public partial class BigModeViewModel
     // --- Preview state ---
     private DispatcherTimer? _previewDebounceTimer;
     private DispatcherTimer? _bezelDebounceTimer;
-    private string? _activeBezelPathResolved;
     
     // One-time estimate of overall library size to tune debounce for huge collections.
     private int? _estimatedTotalItems;
@@ -562,10 +561,10 @@ public partial class BigModeViewModel
 
     private void SetActiveBezelPathResolved(string? value)
     {
-        if (string.Equals(_activeBezelPathResolved, value, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(ActiveBezelPath, value, StringComparison.OrdinalIgnoreCase))
             return;
 
-        _activeBezelPathResolved = value;
+        ActiveBezelPath = value;
         OnPropertyChanged(nameof(ActiveBezelPath));
     }
 

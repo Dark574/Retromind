@@ -182,12 +182,12 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Main channel A for video previews (used for crossfades).
     /// </summary>
-    public IVideoSurface? MainVideoSurfaceA => _videoSurfaceA;
+    public IVideoSurface MainVideoSurfaceA => _videoSurfaceA;
 
     /// <summary>
     /// Main channel B for video previews (used for crossfades).
     /// </summary>
-    public IVideoSurface? MainVideoSurfaceB => _videoSurfaceB;
+    public IVideoSurface MainVideoSurfaceB => _videoSurfaceB;
 
     /// <summary>
     /// Backwards-compatible surface: returns the currently active surface.
@@ -276,8 +276,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// active node. Resolution order: item → node. Does not apply theme defaults.
     /// Updated with a short debounce to keep rapid list navigation smooth.
     /// </summary>
-    public string? ActiveBezelPath =>
-        _activeBezelPathResolved;
+    public string? ActiveBezelPath { get; private set; }
 
     /// <summary>
     /// Resolved control panel artwork path for the currently selected item in context of the
@@ -307,14 +306,14 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     }
 
     private static readonly AssetType[] NodeFallbackTypes =
-    {
+    [
         AssetType.Logo,
         AssetType.Marquee
-    };
+    ];
 
     private void ApplyNodeFallbackOverrides()
     {
-        if (Items is null || Items.Count == 0)
+        if (Items.Count == 0)
             return;
 
         var node = ThemeContextNode ?? CurrentNode;
@@ -327,13 +326,13 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             fallbackByType[type] = rel;
         }
 
-        for (var i = 0; i < Items.Count; i++)
+        foreach (var item in Items)
         {
-            var item = Items[i];
             foreach (var type in NodeFallbackTypes)
             {
                 var hasItemAsset = item.Assets.Any(a => a.Type == type);
                 var fallbackRel = fallbackByType[type];
+
                 if (!hasItemAsset && !string.IsNullOrWhiteSpace(fallbackRel))
                 {
                     item.SetActiveAsset(type, fallbackRel);
@@ -412,22 +411,22 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // For detailed troubleshooting you can temporarily replace "--quiet" with
         // e.g. "--verbose=2" and/or set enableDebugLogs: true.
         string[] vlcOptions =
-        {
+        [
             "--no-osd",
             $"--avcodec-hw={hwMode}",
             "--quiet"
-        };
+        ];
 
         _libVlc = new LibVLC(enableDebugLogs: false, vlcOptions);
 
         // Secondary channel uses an isolated LibVLC instance to avoid cross-player interference.
         string[] secondaryVlcOptions =
-        {
+        [
             "--no-osd",
             "--no-audio",
             $"--avcodec-hw={hwMode}",
             "--quiet"
-        };
+        ];
 
         _secondaryLibVlc = new LibVLC(enableDebugLogs: false, secondaryVlcOptions);
         
@@ -562,7 +561,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Stop previous content (best-effort)
         try
         {
-            if (_secondaryPlayer != null && _secondaryPlayer.IsPlaying)
+            if (_secondaryPlayer is { IsPlaying: true })
                 _secondaryPlayer.Stop();
         }
         catch
@@ -682,7 +681,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void UpdateGameCounters()
     {
-        if (!IsGameListActive || Items is not { Count: > 0 })
+        if (!IsGameListActive || Items.Count == 0)
         {
             TotalGames = 0;
             CurrentGameNumber = 0;

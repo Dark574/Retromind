@@ -89,7 +89,7 @@ public partial class BigModeViewModel
             return;
 
         // Attract mode only makes sense while the game list is active.
-        if (!IsGameListActive || Items is not { Count: > 0 })
+        if (!IsGameListActive || Items.Count == 0)
         {
             _attractStepsExecuted = 0;
             return;
@@ -130,7 +130,7 @@ public partial class BigModeViewModel
         if (Volatile.Read(ref _disposed) == 1)
             return;
 
-        if (!IsGameListActive || Items is not { Count: > 0 })
+        if (!IsGameListActive || Items.Count == 0)
             return;
 
         var count = Items.Count;
