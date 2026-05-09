@@ -10,6 +10,13 @@ namespace Retromind.Helpers;
 
 public static class NodeAssetFolderHelper
 {
+    private sealed class PlannedFileMove
+    {
+        public required string SourcePath { get; init; }
+        public required string TargetPath { get; init; }
+        public string? StagingPath { get; set; }
+    }
+
     private static readonly AssetType[] AssetFolderTypes = Enum.GetValues(typeof(AssetType))
         .Cast<AssetType>()
         .Where(type => type != AssetType.Unknown)
@@ -66,7 +73,33 @@ public static class NodeAssetFolderHelper
         Dictionary<string, string> renamedFiles)
     {
         var relativeSegments = new List<string>();
-        return MoveAssetFoldersRecursive(node, oldBaseSegments, newBaseSegments, relativeSegments, renamedFiles);
+        var plannedMoves = new List<PlannedFileMove>();
+        var plannedRenamedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var reservedNamesByFolder = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        if (!TryPlanAssetFolderMovesRecursive(
+                node,
+                oldBaseSegments,
+                newBaseSegments,
+                relativeSegments,
+                plannedMoves,
+                plannedRenamedFiles,
+                reservedNamesByFolder))
+        {
+            return false;
+        }
+
+        if (plannedMoves.Count == 0)
+        {
+            CleanupEmptyOldFoldersRecursive(node, oldBaseSegments, relativeSegments);
+            return true;
+        }
+
+        if (!TryExecutePlannedMoves(plannedMoves, plannedRenamedFiles, renamedFiles))
+            return false;
+
+        CleanupEmptyOldFoldersRecursive(node, oldBaseSegments, relativeSegments);
+        return true;
     }
 
     public static void DeleteDirectoryIfEmpty(string path)
@@ -190,12 +223,14 @@ public static class NodeAssetFolderHelper
         return true;
     }
 
-    private static bool MoveAssetFoldersRecursive(
+    private static bool TryPlanAssetFolderMovesRecursive(
         MediaNode node,
         IReadOnlyList<string> oldBaseSegments,
         IReadOnlyList<string> newBaseSegments,
         List<string> relativeSegments,
-        Dictionary<string, string> renamedFiles)
+        List<PlannedFileMove> plannedMoves,
+        Dictionary<string, string> plannedRenamedFiles,
+        Dictionary<string, HashSet<string>> reservedNamesByFolder)
     {
         var oldSegments = new List<string>(oldBaseSegments.Count + relativeSegments.Count);
         oldSegments.AddRange(oldBaseSegments);
@@ -205,27 +240,43 @@ public static class NodeAssetFolderHelper
         newSegments.AddRange(newBaseSegments);
         newSegments.AddRange(relativeSegments);
 
-        if (!MoveAssetFoldersForNode(oldSegments, newSegments, renamedFiles))
+        if (!TryPlanAssetFolderMovesForNode(
+                oldSegments,
+                newSegments,
+                plannedMoves,
+                plannedRenamedFiles,
+                reservedNamesByFolder))
+        {
             return false;
+        }
 
         foreach (var child in node.Children)
         {
             relativeSegments.Add(child.Name);
-            if (!MoveAssetFoldersRecursive(child, oldBaseSegments, newBaseSegments, relativeSegments, renamedFiles))
+            if (!TryPlanAssetFolderMovesRecursive(
+                    child,
+                    oldBaseSegments,
+                    newBaseSegments,
+                    relativeSegments,
+                    plannedMoves,
+                    plannedRenamedFiles,
+                    reservedNamesByFolder))
+            {
                 return false;
+            }
+
             relativeSegments.RemoveAt(relativeSegments.Count - 1);
         }
-
-        var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
-        DeleteDirectoryIfEmpty(oldFolder);
 
         return true;
     }
 
-    private static bool MoveAssetFoldersForNode(
+    private static bool TryPlanAssetFolderMovesForNode(
         List<string> oldSegments,
         List<string> newSegments,
-        Dictionary<string, string> renamedFiles)
+        List<PlannedFileMove> plannedMoves,
+        Dictionary<string, string> plannedRenamedFiles,
+        Dictionary<string, HashSet<string>> reservedNamesByFolder)
     {
         var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
         if (!Directory.Exists(oldFolder))
@@ -240,16 +291,10 @@ public static class NodeAssetFolderHelper
                 continue;
 
             var newTypeFolder = Path.Combine(newFolder, type.ToString());
-
-            if (!Directory.Exists(newTypeFolder))
-            {
-                var newParentDir = Path.GetDirectoryName(newTypeFolder);
-                if (!string.IsNullOrWhiteSpace(newParentDir) && !Directory.Exists(newParentDir))
-                    Directory.CreateDirectory(newParentDir);
-
-                Directory.Move(oldTypeFolder, newTypeFolder);
+            if (string.Equals(oldTypeFolder, newTypeFolder, StringComparison.OrdinalIgnoreCase))
                 continue;
-            }
+
+            var reservedNames = GetReservedFileNames(newTypeFolder, reservedNamesByFolder);
 
             foreach (var file in Directory.EnumerateFiles(oldTypeFolder))
             {
@@ -257,40 +302,228 @@ public static class NodeAssetFolderHelper
                 if (string.IsNullOrWhiteSpace(fileName))
                     continue;
 
-                var targetPath = Path.Combine(newTypeFolder, fileName);
-                string? mappedOld = null;
-                string? mappedNew = null;
-                if (File.Exists(targetPath))
+                var targetFileName = fileName;
+                string? renamedRelativePath = null;
+
+                if (!reservedNames.Add(targetFileName))
                 {
-                    targetPath = GetRenumberedAssetPath(newTypeFolder, fileName);
-                    mappedOld = NormalizeRelativePath(Path.GetRelativePath(AppPaths.DataRoot, file));
-                    mappedNew = NormalizeRelativePath(Path.GetRelativePath(AppPaths.DataRoot, targetPath));
+                    targetFileName = GetRenumberedAssetFileName(fileName, reservedNames);
+                    if (string.IsNullOrWhiteSpace(targetFileName))
+                    {
+                        Debug.WriteLine($"[NodeAssetFolderHelper] Failed to allocate renamed target for '{file}'.");
+                        return false;
+                    }
                 }
 
-                File.Move(file, targetPath);
+                var targetPath = Path.Combine(newTypeFolder, targetFileName);
+                var sourceRelativePath = NormalizeRelativePath(Path.GetRelativePath(AppPaths.DataRoot, file));
 
-                if (!string.IsNullOrWhiteSpace(mappedOld) &&
-                    !string.IsNullOrWhiteSpace(mappedNew) &&
-                    !string.Equals(mappedOld, mappedNew, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(targetFileName, fileName, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (renamedFiles.TryGetValue(mappedOld, out var existing) &&
-                        !string.Equals(existing, mappedNew, StringComparison.OrdinalIgnoreCase))
+                    renamedRelativePath = NormalizeRelativePath(Path.GetRelativePath(AppPaths.DataRoot, targetPath));
+                    if (plannedRenamedFiles.TryGetValue(sourceRelativePath, out var existing) &&
+                        !string.Equals(existing, renamedRelativePath, StringComparison.OrdinalIgnoreCase))
                     {
                         Debug.WriteLine(
-                            $"[NodeAssetFolderHelper] Renamed path collision for '{mappedOld}': '{existing}' -> '{mappedNew}'. Overwriting mapping.");
+                            $"[NodeAssetFolderHelper] Planned rename collision for '{sourceRelativePath}': '{existing}' -> '{renamedRelativePath}'. Overwriting mapping.");
                     }
 
-                    renamedFiles[mappedOld] = mappedNew;
+                    plannedRenamedFiles[sourceRelativePath] = renamedRelativePath;
                 }
-            }
 
-            DeleteDirectoryIfEmpty(oldTypeFolder);
+                plannedMoves.Add(new PlannedFileMove
+                {
+                    SourcePath = file,
+                    TargetPath = targetPath
+                });
+            }
         }
 
         return true;
     }
 
-    private static string GetRenumberedAssetPath(string targetFolder, string fileName)
+    private static HashSet<string> GetReservedFileNames(
+        string targetFolder,
+        Dictionary<string, HashSet<string>> reservedNamesByFolder)
+    {
+        if (reservedNamesByFolder.TryGetValue(targetFolder, out var existing))
+            return existing;
+
+        var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (Directory.Exists(targetFolder))
+        {
+            foreach (var existingFile in Directory.EnumerateFiles(targetFolder))
+            {
+                var existingName = Path.GetFileName(existingFile);
+                if (!string.IsNullOrWhiteSpace(existingName))
+                    reserved.Add(existingName);
+            }
+        }
+
+        reservedNamesByFolder[targetFolder] = reserved;
+        return reserved;
+    }
+
+    private static bool TryExecutePlannedMoves(
+        List<PlannedFileMove> plannedMoves,
+        IReadOnlyDictionary<string, string> plannedRenamedFiles,
+        Dictionary<string, string> renamedFiles)
+    {
+        var stagingRoot = Path.Combine(
+            AppPaths.LibraryRoot,
+            ".retromind_asset_move_staging",
+            Guid.NewGuid().ToString("N"));
+
+        var stagedMoves = new List<PlannedFileMove>(plannedMoves.Count);
+        var committedMoves = new List<PlannedFileMove>(plannedMoves.Count);
+
+        try
+        {
+            Directory.CreateDirectory(stagingRoot);
+
+            for (var i = 0; i < plannedMoves.Count; i++)
+            {
+                var move = plannedMoves[i];
+                if (!File.Exists(move.SourcePath))
+                    throw new FileNotFoundException("Source file does not exist for planned asset move.", move.SourcePath);
+
+                var extension = Path.GetExtension(move.SourcePath);
+                var stagePath = Path.Combine(stagingRoot, $"{i:D6}{extension}");
+
+                File.Move(move.SourcePath, stagePath);
+                move.StagingPath = stagePath;
+                stagedMoves.Add(move);
+            }
+
+            foreach (var move in plannedMoves)
+            {
+                if (string.IsNullOrWhiteSpace(move.StagingPath))
+                    throw new InvalidOperationException($"Staging path missing for planned move '{move.SourcePath}'.");
+
+                var targetDirectory = Path.GetDirectoryName(move.TargetPath);
+                if (!string.IsNullOrWhiteSpace(targetDirectory) && !Directory.Exists(targetDirectory))
+                    Directory.CreateDirectory(targetDirectory);
+
+                if (File.Exists(move.TargetPath))
+                    throw new IOException($"Target collision during commit: '{move.TargetPath}'.");
+
+                File.Move(move.StagingPath, move.TargetPath);
+                committedMoves.Add(move);
+            }
+
+            foreach (var kvp in plannedRenamedFiles)
+            {
+                if (renamedFiles.TryGetValue(kvp.Key, out var existing) &&
+                    !string.Equals(existing, kvp.Value, StringComparison.OrdinalIgnoreCase))
+                {
+                    Debug.WriteLine(
+                        $"[NodeAssetFolderHelper] Renamed path collision for '{kvp.Key}': '{existing}' -> '{kvp.Value}'. Overwriting mapping.");
+                }
+
+                renamedFiles[kvp.Key] = kvp.Value;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[NodeAssetFolderHelper] Atomic move failed, rolling back: {ex}");
+            RollbackPlannedMoves(stagedMoves, committedMoves);
+            return false;
+        }
+        finally
+        {
+            DeleteDirectoryIfEmpty(stagingRoot);
+
+            var stagingParent = Path.GetDirectoryName(stagingRoot);
+            if (!string.IsNullOrWhiteSpace(stagingParent))
+                DeleteDirectoryIfEmpty(stagingParent);
+        }
+    }
+
+    private static void RollbackPlannedMoves(
+        IReadOnlyList<PlannedFileMove> stagedMoves,
+        IReadOnlyList<PlannedFileMove> committedMoves)
+    {
+        for (var i = committedMoves.Count - 1; i >= 0; i--)
+        {
+            var move = committedMoves[i];
+            try
+            {
+                if (!File.Exists(move.TargetPath))
+                    continue;
+
+                var sourceDirectory = Path.GetDirectoryName(move.SourcePath);
+                if (!string.IsNullOrWhiteSpace(sourceDirectory) && !Directory.Exists(sourceDirectory))
+                    Directory.CreateDirectory(sourceDirectory);
+
+                if (File.Exists(move.SourcePath))
+                {
+                    Debug.WriteLine(
+                        $"[NodeAssetFolderHelper] Rollback source already exists for '{move.SourcePath}'. Keeping committed target in place.");
+                    continue;
+                }
+
+                File.Move(move.TargetPath, move.SourcePath);
+            }
+            catch (Exception rollbackEx)
+            {
+                Debug.WriteLine($"[NodeAssetFolderHelper] Rollback failed (commit phase): {rollbackEx}");
+            }
+        }
+
+        for (var i = stagedMoves.Count - 1; i >= 0; i--)
+        {
+            var move = stagedMoves[i];
+            try
+            {
+                if (string.IsNullOrWhiteSpace(move.StagingPath) || !File.Exists(move.StagingPath))
+                    continue;
+
+                var sourceDirectory = Path.GetDirectoryName(move.SourcePath);
+                if (!string.IsNullOrWhiteSpace(sourceDirectory) && !Directory.Exists(sourceDirectory))
+                    Directory.CreateDirectory(sourceDirectory);
+
+                if (File.Exists(move.SourcePath))
+                {
+                    Debug.WriteLine(
+                        $"[NodeAssetFolderHelper] Rollback source already exists for staged move '{move.SourcePath}'.");
+                    continue;
+                }
+
+                File.Move(move.StagingPath, move.SourcePath);
+            }
+            catch (Exception rollbackEx)
+            {
+                Debug.WriteLine($"[NodeAssetFolderHelper] Rollback failed (staging phase): {rollbackEx}");
+            }
+        }
+    }
+
+    private static void CleanupEmptyOldFoldersRecursive(
+        MediaNode node,
+        IReadOnlyList<string> oldBaseSegments,
+        List<string> relativeSegments)
+    {
+        var oldSegments = new List<string>(oldBaseSegments.Count + relativeSegments.Count);
+        oldSegments.AddRange(oldBaseSegments);
+        oldSegments.AddRange(relativeSegments);
+
+        foreach (var child in node.Children)
+        {
+            relativeSegments.Add(child.Name);
+            CleanupEmptyOldFoldersRecursive(child, oldBaseSegments, relativeSegments);
+            relativeSegments.RemoveAt(relativeSegments.Count - 1);
+        }
+
+        var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
+        foreach (var type in AssetFolderTypes)
+            DeleteDirectoryIfEmpty(Path.Combine(oldFolder, type.ToString()));
+
+        DeleteDirectoryIfEmpty(oldFolder);
+    }
+
+    private static string GetRenumberedAssetFileName(string fileName, HashSet<string> reservedNames)
     {
         var match = AssetFileRegex.Match(fileName);
         if (match.Success)
@@ -299,19 +532,18 @@ public static class NodeAssetFolderHelper
             var typeToken = match.Groups[2].Value;
             var extension = Path.GetExtension(fileName);
             var prefix = $"{baseTitle}_{typeToken}_";
-            var next = GetNextAssetNumber(targetFolder, prefix);
-            return GetUniqueNameWithPrefix(targetFolder, prefix, extension, next);
+            var next = GetNextAssetNumber(reservedNames, prefix);
+            return GetUniqueNameWithPrefix(reservedNames, prefix, extension, next);
         }
 
-        return GetFallbackRenamedPath(targetFolder, fileName);
+        return GetFallbackRenamedFileName(fileName, reservedNames);
     }
 
-    private static int GetNextAssetNumber(string targetFolder, string prefix)
+    private static int GetNextAssetNumber(HashSet<string> reservedNames, string prefix)
     {
         var max = 0;
-        foreach (var file in Directory.EnumerateFiles(targetFolder))
+        foreach (var name in reservedNames)
         {
-            var name = Path.GetFileName(file);
             if (string.IsNullOrWhiteSpace(name))
                 continue;
 
@@ -331,21 +563,24 @@ public static class NodeAssetFolderHelper
         return max + 1;
     }
 
-    private static string GetUniqueNameWithPrefix(string targetFolder, string prefix, string extension, int startNumber)
+    private static string GetUniqueNameWithPrefix(
+        HashSet<string> reservedNames,
+        string prefix,
+        string extension,
+        int startNumber)
     {
         var counter = Math.Max(startNumber, 1);
         while (true)
         {
             var name = $"{prefix}{counter:D2}{extension}";
-            var candidate = Path.Combine(targetFolder, name);
-            if (!File.Exists(candidate))
-                return candidate;
+            if (reservedNames.Add(name))
+                return name;
 
             counter++;
         }
     }
 
-    private static string GetFallbackRenamedPath(string targetFolder, string fileName)
+    private static string GetFallbackRenamedFileName(string fileName, HashSet<string> reservedNames)
     {
         var baseName = Path.GetFileNameWithoutExtension(fileName);
         var extension = Path.GetExtension(fileName);
@@ -354,9 +589,8 @@ public static class NodeAssetFolderHelper
         while (true)
         {
             var candidateName = $"{baseName}_Moved_{counter:D2}{extension}";
-            var candidatePath = Path.Combine(targetFolder, candidateName);
-            if (!File.Exists(candidatePath))
-                return candidatePath;
+            if (reservedNames.Add(candidateName))
+                return candidateName;
 
             counter++;
         }
