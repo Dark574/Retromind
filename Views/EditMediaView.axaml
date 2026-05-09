@@ -14,9 +14,9 @@
 
     <Window.Resources>
         <!-- Converters for asset visualization -->
-        <helpers:AssetTypeIsManualConverter x:Key="AssetTypeIsManualConverter" />
-        <helpers:AssetTypeIsVideoConverter x:Key="AssetTypeIsVideoConverter" />
-        <helpers:AssetTypeIsMusicConverter x:Key="AssetTypeIsMusicConverter" />
+        <helpers:AssetTypeEqualsConverter x:Key="AssetTypeIsManualConverter" ExpectedType="Manual" />
+        <helpers:AssetTypeEqualsConverter x:Key="AssetTypeIsVideoConverter" ExpectedType="Video" />
+        <helpers:AssetTypeEqualsConverter x:Key="AssetTypeIsMusicConverter" ExpectedType="Music" />
         <helpers:FileExtensionToGlyphConverter x:Key="FileExtensionToGlyphConverter" />
     </Window.Resources>
 

@@ -6,15 +6,15 @@ using Retromind.Models;
 namespace Retromind.Helpers;
 
 /// <summary>
-/// Returns true if the given asset type is Video, otherwise false.
-/// Used to toggle video-specific UI elements (e.g. play icon)
-/// in the generic asset template.
+/// Returns true when the bound AssetType matches <see cref="ExpectedType"/>.
 /// </summary>
-public sealed class AssetTypeIsVideoConverter : IValueConverter
+public sealed class AssetTypeEqualsConverter : IValueConverter
 {
+    public AssetType ExpectedType { get; set; } = AssetType.Unknown;
+
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        return value is AssetType type && type == AssetType.Video;
+        return value is AssetType type && type == ExpectedType;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
