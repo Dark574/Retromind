@@ -258,7 +258,7 @@ public partial class MainWindowViewModel
 
     private bool IsAutoProtectActiveForNode(MediaNode node)
     {
-        var chain = GetNodeChain(node, RootItems);
+        var chain = PathHelper.GetNodeChain(node, RootItems, matchById: true);
         chain.Reverse();
         return chain.FirstOrDefault(n => n.AutoProtectNewChildren)?.AutoProtectNewChildren ?? false;
     }
@@ -291,7 +291,7 @@ public partial class MainWindowViewModel
         if (node == null)
             return;
 
-        var chain = GetNodeChain(node, RootItems);
+        var chain = PathHelper.GetNodeChain(node, RootItems, matchById: true);
         if (chain.Count == 0)
             return;
 

@@ -523,7 +523,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         InheritedWrappers.Clear();
         _inheritedWrappersSourceName = null;
 
-        var chain = GetNodeChain(_node, _rootNodes);
+        var chain = PathHelper.GetNodeChain(_node, _rootNodes);
         if (chain.Count <= 1)
         {
             OnPropertyChanged(nameof(HasInheritedWrappers));
@@ -632,7 +632,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         InheritedEnvironmentOverrides.Clear();
         _inheritedEnvironmentOverridesSourceName = null;
 
-        var chain = GetNodeChain(_node, _rootNodes);
+        var chain = PathHelper.GetNodeChain(_node, _rootNodes);
         if (chain.Count <= 1)
         {
             OnPropertyChanged(nameof(HasInheritedEnvironmentOverrides));
@@ -823,7 +823,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         _inheritedEmulatorName = null;
         _inheritedEmulatorSourceName = null;
 
-        var chain = GetNodeChain(_node, _rootNodes);
+        var chain = PathHelper.GetNodeChain(_node, _rootNodes);
         if (chain.Count <= 1)
             return;
 
@@ -851,7 +851,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
             return SelectedEmulator.Id;
         }
 
-        var chain = GetNodeChain(_node, _rootNodes);
+        var chain = PathHelper.GetNodeChain(_node, _rootNodes);
         if (chain.Count <= 1)
             return null;
 
@@ -912,24 +912,6 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         Walk(node);
         return items;
-    }
-
-    private static List<MediaNode> GetNodeChain(MediaNode target, ObservableCollection<MediaNode> nodes)
-    {
-        foreach (var node in nodes)
-        {
-            if (node == target)
-                return new List<MediaNode> { node };
-
-            var chain = GetNodeChain(target, node.Children);
-            if (chain.Count > 0)
-            {
-                chain.Insert(0, node);
-                return chain;
-            }
-        }
-
-        return new List<MediaNode>();
     }
 
     private void LoadAvailableThemes()
@@ -1164,7 +1146,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         IsNameValid = false;
         NameValidationMessage = Strings.Dialog_NamePrompt_DuplicateOrCollision;
-        NameSuggestion = BuildUniqueNameSuggestion(trimmed, existingRaw, existingSanitized);
+        NameSuggestion = PathHelper.BuildUniqueNodeNameSuggestion(trimmed, existingRaw, existingSanitized);
     }
 
     private (HashSet<string> Raw, HashSet<string> Sanitized) BuildSiblingNameSets()
@@ -1187,7 +1169,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     private IEnumerable<MediaNode> GetSiblingNodes()
     {
-        var chain = GetNodeChain(_node, _rootNodes);
+        var chain = PathHelper.GetNodeChain(_node, _rootNodes);
         if (chain.Count > 1)
         {
             var parent = chain[^2];
@@ -1195,27 +1177,6 @@ public partial class NodeSettingsViewModel : ViewModelBase
         }
 
         return _rootNodes.Where(n => !ReferenceEquals(n, _node));
-    }
-
-    private static string BuildUniqueNameSuggestion(
-        string baseName,
-        HashSet<string> existingRaw,
-        HashSet<string> existingSanitized)
-    {
-        for (int i = 2; i < 1000; i++)
-        {
-            var candidate = $"{baseName} ({i})";
-            if (existingRaw.Contains(candidate))
-                continue;
-
-            var sanitizedCandidate = PathHelper.SanitizePathSegment(candidate);
-            if (existingSanitized.Contains(sanitizedCandidate))
-                continue;
-
-            return candidate;
-        }
-
-        return string.Empty;
     }
 
     private async Task<(bool Success, bool Canceled)> TryRenameNodeFolderIfNeededAsync(
@@ -1232,8 +1193,8 @@ public partial class NodeSettingsViewModel : ViewModelBase
         var newSegments = new List<string>(oldSegments);
         newSegments[^1] = newName;
 
-        var oldFolder = ResolveNodeFolder(oldSegments);
-        var newFolder = ResolveNodeFolder(newSegments);
+        var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
+        var newFolder = PathHelper.ResolveNodeFolder(newSegments, AppPaths.LibraryRoot);
 
         if (!Directory.Exists(oldFolder) ||
             string.Equals(oldFolder, newFolder, StringComparison.OrdinalIgnoreCase))
@@ -1310,24 +1271,6 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         _node.Assets.Add(assetModel);
         _node.SetActiveAsset(type, trimmed);
-    }
-
-    private static string ResolveNodeFolder(List<string> nodePathSegments)
-    {
-        var rawPath = Path.Combine(AppPaths.LibraryRoot, Path.Combine(nodePathSegments.ToArray()));
-
-        var sanitizedStack = nodePathSegments
-            .Select(PathHelper.SanitizePathSegment)
-            .ToArray();
-        var sanitizedPath = Path.Combine(AppPaths.LibraryRoot, Path.Combine(sanitizedStack));
-
-        if (string.Equals(rawPath, sanitizedPath, StringComparison.Ordinal))
-            return rawPath;
-
-        if (Directory.Exists(rawPath))
-            return rawPath;
-
-        return sanitizedPath;
     }
 
     private static void UpdateAssetPathsRecursive(
@@ -1473,7 +1416,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
             relativeSegments.RemoveAt(relativeSegments.Count - 1);
         }
 
-        var oldFolder = ResolveNodeFolder(oldSegments);
+        var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
         TryDeleteDirectory(oldFolder);
 
         return true;
@@ -1484,11 +1427,11 @@ public partial class NodeSettingsViewModel : ViewModelBase
         List<string> newSegments,
         Dictionary<string, string> renamedFiles)
     {
-        var oldFolder = ResolveNodeFolder(oldSegments);
+        var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
         if (!Directory.Exists(oldFolder))
             return true;
 
-        var newFolder = ResolveNodeFolder(newSegments);
+        var newFolder = PathHelper.ResolveNodeFolder(newSegments, AppPaths.LibraryRoot);
 
         foreach (var type in AssetFolderTypes)
         {

@@ -1528,7 +1528,7 @@ public partial class MainWindowViewModel
     {
         var parentNode = FindParentNode(RootItems, item);
         if (parentNode == null) return null;
-        var nodeChain = GetNodeChain(parentNode, RootItems);
+        var nodeChain = PathHelper.GetNodeChain(parentNode, RootItems, matchById: true);
         nodeChain.Reverse();
         foreach (var node in nodeChain)
             if (!string.IsNullOrEmpty(node.DefaultEmulatorId))
@@ -1538,7 +1538,7 @@ public partial class MainWindowViewModel
 
     private string? ResolveEffectiveDefaultEmulatorId(MediaNode targetNode)
     {
-        var chain = GetNodeChain(targetNode, RootItems);
+        var chain = PathHelper.GetNodeChain(targetNode, RootItems, matchById: true);
         chain.Reverse();
         return chain.FirstOrDefault(n => !string.IsNullOrWhiteSpace(n.DefaultEmulatorId))?.DefaultEmulatorId;
     }

@@ -483,7 +483,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         if (_parentNode != null && _rootNodes.Count > 0)
         {
-            var chain = GetNodeChain(_parentNode, _rootNodes);
+            var chain = PathHelper.GetNodeChain(_parentNode, _rootNodes);
             chain.Reverse(); // Leaf (parent) first
 
             foreach (var node in chain)
@@ -1250,7 +1250,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         if (_parentNode != null && _rootNodes.Count > 0)
         {
-            var chain = GetNodeChain(_parentNode, _rootNodes);
+            var chain = PathHelper.GetNodeChain(_parentNode, _rootNodes);
             chain.Reverse(); // Leaf (parent) first
 
             foreach (var node in chain)
@@ -2097,7 +2097,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         if (_parentNode != null && _rootNodes.Count > 0)
         {
-            var chain = GetNodeChain(_parentNode, _rootNodes);
+            var chain = PathHelper.GetNodeChain(_parentNode, _rootNodes);
             chain.Reverse();
 
             foreach (var node in chain)
@@ -2542,7 +2542,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         // 3) Node-level inheritance (nearest override wins, tri-state via null/empty/non-empty).
         if (_parentNode != null && _rootNodes.Count > 0)
         {
-            var chain = GetNodeChain(_parentNode, _rootNodes);
+            var chain = PathHelper.GetNodeChain(_parentNode, _rootNodes);
             chain.Reverse(); // Leaf (parent) first
 
             List<LaunchWrapper>? nodeWrappers = null;
@@ -2654,7 +2654,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         if (_parentNode != null && _rootNodes.Count > 0)
         {
-            var chain = GetNodeChain(_parentNode, _rootNodes);
+            var chain = PathHelper.GetNodeChain(_parentNode, _rootNodes);
             chain.Reverse(); // Leaf (parent) first
 
             List<LaunchWrapper>? nodeWrappers = null;
@@ -2717,22 +2717,6 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         return NormalizeWhitespace(current);
     }
 
-    private static List<MediaNode> GetNodeChain(MediaNode target, ObservableCollection<MediaNode> nodes)
-    {
-        foreach (var node in nodes)
-        {
-            if (node == target) return new List<MediaNode> { node };
-
-            var chain = GetNodeChain(target, node.Children);
-            if (chain.Count > 0)
-            {
-                chain.Insert(0, node);
-                return chain;
-            }
-        }
-        return new List<MediaNode>();
-    }
-    
     private static string CombineTemplateArguments(string? baseArgs, string? itemArgs)
     {
         baseArgs ??= string.Empty;

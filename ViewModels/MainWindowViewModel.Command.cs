@@ -296,7 +296,7 @@ public partial class MainWindowViewModel
     private void UpdateBigModeStateFromCoreSelection(MediaNode node, MediaItem? selectedItem)
     {
         // Reverse chain to find the nearest configuration (bottom-up).
-        var chain = GetNodeChain(node, RootItems);
+        var chain = PathHelper.GetNodeChain(node, RootItems, matchById: true);
         _currentSettings.LastBigModeNavigationPath = chain.Select(n => n.Id).ToList();
 
         if (selectedItem != null)
@@ -602,7 +602,7 @@ public partial class MainWindowViewModel
         if (startNode != null)
         {
             // Find the chain from root to the node and search bottom-up for an assigned theme.
-            var nodeChain = GetNodeChain(startNode, RootItems);
+            var nodeChain = PathHelper.GetNodeChain(startNode, RootItems, matchById: true);
             nodeChain.Reverse();
 
             // Absolute path of the System Host theme (used as a non-inheritable marker).
@@ -671,7 +671,7 @@ public partial class MainWindowViewModel
                 string.IsNullOrWhiteSpace(item.LauncherPath))
             {
                 // Traverse up the tree to find inherited emulator config
-                var nodeChain = GetNodeChain(trueParent, RootItems);
+                var nodeChain = PathHelper.GetNodeChain(trueParent, RootItems, matchById: true);
                 nodeChain.Reverse();
                 foreach (var node in nodeChain)
                 {
@@ -726,7 +726,7 @@ public partial class MainWindowViewModel
                 // 2) Node level (nearest node in chain; tri-state over null/empty/non-empty)
                 List<LaunchWrapper>? nodeWrappers = null;
                 bool nodeOverrideFound = false;
-                var chain = GetNodeChain(trueParent, RootItems);
+                var chain = PathHelper.GetNodeChain(trueParent, RootItems, matchById: true);
                 chain.Reverse(); // Leaf (trueParent) zuerst
 
                 foreach (var node in chain)
@@ -843,7 +843,7 @@ public partial class MainWindowViewModel
         }
 
         // Node-level inheritance (nearest override wins, tri-state via null/empty/non-empty).
-        var chain = GetNodeChain(parentNode, RootItems);
+        var chain = PathHelper.GetNodeChain(parentNode, RootItems, matchById: true);
         chain.Reverse(); // Leaf (parent) first
 
         foreach (var node in chain)
@@ -968,7 +968,7 @@ public partial class MainWindowViewModel
             if (!hasCollision)
                 return new NamePromptViewModel.NamePromptValidationResult(true);
 
-            var suggestion = BuildUniqueNameSuggestion(trimmed, existingRaw, existingSanitized);
+            var suggestion = PathHelper.BuildUniqueNodeNameSuggestion(trimmed, existingRaw, existingSanitized);
 
             return new NamePromptViewModel.NamePromptValidationResult(
                 false,
@@ -977,27 +977,6 @@ public partial class MainWindowViewModel
         };
     }
 
-    private static string BuildUniqueNameSuggestion(
-        string baseName,
-        HashSet<string> existingRaw,
-        HashSet<string> existingSanitized)
-    {
-        for (int i = 2; i < 1000; i++)
-        {
-            var candidate = $"{baseName} ({i})";
-            if (existingRaw.Contains(candidate))
-                continue;
-
-            var sanitizedCandidate = PathHelper.SanitizePathSegment(candidate);
-            if (existingSanitized.Contains(sanitizedCandidate))
-                continue;
-
-            return candidate;
-        }
-
-        return string.Empty;
-    }
-    
     private async Task OpenSettingsAsync()
     {
         if (CurrentWindow is not { } owner) return;
@@ -1256,11 +1235,11 @@ public partial class MainWindowViewModel
         if (IsChildOf(sourceNode, targetNode))
             return false;
 
-        var sourceChain = GetNodeChain(sourceNode, RootItems);
+        var sourceChain = PathHelper.GetNodeChain(sourceNode, RootItems, matchById: true);
         if (sourceChain.Count == 0)
             return false;
 
-        var targetChain = GetNodeChain(targetNode, RootItems);
+        var targetChain = PathHelper.GetNodeChain(targetNode, RootItems, matchById: true);
         if (targetChain.Count == 0)
             return false;
 
@@ -1341,8 +1320,8 @@ public partial class MainWindowViewModel
                 ? PathHelper.GetNodePath(mergeTarget, RootItems)
                 : BuildNodePathSegments(newParent, sourceNode.Name);
 
-            var oldFolder = ResolveNodeFolder(oldPathSegments);
-            var newFolder = ResolveNodeFolder(newPathSegments);
+            var oldFolder = PathHelper.ResolveNodeFolder(oldPathSegments, AppPaths.LibraryRoot);
+            var newFolder = PathHelper.ResolveNodeFolder(newPathSegments, AppPaths.LibraryRoot);
 
             if (!string.Equals(oldFolder, newFolder, StringComparison.OrdinalIgnoreCase))
             {
@@ -1439,24 +1418,6 @@ public partial class MainWindowViewModel
 
         segments.Add(nodeName);
         return segments;
-    }
-
-    private static string ResolveNodeFolder(List<string> nodePathSegments)
-    {
-        var rawPath = Path.Combine(AppPaths.LibraryRoot, Path.Combine(nodePathSegments.ToArray()));
-
-        var sanitizedStack = nodePathSegments
-            .Select(PathHelper.SanitizePathSegment)
-            .ToArray();
-        var sanitizedPath = Path.Combine(AppPaths.LibraryRoot, Path.Combine(sanitizedStack));
-
-        if (string.Equals(rawPath, sanitizedPath, StringComparison.Ordinal))
-            return rawPath;
-
-        if (Directory.Exists(rawPath))
-            return rawPath;
-
-        return sanitizedPath;
     }
 
     private static void UpdateAssetPathsRecursive(
@@ -1632,7 +1593,7 @@ public partial class MainWindowViewModel
             relativeSegments.RemoveAt(relativeSegments.Count - 1);
         }
 
-        var oldFolder = ResolveNodeFolder(oldSegments);
+        var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
         TryDeleteDirectory(oldFolder);
 
         return true;
@@ -1643,11 +1604,11 @@ public partial class MainWindowViewModel
         List<string> newSegments,
         Dictionary<string, string> renamedFiles)
     {
-        var oldFolder = ResolveNodeFolder(oldSegments);
+        var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
         if (!Directory.Exists(oldFolder))
             return true;
 
-        var newFolder = ResolveNodeFolder(newSegments);
+        var newFolder = PathHelper.ResolveNodeFolder(newSegments, AppPaths.LibraryRoot);
 
         foreach (var type in AssetFolderTypes)
         {
@@ -1865,36 +1826,19 @@ public partial class MainWindowViewModel
         return null;
     }
 
-    private List<MediaNode> GetNodeChain(MediaNode target, ObservableCollection<MediaNode> nodes)
-    {
-        foreach (var node in nodes)
-        {
-            if (ReferenceEquals(node, target) || node.Id == target.Id)
-                return new List<MediaNode> { node };
-            
-            var chain = GetNodeChain(target, node.Children);
-            if (chain.Count > 0) 
-            { 
-                chain.Insert(0, node); 
-                return chain; 
-            }
-        }
-        return new List<MediaNode>();
-    }
-
     // --- Randomization Helpers ---
 
     private bool IsRandomizeActive(MediaNode targetNode)
     {
         // Reverse chain to find nearest configuration (bottom-up)
-        var chain = GetNodeChain(targetNode, RootItems); 
+        var chain = PathHelper.GetNodeChain(targetNode, RootItems, matchById: true); 
         chain.Reverse();
         return chain.FirstOrDefault(n => n.RandomizeCovers.HasValue)?.RandomizeCovers ?? false;
     }
 
     private bool IsRandomizeMusicActive(MediaNode targetNode)
     {
-        var chain = GetNodeChain(targetNode, RootItems); 
+        var chain = PathHelper.GetNodeChain(targetNode, RootItems, matchById: true); 
         chain.Reverse();
         return chain.FirstOrDefault(n => n.RandomizeMusic.HasValue)?.RandomizeMusic ?? false;
     }
