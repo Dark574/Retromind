@@ -118,14 +118,14 @@ public partial class BigModeViewModel
 
         _attractStepsExecuted++;
 
-        PerformAttractModeStepAnimated();
+        _ = PerformAttractModeStepAnimatedAsync();
     }
 
     /// <summary>
     /// Performs one attract-mode "spin" animation and ends on a random item.
     /// Best-effort: must never crash the UI.
     /// </summary>
-    private async void PerformAttractModeStepAnimated()
+    private async Task PerformAttractModeStepAnimatedAsync()
     {
         if (Volatile.Read(ref _disposed) == 1)
             return;
@@ -247,13 +247,20 @@ public partial class BigModeViewModel
         }
         finally
         {
-            await UiThreadHelper.InvokeAsync(() =>
+            try
             {
-                if (Volatile.Read(ref _disposed) == 1)
-                    return;
+                await UiThreadHelper.InvokeAsync(() =>
+                {
+                    if (Volatile.Read(ref _disposed) == 1)
+                        return;
 
-                IsInAttractMode = false;
-            }, DispatcherPriority.Background);
+                    IsInAttractMode = false;
+                }, DispatcherPriority.Background);
+            }
+            catch
+            {
+                // Attract mode cleanup is best effort.
+            }
 
             _isAttractAnimating = false;
         }
