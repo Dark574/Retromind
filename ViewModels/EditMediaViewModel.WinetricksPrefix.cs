@@ -714,7 +714,7 @@ public partial class EditMediaViewModel
 
     private bool IsProtonBased(Dictionary<string, string> env)
     {
-        if (ContainsProtonHints(env))
+        if (LaunchRuntimeHelper.ContainsProtonHints(env))
             return true;
 
         var pathCandidate = ResolveSelectedEmulatorConfig()?.Path;
@@ -726,14 +726,9 @@ public partial class EditMediaViewModel
                LaunchRuntimeHelper.ContainsProtonToken(pathCandidate);
     }
 
-    private static bool ContainsProtonHints(Dictionary<string, string> env)
-        => env.Keys.Any(k =>
-            string.Equals(k, "PROTONPATH", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(k, "STEAM_COMPAT_DATA_PATH", StringComparison.OrdinalIgnoreCase));
-
     private bool IsUmuBased(Dictionary<string, string> env)
     {
-        if (ContainsUmuHints(env))
+        if (LaunchRuntimeHelper.ContainsUmuHints(env))
             return true;
 
         var pathCandidate = ResolveSelectedEmulatorConfig()?.Path;
@@ -744,9 +739,6 @@ public partial class EditMediaViewModel
         return !string.IsNullOrWhiteSpace(pathCandidate) &&
                LaunchRuntimeHelper.ContainsUmuToken(pathCandidate);
     }
-
-    private static bool ContainsUmuHints(Dictionary<string, string> env)
-        => env.Keys.Any(k => k.StartsWith("UMU_", StringComparison.OrdinalIgnoreCase));
 
     private static List<string> SplitArgs(string input)
     {

@@ -1327,12 +1327,12 @@ public sealed class LauncherService
         IReadOnlyList<LaunchWrapper>? nativeWrappers,
         IReadOnlyDictionary<string, string>? environmentOverrides)
     {
-        if (environmentOverrides is { Count: > 0 } && HasProtonHints(environmentOverrides))
+        if (environmentOverrides is { Count: > 0 } && LaunchRuntimeHelper.ContainsProtonHints(environmentOverrides))
             return true;
 
         if (environmentOverrides == null &&
-            (HasProtonHints(inheritedConfig?.EnvironmentOverrides) ||
-             HasProtonHints(item.EnvironmentOverrides)))
+            (LaunchRuntimeHelper.ContainsProtonHints(inheritedConfig?.EnvironmentOverrides) ||
+             LaunchRuntimeHelper.ContainsProtonHints(item.EnvironmentOverrides)))
         {
             return true;
         }
@@ -1347,23 +1347,18 @@ public sealed class LauncherService
                nativeWrappers.Any(w => LaunchRuntimeHelper.ContainsProtonToken(w.Path));
     }
 
-    private static bool HasProtonHints(IReadOnlyDictionary<string, string>? env)
-        => env != null && env.Keys.Any(k =>
-            string.Equals(k, "PROTONPATH", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(k, "STEAM_COMPAT_DATA_PATH", StringComparison.OrdinalIgnoreCase));
-
     private static bool IsUmuBased(
         MediaItem item,
         EmulatorConfig? inheritedConfig,
         IReadOnlyList<LaunchWrapper>? nativeWrappers,
         IReadOnlyDictionary<string, string>? environmentOverrides)
     {
-        if (environmentOverrides is { Count: > 0 } && HasUmuHints(environmentOverrides))
+        if (environmentOverrides is { Count: > 0 } && LaunchRuntimeHelper.ContainsUmuHints(environmentOverrides))
             return true;
 
         if (environmentOverrides == null &&
-            (HasUmuHints(inheritedConfig?.EnvironmentOverrides) ||
-             HasUmuHints(item.EnvironmentOverrides)))
+            (LaunchRuntimeHelper.ContainsUmuHints(inheritedConfig?.EnvironmentOverrides) ||
+             LaunchRuntimeHelper.ContainsUmuHints(item.EnvironmentOverrides)))
         {
             return true;
         }
@@ -1377,10 +1372,6 @@ public sealed class LauncherService
         return nativeWrappers != null &&
                nativeWrappers.Any(w => LaunchRuntimeHelper.ContainsUmuToken(w.Path));
     }
-
-    private static bool HasUmuHints(IReadOnlyDictionary<string, string>? env)
-        => env != null && env.Keys.Any(k =>
-            k.StartsWith("UMU_", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Ensures a dosdevices mapping like "d:" -> "../../Games" exists.
