@@ -492,6 +492,7 @@ Examples:
 
 ## Architecture
 See [`docs/architecture.md`](docs/architecture.md).
+For native GOG provider status and design notes, see [`docs/gog-provider.md`](docs/gog-provider.md).
 
 ## Contributing
 

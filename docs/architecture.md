@@ -112,8 +112,11 @@ Global search uses a dedicated `SearchAreaViewModel`:
 ## Import and metadata flow
 - `ImportService`: recursive local file import with multi-disc grouping/labeling
 - `StoreImportService`: Steam/Heroic discovery (auto + manual paths), with portable-home awareness in AppImage mode
+- Store provider scaffold for native integrations under `Services/Stores/` (GOG in progress)
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
+
+For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 
 ## Launch pipeline
 `LauncherService` resolves and executes media launches:

@@ -12,6 +12,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.Stores.Abstractions;
+using Retromind.Services.Stores.Gog;
+using Retromind.Services.Stores.Gog.Auth;
+using Retromind.Services.Stores.Security;
 using Retromind.ViewModels;
 
 namespace Retromind;
@@ -225,6 +229,26 @@ public partial class App : Application
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();
+        
+        // --- Store providers (scaffold) ---
+        services.AddSingleton<SecretServiceSecretStore>();
+        services.AddSingleton<InMemorySecretStore>();
+        services.AddSingleton<ISecretStore>(provider =>
+        {
+            var primary = provider.GetRequiredService<SecretServiceSecretStore>();
+            var fallback = provider.GetRequiredService<InMemorySecretStore>();
+            return new CompositeSecretStore(primary, fallback);
+        });
+        services.AddSingleton<GogOAuthClient>();
+        services.AddSingleton<GogPkceService>();
+        services.AddSingleton<GogAuthService>();
+        services.AddSingleton<GogLibraryService>();
+        services.AddSingleton<GogInstallDiscoveryService>();
+        services.AddSingleton<GogProvider>();
+        services.AddSingleton<IStoreAuthProvider>(provider => provider.GetRequiredService<GogProvider>());
+        services.AddSingleton<IStoreLibraryProvider>(provider => provider.GetRequiredService<GogProvider>());
+        services.AddSingleton<IStoreInstallDiscoveryProvider>(provider => provider.GetRequiredService<GogProvider>());
+
         services.AddSingleton<SettingsService>();
         services.AddSingleton<MetadataService>();
         services.AddSingleton<IDocumentService, DocumentService>();
