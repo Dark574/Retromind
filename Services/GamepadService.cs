@@ -99,6 +99,8 @@ public sealed class GamepadService : IDisposable
         // Ensure controller events are enabled.
         _sdl.GameControllerEventState(Sdl.Enable);
 
+        OpenExistingControllers();
+
         _loopTask = Task.Run(() => GameLoopAsync(token), token);
     }
 
@@ -190,6 +192,43 @@ public sealed class GamepadService : IDisposable
         }
     }
 
+    private void OpenExistingControllers()
+    {
+        int joystickCount = _sdl.NumJoysticks();
+        if (joystickCount <= 0)
+            return;
+
+        for (int index = 0; index < joystickCount; index++)
+        {
+            TryOpenControllerByIndex(index);
+        }
+    }
+
+    private unsafe bool TryOpenControllerByIndex(int index)
+    {
+        if (_sdl.IsGameController(index) != SdlBool.True)
+            return false;
+
+        GameController* controller = _sdl.GameControllerOpen(index);
+        if (controller == null)
+            return false;
+
+        Joystick* joystick = _sdl.GameControllerGetJoystick(controller);
+        int instanceId = _sdl.JoystickInstanceID(joystick);
+
+        if (_activeControllers.ContainsKey(instanceId))
+        {
+            _sdl.GameControllerClose(controller);
+            return false;
+        }
+
+        _activeControllers[instanceId] = (IntPtr)controller;
+
+        var name = _sdl.GameControllerNameS(controller);
+        Debug.WriteLine($"[SDL] Controller connected: {name} (ID: {instanceId})");
+        return true;
+    }
+
     // Isolates unsafe pointer access from the async state machine.
     private unsafe bool PollNextEvent(out Event e)
     {
@@ -229,21 +268,7 @@ public sealed class GamepadService : IDisposable
     {
         // "Which" is the device index in the system at the time of the event.
         int index = e.Which;
-
-        if (_sdl.IsGameController(index) != SdlBool.True)
-            return;
-
-        GameController* controller = _sdl.GameControllerOpen(index);
-        if (controller == null)
-            return;
-
-        Joystick* joystick = _sdl.GameControllerGetJoystick(controller);
-        int instanceId = _sdl.JoystickInstanceID(joystick);
-
-        _activeControllers[instanceId] = (IntPtr)controller;
-
-        var name = _sdl.GameControllerNameS(controller);
-        Debug.WriteLine($"[SDL] Controller connected: {name} (ID: {instanceId})");
+        TryOpenControllerByIndex(index);
     }
 
     private unsafe void HandleDeviceRemoved(ControllerDeviceEvent e)
