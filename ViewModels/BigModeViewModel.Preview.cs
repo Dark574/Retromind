@@ -14,7 +14,7 @@ namespace Retromind.ViewModels;
 public partial class BigModeViewModel
 {
     private static readonly string[] VideoExtensionOrder =
-    {
+    [
         ".mp4",
         ".mkv",
         ".avi",
@@ -24,7 +24,7 @@ public partial class BigModeViewModel
         ".m4v",
         ".mpg",
         ".mpeg"
-    };
+    ];
 
     private static readonly System.Collections.Generic.HashSet<string> VideoExtensions =
         new(StringComparer.OrdinalIgnoreCase)
@@ -52,7 +52,6 @@ public partial class BigModeViewModel
     private static readonly TimeSpan VideoStartTimeout = TimeSpan.FromMilliseconds(900);
     private static readonly TimeSpan StopWaitTimeout = TimeSpan.FromMilliseconds(750);
     private static readonly TimeSpan AudioStartFallbackDelay = TimeSpan.FromMilliseconds(100);
-    private const int MaxAudioFadeDurationMs = 600;
     
     // AppImage-specific: some bundled LibVLC builds can lose audio after Stop/Play cycles.
     private static readonly bool IsAppImage =
@@ -85,7 +84,7 @@ public partial class BigModeViewModel
     private Media? _currentPreviewMediaB;
     
     // Delay disposal of Media until VLC confirms Stop to avoid native crashes.
-    private readonly object _previewMediaLock = new();
+    private readonly Lock _previewMediaLock = new();
     private readonly System.Collections.Generic.Dictionary<int, Media> _pendingDisposeMedia = new();
 
     // Tracks the expected frame generation so we can hide stale frames until the first new frame arrives.
@@ -169,8 +168,8 @@ public partial class BigModeViewModel
             var sw = System.Diagnostics.Stopwatch.StartNew();
             while (sw.Elapsed < StopWaitTimeout)
             {
-                var aPlaying = mpA != null && mpA.IsPlaying;
-                var bPlaying = mpB != null && mpB.IsPlaying;
+                var aPlaying = mpA is { IsPlaying: true };
+                var bPlaying = mpB is { IsPlaying: true };
                 if (!aPlaying && !bPlaying)
                     break;
 
@@ -284,8 +283,11 @@ public partial class BigModeViewModel
         }, DispatcherPriority.Background);
     }
 
+    // ReSharper disable once UnusedMember.Local
     partial void OnThemeContextNodeChanged(MediaNode? value)
     {
+        _ = value;
+        
         CancelPreviewDebounce();
         OnPropertyChanged(nameof(ActiveLogoPath));
         OnPropertyChanged(nameof(ActiveWallpaperPath));
@@ -358,6 +360,7 @@ public partial class BigModeViewModel
     
     partial void OnIsGameListActiveChanged(bool value)
     {
+        _ = value;
         CancelPreviewDebounce();
 
         StopVideo();
@@ -379,6 +382,7 @@ public partial class BigModeViewModel
 
     partial void OnIsSystemViewActiveChanged(bool value)
     {
+        _ = value;
         // Switching between normal category views and System Host view can change
         // the preview source strategy for category mode (fallback-gated vs. always node video).
         TriggerPreviewPlaybackWithDebounce();
@@ -645,22 +649,6 @@ public partial class BigModeViewModel
             _currentPreviewMediaB = media;
     }
 
-    private void DisposePreviewMedia(int index)
-    {
-        try
-        {
-            GetPreviewMedia(index)?.Dispose();
-        }
-        catch
-        {
-            // ignore
-        }
-        finally
-        {
-            SetPreviewMedia(index, null);
-        }
-    }
-
     private void MarkPreviewMediaForDispose(int index)
     {
         lock (_previewMediaLock)
@@ -679,10 +667,8 @@ public partial class BigModeViewModel
         Media? media;
         lock (_previewMediaLock)
         {
-            if (!_pendingDisposeMedia.TryGetValue(index, out media))
+            if (!_pendingDisposeMedia.Remove(index, out media))
                 return;
-
-            _pendingDisposeMedia.Remove(index);
         }
 
         var player = GetMediaPlayer(index);
@@ -701,7 +687,7 @@ public partial class BigModeViewModel
 
         try
         {
-            media?.Dispose();
+            media.Dispose();
         }
         catch
         {
@@ -712,7 +698,7 @@ public partial class BigModeViewModel
     private void DisposePendingMediaIfIdle(int index)
     {
         var player = GetMediaPlayer(index);
-        if (player != null && player.IsPlaying)
+        if (player is { IsPlaying: true })
             return;
 
         ForceDisposePendingMedia(index);
@@ -723,10 +709,8 @@ public partial class BigModeViewModel
         Media? media;
         lock (_previewMediaLock)
         {
-            if (!_pendingDisposeMedia.TryGetValue(index, out media))
+            if (!_pendingDisposeMedia.Remove(index, out media))
                 return;
-
-            _pendingDisposeMedia.Remove(index);
         }
 
         var player = GetMediaPlayer(index);
@@ -745,7 +729,7 @@ public partial class BigModeViewModel
 
         try
         {
-            media?.Dispose();
+            media.Dispose();
         }
         catch
         {
@@ -1284,20 +1268,19 @@ public partial class BigModeViewModel
         var fromPlayer = fromIndex is 0 or 1 ? GetMediaPlayer(fromIndex) : null;
         var toPlayer = toIndex is 0 or 1 ? GetMediaPlayer(toIndex) : null;
 
-        if (toPlayer != null && toPlayer.Volume < 0)
+        if (toPlayer is { Volume: < 0 })
             toPlayer.Volume = 0;
 
         var fadeGen = Interlocked.Increment(ref _audioFadeGeneration);
         _ = CrossfadeAudioAsync(fromPlayer, toPlayer, durationMs, fadeGen, generation);
     }
 
-    private bool TryStartAudioCrossfadeOnce(int fromIndex, int toIndex, int generation, int durationMs)
+    private void TryStartAudioCrossfadeOnce(int fromIndex, int toIndex, int generation, int durationMs)
     {
         if (Interlocked.CompareExchange(ref _audioCrossfadeStartedGeneration, generation, 0) != 0)
-            return false;
+            return;
 
         StartAudioCrossfade(fromIndex, toIndex, generation, durationMs);
-        return true;
     }
 
     private async Task StartAudioFallbackAfterDelayAsync(int fromIndex, int toIndex, int generation)
@@ -1340,6 +1323,7 @@ public partial class BigModeViewModel
 
     private static int ResolveAudioFadeDurationMs(int videoFadeMs)
     {
+        _ = videoFadeMs;
         // Audio fade has caused noticeable delays on some LibVLC builds.
         // Keep it immediate for consistent UX.
         return 0;
