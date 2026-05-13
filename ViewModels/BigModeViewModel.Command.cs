@@ -38,40 +38,6 @@ public partial class BigModeViewModel
             StopGamepadRepeat(direction);
         });
 
-    private void OnGamepadUp()
-        => DispatchGamepadAction(() =>
-        {
-            ResetAttractIdleTimer();
-            PlaySound(_theme.Sounds.Navigate);
-            SelectPrevious();
-        });
-
-    private void OnGamepadDown()
-        => DispatchGamepadAction(() =>
-        {
-            ResetAttractIdleTimer();
-            PlaySound(_theme.Sounds.Navigate);
-            SelectNext();
-        });
-
-    private void OnGamepadLeft()
-        => DispatchGamepadAction(() =>
-        {
-            ResetAttractIdleTimer();
-            PlaySound(_theme.Sounds.Navigate);
-            // Default mapping: left behaves like "previous".
-            SelectPrevious();
-        });
-
-    private void OnGamepadRight()
-        => DispatchGamepadAction(() =>
-        {
-            ResetAttractIdleTimer();
-            PlaySound(_theme.Sounds.Navigate);
-            // Default mapping: right behaves like "next".
-            SelectNext();
-        });
-
     private void OnGamepadSelect()
         => DispatchGamepadAction(() =>
         {
@@ -104,10 +70,8 @@ public partial class BigModeViewModel
     /// Gamepad callbacks arrive on the SDL thread.
     /// All UI-bound state changes must be marshaled to the UI thread.
     /// </summary>
-    private static void DispatchGamepadAction(System.Action action)
+    private static void DispatchGamepadAction(Action action)
     {
-        if (action == null) return;
-
         // Gamepad callbacks arrive on the SDL thread.
         // All UI-bound state changes must be marshaled to the UI thread.
         UiThreadHelper.Post(action, DispatcherPriority.Input);
@@ -394,7 +358,6 @@ public partial class BigModeViewModel
                 SelectedItem = Items.FirstOrDefault();
 
                 TriggerPreviewPlaybackWithDebounce();
-                return;
             }
 
             return;
