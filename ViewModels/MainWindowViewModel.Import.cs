@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Web;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Models.Stores;
 using Retromind.Resources;
 using Retromind.Views;
 
@@ -22,6 +27,22 @@ public partial class MainWindowViewModel
         // matching inside words like "Unterirdische" (contains "disc").
         new(@"(?:^|[\s_\-]|\(|\[)\s*(?<kind>Disk|Disc|CD|Side|Part)\s*(?<token>[0-9A-H]+)(?:\s*(?:\)|\]))?",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+    private const string GogProviderId = "gog";
+    private const string GogDisplayName = "GOG";
+    private const string StoreProviderIdField = "Store.ProviderId";
+    private const string StoreGameIdField = "Store.GameId";
+    private static readonly Uri GogDefaultWebAuthRedirectUri = new("https://embed.gog.com/on_login_success?origin=client");
+    private const string LinuxWebKitGtkLibraryName = "libwebkit2gtk";
+    private const string LinuxWebKitGtkAliasFileName = "libwebkit2gtk.so";
+    private static readonly string[] LinuxWebKitGtkLibraryCandidates =
+    [
+        LinuxWebKitGtkLibraryName,
+        LinuxWebKitGtkAliasFileName,
+        "libwebkit2gtk-4.1.so.0",
+        "libwebkit2gtk-4.1.so",
+        "libwebkit2gtk-4.0.so.37",
+        "libwebkit2gtk-4.0.so"
+    ];
 
     private static int? ParseDiscIndex(string token)
     {
@@ -74,8 +95,581 @@ public partial class MainWindowViewModel
 
         return (idx, label);
     }
+
+    private static string? TryGetStoreGameId(MediaItem item)
+    {
+        if (!item.CustomFields.TryGetValue(StoreProviderIdField, out var providerId) ||
+            !IsGogProvider(providerId))
+        {
+            return null;
+        }
+
+        return item.CustomFields.TryGetValue(StoreGameIdField, out var gameId)
+            ? gameId
+            : null;
+    }
+
+    private static bool IsGogProvider(string? providerId)
+        => string.Equals(providerId, GogProviderId, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsGogNode(MediaNode node)
+        => IsGogProvider(node.StoreProviderId);
+
+    private static bool IsStoreCustomFieldKey(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return false;
+
+        return string.Equals(key, StoreProviderIdField, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(key, StoreGameIdField, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsPlaceholderGogDeveloper(string? developer)
+        => string.Equals(developer?.Trim(), GogDisplayName, StringComparison.OrdinalIgnoreCase);
+
+    private static int ScoreGogMetadataTemplateCandidate(MediaItem item)
+    {
+        var score = 0;
+
+        if (!string.IsNullOrWhiteSpace(item.Description))
+            score += 5;
+        if (!string.IsNullOrWhiteSpace(item.Developer) && !IsPlaceholderGogDeveloper(item.Developer))
+            score += 4;
+        if (!string.IsNullOrWhiteSpace(item.Publisher))
+            score += 3;
+        if (!string.IsNullOrWhiteSpace(item.Platform))
+            score += 2;
+        if (!string.IsNullOrWhiteSpace(item.Genre))
+            score += 2;
+        if (!string.IsNullOrWhiteSpace(item.Series))
+            score += 1;
+        if (!string.IsNullOrWhiteSpace(item.PlayMode))
+            score += 1;
+        if (!string.IsNullOrWhiteSpace(item.MaxPlayers))
+            score += 1;
+        if (item.ReleaseDate.HasValue)
+            score += 2;
+        if (item.Rating > 0)
+            score += 1;
+
+        if (item.Assets is { Count: > 0 })
+            score += item.Assets.Count(a => !string.IsNullOrWhiteSpace(a.RelativePath)) * 4;
+
+        if (item.CustomFields is { Count: > 0 })
+        {
+            score += item.CustomFields.Count(kv =>
+                !string.IsNullOrWhiteSpace(kv.Key) &&
+                !string.IsNullOrWhiteSpace(kv.Value) &&
+                !IsStoreCustomFieldKey(kv.Key));
+        }
+
+        return score;
+    }
+
+    private Dictionary<string, MediaItem> BuildGogMetadataTemplateByGameId()
+    {
+        var templatesByGameId = new Dictionary<string, MediaItem>(StringComparer.Ordinal);
+        foreach (var root in RootItems)
+            CollectGogMetadataTemplateRecursive(root, templatesByGameId);
+
+        return templatesByGameId;
+    }
+
+    private void CollectGogMetadataTemplateRecursive(MediaNode node, IDictionary<string, MediaItem> templatesByGameId)
+    {
+        foreach (var item in node.Items)
+        {
+            var gameId = TryGetStoreGameId(item);
+            if (string.IsNullOrWhiteSpace(gameId))
+                continue;
+
+            if (!templatesByGameId.TryGetValue(gameId, out var existingTemplate))
+            {
+                templatesByGameId[gameId] = item;
+                continue;
+            }
+
+            var existingScore = ScoreGogMetadataTemplateCandidate(existingTemplate);
+            var currentScore = ScoreGogMetadataTemplateCandidate(item);
+            if (currentScore > existingScore)
+                templatesByGameId[gameId] = item;
+        }
+
+        foreach (var child in node.Children)
+            CollectGogMetadataTemplateRecursive(child, templatesByGameId);
+    }
+
+    private void ApplyGogMetadataTemplate(MediaItem target, MediaItem template)
+    {
+        target.Description = template.Description;
+
+        if (!string.IsNullOrWhiteSpace(template.Developer) && !IsPlaceholderGogDeveloper(template.Developer))
+            target.Developer = template.Developer;
+
+        target.Publisher = template.Publisher;
+        if (string.IsNullOrWhiteSpace(target.Platform))
+            target.Platform = template.Platform;
+
+        target.Genre = template.Genre;
+        target.Series = template.Series;
+        target.ReleaseType = template.ReleaseType;
+        target.SortTitle = template.SortTitle;
+        target.PlayMode = template.PlayMode;
+        target.MaxPlayers = template.MaxPlayers;
+        target.ReleaseDate = template.ReleaseDate;
+        target.Rating = template.Rating;
+
+        if (template.Tags is { Count: > 0 })
+        {
+            target.Tags = new ObservableCollection<string>(
+                template.Tags.Where(t => !string.IsNullOrWhiteSpace(t)));
+        }
+
+        if (template.CustomFields is { Count: > 0 })
+        {
+            foreach (var kv in template.CustomFields)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key) || string.IsNullOrWhiteSpace(kv.Value))
+                    continue;
+                if (IsStoreCustomFieldKey(kv.Key))
+                    continue;
+
+                target.CustomFields[kv.Key] = kv.Value;
+            }
+        }
+
+        if (template.Assets is { Count: > 0 })
+        {
+            var existingAssets = new HashSet<(AssetType Type, string Path)>();
+            foreach (var asset in target.Assets)
+            {
+                if (string.IsNullOrWhiteSpace(asset.RelativePath))
+                    continue;
+
+                existingAssets.Add((asset.Type, asset.RelativePath));
+            }
+
+            foreach (var asset in template.Assets)
+            {
+                if (string.IsNullOrWhiteSpace(asset.RelativePath))
+                    continue;
+
+                var key = (asset.Type, asset.RelativePath);
+                if (!existingAssets.Add(key))
+                    continue;
+
+                target.Assets.Add(new MediaAsset
+                {
+                    Type = asset.Type,
+                    RelativePath = asset.RelativePath
+                });
+            }
+        }
+    }
+
+    private static IDisposable BeginBusyCursor(Window owner)
+        => new BusyCursorScope(owner);
+
+    private sealed class BusyCursorScope : IDisposable
+    {
+        private readonly Window _owner;
+        private readonly Cursor? _previousCursor;
+        private bool _disposed;
+
+        public BusyCursorScope(Window owner)
+        {
+            _owner = owner;
+            _previousCursor = owner.Cursor;
+            _owner.Cursor = new Cursor(StandardCursorType.Wait);
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            _owner.Cursor = _previousCursor;
+        }
+    }
     
     // --- Import Actions ---
+
+    private async Task AddGogMediaAsync(MediaNode? targetNode)
+    {
+        if (targetNode == null) targetNode = SelectedNode;
+        if (targetNode == null || CurrentWindow is not { } owner) return;
+
+        var isGogNode = IsGogNode(targetNode);
+
+        StoreAuthState authState;
+        try
+        {
+            authState = await _storeAuthProvider.GetAuthStateAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] Failed to query auth state: {ex.Message}");
+            await ShowConfirmDialog(owner, T("Gog.AuthCheckFailed", "GOG sign-in state could not be verified."));
+            return;
+        }
+
+        if (!authState.IsAuthenticated)
+        {
+            var signIn = await ShowConfirmDialog(owner,
+                T("Gog.SignInRequiredPrompt", "GOG sign-in is required. Open secure sign-in now?"));
+            if (!signIn)
+                return;
+
+            try
+            {
+                await _storeAuthProvider.SignInInteractiveAsync(
+                    (authorizeUri, signInCt) => CaptureGogCallbackUriInAppAsync(owner, authorizeUri, signInCt));
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (TimeoutException ex)
+            {
+                Debug.WriteLine($"[GOG] Interactive sign-in timed out: {ex.Message}");
+                await ShowConfirmDialog(owner, T("Gog.SignInTimeout", "GOG sign-in timed out. Please retry."));
+                return;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GOG] Interactive sign-in failed: {ex.Message}");
+                var inAppUnavailable = ex is PlatformNotSupportedException;
+                var mismatch = ex.Message.IndexOf("redirect_uri_mismatch", StringComparison.OrdinalIgnoreCase) >= 0;
+                var missingCode = ex.Message.IndexOf("authorization code", StringComparison.OrdinalIgnoreCase) >= 0;
+                var invalidAuthorizeUri = ex.Message.IndexOf("authorization URL", StringComparison.OrdinalIgnoreCase) >= 0;
+                var invalidRedirectUri = ex.Message.IndexOf("redirect URI", StringComparison.OrdinalIgnoreCase) >= 0;
+                var signInErrorMessage = inAppUnavailable
+                    ? T("Gog.InAppAuthUnavailable", "Embedded web authentication is not available on this platform.")
+                    : mismatch
+                        ? T("Gog.RedirectMismatch", "GOG rejected the OAuth redirect URI. Please update OAuth client settings or use a compatible client.")
+                    : missingCode
+                        ? T("Gog.CallbackMissingCode", "The authentication callback did not include an authorization code.")
+                    : invalidAuthorizeUri
+                        ? T("Gog.InvalidAuthorizeUri", "The received GOG authorization URL is invalid.")
+                    : invalidRedirectUri
+                        ? T("Gog.InvalidRedirectUri", "The configured OAuth redirect URI is invalid.")
+                        : T("Gog.SignInFailed", "GOG sign-in failed.");
+                await ShowConfirmDialog(
+                    owner,
+                    signInErrorMessage);
+                return;
+            }
+        }
+
+        IReadOnlyList<StoreGameRecord> ownedGames;
+        IReadOnlyDictionary<string, int> usageByGameId = new Dictionary<string, int>(StringComparer.Ordinal);
+        Dictionary<string, MediaItem> metadataTemplateByGameId;
+        try
+        {
+            using (BeginBusyCursor(owner))
+            {
+                // Let cursor state update before potentially long store calls.
+                await Task.Yield();
+                ownedGames = await _storeLibraryProvider.GetOwnedGamesAsync();
+                metadataTemplateByGameId = BuildGogMetadataTemplateByGameId();
+                if (!isGogNode)
+                    usageByGameId = BuildGogUsageCountByGameId();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] Failed to prepare library import: {ex.Message}");
+            await ShowConfirmDialog(owner, T("Gog.LibraryLoadFailed", "GOG library could not be loaded."));
+            return;
+        }
+
+        if (ownedGames.Count == 0)
+        {
+            await ShowConfirmDialog(owner, T("Gog.LibraryEmpty", "No GOG games found."));
+            return;
+        }
+
+        var existingStoreGameIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in targetNode.Items)
+        {
+            var existingId = TryGetStoreGameId(item);
+            if (!string.IsNullOrWhiteSpace(existingId))
+                existingStoreGameIds.Add(existingId);
+        }
+
+        IReadOnlyList<StoreGameRecord> selectedGames;
+
+        if (isGogNode)
+        {
+            selectedGames = ownedGames;
+        }
+        else
+        {
+            var pickerVm = new GogPickerDialogViewModel(ownedGames, existingStoreGameIds, usageByGameId);
+            var pickerDialog = new GogPickerDialogView { DataContext = pickerVm };
+
+            try
+            {
+                var accepted = false;
+                pickerVm.RequestClose += result =>
+                {
+                    accepted = result;
+                    pickerDialog.Close(result);
+                };
+
+                await pickerDialog.ShowDialog<bool>(owner);
+                if (!accepted)
+                    return;
+
+                selectedGames = pickerVm.GetSelectedGames();
+            }
+            finally
+            {
+                pickerVm.Dispose();
+            }
+        }
+
+        if (selectedGames.Count == 0)
+            return;
+
+        var itemsToAdd = new List<MediaItem>();
+        using (BeginBusyCursor(owner))
+        {
+            await Task.Yield();
+            foreach (var game in selectedGames.OrderBy(g => g.Title, StringComparer.OrdinalIgnoreCase))
+            {
+                if (!string.Equals(game.ProviderId, "gog", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(game.StoreGameId))
+                    continue;
+
+                if (!existingStoreGameIds.Add(game.StoreGameId))
+                    continue;
+
+                var title = string.IsNullOrWhiteSpace(game.Title)
+                    ? string.Format(T("Gog.GameFallbackTitleFormat", "GOG {0}"), game.StoreGameId)
+                    : game.Title;
+
+                var newItem = new MediaItem
+                {
+                    Title = title,
+                    MediaType = MediaType.Command,
+                    Source = GogDisplayName,
+                    Platform = game.Platform,
+                    CustomFields = new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        [StoreProviderIdField] = GogProviderId,
+                        [StoreGameIdField] = game.StoreGameId
+                    }
+                };
+
+                if (metadataTemplateByGameId.TryGetValue(game.StoreGameId, out var template))
+                    ApplyGogMetadataTemplate(newItem, template);
+
+                itemsToAdd.Add(newItem);
+            }
+        }
+
+        if (itemsToAdd.Count == 0)
+        {
+            await ShowConfirmDialog(
+                owner,
+                isGogNode
+                    ? T("Gog.Node.SyncNoChanges", "GOG node is already up to date.")
+                    : T("Gog.Picker.NoNewForNode", "Selection did not contain new GOG games for this node."));
+            return;
+        }
+
+        ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
+
+            MarkLibraryDirty();
+
+            if (IsNodeInCurrentView(targetNode))
+                UpdateContent();
+        });
+
+        await SaveData();
+    }
+
+    private async Task<Uri?> CaptureGogCallbackUriInAppAsync(Window owner, Uri authorizeUri, System.Threading.CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (!IsValidGogAuthorizeUri(authorizeUri))
+            throw new InvalidOperationException("Invalid GOG authorization URL.");
+
+        if (OperatingSystem.IsLinux())
+        {
+            EnsureLinuxWebKitGtkAlias();
+            if (!HasLinuxWebKitGtkRuntime())
+            {
+                throw new PlatformNotSupportedException(
+                    "Embedded web authentication is not available on this platform.");
+            }
+        }
+
+        var redirectUri = ResolveRedirectUriFromAuthorizeUri(authorizeUri);
+        if (!redirectUri.IsAbsoluteUri || !string.Equals(redirectUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Invalid OAuth redirect URI.");
+        }
+
+        var options = new WebAuthenticatorOptions(authorizeUri, redirectUri)
+        {
+            PreferNativeWebDialog = true,
+            NonPersistent = true
+        };
+
+        Uri? callbackUri;
+        try
+        {
+            var result = await WebAuthenticationBroker.AuthenticateAsync(owner, options);
+            callbackUri = result.CallbackUri;
+        }
+        catch (Exception ex) when (IsMissingLinuxWebKitGtk(ex))
+        {
+            throw new PlatformNotSupportedException(
+                "Embedded web authentication is not available on this platform.",
+                ex);
+        }
+
+        ct.ThrowIfCancellationRequested();
+        return callbackUri;
+    }
+
+    private static bool HasLinuxWebKitGtkRuntime()
+    {
+        if (!OperatingSystem.IsLinux())
+            return true;
+
+        foreach (var candidate in LinuxWebKitGtkLibraryCandidates)
+        {
+            if (!NativeLibrary.TryLoad(candidate, out var handle))
+                continue;
+
+            NativeLibrary.Free(handle);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void EnsureLinuxWebKitGtkAlias()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        var aliasPath = Path.Combine(AppContext.BaseDirectory, LinuxWebKitGtkAliasFileName);
+        if (File.Exists(aliasPath))
+            return;
+
+        foreach (var candidatePath in EnumerateLinuxWebKitGtkCandidatePaths())
+        {
+            if (!File.Exists(candidatePath))
+                continue;
+
+            try
+            {
+                File.CreateSymbolicLink(aliasPath, candidatePath);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GOG] Could not create local WebKitGTK alias: {ex.Message}");
+            }
+
+            return;
+        }
+    }
+
+    private static IEnumerable<string> EnumerateLinuxWebKitGtkCandidatePaths()
+    {
+        var directories = new[]
+        {
+            "/usr/lib",
+            "/usr/lib64",
+            "/usr/lib/x86_64-linux-gnu",
+            "/lib",
+            "/lib64",
+            "/lib/x86_64-linux-gnu"
+        };
+
+        foreach (var directory in directories)
+        {
+            yield return Path.Combine(directory, "libwebkit2gtk-4.1.so.0");
+            yield return Path.Combine(directory, "libwebkit2gtk-4.1.so");
+            yield return Path.Combine(directory, "libwebkit2gtk-4.0.so.37");
+            yield return Path.Combine(directory, "libwebkit2gtk-4.0.so");
+        }
+    }
+
+    private static bool IsMissingLinuxWebKitGtk(Exception ex)
+    {
+        if (!OperatingSystem.IsLinux())
+            return false;
+
+        for (Exception? current = ex; current != null; current = current.InnerException)
+        {
+            if (current.Message.IndexOf("webkit2gtk", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static Uri ResolveRedirectUriFromAuthorizeUri(Uri authorizeUri)
+    {
+        var queryValues = HttpUtility.ParseQueryString(authorizeUri.Query);
+        var redirectUriRaw = queryValues["redirect_uri"];
+
+        if (!string.IsNullOrWhiteSpace(redirectUriRaw) &&
+            Uri.TryCreate(redirectUriRaw, UriKind.Absolute, out var parsedRedirectUri))
+        {
+            return parsedRedirectUri;
+        }
+
+        return GogDefaultWebAuthRedirectUri;
+    }
+
+    private static bool IsValidGogAuthorizeUri(Uri authorizeUri)
+    {
+        return authorizeUri.IsAbsoluteUri &&
+               string.Equals(authorizeUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(authorizeUri.Host, "auth.gog.com", StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(authorizeUri.AbsolutePath, "/auth", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private Dictionary<string, int> BuildGogUsageCountByGameId()
+    {
+        var usageByGameId = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var root in RootItems)
+            CollectGogUsageRecursive(root, usageByGameId);
+
+        return usageByGameId;
+    }
+
+    private void CollectGogUsageRecursive(MediaNode node, IDictionary<string, int> usageByGameId)
+    {
+        foreach (var item in node.Items)
+        {
+            var storeGameId = TryGetStoreGameId(item);
+            if (string.IsNullOrWhiteSpace(storeGameId))
+                continue;
+
+            if (usageByGameId.TryGetValue(storeGameId, out var existingCount))
+                usageByGameId[storeGameId] = existingCount + 1;
+            else
+                usageByGameId[storeGameId] = 1;
+        }
+
+        foreach (var child in node.Children)
+            CollectGogUsageRecursive(child, usageByGameId);
+    }
 
     private async Task ImportRomsAsync(MediaNode? targetNode)
     {
@@ -235,66 +829,6 @@ public partial class MainWindowViewModel
         await SaveData();
     }
 
-    private async Task ImportGogAsync(MediaNode? targetNode)
-    {
-        if (targetNode == null) targetNode = SelectedNode;
-        if (targetNode == null || CurrentWindow is not { } owner) return;
-
-        var discoveredHeroicConfigs = new List<string>();
-        var items = await _storeService.ImportHeroicGogAsync(discoveredConfigPaths: discoveredHeroicConfigs);
-        if (items.Count == 0)
-        {
-            var tryManual = await ShowConfirmDialog(owner, Strings.Dialog_NoGogInstallationsFound_SelectPath);
-            if (!tryManual) return;
-
-            var storageProvider = StorageProvider ?? owner.StorageProvider;
-            var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = Strings.Dialog_SelectHeroicGogFolder,
-                AllowMultiple = false
-            });
-
-            if (folders.Count == 0) return;
-            var manualPath = folders[0].Path.LocalPath;
-
-            discoveredHeroicConfigs.Clear();
-            items = await _storeService.ImportHeroicGogAsync(manualPath, discoveredHeroicConfigs);
-
-            if (items.Count == 0)
-            {
-                await ShowConfirmDialog(owner, Strings.Dialog_NoGogInstallationsFound);
-                return;
-            }
-        }
-
-        var message = string.Format(Strings.Dialog_ConfirmImportGogFormat, items.Count);
-        if (!await ShowConfirmDialog(owner, message))
-            return;
-
-        StoreHeroicGogConfigPaths(discoveredHeroicConfigs);
-
-        var itemsToAdd = items
-            .Where(item => !targetNode.Items.Any(x => x.Title == item.Title))
-            .ToList();
-
-        if (itemsToAdd.Count == 0) return;
-
-        ApplyEffectiveDefaultEmulator(targetNode, itemsToAdd);
-        ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
-
-        await UiThreadHelper.InvokeAsync(() =>
-        {
-            InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
-
-            MarkLibraryDirty();
-
-            if (IsNodeInCurrentView(targetNode))
-                UpdateContent();
-        });
-
-        await SaveData();
-    }
-
     private async Task ImportEpicAsync(MediaNode? targetNode)
     {
         if (targetNode == null) targetNode = SelectedNode;
@@ -353,49 +887,6 @@ public partial class MainWindowViewModel
         });
 
         await SaveData();
-    }
-
-    private void StoreHeroicGogConfigPaths(IEnumerable<string> configPaths)
-    {
-        if (configPaths == null)
-            return;
-
-        _currentSettings.HeroicGogConfigPaths ??= new List<string>();
-
-        var existing = new HashSet<string>(_currentSettings.HeroicGogConfigPaths, StringComparer.OrdinalIgnoreCase);
-        var changed = false;
-
-        foreach (var path in configPaths)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                continue;
-
-            string fullPath;
-            try
-            {
-                fullPath = Path.GetFullPath(path);
-            }
-            catch
-            {
-                continue;
-            }
-
-            if (string.Equals(Path.GetFileName(fullPath), "installed.json", StringComparison.OrdinalIgnoreCase))
-            {
-                var parent = Directory.GetParent(fullPath)?.FullName;
-                if (!string.IsNullOrWhiteSpace(parent))
-                    fullPath = parent;
-            }
-
-            if (existing.Add(fullPath))
-            {
-                _currentSettings.HeroicGogConfigPaths.Add(fullPath);
-                changed = true;
-            }
-        }
-
-        if (changed)
-            SaveSettingsOnly();
     }
 
     private void StoreHeroicEpicConfigPaths(IEnumerable<string> configPaths)

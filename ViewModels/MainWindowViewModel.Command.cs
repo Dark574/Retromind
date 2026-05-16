@@ -33,6 +33,7 @@ public partial class MainWindowViewModel
     // Using IAsyncRelayCommand allows the UI to bind to IsRunning properties if needed
     public IAsyncRelayCommand<MediaNode?> AddCategoryCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> AddMediaCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> AddGogMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> DeleteCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand<MediaItem?> SetCoverCommand { get; private set; } = null!;
@@ -56,7 +57,6 @@ public partial class MainWindowViewModel
     
     public IAsyncRelayCommand<MediaNode?> ImportRomsCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ImportSteamCommand { get; private set; } = null!;
-    public IAsyncRelayCommand<MediaNode?> ImportGogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ImportEpicCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand<MediaItem?> ScrapeMediaCommand { get; private set; } = null!;
@@ -68,6 +68,8 @@ public partial class MainWindowViewModel
     // Command to attach new manuals/documents directly from the main grid context menu
     public IAsyncRelayCommand<MediaItem?> AddManualToMediaCommand { get; private set; } = null!;
 
+    public string GogMediaMenuText => T("Gog.Media.AddMenu", "Add GOG media");
+
     private void InitializeCommands()
     {
         // Replaced RelayCommand with AsyncRelayCommand to handle Tasks properly
@@ -75,6 +77,7 @@ public partial class MainWindowViewModel
         
         AddCategoryCommand = new AsyncRelayCommand<MediaNode?>(AddCategoryAsync);
         AddMediaCommand = new AsyncRelayCommand<MediaNode?>(AddMediaAsync, CanOperateOnNode);
+        AddGogMediaCommand = new AsyncRelayCommand<MediaNode?>(AddGogMediaAsync, CanOperateOnNode);
         DeleteCommand = new AsyncRelayCommand<MediaNode?>(DeleteNodeAsync);
         
         SetCoverCommand = new AsyncRelayCommand<MediaItem?>(SetCoverAsync);
@@ -88,7 +91,7 @@ public partial class MainWindowViewModel
         ToggleNodeProtectionCommand = new AsyncRelayCommand<MediaNode?>(ToggleNodeProtectionAsync);
         ToggleParentalLockCommand = new AsyncRelayCommand(ToggleParentalLockAsync);
         ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
-        PlayCommand = new AsyncRelayCommand<MediaItem?>(PlayMediaAsync);
+        PlayCommand = new AsyncRelayCommand<MediaItem?>(PlayMediaAsync, CanPlayMedia);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenManualCommand = new RelayCommand<MediaAsset?>(OpenManual);
@@ -98,7 +101,6 @@ public partial class MainWindowViewModel
         
         ImportRomsCommand = new AsyncRelayCommand<MediaNode?>(ImportRomsAsync, CanOperateOnNode);
         ImportSteamCommand = new AsyncRelayCommand<MediaNode?>(ImportSteamAsync, CanOperateOnNode);
-        ImportGogCommand = new AsyncRelayCommand<MediaNode?>(ImportGogAsync, CanOperateOnNode);
         ImportEpicCommand = new AsyncRelayCommand<MediaNode?>(ImportEpicAsync, CanOperateOnNode);
         
         ScrapeMediaCommand = new AsyncRelayCommand<MediaItem?>(ScrapeMediaAsync);
@@ -108,6 +110,34 @@ public partial class MainWindowViewModel
         EnterBigModeCommand = new RelayCommand(EnterBigMode);
         
         AddManualToMediaCommand = new AsyncRelayCommand<MediaItem?>(AddManualToMediaAsync);
+    }
+
+    partial void OnIsLaunchInProgressChanged(bool value)
+    {
+        NotifyPlayAvailabilityChanged();
+    }
+
+    public bool CanPlaySelectedMedia => CanPlayMedia(GetCurrentSelectedItem());
+
+    private void NotifyPlayAvailabilityChanged()
+    {
+        PlayCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanPlaySelectedMedia));
+    }
+
+    private bool CanPlayMedia(MediaItem? item)
+    {
+        if (IsLaunchInProgress || item == null)
+            return false;
+
+        if ((item.MediaType == MediaType.Native || item.MediaType == MediaType.Emulator) &&
+            !string.IsNullOrWhiteSpace(item.LauncherPath))
+        {
+            return true;
+        }
+
+        var primaryLaunchPath = item.GetPrimaryLaunchPath();
+        return !string.IsNullOrWhiteSpace(primaryLaunchPath);
     }
 
     // --- Basic Actions ---
@@ -458,9 +488,9 @@ public partial class MainWindowViewModel
     private void NotifyNodeCommandsCanExecuteChanged()
     {
         AddMediaCommand.NotifyCanExecuteChanged();
+        AddGogMediaCommand.NotifyCanExecuteChanged();
         ImportRomsCommand.NotifyCanExecuteChanged();
         ImportSteamCommand.NotifyCanExecuteChanged();
-        ImportGogCommand.NotifyCanExecuteChanged();
         ImportEpicCommand.NotifyCanExecuteChanged();
         ScrapeNodeCommand.NotifyCanExecuteChanged();
     }
@@ -632,7 +662,11 @@ public partial class MainWindowViewModel
 
     private async Task PlayMediaAsync(MediaItem? item)
     {
-        if (item == null) return;
+        if (item == null)
+            return;
+
+        if (!CanPlayMedia(item))
+            return;
 
         // Global launch guard: ignore additional requests while one is in progress.
         if (IsLaunchInProgress)

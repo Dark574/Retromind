@@ -117,6 +117,12 @@ public partial class MediaNode : ObservableObject
     public string? DefaultEmulatorId { get; set; }
 
     /// <summary>
+    /// Optional store provider binding for this node (e.g. "gog").
+    /// If set, the node can be synchronized from that store library.
+    /// </summary>
+    public string? StoreProviderId { get; set; }
+
+    /// <summary>
     /// Optional path to a theme file (.axaml) used for this area.
     /// </summary>
     public string? ThemePath { get; set; }

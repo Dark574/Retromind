@@ -83,6 +83,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
     [ObservableProperty] private EmulatorConfig? _selectedEmulator;
 
     [ObservableProperty] private string? _selectedTheme;
+    [ObservableProperty] private bool _isGogStoreNode;
 
     [ObservableProperty] private bool _applyDefaultEmulatorToExistingItems;
     [ObservableProperty] private bool _applyDefaultEmulatorIncludeChildren;
@@ -133,6 +134,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
         ParentalProtectionEnabled
             ? T("NodeSettings_Parental_StateOn", "Parental protection is enabled")
             : T("NodeSettings_Parental_StateOff", "Parental protection is disabled");
+    public string GogStoreNodeText => T("NodeSettings_GogStoreNode", "Declare this as GOG node");
+    public string GogStoreNodeHint => T(
+        "NodeSettings_GogStoreNodeHint",
+        "If enabled, \"Add GOG media\" syncs this node against your complete owned GOG library (additive only).");
     
     // System-theme selection is always available because it is used by SystemHost
     // when this node is selected in a parent host.
@@ -690,6 +695,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
     {
         Name = _node.Name;
         Description = _node.Description;
+        IsGogStoreNode = string.Equals(_node.StoreProviderId, "gog", StringComparison.OrdinalIgnoreCase);
 
         RandomizeCovers = _node.RandomizeCovers;
         RandomizeMusic = _node.RandomizeMusic;
@@ -984,6 +990,8 @@ public partial class NodeSettingsViewModel : ViewModelBase
         {
             _node.DefaultEmulatorId = null;
         }
+
+        _node.StoreProviderId = IsGogStoreNode ? "gog" : null;
 
         if (ParentalProtectionEnabled != _initialParentalProtectionEnabled)
         {

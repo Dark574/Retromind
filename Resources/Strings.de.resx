@@ -210,6 +210,40 @@
     <data name="Import.Roms" xml:space="preserve"><value>Lokaler Ordner (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Steam-Bibliothek</value></data>
 
+    <!-- GOG -->
+    <data name="Gog.Media.AddMenu" xml:space="preserve"><value>GOG-Medium hinzufügen</value></data>
+    <data name="Gog.AuthCheckFailed" xml:space="preserve"><value>GOG-Anmeldestatus konnte nicht geprüft werden.</value></data>
+    <data name="Gog.SignInRequiredPrompt" xml:space="preserve"><value>Für GOG-Medien ist eine Anmeldung erforderlich. Jetzt sichere Anmeldung öffnen?</value></data>
+    <data name="Gog.SignInFailed" xml:space="preserve"><value>GOG-Anmeldung fehlgeschlagen.</value></data>
+    <data name="Gog.SignInTimeout" xml:space="preserve"><value>GOG-Anmeldung hat zu lange gedauert. Bitte erneut versuchen.</value></data>
+    <data name="Gog.InAppAuthUnavailable" xml:space="preserve"><value>Eingebettete Web-Authentifizierung ist auf dieser Plattform nicht verfügbar.</value></data>
+    <data name="Gog.InvalidAuthorizeUri" xml:space="preserve"><value>Die empfangene GOG-Autorisierungs-URL ist ungültig.</value></data>
+    <data name="Gog.InvalidRedirectUri" xml:space="preserve"><value>Die konfigurierte OAuth-Redirect-URI ist ungültig.</value></data>
+    <data name="Gog.RedirectMismatch" xml:space="preserve"><value>GOG hat die OAuth-Redirect-URI abgelehnt. Bitte OAuth-Client-Einstellungen prüfen oder einen kompatiblen Client verwenden.</value></data>
+    <data name="Gog.CallbackMissingCode" xml:space="preserve"><value>Der Authentifizierungs-Callback enthielt keinen Autorisierungscode.</value></data>
+    <data name="Gog.LibraryLoadFailed" xml:space="preserve"><value>GOG-Bibliothek konnte nicht geladen werden.</value></data>
+    <data name="Gog.LibraryEmpty" xml:space="preserve"><value>Keine GOG-Spiele gefunden.</value></data>
+    <data name="Gog.CallbackPromptFormat" xml:space="preserve"><value>Melde dich im Browser an und füge dann die finale Callback-URL hier ein.
+
+Falls nötig, erneut öffnen:
+{0}</value></data>
+    <data name="Gog.CallbackInvalidUri" xml:space="preserve"><value>Der eingegebene Wert ist keine gültige URL.</value></data>
+    <data name="Gog.GameFallbackTitleFormat" xml:space="preserve"><value>GOG {0}</value></data>
+    <data name="Gog.Picker.NoNewForNode" xml:space="preserve"><value>Auswahl enthielt keine neuen GOG-Spiele für diesen Node.</value></data>
+    <data name="Gog.Node.SyncNoChanges" xml:space="preserve"><value>GOG-Node ist bereits aktuell.</value></data>
+    <data name="Gog.Picker.DialogTitle" xml:space="preserve"><value>GOG-Medien auswählen</value></data>
+    <data name="Gog.Picker.Header" xml:space="preserve"><value>GOG-Bibliothek</value></data>
+    <data name="Gog.Picker.OnlyNewInNode" xml:space="preserve"><value>Nur neue in diesem Node</value></data>
+    <data name="Gog.Picker.SearchPlaceholder" xml:space="preserve"><value>Titel, GOG-ID oder Plattform suchen...</value></data>
+    <data name="Gog.Picker.CounterFormat" xml:space="preserve"><value>Gefiltert: {0:N0} / {1:N0}   Ausgewählt: {2:N0}</value></data>
+    <data name="Gog.Picker.SelectAllFiltered" xml:space="preserve"><value>Alle gefilterten auswählen</value></data>
+    <data name="Gog.Picker.ClearSelection" xml:space="preserve"><value>Auswahl aufheben</value></data>
+    <data name="Gog.Picker.EmptyState" xml:space="preserve"><value>Keine Treffer für den aktuellen Filter.</value></data>
+    <data name="Gog.Picker.AddSelection" xml:space="preserve"><value>Auswahl hinzufügen</value></data>
+    <data name="Gog.Picker.StatusAlreadyInNode" xml:space="preserve"><value>Bereits in diesem Node</value></data>
+    <data name="Gog.Picker.StatusLinkedFormat" xml:space="preserve"><value>Bereits {0}x verknüpft</value></data>
+    <data name="Gog.Picker.StatusNew" xml:space="preserve"><value>Neu</value></data>
+
     <!-- SETTINGS -->
     <data name="Settings.TabMisc" xml:space="preserve"><value>Sonstiges</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Startpfade</value></data>
@@ -350,6 +384,8 @@
     <data name="NodeSettings_Title" xml:space="preserve"><value>Kategorie Einstellungen</value></data>
     <data name="NodeSettings_DescriptionForBigMode" xml:space="preserve"><value>Beschreibung (für BigMode)</value></data>
     <data name="NodeSettings_DefaultEmulatorForFolder" xml:space="preserve"><value>Standard Emulator (für diesen Ordner)</value></data>
+    <data name="NodeSettings_GogStoreNode" xml:space="preserve"><value>Diesen Node als GOG-Node deklarieren</value></data>
+    <data name="NodeSettings_GogStoreNodeHint" xml:space="preserve"><value>Wenn aktiviert, synchronisiert "GOG-Medium hinzufügen" diesen Node gegen deine komplette GOG-Bibliothek (nur additiv).</value></data>
     <data name="NodeSettings_ApplyEmulatorToExistingItems" xml:space="preserve"><value>Standard-Emulator auf vorhandene Einträge anwenden</value></data>
     <data name="NodeSettings_ApplyEmulatorIncludeChildren" xml:space="preserve"><value>Unterkategorien einbeziehen</value></data>
     <data name="NodeSettings_ApplyEmulatorHint" xml:space="preserve"><value>Nur Einträge, die aktuell als Native ohne benutzerdefinierten Launcher laufen, werden umgestellt.</value></data>

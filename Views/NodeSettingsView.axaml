@@ -290,6 +290,15 @@
                     </StackPanel>
                 </StackPanel>
 
+                <StackPanel Spacing="4">
+                    <CheckBox Content="{Binding GogStoreNodeText}"
+                              IsChecked="{Binding IsGogStoreNode}" />
+                    <TextBlock Text="{Binding GogStoreNodeHint}"
+                               FontSize="11"
+                               Foreground="#888888"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
                 <!-- Advanced: wrappers + environment -->
                 <Expander Header="{x:Static p:Strings.NodeSettings_AdvancedLaunchTitle}"
                           IsExpanded="False"

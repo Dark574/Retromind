@@ -154,7 +154,7 @@
                     Margin="0,10"
                     Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).PlayCommand}"
                     CommandParameter="{Binding .}"
-                    IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsLaunchIdle}"/>
+                    IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CanPlaySelectedMedia}"/>
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 

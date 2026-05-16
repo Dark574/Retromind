@@ -295,6 +295,7 @@ public class MediaDataService
             RandomizeMusic = node.RandomizeMusic,
             AutoProtectNewChildren = node.AutoProtectNewChildren,
             DefaultEmulatorId = node.DefaultEmulatorId,
+            StoreProviderId = node.StoreProviderId,
             ThemePath = node.ThemePath,
             Description = node.Description,
             SystemPreviewThemeId = node.SystemPreviewThemeId,

@@ -21,6 +21,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.Stores.Abstractions;
 
 namespace Retromind.ViewModels;
 
@@ -37,6 +38,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ImportService _importService;
     private readonly LauncherService _launcherService;
     private readonly StoreImportService _storeService;
+    private readonly IStoreAuthProvider _storeAuthProvider;
+    private readonly IStoreLibraryProvider _storeLibraryProvider;
     private readonly SettingsService _settingsService;
     private readonly MetadataService _metadataService; 
     private readonly GamepadService _gamepadService;
@@ -174,6 +177,7 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 UpdateContent();
                 NotifyNodeCommandsCanExecuteChanged();
+                NotifyPlayAvailabilityChanged();
 
                 OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
                 OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
@@ -204,6 +208,7 @@ public partial class MainWindowViewModel : ViewModelBase
             OnPropertyChanged(nameof(ShowLibraryLoadingHint));
             OnPropertyChanged(nameof(ShowEmptyLibraryHint));
             UpdateLibraryGameCounters();
+            NotifyPlayAvailabilityChanged();
         }
     }
 
@@ -300,6 +305,8 @@ public partial class MainWindowViewModel : ViewModelBase
         ImportService importService,
         LauncherService launcherService,
         StoreImportService storeService,
+        IStoreAuthProvider storeAuthProvider,
+        IStoreLibraryProvider storeLibraryProvider,
         SettingsService settingsService,
         MetadataService metadataService,
         SoundEffectService soundEffectService,
@@ -313,6 +320,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _importService = importService;
         _launcherService = launcherService;
         _storeService = storeService;
+        _storeAuthProvider = storeAuthProvider;
+        _storeLibraryProvider = storeLibraryProvider;
         _settingsService = settingsService;
         _metadataService = metadataService;
         _soundEffectService = soundEffectService;
@@ -1147,6 +1156,8 @@ public partial class MainWindowViewModel : ViewModelBase
         var item = searchVm.SelectedMediaItem;
         if (item != null)
             _pendingGlobalSearchSelectionItemId = null;
+        
+        NotifyPlayAvailabilityChanged();
 
         OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
         OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
@@ -1305,6 +1316,7 @@ public partial class MainWindowViewModel : ViewModelBase
             var item = mediaVm.SelectedMediaItem;
             _currentSettings.LastSelectedMediaId = item?.Id;
             SaveSettingsOnly();
+            NotifyPlayAvailabilityChanged();
 
             if (item != null)
                 _lastSelectedMediaByNodeId[mediaVm.Node.Id] = item.Id;

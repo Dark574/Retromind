@@ -238,9 +238,6 @@
                                                        <MenuItem Header="{x:Static p:Strings.Import_Steam}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportSteamCommand}"
                                                                  CommandParameter="{Binding .}"/>
-                                                       <MenuItem Header="{x:Static p:Strings.Import_Gog}"
-                                                                 Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportGogCommand}"
-                                                                 CommandParameter="{Binding .}"/>
                                                        <MenuItem Header="{x:Static p:Strings.Import_Epic}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportEpicCommand}"
                                                                  CommandParameter="{Binding .}"/>
@@ -254,6 +251,9 @@
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
                                                              CommandParameter="{Binding .}"
                                                              FontWeight="Bold" />
+                                                   <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogMediaMenuText}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddGogMediaCommand}"
+                                                             CommandParameter="{Binding .}" />
 
                                                    <Separator/>
 

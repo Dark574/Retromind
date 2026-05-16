@@ -64,15 +64,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private string _steamLibraryPathInput = string.Empty;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RemoveHeroicGogPathCommand))]
-    private string? _selectedHeroicGogPath;
-
-    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveHeroicEpicPathCommand))]
     private string? _selectedHeroicEpicPath;
-
-    [ObservableProperty]
-    private string _heroicGogPathInput = string.Empty;
 
     [ObservableProperty]
     private string _heroicEpicPathInput = string.Empty;
@@ -126,7 +119,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public ObservableCollection<EmulatorConfig> Emulators { get; } = new();
     public ObservableCollection<ScraperConfig> Scrapers { get; } = new();
     public ObservableCollection<string> SteamLibraryPaths { get; } = new();
-    public ObservableCollection<string> HeroicGogConfigPaths { get; } = new();
     public ObservableCollection<string> HeroicEpicConfigPaths { get; } = new();
     public ObservableCollection<RunnerVersionRow> RunnerVersions { get; } = new();
     public ObservableCollection<RunnerVersionSelectionOption> SelectedEmulatorRunnerVersionOptions { get; } = new();
@@ -376,7 +368,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string SettingsTabMetadataShort => T("Settings_TabMetadataShort", "Meta");
     public string SettingsTabRunnerShort => T("Settings_TabRunnerShort", "Runner");
     public string SettingsTabMiscShort => T("Settings_TabMiscShort", "Misc");
-    public string RunnerVersionsTabTitle => T("Settings_TabRunnerVersions", "Wine-/Proton-Versionen");
+    public string RunnerVersionsTabTitle => T("Settings_TabRunnerVersions", "Wine/Proton versions");
     public string RunnerVersionsSectionTitle => T("Settings_SectionRunnerVersions", "Wine/Proton versions");
     public string RunnerVersionNameLabel => T("Settings_RunnerVersionNameLabel", "Name");
     public string RunnerVersionPathLabel => T("Settings_RunnerVersionPathLabel", "Path");
@@ -541,14 +533,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IRelayCommand RemoveScraperCommand { get; }
     public IRelayCommand AddSteamLibraryPathCommand { get; }
     public IRelayCommand RemoveSteamLibraryPathCommand { get; }
-    public IRelayCommand AddHeroicGogPathCommand { get; }
-    public IRelayCommand RemoveHeroicGogPathCommand { get; }
     public IRelayCommand AddHeroicEpicPathCommand { get; }
     public IRelayCommand RemoveHeroicEpicPathCommand { get; }
     public IRelayCommand SaveCommand { get; }
     public IAsyncRelayCommand BrowsePathCommand { get; }
     public IAsyncRelayCommand BrowseSteamLibraryPathCommand { get; }
-    public IAsyncRelayCommand BrowseHeroicGogPathCommand { get; }
     public IAsyncRelayCommand BrowseHeroicEpicPathCommand { get; }
     public IAsyncRelayCommand ConvertExistingToPortableCommand { get; }
     public IAsyncRelayCommand ChangeParentalPasswordCommand { get; }
@@ -615,12 +604,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 SteamLibraryPaths.Add(path);
         }
 
-        if (_appSettings.HeroicGogConfigPaths != null)
-        {
-            foreach (var path in _appSettings.HeroicGogConfigPaths)
-                HeroicGogConfigPaths.Add(path);
-        }
-
         if (_appSettings.HeroicEpicConfigPaths != null)
         {
             foreach (var path in _appSettings.HeroicEpicConfigPaths)
@@ -646,16 +629,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         
         AddSteamLibraryPathCommand = new RelayCommand(AddSteamLibraryPath);
         RemoveSteamLibraryPathCommand = new RelayCommand(RemoveSteamLibraryPath, () => SelectedSteamLibraryPath != null);
-        
-        AddHeroicGogPathCommand = new RelayCommand(AddHeroicGogPath);
-        RemoveHeroicGogPathCommand = new RelayCommand(RemoveHeroicGogPath, () => SelectedHeroicGogPath != null);
         AddHeroicEpicPathCommand = new RelayCommand(AddHeroicEpicPath);
         RemoveHeroicEpicPathCommand = new RelayCommand(RemoveHeroicEpicPath, () => SelectedHeroicEpicPath != null);
         
         SaveCommand = new RelayCommand(Save, CanSave);
         BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync, () => SelectedEmulator != null);
         BrowseSteamLibraryPathCommand = new AsyncRelayCommand(BrowseSteamLibraryPathAsync);
-        BrowseHeroicGogPathCommand = new AsyncRelayCommand(BrowseHeroicGogPathAsync);
         BrowseHeroicEpicPathCommand = new AsyncRelayCommand(BrowseHeroicEpicPathAsync);
         
         // command to request migration to portable launch paths
@@ -1776,9 +1755,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _appSettings.SteamLibraryPaths.Clear();
         _appSettings.SteamLibraryPaths.AddRange(SteamLibraryPaths);
 
-        _appSettings.HeroicGogConfigPaths.Clear();
-        _appSettings.HeroicGogConfigPaths.AddRange(HeroicGogConfigPaths);
-
         _appSettings.HeroicEpicConfigPaths.Clear();
         _appSettings.HeroicEpicConfigPaths.AddRange(HeroicEpicConfigPaths);
         
@@ -1875,22 +1851,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         AddSteamLibraryPath(result[0].Path.LocalPath);
     }
 
-    private async Task BrowseHeroicGogPathAsync()
-    {
-        var provider = ResolveStorageProvider();
-        if (provider == null) return;
-
-        var result = await provider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = Strings.Dialog_SelectHeroicGogFolder,
-            AllowMultiple = false
-        });
-
-        if (result == null || result.Count == 0) return;
-
-        AddHeroicGogPath(result[0].Path.LocalPath);
-    }
-
     private async Task BrowseHeroicEpicPathAsync()
     {
         var provider = ResolveStorageProvider();
@@ -1935,36 +1895,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         if (SelectedSteamLibraryPath == null) return;
         SteamLibraryPaths.Remove(SelectedSteamLibraryPath);
         SelectedSteamLibraryPath = null;
-    }
-
-    private void AddHeroicGogPath()
-    {
-        AddHeroicGogPath(HeroicGogPathInput);
-    }
-
-    private void AddHeroicGogPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return;
-
-        var trimmed = path.Trim();
-        var normalized = NormalizePathSafe(trimmed);
-
-        if (HeroicGogConfigPaths.Any(p => string.Equals(p, normalized, StringComparison.OrdinalIgnoreCase)))
-        {
-            HeroicGogPathInput = string.Empty;
-            return;
-        }
-
-        HeroicGogConfigPaths.Add(normalized);
-        HeroicGogPathInput = string.Empty;
-    }
-
-    private void RemoveHeroicGogPath()
-    {
-        if (SelectedHeroicGogPath == null) return;
-        HeroicGogConfigPaths.Remove(SelectedHeroicGogPath);
-        SelectedHeroicGogPath = null;
     }
 
     private void AddHeroicEpicPath()

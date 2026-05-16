@@ -209,6 +209,40 @@
     <data name="Import.Roms" xml:space="preserve"><value>Local Folder (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Steam library</value></data>
 
+    <!-- GOG -->
+    <data name="Gog.Media.AddMenu" xml:space="preserve"><value>Add GOG media</value></data>
+    <data name="Gog.AuthCheckFailed" xml:space="preserve"><value>GOG sign-in state could not be verified.</value></data>
+    <data name="Gog.SignInRequiredPrompt" xml:space="preserve"><value>GOG sign-in is required. Open secure sign-in now?</value></data>
+    <data name="Gog.SignInFailed" xml:space="preserve"><value>GOG sign-in failed.</value></data>
+    <data name="Gog.SignInTimeout" xml:space="preserve"><value>GOG sign-in timed out. Please retry.</value></data>
+    <data name="Gog.InAppAuthUnavailable" xml:space="preserve"><value>Embedded web authentication is not available on this platform.</value></data>
+    <data name="Gog.InvalidAuthorizeUri" xml:space="preserve"><value>The received GOG authorization URL is invalid.</value></data>
+    <data name="Gog.InvalidRedirectUri" xml:space="preserve"><value>The configured OAuth redirect URI is invalid.</value></data>
+    <data name="Gog.RedirectMismatch" xml:space="preserve"><value>GOG rejected the OAuth redirect URI. Please update OAuth client settings or use a compatible client.</value></data>
+    <data name="Gog.CallbackMissingCode" xml:space="preserve"><value>The authentication callback did not include an authorization code.</value></data>
+    <data name="Gog.LibraryLoadFailed" xml:space="preserve"><value>GOG library could not be loaded.</value></data>
+    <data name="Gog.LibraryEmpty" xml:space="preserve"><value>No GOG games found.</value></data>
+    <data name="Gog.CallbackPromptFormat" xml:space="preserve"><value>Complete login in your browser, then paste the final callback URL here.
+
+If needed, reopen:
+{0}</value></data>
+    <data name="Gog.CallbackInvalidUri" xml:space="preserve"><value>The entered value is not a valid URL.</value></data>
+    <data name="Gog.GameFallbackTitleFormat" xml:space="preserve"><value>GOG {0}</value></data>
+    <data name="Gog.Picker.NoNewForNode" xml:space="preserve"><value>Selection did not contain new GOG games for this node.</value></data>
+    <data name="Gog.Node.SyncNoChanges" xml:space="preserve"><value>GOG node is already up to date.</value></data>
+    <data name="Gog.Picker.DialogTitle" xml:space="preserve"><value>Select GOG media</value></data>
+    <data name="Gog.Picker.Header" xml:space="preserve"><value>GOG library</value></data>
+    <data name="Gog.Picker.OnlyNewInNode" xml:space="preserve"><value>Only new in this node</value></data>
+    <data name="Gog.Picker.SearchPlaceholder" xml:space="preserve"><value>Search by title, GOG ID, or platform...</value></data>
+    <data name="Gog.Picker.CounterFormat" xml:space="preserve"><value>Filtered: {0:N0} / {1:N0}   Selected: {2:N0}</value></data>
+    <data name="Gog.Picker.SelectAllFiltered" xml:space="preserve"><value>Select all filtered</value></data>
+    <data name="Gog.Picker.ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
+    <data name="Gog.Picker.EmptyState" xml:space="preserve"><value>No matches for the current filter.</value></data>
+    <data name="Gog.Picker.AddSelection" xml:space="preserve"><value>Add selection</value></data>
+    <data name="Gog.Picker.StatusAlreadyInNode" xml:space="preserve"><value>Already in this node</value></data>
+    <data name="Gog.Picker.StatusLinkedFormat" xml:space="preserve"><value>Already linked {0}x</value></data>
+    <data name="Gog.Picker.StatusNew" xml:space="preserve"><value>New</value></data>
+
     <!-- SETTINGS -->
     <data name="Settings.TabMisc" xml:space="preserve"><value>Misc</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Launch paths</value></data>
@@ -349,6 +383,8 @@
     <data name="NodeSettings_Title" xml:space="preserve"><value>Category settings</value></data>
     <data name="NodeSettings_DescriptionForBigMode" xml:space="preserve"><value>Description (for BigMode)</value></data>
     <data name="NodeSettings_DefaultEmulatorForFolder" xml:space="preserve"><value>Default emulator (for this folder)</value></data>
+    <data name="NodeSettings_GogStoreNode" xml:space="preserve"><value>Declare this as GOG node</value></data>
+    <data name="NodeSettings_GogStoreNodeHint" xml:space="preserve"><value>If enabled, "Add GOG media" syncs this node against your complete owned GOG library (additive only).</value></data>
     <data name="NodeSettings_ApplyEmulatorToExistingItems" xml:space="preserve"><value>Apply default emulator to existing items</value></data>
     <data name="NodeSettings_ApplyEmulatorIncludeChildren" xml:space="preserve"><value>Include subcategories</value></data>
     <data name="NodeSettings_ApplyEmulatorHint" xml:space="preserve"><value>Only items currently set to Native without a custom launcher will be updated.</value></data>

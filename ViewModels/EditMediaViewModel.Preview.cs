@@ -21,13 +21,14 @@ public partial class EditMediaViewModel
     {
         get
         {
-            // Use the primary launch file (Disc 1 / first entry). If missing, fall back to a sample path
+            // Use the primary launch file (Disc 1 / first entry). No fake/sample fallback.
             var primaryPath = _originalItem.GetPrimaryLaunchPath();
-            var launchPath = !string.IsNullOrWhiteSpace(primaryPath)
-                ? primaryPath
-                : "/Games/SuperMario.smc";
+            var hasLaunchPath = !string.IsNullOrWhiteSpace(primaryPath);
+            var launchPath = hasLaunchPath ? primaryPath! : string.Empty;
 
-            var realFileQuoted = $"\"{launchPath}\"";
+            var realFileQuoted = hasLaunchPath
+                ? $"\"{launchPath}\""
+                : string.Empty;
 
             // Resolve effective wrapper chain once (global/emulator/node/item logic)
             var wrappers = ResolveEffectiveNativeWrappersForPreview();
@@ -65,7 +66,9 @@ public partial class EditMediaViewModel
                 // Inner command: emulator binary + expanded args + file
                 string inner;
                 if (string.IsNullOrWhiteSpace(expandedArgs))
-                    inner = $"{selectedEmulator.Path} {realFileQuoted}".Trim();
+                    inner = hasLaunchPath
+                        ? $"{selectedEmulator.Path} {realFileQuoted}".Trim()
+                        : selectedEmulator.Path;
                 else
                     inner = $"{selectedEmulator.Path} {expandedArgs}".Trim();
 
@@ -93,7 +96,9 @@ public partial class EditMediaViewModel
                 else
                 {
                     if (string.IsNullOrWhiteSpace(expandedArgs))
-                        inner = $"{LauncherPath} {realFileQuoted}".Trim();
+                        inner = hasLaunchPath
+                            ? $"{LauncherPath} {realFileQuoted}".Trim()
+                            : LauncherPath;
                     else
                         inner = $"{LauncherPath} {expandedArgs}".Trim();
                 }
@@ -109,11 +114,23 @@ public partial class EditMediaViewModel
             if (MediaType == MediaType.Native || MediaType == MediaType.Emulator)
             {
                 var nativeArgs = BuildNativeArgumentsForPreview(LauncherArgs);
+                if (!hasLaunchPath && string.IsNullOrWhiteSpace(nativeArgs))
+                    return string.Empty;
 
                 // Inner command = the real executable + native args
-                var inner = string.IsNullOrWhiteSpace(nativeArgs)
-                    ? realFileQuoted
-                    : $"{realFileQuoted} {nativeArgs}";
+                string inner;
+                if (string.IsNullOrWhiteSpace(nativeArgs))
+                {
+                    inner = realFileQuoted;
+                }
+                else if (string.IsNullOrWhiteSpace(realFileQuoted))
+                {
+                    inner = nativeArgs;
+                }
+                else
+                {
+                    inner = $"{realFileQuoted} {nativeArgs}";
+                }
 
                 var final = wrappers.Count > 0
                     ? BuildWrappedCommandLine(inner, wrappers)

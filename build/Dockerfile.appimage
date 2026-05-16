@@ -12,6 +12,15 @@ ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 ENV DOTNET_NOLOGO=1
 
 RUN apt-get update \
+    && WEBKIT_RUNTIME_PACKAGES="" \
+    && if apt-cache show libwebkit2gtk-4.1-0 >/dev/null 2>&1; then \
+         WEBKIT_RUNTIME_PACKAGES="libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0"; \
+       elif apt-cache show libwebkit2gtk-4.0-37 >/dev/null 2>&1; then \
+         WEBKIT_RUNTIME_PACKAGES="libwebkit2gtk-4.0-37 libjavascriptcoregtk-4.0-18"; \
+       else \
+         echo "ERROR: No supported WebKitGTK runtime package found in apt repositories." >&2; \
+         exit 1; \
+       fi \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
        curl \
@@ -30,6 +39,7 @@ RUN apt-get update \
        libxkbcommon0 \
        libdecor-0-0 \
        libsdl2-2.0-0 \
+       $WEBKIT_RUNTIME_PACKAGES \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
@@ -161,6 +171,47 @@ RUN set -eu; \
     copy_runtime_lib libwayland-egl.so.1; \
     copy_runtime_lib libxkbcommon.so.0; \
     copy_runtime_lib libdecor-0.so.0; \
-    copy_runtime_lib libSDL2-2.0.so.0
+    copy_runtime_lib libSDL2-2.0.so.0; \
+    \
+    copy_runtime_lib_with_deps() { \
+      lib_path="$1"; \
+      cp -L "$lib_path" /out/runtime-libs/; \
+      ldd "$lib_path" 2>/dev/null \
+        | awk '\
+            /=>/ { if ($3 ~ /^\//) print $3 } \
+            /^[[:space:]]*\/[^[:space:]]+/ { print $1 } \
+          ' \
+        | while IFS= read -r dep; do \
+            [ -n "$dep" ] || continue; \
+            [ -e "$dep" ] || continue; \
+            case "$dep" in \
+              */ld-linux-*|*/libc.so.6|*/libm.so.6|*/libpthread.so.0|*/librt.so.1|*/libdl.so.2|*/libgcc_s.so.1|*/libstdc++.so.6) \
+                continue \
+                ;; \
+            esac; \
+            cp -L "$dep" /out/runtime-libs/ || true; \
+          done; \
+    }; \
+    \
+    resolve_first_matching_lib() { \
+      pattern="$1"; \
+      for dir in /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /usr/lib /lib; do \
+        for candidate in "$dir"/$pattern; do \
+          if [ -e "$candidate" ]; then \
+            printf '%s\n' "$candidate"; \
+            return 0; \
+          fi; \
+        done; \
+      done; \
+      return 1; \
+    }; \
+    \
+    webkit_lib="$(resolve_first_matching_lib 'libwebkit2gtk-4.1.so.*' || resolve_first_matching_lib 'libwebkit2gtk-4.0.so.*' || true)"; \
+    if [ -n "$webkit_lib" ]; then \
+      copy_runtime_lib_with_deps "$webkit_lib"; \
+      ln -sf "$(basename "$webkit_lib")" /out/runtime-libs/libwebkit2gtk.so; \
+    else \
+      echo "Notice: WebKitGTK runtime library not found in builder image."; \
+    fi
 
 CMD ["bash", "-lc", "echo 'Retromind bookworm builder image ready.'"]
