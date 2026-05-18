@@ -52,11 +52,8 @@
                         <ToggleButton IsChecked="{Binding ParentalProtectionEnabled, Mode=TwoWay}"
                                       Content="{Binding ParentalProtectionToggleText}"
                                       HorizontalAlignment="Left"
-                                      Padding="10,4" />
-                        <TextBlock Text="{Binding ParentalProtectionHint}"
-                                   FontSize="11"
-                                   Foreground="#888888"
-                                   TextWrapping="Wrap"/>
+                                      Padding="10,4"
+                                      ToolTip.Tip="{Binding ParentalProtectionHint}" />
                     </StackPanel>
                 </StackPanel>
 
@@ -292,11 +289,8 @@
 
                 <StackPanel Spacing="4">
                     <CheckBox Content="{Binding GogStoreNodeText}"
-                              IsChecked="{Binding IsGogStoreNode}" />
-                    <TextBlock Text="{Binding GogStoreNodeHint}"
-                               FontSize="11"
-                               Foreground="#888888"
-                               TextWrapping="Wrap"/>
+                              IsChecked="{Binding IsGogStoreNode}"
+                              ToolTip.Tip="{Binding GogStoreNodeHint}" />
                 </StackPanel>
 
                 <!-- Advanced: wrappers + environment -->
