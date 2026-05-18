@@ -119,6 +119,48 @@ RUN set -eu; \
           done; \
     }; \
     \
+    copy_vlc_deps() { \
+      obj="$1"; \
+      ldd "$obj" 2>/dev/null \
+        | awk '\
+            /=>/ { if ($3 ~ /^\//) print $3 } \
+            /^[[:space:]]*\/[^[:space:]]+/ { print $1 } \
+          ' \
+        | while IFS= read -r dep; do \
+            [ -n "$dep" ] || continue; \
+            [ -e "$dep" ] || continue; \
+            case "$dep" in \
+              */ld-linux-*|*/libc.so.6|*/libm.so.6|*/libpthread.so.0|*/librt.so.1|*/libdl.so.2|*/libgcc_s.so.1|*/libstdc++.so.6) \
+                continue \
+                ;; \
+            esac; \
+            cp -L "$dep" /out/vlc/lib/ || true; \
+          done; \
+    }; \
+    \
+    # Ensure VLC video/audio plugins can resolve all their dependencies without host libraries.
+    find /out/vlc/lib -maxdepth 1 -type f -name "libvlc*.so*" -print | while IFS= read -r lib; do \
+      [ -n "$lib" ] || continue; \
+      copy_vlc_deps "$lib"; \
+    done; \
+    find /out/vlc/vlc/plugins -type f -name "*.so" -print | while IFS= read -r plugin; do \
+      [ -n "$plugin" ] || continue; \
+      copy_vlc_deps "$plugin"; \
+    done; \
+    \
+    previous_vlc_count=-1; \
+    while :; do \
+      current_vlc_count="$(find /out/vlc/lib -maxdepth 1 -type f | wc -l)"; \
+      if [ "$current_vlc_count" = "$previous_vlc_count" ]; then \
+        break; \
+      fi; \
+      previous_vlc_count="$current_vlc_count"; \
+      find /out/vlc/lib -maxdepth 1 -type f -print | while IFS= read -r lib; do \
+        [ -n "$lib" ] || continue; \
+        copy_vlc_deps "$lib"; \
+      done; \
+    done; \
+    \
     bundle_tool() { \
       tool_name="$1"; \
       shift; \
