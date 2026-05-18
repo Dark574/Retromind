@@ -142,6 +142,21 @@ RUN set -eu; \
     bundle_tool ffplay /usr/bin/ffplay; \
     bundle_tool secret-tool /usr/bin/secret-tool; \
     \
+    # Close transitive dependency chains for bundled helper tools.
+    # Without this, helpers can still end up requiring host libraries on some systems.
+    previous_count=-1; \
+    while :; do \
+      current_count="$(find /out/tools/lib -maxdepth 1 -type f | wc -l)"; \
+      if [ "$current_count" = "$previous_count" ]; then \
+        break; \
+      fi; \
+      previous_count="$current_count"; \
+      find /out/tools/lib -maxdepth 1 -type f -print | while IFS= read -r lib; do \
+        [ -n "$lib" ] || continue; \
+        copy_binary_deps "$lib"; \
+      done; \
+    done; \
+    \
     copy_runtime_lib() { \
       name="$1"; \
       path=""; \

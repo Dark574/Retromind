@@ -123,8 +123,14 @@ public class AudioService
 
                     // Keep AppImage runtime env for bundled tools.
                     // Only sanitize host fallback launches inside AppImage runtime.
-                    if (bundledExecutable == null && AppImageToolResolver.IsAppImageRuntime())
+                    if (bundledExecutable != null)
+                    {
+                        AppImageToolResolver.ConfigureBundledToolEnvironment(startInfo, bundledExecutable);
+                    }
+                    else if (AppImageToolResolver.IsAppImageRuntime())
+                    {
                         HostProcessEnvironmentSanitizer.Sanitize(startInfo);
+                    }
                     _currentProcess = Process.Start(startInfo);
 
                     if (_currentProcess == null)

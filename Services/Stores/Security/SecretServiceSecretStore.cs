@@ -15,7 +15,6 @@ namespace Retromind.Services.Stores.Security;
 public sealed class SecretServiceSecretStore : ISecretStore
 {
     private const string SecretToolExecutable = "secret-tool";
-    private const string LdLibraryPathKey = "LD_LIBRARY_PATH";
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan AvailabilityCacheTtl = TimeSpan.FromSeconds(20);
     private readonly SemaphoreSlim _availabilityLock = new(1, 1);
@@ -213,10 +212,9 @@ public sealed class SecretServiceSecretStore : ISecretStore
             CreateNoWindow = true
         };
 
-        var runtimeLdLibraryPath = Environment.GetEnvironmentVariable(LdLibraryPathKey);
         HostProcessEnvironmentSanitizer.Sanitize(startInfo);
-        if (candidate.IsBundled && !string.IsNullOrWhiteSpace(runtimeLdLibraryPath))
-            startInfo.Environment[LdLibraryPathKey] = runtimeLdLibraryPath;
+        if (candidate.IsBundled)
+            AppImageToolResolver.ConfigureBundledToolEnvironment(startInfo, candidate.ExecutablePath);
 
         foreach (var arg in arguments)
             startInfo.ArgumentList.Add(arg);

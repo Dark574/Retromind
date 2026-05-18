@@ -54,8 +54,14 @@ public class SoundEffectService
 
                 // Keep AppImage runtime env for bundled tools.
                 // Only sanitize host fallback launches inside AppImage runtime.
-                if (bundledExecutable == null && AppImageToolResolver.IsAppImageRuntime())
+                if (bundledExecutable != null)
+                {
+                    AppImageToolResolver.ConfigureBundledToolEnvironment(startInfo, bundledExecutable);
+                }
+                else if (AppImageToolResolver.IsAppImageRuntime())
+                {
                     HostProcessEnvironmentSanitizer.Sanitize(startInfo);
+                }
 
                 // We start the process but don't hold a reference to it.
                 // It will live and die on its own. "Fire and forget".
