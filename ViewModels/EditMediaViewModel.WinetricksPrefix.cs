@@ -171,7 +171,7 @@ public partial class EditMediaViewModel
 
             var (fileName, arguments) = BuildWinetricksCommand(verbs, useUmu);
 
-            var logVm = new ProcessLogViewModel("Winetricks");
+            var logVm = new ProcessLogViewModel("Winetricks", true);
             var logView = new ProcessLogView { DataContext = logVm };
 
             if (owner != null)
