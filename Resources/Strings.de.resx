@@ -219,6 +219,7 @@
     <data name="Gog.SignInFailed" xml:space="preserve"><value>GOG-Anmeldung fehlgeschlagen.</value></data>
     <data name="Gog.SignInTimeout" xml:space="preserve"><value>GOG-Anmeldung hat zu lange gedauert. Bitte erneut versuchen.</value></data>
     <data name="Gog.InAppAuthUnavailable" xml:space="preserve"><value>Eingebettete Web-Authentifizierung ist auf dieser Plattform nicht verfügbar.</value></data>
+    <data name="Gog.InAppAuthUnavailableWaylandAppImage" xml:space="preserve"><value>Eingebettete Web-Authentifizierung wird in AppImage-Wayland-Sitzungen derzeit nicht unterstützt. Starte Retromind mit --avalonia-platform=x11 neu und versuche es erneut.</value></data>
     <data name="Gog.InvalidAuthorizeUri" xml:space="preserve"><value>Die empfangene GOG-Autorisierungs-URL ist ungültig.</value></data>
     <data name="Gog.InvalidRedirectUri" xml:space="preserve"><value>Die konfigurierte OAuth-Redirect-URI ist ungültig.</value></data>
     <data name="Gog.RedirectMismatch" xml:space="preserve"><value>GOG hat die OAuth-Redirect-URI abgelehnt. Bitte OAuth-Client-Einstellungen prüfen oder einen kompatiblen Client verwenden.</value></data>

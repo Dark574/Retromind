@@ -4,7 +4,7 @@ FROM debian:bookworm
 # - dotnet publish (self-contained)
 # - VLC / LibVLC runtime export
 # - optional helper tools (ffplay, sidplayfp) + runtime deps
-# - Wayland runtime libs used by Avalonia on Linux
+# - Linux runtime libs needed by Retromind
 ENV DOTNET_ROOT=/usr/share/dotnet
 ENV PATH="${DOTNET_ROOT}:${PATH}"
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
@@ -12,15 +12,6 @@ ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 ENV DOTNET_NOLOGO=1
 
 RUN apt-get update \
-    && WEBKIT_RUNTIME_PACKAGES="" \
-    && if apt-cache show libwebkit2gtk-4.1-0 >/dev/null 2>&1; then \
-         WEBKIT_RUNTIME_PACKAGES="libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0"; \
-       elif apt-cache show libwebkit2gtk-4.0-37 >/dev/null 2>&1; then \
-         WEBKIT_RUNTIME_PACKAGES="libwebkit2gtk-4.0-37 libjavascriptcoregtk-4.0-18"; \
-       else \
-         echo "ERROR: No supported WebKitGTK runtime package found in apt repositories." >&2; \
-         exit 1; \
-       fi \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
        curl \
@@ -40,7 +31,6 @@ RUN apt-get update \
        libxkbcommon0 \
        libdecor-0-0 \
        libsdl2-2.0-0 \
-       $WEBKIT_RUNTIME_PACKAGES \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
@@ -208,12 +198,6 @@ RUN set -eu; \
       return 1; \
     }; \
     \
-    webkit_lib="$(resolve_first_matching_lib 'libwebkit2gtk-4.1.so.*' || resolve_first_matching_lib 'libwebkit2gtk-4.0.so.*' || true)"; \
-    if [ -n "$webkit_lib" ]; then \
-      copy_runtime_lib_with_deps "$webkit_lib"; \
-      ln -sf "$(basename "$webkit_lib")" /out/runtime-libs/libwebkit2gtk.so; \
-    else \
-      echo "Notice: WebKitGTK runtime library not found in builder image."; \
-    fi
+    true
 
 CMD ["bash", "-lc", "echo 'Retromind bookworm builder image ready.'"]

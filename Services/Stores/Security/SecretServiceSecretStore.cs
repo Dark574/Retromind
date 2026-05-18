@@ -21,6 +21,15 @@ public sealed class SecretServiceSecretStore : ISecretStore
     private readonly SemaphoreSlim _availabilityLock = new(1, 1);
     private bool _isAvailableCached;
     private DateTimeOffset _isAvailableCachedUntilUtc = DateTimeOffset.MinValue;
+    private static readonly string[] TrustedSecretToolDirectories =
+    [
+        "/usr/bin",
+        "/bin",
+        "/usr/local/bin",
+        "/usr/sbin",
+        "/sbin",
+        "/run/current-system/sw/bin"
+    ];
 
     public async Task<bool> IsAvailableAsync(CancellationToken ct = default)
     {
@@ -254,18 +263,73 @@ public sealed class SecretServiceSecretStore : ISecretStore
 
     private static IEnumerable<SecretToolCandidate> ResolveSecretToolCandidates()
     {
-        yield return new SecretToolCandidate(SecretToolExecutable, IsBundled: false);
+        var yielded = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var directory in TrustedSecretToolDirectories)
+        {
+            var candidate = Path.Combine(directory, SecretToolExecutable);
+            if (!File.Exists(candidate))
+                continue;
+
+            var normalized = NormalizePathSafe(candidate);
+            if (!yielded.Add(normalized))
+                continue;
+
+            yield return new SecretToolCandidate(candidate, IsBundled: false);
+        }
+
+        var pathResolved = ResolveSecretToolFromTrustedPathSegments();
+        if (!string.IsNullOrWhiteSpace(pathResolved))
+        {
+            var normalizedPathResolved = NormalizePathSafe(pathResolved);
+            if (yielded.Add(normalizedPathResolved))
+                yield return new SecretToolCandidate(pathResolved, IsBundled: false);
+        }
 
         var bundledPath = AppImageToolResolver.ResolveBundledExecutable(SecretToolExecutable);
         if (string.IsNullOrWhiteSpace(bundledPath))
             yield break;
 
         var normalizedBundled = NormalizePathSafe(bundledPath);
-        var normalizedHostToken = NormalizePathSafe(SecretToolExecutable);
-        if (string.Equals(normalizedBundled, normalizedHostToken, StringComparison.Ordinal))
+        if (!yielded.Add(normalizedBundled))
             yield break;
 
         yield return new SecretToolCandidate(bundledPath, IsBundled: true);
+    }
+
+    private static string? ResolveSecretToolFromTrustedPathSegments()
+    {
+        var path = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        var segments = path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var rawSegment in segments)
+        {
+            var normalizedSegment = NormalizePathSafe(rawSegment);
+            if (!IsTrustedDirectory(normalizedSegment))
+                continue;
+
+            var candidate = Path.Combine(normalizedSegment, SecretToolExecutable);
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        return null;
+    }
+
+    private static bool IsTrustedDirectory(string? directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+            return false;
+
+        foreach (var trusted in TrustedSecretToolDirectories)
+        {
+            var normalizedTrusted = NormalizePathSafe(trusted);
+            if (string.Equals(directoryPath, normalizedTrusted, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 
     private static string NormalizePathSafe(string? path)

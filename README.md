@@ -432,25 +432,24 @@ Each user is responsible for their own API keys and must comply with the
 respective provider terms of service.
 
 ## Wayland / X11 note (VLC video embedding)
-Embedded video playback via **LibVLCSharp** can be unreliable on some Wayland setups (depending on compositor and XWayland behavior).
-To make VLC embedding work consistently, Retromind defaults to **X11 via XWayland** on Linux by setting `AVALONIA_PLATFORM=x11` early at startup.
+Wayland is currently **fully disabled** in Retromind on Linux.
 
-You can override this behavior for testing:
+At startup, Retromind forces `AVALONIA_PLATFORM=x11` to keep VLC embedding and embedded authentication stable.
 
-- Force X11 (default):
-  ```bash
-  dotnet run --project Retromind.csproj -- --avalonia-platform=x11
-  ```
+If you pass `--avalonia-platform=wayland` or `--avalonia-platform=auto`, it is ignored for now and Retromind still runs on X11.
 
-- Force Wayland (experimental / compositor-dependent):
-  ```bash
-  dotnet run --project Retromind.csproj -- --avalonia-platform=wayland
-  ```
+Why this is currently disabled:
 
-- Let Avalonia decide automatically:
-  ```bash
-  dotnet run --project Retromind.csproj -- --avalonia-platform=auto
-  ```
+- As of **April 20, 2026**, Avalonia's official platform matrix states Linux desktop targets **X11** and that Wayland is in **private preview**.
+  Source: https://docs.avaloniaui.net/docs/overview/supported-platforms
+- Retromind's Linux runtime depends on stable native integration for both **LibVLC embedding** and **embedded OAuth/WebView**. In our AppImage testing, Wayland paths caused native instability (including process-level crashes), which cannot be handled safely in managed code.
+- Until Avalonia ships generally available, production-grade Wayland support for this stack, Retromind keeps Linux on X11 by policy.
+
+Use:
+
+```bash
+dotnet run --project Retromind.csproj -- --avalonia-platform=x11
+```
 
 ## SortTitle
 - Retromind sorts media entries by `SortTitle` attribute if it is set.

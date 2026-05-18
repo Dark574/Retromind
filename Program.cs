@@ -15,29 +15,19 @@ internal sealed class Program
     public static void Main(string[] args)
     {
         bool isBigModeOnly = args.Contains("--bigmode");
-        
-        // VLC video embedding is most reliable via X11 (XWayland) on Linux.
-        // Allow overriding for contributors via:
-        //   --avalonia-platform=auto|x11|wayland
-        // Default: x11 (for VLC embedding).
-        var platformArg = args.FirstOrDefault(a => a.StartsWith("--avalonia-platform=", StringComparison.OrdinalIgnoreCase));
-        var platformValue = platformArg?.Split('=', 2).ElementAtOrDefault(1)?.Trim();
 
-        if (string.IsNullOrWhiteSpace(platformValue) || platformValue.Equals("x11", StringComparison.OrdinalIgnoreCase))
+        // Linux: Wayland is intentionally disabled for now.
+        // We force X11 for stable VLC embedding and embedded auth flows.
+        if (OperatingSystem.IsLinux())
         {
-            Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", "x11");
-        }
-        else if (platformValue.Equals("wayland", StringComparison.OrdinalIgnoreCase))
-        {
-            Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", "wayland");
-        }
-        else if (platformValue.Equals("auto", StringComparison.OrdinalIgnoreCase))
-        {
-            // Intentionally do not set AVALONIA_PLATFORM (let Avalonia decide).
-        }
-        else
-        {
-            // Unknown value -> fall back to safe default for VLC embedding.
+            var platformArg = args.FirstOrDefault(a => a.StartsWith("--avalonia-platform=", StringComparison.OrdinalIgnoreCase));
+            var platformValue = platformArg?.Split('=', 2).ElementAtOrDefault(1)?.Trim();
+            if (!string.IsNullOrWhiteSpace(platformValue) &&
+                !platformValue.Equals("x11", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine($"[Startup] --avalonia-platform={platformValue} is currently disabled. Forcing x11.");
+            }
+
             Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", "x11");
         }
 

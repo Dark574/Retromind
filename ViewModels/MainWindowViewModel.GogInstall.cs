@@ -447,11 +447,17 @@ public partial class MainWindowViewModel
         {
             Debug.WriteLine($"[GOG] Interactive sign-in failed (install): {ex.Message}");
             var inAppUnavailable = ex is PlatformNotSupportedException;
+            var waylandAppImageUnsupported = inAppUnavailable &&
+                                             ex.Message.IndexOf("AppImage Wayland", StringComparison.OrdinalIgnoreCase) >= 0;
             var mismatch = ex.Message.IndexOf("redirect_uri_mismatch", StringComparison.OrdinalIgnoreCase) >= 0;
             var missingCode = ex.Message.IndexOf("authorization code", StringComparison.OrdinalIgnoreCase) >= 0;
             var invalidAuthorizeUri = ex.Message.IndexOf("authorization URL", StringComparison.OrdinalIgnoreCase) >= 0;
             var invalidRedirectUri = ex.Message.IndexOf("redirect URI", StringComparison.OrdinalIgnoreCase) >= 0;
-            var signInErrorMessage = inAppUnavailable
+            var signInErrorMessage = waylandAppImageUnsupported
+                ? T(
+                    "Gog.InAppAuthUnavailableWaylandAppImage",
+                    "Embedded web authentication is currently not supported in AppImage Wayland sessions. Restart Retromind with --avalonia-platform=x11 and retry.")
+                : inAppUnavailable
                 ? T("Gog.InAppAuthUnavailable", "Embedded web authentication is not available on this platform.")
                 : mismatch
                     ? T("Gog.RedirectMismatch", "GOG rejected the OAuth redirect URI. Please update OAuth client settings or use a compatible client.")

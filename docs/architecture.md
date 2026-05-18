@@ -12,7 +12,7 @@ This document summarizes how Retromind is structured today and where core behavi
 ## Runtime profile and startup
 - `Program.Main` configures runtime behavior before Avalonia starts:
   - `--bigmode` startup mode
-  - `--avalonia-platform=auto|x11|wayland` (default is `x11` for reliable VLC embedding)
+  - `--avalonia-platform` is currently constrained to `x11` on Linux (`wayland`/`auto` are intentionally disabled)
   - AppImage portable HOME/XDG redirection via `PortableEnvironment.ApplyPortableXdgPaths()`
   - mandatory LibVLC initialization (`Core.Initialize()`)
 - `App.OnFrameworkInitializationCompleted` then:

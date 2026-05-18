@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -29,6 +29,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - callback handling:
     - loopback listener for loopback redirect URIs
     - embedded OAuth dialog for non-loopback redirect URIs via `WebAuthenticationBroker` (automatic callback capture)
+    - fallback: system browser + manual callback URL input when embedded OAuth runtime is unavailable
   - `state` validation and PKCE challenge generation
   - token exchange + refresh against `https://auth.gog.com/token`
   - refresh-token persistence via `ISecretStore`
@@ -36,7 +37,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - loopback login timeout handling (prevents hanging command state when callback never arrives)
   - in-app OAuth hardening for non-loopback auth:
     - authorize URL host/path validation (`https://auth.gog.com/auth`)
-    - redirect URI validation (`https`, absolute URI)
+    - redirect URI validation (absolute URI + allowlist policy for non-loopback)
+    - callback URI must match expected redirect scheme/host/port/path (+ required static query params)
     - `WebAuthenticationBroker` with `NonPersistent = true`
 - Read-only library fetch:
   - owned products from `https://embed.gog.com/account/getFilteredProducts` (paged)
@@ -52,7 +54,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - UI dependency:
   - `Avalonia.Controls.WebView` is used for embedded OAuth authentication dialogs
   - Linux runtime prerequisite for embedded OAuth: `libwebkit2gtk` (WebKitGTK)
-  - AppImage build now bundles WebKitGTK runtime (`libwebkit2gtk`) into `usr/lib`, so AppImage users do not need to install it separately.
+  - AppImage build does not bundle WebKitGTK runtime due stability/ABI issues across host environments; WebKitGTK is expected from the host when embedded OAuth is used.
+  - current runtime policy: Linux startup forces X11 (`AVALONIA_PLATFORM=x11`), Wayland is intentionally disabled for now
   - local Linux development/debug runs still require system WebKitGTK (e.g. on Arch/CachyOS: `sudo pacman -S webkit2gtk-4.1`)
   - missing WebKitGTK now fails gracefully with a localized user message (no hard app crash)
 - Performance/UX:
@@ -162,17 +165,19 @@ Required behavior for native GOG auth:
 - Use OAuth authorization flow only.
 - Do not implement username/password input fields for GOG credentials in Retromind forms.
 - For non-loopback redirect URIs, use embedded OAuth via `WebAuthenticationBroker` with non-persistent session mode.
+- If embedded OAuth runtime is unavailable, fall back to system browser flow with manual callback URL capture.
 - Validate authorize endpoint before opening auth UI (`https://auth.gog.com/auth`).
 - Validate `state` on callback.
 - Use PKCE where supported.
 - Never write OAuth tokens to `app_settings.json`, library JSON, or logs.
 - Prefer Secret Service for persistent refresh token storage.
+- Secret Service execution path is constrained to trusted host executable locations (and bundled fallback in AppImage).
 - Portable mode must not store OAuth secrets in `DataRoot`; Secret Service access remains host-based.
 - If Secret Service is unavailable, use session-only in-memory storage.
 - OAuth runtime config is environment-variable overrideable:
   - `RETROMIND_GOG_CLIENT_ID`
   - `RETROMIND_GOG_CLIENT_SECRET`
-  - `RETROMIND_GOG_REDIRECT_URI` (loopback HTTP uses local listener, non-loopback uses embedded OAuth callback capture)
+  - `RETROMIND_GOG_REDIRECT_URI` (accepted values are loopback HTTP, or `https://embed.gog.com/on_login_success...`; loopback uses local listener, non-loopback uses embedded OAuth callback capture)
 
 ## Planned phases
 

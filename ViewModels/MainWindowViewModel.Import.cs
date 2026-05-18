@@ -354,11 +354,17 @@ public partial class MainWindowViewModel
             {
                 Debug.WriteLine($"[GOG] Interactive sign-in failed: {ex.Message}");
                 var inAppUnavailable = ex is PlatformNotSupportedException;
+                var waylandAppImageUnsupported = inAppUnavailable &&
+                                                 ex.Message.IndexOf("AppImage Wayland", StringComparison.OrdinalIgnoreCase) >= 0;
                 var mismatch = ex.Message.IndexOf("redirect_uri_mismatch", StringComparison.OrdinalIgnoreCase) >= 0;
                 var missingCode = ex.Message.IndexOf("authorization code", StringComparison.OrdinalIgnoreCase) >= 0;
                 var invalidAuthorizeUri = ex.Message.IndexOf("authorization URL", StringComparison.OrdinalIgnoreCase) >= 0;
                 var invalidRedirectUri = ex.Message.IndexOf("redirect URI", StringComparison.OrdinalIgnoreCase) >= 0;
-                var signInErrorMessage = inAppUnavailable
+                var signInErrorMessage = waylandAppImageUnsupported
+                    ? T(
+                        "Gog.InAppAuthUnavailableWaylandAppImage",
+                        "Embedded web authentication is currently not supported in AppImage Wayland sessions. Restart Retromind with --avalonia-platform=x11 and retry.")
+                    : inAppUnavailable
                     ? T("Gog.InAppAuthUnavailable", "Embedded web authentication is not available on this platform.")
                     : mismatch
                         ? T("Gog.RedirectMismatch", "GOG rejected the OAuth redirect URI. Please update OAuth client settings or use a compatible client.")
@@ -519,11 +525,15 @@ public partial class MainWindowViewModel
 
         if (OperatingSystem.IsLinux())
         {
+            if (IsLinuxWaylandAppImageSession())
+            {
+                return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
+            }
+
             EnsureLinuxWebKitGtkAlias();
             if (!HasLinuxWebKitGtkRuntime())
             {
-                throw new PlatformNotSupportedException(
-                    "Embedded web authentication is not available on this platform.");
+                return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
             }
         }
 
@@ -547,13 +557,74 @@ public partial class MainWindowViewModel
         }
         catch (Exception ex) when (IsMissingLinuxWebKitGtk(ex))
         {
-            throw new PlatformNotSupportedException(
-                "Embedded web authentication is not available on this platform.",
-                ex);
+            Debug.WriteLine($"[GOG] Embedded OAuth unavailable ({ex.GetType().Name}), falling back to system browser callback capture.");
+            return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
         }
 
         ct.ThrowIfCancellationRequested();
         return callbackUri;
+    }
+
+    private async Task<Uri?> CaptureGogCallbackUriViaSystemBrowserAsync(
+        Window owner,
+        Uri authorizeUri,
+        System.Threading.CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        try
+        {
+            var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = authorizeUri.ToString(),
+                UseShellExecute = true
+            });
+            if (process == null)
+                throw new InvalidOperationException("Browser process could not be started.");
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException("Could not open system browser for GOG login.", ex);
+        }
+
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var prompt = string.Format(
+                T(
+                    "Gog.CallbackPromptFormat",
+                    "Complete login in your browser, then paste the final callback URL here.\n\nIf needed, reopen:\n{0}"),
+                authorizeUri);
+
+            var input = await PromptForName(owner, prompt);
+            if (string.IsNullOrWhiteSpace(input))
+                return null;
+
+            var trimmed = input.Trim();
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var callbackUri))
+                return callbackUri;
+
+            await ShowInfoDialog(owner, T("Gog.CallbackInvalidUri", "The entered value is not a valid URL."));
+        }
+    }
+
+    private static bool IsLinuxWaylandAppImageSession()
+    {
+        if (!OperatingSystem.IsLinux() || !AppImageToolResolver.IsAppImageRuntime())
+            return false;
+
+        var explicitPlatform = Environment.GetEnvironmentVariable("AVALONIA_PLATFORM");
+        if (string.Equals(explicitPlatform, "wayland", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (string.Equals(explicitPlatform, "x11", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var sessionType = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE");
+        if (string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"));
     }
 
     private static bool HasLinuxWebKitGtkRuntime()

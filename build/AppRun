@@ -3,9 +3,21 @@ set -eu
 
 HERE="$(dirname "$(readlink -f "$0")")"
 
-# Prefer bundled VLC libs
-# Include helper libs under usr/lib/vlc/vlc as some VLC plugins depend on them.
-export LD_LIBRARY_PATH="$HERE/usr/lib/vlc/lib:$HERE/usr/lib/vlc/vlc:$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
+# Avoid loading host-injected GTK modules against bundled GTK/WebKit libraries.
+# Some desktop environments export GTK_MODULES (e.g. colorreload/window-decorations),
+# which can crash when mixed with AppImage-provided GTK stacks.
+unset GTK_MODULES
+unset GTK_PATH
+unset GTK_EXE_PREFIX
+unset GTK_DATA_PREFIX
+unset GTK_IM_MODULE_FILE
+unset GTK_RC_FILES
+unset GTK2_RC_FILES
+
+# Prefer bundled VLC libs only.
+# Do NOT prepend the whole "$HERE/usr/lib" globally; that can mix AppImage GTK/WebKit deps
+# with host desktop modules and cause early native crashes.
+export LD_LIBRARY_PATH="$HERE/usr/lib/vlc/lib:$HERE/usr/lib/vlc/vlc:${LD_LIBRARY_PATH:-}"
 export VLC_PLUGIN_PATH="$HERE/usr/lib/vlc/vlc/plugins"
 # Prefer bundled helper binaries (ffplay/sidplayfp) if present.
 export PATH="$HERE/usr/bin:${PATH:-}"

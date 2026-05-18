@@ -118,8 +118,12 @@ public sealed class GogOAuthClient
         using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
         var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
+        {
+            var errorCode = ExtractErrorCode(responseBody);
+            var suffix = string.IsNullOrWhiteSpace(errorCode) ? string.Empty : $" ({errorCode})";
             throw new InvalidOperationException(
-                $"GOG account request failed ({(int)response.StatusCode} {response.ReasonPhrase}): {ExtractErrorDetail(responseBody)}");
+                $"GOG account request failed ({(int)response.StatusCode} {response.ReasonPhrase}){suffix}.");
+        }
 
         using var json = JsonDocument.Parse(responseBody);
         var root = json.RootElement;
@@ -147,8 +151,12 @@ public sealed class GogOAuthClient
         using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
         var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
+        {
+            var errorCode = ExtractErrorCode(responseBody);
+            var suffix = string.IsNullOrWhiteSpace(errorCode) ? string.Empty : $" ({errorCode})";
             throw new InvalidOperationException(
-                $"GOG token request failed ({(int)response.StatusCode} {response.ReasonPhrase}): {ExtractErrorDetail(responseBody)}");
+                $"GOG token request failed ({(int)response.StatusCode} {response.ReasonPhrase}){suffix}.");
+        }
 
         using var json = JsonDocument.Parse(responseBody);
         var root = json.RootElement;
@@ -198,27 +206,25 @@ public sealed class GogOAuthClient
         return null;
     }
 
-    private static string ExtractErrorDetail(string? jsonOrText)
+    private static string? ExtractErrorCode(string? jsonOrText)
     {
         if (string.IsNullOrWhiteSpace(jsonOrText))
-            return "No response body.";
+            return null;
 
         try
         {
             using var json = JsonDocument.Parse(jsonOrText);
             var root = json.RootElement;
             var error = ReadString(root, "error");
-            var description = ReadString(root, "error_description");
-            if (!string.IsNullOrWhiteSpace(error) || !string.IsNullOrWhiteSpace(description))
-                return $"{error ?? "error"}: {description ?? "no description"}";
+            if (!string.IsNullOrWhiteSpace(error))
+                return error;
         }
         catch
         {
-            // Ignore parse failures and fall through to raw text.
+            // Ignore parse failures and fall through.
         }
 
-        var trimmed = jsonOrText.Trim();
-        return trimmed.Length <= 220 ? trimmed : trimmed[..220] + "...";
+        return null;
     }
 
     private static string BuildQueryString(IEnumerable<KeyValuePair<string, string>> values)

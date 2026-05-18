@@ -20,6 +20,8 @@ public sealed class GogAuthService
     private const string DefaultGogClientId = "46899977096215655";
     private const string DefaultGogClientSecret = "9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9";
     private static readonly Uri DefaultGogRedirectUri = new("https://embed.gog.com/on_login_success?origin=client");
+    private const string AllowedWebRedirectHost = "embed.gog.com";
+    private const string AllowedWebRedirectPath = "/on_login_success";
     private static readonly TimeSpan LoopbackAuthTimeout = TimeSpan.FromMinutes(5);
 
     private static readonly SecretKey GogRefreshTokenKey = new("retromind:gog", "default");
@@ -99,7 +101,7 @@ public sealed class GogAuthService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[GOG] Refresh failed: {ex.Message}");
+            Debug.WriteLine($"[GOG] Refresh failed ({ex.GetType().Name}).");
             return false;
         }
     }
@@ -152,6 +154,7 @@ public sealed class GogAuthService
             }
 
             var callbackUri = await ResolveCallbackUriAsync(callbackUriResolver, authorizeUri, ct).ConfigureAwait(false);
+            ValidateCallbackUri(callbackUri, _redirectUri);
             callback = ParseCallbackFromUri(callbackUri);
         }
 
@@ -189,7 +192,7 @@ public sealed class GogAuthService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[GOG] Account info request failed: {ex.Message}");
+            Debug.WriteLine($"[GOG] Account info request failed ({ex.GetType().Name}).");
             return new StoreAccountInfo("gog-user", null, null);
         }
     }
@@ -208,6 +211,48 @@ public sealed class GogAuthService
             throw new OperationCanceledException("GOG sign-in was canceled.");
 
         return callbackUri;
+    }
+
+    private static void ValidateCallbackUri(Uri callbackUri, Uri expectedRedirectUri)
+    {
+        ArgumentNullException.ThrowIfNull(callbackUri);
+        ArgumentNullException.ThrowIfNull(expectedRedirectUri);
+
+        if (!callbackUri.IsAbsoluteUri)
+            throw new InvalidOperationException("OAuth callback URI must be absolute.");
+
+        if (!string.Equals(callbackUri.Scheme, expectedRedirectUri.Scheme, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(callbackUri.Host, expectedRedirectUri.Host, StringComparison.OrdinalIgnoreCase) ||
+            callbackUri.Port != expectedRedirectUri.Port ||
+            !string.Equals(callbackUri.AbsolutePath, expectedRedirectUri.AbsolutePath, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("GOG OAuth callback redirect URI mismatch.");
+        }
+
+        if (!ContainsExpectedQueryParameters(callbackUri, expectedRedirectUri))
+            throw new InvalidOperationException("GOG OAuth callback redirect URI mismatch.");
+    }
+
+    private static bool ContainsExpectedQueryParameters(Uri callbackUri, Uri expectedRedirectUri)
+    {
+        if (string.IsNullOrWhiteSpace(expectedRedirectUri.Query))
+            return true;
+
+        var expected = HttpUtility.ParseQueryString(expectedRedirectUri.Query);
+        var actual = HttpUtility.ParseQueryString(callbackUri.Query);
+
+        foreach (var key in expected.AllKeys)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+
+            var expectedValue = expected[key];
+            var actualValue = actual[key];
+            if (!string.Equals(expectedValue, actualValue, StringComparison.Ordinal))
+                return false;
+        }
+
+        return true;
     }
 
     private static OAuthCallbackResult ParseCallbackFromUri(Uri callbackUri)
@@ -273,9 +318,31 @@ public sealed class GogAuthService
     {
         var value = Environment.GetEnvironmentVariable(GogRedirectUriEnv);
         if (!string.IsNullOrWhiteSpace(value) && Uri.TryCreate(value.Trim(), UriKind.Absolute, out var parsed))
-            return parsed;
+        {
+            if (IsSupportedRedirectUri(parsed))
+                return parsed;
+
+            Debug.WriteLine("[GOG] Ignoring unsupported RETROMIND_GOG_REDIRECT_URI value.");
+        }
 
         return DefaultGogRedirectUri;
+    }
+
+    private static bool IsSupportedRedirectUri(Uri uri)
+    {
+        if (!uri.IsAbsoluteUri)
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(uri.UserInfo))
+            return false;
+
+        if (IsLoopbackUri(uri))
+            return true;
+
+        return string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
+               uri.IsDefaultPort &&
+               string.Equals(uri.Host, AllowedWebRedirectHost, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(uri.AbsolutePath, AllowedWebRedirectPath, StringComparison.Ordinal);
     }
 
     private static bool IsLoopbackUri(Uri uri)
