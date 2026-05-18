@@ -263,7 +263,7 @@
                                                    TextWrapping="Wrap"
                                                    TextAlignment="Center"
                                                    Margin="5"
-                                                   Foreground="Gold"
+                                                   Foreground="{DynamicResource TileFallbackTitleBrush}"
                                                    IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
 
                                         <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"

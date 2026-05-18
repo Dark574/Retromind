@@ -10,7 +10,17 @@
     </Application.Styles>
     
     <Application.Resources>
-        <helpers:PathToBitmapConverter x:Key="PathToBitmapConverter" />
-        <!-- ggf. andere globale Converter -->
+        <ResourceDictionary>
+            <helpers:PathToBitmapConverter x:Key="PathToBitmapConverter" />
+
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="TileFallbackTitleBrush" Color="#1A1A1A" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="TileFallbackTitleBrush" Color="Gold" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
