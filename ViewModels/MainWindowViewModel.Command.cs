@@ -50,6 +50,7 @@ public partial class MainWindowViewModel
     
     // PlayCommand is special, it fires and forgets mostly, but async is better for UI responsiveness
     public IAsyncRelayCommand<MediaItem?> PlayCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> ReinstallGogCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> EditNodeCommand { get; private set; } = null!;
@@ -69,6 +70,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> AddManualToMediaCommand { get; private set; } = null!;
 
     public string GogMediaMenuText => T("Gog.Media.AddMenu", "Add GOG media");
+    public string GogReinstallMenuText => T("Gog.Media.ReinstallMenu", "Reinstall / Switch Version");
 
     private void InitializeCommands()
     {
@@ -92,6 +94,7 @@ public partial class MainWindowViewModel
         ToggleParentalLockCommand = new AsyncRelayCommand(ToggleParentalLockAsync);
         ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
         PlayCommand = new AsyncRelayCommand<MediaItem?>(PlayMediaAsync, CanPlayMedia);
+        ReinstallGogCommand = new AsyncRelayCommand<MediaItem?>(ReinstallGogMediaAsync, CanReinstallGogMedia);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenManualCommand = new RelayCommand<MediaAsset?>(OpenManual);
@@ -118,17 +121,29 @@ public partial class MainWindowViewModel
     }
 
     public bool CanPlaySelectedMedia => CanPlayMedia(GetCurrentSelectedItem());
+    public string PlaySelectedMediaButtonText => ShouldOfferInstallForItem(GetCurrentSelectedItem())
+        ? T("Button_Install", "Install")
+        : Strings.Button_Play;
+    public bool ShowGogReinstallSelectedMediaButton => CanReinstallGogMedia(GetCurrentSelectedItem());
+    public string GogReinstallSelectedMediaButtonText => T("Button_ReinstallOrSwitchVersion", "Reinstall / Switch Version");
 
     private void NotifyPlayAvailabilityChanged()
     {
         PlayCommand.NotifyCanExecuteChanged();
+        ReinstallGogCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanPlaySelectedMedia));
+        OnPropertyChanged(nameof(PlaySelectedMediaButtonText));
+        OnPropertyChanged(nameof(ShowGogReinstallSelectedMediaButton));
+        OnPropertyChanged(nameof(GogReinstallSelectedMediaButtonText));
     }
 
     private bool CanPlayMedia(MediaItem? item)
     {
         if (IsLaunchInProgress || item == null)
             return false;
+
+        if (ShouldOfferInstallForItem(item))
+            return true;
 
         if ((item.MediaType == MediaType.Native || item.MediaType == MediaType.Emulator) &&
             !string.IsNullOrWhiteSpace(item.LauncherPath))
@@ -138,6 +153,19 @@ public partial class MainWindowViewModel
 
         var primaryLaunchPath = item.GetPrimaryLaunchPath();
         return !string.IsNullOrWhiteSpace(primaryLaunchPath);
+    }
+
+    private bool CanReinstallGogMedia(MediaItem? item)
+    {
+        if (IsLaunchInProgress || item == null)
+            return false;
+
+        var storeGameId = TryGetStoreGameId(item);
+        if (string.IsNullOrWhiteSpace(storeGameId))
+            return false;
+
+        // If no playable config exists yet, the primary button already acts as "Install".
+        return !ShouldOfferInstallForItem(item);
     }
 
     // --- Basic Actions ---
@@ -679,6 +707,12 @@ public partial class MainWindowViewModel
 
         try
         {
+            if (ShouldOfferInstallForItem(item))
+            {
+                await InstallGogItemAsync(item);
+                return;
+            }
+
             EmulatorConfig? emulator = null;
             if (item.MediaType == MediaType.Emulator && !string.IsNullOrEmpty(item.EmulatorId))
             {
@@ -838,6 +872,29 @@ public partial class MainWindowViewModel
         }
     }
 
+    private async Task ReinstallGogMediaAsync(MediaItem? item)
+    {
+        if (!CanReinstallGogMedia(item) || item == null)
+            return;
+
+        if (IsLaunchInProgress)
+            return;
+
+        IsLaunchInProgress = true;
+        try
+        {
+            await InstallGogItemAsync(item);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Error] ReinstallGogMedia failed: {ex.Message}");
+        }
+        finally
+        {
+            IsLaunchInProgress = false;
+        }
+    }
+
     private Dictionary<string, string>? ResolveEffectiveEnvironmentOverrides(
         MediaItem item,
         EmulatorConfig? emulator,
@@ -950,6 +1007,12 @@ public partial class MainWindowViewModel
         var dialog = new ConfirmView { DataContext = message };
         var result = await dialog.ShowDialog<bool>(owner);
         return result;
+    }
+
+    private async Task ShowInfoDialog(Window owner, string message)
+    {
+        var dialog = new InfoView { DataContext = message };
+        await dialog.ShowDialog<bool>(owner);
     }
 
     private async Task<string?> PromptForName(

@@ -22,6 +22,7 @@ using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.Stores.Abstractions;
+using Retromind.Services.Stores.Gog;
 
 namespace Retromind.ViewModels;
 
@@ -40,6 +41,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly StoreImportService _storeService;
     private readonly IStoreAuthProvider _storeAuthProvider;
     private readonly IStoreLibraryProvider _storeLibraryProvider;
+    private readonly GogInstallService _gogInstallService;
     private readonly SettingsService _settingsService;
     private readonly MetadataService _metadataService; 
     private readonly GamepadService _gamepadService;
@@ -307,6 +309,7 @@ public partial class MainWindowViewModel : ViewModelBase
         StoreImportService storeService,
         IStoreAuthProvider storeAuthProvider,
         IStoreLibraryProvider storeLibraryProvider,
+        GogInstallService gogInstallService,
         SettingsService settingsService,
         MetadataService metadataService,
         SoundEffectService soundEffectService,
@@ -322,6 +325,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _storeService = storeService;
         _storeAuthProvider = storeAuthProvider;
         _storeLibraryProvider = storeLibraryProvider;
+        _gogInstallService = gogInstallService;
         _settingsService = settingsService;
         _metadataService = metadataService;
         _soundEffectService = soundEffectService;

@@ -36,6 +36,7 @@
     <data name="Button.Edit" xml:space="preserve"><value>Edit</value></data>
     <data name="Button.Import" xml:space="preserve"><value>Import</value></data>
     <data name="Button.Ok" xml:space="preserve"><value>OK</value></data>
+    <data name="Button.Install" xml:space="preserve"><value>Install</value></data>
     <data name="Button.Play" xml:space="preserve"><value>▶ START</value></data>
     <data name="Button.Random" xml:space="preserve"><value>Random</value></data>
     <data name="Button.Save" xml:space="preserve"><value>Save</value></data>
@@ -213,6 +214,7 @@
     <data name="Gog.Media.AddMenu" xml:space="preserve"><value>Add GOG media</value></data>
     <data name="Gog.AuthCheckFailed" xml:space="preserve"><value>GOG sign-in state could not be verified.</value></data>
     <data name="Gog.SignInRequiredPrompt" xml:space="preserve"><value>GOG sign-in is required. Open secure sign-in now?</value></data>
+    <data name="Gog.SignInRetryPrompt" xml:space="preserve"><value>GOG session appears to be invalid or expired. Sign in again now?</value></data>
     <data name="Gog.SignInFailed" xml:space="preserve"><value>GOG sign-in failed.</value></data>
     <data name="Gog.SignInTimeout" xml:space="preserve"><value>GOG sign-in timed out. Please retry.</value></data>
     <data name="Gog.InAppAuthUnavailable" xml:space="preserve"><value>Embedded web authentication is not available on this platform.</value></data>
@@ -242,6 +244,44 @@ If needed, reopen:
     <data name="Gog.Picker.StatusAlreadyInNode" xml:space="preserve"><value>Already in this node</value></data>
     <data name="Gog.Picker.StatusLinkedFormat" xml:space="preserve"><value>Already linked {0}x</value></data>
     <data name="Gog.Picker.StatusNew" xml:space="preserve"><value>New</value></data>
+    <data name="Gog.Install.DialogTitle" xml:space="preserve"><value>Install GOG game</value></data>
+    <data name="Gog.Install.DialogMessageFormat" xml:space="preserve"><value>Install "{0}"</value></data>
+    <data name="Gog.InstallPathLabel" xml:space="preserve"><value>Install path</value></data>
+    <data name="Gog.InstallPlatformLabel" xml:space="preserve"><value>Version</value></data>
+    <data name="Gog.InstallRunnerLabel" xml:space="preserve"><value>Wine/Proton runner</value></data>
+  <data name="Gog.InstallRunnerMissingHint" xml:space="preserve"><value>No Wine/Proton runner configured yet. Configure one in Settings -&gt; Runner.</value></data>
+  <data name="Gog.Install.WindowsInstallerPreferenceLabel" xml:space="preserve"><value>Windows installer</value></data>
+  <data name="Gog.Install.WindowsInstallerPreference.AutoPrefer64" xml:space="preserve"><value>Auto (prefer 64-bit)</value></data>
+  <data name="Gog.Install.WindowsInstallerPreference.Prefer64" xml:space="preserve"><value>64-bit installer</value></data>
+  <data name="Gog.Install.WindowsInstallerPreference.Prefer32" xml:space="preserve"><value>32-bit installer</value></data>
+  <data name="Gog.Install.CleanInstallLabel" xml:space="preserve"><value>Clean install</value></data>
+  <data name="Gog.Install.CleanInstallHint" xml:space="preserve"><value>Delete existing files in the target folder before installation.</value></data>
+  <data name="Gog.Install.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Delete staging data after successful installation</value></data>
+  <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Removes downloaded installer files after a successful install.</value></data>
+  <data name="Gog.Install.PlatformLinux" xml:space="preserve"><value>Linux</value></data>
+    <data name="Gog.Install.PlatformWindows" xml:space="preserve"><value>Windows</value></data>
+    <data name="Gog.Install.ValidationPathRequired" xml:space="preserve"><value>Install path is required.</value></data>
+    <data name="Gog.Install.ValidationPathAbsolute" xml:space="preserve"><value>Install path must be absolute.</value></data>
+    <data name="Gog.Install.ValidationRunnerMissing" xml:space="preserve"><value>No Wine/Proton runner is configured. Add one in Settings -&gt; Runner.</value></data>
+    <data name="Gog.Install.ValidationRunnerRequired" xml:space="preserve"><value>Select a Wine/Proton runner for Windows installation.</value></data>
+    <data name="Gog.Install.ValidationUmuRequired" xml:space="preserve"><value>Proton runner requires umu-run in PATH. Install umu or select a Wine runner.</value></data>
+    <data name="Gog.Install.UmuRequired" xml:space="preserve"><value>Proton runner requires umu-run in PATH. Install umu or choose a Wine runner.</value></data>
+    <data name="Gog.Install.ResolveFailed" xml:space="preserve"><value>GOG installer metadata could not be loaded.</value></data>
+    <data name="Gog.Install.ResolveFailedFormat" xml:space="preserve"><value>GOG installer metadata could not be loaded: {0}</value></data>
+    <data name="Gog.Install.NoInstallerAvailable" xml:space="preserve"><value>No installable package is available for this GOG title.</value></data>
+    <data name="Gog.Install.NoInstallerForPlatformFormat" xml:space="preserve"><value>No installer found for platform: {0}.</value></data>
+    <data name="Gog.Install.DownloadFailed" xml:space="preserve"><value>GOG installer download failed.</value></data>
+    <data name="Gog.Install.DownloadFailedFormat" xml:space="preserve"><value>GOG installer download failed: {0}</value></data>
+    <data name="Gog.Install.DownloadLogTitleFormat" xml:space="preserve"><value>GOG download - {0}</value></data>
+    <data name="Gog.Install.ProgressLogTitleFormat" xml:space="preserve"><value>GOG install - {0}</value></data>
+    <data name="Gog.Install.RunFailed" xml:space="preserve"><value>Installer execution failed.</value></data>
+    <data name="Gog.Install.RunFailedFormat" xml:space="preserve"><value>Installer execution failed: {0}</value></data>
+    <data name="Gog.Install.DetectExecutableFailed" xml:space="preserve"><value>Installation finished, but Retromind could not detect a launch executable automatically. Configure launch settings manually.</value></data>
+    <data name="Gog.Install.ApplyLaunchFailed" xml:space="preserve"><value>Installation finished, but launch configuration could not be applied.</value></data>
+    <data name="Gog.Install.Success" xml:space="preserve"><value>Installation completed.</value></data>
+    <data name="Gog.Install.PickInstallPathTitle" xml:space="preserve"><value>Select install folder</value></data>
+    <data name="Gog.Install.PickExecutableTitle" xml:space="preserve"><value>Select launch executable</value></data>
+    <data name="Gog.Install.ProcessLogTitleFormat" xml:space="preserve"><value>GOG installer - {0}</value></data>
 
     <!-- SETTINGS -->
     <data name="Settings.TabMisc" xml:space="preserve"><value>Misc</value></data>

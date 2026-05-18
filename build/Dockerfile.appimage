@@ -25,6 +25,7 @@ RUN apt-get update \
        ca-certificates \
        curl \
        ffmpeg \
+       libsecret-tools \
        sidplayfp \
        vlc \
        libvlc-dev \
@@ -149,6 +150,7 @@ RUN set -eu; \
     \
     bundle_tool sidplayfp /usr/bin/sidplayfp /usr/games/sidplayfp; \
     bundle_tool ffplay /usr/bin/ffplay; \
+    bundle_tool secret-tool /usr/bin/secret-tool; \
     \
     copy_runtime_lib() { \
       name="$1"; \

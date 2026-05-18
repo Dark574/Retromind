@@ -1,0 +1,99 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:p="clr-namespace:Retromind.Resources"
+        x:Class="Retromind.Views.GogInstallDialogView"
+        x:DataType="vm:GogInstallDialogViewModel"
+        mc:Ignorable="d"
+        d:DesignWidth="560"
+        d:DesignHeight="320"
+        Title="{Binding Title}"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight"
+        CanResize="False"
+        ShowInTaskbar="False">
+
+    <StackPanel Margin="20" Spacing="10" MinWidth="520">
+        <TextBlock Text="{Binding Message}" FontWeight="Bold" />
+
+        <TextBlock Text="{Binding InstallPathLabel}" />
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox Grid.Column="0"
+                     Text="{Binding InstallPath, UpdateSourceTrigger=PropertyChanged}" />
+            <Button Grid.Column="1"
+                    Content="{x:Static p:Strings.Button_Browse}"
+                    Command="{Binding BrowseInstallPathCommand}" />
+        </Grid>
+
+        <TextBlock Text="{Binding PlatformLabel}" />
+        <ComboBox ItemsSource="{Binding Platforms}"
+                  SelectedItem="{Binding SelectedPlatform}">
+            <ComboBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Name}" />
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
+
+        <StackPanel Spacing="6" IsVisible="{Binding IsWindowsPlatformSelected}">
+            <TextBlock Text="{Binding RunnerLabel}" />
+            <ComboBox ItemsSource="{Binding RunnerOptions}"
+                      SelectedItem="{Binding SelectedRunner}"
+                      IsEnabled="{Binding HasRunnerOptions}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding DisplayName}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="{Binding RunnerMissingHintText}"
+                       IsVisible="{Binding ShowMissingRunnerHint}"
+                       Opacity="0.75"
+                       TextWrapping="Wrap" />
+
+            <TextBlock Text="{Binding WindowsInstallerPreferenceLabel}" Margin="0,4,0,0" />
+            <ComboBox ItemsSource="{Binding WindowsInstallerPreferences}"
+                      SelectedItem="{Binding SelectedWindowsInstallerPreference}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <CheckBox Content="{Binding CleanInstallLabel}"
+                      IsChecked="{Binding CleanInstall}" />
+            <TextBlock Text="{Binding CleanInstallHint}"
+                       Opacity="0.75"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <CheckBox Content="{Binding DeleteStagingAfterSuccessLabel}"
+                      IsChecked="{Binding DeleteStagingAfterSuccess}" />
+            <TextBlock Text="{Binding DeleteStagingAfterSuccessHint}"
+                       Opacity="0.75"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <TextBlock Text="{Binding ValidationMessage}"
+                   Foreground="Tomato"
+                   IsVisible="{Binding HasValidationMessage}"
+                   TextWrapping="Wrap" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+            <Button Content="{Binding InstallButtonText}"
+                    IsDefault="True"
+                    Command="{Binding ConfirmCommand}"
+                    CommandParameter="{Binding $parent[Window]}" />
+            <Button Content="{Binding CancelButtonText}"
+                    IsCancel="True"
+                    Command="{Binding CancelCommand}"
+                    CommandParameter="{Binding $parent[Window]}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

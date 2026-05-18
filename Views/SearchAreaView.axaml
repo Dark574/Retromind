@@ -239,6 +239,9 @@
                                             <MenuItem Header="{x:Static p:Strings.Button_Launch}"
                                                       Command="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).PlayCommand, ElementName=Root}"
                                                       CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogReinstallMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ReinstallGogCommand}"
+                                                      CommandParameter="{Binding .}"/>
                                         </ContextMenu>
                                     </Border.ContextMenu>
 

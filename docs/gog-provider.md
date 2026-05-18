@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-05-15
+Last updated: 2026-05-17
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -13,14 +13,18 @@ It must be updated whenever implementation details, contracts, or security behav
 
 ## Current status
 
-Implemented (OAuth V1 core + read-only library/node linking) with install/discovery still in progress:
+Implemented (OAuth V1 core + library/node linking + install workflow with resume/detection fallbacks) with update/discovery hardening still in progress:
 
 - Store abstraction interfaces
 - GOG provider facade and service skeletons
 - Secret-store abstraction with:
-  - Secret Service placeholder (not implemented)
+  - Secret Service integration on Linux (via `secret-tool` / libsecret)
   - In-memory session fallback
   - Composite selection logic
+  - AppImage behavior:
+    - host `secret-tool` is preferred
+    - bundled `secret-tool` is used as fallback when host tool is missing
+    - keyring access is always host-context (no DataRoot/portable keyring storage)
 - Functional OAuth core:
   - callback handling:
     - loopback listener for loopback redirect URIs
@@ -54,6 +58,33 @@ Implemented (OAuth V1 core + read-only library/node linking) with install/discov
 - Performance/UX:
   - owned-games fetch is cached in-memory for a short TTL to avoid repeated full pagination on consecutive imports
   - long-running GOG import/picker preparation shows wait cursor feedback
+- Install/launch wiring (first functional step):
+  - GOG-linked items without launch config are now treated as installable from the main Start action
+  - Start button label switches to Install for those items
+  - install dialog supports:
+    - install path selection
+    - platform selection (Linux/Windows installer)
+    - Wine/Proton runner selection for Windows installer mode
+  - installer metadata and download are resolved via native GOG API endpoints:
+    - `https://api.gog.com/products/{id}?expand=downloads`
+    - `https://api.gog.com/products/{id}/downlink/...`
+  - installer download now supports retry reuse:
+    - completed installer files are reused
+    - partial downloads are persisted as `.part` files and resumed with HTTP Range when supported
+    - fallback to full redownload if Range is not honored by the server
+  - installer execution now opens a process log window (stdout/stderr + exit code)
+  - Windows installer robustness hardening:
+    - Windows installer execution currently uses system Wine resolution (`wine`/`wine64`) through `EmulatorResolverHelper`
+    - execution path is intentionally simplified to a single installer candidate and a single Inno silent profile (`/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=... /LOG=...`)
+    - Windows installer logs include diagnostics (runner env snapshot, prefix `dosdevices` mappings, installer candidate metadata, and per-attempt process outcome)
+    - Windows package download now keeps all installer files (no heuristic file pruning) because some GOG installers require companion payload files next to the selected setup executable
+  - launch mapping after install now uses layered detection:
+    - parse local `goggame-*.info` `playTasks`
+    - fallback to account `gameDetails` `playTasks` from `https://embed.gog.com/account/gameDetails/{id}.json`
+    - fallback to filesystem heuristics (`start.sh`/script candidates on Linux, filtered `.exe` candidates on Windows)
+    - final fallback: manual executable picker dialog
+  - if mapping succeeds, item launch config is updated and the Start action switches back to launch behavior
+  - if mapping still fails, install completes but manual launch config is required
 - DI registration in app startup
 
 ## Implemented structure
@@ -78,7 +109,7 @@ Implemented (OAuth V1 core + read-only library/node linking) with install/discov
 
 - `Services/Stores/Security/SecretKey.cs`
 - `Services/Stores/Security/ISecretStore.cs`
-- `Services/Stores/Security/SecretServiceSecretStore.cs` (placeholder)
+- `Services/Stores/Security/SecretServiceSecretStore.cs` (Linux Secret Service via `secret-tool`)
 - `Services/Stores/Security/InMemorySecretStore.cs`
 - `Services/Stores/Security/CompositeSecretStore.cs`
 
@@ -87,6 +118,7 @@ Implemented (OAuth V1 core + read-only library/node linking) with install/discov
 - `Services/Stores/Gog/GogProvider.cs`
 - `Services/Stores/Gog/GogLibraryService.cs` (owned-games fetch implemented)
 - `Services/Stores/Gog/GogInstallDiscoveryService.cs` (returns empty)
+- `Services/Stores/Gog/GogInstallService.cs` (installer metadata + downlink resolution + package download)
 - `Services/Stores/Gog/Auth/GogAuthService.cs` (interactive sign-in + refresh implemented)
 - `Services/Stores/Gog/Auth/GogOAuthClient.cs` (authorize URL + token/account HTTP flows implemented)
 - `Services/Stores/Gog/Auth/GogOAuthLoopbackListener.cs` (callback listener implemented)
@@ -107,8 +139,12 @@ Implemented (OAuth V1 core + read-only library/node linking) with install/discov
 - `Views/NodeSettingsView.axaml`
   - checkbox to declare a node as GOG node
 - `ViewModels/GogPickerDialogViewModel.cs`
+- `ViewModels/GogInstallDialogViewModel.cs`
 - `Views/GogPickerDialogView.axaml`
 - `Views/GogPickerDialogView.axaml.cs`
+- `Views/GogInstallDialogView.axaml`
+- `Views/GogInstallDialogView.axaml.cs`
+- `ViewModels/MainWindowViewModel.GogInstall.cs`
 - `Services/MediaDataService.cs`
   - cloning persistence updated for `MediaNode.StoreProviderId`
 
@@ -131,6 +167,7 @@ Required behavior for native GOG auth:
 - Use PKCE where supported.
 - Never write OAuth tokens to `app_settings.json`, library JSON, or logs.
 - Prefer Secret Service for persistent refresh token storage.
+- Portable mode must not store OAuth secrets in `DataRoot`; Secret Service access remains host-based.
 - If Secret Service is unavailable, use session-only in-memory storage.
 - OAuth runtime config is environment-variable overrideable:
   - `RETROMIND_GOG_CLIENT_ID`
@@ -153,11 +190,13 @@ Required behavior for native GOG auth:
 
 ## Open items
 
-- Implement `SecretServiceSecretStore` on Linux via D-Bus `org.freedesktop.secrets`.
 - Extend library mapping (genres/artwork/store URLs) and stabilization around API edge-cases.
 - Implement install discovery and launch integration for store-linked entries.
 - Optional UX follow-up:
-  - add explicit “remove titles no longer owned” sync mode for store-bound GOG nodes (current sync is additive only).
+- add explicit “remove titles no longer owned” sync mode for store-bound GOG nodes (current sync is additive only).
+- broaden install robustness:
+  - progress/cancel UI for large installer downloads
+  - optional explicit install discovery sync back into already-linked items
 - Decide whether the fallback public OAuth client defaults remain or become explicit user configuration.
 
 ## Update policy for this file

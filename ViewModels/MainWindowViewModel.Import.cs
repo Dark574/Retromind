@@ -316,6 +316,20 @@ public partial class MainWindowViewModel
 
         if (!authState.IsAuthenticated)
         {
+            try
+            {
+                var refreshed = await _storeAuthProvider.TryRefreshSessionAsync();
+                if (refreshed)
+                    authState = await _storeAuthProvider.GetAuthStateAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GOG] Silent session refresh failed: {ex.Message}");
+            }
+        }
+
+        if (!authState.IsAuthenticated)
+        {
             var signIn = await ShowConfirmDialog(owner,
                 T("Gog.SignInRequiredPrompt", "GOG sign-in is required. Open secure sign-in now?"));
             if (!signIn)

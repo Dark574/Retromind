@@ -53,7 +53,7 @@ chmod +x "$APPDIR/AppRun"
 cp -a "$WORK_DIR/publish/." "$APPDIR/usr/bin/"
 chmod +x "$APPDIR/usr/bin/Retromind"
 
-for helper in sidplayfp ffplay; do
+for helper in sidplayfp ffplay secret-tool; do
   if [ -f "$WORK_DIR/tools/bin/$helper" ]; then
     echo "Bundling $helper from Debian bookworm builder image."
     cp "$WORK_DIR/tools/bin/$helper" "$APPDIR/usr/bin/$helper"

@@ -217,6 +217,14 @@ public sealed class LauncherService
                 ApplyWineArchOverride(startInfo, item.WineArchOverride);
             
             startInfo.Arguments = args ?? string.Empty;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
+                item.MediaType == MediaType.Native &&
+                !string.IsNullOrWhiteSpace(launchFilePath))
+            {
+                EnsureLinuxExecutableBitBestEffort(launchFilePath);
+            }
+
             LogIfEnvSet(startInfo, "PROTONPATH");
             LogIfEnvSet(startInfo, "STEAM_COMPAT_DATA_PATH");
             LogIfEnvSet(startInfo, "WINEPREFIX");
@@ -313,14 +321,10 @@ public sealed class LauncherService
         }
 
         // Direct native
-        var useShell = true;
-
-        // For shell scripts, direct execution with a working directory is often more reliable.
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
-            launchFilePath.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
-        {
-            useShell = false;
-        }
+        // On Linux, UseShellExecute=true routes through xdg-open/desktop handlers and can be
+        // blocked for executables ("not allowed to launch executable in this context").
+        // Native game binaries should run directly.
+        var useShell = !RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 
         return (launchFilePath, nativeArgs, UseShellExecute: useShell, LaunchFilePath: launchFilePath);
     }
@@ -714,6 +718,31 @@ public sealed class LauncherService
             return;
 
         startInfo.EnvironmentVariables["WINEARCH"] = normalized;
+    }
+
+    private static void EnsureLinuxExecutableBitBestEffort(string filePath)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+            string.IsNullOrWhiteSpace(filePath) ||
+            !File.Exists(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var currentMode = File.GetUnixFileMode(filePath);
+            var withExec = currentMode |
+                           UnixFileMode.UserExecute |
+                           UnixFileMode.GroupExecute |
+                           UnixFileMode.OtherExecute;
+            if (withExec != currentMode)
+                File.SetUnixFileMode(filePath, withExec);
+        }
+        catch
+        {
+            // best-effort
+        }
     }
 
     private static void SanitizeAppImageRuntimeEnvironment(ProcessStartInfo startInfo)

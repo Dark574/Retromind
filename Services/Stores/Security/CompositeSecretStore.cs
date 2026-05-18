@@ -27,28 +27,56 @@ public sealed class CompositeSecretStore : ISecretStore
 
     public async Task SetAsync(SecretKey key, string secret, CancellationToken ct = default)
     {
-        var store = await ResolveActiveStoreAsync(ct).ConfigureAwait(false);
-        await store.SetAsync(key, secret, ct).ConfigureAwait(false);
+        if (await IsPrimaryAvailableAsync(ct).ConfigureAwait(false))
+        {
+            try
+            {
+                await _primary.SetAsync(key, secret, ct).ConfigureAwait(false);
+                return;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SecretStore] Primary set failed. Using fallback store. Reason: {ex.Message}");
+            }
+        }
+
+        await _fallback.SetAsync(key, secret, ct).ConfigureAwait(false);
     }
 
     public async Task<string?> GetAsync(SecretKey key, CancellationToken ct = default)
     {
-        var store = await ResolveActiveStoreAsync(ct).ConfigureAwait(false);
-        return await store.GetAsync(key, ct).ConfigureAwait(false);
+        if (await IsPrimaryAvailableAsync(ct).ConfigureAwait(false))
+        {
+            try
+            {
+                var value = await _primary.GetAsync(key, ct).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(value))
+                    return value;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SecretStore] Primary get failed. Trying fallback store. Reason: {ex.Message}");
+            }
+        }
+
+        return await _fallback.GetAsync(key, ct).ConfigureAwait(false);
     }
 
     public async Task DeleteAsync(SecretKey key, CancellationToken ct = default)
     {
-        var store = await ResolveActiveStoreAsync(ct).ConfigureAwait(false);
-        await store.DeleteAsync(key, ct).ConfigureAwait(false);
-    }
-
-    private async Task<ISecretStore> ResolveActiveStoreAsync(CancellationToken ct)
-    {
         if (await IsPrimaryAvailableAsync(ct).ConfigureAwait(false))
-            return _primary;
+        {
+            try
+            {
+                await _primary.DeleteAsync(key, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SecretStore] Primary delete failed. Continuing with fallback store. Reason: {ex.Message}");
+            }
+        }
 
-        return _fallback;
+        await _fallback.DeleteAsync(key, ct).ConfigureAwait(false);
     }
 
     private async Task<bool> IsPrimaryAvailableAsync(CancellationToken ct)

@@ -9,6 +9,8 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class ProcessLogViewModel : ViewModelBase
 {
+    private readonly bool _newestFirst;
+
     [ObservableProperty]
     private string _title;
 
@@ -24,9 +26,10 @@ public partial class ProcessLogViewModel : ViewModelBase
 
     public IRelayCommand<Avalonia.Controls.Window?> CloseCommand { get; }
 
-    public ProcessLogViewModel(string title)
+    public ProcessLogViewModel(string title, bool newestFirst = false)
     {
         Title = title;
+        _newestFirst = newestFirst;
         CloseCommand = new RelayCommand<Avalonia.Controls.Window?>(win => win?.Close(), _ => !IsRunning);
     }
 
@@ -36,8 +39,13 @@ public partial class ProcessLogViewModel : ViewModelBase
             return;
 
         if (string.IsNullOrEmpty(LogText))
+        {
             LogText = line;
-        else
-            LogText = LogText + Environment.NewLine + line;
+            return;
+        }
+
+        LogText = _newestFirst
+            ? line + Environment.NewLine + LogText
+            : LogText + Environment.NewLine + line;
     }
 }
