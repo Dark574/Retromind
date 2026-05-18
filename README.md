@@ -489,6 +489,32 @@ Examples:
 - `cf.rating:5`
 - `zelda AND platform:switch`
 
+## GOG (Experimental)
+
+The native GOG integration is currently **experimental**.
+Please test it carefully and expect rough edges or breaking behavior between alpha releases.
+
+### Requirements
+
+- Linux desktop session with X11 runtime path (Retromind currently forces `AVALONIA_PLATFORM=x11`).
+- Secret store support:
+  - preferred: Secret Service (`secret-tool`, GNOME Keyring/KWallet/libsecret backend)
+  - fallback: in-memory session storage (non-persistent)
+- For embedded OAuth login dialogs: host `libwebkit2gtk` runtime available.
+  - If embedded OAuth is unavailable, Retromind falls back to system browser login with manual callback URL input.
+
+### Usage
+
+- Import full GOG library into a dedicated node:
+  1. Create a new node.
+  2. Open node settings and mark it as a GOG node (`StoreProviderId = gog`).
+  3. Run **Add GOG media** on that node.
+  4. Retromind syncs owned GOG titles additively into that node.
+
+- Add individual GOG items into any node:
+  1. Run **Add GOG media** on any target node.
+  2. Use the picker dialog and select only the titles you want to add.
+
 ## Architecture
 See [`docs/architecture.md`](docs/architecture.md).
 For native GOG provider status and design notes, see [`docs/gog-provider.md`](docs/gog-provider.md).
