@@ -11,7 +11,7 @@ public class BoolToScaleConverter : IValueConverter
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var isSelected = value is bool b && b;
+        var isSelected = value is true;
         return isSelected ? SelectedScale : NormalScale;
     }
 
