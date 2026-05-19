@@ -750,6 +750,19 @@ public sealed class SearchQueryMatcher
         if (string.IsNullOrWhiteSpace(value))
             return false;
 
+        if (string.IsNullOrEmpty(query))
+            return true;
+
+        var compareInfo = CultureInfo.CurrentCulture.CompareInfo;
+        const CompareOptions options =
+            CompareOptions.IgnoreCase |
+            CompareOptions.IgnoreNonSpace;
+
+        if (compareInfo.IndexOf(value, query, options) >= 0)
+            return true;
+
+        // Fallback keeps behavior robust for edge cases where culture-specific matching
+        // does not find a hit that ordinal ignore-case would find.
         return value.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 }
