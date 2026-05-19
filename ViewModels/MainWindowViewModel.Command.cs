@@ -418,7 +418,7 @@ public partial class MainWindowViewModel
                 SelectedNode = node;
 
                 if (!string.IsNullOrWhiteSpace(desiredItemId))
-                    _lastSelectedMediaByNodeId[node.Id] = desiredItemId;
+                    RememberNodeSelection(node.Id, desiredItemId);
             });
 
             // 3) Wait until the grid (SelectedNodeContent) is actually there.

@@ -1282,7 +1282,7 @@ public partial class MainWindowViewModel
         {
             var lastItem = newlyAddedItems[^1];
             _currentSettings.LastSelectedMediaId = lastItem.Id;
-            _lastSelectedMediaByNodeId[targetNode.Id] = lastItem.Id;
+            RememberNodeSelection(targetNode.Id, lastItem.Id);
             SaveSettingsOnly();
         }
         
@@ -2088,7 +2088,7 @@ public partial class MainWindowViewModel
         }
 
         if (!string.IsNullOrWhiteSpace(desiredItemId))
-            _lastSelectedMediaByNodeId[targetNode.Id] = desiredItemId;
+            RememberNodeSelection(targetNode.Id, desiredItemId);
 
         _restoreSearchUiStateOnNextContentBuild = true;
         ExpandPathToNode(RootItems, targetNode);

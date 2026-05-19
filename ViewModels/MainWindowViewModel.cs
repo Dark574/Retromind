@@ -120,6 +120,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // Per-node selection memory for quick return after switching nodes.
     private readonly Dictionary<string, string> _lastSelectedMediaByNodeId = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _nodesWithClearedSelection = new(StringComparer.Ordinal);
 
     // Remembers where the user came from before entering global search.
     private string? _searchReturnNodeId;
@@ -993,6 +994,24 @@ public partial class MainWindowViewModel : ViewModelBase
         return false;
     }
 
+    private void RememberNodeSelection(string nodeId, string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId) || string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        _lastSelectedMediaByNodeId[nodeId] = itemId;
+        _nodesWithClearedSelection.Remove(nodeId);
+    }
+
+    private void RememberNodeDeselection(string nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId))
+            return;
+
+        _lastSelectedMediaByNodeId.Remove(nodeId);
+        _nodesWithClearedSelection.Add(nodeId);
+    }
+
     /// <summary>
     /// Flushes pending saves (best effort) and then performs cleanup.
     /// Must be awaited from the UI during window closing to avoid deadlocks.
@@ -1323,7 +1342,9 @@ public partial class MainWindowViewModel : ViewModelBase
             NotifyPlayAvailabilityChanged();
 
             if (item != null)
-                _lastSelectedMediaByNodeId[mediaVm.Node.Id] = item.Id;
+                RememberNodeSelection(mediaVm.Node.Id, item.Id);
+            else
+                RememberNodeDeselection(mediaVm.Node.Id);
 
             if (SelectedNode != null)
                 UpdateBigModeStateFromCoreSelection(SelectedNode, item);
@@ -1547,12 +1568,15 @@ public partial class MainWindowViewModel : ViewModelBase
                     mediaVm.FilteredItems.CollectionChanged += OnMediaAreaFilteredItemsChanged;
 
                     string? itemIdToSelect = null;
-                    var hadNodeSelection = false;
+                    var hadCachedNodeSelection = false;
 
-                    if (_lastSelectedMediaByNodeId.TryGetValue(nodeToLoad.Id, out var cachedId))
+                    if (_nodesWithClearedSelection.Contains(nodeToLoad.Id))
+                    {
+                    }
+                    else if (_lastSelectedMediaByNodeId.TryGetValue(nodeToLoad.Id, out var cachedId))
                     {
                         itemIdToSelect = cachedId;
-                        hadNodeSelection = true;
+                        hadCachedNodeSelection = true;
                     }
                     else if (!string.IsNullOrEmpty(_currentSettings.LastSelectedMediaId))
                     {
@@ -1567,7 +1591,7 @@ public partial class MainWindowViewModel : ViewModelBase
                         {
                             mediaVm.SelectedMediaItem = itemToSelect;
                         }
-                        else if (hadNodeSelection)
+                        else if (hadCachedNodeSelection)
                         {
                             _lastSelectedMediaByNodeId.Remove(nodeToLoad.Id);
                         }
