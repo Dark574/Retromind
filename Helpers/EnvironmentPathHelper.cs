@@ -28,17 +28,11 @@ public static class EnvironmentPathHelper
 
     public static string NormalizeDataRootPathIfNeeded(string key, string? value)
     {
-        if (string.IsNullOrWhiteSpace(key))
-            return value ?? string.Empty;
-
-        if (!IsDataRootPathKey(key))
+        if (string.IsNullOrWhiteSpace(key) || !IsDataRootPathKey(key))
             return value ?? string.Empty;
 
         var raw = value ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(raw))
-            return raw;
-
-        if (Path.IsPathRooted(raw))
+        if (string.IsNullOrWhiteSpace(raw) || Path.IsPathRooted(raw))
             return raw;
 
         return AppPaths.ResolveDataPath(raw);
