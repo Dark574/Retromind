@@ -12,7 +12,8 @@
         MinHeight="400">
 
     <Grid RowDefinitions="*, Auto" Margin="10">
-        <TextBox Grid.Row="0"
+        <TextBox x:Name="LogBox"
+                 Grid.Row="0"
                  Text="{Binding LogText}"
                  IsReadOnly="True"
                  AcceptsReturn="True"

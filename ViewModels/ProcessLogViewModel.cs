@@ -10,6 +10,7 @@ namespace Retromind.ViewModels;
 public partial class ProcessLogViewModel : ViewModelBase
 {
     private readonly bool _newestFirst;
+    public bool NewestFirst => _newestFirst;
 
     [ObservableProperty]
     private string _title;
