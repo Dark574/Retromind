@@ -731,6 +731,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     private void ClearSearchText()
     {
         SearchText = string.Empty;
+        OnlyFavorites = false;
     }
 
     private void EnsureDefaultScopeSelection()

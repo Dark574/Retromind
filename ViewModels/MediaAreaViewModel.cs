@@ -234,6 +234,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     private void ClearSearchText()
     {
         SearchText = string.Empty;
+        OnlyFavorites = false;
     }
 
     private List<MediaItem> BuildMatches(string querySnapshot, CancellationToken token)

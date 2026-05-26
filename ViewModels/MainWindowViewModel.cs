@@ -1559,7 +1559,9 @@ public partial class MainWindowViewModel : ViewModelBase
                         displayNode,
                         ItemWidth,
                         initialSearchText: previousSearchText,
-                        initialOnlyFavorites: preserveNodeFilters && previousOnlyFavorites,
+                        // Favorites filter is shared and should survive node changes
+                        // until the user explicitly clears it.
+                        initialOnlyFavorites: previousOnlyFavorites,
                         initialStatus: preserveNodeFilters ? previousStatus : null);
 
                     _currentMediaAreaVm = mediaVm;
