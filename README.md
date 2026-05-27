@@ -515,6 +515,20 @@ Please test it carefully and expect rough edges or breaking behavior between alp
   1. Run **Add GOG media** on any target node.
   2. Use the picker dialog and select only the titles you want to add.
 
+### Update workflow (Experimental baseline)
+
+- Update checks are only performed for installed GOG-linked items.
+- Checks are triggered automatically:
+  - when selecting an installed GOG item in the UI
+  - and by a background sweep (currently every 24 hours)
+- If an update is detected, Retromind shows:
+  - an update badge in the media details
+  - an **Update** action button (same panel as install/reinstall actions)
+- Running **Update** reuses the existing installer flow (download + install) and then refreshes the stored install fingerprint metadata.
+- Important baseline note:
+  - reliable version/signature comparison requires an install fingerprint from Retromind.
+  - If a title was installed outside Retromind or before this metadata existed, run one reinstall via Retromind to establish the baseline.
+
 ## Architecture
 See [`docs/architecture.md`](docs/architecture.md).
 For native GOG provider status and design notes, see [`docs/gog-provider.md`](docs/gog-provider.md).
