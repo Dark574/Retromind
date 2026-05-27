@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-05-18
+Last updated: 2026-05-26
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -13,7 +13,7 @@ It must be updated whenever implementation details, contracts, or security behav
 
 ## Current status
 
-Implemented (OAuth V1 core + library/node linking + install workflow with resume/detection fallbacks) with update/discovery hardening still in progress:
+Implemented (OAuth V1 core + library/node linking + install workflow with resume/detection fallbacks + update check/install baseline):
 
 - Store abstraction interfaces
 - GOG provider facade and service skeletons
@@ -61,6 +61,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - Performance/UX:
   - owned-games fetch is cached in-memory for a short TTL to avoid repeated full pagination on consecutive imports
   - long-running GOG import/picker preparation shows wait cursor feedback
+  - background update sweep runs throttled (24h interval, per-item delays) with auth-state caching and in-flight guards
 - Install/launch wiring (first functional step):
   - GOG-linked items without launch config are now treated as installable from the main Start action
   - Start button label switches to Install for those items
@@ -88,6 +89,13 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - final fallback: manual executable picker dialog
   - if mapping succeeds, item launch config is updated and the Start action switches back to launch behavior
   - if mapping still fails, install completes but manual launch config is required
+  - installer fingerprint is persisted after install (`Store.InstalledVersion`, `Store.InstalledInstallerSignature`)
+- Update check/install wiring:
+  - automatic non-interactive update checks on selection
+  - automatic full-library sweep over all installed GOG titles every 24h
+  - update availability flag persisted in custom fields (`Store.UpdateAvailable`, `Store.LastUpdateCheckUtc`, `Store.LastUpdateCheckStatus`)
+  - search-card badge is shown when update is available
+  - primary Start action now surfaces `Update` and runs the existing installer flow for update installs
 - DI registration in app startup
 
 ## Implemented structure
@@ -148,6 +156,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Views/GogInstallDialogView.axaml`
 - `Views/GogInstallDialogView.axaml.cs`
 - `ViewModels/MainWindowViewModel.GogInstall.cs`
+- `ViewModels/MainWindowViewModel.GogUpdates.cs`
 - `Services/MediaDataService.cs`
   - cloning persistence updated for `MediaNode.StoreProviderId`
 
@@ -202,7 +211,74 @@ Required behavior for native GOG auth:
 - broaden install robustness:
   - progress/cancel UI for large installer downloads
   - optional explicit install discovery sync back into already-linked items
+- broaden update flow ergonomics:
+  - progress/cancel UI dedicated to update checks
+  - richer update state model (`unknown` vs `available` vs `up_to_date`) in UI
 - Decide whether the fallback public OAuth client defaults remain or become explicit user configuration.
+
+## Update function design (implemented baseline)
+
+Goal: for installed GOG-linked items, show `Update available` only when we can confidently detect a newer installer package.
+
+### 1) Persist install fingerprint after successful install
+
+Install metadata is now persisted on the media item (custom fields):
+
+- `Store.InstalledVersion` (installer `version` from `downloads.installers[]`)
+- `Store.InstalledInstallerSignature` (stable hash of installer file identities: filename + size + downlink path token)
+- `Store.LastUpdateCheckUtc` / `Store.LastUpdateCheckStatus`
+
+This avoids relying on local executable file versions (often unreliable for Wine/Linux wrappers).
+
+### 2) Build a remote installer fingerprint per title/platform
+
+For each installed GOG item:
+
+1. fetch `GET https://api.gog.com/products/{id}?expand=downloads`
+2. select installer candidate with the same platform policy currently used for install (Linux/Windows)
+3. compute remote fingerprint:
+   - installer `version`
+   - optional build id / generation fields if present
+   - normalized file signature from `files[]`
+
+### 3) Update detection rule
+
+Current implementation marks `UpdateAvailable = true` when:
+
+- installed fingerprint exists, and remote fingerprint exists, and
+- either changed:
+  - `InstalledVersion != RemoteVersion`
+  - `InstalledInstallerSignature != RemoteInstallerSignature`
+
+If we cannot build a trustworthy comparison (missing local baseline), status is stored as `unknown`.
+
+### 4) Update execution flow
+
+Update execution reuses the existing install pipeline:
+
+1. resolve current remote installer package
+2. download into existing staging root (`.retromind-gog-installers/...`) with resume support
+3. execute installer with same silent flags / runner policy
+4. rerun launch mapping detection
+5. persist new install fingerprint
+
+Operationally this remains a reinstall-over-existing-target flow, surfaced as `Update` in the main action button.
+
+### 5) UX/API shape
+
+- Provider capability flags for updates are not added yet.
+- Main action button states:
+  - `Install` (not installed)
+  - `Play` (installed, no update)
+  - `Update` (installed, update available)
+- Automatic checks run on item selection and via background full sweep (24h interval).
+
+### 6) Edge cases to handle
+
+- Delisted title / no installers for selected platform anymore.
+- Language-priority change selects different installer without true version bump.
+- Installer metadata changes without visible version string change (signature fallback catches this).
+- User switched platform preference (Windows <-> Linux): treat as platform migration, not normal patch update.
 
 ## Update policy for this file
 

@@ -57,6 +57,9 @@
     <data name="Button_Browse" xml:space="preserve"><value>Browse...</value></data>
     <data name="Button.Bezel" xml:space="preserve"><value>Bezel</value></data>
     <data name="Button.ControlPanel" xml:space="preserve"><value>Control panel</value></data>
+    <data name="Button_Update" xml:space="preserve"><value>Update</value></data>
+    <data name="Button_ReinstallOrSwitchVersion" xml:space="preserve"><value>Reinstall / Switch Version</value></data>
+    <data name="Button_CheckGogUpdates" xml:space="preserve"><value>Check GOG Updates</value></data>
     
     <!-- COMMON -->
     <data name="Common.Active" xml:space="preserve"><value>Active</value></data>
@@ -259,6 +262,13 @@ If needed, reopen:
   <data name="Gog.Install.CleanInstallHint" xml:space="preserve"><value>Delete existing files in the target folder before installation.</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Delete staging data after successful installation</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Removes downloaded installer files after a successful install.</value></data>
+  <data name="Gog.Update.BadgeTooltip" xml:space="preserve"><value>GOG update available</value></data>
+  <data name="Gog.Update.Available" xml:space="preserve"><value>A GOG update is available for this title.</value></data>
+  <data name="Gog.Update.UpToDate" xml:space="preserve"><value>No newer GOG installer was found.</value></data>
+  <data name="Gog.Update.NoBaseline" xml:space="preserve"><value>No local version baseline is available yet for this title. Reinstall once via Retromind to enable reliable update comparison.</value></data>
+  <data name="Gog.Update.AuthRequired" xml:space="preserve"><value>GOG update check requires an active sign-in session.</value></data>
+  <data name="Gog.Update.NotApplicable" xml:space="preserve"><value>Update checks are only available for installed GOG titles.</value></data>
+  <data name="Gog.Update.Failed" xml:space="preserve"><value>GOG update check failed. See logs for details.</value></data>
   <data name="Gog.Install.PlatformLinux" xml:space="preserve"><value>Linux</value></data>
     <data name="Gog.Install.PlatformWindows" xml:space="preserve"><value>Windows</value></data>
     <data name="Gog.Install.ValidationPathRequired" xml:space="preserve"><value>Install path is required.</value></data>

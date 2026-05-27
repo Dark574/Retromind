@@ -57,6 +57,9 @@
     <data name="Button_Browse" xml:space="preserve"><value>Durchsuchen...</value></data>
     <data name="Button.Bezel" xml:space="preserve"><value>Bezel</value></data>
     <data name="Button.ControlPanel" xml:space="preserve"><value>Control panel</value></data>
+    <data name="Button_Update" xml:space="preserve"><value>Update</value></data>
+    <data name="Button_ReinstallOrSwitchVersion" xml:space="preserve"><value>Neu installieren / Version wechseln</value></data>
+    <data name="Button_CheckGogUpdates" xml:space="preserve"><value>GOG-Updates prüfen</value></data>
 
 
     <!-- COMMON -->
@@ -258,6 +261,13 @@ Falls nötig, erneut öffnen:
   <data name="Gog.InstallRunnerMissingHint" xml:space="preserve"><value>Noch kein Wine/Proton-Runner konfiguriert. Bitte unter Einstellungen -&gt; Runner hinzufügen.</value></data>
   <data name="Gog.Install.CleanInstallLabel" xml:space="preserve"><value>Saubere Neuinstallation</value></data>
   <data name="Gog.Install.CleanInstallHint" xml:space="preserve"><value>Löscht vor der Installation vorhandene Dateien im Zielordner.</value></data>
+  <data name="Gog.Update.BadgeTooltip" xml:space="preserve"><value>GOG-Update verfügbar</value></data>
+  <data name="Gog.Update.Available" xml:space="preserve"><value>Für diesen Titel ist ein GOG-Update verfügbar.</value></data>
+  <data name="Gog.Update.UpToDate" xml:space="preserve"><value>Kein neuerer GOG-Installer gefunden.</value></data>
+  <data name="Gog.Update.NoBaseline" xml:space="preserve"><value>Für diesen Titel ist noch keine lokale Versions-Basis vorhanden. Einmal über Retromind neu installieren, um einen verlässlichen Update-Vergleich zu aktivieren.</value></data>
+  <data name="Gog.Update.AuthRequired" xml:space="preserve"><value>Für den GOG-Update-Check ist eine aktive Anmeldung erforderlich.</value></data>
+  <data name="Gog.Update.NotApplicable" xml:space="preserve"><value>Update-Prüfungen sind nur für installierte GOG-Titel verfügbar.</value></data>
+  <data name="Gog.Update.Failed" xml:space="preserve"><value>GOG-Update-Prüfung fehlgeschlagen. Details stehen im Log.</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Staging-Daten nach erfolgreicher Installation löschen</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Entfernt nach erfolgreicher Installation die heruntergeladenen Installer-Dateien.</value></data>
   <data name="Gog.Install.PlatformLinux" xml:space="preserve"><value>Linux</value></data>

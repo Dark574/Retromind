@@ -234,9 +234,14 @@
                                             <MenuItem Header="{x:Static p:Strings.Dialog_LoadMetadata}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeMediaCommand}"
                                                       CommandParameter="{Binding .}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUpdateSelectedMediaButtonText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UpdateGogCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUpdateMenuVisible}}" />
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogReinstallMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ReinstallGogCommand}"
-                                                      CommandParameter="{Binding .}" />
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogReinstallMenuVisible}}" />
                                             <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddManual}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddManualToMediaCommand}"
                                                       CommandParameter="{Binding .}" />
@@ -270,6 +275,18 @@
                                                helpers:AsyncImageHelper.DecodeWidth="300" 
                                                Stretch="Uniform"
                                                IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                                        <Border Width="14"
+                                                Height="14"
+                                                CornerRadius="7"
+                                                Background="#1E90FF"
+                                                BorderBrush="White"
+                                                BorderThickness="1.5"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Bottom"
+                                                Margin="8"
+                                                ToolTip.Tip="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUpdateAvailableBadgeTooltip}"
+                                                IsVisible="{Binding CustomFields, Converter={x:Static helpers:ObjectConverters.GogUpdateBadgeVisible}}"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

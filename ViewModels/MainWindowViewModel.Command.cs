@@ -51,6 +51,7 @@ public partial class MainWindowViewModel
     // PlayCommand is special, it fires and forgets mostly, but async is better for UI responsiveness
     public IAsyncRelayCommand<MediaItem?> PlayCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> ReinstallGogCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> UpdateGogCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> EditNodeCommand { get; private set; } = null!;
@@ -95,6 +96,7 @@ public partial class MainWindowViewModel
         ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
         PlayCommand = new AsyncRelayCommand<MediaItem?>(PlayMediaAsync, CanPlayMedia);
         ReinstallGogCommand = new AsyncRelayCommand<MediaItem?>(ReinstallGogMediaAsync, CanReinstallGogMedia);
+        UpdateGogCommand = new AsyncRelayCommand<MediaItem?>(UpdateGogMediaAsync, CanUpdateGogMedia);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenManualCommand = new RelayCommand<MediaAsset?>(OpenManual);
@@ -121,18 +123,31 @@ public partial class MainWindowViewModel
     }
 
     public bool CanPlaySelectedMedia => CanPlayMedia(GetCurrentSelectedItem());
-    public string PlaySelectedMediaButtonText => ShouldOfferInstallForItem(GetCurrentSelectedItem())
-        ? T("Button_Install", "Install")
-        : Strings.Button_Play;
+    public string PlaySelectedMediaButtonText
+    {
+        get
+        {
+            var item = GetCurrentSelectedItem();
+            if (ShouldOfferInstallForItem(item))
+                return T("Button_Install", "Install");
+            return Strings.Button_Play;
+        }
+    }
+    public bool ShowGogUpdateSelectedMediaButton => CanUpdateGogMedia(GetCurrentSelectedItem());
+    public string GogUpdateSelectedMediaButtonText => T("Button_Update", "Update");
     public bool ShowGogReinstallSelectedMediaButton => CanReinstallGogMedia(GetCurrentSelectedItem());
     public string GogReinstallSelectedMediaButtonText => T("Button_ReinstallOrSwitchVersion", "Reinstall / Switch Version");
+    public string GogUpdateAvailableBadgeTooltip => T("Gog.Update.BadgeTooltip", "GOG update available");
 
     private void NotifyPlayAvailabilityChanged()
     {
         PlayCommand.NotifyCanExecuteChanged();
         ReinstallGogCommand.NotifyCanExecuteChanged();
+        UpdateGogCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanPlaySelectedMedia));
         OnPropertyChanged(nameof(PlaySelectedMediaButtonText));
+        OnPropertyChanged(nameof(ShowGogUpdateSelectedMediaButton));
+        OnPropertyChanged(nameof(GogUpdateSelectedMediaButtonText));
         OnPropertyChanged(nameof(ShowGogReinstallSelectedMediaButton));
         OnPropertyChanged(nameof(GogReinstallSelectedMediaButtonText));
     }
@@ -166,6 +181,14 @@ public partial class MainWindowViewModel
 
         // If no playable config exists yet, the primary button already acts as "Install".
         return !ShouldOfferInstallForItem(item);
+    }
+
+    private bool CanUpdateGogMedia(MediaItem? item)
+    {
+        if (IsLaunchInProgress || item == null)
+            return false;
+
+        return ShouldOfferGogUpdateForItem(item);
     }
 
     // --- Basic Actions ---
@@ -895,6 +918,29 @@ public partial class MainWindowViewModel
         }
     }
 
+    private async Task UpdateGogMediaAsync(MediaItem? item)
+    {
+        if (!CanUpdateGogMedia(item) || item == null)
+            return;
+
+        if (IsLaunchInProgress)
+            return;
+
+        IsLaunchInProgress = true;
+        try
+        {
+            await InstallGogItemAsync(item);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Error] UpdateGogMedia failed: {ex.Message}");
+        }
+        finally
+        {
+            IsLaunchInProgress = false;
+        }
+    }
+
     private Dictionary<string, string>? ResolveEffectiveEnvironmentOverrides(
         MediaItem item,
         EmulatorConfig? emulator,
@@ -1011,8 +1057,11 @@ public partial class MainWindowViewModel
 
     private async Task ShowInfoDialog(Window owner, string message)
     {
-        var dialog = new InfoView { DataContext = message };
-        await dialog.ShowDialog<bool>(owner);
+        await UiThreadHelper.InvokeAsync(async () =>
+        {
+            var dialog = new InfoView { DataContext = message };
+            await dialog.ShowDialog<bool>(owner);
+        });
     }
 
     private async Task<string?> PromptForName(

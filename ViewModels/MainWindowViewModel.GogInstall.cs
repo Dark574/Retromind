@@ -370,6 +370,8 @@ public partial class MainWindowViewModel
                 item.CustomFields.Remove(StoreInstallWindowsInstallerPreferenceField);
             }
 
+            UpdateInstalledGogFingerprint(item, selectedInstallerPackage);
+
             MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
             await SaveData();

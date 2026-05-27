@@ -440,6 +440,8 @@ public partial class MainWindowViewModel : ViewModelBase
             // appears quickly and predictably before background warmup starts.
             await AwaitCurrentContentUpdateAsync().ConfigureAwait(false);
 
+            StartGogUpdateBackgroundLoop();
+
             // Heavy startup maintenance runs in the background after first content is visible.
             _ = RunDeferredStartupWarmupAsync();
         }
@@ -1089,6 +1091,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _updateContentCts = null;
         _updateContentTcs?.TrySetCanceled();
         _updateContentTcs = null;
+
+        StopGogUpdateBackgroundLoop();
         
         _gamepadService.OnGuide -= _onGuidePressed;
         _gamepadService.StopMonitoring();
@@ -1179,6 +1183,9 @@ public partial class MainWindowViewModel : ViewModelBase
         var item = searchVm.SelectedMediaItem;
         if (item != null)
             _pendingGlobalSearchSelectionItemId = null;
+
+        if (item != null && CanCheckGogUpdatesForItem(item))
+            _ = CheckGogUpdatesForItemCoreAsync(item, force: true, CancellationToken.None);
         
         NotifyPlayAvailabilityChanged();
 
@@ -1340,6 +1347,9 @@ public partial class MainWindowViewModel : ViewModelBase
             _currentSettings.LastSelectedMediaId = item?.Id;
             SaveSettingsOnly();
             NotifyPlayAvailabilityChanged();
+
+            if (item != null && CanCheckGogUpdatesForItem(item))
+                _ = CheckGogUpdatesForItemCoreAsync(item, force: true, CancellationToken.None);
 
             if (item != null)
                 RememberNodeSelection(mediaVm.Node.Id, item.Id);

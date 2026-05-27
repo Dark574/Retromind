@@ -156,6 +156,17 @@
                     CommandParameter="{Binding .}"
                     IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CanPlaySelectedMedia}"/>
 
+            <Button Content="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUpdateSelectedMediaButtonText}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Padding="0,2,0,0"
+                    Height="34"
+                    Margin="0,0,0,8"
+                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UpdateGogCommand}"
+                    CommandParameter="{Binding .}"
+                    IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowGogUpdateSelectedMediaButton}"/>
+
             <Button Content="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogReinstallSelectedMediaButtonText}"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"

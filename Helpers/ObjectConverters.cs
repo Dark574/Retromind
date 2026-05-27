@@ -80,6 +80,51 @@ public static class ObjectConverters
             return BoxShadows.Parse(shadow);
         });
 
+    /// <summary>
+    /// Returns true when Store.UpdateAvailable is set to true in the item's custom fields.
+    /// </summary>
+    public static readonly IValueConverter GogUpdateBadgeVisible =
+        new FuncValueConverter<Dictionary<string, string>?, bool>(customFields =>
+        {
+            if (customFields == null)
+                return false;
+
+            if (!customFields.TryGetValue("Store.UpdateAvailable", out var raw) ||
+                string.IsNullOrWhiteSpace(raw))
+            {
+                return false;
+            }
+
+            if (bool.TryParse(raw, out var parsed))
+                return parsed;
+
+            return string.Equals(raw.Trim(), "1", StringComparison.OrdinalIgnoreCase);
+        });
+
+    /// <summary>
+    /// Returns true only for installed GOG-linked media items.
+    /// Used to show/hide the "Reinstall / Switch Version" context-menu entry.
+    /// </summary>
+    public static readonly IValueConverter GogReinstallMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+        {
+            return IsInstalledGogItem(item);
+        });
+
+    /// <summary>
+    /// Returns true for installed GOG-linked media items that have an available update.
+    /// Used to show/hide dedicated GOG update actions in context menus.
+    /// </summary>
+    public static readonly IValueConverter GogUpdateMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+        {
+            if (!IsInstalledGogItem(item))
+                return false;
+
+            return item!.CustomFields.TryGetValue("Store.UpdateAvailable", out var raw) &&
+                   IsTruthyCustomField(raw);
+        });
+
 
     private static readonly IBrush SelectedBrush =
         new SolidColorBrush(Color.FromArgb(0xDD, 0x2C, 0x76, 0x9A));
@@ -167,5 +212,63 @@ public static class ObjectConverters
         return fallback;
     }
 
-    
+    private static string? ResolvePathForExistenceCheck(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        if (System.IO.Path.IsPathRooted(path))
+            return System.IO.Path.GetFullPath(path);
+
+        if (!path.Contains(System.IO.Path.DirectorySeparatorChar) &&
+            !path.Contains(System.IO.Path.AltDirectorySeparatorChar))
+        {
+            return null;
+        }
+
+        return AppPaths.ResolveDataPath(path);
+    }
+
+    private static bool IsInstalledGogItem(MediaItem? item)
+    {
+        if (item == null)
+            return false;
+
+        if (!item.CustomFields.TryGetValue("Store.ProviderId", out var providerId) ||
+            !string.Equals(providerId, "gog", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!item.CustomFields.TryGetValue("Store.GameId", out var storeGameId) ||
+            string.IsNullOrWhiteSpace(storeGameId))
+        {
+            return false;
+        }
+
+        var primaryLaunchPath = item.GetPrimaryLaunchPath();
+        if (!string.IsNullOrWhiteSpace(primaryLaunchPath) && System.IO.File.Exists(primaryLaunchPath))
+            return true;
+
+        var launcherPath = item.LauncherPath?.Trim();
+        if (string.IsNullOrWhiteSpace(launcherPath))
+            return false;
+
+        var resolvedLauncherPath = ResolvePathForExistenceCheck(launcherPath);
+        if (string.IsNullOrWhiteSpace(resolvedLauncherPath))
+            return true;
+
+        return System.IO.File.Exists(resolvedLauncherPath);
+    }
+
+    private static bool IsTruthyCustomField(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        if (bool.TryParse(raw, out var parsed))
+            return parsed;
+
+        return string.Equals(raw.Trim(), "1", StringComparison.OrdinalIgnoreCase);
+    }
 }
