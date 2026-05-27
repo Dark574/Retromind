@@ -211,7 +211,7 @@
 
             <!-- 2) Metadata grid -->
             <Grid ColumnDefinitions="Auto, *"
-                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                   Margin="0,5">
                 <Grid.Styles>
                     <Style Selector="TextBlock.Label">
@@ -339,27 +339,40 @@
                 <!-- Total play time -->
                 <TextBlock Grid.Row="11" Grid.Column="0" Text="{x:Static p:Strings.Media_PlayTime}" Classes="Label" />
                 <TextBlock Grid.Row="11" Grid.Column="1" Text="{Binding TotalPlayTime, Converter={StaticResource TimeConverter}}" Classes="Value" />
+                
+                <!-- Play count -->
+                <TextBlock Grid.Row="12" Grid.Column="0"
+                           Text="{x:Static p:Strings.Media_PlayCount}"
+                           Classes="Label" />
+                <TextBlock Grid.Row="12" Grid.Column="1"
+                           Text="{Binding PlayCount}"
+                           Classes="Value" />
+                
+                <!-- Status -->
+                <TextBlock Grid.Row="13" Grid.Column="0"
+                           Text="{x:Static p:Strings.Common_Status}"
+                           Classes="Label"
+                           IsVisible="{Binding Status, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
+                <TextBlock Grid.Row="13" Grid.Column="1"
+                           Text="{Binding Status}"
+                           Classes="Value"
+                           IsVisible="{Binding Status, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
+
             </Grid>
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 
-            <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Status, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
-                <TextBlock Grid.Column="0"
-                           Text="{x:Static p:Strings.Common_Status}"
-                           FontWeight="SemiBold"
-                           Foreground="Gray"
-                           Margin="0,0,10,8" />
-                <TextBlock Grid.Column="1" Text="{Binding Status}" Margin="0,0,0,8" />
-            </Grid>
-
-            <Grid ColumnDefinitions="Auto,*">
-                <TextBlock Grid.Column="0"
-                           Text="{x:Static p:Strings.Media_PlayCount}"
-                           FontWeight="SemiBold"
-                           Foreground="Gray"
-                           Margin="0,0,10,8" />
-                <TextBlock Grid.Column="1" Text="{Binding PlayCount}" Margin="0,0,0,8" />
-            </Grid>
+            <!-- 3) Summary -->
+            <StackPanel Spacing="5"
+                        IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{x:Static p:Strings.Common_Summary}" FontWeight="SemiBold" FontSize="16" />
+                <TextBlock Text="{Binding Description}"
+                           TextWrapping="Wrap"
+                           LineHeight="22"
+                           Opacity="0.8" />
+            </StackPanel>
+            
+            <Separator Height="2" Background="Gray" Opacity="0.3" />
 
             <StackPanel Spacing="5" IsVisible="{Binding HasCustomFields}">
                 <TextBlock Text="{x:Static p:Strings.Common_CustomFields}" FontWeight="SemiBold" FontSize="16" />
@@ -380,18 +393,6 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-            </StackPanel>
-
-            <Separator Height="2" Background="Gray" Opacity="0.3" />
-
-            <!-- 3) Summary -->
-            <StackPanel Spacing="5"
-                        IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                <TextBlock Text="{x:Static p:Strings.Common_Summary}" FontWeight="SemiBold" FontSize="16" />
-                <TextBlock Text="{Binding Description}"
-                           TextWrapping="Wrap"
-                           LineHeight="22"
-                           Opacity="0.8" />
             </StackPanel>
 
         </StackPanel>
