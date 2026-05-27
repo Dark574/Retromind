@@ -349,7 +349,6 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
         var query = SearchText?.Trim();
         var queryMatcher = SearchQueryMatcher.Create(query);
-        var showNodeHitCounts = queryMatcher.IsActive;
         var yearText = SearchYear?.Trim();
         var favoritesOnly = OnlyFavorites;
         var statusFilter = SelectedStatus;
@@ -357,6 +356,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         var hasYearText = !string.IsNullOrWhiteSpace(yearText);
         var parsedYear = 0;
         var hasValidYear = hasYearText && int.TryParse(yearText, out parsedYear);
+        var showNodeHitCounts = queryMatcher.IsActive || hasValidYear || favoritesOnly || statusFilter != null;
 
         // If all filters are empty and "favorites only" is off, do not show the entire library
         if (!hasQuery &&
