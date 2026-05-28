@@ -19,6 +19,7 @@ retromind_tree.json
 retromind_tree.bak
 retromind_tree.tmp
 app_settings.json
+config.yaml
 
 # Secrets (NICHT HOCHLADEN!)
 **/ApiSecrets.cs
@@ -29,3 +30,6 @@ dist/
 build-appimage.log
 build-appimage.debug.log
 docker-build.log
+
+# Local Continue indexing preferences
+.continueignore
