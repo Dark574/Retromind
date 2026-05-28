@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-05-26
+Last updated: 2026-05-28
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -79,7 +79,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - installer execution now opens a process log window (stdout/stderr + exit code)
   - Windows installer robustness hardening:
     - Windows installer execution currently uses system Wine resolution (`wine`/`wine64`) through `EmulatorResolverHelper`
-    - execution path is intentionally simplified to a single installer candidate and a single Inno silent profile (`/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=... /LOG=...`)
+    - execution path now evaluates multiple `.exe` installer candidates (architecture-aware preference + fallback order)
+    - Inno argument handling now uses profile fallback (`/SP- /SILENT /NOGUI /SUPPRESSMSGBOXES /NORESTART /DIR=... /LOG=...`, with less-silent fallback profile)
     - Windows installer logs include diagnostics (runner env snapshot, prefix `dosdevices` mappings, installer candidate metadata, and per-attempt process outcome)
     - Windows package download now keeps all installer files (no heuristic file pruning) because some GOG installers require companion payload files next to the selected setup executable
   - launch mapping after install now uses layered detection:
@@ -134,7 +135,9 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Services/Stores/Gog/Auth/GogOAuthClient.cs` (authorize URL + token/account HTTP flows implemented)
 - `Services/Stores/Gog/Auth/GogOAuthLoopbackListener.cs` (callback listener implemented)
 - `Services/Stores/Gog/Auth/GogPkceService.cs`
+- `Services/Stores/Gog/Auth/PkceChallenge.cs`
 - `Services/Stores/Gog/Auth/GogTokenSet.cs`
+- `Services/Stores/Gog/Auth/OAuthCallbackResult.cs`
 
 ### GOG UI / binding
 
@@ -205,7 +208,7 @@ Required behavior for native GOG auth:
 ## Open items
 
 - Extend library mapping (genres/artwork/store URLs) and stabilization around API edge-cases.
-- Implement install discovery and launch integration for store-linked entries.
+- Implement install discovery sync for store-linked entries (launch mapping is already integrated in install/update flow).
 - Optional UX follow-up:
 - add explicit “remove titles no longer owned” sync mode for store-bound GOG nodes (current sync is additive only).
 - broaden install robustness:
