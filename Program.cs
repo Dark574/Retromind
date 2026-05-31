@@ -6,6 +6,7 @@ using Retromind.Helpers;
 
 namespace Retromind;
 
+// TEST-CONTINUE
 internal sealed class Program
 {
     // NOTE:

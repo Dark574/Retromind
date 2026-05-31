@@ -55,5 +55,13 @@ public partial class ProcessLogView : Window
             _logBox.PropertyChanged -= OnLogBoxPropertyChanged;
             _logBox = null;
         }
+        
+        // if the window is closed, the running job should be cancelled
+        // dispose in the viewmodel starts the CancellationToken.
+        if (DataContext is IDisposable disposable)
+        {
+            disposable.Dispose();
+            DataContext = null;
+        }
     }
 }

@@ -6,13 +6,13 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Models.Stores;
-using Retromind.Resources;
 using Retromind.Services.Stores.Gog;
 using Retromind.Views;
 
@@ -244,6 +244,9 @@ public partial class MainWindowViewModel
         var progressLogView = new ProcessLogView { DataContext = progressLogVm };
         await UiThreadHelper.InvokeAsync(() => progressLogView.Show(owner));
 
+        // Enable cancel button for the download and install phases
+        progressLogVm.EnableCancel();
+
         try
         {
             GogDownloadedInstallerPackage downloadedPackage;
@@ -298,7 +301,19 @@ public partial class MainWindowViewModel
                 downloadedPackage = await _gogInstallService.DownloadInstallerPackageAsync(
                     selectedInstallerPackage,
                     stagingRoot,
-                    downloadProgress);
+                    downloadProgress,
+                    progressLogVm.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("[GOG] Installer download cancelled by user.");
+                progressLogVm.MarkCancelled(T("Gog.Install.Cancelled", "Installation cancelled by user."));
+                AppendProcessLog(
+                    progressLogVm,
+                    T(
+                        "Gog.Install.StagingPreserved",
+                        "Staging files preserved for resume on next attempt."));
+                return;
             }
             catch (Exception ex)
             {
@@ -312,7 +327,13 @@ public partial class MainWindowViewModel
             }
 
             AppendProcessLog(progressLogVm, "[Install] Starting installer execution...");
-            var runResult = await RunInstallerAsync(item, storeGameId, installRequest, downloadedPackage, progressLogVm);
+            var runResult = await RunInstallerAsync(
+                item,
+                storeGameId,
+                installRequest,
+                downloadedPackage,
+                progressLogVm,
+                progressLogVm.Token);
             if (!runResult.Success)
             {
                 var message = string.IsNullOrWhiteSpace(runResult.ErrorMessage)
@@ -386,6 +407,7 @@ public partial class MainWindowViewModel
         }
         finally
         {
+            progressLogVm.MarkFinished();
             UiThreadHelper.Post(() => progressLogVm.IsRunning = false);
         }
     }
@@ -477,7 +499,7 @@ public partial class MainWindowViewModel
 
     private static bool IsLikelyGogAuthIssue(Exception ex)
     {
-        var message = ex.Message ?? string.Empty;
+        var message = ex.Message;
         return message.IndexOf("authentication is required", StringComparison.OrdinalIgnoreCase) >= 0 ||
                message.IndexOf("401", StringComparison.OrdinalIgnoreCase) >= 0 ||
                message.IndexOf("403", StringComparison.OrdinalIgnoreCase) >= 0 ||
@@ -487,7 +509,7 @@ public partial class MainWindowViewModel
 
     private static string BuildShortErrorDetail(Exception ex)
     {
-        var message = ex.Message?.Trim();
+        var message = ex.Message.Trim();
         if (string.IsNullOrWhiteSpace(message))
             return "Unknown error";
 
@@ -727,7 +749,8 @@ public partial class MainWindowViewModel
         string storeGameId,
         GogInstallDialogViewModel.GogInstallDialogResult request,
         GogDownloadedInstallerPackage downloadedPackage,
-        ProcessLogViewModel logVm)
+        ProcessLogViewModel logVm,
+        CancellationToken ct = default)
     {
         InstallerRunResult Fail(string? errorMessage) => new(false, errorMessage);
         InstallerRunResult Success() => new(true, null);
@@ -804,7 +827,7 @@ public partial class MainWindowViewModel
                         AppendProcessLog(logVm, $"[Linux installer] Attempt {i + 1}/{linuxProfiles.Count} ({profile.Name})", installerLogPath);
                         AppendProcessLog(logVm, $"> {FormatProcessCommand(startInfo)}", installerLogPath);
 
-                        var execution = await ExecuteInstallerProcessWithLogAsync(startInfo, logVm, installerLogPath).ConfigureAwait(false);
+                        var execution = await ExecuteInstallerProcessWithLogAsync(startInfo, logVm, installerLogPath, ct).ConfigureAwait(false);
                         if (!execution.Started)
                             return Fail(execution.StartErrorMessage ?? "Installer process could not be started.");
 
@@ -838,7 +861,8 @@ public partial class MainWindowViewModel
                             effectiveInstallPath,
                             linuxCompatibilityEnvironment,
                             logVm,
-                            installerLogPath).ConfigureAwait(false);
+                            installerLogPath,
+                            ct).ConfigureAwait(false);
                         if (!extractedFallbackResult.Success)
                             return extractedFallbackResult;
                     }
@@ -925,7 +949,7 @@ public partial class MainWindowViewModel
                     AppendRunnerEnvironmentSnapshot(logVm, installerLogPath, startInfo);
                     AppendProcessLog(logVm, $"> {FormatProcessCommand(startInfo)}", installerLogPath);
 
-                    var windowsExecution = await ExecuteInstallerProcessWithLogAsync(startInfo, logVm, installerLogPath).ConfigureAwait(false);
+                    var windowsExecution = await ExecuteInstallerProcessWithLogAsync(startInfo, logVm, installerLogPath, ct).ConfigureAwait(false);
                     if (!windowsExecution.Started)
                         return Fail(windowsExecution.StartErrorMessage ?? "Installer process could not be started.");
 
@@ -992,15 +1016,17 @@ public partial class MainWindowViewModel
             Debug.WriteLine($"[GOG] Installer execution failed: {ex.Message}");
             return Fail(ex.Message);
         }
+        catch (OperationCanceledException)
+        {
+            AppendProcessLog(logVm, "Installer execution cancelled by user.");
+            Debug.WriteLine("[GOG] Installer execution cancelled by user.");
+            return Fail("Installation cancelled by user.");
+        }
         catch (Exception ex)
         {
             Debug.WriteLine($"[GOG] Installer execution failed: {ex.Message}");
             AppendProcessLog(logVm, $"Error: {ex.Message}");
             return Fail(ex.Message);
-        }
-        finally
-        {
-            // Lifecycle of the combined progress window is managed by InstallGogItemAsync.
         }
     }
 
@@ -1491,7 +1517,8 @@ public partial class MainWindowViewModel
         string installPath,
         LinuxInstallerCompatibilityEnvironment compatibilityEnvironment,
         ProcessLogViewModel logVm,
-        string? installerLogPath)
+        string? installerLogPath,
+        CancellationToken ct = default)
     {
         var extractionRoot = Path.Combine(
             Path.GetTempPath(),
@@ -1509,7 +1536,7 @@ public partial class MainWindowViewModel
             extractStartInfo.ArgumentList.Add(extractionRoot);
 
             AppendProcessLog(logVm, $"> {FormatProcessCommand(extractStartInfo)}", installerLogPath);
-            var extractExecution = await ExecuteInstallerProcessWithLogAsync(extractStartInfo, logVm, installerLogPath).ConfigureAwait(false);
+            var extractExecution = await ExecuteInstallerProcessWithLogAsync(extractStartInfo, logVm, installerLogPath, ct).ConfigureAwait(false);
             if (!extractExecution.Started)
                 return new InstallerRunResult(false, extractExecution.StartErrorMessage ?? "Installer extraction process could not be started.");
             if (extractExecution.ExitCode != 0)
@@ -1544,7 +1571,7 @@ public partial class MainWindowViewModel
             runStartMojoInfo.ArgumentList.Add(installPath);
 
             AppendProcessLog(logVm, $"> {FormatProcessCommand(runStartMojoInfo)}", installerLogPath);
-            var runExecution = await ExecuteInstallerProcessWithLogAsync(runStartMojoInfo, logVm, installerLogPath).ConfigureAwait(false);
+            var runExecution = await ExecuteInstallerProcessWithLogAsync(runStartMojoInfo, logVm, installerLogPath, ct).ConfigureAwait(false);
             if (!runExecution.Started)
                 return new InstallerRunResult(false, runExecution.StartErrorMessage ?? "startmojo process could not be started.");
             if (runExecution.ExitCode != 0)
@@ -1816,7 +1843,8 @@ public partial class MainWindowViewModel
     private static async Task<InstallerProcessExecutionResult> ExecuteInstallerProcessWithLogAsync(
         ProcessStartInfo startInfo,
         ProcessLogViewModel logVm,
-        string? installerLogPath = null)
+        string? installerLogPath = null,
+        CancellationToken ct = default)
     {
         var hasUnsupportedFlagsError = false;
         var hasShellParsingError = false;
@@ -1865,7 +1893,29 @@ public partial class MainWindowViewModel
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        await process.WaitForExitAsync().ConfigureAwait(false);
+        try
+        {
+            // Poll for cancellation while waiting for process to exit
+            while (!process.HasExited)
+            {
+                ct.ThrowIfCancellationRequested();
+                await Task.Delay(500, ct).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // if aborted, the process needs to be killedexplicitly
+            if (!process.HasExited)
+            {
+                try 
+                { 
+                    process.Kill(true); // true = also child-processes (important for Wine/Shells) 
+                }
+                catch { /* ignore kill errors */ }
+            }
+            throw;
+        }
+
         stopwatch.Stop();
         AppendProcessLog(logVm, $"Exit code: {process.ExitCode}", installerLogPath);
 
@@ -2888,3 +2938,4 @@ public partial class MainWindowViewModel
         };
     }
 }
+

@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -91,6 +91,11 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - if mapping succeeds, item launch config is updated and the Start action switches back to launch behavior
   - if mapping still fails, install completes but manual launch config is required
   - installer fingerprint is persisted after install (`Store.InstalledVersion`, `Store.InstalledInstallerSignature`)
+  - installer download and execution now support user cancellation:
+    - process log window includes a Cancel button for aborting downloads and installer runs
+    - cancellation propagates to HTTP downloads and terminates running installer processes (including child trees)
+    - closing the log window during an operation triggers cancellation
+    - staging data (including partial `.part` downloads) is preserved after cancellation for seamless resume
 - Update check/install wiring:
   - automatic non-interactive update checks on selection
   - automatic full-library sweep over all installed GOG titles every 24h
@@ -160,6 +165,9 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Views/GogInstallDialogView.axaml.cs`
 - `ViewModels/MainWindowViewModel.GogInstall.cs`
 - `ViewModels/MainWindowViewModel.GogUpdates.cs`
+- `ViewModels/ProcessLogViewModel.cs` (long-running process log, cancellation, and lifecycle management)
+- `Views/ProcessLogView.axaml` (installer progress/log UI with Cancel and Close handling)
+- `Views/ProcessLogView.axaml.cs`
 - `Services/MediaDataService.cs`
   - cloning persistence updated for `MediaNode.StoreProviderId`
 
@@ -200,7 +208,7 @@ Required behavior for native GOG auth:
    - local install discovery
 2. V2 install/update:
    - installer flow and path integration
-   - checksums and resume strategy
+   - checksums, resume strategy, and user cancellation support
 3. V3 parity/comfort:
    - updates/patches
    - optional cloud/achievement features (if API feasibility is confirmed)
@@ -212,8 +220,8 @@ Required behavior for native GOG auth:
 - Optional UX follow-up:
 - add explicit “remove titles no longer owned” sync mode for store-bound GOG nodes (current sync is additive only).
 - broaden install robustness:
-  - progress/cancel UI for large installer downloads
   - optional explicit install discovery sync back into already-linked items
+  - finer-grained installer log output buffering/throttling
 - broaden update flow ergonomics:
   - progress/cancel UI dedicated to update checks
   - richer update state model (`unknown` vs `available` vs `up_to_date`) in UI
