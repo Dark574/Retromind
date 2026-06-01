@@ -6,7 +6,6 @@ using Retromind.Helpers;
 
 namespace Retromind;
 
-// TEST-CONTINUE
 internal sealed class Program
 {
     // NOTE:
@@ -19,6 +18,7 @@ internal sealed class Program
 
         // Linux: Wayland is intentionally disabled for now.
         // We force X11 for stable VLC embedding and embedded auth flows.
+        // When Avalonia Wayland is released we will switch back to Wayland.
         if (OperatingSystem.IsLinux())
         {
             var platformArg = args.FirstOrDefault(a => a.StartsWith("--avalonia-platform=", StringComparison.OrdinalIgnoreCase));
