@@ -145,8 +145,12 @@ public sealed class GogInstallService
     }
 
     /// <summary>
-    /// Validates that a path is safe to delete for GOG uninstall operations.
-    /// Only allows paths within DataRoot or explicitly allowed external paths.
+    /// Validates whether an install path is safe for uninstall deletion.
+    /// Rules:
+    /// - Block dangerous targets (root, home, common system paths).
+    /// - Never allow deleting DataRoot or LibraryRoot themselves.
+    /// - Require a valid ownership marker (.retromind-install.json) for deletable directories.
+    /// - If the install directory is already missing, allow metadata-only cleanup.
     /// </summary>
     private static bool IsSafeToDeletePath(string installPath, MediaItem item)
     {
