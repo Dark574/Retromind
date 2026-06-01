@@ -52,6 +52,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> PlayCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> ReinstallGogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> UpdateGogCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> UninstallGogCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> EditNodeCommand { get; private set; } = null!;
@@ -72,6 +73,7 @@ public partial class MainWindowViewModel
 
     public string GogMediaMenuText => T("Gog.Media.AddMenu", "Add GOG media");
     public string GogReinstallMenuText => T("Gog.Media.ReinstallMenu", "Reinstall / Switch Version");
+    public string GogUninstallMenuText => T("Gog.Uninstall.ContextMenu", "Uninstall");
 
     private void InitializeCommands()
     {
@@ -97,6 +99,7 @@ public partial class MainWindowViewModel
         PlayCommand = new AsyncRelayCommand<MediaItem?>(PlayMediaAsync, CanPlayMedia);
         ReinstallGogCommand = new AsyncRelayCommand<MediaItem?>(ReinstallGogMediaAsync, CanReinstallGogMedia);
         UpdateGogCommand = new AsyncRelayCommand<MediaItem?>(UpdateGogMediaAsync, CanUpdateGogMedia);
+        UninstallGogCommand = new AsyncRelayCommand<MediaItem?>(UninstallGogMediaAsync, CanUninstallGogMedia);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenManualCommand = new RelayCommand<MediaAsset?>(OpenManual);
@@ -138,18 +141,23 @@ public partial class MainWindowViewModel
     public bool ShowGogReinstallSelectedMediaButton => CanReinstallGogMedia(GetCurrentSelectedItem());
     public string GogReinstallSelectedMediaButtonText => T("Button_ReinstallOrSwitchVersion", "Reinstall / Switch Version");
     public string GogUpdateAvailableBadgeTooltip => T("Gog.Update.BadgeTooltip", "GOG update available");
+    public bool ShowGogUninstallSelectedMediaButton => CanUninstallGogMedia(GetCurrentSelectedItem());
+    public string GogUninstallSelectedMediaButtonText => T("Gog.Uninstall.Button", "Uninstall");
 
     private void NotifyPlayAvailabilityChanged()
     {
         PlayCommand.NotifyCanExecuteChanged();
         ReinstallGogCommand.NotifyCanExecuteChanged();
         UpdateGogCommand.NotifyCanExecuteChanged();
+        UninstallGogCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanPlaySelectedMedia));
         OnPropertyChanged(nameof(PlaySelectedMediaButtonText));
         OnPropertyChanged(nameof(ShowGogUpdateSelectedMediaButton));
         OnPropertyChanged(nameof(GogUpdateSelectedMediaButtonText));
         OnPropertyChanged(nameof(ShowGogReinstallSelectedMediaButton));
         OnPropertyChanged(nameof(GogReinstallSelectedMediaButtonText));
+        OnPropertyChanged(nameof(ShowGogUninstallSelectedMediaButton));
+        OnPropertyChanged(nameof(GogUninstallSelectedMediaButtonText));
     }
 
     private bool CanPlayMedia(MediaItem? item)
@@ -191,6 +199,25 @@ public partial class MainWindowViewModel
         return ShouldOfferGogUpdateForItem(item);
     }
 
+    private bool CanUninstallGogMedia(MediaItem? item)
+    {
+        if (IsLaunchInProgress || item == null)
+            return false;
+
+        // Only installed GOG items can be uninstalled
+        if (!item.CustomFields.TryGetValue("Store.ProviderId", out var providerId) ||
+            !string.Equals(providerId, "gog", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!item.CustomFields.TryGetValue("Store.GameId", out var storeGameId) ||
+            string.IsNullOrWhiteSpace(storeGameId))
+            return false;
+
+        // Must have an install path to uninstall
+        return item.CustomFields.TryGetValue("Store.InstallPath", out var installPath) &&
+               !string.IsNullOrWhiteSpace(installPath);
+    }
+    
     // --- Basic Actions ---
 
     private void EnterBigMode()
@@ -941,6 +968,49 @@ public partial class MainWindowViewModel
         }
     }
 
+    private async Task UninstallGogMediaAsync(MediaItem? item)
+    {
+        if (!CanUninstallGogMedia(item) || item == null)
+            return;
+
+        if (IsLaunchInProgress)
+            return;
+
+        if (CurrentWindow is not { } owner)
+            return;
+
+        var confirmMessage = string.Format(
+            Strings.Gog_Uninstall_ConfirmMessage,
+            item.Title);
+
+        var confirmed = await ShowConfirmDialog(owner, confirmMessage);
+        if (!confirmed)
+            return;
+
+        IsLaunchInProgress = true;
+        try
+        {
+            await _gogInstallService.UninstallGogGameAsync(item);
+
+            // after successfull deinstall: reload the library
+            MarkLibraryDirty();
+            await SaveData();
+            NotifyPlayAvailabilityChanged();
+
+            await ShowInfoDialog(owner, Strings.Gog_Uninstall_Success);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Error] UninstallGogMedia failed: {ex.Message}");
+            await ShowInfoDialog(owner,
+                string.Format(Strings.Gog_Uninstall_FailedWithMessage, ex.Message));
+        }
+        finally
+        {
+            IsLaunchInProgress = false;
+        }
+    }
+    
     private Dictionary<string, string>? ResolveEffectiveEnvironmentOverrides(
         MediaItem item,
         EmulatorConfig? emulator,

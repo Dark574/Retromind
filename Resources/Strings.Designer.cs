@@ -81,6 +81,12 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Button_Install {
+            get {
+                return ResourceManager.GetString("Button.Install", resourceCulture);
+            }
+        }
+        
         public static string Button_Play {
             get {
                 return ResourceManager.GetString("Button.Play", resourceCulture);
@@ -198,6 +204,24 @@ namespace Retromind.Resources {
         public static string Button_ControlPanel {
             get {
                 return ResourceManager.GetString("Button.ControlPanel", resourceCulture);
+            }
+        }
+        
+        public static string Button_Update {
+            get {
+                return ResourceManager.GetString("Button_Update", resourceCulture);
+            }
+        }
+        
+        public static string Button_ReinstallOrSwitchVersion {
+            get {
+                return ResourceManager.GetString("Button_ReinstallOrSwitchVersion", resourceCulture);
+            }
+        }
+        
+        public static string Button_CheckGogUpdates {
+            get {
+                return ResourceManager.GetString("Button_CheckGogUpdates", resourceCulture);
             }
         }
         
@@ -1017,6 +1041,504 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Gog_Media_AddMenu {
+            get {
+                return ResourceManager.GetString("Gog.Media.AddMenu", resourceCulture);
+            }
+        }
+        
+        public static string Gog_AuthCheckFailed {
+            get {
+                return ResourceManager.GetString("Gog.AuthCheckFailed", resourceCulture);
+            }
+        }
+        
+        public static string Gog_SignInRequiredPrompt {
+            get {
+                return ResourceManager.GetString("Gog.SignInRequiredPrompt", resourceCulture);
+            }
+        }
+        
+        public static string Gog_SignInRetryPrompt {
+            get {
+                return ResourceManager.GetString("Gog.SignInRetryPrompt", resourceCulture);
+            }
+        }
+        
+        public static string Gog_SignInFailed {
+            get {
+                return ResourceManager.GetString("Gog.SignInFailed", resourceCulture);
+            }
+        }
+        
+        public static string Gog_SignInTimeout {
+            get {
+                return ResourceManager.GetString("Gog.SignInTimeout", resourceCulture);
+            }
+        }
+        
+        public static string Gog_InAppAuthUnavailable {
+            get {
+                return ResourceManager.GetString("Gog.InAppAuthUnavailable", resourceCulture);
+            }
+        }
+        
+        public static string Gog_InAppAuthUnavailableWaylandAppImage {
+            get {
+                return ResourceManager.GetString("Gog.InAppAuthUnavailableWaylandAppImage", resourceCulture);
+            }
+        }
+        
+        public static string Gog_InvalidAuthorizeUri {
+            get {
+                return ResourceManager.GetString("Gog.InvalidAuthorizeUri", resourceCulture);
+            }
+        }
+        
+        public static string Gog_InvalidRedirectUri {
+            get {
+                return ResourceManager.GetString("Gog.InvalidRedirectUri", resourceCulture);
+            }
+        }
+        
+        public static string Gog_RedirectMismatch {
+            get {
+                return ResourceManager.GetString("Gog.RedirectMismatch", resourceCulture);
+            }
+        }
+        
+        public static string Gog_CallbackMissingCode {
+            get {
+                return ResourceManager.GetString("Gog.CallbackMissingCode", resourceCulture);
+            }
+        }
+        
+        public static string Gog_LibraryLoadFailed {
+            get {
+                return ResourceManager.GetString("Gog.LibraryLoadFailed", resourceCulture);
+            }
+        }
+        
+        public static string Gog_LibraryEmpty {
+            get {
+                return ResourceManager.GetString("Gog.LibraryEmpty", resourceCulture);
+            }
+        }
+        
+        public static string Gog_CallbackPromptFormat {
+            get {
+                return ResourceManager.GetString("Gog.CallbackPromptFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_CallbackInvalidUri {
+            get {
+                return ResourceManager.GetString("Gog.CallbackInvalidUri", resourceCulture);
+            }
+        }
+        
+        public static string Gog_GameFallbackTitleFormat {
+            get {
+                return ResourceManager.GetString("Gog.GameFallbackTitleFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_NoNewForNode {
+            get {
+                return ResourceManager.GetString("Gog.Picker.NoNewForNode", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Node_SyncNoChanges {
+            get {
+                return ResourceManager.GetString("Gog.Node.SyncNoChanges", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_DialogTitle {
+            get {
+                return ResourceManager.GetString("Gog.Picker.DialogTitle", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_Header {
+            get {
+                return ResourceManager.GetString("Gog.Picker.Header", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_OnlyNewInNode {
+            get {
+                return ResourceManager.GetString("Gog.Picker.OnlyNewInNode", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_SearchPlaceholder {
+            get {
+                return ResourceManager.GetString("Gog.Picker.SearchPlaceholder", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_CounterFormat {
+            get {
+                return ResourceManager.GetString("Gog.Picker.CounterFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_SelectAllFiltered {
+            get {
+                return ResourceManager.GetString("Gog.Picker.SelectAllFiltered", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_ClearSelection {
+            get {
+                return ResourceManager.GetString("Gog.Picker.ClearSelection", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_EmptyState {
+            get {
+                return ResourceManager.GetString("Gog.Picker.EmptyState", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_AddSelection {
+            get {
+                return ResourceManager.GetString("Gog.Picker.AddSelection", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_StatusAlreadyInNode {
+            get {
+                return ResourceManager.GetString("Gog.Picker.StatusAlreadyInNode", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_StatusLinkedFormat {
+            get {
+                return ResourceManager.GetString("Gog.Picker.StatusLinkedFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Picker_StatusNew {
+            get {
+                return ResourceManager.GetString("Gog.Picker.StatusNew", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_DialogTitle {
+            get {
+                return ResourceManager.GetString("Gog.Install.DialogTitle", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_DialogMessageFormat {
+            get {
+                return ResourceManager.GetString("Gog.Install.DialogMessageFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_InstallPathLabel {
+            get {
+                return ResourceManager.GetString("Gog.InstallPathLabel", resourceCulture);
+            }
+        }
+        
+        public static string Gog_InstallPlatformLabel {
+            get {
+                return ResourceManager.GetString("Gog.InstallPlatformLabel", resourceCulture);
+            }
+        }
+        
+        public static string Gog_InstallRunnerLabel {
+            get {
+                return ResourceManager.GetString("Gog.InstallRunnerLabel", resourceCulture);
+            }
+        }
+        
+        public static string Gog_InstallRunnerMissingHint {
+            get {
+                return ResourceManager.GetString("Gog.InstallRunnerMissingHint", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_WindowsInstallerPreferenceLabel {
+            get {
+                return ResourceManager.GetString("Gog.Install.WindowsInstallerPreferenceLabel", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_WindowsInstallerPreference_AutoPrefer64 {
+            get {
+                return ResourceManager.GetString("Gog.Install.WindowsInstallerPreference.AutoPrefer64", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_WindowsInstallerPreference_Prefer64 {
+            get {
+                return ResourceManager.GetString("Gog.Install.WindowsInstallerPreference.Prefer64", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_WindowsInstallerPreference_Prefer32 {
+            get {
+                return ResourceManager.GetString("Gog.Install.WindowsInstallerPreference.Prefer32", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_CleanInstallLabel {
+            get {
+                return ResourceManager.GetString("Gog.Install.CleanInstallLabel", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_CleanInstallHint {
+            get {
+                return ResourceManager.GetString("Gog.Install.CleanInstallHint", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_DeleteStagingAfterSuccessLabel {
+            get {
+                return ResourceManager.GetString("Gog.Install.DeleteStagingAfterSuccessLabel", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_DeleteStagingAfterSuccessHint {
+            get {
+                return ResourceManager.GetString("Gog.Install.DeleteStagingAfterSuccessHint", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Update_BadgeTooltip {
+            get {
+                return ResourceManager.GetString("Gog.Update.BadgeTooltip", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Update_Available {
+            get {
+                return ResourceManager.GetString("Gog.Update.Available", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Update_UpToDate {
+            get {
+                return ResourceManager.GetString("Gog.Update.UpToDate", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Update_NoBaseline {
+            get {
+                return ResourceManager.GetString("Gog.Update.NoBaseline", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Update_AuthRequired {
+            get {
+                return ResourceManager.GetString("Gog.Update.AuthRequired", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Update_NotApplicable {
+            get {
+                return ResourceManager.GetString("Gog.Update.NotApplicable", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Update_Failed {
+            get {
+                return ResourceManager.GetString("Gog.Update.Failed", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_PlatformLinux {
+            get {
+                return ResourceManager.GetString("Gog.Install.PlatformLinux", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_PlatformWindows {
+            get {
+                return ResourceManager.GetString("Gog.Install.PlatformWindows", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_ValidationPathRequired {
+            get {
+                return ResourceManager.GetString("Gog.Install.ValidationPathRequired", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_ValidationPathAbsolute {
+            get {
+                return ResourceManager.GetString("Gog.Install.ValidationPathAbsolute", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_ValidationRunnerMissing {
+            get {
+                return ResourceManager.GetString("Gog.Install.ValidationRunnerMissing", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_ValidationRunnerRequired {
+            get {
+                return ResourceManager.GetString("Gog.Install.ValidationRunnerRequired", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_ValidationUmuRequired {
+            get {
+                return ResourceManager.GetString("Gog.Install.ValidationUmuRequired", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_UmuRequired {
+            get {
+                return ResourceManager.GetString("Gog.Install.UmuRequired", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_ResolveFailed {
+            get {
+                return ResourceManager.GetString("Gog.Install.ResolveFailed", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_ResolveFailedFormat {
+            get {
+                return ResourceManager.GetString("Gog.Install.ResolveFailedFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_NoInstallerAvailable {
+            get {
+                return ResourceManager.GetString("Gog.Install.NoInstallerAvailable", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_NoInstallerForPlatformFormat {
+            get {
+                return ResourceManager.GetString("Gog.Install.NoInstallerForPlatformFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_DownloadFailed {
+            get {
+                return ResourceManager.GetString("Gog.Install.DownloadFailed", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_DownloadFailedFormat {
+            get {
+                return ResourceManager.GetString("Gog.Install.DownloadFailedFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_DownloadLogTitleFormat {
+            get {
+                return ResourceManager.GetString("Gog.Install.DownloadLogTitleFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_ProgressLogTitleFormat {
+            get {
+                return ResourceManager.GetString("Gog.Install.ProgressLogTitleFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_RunFailed {
+            get {
+                return ResourceManager.GetString("Gog.Install.RunFailed", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_RunFailedFormat {
+            get {
+                return ResourceManager.GetString("Gog.Install.RunFailedFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_DetectExecutableFailed {
+            get {
+                return ResourceManager.GetString("Gog.Install.DetectExecutableFailed", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_ApplyLaunchFailed {
+            get {
+                return ResourceManager.GetString("Gog.Install.ApplyLaunchFailed", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_Success {
+            get {
+                return ResourceManager.GetString("Gog.Install.Success", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_PickInstallPathTitle {
+            get {
+                return ResourceManager.GetString("Gog.Install.PickInstallPathTitle", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_PickExecutableTitle {
+            get {
+                return ResourceManager.GetString("Gog.Install.PickExecutableTitle", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Install_ProcessLogTitleFormat {
+            get {
+                return ResourceManager.GetString("Gog.Install.ProcessLogTitleFormat", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Uninstall_Button {
+            get {
+                return ResourceManager.GetString("Gog.Uninstall.Button", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Uninstall_ContextMenu {
+            get {
+                return ResourceManager.GetString("Gog.Uninstall.ContextMenu", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Uninstall_ConfirmTitle {
+            get {
+                return ResourceManager.GetString("Gog.Uninstall.ConfirmTitle", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Uninstall_ConfirmMessage {
+            get {
+                return ResourceManager.GetString("Gog.Uninstall.ConfirmMessage", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Uninstall_Success {
+            get {
+                return ResourceManager.GetString("Gog.Uninstall.Success", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Uninstall_Failed {
+            get {
+                return ResourceManager.GetString("Gog.Uninstall.Failed", resourceCulture);
+            }
+        }
+        
+        public static string Gog_Uninstall_FailedWithMessage {
+            get {
+                return ResourceManager.GetString("Gog.Uninstall.FailedWithMessage", resourceCulture);
+            }
+        }
+        
         public static string Settings_TabMisc {
             get {
                 return ResourceManager.GetString("Settings.TabMisc", resourceCulture);
@@ -1029,9 +1551,51 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Settings_SectionSorting {
+            get {
+                return ResourceManager.GetString("Settings_SectionSorting", resourceCulture);
+            }
+        }
+        
+        public static string Settings_IgnoreLeadingArticlesInSort {
+            get {
+                return ResourceManager.GetString("Settings_IgnoreLeadingArticlesInSort", resourceCulture);
+            }
+        }
+        
+        public static string Settings_IgnoreLeadingArticlesInSort_Hint {
+            get {
+                return ResourceManager.GetString("Settings_IgnoreLeadingArticlesInSort_Hint", resourceCulture);
+            }
+        }
+        
         public static string Settings_SectionMusic {
             get {
                 return ResourceManager.GetString("Settings_SectionMusic", resourceCulture);
+            }
+        }
+        
+        public static string Settings_TabEmulatorsShort {
+            get {
+                return ResourceManager.GetString("Settings_TabEmulatorsShort", resourceCulture);
+            }
+        }
+        
+        public static string Settings_TabMetadataShort {
+            get {
+                return ResourceManager.GetString("Settings_TabMetadataShort", resourceCulture);
+            }
+        }
+        
+        public static string Settings_TabRunnerShort {
+            get {
+                return ResourceManager.GetString("Settings_TabRunnerShort", resourceCulture);
+            }
+        }
+        
+        public static string Settings_TabMiscShort {
+            get {
+                return ResourceManager.GetString("Settings_TabMiscShort", resourceCulture);
             }
         }
         
@@ -1086,6 +1650,168 @@ namespace Retromind.Resources {
         public static string Settings_ChangeParentalPassword {
             get {
                 return ResourceManager.GetString("Settings_ChangeParentalPassword", resourceCulture);
+            }
+        }
+        
+        public static string Settings_TabRunnerVersions {
+            get {
+                return ResourceManager.GetString("Settings_TabRunnerVersions", resourceCulture);
+            }
+        }
+        
+        public static string Settings_SectionRunnerVersions {
+            get {
+                return ResourceManager.GetString("Settings_SectionRunnerVersions", resourceCulture);
+            }
+        }
+        
+        public static string Settings_RunnerVersionNameLabel {
+            get {
+                return ResourceManager.GetString("Settings_RunnerVersionNameLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_RunnerVersionPathLabel {
+            get {
+                return ResourceManager.GetString("Settings_RunnerVersionPathLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_RunnerVersionKindLabel {
+            get {
+                return ResourceManager.GetString("Settings_RunnerVersionKindLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_RunnerVersionSourceLabel {
+            get {
+                return ResourceManager.GetString("Settings_RunnerVersionSourceLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_RunnerVersionBrowseTitle {
+            get {
+                return ResourceManager.GetString("Settings_RunnerVersionBrowseTitle", resourceCulture);
+            }
+        }
+        
+        public static string Settings_RunnerVersionDefaultPathHint {
+            get {
+                return ResourceManager.GetString("Settings_RunnerVersionDefaultPathHint", resourceCulture);
+            }
+        }
+        
+        public static string Settings_RunnerVersionUsageLabel {
+            get {
+                return ResourceManager.GetString("Settings_RunnerVersionUsageLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_RunnerReplacementLabel {
+            get {
+                return ResourceManager.GetString("Settings_RunnerReplacementLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_RunnerReplacementHint {
+            get {
+                return ResourceManager.GetString("Settings_RunnerReplacementHint", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonSectionTitle {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonSectionTitle", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonSelectionLabel {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonSelectionLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonRefreshLabel {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonRefreshLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonDownloadLabel {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonDownloadLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonStatusLabel {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonStatusLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonStatusIdle {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonStatusIdle", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonStatusLoading {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonStatusLoading", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonStatusLoadedFormat {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonStatusLoadedFormat", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonStatusNoReleases {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonStatusNoReleases", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonStatusLoadFailedFormat {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonStatusLoadFailedFormat", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonStatusDownloadingFormat {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonStatusDownloadingFormat", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonStatusInstalledFormat {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonStatusInstalledFormat", resourceCulture);
+            }
+        }
+        
+        public static string Settings_GeProtonStatusInstallFailedFormat {
+            get {
+                return ResourceManager.GetString("Settings_GeProtonStatusInstallFailedFormat", resourceCulture);
+            }
+        }
+        
+        public static string Settings_EmulatorRunnerTypeLabel {
+            get {
+                return ResourceManager.GetString("Settings_EmulatorRunnerTypeLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_EmulatorRunnerVersionLabel {
+            get {
+                return ResourceManager.GetString("Settings_EmulatorRunnerVersionLabel", resourceCulture);
+            }
+        }
+        
+        public static string Settings_EmulatorRunnerDisabledHint {
+            get {
+                return ResourceManager.GetString("Settings_EmulatorRunnerDisabledHint", resourceCulture);
             }
         }
         
@@ -1248,6 +1974,54 @@ namespace Retromind.Resources {
         public static string Settings_EnvValueWatermark {
             get {
                 return ResourceManager.GetString("Settings_EnvValueWatermark", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_RunnerVersionLabel {
+            get {
+                return ResourceManager.GetString("EditMedia_RunnerVersionLabel", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_RunnerVersionHint {
+            get {
+                return ResourceManager.GetString("EditMedia_RunnerVersionHint", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_RunnerVersionKindWine {
+            get {
+                return ResourceManager.GetString("EditMedia_RunnerVersionKindWine", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_RunnerVersionKindProton {
+            get {
+                return ResourceManager.GetString("EditMedia_RunnerVersionKindProton", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_RunnerVersionInheritedMissingFormat {
+            get {
+                return ResourceManager.GetString("EditMedia_RunnerVersionInheritedMissingFormat", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_RunnerVersionInheritedFromEmulatorFormat {
+            get {
+                return ResourceManager.GetString("EditMedia_RunnerVersionInheritedFromEmulatorFormat", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_RunnerVersionInheritedFromEmulatorMatchFormat {
+            get {
+                return ResourceManager.GetString("EditMedia_RunnerVersionInheritedFromEmulatorMatchFormat", resourceCulture);
+            }
+        }
+        
+        public static string EditMedia_RunnerVersionInheritedFromEmulatorOverrideFormat {
+            get {
+                return ResourceManager.GetString("EditMedia_RunnerVersionInheritedFromEmulatorOverrideFormat", resourceCulture);
             }
         }
         
@@ -1548,6 +2322,18 @@ namespace Retromind.Resources {
         public static string NodeSettings_DefaultEmulatorForFolder {
             get {
                 return ResourceManager.GetString("NodeSettings_DefaultEmulatorForFolder", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_GogStoreNode {
+            get {
+                return ResourceManager.GetString("NodeSettings_GogStoreNode", resourceCulture);
+            }
+        }
+        
+        public static string NodeSettings_GogStoreNodeHint {
+            get {
+                return ResourceManager.GetString("NodeSettings_GogStoreNodeHint", resourceCulture);
             }
         }
         
@@ -2013,6 +2799,12 @@ namespace Retromind.Resources {
             }
         }
         
+        public static string Search_FilterBuilderClear {
+            get {
+                return ResourceManager.GetString("Search.FilterBuilderClear", resourceCulture);
+            }
+        }
+        
         public static string Search_AddFieldFilterTooltip {
             get {
                 return ResourceManager.GetString("Search.AddFieldFilterTooltip", resourceCulture);
@@ -2130,6 +2922,12 @@ namespace Retromind.Resources {
         public static string Search_FilterField_CustomField {
             get {
                 return ResourceManager.GetString("Search.FilterField.CustomField", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterField_CustomNamedPrefix {
+            get {
+                return ResourceManager.GetString("Search.FilterField.CustomNamedPrefix", resourceCulture);
             }
         }
         

@@ -391,6 +391,8 @@ public partial class MainWindowViewModel
                 item.CustomFields.Remove(StoreInstallWindowsInstallerPreferenceField);
             }
 
+            WriteInstallMarker(launchInfo.InstallRoot, item);
+            
             UpdateInstalledGogFingerprint(item, selectedInstallerPackage);
 
             MarkLibraryDirty();
@@ -412,6 +414,36 @@ public partial class MainWindowViewModel
         }
     }
 
+    private static void WriteInstallMarker(string installPath, MediaItem item)
+    {
+        if (string.IsNullOrWhiteSpace(installPath))
+            return;
+
+        if (!item.CustomFields.TryGetValue("Store.GameId", out var gameId) ||
+            string.IsNullOrWhiteSpace(gameId))
+        {
+            return;
+        }
+
+        var marker = new
+        {
+            ProviderId = "gog",
+            StoreGameId = gameId,
+            MediaItemId = item.Id
+        };
+
+        var markerPath = Path.Combine(installPath, ".retromind-install.json");
+        try
+        {
+            var json = JsonSerializer.Serialize(marker, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(markerPath, json, Encoding.UTF8);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Warning] Failed to write install marker to '{markerPath}': {ex.Message}");
+        }
+    }
+    
     private async Task<bool> EnsureGogSignInForInstallAsync(Window owner, bool forceInteractiveSignIn = false)
     {
         if (!forceInteractiveSignIn)

@@ -178,6 +178,18 @@
                     CommandParameter="{Binding .}"
                     IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowGogReinstallSelectedMediaButton}"/>
 
+            <Button Content="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUninstallSelectedMediaButtonText}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Padding="0,2,0,0"
+                    Height="34"
+                    Margin="0,0,0,8"
+                    Foreground="Red"
+                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UninstallGogCommand}"
+                    CommandParameter="{Binding .}"
+                    IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowGogUninstallSelectedMediaButton}"/>
+
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 
             <!-- Manuals / Documents area -->

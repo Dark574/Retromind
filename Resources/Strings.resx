@@ -293,6 +293,20 @@ If needed, reopen:
     <data name="Gog.Install.PickInstallPathTitle" xml:space="preserve"><value>Select install folder</value></data>
     <data name="Gog.Install.PickExecutableTitle" xml:space="preserve"><value>Select launch executable</value></data>
     <data name="Gog.Install.ProcessLogTitleFormat" xml:space="preserve"><value>GOG installer - {0}</value></data>
+    <!-- GOG Uninstall -->
+    <data name="Gog.Uninstall.Button" xml:space="preserve"><value>Uninstall</value></data>
+    <data name="Gog.Uninstall.ContextMenu" xml:space="preserve"><value>Uninstall</value></data>
+    <data name="Gog.Uninstall.ConfirmTitle" xml:space="preserve"><value>Uninstall GOG game</value></data>
+    <data name="Gog.Uninstall.ConfirmMessage" xml:space="preserve"><value>Uninstall "{0}"?
+
+This will delete:
+• The game files in the install folder
+• The Wine/Proton prefix folder
+
+This action cannot be undone.</value></data>
+    <data name="Gog.Uninstall.Success" xml:space="preserve"><value>Game uninstalled successfully.</value></data>
+    <data name="Gog.Uninstall.Failed" xml:space="preserve"><value>Uninstallation failed. See logs for details.</value></data>
+    <data name="Gog.Uninstall.FailedWithMessage" xml:space="preserve"><value>Uninstallation failed: {0}</value></data>
 
     <!-- SETTINGS -->
     <data name="Settings.TabMisc" xml:space="preserve"><value>Misc</value></data>

@@ -112,6 +112,16 @@ public static class ObjectConverters
         });
 
     /// <summary>
+    /// Returns true only for installed GOG-linked media items.
+    /// Used to show/hide the "Uninstall" context-menu entry.
+    /// </summary>
+    public static readonly IValueConverter GogUninstallMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+        {
+            return IsInstalledGogItem(item);
+        });
+    
+    /// <summary>
     /// Returns true for installed GOG-linked media items that have an available update.
     /// Used to show/hide dedicated GOG update actions in context menus.
     /// </summary>

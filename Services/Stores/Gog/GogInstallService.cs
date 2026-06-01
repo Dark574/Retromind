@@ -9,6 +9,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Retromind.Helpers;
+using Retromind.Models;
 using Retromind.Services.Stores.Gog.Auth;
 
 namespace Retromind.Services.Stores.Gog;
@@ -142,6 +144,129 @@ public sealed class GogInstallService
         return new GogInstallerPackage(gameId, platform, installerName, installerVersion, resolvedFiles);
     }
 
+    /// <summary>
+    /// Validates that a path is safe to delete for GOG uninstall operations.
+    /// Only allows paths within DataRoot or explicitly allowed external paths.
+    /// </summary>
+    private static bool IsSafeToDeletePath(string installPath, MediaItem item)
+    {
+        if (string.IsNullOrWhiteSpace(installPath))
+            return false;
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(installPath);
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (IsDangerousPath(fullPath))
+            return false;
+
+        var dataRoot = Path.GetFullPath(AppPaths.DataRoot);
+        if (string.Equals(fullPath, dataRoot, StringComparison.Ordinal))
+            return false;
+
+        var libraryRoot = Path.GetFullPath(AppPaths.LibraryRoot);
+        if (string.Equals(fullPath, libraryRoot, StringComparison.Ordinal))
+            return false;
+
+        // If the folder no longer exists, no physical deletion can happen.
+        // Allow metadata cleanup to proceed.
+        if (!Directory.Exists(fullPath))
+            return true;
+
+        if (AppPaths.IsPathInsideDataRoot(fullPath))
+            return HasValidInstallMarker(fullPath, item);
+
+        var libraryRootWithSep = libraryRoot.EndsWith(Path.DirectorySeparatorChar.ToString())
+            ? libraryRoot
+            : libraryRoot + Path.DirectorySeparatorChar;
+
+        if (fullPath.StartsWith(libraryRootWithSep, StringComparison.Ordinal))
+            return HasValidInstallMarker(fullPath, item);
+
+        return HasValidInstallMarker(fullPath, item);
+    }
+
+    private static bool HasValidInstallMarker(string fullPath, MediaItem item)
+    {
+        var markerPath = Path.Combine(fullPath, ".retromind-install.json");
+        if (!File.Exists(markerPath))
+        {
+            Debug.WriteLine($"[Warning] No install marker found at '{markerPath}'. Refusing to delete path '{fullPath}'.");
+            return false;
+        }
+
+        InstallMarker? marker;
+        try
+        {
+            var json = File.ReadAllText(markerPath);
+            marker = JsonSerializer.Deserialize<InstallMarker>(json);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Warning] Failed to read install marker at '{markerPath}': {ex.Message}");
+            return false;
+        }
+
+        if (marker == null)
+            return false;
+
+        if (!string.Equals(marker.ProviderId, "gog", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!item.CustomFields.TryGetValue("Store.GameId", out var gameId) ||
+            !string.Equals(marker.StoreGameId, gameId, StringComparison.Ordinal))
+        {
+            Debug.WriteLine($"[Warning] Install marker StoreGameId mismatch: expected '{gameId}', got '{marker.StoreGameId}'.");
+            return false;
+        }
+
+        if (!string.Equals(marker.MediaItemId, item.Id, StringComparison.Ordinal))
+        {
+            Debug.WriteLine($"[Warning] Install marker MediaItemId mismatch: expected '{item.Id}', got '{marker.MediaItemId}'.");
+            return false;
+        }
+
+        return true;
+    }
+    
+    private static bool IsDangerousPath(string fullPath)
+    {
+        if (string.IsNullOrWhiteSpace(fullPath))
+            return true;
+
+        var root = Path.GetPathRoot(fullPath);
+        if (string.IsNullOrWhiteSpace(root))
+            return true;
+
+        if (string.Equals(fullPath, root, StringComparison.Ordinal))
+            return true;
+
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrWhiteSpace(home) &&
+            string.Equals(fullPath, Path.GetFullPath(home), StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var blockedPaths = new[] { "/usr", "/bin", "/sbin", "/etc", "/var", "/boot", "/dev", "/proc", "/sys" };
+        foreach (var blocked in blockedPaths)
+        {
+            if (fullPath.StartsWith(blocked + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                string.Equals(fullPath, blocked, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    
     public async Task<IReadOnlyList<GogInstallPlatform>> GetAvailableInstallerPlatformsAsync(
         string gameId,
         CancellationToken ct = default)
@@ -163,6 +288,179 @@ public sealed class GogInstallService
 
         using var productJson = JsonDocument.Parse(productBody);
         return ExtractAvailableInstallerPlatforms(productJson.RootElement);
+    }
+
+    public async Task UninstallGogGameAsync(
+        MediaItem item,
+        CancellationToken ct = default)
+    {
+        if (item == null)
+            throw new ArgumentNullException(nameof(item));
+
+        // --- Extract paths from CustomFields ---
+        if (!item.CustomFields.TryGetValue("Store.InstallPath", out var installPath) ||
+            string.IsNullOrWhiteSpace(installPath))
+        {
+            throw new InvalidOperationException("Cannot uninstall: install path is not set.");
+        }
+        
+        var prefixPath = item.PrefixPath;
+        bool prefixSkippedForSafety = false;
+        
+        if (!string.IsNullOrWhiteSpace(prefixPath))
+        {
+            string resolvedPrefix;
+            
+            // 1. Normalize path (handles ../ sequences)
+            if (Path.IsPathRooted(prefixPath))
+            {
+                resolvedPrefix = Path.GetFullPath(prefixPath);
+            }
+            else
+            {
+                // Resolve relative to LibraryRoot
+                resolvedPrefix = Path.GetFullPath(Path.Combine(AppPaths.LibraryRoot, prefixPath));
+            }
+            
+            // 2. Safety Check: Ensure resolved path is inside LibraryRoot
+            var libraryRoot = Path.GetFullPath(AppPaths.LibraryRoot);
+            var libraryRootWithSep = libraryRoot.EndsWith(Path.DirectorySeparatorChar.ToString())
+                ? libraryRoot
+                : libraryRoot + Path.DirectorySeparatorChar;
+
+            // CRITICAL: resolvedPrefix must be a STRICT subdirectory of LibraryRoot.
+            // Never allow deleting LibraryRoot itself (e.g., if PrefixPath is "." or empty-normalized).
+            var isSafePrefix = resolvedPrefix.StartsWith(libraryRootWithSep, StringComparison.Ordinal);
+
+            if (!isSafePrefix)
+            {
+                Debug.WriteLine($"[Warning] Prefix path '{prefixPath}' resolves outside LibraryRoot ('{resolvedPrefix}'). Skipping prefix deletion for safety.");
+                prefixPath = null; // Abort prefix deletion
+                prefixSkippedForSafety = true;
+            }
+            else
+            {
+                prefixPath = resolvedPrefix;
+            }
+        }
+
+        // --- Phase B: Physical deletion ---
+        // Delete install directory first, then prefix.
+        // If any deletion fails, we abort and do NOT touch metadata (Phase C).
+
+        // --- Safety validation before deletion ---
+        if (!IsSafeToDeletePath(installPath, item))
+        {
+            throw new InvalidOperationException(
+                $"Refusing to delete install path '{installPath}': path is outside allowed boundaries.");
+        }
+
+        try
+        {
+            await DeleteDirectoryAsync(installPath, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to delete install directory '{installPath}'. The game may still be running or files are locked.",
+                ex);
+        }
+
+        if (!string.IsNullOrWhiteSpace(prefixPath) && Directory.Exists(prefixPath))
+        {
+            try
+            {
+                await DeleteDirectoryAsync(prefixPath, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // Install directory is already gone, but prefix deletion failed.
+                // This is a partial failure – throw to prevent Phase C.
+                throw new InvalidOperationException(
+                    $"Install directory deleted, but failed to delete prefix directory '{prefixPath}'. " +
+                    "The prefix may still be in use or files are locked.",
+                    ex);
+            }
+        }
+
+        // --- Phase C: Logical cleanup (metadata) ---
+        // Only reached if Phase B succeeded completely.
+        // Remove all Store.* custom fields related to the installation.
+        var fieldsToRemove = new[]
+        {
+            "Store.InstallPath",
+            "Store.InstallPlatform",
+            "Store.InstallRunnerVersionId",
+            "Store.InstallWindowsInstallerPreference",
+            "Store.UpdateAvailable",
+            "Store.InstalledVersion",
+            "Store.InstalledInstallerSignature",
+            "Store.LastUpdateCheckStatus",
+            "Store.LastUpdateCheckUtc"
+        };
+
+        // Reassign the dictionary to trigger INotifyPropertyChanged.
+        // In-place modifications (Remove) do not notify the UI, causing stale metadata display.
+        item.CustomFields = item.CustomFields
+            .Where(kv => !fieldsToRemove.Contains(kv.Key))
+            .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+
+        // Only clear PrefixPath metadata if we actually deleted the prefix safely.
+        // If prefix was skipped for safety, preserve the metadata so the user can clean up manually.
+        if (!prefixSkippedForSafety)
+        {
+            item.PrefixPath = null;
+        }
+        else
+        {
+            Debug.WriteLine($"[Info] Prefix path metadata preserved for manual cleanup: '{item.PrefixPath}'");
+        }
+
+        // Clear launcher path/args since the executable is gone.
+        item.LauncherPath = null;
+    }
+
+    /// <summary>
+    /// Recursively deletes a directory and all its contents.
+    /// Uses retry logic for files that may be temporarily locked.
+    /// </summary>
+    private static async Task DeleteDirectoryAsync(string path, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+            return;
+
+        // Retry up to 3 times with short delays for locked files.
+        var maxRetries = 3;
+        for (var attempt = 0; attempt < maxRetries; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                // Run the synchronous deletion on a background thread to avoid blocking UI
+                await Task.Run(() =>
+                {
+                    Directory.Delete(path, recursive: true);
+                }, ct);
+                return; // Success
+            }
+            catch (IOException ex) when (ex.HResult == -2147024864)
+            {
+                // HResult 0x80070020 = Sharing violation (file in use)
+                if (attempt < maxRetries - 1)
+                {
+                    await Task.Delay(500 * (attempt + 1), ct).ConfigureAwait(false);
+                    continue;
+                }
+
+                throw; // Re-throw on last attempt
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Permission denied – no point retrying
+                throw;
+            }
+        }
     }
 
     public async Task<GogDownloadedInstallerPackage> DownloadInstallerPackageAsync(
@@ -718,4 +1016,9 @@ public sealed class GogInstallService
         var trimmed = jsonOrText.Trim();
         return trimmed.Length <= 260 ? trimmed : trimmed[..260] + "...";
     }
+    
+    private sealed record InstallMarker(
+        string ProviderId,
+        string StoreGameId,
+        string MediaItemId);
 }

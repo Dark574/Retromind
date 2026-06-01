@@ -242,6 +242,10 @@
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ReinstallGogCommand}"
                                                       CommandParameter="{Binding .}"
                                                       IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogReinstallMenuVisible}}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUninstallMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UninstallGogCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}" />
                                             <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddManual}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddManualToMediaCommand}"
                                                       CommandParameter="{Binding .}" />

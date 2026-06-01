@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-05-29
+Last updated: 2026-06-01
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -102,6 +102,18 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - update availability flag persisted in custom fields (`Store.UpdateAvailable`, `Store.LastUpdateCheckUtc`, `Store.LastUpdateCheckStatus`)
   - search-card badge is shown when update is available
   - primary Start action now surfaces `Update` and runs the existing installer flow for update installs
+- Uninstall wiring:
+  - dedicated uninstall action for installed GOG items
+  - physical deletion runs before metadata cleanup (metadata is only cleared after successful deletion phase)
+  - install-root deletion safety policy:
+    - hard block for dangerous targets (filesystem root, home, common Linux system paths)
+    - `DataRoot` and `LibraryRoot` themselves are never deletable
+    - for concrete install folders (inside or outside portable roots), deletion requires a valid `.retromind-install.json` ownership marker matching `ProviderId`, `StoreGameId`, and `MediaItemId`
+    - if install folder is already missing, uninstall proceeds with metadata cleanup only
+  - prefix deletion safety policy:
+    - relative prefixes are resolved against `LibraryRoot` and normalized via `Path.GetFullPath`
+    - deletion is allowed only for strict subdirectories of `LibraryRoot` (never `LibraryRoot` itself)
+    - prefixes resolving outside `LibraryRoot` are skipped for safety, and prefix metadata is preserved for manual cleanup
 - DI registration in app startup
 
 ## Implemented structure
@@ -165,6 +177,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Views/GogInstallDialogView.axaml.cs`
 - `ViewModels/MainWindowViewModel.GogInstall.cs`
 - `ViewModels/MainWindowViewModel.GogUpdates.cs`
+- `ViewModels/MainWindowViewModel.Command.cs`
+  - uninstall command wiring for GOG items
 - `ViewModels/ProcessLogViewModel.cs` (long-running process log, cancellation, and lifecycle management)
 - `Views/ProcessLogView.axaml` (installer progress/log UI with Cancel and Close handling)
 - `Views/ProcessLogView.axaml.cs`
@@ -194,6 +208,9 @@ Required behavior for native GOG auth:
 - Secret Service execution path is constrained to trusted host executable locations (and bundled fallback in AppImage).
 - Portable mode must not store OAuth secrets in `DataRoot`; Secret Service access remains host-based.
 - If Secret Service is unavailable, use session-only in-memory storage.
+- Uninstall operations must enforce path safety checks before recursive deletion.
+- Install-root deletion outside trusted roots requires a valid Retromind install marker (`.retromind-install.json`) with matching ownership fields.
+- Prefix deletion must stay inside `LibraryRoot` strict subdirectories; out-of-root prefixes are not auto-deleted.
 - OAuth runtime config is environment-variable overrideable:
   - `RETROMIND_GOG_CLIENT_ID`
   - `RETROMIND_GOG_CLIENT_SECRET`
