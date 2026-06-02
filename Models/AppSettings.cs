@@ -40,12 +40,6 @@ public class AppSettings
     public List<string> SteamLibraryPaths { get; set; } = new();
 
     /// <summary>
-    /// Optional manual Heroic GOG config paths (heroic folder, gog_store folder, or installed.json).
-    /// If empty, Retromind uses automatic discovery only.
-    /// </summary>
-    public List<string> HeroicGogConfigPaths { get; set; } = new();
-
-    /// <summary>
     /// Optional manual Heroic Epic config paths (heroic folder, epic_store folder, or installed.json).
     /// If empty, Retromind uses automatic discovery only.
     /// </summary>

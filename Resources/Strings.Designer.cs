@@ -837,12 +837,6 @@ namespace Retromind.Resources {
             }
         }
         
-        public static string Dialog_SelectHeroicGogFolder {
-            get {
-                return ResourceManager.GetString("Dialog_SelectHeroicGogFolder", resourceCulture);
-            }
-        }
-        
         public static string Dialog_SelectHeroicEpicFolder {
             get {
                 return ResourceManager.GetString("Dialog_SelectHeroicEpicFolder", resourceCulture);
@@ -1833,12 +1827,6 @@ namespace Retromind.Resources {
             }
         }
         
-        public static string Settings_SectionHeroicGog {
-            get {
-                return ResourceManager.GetString("Settings_SectionHeroicGog", resourceCulture);
-            }
-        }
-        
         public static string Settings_SectionHeroicEpic {
             get {
                 return ResourceManager.GetString("Settings_SectionHeroicEpic", resourceCulture);
@@ -2802,6 +2790,12 @@ namespace Retromind.Resources {
         public static string Search_FilterBuilderClear {
             get {
                 return ResourceManager.GetString("Search.FilterBuilderClear", resourceCulture);
+            }
+        }
+        
+        public static string Search_FilterBuilderSave {
+            get {
+                return ResourceManager.GetString("Search.FilterBuilderSave", resourceCulture);
             }
         }
         

@@ -359,66 +359,6 @@ public class StoreImportService
     }
 
     /// <summary>
-    /// Imports games installed via Heroic Games Launcher (specifically GOG support).
-    /// </summary>
-    public async Task<List<MediaItem>> ImportHeroicGogAsync(
-        string? manualConfigPath = null,
-        ICollection<string>? discoveredConfigPaths = null)
-    {
-        var results = new List<MediaItem>();
-
-        var configPaths = GetHeroicGogConfigPaths(manualConfigPath);
-        if (configPaths.Count == 0)
-        {
-            Debug.WriteLine("[StoreImport] Heroic GOG config not found.");
-            return results;
-        }
-
-        if (discoveredConfigPaths != null)
-        {
-            foreach (var path in configPaths)
-                discoveredConfigPaths.Add(path);
-        }
-
-        try
-        {
-            foreach (var configPath in configPaths)
-            {
-                if (!File.Exists(configPath))
-                    continue;
-
-                var json = await File.ReadAllTextAsync(configPath);
-                var rootNode = JsonSerializer.Deserialize<JsonNode>(json);
-
-                // Heroic's JSON structure for installed.json:
-                // { "installed": [ { "title": "...", "appName": "...", ... }, ... ] }
-
-                if (rootNode is JsonObject obj && obj.TryGetPropertyValue("installed", out var installedNode))
-                {
-                    var gamesList = installedNode?.AsArray();
-                    if (gamesList != null)
-                    {
-                        foreach (var gameNode in gamesList)
-                        {
-                            var item = ParseHeroicGameNode(gameNode, storeLabel: "GOG", uriPrefix: "gog://", developer: "GOG");
-                            if (item != null)
-                            {
-                                results.Add(item);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[StoreImport] Heroic Import Error: {ex.Message}");
-        }
-
-        return results;
-    }
-
-    /// <summary>
     /// Imports games installed via Heroic Games Launcher (Epic support).
     /// </summary>
     public async Task<List<MediaItem>> ImportHeroicEpicAsync(
@@ -473,35 +413,6 @@ public class StoreImportService
         }
 
         return results;
-    }
-
-    private List<string> GetHeroicGogConfigPaths(string? manualConfigPath)
-    {
-        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        var manualResolved = ResolveHeroicGogConfigPath(manualConfigPath);
-        if (!string.IsNullOrWhiteSpace(manualResolved) && File.Exists(manualResolved))
-            paths.Add(Path.GetFullPath(manualResolved));
-
-        if (_settings.HeroicGogConfigPaths is { Count: > 0 })
-        {
-            foreach (var storedPath in _settings.HeroicGogConfigPaths)
-            {
-                var resolved = ResolveHeroicGogConfigPath(storedPath);
-                if (!string.IsNullOrWhiteSpace(resolved) && File.Exists(resolved))
-                    paths.Add(Path.GetFullPath(resolved));
-            }
-        }
-
-        foreach (var candidate in GetHeroicGogCandidatePaths())
-        {
-            if (!File.Exists(candidate))
-                continue;
-
-            paths.Add(Path.GetFullPath(candidate));
-        }
-
-        return paths.ToList();
     }
 
     private List<string> GetHeroicEpicConfigPaths(string? manualConfigPath)
