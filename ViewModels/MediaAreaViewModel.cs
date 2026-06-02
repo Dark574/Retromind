@@ -155,7 +155,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     /// Handled by the parent coordinator (MainWindowViewModel).
     /// </summary>
     public event Action<MediaItem>? RequestPlay;
-
+    
     partial void OnSearchTextChanged(string value)
     {
         DebouncedApplyFilter(value);

@@ -34,6 +34,11 @@ public class AppSettings
     public bool ForcePortableHomeInAppImage { get; set; } = false;
 
     /// <summary>
+    /// the search terms that are shown in the search query and searchquery builder.
+    /// </summary>
+    public List<string> SavedSearchTerms { get; set; } = new();
+
+    /// <summary>
     /// Optional manual Steam library paths (folders containing steamapps or steamapps itself).
     /// If empty, Retromind uses automatic discovery only.
     /// </summary>

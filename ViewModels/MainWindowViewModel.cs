@@ -118,6 +118,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly HashSet<MediaNode> _dirtyTrackedNodes = new();
     private ObservableCollection<MediaNode>? _dirtyTrackedRoots;
 
+    // saved search terms
+    public ObservableCollection<string> SavedSearchTerms { get; } = new();
+    
     // Per-node selection memory for quick return after switching nodes.
     private readonly Dictionary<string, string> _lastSelectedMediaByNodeId = new(StringComparer.Ordinal);
     private readonly HashSet<string> _nodesWithClearedSelection = new(StringComparer.Ordinal);
@@ -341,6 +344,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _treePaneWidth = new GridLength(_currentSettings.TreeColumnWidth);
         _detailPaneWidth = new GridLength(_currentSettings.DetailColumnWidth);
         _itemWidth = _currentSettings.ItemWidth;
+        
+        SyncSavedSearchTermsCollectionFromSettings();
         
         // Ensure SDL also reports background events and applies deadzone handling.
         Environment.SetEnvironmentVariable("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1");
@@ -716,6 +721,72 @@ public partial class MainWindowViewModel : ViewModelBase
             // Keep dirty=true so a later attempt can retry the save.
             _isLibraryDirty = true;
         }
+    }
+
+    private void SyncSavedSearchTermsCollectionFromSettings()
+    {
+        _currentSettings.SavedSearchTerms ??= new List<string>();
+        var normalizedTerms = _currentSettings.SavedSearchTerms
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        _currentSettings.SavedSearchTerms = normalizedTerms;
+
+        SavedSearchTerms.Clear();
+        foreach (var savedTerm in normalizedTerms)
+            SavedSearchTerms.Add(savedTerm);
+    }
+
+    private void MutateSavedSearchTerms(Func<List<string>, bool> mutate)
+    {
+        _currentSettings.SavedSearchTerms ??= new List<string>();
+        var terms = _currentSettings.SavedSearchTerms;
+
+        if (!mutate(terms))
+            return;
+
+        SyncSavedSearchTermsCollectionFromSettings();
+        SaveSettingsOnly();
+    }
+
+    private static string NormalizeSavedSearchTerm(string term) => term.Trim();
+
+    public void SaveSearchTerm(string? term)
+    {
+        if (string.IsNullOrWhiteSpace(term))
+            return;
+
+        var normalizedTerm = NormalizeSavedSearchTerm(term);
+
+        MutateSavedSearchTerms(terms =>
+        {
+            var existingIndex = terms.FindIndex(t =>
+                string.Equals(t, normalizedTerm, StringComparison.OrdinalIgnoreCase));
+
+            if (existingIndex == 0 &&
+                string.Equals(terms[0], normalizedTerm, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (existingIndex >= 0)
+                terms.RemoveAt(existingIndex);
+
+            terms.Insert(0, normalizedTerm);
+            return true;
+        });
+    }
+
+    public void RemoveSavedSearchTerm(string? term)
+    {
+        if (string.IsNullOrWhiteSpace(term))
+            return;
+
+        var normalizedTerm = NormalizeSavedSearchTerm(term);
+        MutateSavedSearchTerms(terms =>
+            terms.RemoveAll(t => string.Equals(t, normalizedTerm, StringComparison.OrdinalIgnoreCase)) > 0);
     }
 
     private void ResetLibraryChangeTracking()
@@ -1578,7 +1649,6 @@ public partial class MainWindowViewModel : ViewModelBase
                     mediaVm.RequestPlay += OnMediaAreaRequestPlay;
                     mediaVm.PropertyChanged += OnMediaAreaPropertyChanged;
                     mediaVm.FilteredItems.CollectionChanged += OnMediaAreaFilteredItemsChanged;
-
                     string? itemIdToSelect = null;
                     var hadCachedNodeSelection = false;
 

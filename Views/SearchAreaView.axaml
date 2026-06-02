@@ -60,12 +60,13 @@
                         </CheckBox>
 
                         <!-- Search title -->
-                        <TextBox Text="{Binding SearchText}"
-                                 PlaceholderText="{x:Static p:Strings.Dialog_TitleSearch}"
-                                 Width="260"
-                                 Height="28"
-                                 Margin="0,0,6,8"
-                                 VerticalContentAlignment="Center"/>
+                        <ComboBox ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SavedSearchTerms}"
+                                  Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  IsEditable="True"
+                                  Width="260"
+                                  Height="28"
+                                  Margin="0,0,6,8"
+                                  VerticalContentAlignment="Center"/>
 
                         <Button Width="26"
                                 Height="28"
@@ -80,6 +81,41 @@
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"/>
                         </Button>
+
+                        <StackPanel Orientation="Vertical"
+                                    Margin="0,0,6,8"
+                                    VerticalAlignment="Center"
+                                    Spacing="2">
+                            <Button Width="18"
+                                    Height="13"
+                                    Padding="0"
+                                    Background="Transparent"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="0"
+                                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SaveSearchTermCommand}"
+                                    CommandParameter="{Binding SearchText}"
+                                    ToolTip.Tip="{x:Static p:Strings.Search_FilterBuilderSave}">
+                                <TextBlock Text="+"
+                                           FontSize="10"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Button>
+
+                            <Button Width="18"
+                                    Height="13"
+                                    Padding="0"
+                                    Background="Transparent"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="0"
+                                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveSavedSearchTermCommand}"
+                                    CommandParameter="{Binding SearchText}"
+                                    ToolTip.Tip="{x:Static p:Strings.Search_FilterBuilderClear}">
+                                <TextBlock Text="-"
+                                           FontSize="10"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Button>
+                        </StackPanel>
 
                         <Button Width="26"
                                 Height="28"

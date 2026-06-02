@@ -65,6 +65,8 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> ScrapeMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ScrapeNodeCommand { get; private set; } = null!;
     public IRelayCommand OpenSearchCommand { get; private set; } = null!;
+    public IRelayCommand<string?> SaveSearchTermCommand { get; private set; } = null!;
+    public IRelayCommand<string?> RemoveSavedSearchTermCommand { get; private set; } = null!;
 
     // Command to enter the Big Picture / Themed mode
     public IRelayCommand EnterBigModeCommand { get; private set; } = null!;
@@ -114,6 +116,8 @@ public partial class MainWindowViewModel
         ScrapeMediaCommand = new AsyncRelayCommand<MediaItem?>(ScrapeMediaAsync);
         ScrapeNodeCommand = new AsyncRelayCommand<MediaNode?>(ScrapeNodeAsync, CanOperateOnNode);
         OpenSearchCommand = new RelayCommand(OpenIntegratedSearch);
+        SaveSearchTermCommand = new RelayCommand<string?>(SaveSearchTerm);
+        RemoveSavedSearchTermCommand = new RelayCommand<string?>(RemoveSavedSearchTerm);
         
         EnterBigModeCommand = new RelayCommand(EnterBigMode);
         
