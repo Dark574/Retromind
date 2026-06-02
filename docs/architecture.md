@@ -47,7 +47,9 @@ Main window is a layered shell:
 - preserves and restores search/filter UI state when switching between node view and global search
 
 ## Persistence model
-All runtime data is portable under `AppPaths.DataRoot` (AppImage directory or app base directory).
+Persisted app/library data is portable under `AppPaths.DataRoot` (AppImage directory or app base directory).
+Exception: secrets for native store auth (e.g. GOG refresh token) are stored via host secret store (`ISecretStore`),
+not in `DataRoot`.
 
 ### Library (`retromind_tree.json`)
 - service: `MediaDataService`
@@ -111,8 +113,9 @@ Global search uses a dedicated `SearchAreaViewModel`:
 
 ## Import and metadata flow
 - `ImportService`: recursive local file import with multi-disc grouping/labeling
-- `StoreImportService`: Steam/Heroic discovery (auto + manual paths), with portable-home awareness in AppImage mode
-- Store provider scaffold for native integrations under `Services/Stores/` (GOG in progress)
+- `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
+  (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
+- Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 
