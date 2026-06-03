@@ -12,7 +12,7 @@
              ext:ThemeProperties.Version="0.1.0"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
-             ext:ThemeProperties.VideoStretchMode="UniformToFill"
+             ext:ThemeProperties.VideoStretchMode="Fill"
              ext:ThemeProperties.VideoFadeDurationMs="650"
              ext:ThemeProperties.SelectedScale="1.10"
              ext:ThemeProperties.UnselectedOpacity="0.65"
