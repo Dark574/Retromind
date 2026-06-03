@@ -306,7 +306,7 @@ public partial class MainWindowViewModel
 
     private void FinalizeProtectionMutation()
     {
-        MarkLibraryDirtyAndSaveSoon();
+        _libraryTracker.MarkDirtyAndSaveSoon();
         RefreshParentalFilteringState();
     }
 

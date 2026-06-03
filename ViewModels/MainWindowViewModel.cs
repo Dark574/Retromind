@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
@@ -47,6 +48,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly GamepadService _gamepadService;
     private readonly SoundEffectService _soundEffectService;
     private readonly IDocumentService _documentService;
+    private readonly LibraryChangeTracker _libraryTracker;
 
     // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
     private readonly HttpClient _httpClient;
@@ -109,15 +111,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private int _pendingBigModeEntry;
 
-    // --- Library Dirty Tracking + Debounced Library Save ---
-    private bool _isLibraryDirty;
-    private int _libraryDirtyVersion;
-
-    // Tracks items/nodes for in-place edits that should persist immediately.
-    private readonly HashSet<MediaItem> _dirtyTrackedItems = new();
-    private readonly HashSet<MediaNode> _dirtyTrackedNodes = new();
-    private ObservableCollection<MediaNode>? _dirtyTrackedRoots;
-
     // saved search terms
     public ObservableCollection<string> SavedSearchTerms { get; } = new();
     
@@ -140,17 +133,9 @@ public partial class MainWindowViewModel : ViewModelBase
         public bool HasGlobalScopeSelection { get; set; }
     }
 
-    private static readonly HashSet<string> DirtyTrackedItemProperties = new(StringComparer.Ordinal)
-    {
-        nameof(MediaItem.IsFavorite)
-    };
-    
     // ensure Cleanup() is executed at most once (Exit + Closing can both fire)
     private int _cleanupOnce;
 
-    private CancellationTokenSource? _saveLibraryCts;
-    private readonly TimeSpan _saveLibraryDebounce = TimeSpan.FromMilliseconds(800);
-    
     public bool ShouldIgnoreBackKeyTemporarily()
         => (DateTime.UtcNow - _lastGuideHandledUtc) < TimeSpan.FromMilliseconds(600);
     
@@ -337,9 +322,32 @@ public partial class MainWindowViewModel : ViewModelBase
         _currentSettings = preloadedSettings;
         _documentService = documentService;
         MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(_currentSettings.IgnoreLeadingArticlesInSort);
-        _fileService.LibraryChanged += MarkLibraryDirty;
         _audioService.MusicPlaybackEnded += OnMusicPlaybackEnded;
-
+        _libraryTracker = new LibraryChangeTracker(
+            _dataService,
+            OnItemPropertyChangedForAssets,
+            onStructureChanged: () =>
+            {
+                RefreshTreeVisibility();
+                OnPropertyChanged(nameof(ShowEmptyLibraryHint));
+            },
+            onItemProtectionChanged: item =>
+            {
+                if (_isApplyingProtectionChanges) return;
+                ScheduleParentalProtectionRefresh();
+            },
+            onBeforeSaveMigration: roots =>
+            {
+                if (!_currentSettings.PreferPortableLaunchPaths) return 0;
+                return LibraryMigrationHelper.MigrateLaunchFilePathsToLibraryRelative(roots);
+            }
+        );
+        _libraryTracker.LibraryDirtyStateChanged += () =>
+        {
+            UpdateLibraryGameCounters();
+        };
+        _fileService.LibraryChanged += _libraryTracker.MarkDirty;
+        
         // Seed layout values early so bindings are stable before LoadData completes.
         _treePaneWidth = new GridLength(_currentSettings.TreeColumnWidth);
         _detailPaneWidth = new GridLength(_currentSettings.DetailColumnWidth);
@@ -394,9 +402,7 @@ public partial class MainWindowViewModel : ViewModelBase
             Debug.WriteLine("[DEBUG] LoadData: RootItems loaded. Count = " + RootItems.Count);
             OnPropertyChanged(nameof(ShowEmptyLibraryHint));
         
-            _isLibraryDirty = false;
-            _libraryDirtyVersion = 0;
-            ResetLibraryChangeTracking();
+            _libraryTracker.Initialize(RootItems);
             InitializeParentalStateAfterLoad();
             
             OnPropertyChanged(nameof(IsDarkTheme));
@@ -543,6 +549,54 @@ public partial class MainWindowViewModel : ViewModelBase
         return changed;
     }
 
+    /// <summary>
+    /// Called by LibraryChangeTracker when item properties change.
+    /// Only handles asset path notifications here.
+    /// </summary>
+    private void OnItemPropertyChangedForAssets(object? sender, PropertyChangedEventArgs e)
+    {
+        var item = sender as MediaItem;
+        if (item == null) return;
+    
+        if (string.IsNullOrWhiteSpace(e.PropertyName))
+            return;
+    
+        var isAssetProperty = e.PropertyName switch
+        {
+            nameof(MediaItem.PrimaryWallpaperPath) => true,
+            nameof(MediaItem.PrimaryScreenshotPath) => true,
+            nameof(MediaItem.PrimaryLogoPath) => true,
+            nameof(MediaItem.PrimaryVideoPath) => true,
+            nameof(MediaItem.PrimaryMarqueePath) => true,
+            _ => false
+        };
+    
+        if (!isAssetProperty)
+            return;
+    
+        var selected = GetCurrentSelectedItem();
+        if (!ReferenceEquals(item, selected))
+            return;
+    
+        if (UiThreadHelper.CheckAccess())
+        {
+            OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+        }
+        else
+        {
+            UiThreadHelper.Post(() =>
+            {
+                OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+                OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+            });
+        }
+    }
+    
     private bool IsMediaIdInNodeSubtree(MediaNode node, string mediaId)
     {
         if (node.Items.Any(i => i.Id == mediaId))
@@ -616,111 +670,10 @@ public partial class MainWindowViewModel : ViewModelBase
         // SaveData is a “strong” save: when someone calls it explicitly,
         // we persist the library (if dirty) + settings (immediately).
         // Serialization happens on the UI thread to avoid cross-thread collection access.
-        await SaveLibraryIfDirtyAsync(force: false).ConfigureAwait(false);
+        await _libraryTracker.SaveIfDirtyAsync(force: false).ConfigureAwait(false);
         var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
             .ConfigureAwait(false);
         await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
-    }
-
-    private void MarkLibraryDirty()
-    {
-        if (!UiThreadHelper.CheckAccess())
-        {
-            UiThreadHelper.Post(MarkLibraryDirty, DispatcherPriority.Background);
-            return;
-        }
-
-        _isLibraryDirty = true;
-        _libraryDirtyVersion++;
-        UpdateLibraryGameCounters();
-
-        DebouncedSaveLibrary();
-    }
-
-    private void MarkLibraryDirtyAndSaveSoon()
-    {
-        if (!UiThreadHelper.CheckAccess())
-        {
-            UiThreadHelper.Post(MarkLibraryDirtyAndSaveSoon, DispatcherPriority.Background);
-            return;
-        }
-
-        MarkLibraryDirty();
-        var version = _libraryDirtyVersion;
-        _ = SaveLibraryIfDirtyAsync(force: false, expectedVersion: version);
-    }
-
-    private void DebouncedSaveLibrary()
-    {
-        _saveLibraryCts?.Cancel();
-        _saveLibraryCts?.Dispose();
-        _saveLibraryCts = new CancellationTokenSource();
-
-        var token = _saveLibraryCts.Token;
-        var myVersion = _libraryDirtyVersion;
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(_saveLibraryDebounce, token).ConfigureAwait(false);
-                token.ThrowIfCancellationRequested();
-
-                await SaveLibraryIfDirtyAsync(force: false, expectedVersion: myVersion).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // expected during debounce
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[Library] Debounced save failed: {ex.Message}");
-            }
-        }, token);
-    }
-
-    private async Task SaveLibraryIfDirtyAsync(bool force, int? expectedVersion = null)
-    {
-        if (!force && !_isLibraryDirty) return;
-
-        // When called from a debounced run, but a newer change already bumped the version,
-        // skip this save (the next debounce run will handle it).
-        if (expectedVersion.HasValue && expectedVersion.Value != _libraryDirtyVersion)
-            return;
-
-        // Capture the version we are about to save; if it changes during IO we keep the library dirty.
-        var saveVersion = expectedVersion ?? _libraryDirtyVersion;
-
-        if (_currentSettings.PreferPortableLaunchPaths)
-        {
-            var migrated = 0;
-            await UiThreadHelper.InvokeAsync(() =>
-            {
-                migrated = LibraryMigrationHelper.MigrateLaunchFilePathsToLibraryRelative(RootItems);
-            }).ConfigureAwait(false);
-
-            if (migrated > 0)
-                Debug.WriteLine($"[Library] Migrated {migrated} launch paths to LibraryRelative.");
-        }
-
-        try
-        {
-            // Snapshot on UI thread, serialize in background.
-            var snapshot = await UiThreadHelper.InvokeAsync(() => _dataService.CreateSnapshot(RootItems))
-                .ConfigureAwait(false);
-            var json = await Task.Run(() => _dataService.Serialize(snapshot)).ConfigureAwait(false);
-            await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
-
-            // Only mark the library as clean if no new changes happened during this save.
-            if (_libraryDirtyVersion == saveVersion)
-                _isLibraryDirty = false;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Library] Save failed: {ex.Message}");
-            // Keep dirty=true so a later attempt can retry the save.
-            _isLibraryDirty = true;
-        }
     }
 
     private void SyncSavedSearchTermsCollectionFromSettings()
@@ -787,210 +740,6 @@ public partial class MainWindowViewModel : ViewModelBase
         var normalizedTerm = NormalizeSavedSearchTerm(term);
         MutateSavedSearchTerms(terms =>
             terms.RemoveAll(t => string.Equals(t, normalizedTerm, StringComparison.OrdinalIgnoreCase)) > 0);
-    }
-
-    private void ResetLibraryChangeTracking()
-    {
-        if (_dirtyTrackedRoots != null)
-        {
-            _dirtyTrackedRoots.CollectionChanged -= OnRootItemsChanged;
-            foreach (var node in _dirtyTrackedRoots)
-                UntrackNodeRecursive(node);
-        }
-
-        _dirtyTrackedRoots = RootItems;
-        if (_dirtyTrackedRoots == null)
-            return;
-
-        _dirtyTrackedRoots.CollectionChanged += OnRootItemsChanged;
-        foreach (var node in _dirtyTrackedRoots)
-            TrackNodeRecursive(node);
-    }
-
-    private void StopLibraryChangeTracking()
-    {
-        if (_dirtyTrackedRoots != null)
-        {
-            _dirtyTrackedRoots.CollectionChanged -= OnRootItemsChanged;
-            foreach (var node in _dirtyTrackedRoots)
-                UntrackNodeRecursive(node);
-        }
-
-        _dirtyTrackedRoots = null;
-        _dirtyTrackedItems.Clear();
-        _dirtyTrackedNodes.Clear();
-    }
-
-    private void TrackNodeRecursive(MediaNode node)
-    {
-        if (!_dirtyTrackedNodes.Add(node))
-            return;
-
-        node.Items.CollectionChanged += OnNodeItemsChanged;
-        node.Children.CollectionChanged += OnNodeChildrenChanged;
-
-        foreach (var item in node.Items)
-            TrackItem(item);
-
-        foreach (var child in node.Children)
-            TrackNodeRecursive(child);
-    }
-
-    private void UntrackNodeRecursive(MediaNode node)
-    {
-        if (!_dirtyTrackedNodes.Remove(node))
-            return;
-
-        node.Items.CollectionChanged -= OnNodeItemsChanged;
-        node.Children.CollectionChanged -= OnNodeChildrenChanged;
-
-        foreach (var item in node.Items)
-            UntrackItem(item);
-
-        foreach (var child in node.Children)
-            UntrackNodeRecursive(child);
-    }
-
-    private void TrackItem(MediaItem item)
-    {
-        if (!_dirtyTrackedItems.Add(item))
-            return;
-
-        item.PropertyChanged += OnItemPropertyChanged;
-    }
-
-    private void UntrackItem(MediaItem item)
-    {
-        if (!_dirtyTrackedItems.Remove(item))
-            return;
-
-        item.PropertyChanged -= OnItemPropertyChanged;
-    }
-
-    private void OnRootItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (e.OldItems != null)
-        {
-            foreach (var oldItem in e.OldItems)
-            {
-                if (oldItem is MediaNode node)
-                    UntrackNodeRecursive(node);
-            }
-        }
-
-        if (e.NewItems != null)
-        {
-            foreach (var newItem in e.NewItems)
-            {
-                if (newItem is MediaNode node)
-                    TrackNodeRecursive(node);
-            }
-        }
-
-        RefreshTreeVisibility();
-        OnPropertyChanged(nameof(ShowEmptyLibraryHint));
-    }
-
-    private void OnNodeItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (e.OldItems != null)
-        {
-            foreach (var oldItem in e.OldItems)
-            {
-                if (oldItem is MediaItem item)
-                    UntrackItem(item);
-            }
-        }
-
-        if (e.NewItems != null)
-        {
-            foreach (var newItem in e.NewItems)
-            {
-                if (newItem is MediaItem item)
-                    TrackItem(item);
-            }
-        }
-
-        RefreshTreeVisibility();
-    }
-
-    private void OnNodeChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (e.OldItems != null)
-        {
-            foreach (var oldItem in e.OldItems)
-            {
-                if (oldItem is MediaNode node)
-                    UntrackNodeRecursive(node);
-            }
-        }
-
-        if (e.NewItems != null)
-        {
-            foreach (var newItem in e.NewItems)
-            {
-                if (newItem is MediaNode node)
-                    TrackNodeRecursive(node);
-            }
-        }
-
-        RefreshTreeVisibility();
-    }
-
-    private void OnItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (sender is not MediaItem)
-            return;
-
-        var isProtectionProperty = e.PropertyName == nameof(MediaItem.IsProtected);
-        var skipDirtyTracking = isProtectionProperty;
-
-        if (!skipDirtyTracking &&
-            (string.IsNullOrWhiteSpace(e.PropertyName) ||
-             DirtyTrackedItemProperties.Contains(e.PropertyName)))
-        {
-            MarkLibraryDirtyAndSaveSoon();
-        }
-
-        if (isProtectionProperty)
-        {
-            if (_isApplyingProtectionChanges)
-                return;
-
-            ScheduleParentalProtectionRefresh();
-        }
-
-        // If assets of the currently selected item change, refresh the wallpaper (and related resolved paths).
-        if (sender is MediaItem item &&
-            !string.IsNullOrWhiteSpace(e.PropertyName) &&
-            (e.PropertyName == nameof(MediaItem.PrimaryWallpaperPath) ||
-             e.PropertyName == nameof(MediaItem.PrimaryScreenshotPath) ||
-             e.PropertyName == nameof(MediaItem.PrimaryLogoPath) ||
-             e.PropertyName == nameof(MediaItem.PrimaryVideoPath) ||
-             e.PropertyName == nameof(MediaItem.PrimaryMarqueePath)))
-        {
-            var selected = GetCurrentSelectedItem();
-            if (!ReferenceEquals(item, selected))
-                return;
-
-            if (UiThreadHelper.CheckAccess())
-            {
-                OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
-                OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
-                OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
-                OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
-            }
-            else
-            {
-                UiThreadHelper.Post(() =>
-                {
-                    OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
-                    OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
-                    OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
-                    OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
-                });
-            }
-        }
     }
     
     private async void SaveSettingsOnly()
@@ -1096,12 +845,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Cancel pending debounces so we don't race with our final flush.
         _saveSettingsCts?.Cancel();
-        _saveLibraryCts?.Cancel();
         _parentalRefreshCts?.Cancel();
 
         try
         {
-            await SaveLibraryIfDirtyAsync(force: true).ConfigureAwait(false);
+            // 1. Save FIRST (while tracking is still active)
+            await _libraryTracker.SaveIfDirtyAsync(force: true).ConfigureAwait(false);
+            
             // Serialize on UI thread to avoid cross-thread collection access.
             var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
                 .ConfigureAwait(false);
@@ -1138,8 +888,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _audioService.StopMusic();
         _audioService.MusicPlaybackEnded -= OnMusicPlaybackEnded;
         
-        _fileService.LibraryChanged -= MarkLibraryDirty;
-        StopLibraryChangeTracking();
+        _fileService.LibraryChanged -= _libraryTracker.MarkDirty;
+        _libraryTracker.StopTracking();
         
         // Detach content VM handlers to avoid leaks.
         DetachSearchAreaHandlers();
@@ -1149,10 +899,6 @@ public partial class MainWindowViewModel : ViewModelBase
         _saveSettingsCts?.Dispose();
         _saveSettingsCts = null;
         
-        _saveLibraryCts?.Cancel();
-        _saveLibraryCts?.Dispose();
-        _saveLibraryCts = null;
-
         _parentalRefreshCts?.Cancel();
         _parentalRefreshCts?.Dispose();
         _parentalRefreshCts = null;

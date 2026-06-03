@@ -508,7 +508,7 @@ public partial class MainWindowViewModel
         {
             InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
 
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
 
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
@@ -844,7 +844,7 @@ public partial class MainWindowViewModel
                     item.Assets.Add(asset);
             }
 
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
 
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
@@ -905,7 +905,7 @@ public partial class MainWindowViewModel
         {
             InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
 
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
 
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
@@ -965,7 +965,7 @@ public partial class MainWindowViewModel
         {
             InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
 
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
 
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
@@ -1274,7 +1274,7 @@ public partial class MainWindowViewModel
                     item.Assets.Add(asset);
             }
 
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
         });
 
         // 4) Remember the last created item as the "selectable" ID
@@ -1322,7 +1322,7 @@ public partial class MainWindowViewModel
         
         if (result == true)
         {
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
             await SaveData();
 
             if (parentNode != null && IsNodeInCurrentView(parentNode))
@@ -1358,7 +1358,7 @@ public partial class MainWindowViewModel
             {
                 await UiThreadHelper.InvokeAsync(() => item.Assets.Add(asset));
 
-                MarkLibraryDirty();
+                _libraryTracker.MarkDirty();
 
                 var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(asset.RelativePath);
                 if (!string.IsNullOrWhiteSpace(fullPath))
@@ -1400,7 +1400,7 @@ public partial class MainWindowViewModel
 
             if (changed)
             {
-                MarkLibraryDirty();
+                _libraryTracker.MarkDirty();
                 await SaveData();
             }
             
@@ -1442,7 +1442,7 @@ public partial class MainWindowViewModel
                 changed = true;
             
             if (changed)
-                MarkLibraryDirty();
+                _libraryTracker.MarkDirty();
         };
     
         var dialog = new BulkScrapeView { DataContext = vm };
@@ -2161,7 +2161,7 @@ public partial class MainWindowViewModel
         });
 
         if (anyChanged)
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
     }
 
     private async Task<bool> RescanNodeRecursive(MediaNode node)
@@ -2278,7 +2278,7 @@ public partial class MainWindowViewModel
             if (asset != null)
             {
                 await UiThreadHelper.InvokeAsync(() => item.Assets.Add(asset));
-                MarkLibraryDirty();
+                _libraryTracker.MarkDirty();
                 await SaveData();
             }
         }

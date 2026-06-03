@@ -437,7 +437,7 @@ public partial class MainWindowViewModel
         }).ConfigureAwait(false);
 
         if (changed)
-            MarkLibraryDirtyAndSaveSoon();
+            _libraryTracker.MarkDirtyAndSaveSoon();
     }
 
     private static bool SetField(IDictionary<string, string> fields, string key, string value)

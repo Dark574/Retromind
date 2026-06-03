@@ -602,7 +602,7 @@ public partial class MainWindowViewModel
                 }
                 
                 RefreshTreeVisibility();
-                MarkLibraryDirty();
+                _libraryTracker.MarkDirty();
                 await SaveData();
             }
         }
@@ -630,7 +630,7 @@ public partial class MainWindowViewModel
                 RemoveNodeRecursive(RootItems, nodeToDelete);
             }
             
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
             await SaveData();
         }
         catch (Exception ex)
@@ -670,7 +670,7 @@ public partial class MainWindowViewModel
         // NodeSettings can change properties/assets -> mark as dirty
         if (saved)
         {
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
             await SaveData();
             
             if (wasSelected)
@@ -913,7 +913,7 @@ public partial class MainWindowViewModel
                 }
             }
 
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
             await SaveData();
         }
         catch (Exception ex)
@@ -997,7 +997,7 @@ public partial class MainWindowViewModel
             await _gogInstallService.UninstallGogGameAsync(item);
 
             // after successfull deinstall: reload the library
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
             await SaveData();
             NotifyPlayAvailabilityChanged();
 
@@ -1108,7 +1108,7 @@ public partial class MainWindowViewModel
             {
                 parentNode.Items.Remove(item);
                 
-                MarkLibraryDirty();
+                _libraryTracker.MarkDirty();
                 await SaveData();
                 
                 UpdateContent();
@@ -1225,7 +1225,7 @@ public partial class MainWindowViewModel
             await UpdateContentAsync();
 
         if (settingsVm.LibraryModified)
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
         await SaveData();
     }
 
@@ -1293,7 +1293,7 @@ public partial class MainWindowViewModel
                         item.Assets.Add(imported);
                     });
 
-                    MarkLibraryDirty();
+                    _libraryTracker.MarkDirty();
                 }
             }
             catch (Exception ex)
@@ -1614,9 +1614,9 @@ public partial class MainWindowViewModel
 
         if (mergeTarget == null)
             SelectedNode = sourceNode;
-        MarkLibraryDirty();
+        _libraryTracker.MarkDirty();
         if (parentChanged)
-            await SaveLibraryIfDirtyAsync(force: true).ConfigureAwait(false);
+            await _libraryTracker.SaveIfDirtyAsync(force: true).ConfigureAwait(false);
         return true;
     }
 

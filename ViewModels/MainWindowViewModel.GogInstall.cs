@@ -395,7 +395,7 @@ public partial class MainWindowViewModel
             
             UpdateInstalledGogFingerprint(item, selectedInstallerPackage);
 
-            MarkLibraryDirty();
+            _libraryTracker.MarkDirty();
             NotifyPlayAvailabilityChanged();
             await SaveData();
 
