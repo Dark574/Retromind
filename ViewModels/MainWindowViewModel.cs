@@ -174,6 +174,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
                 OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
                 OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+                OnPropertyChanged(nameof(ResolvedDisplayNode));
             
                 // Persist selection
                 if (value != null)
@@ -221,6 +222,24 @@ public partial class MainWindowViewModel : ViewModelBase
     public string? ResolvedSelectedItemVideoPath => ResolveSelectedItemAsset(AssetType.Video);
     public string? ResolvedSelectedItemMarqueePath => ResolveSelectedItemAsset(AssetType.Marquee);
 
+    /// <summary>
+    /// The node whose name/logo should be displayed in the header.
+    /// When a media item is selected, this resolves to the item's true parent node
+    /// (the leaf node that directly contains it). Falls back to SelectedNode otherwise.
+    /// </summary>
+    public MediaNode? ResolvedDisplayNode
+    {
+        get
+        {
+            var item = GetCurrentSelectedItem();
+            if (item != null)
+            {
+                return FindParentNode(RootItems, item) ?? SelectedNode;
+            }
+            return SelectedNode;
+        }
+    }
+    
     // --- Layout Properties ---
     public GridLength TreePaneWidth
     {
@@ -1010,6 +1029,7 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
         OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
         OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+        OnPropertyChanged(nameof(ResolvedDisplayNode));
 
         if (!_currentSettings.EnableSelectionMusicPreview)
         {
@@ -1180,6 +1200,7 @@ public partial class MainWindowViewModel : ViewModelBase
             OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
             OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
             OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+            OnPropertyChanged(nameof(ResolvedDisplayNode));
 
             // Respect user preference for automatic selection-based music preview
             if (item != null && _currentSettings.EnableSelectionMusicPreview)

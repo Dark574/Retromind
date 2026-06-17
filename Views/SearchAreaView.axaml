@@ -19,11 +19,30 @@
 
             <Grid ColumnDefinitions="Auto, *">
                 <!-- Titelzeile -->
-                <TextBlock Grid.Column="0"
-                           Text="{x:Static p:Strings.Search_GlobalShort}"
-                           FontSize="20"
-                           FontWeight="Bold"
-                           VerticalAlignment="Center"/>
+                <Grid Grid.Column="0"
+                      VerticalAlignment="Center"
+                      Margin="0,0,20,0">
+                    <Grid IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ResolvedDisplayNode, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
+                        <Image helpers:AsyncImageHelper.Url="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ResolvedDisplayNode.PrimaryLogoAbsolutePath}"
+                               Height="32"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ResolvedDisplayNode.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+
+                        <TextBlock Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ResolvedDisplayNode.Name}"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ResolvedDisplayNode.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
+                    </Grid>
+
+                    <TextBlock Text="{x:Static p:Strings.Search_GlobalShort}"
+                               FontSize="20"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ResolvedDisplayNode, Converter={x:Static helpers:ObjectConverters.IsNull}}"/>
+                </Grid>
 
 
                 <!-- Right aligned: filters and scopes -->

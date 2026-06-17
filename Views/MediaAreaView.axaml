@@ -15,18 +15,18 @@
             <Grid Grid.Column="0"
                   VerticalAlignment="Center"
                   Margin="0,0,20,0">
-                <Image helpers:AsyncImageHelper.Url="{Binding Node.PrimaryLogoAbsolutePath}"
+                <Image helpers:AsyncImageHelper.Url="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ResolvedDisplayNode.PrimaryLogoAbsolutePath}"
                        Height="32"
                        Stretch="Uniform"
                        HorizontalAlignment="Left"
                        VerticalAlignment="Center"
-                       IsVisible="{Binding Node.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                       IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ResolvedDisplayNode.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
 
-                <TextBlock Text="{Binding Node.Name}"
+                <TextBlock Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ResolvedDisplayNode.Name}"
                            FontSize="24"
                            FontWeight="Bold"
                            VerticalAlignment="Center"
-                           IsVisible="{Binding Node.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
+                           IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ResolvedDisplayNode.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
             </Grid>
 
             <!-- Right side: Controls -->
