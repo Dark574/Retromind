@@ -30,6 +30,7 @@ See `docs/CHANGELOG.md` for version history.
 - Drag & drop categories in the tree to reorder or move between parents (merge prompt on conflicts)
 - Global search with classic title search plus optional metadata power-query mode
 - Metadata scraping (depends on your API keys)
+- Inline metadata autocomplete in the item editor based on values already present in the local library; accept the current suggestion with the Right Arrow key
 - Optional BigMode / controller-friendly UI with runtime themes
 - Per-item manuals/documents
 - Flexible launch configuration with wrappers, environment variables, and per-item arguments

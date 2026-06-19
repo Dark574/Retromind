@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:Retromind.Views"
+             x:Class="Retromind.Views.MetadataAutoCompleteTextBox"
+             x:DataType="views:MetadataAutoCompleteTextBox">
+    <Grid>
+        <TextBox x:Name="InputBox"
+                 Background="Transparent"
+                 Foreground="Transparent"
+                 Padding="8,6"
+                 Text="{Binding Text, RelativeSource={RelativeSource AncestorType=views:MetadataAutoCompleteTextBox}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 KeyDown="OnInputBoxKeyDown" />
+        <Border Padding="8,6"
+                IsHitTestVisible="False">
+            <TextBlock VerticalAlignment="Center"
+                       TextWrapping="NoWrap">
+                <Run Text="{Binding Text, RelativeSource={RelativeSource AncestorType=views:MetadataAutoCompleteTextBox}}" />
+                <Run Text="{Binding SuggestionSuffix, RelativeSource={RelativeSource AncestorType=views:MetadataAutoCompleteTextBox}}"
+                     Foreground="#808080" />
+            </TextBlock>
+        </Border>
+    </Grid>
+</UserControl>

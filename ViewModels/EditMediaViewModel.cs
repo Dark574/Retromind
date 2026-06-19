@@ -32,6 +32,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     
     private readonly ObservableCollection<MediaNode> _rootNodes;
     private readonly MediaNode? _parentNode;
+    private readonly MetadataSuggestionService _metadataSuggestionService;
     
     // Keep a reference to global settings so preview can resolve emulator profiles
     // and default native wrappers in the same way as the runtime launcher.
@@ -144,6 +145,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     public IRelayCommand<EnvVarRow?> RemoveEnvironmentVariableCommand { get; }
     public IRelayCommand AddCustomFieldCommand { get; }
     public IRelayCommand<CustomFieldRow?> RemoveCustomFieldCommand { get; }
+    public IRelayCommand<string?> AcceptMetadataSuggestionCommand { get; }
 
     public enum WineArchOption
     {
@@ -181,18 +183,67 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(AssetFileExample))]
     private string _title = "";
     [ObservableProperty] private string _description = "";
-    [ObservableProperty] private string? _developer;
-    [ObservableProperty] private string? _publisher;
-    [ObservableProperty] private string? _platform;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DeveloperSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptDeveloperSuggestion))]
+    private string? _developer;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PublisherSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptPublisherSuggestion))]
+    private string? _publisher;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PlatformSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptPlatformSuggestion))]
+    private string? _platform;
     [ObservableProperty] private string? _source;
-    [ObservableProperty] private string? _genre;
-    [ObservableProperty] private string? _series;
-    [ObservableProperty] private string? _releaseType;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GenreSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptGenreSuggestion))]
+    private string? _genre;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SeriesSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptSeriesSuggestion))]
+    private string? _series;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReleaseTypeSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptReleaseTypeSuggestion))]
+    private string? _releaseType;
     [ObservableProperty] private string? _sortTitle;
-    [ObservableProperty] private string? _playMode;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PlayModeSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptPlayModeSuggestion))]
+    private string? _playMode;
     [ObservableProperty] private string? _maxPlayers;
     [ObservableProperty] private DateTimeOffset? _releaseDate; 
     [ObservableProperty] private PlayStatus _status;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DeveloperSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptDeveloperSuggestion))]
+    private string _developerSuggestion = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PublisherSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptPublisherSuggestion))]
+    private string _publisherSuggestion = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GenreSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptGenreSuggestion))]
+    private string _genreSuggestion = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PlatformSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptPlatformSuggestion))]
+    private string _platformSuggestion = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SeriesSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptSeriesSuggestion))]
+    private string _seriesSuggestion = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReleaseTypeSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptReleaseTypeSuggestion))]
+    private string _releaseTypeSuggestion = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PlayModeSuggestionSuffix))]
+    [NotifyPropertyChangedFor(nameof(CanAcceptPlayModeSuggestion))]
+    private string _playModeSuggestion = string.Empty;
 
     // --- Launch Config Properties ---
     [ObservableProperty] 
@@ -356,6 +407,41 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     {
         CopyAssetPrefixCommand.NotifyCanExecuteChanged();
     }
+
+    partial void OnDeveloperChanged(string? value)
+    {
+        RefreshDeveloperSuggestion();
+    }
+
+    partial void OnPublisherChanged(string? value)
+    {
+        RefreshPublisherSuggestion();
+    }
+
+    partial void OnGenreChanged(string? value)
+    {
+        RefreshGenreSuggestion();
+    }
+
+    partial void OnPlatformChanged(string? value)
+    {
+        RefreshPlatformSuggestion();
+    }
+
+    partial void OnSeriesChanged(string? value)
+    {
+        RefreshSeriesSuggestion();
+    }
+
+    partial void OnReleaseTypeChanged(string? value)
+    {
+        RefreshReleaseTypeSuggestion();
+    }
+
+    partial void OnPlayModeChanged(string? value)
+    {
+        RefreshPlayModeSuggestion();
+    }
     
     [ObservableProperty] private string _overrideWatchProcess = string.Empty;
 
@@ -381,6 +467,20 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     public string AssetFilePrefix => FileManagementService.BuildItemAssetPrefix(Title, _originalItem.Id);
 
     public string AssetFileExample => string.Format(Strings.EditMedia_AssetsPrefixExampleFormat, AssetFilePrefix);
+    public string DeveloperSuggestionSuffix => GetSuggestionSuffix(Developer, DeveloperSuggestion);
+    public bool CanAcceptDeveloperSuggestion => !string.IsNullOrEmpty(DeveloperSuggestionSuffix);
+    public string PublisherSuggestionSuffix => GetSuggestionSuffix(Publisher, PublisherSuggestion);
+    public bool CanAcceptPublisherSuggestion => !string.IsNullOrEmpty(PublisherSuggestionSuffix);
+    public string GenreSuggestionSuffix => GetSuggestionSuffix(Genre, GenreSuggestion);
+    public bool CanAcceptGenreSuggestion => !string.IsNullOrEmpty(GenreSuggestionSuffix);
+    public string PlatformSuggestionSuffix => GetSuggestionSuffix(Platform, PlatformSuggestion);
+    public bool CanAcceptPlatformSuggestion => !string.IsNullOrEmpty(PlatformSuggestionSuffix);
+    public string SeriesSuggestionSuffix => GetSuggestionSuffix(Series, SeriesSuggestion);
+    public bool CanAcceptSeriesSuggestion => !string.IsNullOrEmpty(SeriesSuggestionSuffix);
+    public string ReleaseTypeSuggestionSuffix => GetSuggestionSuffix(ReleaseType, ReleaseTypeSuggestion);
+    public bool CanAcceptReleaseTypeSuggestion => !string.IsNullOrEmpty(ReleaseTypeSuggestionSuffix);
+    public string PlayModeSuggestionSuffix => GetSuggestionSuffix(PlayMode, PlayModeSuggestion);
+    public bool CanAcceptPlayModeSuggestion => !string.IsNullOrEmpty(PlayModeSuggestionSuffix);
 
     [ObservableProperty] 
     [NotifyCanExecuteChangedFor(nameof(DeleteAssetCommand))]
@@ -432,6 +532,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
         _parentNode = parentNode;
         _settings = settings;
+        _metadataSuggestionService = new MetadataSuggestionService(_rootNodes);
         _assetsChangedHandler = (_, _) => ScheduleSortAssets();
         _originalItem.Assets.CollectionChanged += _assetsChangedHandler;
 
@@ -449,6 +550,9 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         RemoveEnvironmentVariableCommand = new RelayCommand<EnvVarRow?>(RemoveEnvironmentVariable);
         AddCustomFieldCommand = new RelayCommand(AddCustomField);
         RemoveCustomFieldCommand = new RelayCommand<CustomFieldRow?>(RemoveCustomField);
+        AcceptMetadataSuggestionCommand = new RelayCommand<string?>(
+            fieldKey => TryAcceptMetadataSuggestion(fieldKey ?? string.Empty),
+            fieldKey => CanAcceptMetadataSuggestion(fieldKey ?? string.Empty));
 
         // General commands.
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
@@ -659,6 +763,143 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 Value = kv.Value
             });
         }
+    }
+
+    public bool TryAcceptMetadataSuggestion(string fieldKey)
+    {
+        switch (fieldKey)
+        {
+            case MetadataSuggestionService.DeveloperField:
+                if (!CanAcceptDeveloperSuggestion)
+                    return false;
+                Developer = DeveloperSuggestion;
+                return true;
+
+            case MetadataSuggestionService.PublisherField:
+                if (!CanAcceptPublisherSuggestion)
+                    return false;
+                Publisher = PublisherSuggestion;
+                return true;
+
+            case MetadataSuggestionService.GenreField:
+                if (!CanAcceptGenreSuggestion)
+                    return false;
+                Genre = GenreSuggestion;
+                return true;
+
+            case MetadataSuggestionService.PlatformField:
+                if (!CanAcceptPlatformSuggestion)
+                    return false;
+                Platform = PlatformSuggestion;
+                return true;
+
+            case MetadataSuggestionService.SeriesField:
+                if (!CanAcceptSeriesSuggestion)
+                    return false;
+                Series = SeriesSuggestion;
+                return true;
+
+            case MetadataSuggestionService.ReleaseTypeField:
+                if (!CanAcceptReleaseTypeSuggestion)
+                    return false;
+                ReleaseType = ReleaseTypeSuggestion;
+                return true;
+
+            case MetadataSuggestionService.PlayModeField:
+                if (!CanAcceptPlayModeSuggestion)
+                    return false;
+                PlayMode = PlayModeSuggestion;
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private bool CanAcceptMetadataSuggestion(string fieldKey)
+    {
+        return fieldKey switch
+        {
+            MetadataSuggestionService.DeveloperField => CanAcceptDeveloperSuggestion,
+            MetadataSuggestionService.PublisherField => CanAcceptPublisherSuggestion,
+            MetadataSuggestionService.GenreField => CanAcceptGenreSuggestion,
+            MetadataSuggestionService.PlatformField => CanAcceptPlatformSuggestion,
+            MetadataSuggestionService.SeriesField => CanAcceptSeriesSuggestion,
+            MetadataSuggestionService.ReleaseTypeField => CanAcceptReleaseTypeSuggestion,
+            MetadataSuggestionService.PlayModeField => CanAcceptPlayModeSuggestion,
+            _ => false
+        };
+    }
+
+    private void RefreshDeveloperSuggestion()
+    {
+        DeveloperSuggestion = _metadataSuggestionService.GetBestMatch(
+                                MetadataSuggestionService.DeveloperField,
+                                Developer)
+                            ?? string.Empty;
+    }
+
+    private void RefreshPublisherSuggestion()
+    {
+        PublisherSuggestion = _metadataSuggestionService.GetBestMatch(
+                                MetadataSuggestionService.PublisherField,
+                                Publisher)
+                              ?? string.Empty;
+    }
+
+    private void RefreshGenreSuggestion()
+    {
+        GenreSuggestion = _metadataSuggestionService.GetBestMatch(
+                              MetadataSuggestionService.GenreField,
+                              Genre)
+                          ?? string.Empty;
+    }
+
+    private void RefreshPlatformSuggestion()
+    {
+        PlatformSuggestion = _metadataSuggestionService.GetBestMatch(
+                                 MetadataSuggestionService.PlatformField,
+                                 Platform)
+                             ?? string.Empty;
+    }
+
+    private void RefreshSeriesSuggestion()
+    {
+        SeriesSuggestion = _metadataSuggestionService.GetBestMatch(
+                               MetadataSuggestionService.SeriesField,
+                               Series)
+                           ?? string.Empty;
+    }
+
+    private void RefreshReleaseTypeSuggestion()
+    {
+        ReleaseTypeSuggestion = _metadataSuggestionService.GetBestMatch(
+                                    MetadataSuggestionService.ReleaseTypeField,
+                                    ReleaseType)
+                                ?? string.Empty;
+    }
+
+    private void RefreshPlayModeSuggestion()
+    {
+        PlayModeSuggestion = _metadataSuggestionService.GetBestMatch(
+                                 MetadataSuggestionService.PlayModeField,
+                                 PlayMode)
+                             ?? string.Empty;
+    }
+
+    private static string GetSuggestionSuffix(string? input, string? suggestion)
+    {
+        if (string.IsNullOrWhiteSpace(input) || string.IsNullOrWhiteSpace(suggestion))
+            return string.Empty;
+
+        var trimmedInput = input.Trim();
+        if (!suggestion.StartsWith(trimmedInput, StringComparison.OrdinalIgnoreCase))
+            return string.Empty;
+
+        if (trimmedInput.Length >= suggestion.Length)
+            return string.Empty;
+
+        return suggestion[trimmedInput.Length..];
     }
 
     private void DetachAssetHandlers()

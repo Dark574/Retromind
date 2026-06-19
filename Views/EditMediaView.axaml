@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:views="clr-namespace:Retromind.Views"
         xmlns:m="clr-namespace:Retromind.Models;assembly=Retromind"
         xmlns:p="clr-namespace:Retromind.Resources"
         xmlns:helpers="clr-namespace:Retromind.Helpers"
@@ -473,12 +474,18 @@
                         <Grid ColumnDefinitions="*, 15, *">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="{x:Static p:Strings.Common_Developer}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Developer}" />
+                                <views:MetadataAutoCompleteTextBox Text="{Binding Developer}"
+                                                                   SuggestionSuffix="{Binding DeveloperSuggestionSuffix}"
+                                                                   AcceptSuggestionCommand="{Binding AcceptMetadataSuggestionCommand}"
+                                                                   AcceptSuggestionCommandParameter="developer" />
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="{x:Static p:Strings.Common_Publisher}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Publisher}" />
+                                <views:MetadataAutoCompleteTextBox Text="{Binding Publisher}"
+                                                                   SuggestionSuffix="{Binding PublisherSuggestionSuffix}"
+                                                                   AcceptSuggestionCommand="{Binding AcceptMetadataSuggestionCommand}"
+                                                                   AcceptSuggestionCommandParameter="publisher" />
                             </StackPanel>
                         </Grid>
 
@@ -486,12 +493,18 @@
                         <Grid ColumnDefinitions="*, 15, *">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="{x:Static p:Strings.Common_Genre}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Genre}" />
+                                <views:MetadataAutoCompleteTextBox Text="{Binding Genre}"
+                                                                   SuggestionSuffix="{Binding GenreSuggestionSuffix}"
+                                                                   AcceptSuggestionCommand="{Binding AcceptMetadataSuggestionCommand}"
+                                                                   AcceptSuggestionCommandParameter="genre" />
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="{x:Static p:Strings.Common_Platform}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Platform}" />
+                                <views:MetadataAutoCompleteTextBox Text="{Binding Platform}"
+                                                                   SuggestionSuffix="{Binding PlatformSuggestionSuffix}"
+                                                                   AcceptSuggestionCommand="{Binding AcceptMetadataSuggestionCommand}"
+                                                                   AcceptSuggestionCommandParameter="platform" />
                             </StackPanel>
                         </Grid>
 
@@ -514,7 +527,10 @@
                         <Grid ColumnDefinitions="*, 15, *">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="{x:Static p:Strings.Common_Series}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding Series}" />
+                                <views:MetadataAutoCompleteTextBox Text="{Binding Series}"
+                                                                   SuggestionSuffix="{Binding SeriesSuggestionSuffix}"
+                                                                   AcceptSuggestionCommand="{Binding AcceptMetadataSuggestionCommand}"
+                                                                   AcceptSuggestionCommandParameter="series" />
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
@@ -527,7 +543,10 @@
                         <Grid ColumnDefinitions="*, 15, *">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="{x:Static p:Strings.Common_ReleaseType}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding ReleaseType}" />
+                                <views:MetadataAutoCompleteTextBox Text="{Binding ReleaseType}"
+                                                                   SuggestionSuffix="{Binding ReleaseTypeSuggestionSuffix}"
+                                                                   AcceptSuggestionCommand="{Binding AcceptMetadataSuggestionCommand}"
+                                                                   AcceptSuggestionCommandParameter="release_type" />
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
@@ -540,7 +559,10 @@
                         <Grid ColumnDefinitions="*, 15, *">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="{x:Static p:Strings.Common_PlayMode}" FontWeight="Bold" Margin="0,0,0,5" />
-                                <TextBox Text="{Binding PlayMode}" />
+                                <views:MetadataAutoCompleteTextBox Text="{Binding PlayMode}"
+                                                                   SuggestionSuffix="{Binding PlayModeSuggestionSuffix}"
+                                                                   AcceptSuggestionCommand="{Binding AcceptMetadataSuggestionCommand}"
+                                                                   AcceptSuggestionCommandParameter="play_mode" />
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
