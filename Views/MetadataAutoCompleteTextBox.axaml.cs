@@ -2,6 +2,7 @@ using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Markup.Xaml;
 
 namespace Retromind.Views;
 
@@ -46,6 +47,11 @@ public partial class MetadataAutoCompleteTextBox : UserControl
     {
         get => GetValue(AcceptSuggestionCommandParameterProperty);
         set => SetValue(AcceptSuggestionCommandParameterProperty, value);
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 
     private void OnInputBoxKeyDown(object? sender, KeyEventArgs e)
