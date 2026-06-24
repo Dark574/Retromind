@@ -1262,6 +1262,8 @@ public sealed class LauncherService
                     winePrefixPath = pfxPath;
                 }
             }
+
+            launchWinePrefixPath = winePrefixPath;
         }
         else
         {
@@ -1284,6 +1286,8 @@ public sealed class LauncherService
                         winePrefixPath = pfxDir;
                 }
             }
+
+            launchWinePrefixPath = winePrefixPath;
         }
 
         var prefixInitialized = PrefixPathHelper.IsWinePrefixInitialized(winePrefixPath);
