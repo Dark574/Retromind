@@ -1195,8 +1195,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                     if (!TryGetStringProperty(asset, "browser_download_url", out var downloadUrl))
                         continue;
 
-                    result.Add(new GeProtonReleaseOption(tagName, assetName, downloadUrl));
-                    break; // One download asset per release is enough.
+                    if (!assetName.Contains("aarch64", StringComparison.OrdinalIgnoreCase)
+                        && !assetName.Contains("arm", StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Add(new GeProtonReleaseOption(tagName, assetName, downloadUrl));
+                        break; // One download asset per release is enough.
+                    }
                 }
 
                 if (result.Count >= GeProtonMaxItems)
