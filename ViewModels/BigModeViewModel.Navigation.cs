@@ -409,6 +409,7 @@ public partial class BigModeViewModel
                 {
                     if (secondaryPlayer != null)
                     {
+                        secondaryPlayer.EndReached -= OnSecondaryBackgroundEndReached;
                         // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
                         secondaryPlayer.Stop();
                         secondaryPlayer.Media = null;
