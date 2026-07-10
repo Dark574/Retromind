@@ -392,19 +392,26 @@ public static class AppPaths
         if (string.IsNullOrWhiteSpace(candidatePath))
             return false;
 
-        var normalizedRoot = Path.GetFullPath(DataRoot);
-        var normalizedCandidate = Path.GetFullPath(candidatePath);
+        try
+        {
+            var normalizedRoot = Path.GetFullPath(DataRoot);
+            var normalizedCandidate = Path.GetFullPath(candidatePath);
 
-        var rootWithSeparator = normalizedRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? normalizedRoot
-            : normalizedRoot + Path.DirectorySeparatorChar;
+            var rootWithSeparator = normalizedRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? normalizedRoot
+                : normalizedRoot + Path.DirectorySeparatorChar;
 
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
 
-        return string.Equals(normalizedCandidate, normalizedRoot, comparison) ||
-               normalizedCandidate.StartsWith(rootWithSeparator, comparison);
+            return string.Equals(normalizedCandidate, normalizedRoot, comparison) ||
+                   normalizedCandidate.StartsWith(rootWithSeparator, comparison);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
