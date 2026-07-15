@@ -8,7 +8,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-        <NoWarn>$(NoWarn);NU1510</NoWarn>
+        <NoWarn>$(NoWarn);NU1510;NU1900</NoWarn>
 
         <!-- App / NuGet / Assembly version -->
         <Version>0.1.4</Version>
