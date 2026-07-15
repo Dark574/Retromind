@@ -547,7 +547,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 if (_currentSettings.LastBigModeWasItemView)
                 {
                     if (pathEndNode is null || string.IsNullOrWhiteSpace(itemId) ||
-                        pathEndNode.Items.All(i => i.Id == itemId))
+                        !pathEndNode.Items.Any(i => i.Id == itemId))
                     {
                         _currentSettings.LastBigModeWasItemView = false;
                         _currentSettings.LastBigModeSelectedNodeId = pathEndNode?.Id;
