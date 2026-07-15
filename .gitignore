@@ -31,6 +31,3 @@ dist/
 build-appimage.log
 build-appimage.debug.log
 docker-build.log
-
-# Local Continue indexing preferences
-.continueignore
