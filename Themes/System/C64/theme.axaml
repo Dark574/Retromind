@@ -1,0 +1,158 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="using:Retromind.Helpers"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="Transparent"
+
+             ext:ThemeProperties.Name="Commodore 64"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.AccentColor="#7C83D6"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
+             ext:ThemeProperties.VideoStretchMode="Uniform"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
+             ext:ThemeProperties.SecondaryVideoEnabled="False">
+
+    <UserControl.Resources>
+        <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
+    </UserControl.Resources>
+
+    <Border Background="#111827"
+            CornerRadius="8"
+            ClipToBounds="True">
+    <Grid>
+        <!-- C64-inspired navy base; the host's left navigation remains unchanged. -->
+        <Rectangle>
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Color="#1B2550" Offset="0" />
+                    <GradientStop Color="#111827" Offset="0.52" />
+                    <GradientStop Color="#0B1020" Offset="1" />
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+
+        <!-- Restrained echoes of the classic two-tone C64 screen border. -->
+        <Border BorderBrush="#3970A8"
+                BorderThickness="2,0,0,0"
+                Opacity="0.75"
+                HorizontalAlignment="Left"
+                Width="10" />
+        <Grid ColumnDefinitions="0.82*,1.48*"
+              Margin="44,34,38,30">
+
+            <!-- System identity: logo high, readable description below. -->
+            <Grid Grid.Column="0"
+                  RowDefinitions="Auto,Auto,*"
+                  Margin="0,12,36,10">
+                <Grid Grid.Row="0" Height="112">
+                    <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+                           Stretch="Uniform"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Center"
+                           MaxWidth="370"
+                           IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                                               Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                    <TextBlock Text="{Binding SelectedCategory.Name}"
+                               FontSize="44"
+                               FontWeight="Bold"
+                               Foreground="#F2F0EA"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                                                   Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                </Grid>
+
+                <Grid Grid.Row="1" Margin="0,14,0,20">
+                    <Border Height="2"
+                            Background="#7C83D6"
+                            HorizontalAlignment="Left"
+                            Width="118" />
+                    <Border Height="2"
+                            Background="#B7AA91"
+                            HorizontalAlignment="Left"
+                            Margin="118,0,0,0"
+                            Width="42" />
+                </Grid>
+
+                <Border Grid.Row="2"
+                        BorderBrush="#337C83D6"
+                        BorderThickness="1,0,0,0"
+                        Padding="18,2,4,4"
+                        ClipToBounds="True">
+                    <TextBlock Text="{Binding SelectedCategory.Description}"
+                               FontSize="18"
+                               LineHeight="27"
+                               Foreground="#D8DCE6"
+                               TextWrapping="Wrap" />
+                </Border>
+
+            </Grid>
+
+            <!-- Fixed design surface aligns the shared video with the transparent
+                 4:3 aperture in the authentic Commodore 1702 frame. -->
+            <Viewbox Grid.Column="1"
+                     Stretch="Uniform"
+                     StretchDirection="Both"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center"
+                     MaxWidth="790"
+                     MaxHeight="765">
+                <Canvas Width="942" Height="911">
+                    <!-- Black backing supplies natural letterbox bars for 16:9 sources. -->
+                    <Border x:Name="SystemPrimaryVideoSlot"
+                            Canvas.Left="116"
+                            Canvas.Top="143"
+                            Width="707"
+                            Height="516"
+                            Background="#020202"
+                            ClipToBounds="True" />
+
+                    <!-- Opaque monitor body with transparent outer area and screen opening. -->
+                    <Image Source="{Binding $parent[UserControl],
+                                            Converter={StaticResource ThemeAssetConverter},
+                                            ConverterParameter=Images/commodore-1702-monitor-frame.png}"
+                           Canvas.Left="0"
+                           Canvas.Top="0"
+                           Width="942"
+                           Height="911"
+                           Stretch="Fill"
+                           IsHitTestVisible="False" />
+
+                    <!-- Keep the existing game count on the monitor's lower front panel. -->
+                    <StackPanel Canvas.Left="615"
+                                Canvas.Top="830"
+                                Orientation="Horizontal"
+                                Spacing="10">
+                        <TextBlock Text="SPIELE"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="#62594F" />
+                        <TextBlock Text="{Binding SelectedCategory.Items.Count}"
+                                   FontSize="22"
+                                   FontWeight="Bold"
+                                   Foreground="#3949A0" />
+                    </StackPanel>
+                </Canvas>
+            </Viewbox>
+
+            <!-- Place the computer in front of the monitor instead of below the text. -->
+            <Image Grid.Column="1"
+                   Source="{Binding $parent[UserControl],
+                                    Converter={StaticResource ThemeAssetConverter},
+                                    ConverterParameter=Images/commodore-64-public-domain.png}"
+                   Stretch="Uniform"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Bottom"
+                   Width="610"
+                   Margin="-195,0,0,2"
+                   IsHitTestVisible="False" />
+        </Grid>
+    </Grid>
+    </Border>
+</UserControl>

@@ -86,6 +86,30 @@ See `Licenses/Sidplayfp.GPL-2.0.txt`
 
 ---
 
+## Commodore 64 system theme artwork
+
+The bundled C64 system theme contains the following artwork:
+
+- `Themes/System/C64/Images/commodore-64-public-domain.png`
+    - Original work by Evan-Amos
+    - Public domain
+    - Source: https://commons.wikimedia.org/wiki/File:Commodore-64-Computer-FL.png
+- `Themes/System/C64/Images/commodore-1702-monitor-frame.png`
+    - Adapted from `Commodore 1702 Video Monitor.jpg` by Shane Doucette
+    - Licensed under Creative Commons Attribution-ShareAlike 2.0 Generic
+    - Source: https://commons.wikimedia.org/wiki/File:Commodore_1702_Video_Monitor.jpg
+    - License: https://creativecommons.org/licenses/by-sa/2.0/
+    - The reference image was transformed into a straight-on monitor view; its
+      background, cable and screen contents were removed, and transparent regions
+      were prepared for use by the theme. The adapted monitor asset is distributed
+      under the same CC BY-SA 2.0 license.
+
+Detailed asset credits are included in `Themes/System/C64/CREDITS.md`.
+
+See: `Licenses/CC-BY-SA-2.0.html`
+
+---
+
 ## GE-Proton (optional user download source)
 
 **Component:** GE-Proton (GloriousEggroll Proton builds)  

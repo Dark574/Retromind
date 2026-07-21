@@ -87,7 +87,7 @@ public static class AppPaths
                 }
             }
 
-            RestoreMissingThemeDirectories(shippedThemesRoot);
+            EnsureShippedThemeDirectories(shippedThemesRoot);
         }
         catch
         {
@@ -223,7 +223,13 @@ public static class AppPaths
         }
     }
 
-    private static void RestoreMissingThemeDirectories(string shippedThemesRoot)
+    /// <summary>
+    /// Restores missing nested theme directories and ensures every shipped directory
+    /// containing its own theme.axaml has an independent update manifest. This is
+    /// especially important for system subthemes under Themes/System/&lt;Id&gt;.
+    /// Existing user-modified themes are left untouched.
+    /// </summary>
+    private static void EnsureShippedThemeDirectories(string shippedThemesRoot)
     {
         var shippedThemeFiles = Directory.GetFiles(shippedThemesRoot, "theme.axaml", SearchOption.AllDirectories);
         foreach (var shippedThemeFile in shippedThemeFiles)
@@ -234,11 +240,20 @@ public static class AppPaths
 
             var relativeThemeDir = Path.GetRelativePath(shippedThemesRoot, shippedThemeDir);
             var targetThemeDir = Path.Combine(ThemesRoot, relativeThemeDir);
-            if (Directory.Exists(targetThemeDir))
+            if (!Directory.Exists(targetThemeDir))
+            {
+                CopyDirectoryRecursive(shippedThemeDir, targetThemeDir);
+                WriteThemeManifest(targetThemeDir, shippedThemeDir);
+                continue;
+            }
+
+            if (IsThemeManifestUsable(TryReadThemeManifest(targetThemeDir)))
                 continue;
 
-            CopyDirectoryRecursive(shippedThemeDir, targetThemeDir);
-            WriteThemeManifest(targetThemeDir, shippedThemeDir);
+            // A parent directory may have copied this nested theme during first-time
+            // setup. Add its own manifest only when it still matches the shipped files.
+            if (AreDirectoryContentsEquivalent(targetThemeDir, shippedThemeDir))
+                WriteThemeManifest(targetThemeDir, shippedThemeDir);
         }
     }
 
