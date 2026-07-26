@@ -1142,7 +1142,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             RebuildSelectedEmulatorRunnerVersionOptions();
             RebuildRunnerReplacementOptions();
 
-            await PersistDownloadedRunnerRegistrationAsync(relativePath).ConfigureAwait(false);
+            await PersistDownloadedRunnerRegistrationAsync(relativePath);
 
             GeReleaseStatusText = string.Format(
                 T("Settings_GeProtonStatusInstalledFormat", "Installed: {0}"),
