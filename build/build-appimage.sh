@@ -99,7 +99,7 @@ Type=Application
 Name=Retromind
 Exec=Retromind
 Icon=retromind
-Categories=AudioVideo;Video;Audio;Utility;
+Categories=Utility;
 Terminal=false
 EOF
 
