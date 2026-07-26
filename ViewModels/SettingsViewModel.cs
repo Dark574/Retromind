@@ -11,7 +11,6 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -19,6 +18,7 @@ using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
@@ -35,6 +35,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private const int GeProtonMaxItems = 300;
 
     private readonly AppSettings _appSettings;
+    private readonly SettingsService _settingsService;
     private readonly ObservableCollection<MediaNode> _rootNodes;
     private readonly Dictionary<string, int> _runnerUsageById = new(StringComparer.Ordinal);
     private bool _hasAutoLoadedGeReleases;
@@ -579,9 +580,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     // Optional dependency injection for file dialogs (better for testing)
     public IStorageProvider? StorageProvider { get; set; }
 
-    public SettingsViewModel(AppSettings settings, ObservableCollection<MediaNode>? rootNodes = null)
+    public SettingsViewModel(
+        AppSettings settings,
+        SettingsService settingsService,
+        ObservableCollection<MediaNode>? rootNodes = null)
     {
         _appSettings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
 
         MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(_appSettings.IgnoreLeadingArticlesInSort);
@@ -1137,6 +1142,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             RebuildSelectedEmulatorRunnerVersionOptions();
             RebuildRunnerReplacementOptions();
 
+            await PersistDownloadedRunnerRegistrationAsync(relativePath).ConfigureAwait(false);
+
             GeReleaseStatusText = string.Format(
                 T("Settings_GeProtonStatusInstalledFormat", "Installed: {0}"),
                 relativePath);
@@ -1151,6 +1158,40 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         {
             IsGeReleaseBusy = false;
         }
+    }
+
+    /// <summary>
+    /// A managed runner download is a completed external action, so retain its
+    /// registration even when the surrounding settings dialog is later closed
+    /// without saving unrelated edits.
+    /// </summary>
+    private async Task PersistDownloadedRunnerRegistrationAsync(string relativePath)
+    {
+        var runner = RunnerVersions.FirstOrDefault(r =>
+            string.Equals(r.Path, relativePath, StringComparison.OrdinalIgnoreCase));
+        if (runner == null)
+            throw new InvalidOperationException("The downloaded runner could not be registered.");
+
+        var runnerConfig = runner.ToModel();
+        UpsertRunnerVersion(_appSettings.RunnerVersions, runnerConfig);
+
+        // Save a disk snapshot so unsaved changes elsewhere in the settings
+        // dialog do not become persistent merely because a runner was downloaded.
+        var persistedSettings = await _settingsService.LoadAsync().ConfigureAwait(false);
+        UpsertRunnerVersion(persistedSettings.RunnerVersions, runnerConfig);
+        await _settingsService.SaveAsync(persistedSettings).ConfigureAwait(false);
+    }
+
+    private static void UpsertRunnerVersion(List<RunnerVersionConfig> runners, RunnerVersionConfig runner)
+    {
+        var existingIndex = runners.FindIndex(existing =>
+            string.Equals(existing.Id, runner.Id, StringComparison.Ordinal) ||
+            string.Equals(existing.Path, runner.Path, StringComparison.OrdinalIgnoreCase));
+
+        if (existingIndex >= 0)
+            runners[existingIndex] = runner;
+        else
+            runners.Add(runner);
     }
 
     private static async Task<List<GeProtonReleaseOption>> FetchGeProtonReleasesAsync()

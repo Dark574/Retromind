@@ -1192,7 +1192,7 @@ public partial class MainWindowViewModel
         if (CurrentWindow is not { } owner) return;
 
         var ignoreLeadingArticlesBefore = _currentSettings.IgnoreLeadingArticlesInSort;
-        var settingsVm = new SettingsViewModel(_currentSettings, RootItems);
+        var settingsVm = new SettingsViewModel(_currentSettings, _settingsService, RootItems);
         var dialog = new SettingsView
         {
             DataContext = settingsVm
