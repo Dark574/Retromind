@@ -37,11 +37,10 @@
         </Rectangle>
 
         <!-- Restrained echoes of the classic two-tone C64 screen border. -->
-        <Border BorderBrush="#3970A8"
-                BorderThickness="2,0,0,0"
+        <Border Background="#3970A8"
+                Height="4"
                 Opacity="0.75"
-                HorizontalAlignment="Left"
-                Width="10" />
+                VerticalAlignment="Top" />
         <Grid ColumnDefinitions="0.82*,1.48*"
               Margin="44,34,38,30">
 
@@ -72,11 +71,11 @@
                     <Border Height="2"
                             Background="#7C83D6"
                             HorizontalAlignment="Left"
-                            Width="118" />
+                            Width="124" />
                     <Border Height="2"
                             Background="#B7AA91"
                             HorizontalAlignment="Left"
-                            Margin="118,0,0,0"
+                            Margin="124,0,0,0"
                             Width="42" />
                 </Grid>
 
