@@ -639,6 +639,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             }
         }
 
+        SortRunnerVersions();
+
         AddEmulatorCommand = new RelayCommand(AddEmulator);
         RemoveEmulatorCommand = new RelayCommand(RemoveEmulator, () => SelectedEmulator != null);
         
@@ -995,6 +997,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         RunnerVersions.Add(row);
         SelectedRunnerVersion = row;
+        SortRunnerVersions();
         RunnerVersionNameInput = string.Empty;
         RunnerVersionPathInput = string.Empty;
 
@@ -1208,6 +1211,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 SelectedRunnerVersion = row;
             }
 
+            SortRunnerVersions();
             RecomputeRunnerUsageCounts();
             RebuildSelectedEmulatorRunnerVersionOptions();
             RebuildRunnerReplacementOptions();
@@ -1623,6 +1627,21 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         return RunnerVersions
             .OrderBy(r => preferredKind.HasValue && r.Kind == preferredKind.Value ? 0 : 1)
             .ThenBy(r => r.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void SortRunnerVersions()
+    {
+        var orderedRows = RunnerVersions
+            .OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.Path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        for (var targetIndex = 0; targetIndex < orderedRows.Count; targetIndex++)
+        {
+            var currentIndex = RunnerVersions.IndexOf(orderedRows[targetIndex]);
+            if (currentIndex != targetIndex)
+                RunnerVersions.Move(currentIndex, targetIndex);
+        }
     }
 
     private static EmulatorConfig.RunnerIntent InferEffectiveRunnerIntent(EmulatorConfig? emulator)
