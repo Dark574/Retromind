@@ -374,7 +374,7 @@
                                ToolTip.Tip="{Binding RunnerVersionsTabTitle}" />
                 </TabItem.Header>
                 <Grid ColumnDefinitions="260, 20, *">
-                    <Grid Grid.Column="0" RowDefinitions="Auto, *, Auto" RowSpacing="8">
+                    <Grid Grid.Column="0" RowDefinitions="Auto, *, Auto, Auto" RowSpacing="8">
                         <TextBlock Grid.Row="0"
                                    Text="{Binding RunnerVersionsSectionTitle}"
                                    FontWeight="Bold"
@@ -397,6 +397,11 @@
                         <Button Grid.Row="2"
                                 Content="{x:Static p:Strings.Button_Remove}"
                                 Command="{Binding RemoveRunnerVersionCommand}" />
+
+                        <TextBlock Grid.Row="3"
+                                   Text="{Binding RunnerVersionStatusText}"
+                                   Opacity="0.8"
+                                   TextWrapping="Wrap" />
                     </Grid>
 
                     <ScrollViewer Grid.Column="2">

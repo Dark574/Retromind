@@ -339,6 +339,12 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_RunnerVersionUsageLabel" xml:space="preserve"><value>Spiele mit dieser Version</value></data>
     <data name="Settings_RunnerReplacementLabel" xml:space="preserve"><value>Ersetzen durch</value></data>
     <data name="Settings_RunnerReplacementHint" xml:space="preserve"><value>Vor dem Entfernen bitte eine Ersatzversion auswählen.</value></data>
+    <data name="Settings_RunnerVersionRemoveManagedConfirmFormat" xml:space="preserve"><value>{0} aus Retromind entfernen und die heruntergeladenen Dateien endgültig löschen?</value></data>
+    <data name="Settings_RunnerVersionRemoveExternalConfirmFormat" xml:space="preserve"><value>{0} aus Retromind entfernen? Die Dateien am externen Pfad bleiben erhalten.</value></data>
+    <data name="Settings_RunnerVersionRemoveInvalidPath" xml:space="preserve"><value>Der verwaltete Runner-Pfad ist ungültig. Es wurde nichts entfernt.</value></data>
+    <data name="Settings_RunnerVersionRemoveManagedSuccess" xml:space="preserve"><value>Runner-Dateien und Konfiguration wurden entfernt.</value></data>
+    <data name="Settings_RunnerVersionRemoveExternalSuccess" xml:space="preserve"><value>Runner-Konfiguration wurde entfernt. Die Dateien am externen Pfad bleiben erhalten.</value></data>
+    <data name="Settings_RunnerVersionRemoveFailedFormat" xml:space="preserve"><value>Runner konnte nicht entfernt werden: {0}</value></data>
     <data name="Settings_GeProtonSectionTitle" xml:space="preserve"><value>GE-Proton Download</value></data>
     <data name="Settings_GeProtonSelectionLabel" xml:space="preserve"><value>Verfügbare Versionen</value></data>
     <data name="Settings_GeProtonRefreshLabel" xml:space="preserve"><value>Liste aktualisieren</value></data>

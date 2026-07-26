@@ -1193,6 +1193,20 @@ public partial class MainWindowViewModel
 
         var ignoreLeadingArticlesBefore = _currentSettings.IgnoreLeadingArticlesInSort;
         var settingsVm = new SettingsViewModel(_currentSettings, _settingsService, RootItems);
+        settingsVm.RequestRunnerVersionRemovalConfirmation += runner =>
+        {
+            var message = runner.SourceType == RunnerVersionSourceType.ManagedDownload
+                ? string.Format(
+                    Strings.ResourceManager.GetString("Settings_RunnerVersionRemoveManagedConfirmFormat", Strings.Culture)
+                    ?? "Remove {0} and permanently delete its downloaded files?",
+                    runner.Name)
+                : string.Format(
+                    Strings.ResourceManager.GetString("Settings_RunnerVersionRemoveExternalConfirmFormat", Strings.Culture)
+                    ?? "Remove {0} from Retromind? Its external files will be kept.",
+                    runner.Name);
+
+            return ShowConfirmDialog(owner, message);
+        };
         var dialog = new SettingsView
         {
             DataContext = settingsVm

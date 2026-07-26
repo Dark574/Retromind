@@ -90,6 +90,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private RunnerVersionSelectionOption? _selectedRunnerReplacement;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemoveRunnerVersionCommand))]
+    private bool _isRemovingRunnerVersion;
+
+    [ObservableProperty]
+    private string _runnerVersionStatusText = string.Empty;
+
+    [ObservableProperty]
     private string? _selectedEmulatorRunnerVersionId;
 
     [ObservableProperty]
@@ -555,7 +562,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IRelayCommand ApplyPortableXdgPresetCommand { get; }
     public IRelayCommand ApplyPortableXdgAndHomePresetCommand { get; }
     public IRelayCommand AddRunnerVersionCommand { get; }
-    public IRelayCommand RemoveRunnerVersionCommand { get; }
+    public IAsyncRelayCommand RemoveRunnerVersionCommand { get; }
     public IAsyncRelayCommand BrowseRunnerVersionPathCommand { get; }
     public IAsyncRelayCommand RefreshGeReleasesCommand { get; }
     public IAsyncRelayCommand DownloadSelectedGeReleaseCommand { get; }
@@ -574,6 +581,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     /// The main window view model owns the parental lock flow and handles this request.
     /// </summary>
     public event Func<Task>? RequestParentalPasswordChange;
+
+    /// <summary>
+    /// Raised before a configured runner is removed. The settings window owns
+    /// the confirmation dialog; the view model owns the removal policy.
+    /// </summary>
+    public event Func<RunnerVersionRow, Task<bool>>? RequestRunnerVersionRemovalConfirmation;
 
     public bool LibraryModified { get; private set; }
 
@@ -668,7 +681,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         ApplyPortableXdgPresetCommand = new RelayCommand(ApplyPortableXdgPreset, () => SelectedEmulator != null);
         ApplyPortableXdgAndHomePresetCommand = new RelayCommand(ApplyPortableXdgAndHomePreset, () => SelectedEmulator != null);
         AddRunnerVersionCommand = new RelayCommand(AddRunnerVersion, CanAddRunnerVersion);
-        RemoveRunnerVersionCommand = new RelayCommand(RemoveRunnerVersion, CanRemoveRunnerVersion);
+        RemoveRunnerVersionCommand = new AsyncRelayCommand(RemoveRunnerVersionAsync, CanRemoveRunnerVersion);
         BrowseRunnerVersionPathCommand = new AsyncRelayCommand(BrowseRunnerVersionPathAsync);
         RefreshGeReleasesCommand = new AsyncRelayCommand(RefreshGeReleasesAsync, () => !IsGeReleaseBusy);
         DownloadSelectedGeReleaseCommand = new AsyncRelayCommand(DownloadSelectedGeReleaseAsync, CanDownloadSelectedGeRelease);
@@ -992,7 +1005,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     private bool CanRemoveRunnerVersion()
     {
-        if (SelectedRunnerVersion == null)
+        if (IsRemovingRunnerVersion || SelectedRunnerVersion == null)
             return false;
 
         if (SelectedRunnerVersion.UsedByGames <= 0)
@@ -1001,7 +1014,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         return !string.IsNullOrWhiteSpace(SelectedRunnerReplacement?.Id);
     }
 
-    private void RemoveRunnerVersion()
+    private async Task RemoveRunnerVersionAsync()
     {
         if (SelectedRunnerVersion == null)
             return;
@@ -1013,33 +1026,90 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         if (removed.UsedByGames > 0 && string.IsNullOrWhiteSpace(replacementId))
             return;
 
-        // Remap emulator-level defaults
-        foreach (var emulator in Emulators)
-        {
-            if (string.Equals(emulator.DefaultRunnerVersionId, removedId, StringComparison.Ordinal))
-                emulator.DefaultRunnerVersionId = replacementId;
-        }
+        var confirmation = RequestRunnerVersionRemovalConfirmation;
+        if (confirmation == null || !await confirmation(removed))
+            return;
 
-        // Remap item-level overrides
-        var libraryChanged = false;
-        if (_rootNodes.Count > 0)
+        IsRemovingRunnerVersion = true;
+        RunnerVersionStatusText = string.Empty;
+
+        try
         {
-            foreach (var root in _rootNodes)
+            if (removed.SourceType == RunnerVersionSourceType.ManagedDownload)
             {
-                if (RemapRunnerVersionRecursive(root, removedId, replacementId))
-                    libraryChanged = true;
+                if (!TryResolveManagedRunnerDirectory(removed.Path, out var runnerDirectory))
+                {
+                    RunnerVersionStatusText = T(
+                        "Settings_RunnerVersionRemoveInvalidPath",
+                        "The managed runner path is invalid. Nothing was removed.");
+                    return;
+                }
+
+                await Task.Run(() =>
+                {
+                    if (Directory.Exists(runnerDirectory))
+                        Directory.Delete(runnerDirectory, recursive: true);
+                });
             }
+
+            // Remap emulator-level defaults
+            foreach (var emulator in Emulators)
+            {
+                if (string.Equals(emulator.DefaultRunnerVersionId, removedId, StringComparison.Ordinal))
+                    emulator.DefaultRunnerVersionId = replacementId;
+            }
+
+            // Remap item-level overrides
+            var libraryChanged = false;
+            if (_rootNodes.Count > 0)
+            {
+                foreach (var root in _rootNodes)
+                {
+                    if (RemapRunnerVersionRecursive(root, removedId, replacementId))
+                        libraryChanged = true;
+                }
+            }
+
+            if (libraryChanged)
+                LibraryModified = true;
+
+            RunnerVersions.Remove(removed);
+            SelectedRunnerVersion = RunnerVersions.FirstOrDefault();
+
+            RecomputeRunnerUsageCounts();
+            RebuildSelectedEmulatorRunnerVersionOptions();
+            RebuildRunnerReplacementOptions();
+
+            await PersistRunnerRemovalAsync(removed);
+            RunnerVersionStatusText = removed.SourceType == RunnerVersionSourceType.ManagedDownload
+                ? T("Settings_RunnerVersionRemoveManagedSuccess", "Runner files and configuration removed.")
+                : T("Settings_RunnerVersionRemoveExternalSuccess", "Runner configuration removed. External files were kept.");
         }
+        catch (Exception ex)
+        {
+            RunnerVersionStatusText = string.Format(
+                T("Settings_RunnerVersionRemoveFailedFormat", "Could not remove runner: {0}"),
+                ex.Message);
+        }
+        finally
+        {
+            IsRemovingRunnerVersion = false;
+        }
+    }
 
-        if (libraryChanged)
-            LibraryModified = true;
+    private static bool TryResolveManagedRunnerDirectory(string path, out string directory)
+    {
+        directory = string.Empty;
+        if (!AppPaths.TryResolveDataPathInsideRoot(path, out var candidate))
+            return false;
 
-        RunnerVersions.Remove(removed);
-        SelectedRunnerVersion = RunnerVersions.FirstOrDefault();
+        var managedRoot = Path.GetFullPath(Path.Combine(AppPaths.DataRoot, "Emulators", "ProtonVersions"));
+        var parentDirectory = Path.GetDirectoryName(candidate.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        if (!string.Equals(parentDirectory, managedRoot, StringComparison.Ordinal))
+            return false;
 
-        RecomputeRunnerUsageCounts();
-        RebuildSelectedEmulatorRunnerVersionOptions();
-        RebuildRunnerReplacementOptions();
+        directory = candidate;
+        return true;
     }
 
     private async Task BrowseRunnerVersionPathAsync()
@@ -1182,6 +1252,17 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         await _settingsService.SaveAsync(persistedSettings).ConfigureAwait(false);
     }
 
+    private async Task PersistRunnerRemovalAsync(RunnerVersionRow removed)
+    {
+        RemoveRunnerVersion(_appSettings.RunnerVersions, removed);
+
+        // Save a disk snapshot so this completed removal is retained without
+        // persisting unrelated edits that are still open in the dialog.
+        var persistedSettings = await _settingsService.LoadAsync().ConfigureAwait(false);
+        RemoveRunnerVersion(persistedSettings.RunnerVersions, removed);
+        await _settingsService.SaveAsync(persistedSettings).ConfigureAwait(false);
+    }
+
     private static void UpsertRunnerVersion(List<RunnerVersionConfig> runners, RunnerVersionConfig runner)
     {
         var existingIndex = runners.FindIndex(existing =>
@@ -1192,6 +1273,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             runners[existingIndex] = runner;
         else
             runners.Add(runner);
+    }
+
+    private static void RemoveRunnerVersion(List<RunnerVersionConfig> runners, RunnerVersionRow removed)
+    {
+        runners.RemoveAll(runner =>
+            string.Equals(runner.Id, removed.Id, StringComparison.Ordinal) ||
+            string.Equals(runner.Path, removed.Path, StringComparison.OrdinalIgnoreCase));
     }
 
     private static async Task<List<GeProtonReleaseOption>> FetchGeProtonReleasesAsync()
