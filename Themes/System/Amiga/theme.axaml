@@ -1,0 +1,150 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="using:Retromind.Helpers"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="Transparent"
+
+             ext:ThemeProperties.Name="Amiga"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.AccentColor="#F29A3F"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
+             ext:ThemeProperties.VideoStretchMode="Uniform"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
+             ext:ThemeProperties.SecondaryVideoEnabled="False">
+
+    <UserControl.Resources>
+        <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
+    </UserControl.Resources>
+
+    <Border Background="#071B38"
+            CornerRadius="8"
+            ClipToBounds="True">
+        <Grid>
+            <!-- Workbench-inspired blue with a restrained warm accent. -->
+            <Rectangle>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#0B4A96" Offset="0" />
+                        <GradientStop Color="#082A5E" Offset="0.48" />
+                        <GradientStop Color="#05152E" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <Border Background="#F29A3F"
+                    Height="4"
+                    VerticalAlignment="Top"
+                    Opacity="0.9" />
+
+            <Grid ColumnDefinitions="0.82*,1.48*"
+                  Margin="44,34,38,30">
+
+                <Grid Grid.Column="0"
+                      RowDefinitions="Auto,Auto,*"
+                      Margin="0,12,36,10">
+                    <Grid Grid.Row="0" Height="112">
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               MaxWidth="370"
+                               IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                                                   Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                        <TextBlock Text="{Binding SelectedCategory.Name}"
+                                   FontSize="44"
+                                   FontWeight="Bold"
+                                   Foreground="#FFF2D6"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                                                       Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,14,0,20">
+                        <Border Height="3"
+                                Background="#F29A3F"
+                                HorizontalAlignment="Left"
+                                Width="124" />
+                        <Border Height="3"
+                                Background="#A8C8FF"
+                                HorizontalAlignment="Left"
+                                Margin="124,0,0,0"
+                                Width="42" />
+                    </Grid>
+
+                    <Border Grid.Row="2"
+                            BorderBrush="#66A8C8FF"
+                            BorderThickness="1,0,0,0"
+                            Padding="18,2,4,4"
+                            ClipToBounds="True">
+                        <TextBlock Text="{Binding SelectedCategory.Description}"
+                                   FontSize="18"
+                                   LineHeight="27"
+                                   Foreground="#DCE9FF"
+                                   TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+
+                <!-- The shared video is placed behind the transparent CRT aperture. -->
+                <Viewbox Grid.Column="1"
+                         Stretch="Uniform"
+                         StretchDirection="Both"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         MaxWidth="805"
+                         MaxHeight="750">
+                    <Canvas Width="1402" Height="1122">
+                        <Border x:Name="SystemPrimaryVideoSlot"
+                                Canvas.Left="303"
+                                Canvas.Top="247"
+                                Width="788"
+                                Height="581"
+                                Background="#020202"
+                                ClipToBounds="True" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/amiga-1084-monitor-frame.png}"
+                               Canvas.Left="0"
+                               Canvas.Top="0"
+                               Width="1402"
+                               Height="1122"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <StackPanel Canvas.Left="930"
+                                    Canvas.Top="978"
+                                    Orientation="Horizontal"
+                                    Spacing="10">
+                            <TextBlock Text="GAMES"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Foreground="#5C564B" />
+                            <TextBlock Text="{Binding SelectedCategory.Items.Count}"
+                                       FontSize="22"
+                                       FontWeight="Bold"
+                                       Foreground="#F29A3F" />
+                        </StackPanel>
+                    </Canvas>
+                </Viewbox>
+
+                <Image Grid.Column="1"
+                       Source="{Binding $parent[UserControl],
+                                        Converter={StaticResource ThemeAssetConverter},
+                                        ConverterParameter=Images/amiga-500-keyboard.png}"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Left"
+                       VerticalAlignment="Bottom"
+                       Width="650"
+                       Margin="-165,0,0,-16"
+                       IsHitTestVisible="False" />
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>
