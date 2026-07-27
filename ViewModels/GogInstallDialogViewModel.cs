@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services.Stores.Gog;
@@ -158,7 +159,7 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
                          .Where(r => !string.IsNullOrWhiteSpace(r.Id))
                          .Where(r => !string.IsNullOrWhiteSpace(r.Name))
                          .Where(r => !string.IsNullOrWhiteSpace(r.Path))
-                         .OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase))
+                         .OrderBy(r => r.Name, MediaSortHelper.NaturalStringComparer))
             {
                 RunnerOptions.Add(new RunnerOption(
                     runner.Id,

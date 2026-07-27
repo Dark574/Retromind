@@ -1086,7 +1086,9 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             id: null,
             name: Strings.NodeSettings_ModeNone));
 
-        foreach (var version in settings.RunnerVersions.OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var version in settings.RunnerVersions.OrderBy(
+                     v => v.Name,
+                     MediaSortHelper.NaturalStringComparer))
         {
             var suffix = version.Kind == RunnerVersionKind.Wine ? "Wine" : "Proton";
             var name = string.IsNullOrWhiteSpace(version.Name)

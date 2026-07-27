@@ -21,6 +21,13 @@ public static class MediaSortHelper
     public static IComparer<MediaItem> DisplayOrderComparer { get; } =
         Comparer<MediaItem>.Create(CompareForDisplayOrder);
 
+    /// <summary>
+    /// Case-insensitive, culture-aware string comparer with numeric ordering for
+    /// digit runs. Example: "GE-Proton9-27" sorts before "GE-Proton10-34".
+    /// </summary>
+    public static IComparer<string?> NaturalStringComparer { get; } =
+        Comparer<string?>.Create(CompareNaturalCurrentCulture);
+
     public static void SetIgnoreLeadingArticlesInTitleSort(bool enabled)
     {
         _ignoreLeadingArticlesInTitleSort = enabled;
@@ -35,14 +42,14 @@ public static class MediaSortHelper
         if (right is null)
             return 1;
 
-        var bySortTitle = CompareNaturalCurrentCulture(
+        var bySortTitle = NaturalStringComparer.Compare(
             GetPrimarySortKey(left),
             GetPrimarySortKey(right));
 
         if (bySortTitle != 0)
             return bySortTitle;
 
-        var byTitle = CompareNaturalCurrentCulture(
+        var byTitle = NaturalStringComparer.Compare(
             GetTitleSortKey(left.Title),
             GetTitleSortKey(right.Title));
         if (byTitle != 0)

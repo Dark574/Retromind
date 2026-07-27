@@ -1626,14 +1626,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         return RunnerVersions
             .OrderBy(r => preferredKind.HasValue && r.Kind == preferredKind.Value ? 0 : 1)
-            .ThenBy(r => r.Name, StringComparer.OrdinalIgnoreCase);
+            .ThenBy(r => r.Name, MediaSortHelper.NaturalStringComparer);
     }
 
     private void SortRunnerVersions()
     {
         var orderedRows = RunnerVersions
-            .OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(row => row.Path, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(row => row.Name, MediaSortHelper.NaturalStringComparer)
+            .ThenBy(row => row.Path, MediaSortHelper.NaturalStringComparer)
             .ToList();
 
         for (var targetIndex = 0; targetIndex < orderedRows.Count; targetIndex++)
