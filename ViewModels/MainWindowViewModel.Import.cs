@@ -1377,7 +1377,11 @@ public partial class MainWindowViewModel
         if (parentNode == null) return;
 
         var nodePath = PathHelper.GetNodePath(parentNode, RootItems);
-        var importSettings = GetScraperImportSettings();
+        var manualImportSettings = new ScraperImportSettings
+        {
+            ExistingDataMode = ScraperExistingDataMode.OverwriteAlways,
+            AppendAssetsDuringBulkScrape = true
+        };
 
         var vm = new ScrapeDialogViewModel(item, _currentSettings, _metadataService);
         
@@ -1385,17 +1389,18 @@ public partial class MainWindowViewModel
         {
             var changed = false;
 
-            if (await ApplyScrapedMetadataAsync(owner, item, result, importSettings, allowConflictPrompts: true))
+            // The manual dialog already contains an explicit per-field selection.
+            // Selected metadata may therefore replace an existing value without
+            // showing a second series of conflict prompts.
+            if (await ApplyScrapedMetadataAsync(owner, item, result, manualImportSettings, allowConflictPrompts: false))
                 changed = true;
 
             if (await ApplyScrapedAssetsAsync(
-                    owner,
                     item,
                     result,
                     nodePath,
-                    importSettings,
-                    allowConflictPromptsForAssets: true,
-                    appendAssetsOnConflictWithoutPrompt: importSettings.AppendAssetsDuringBulkScrape))
+                    manualImportSettings,
+                    appendAssetsWhenTypeExists: true))
                 changed = true;
 
             if (changed)
@@ -1432,13 +1437,11 @@ public partial class MainWindowViewModel
                 changed = true;
 
             if (await ApplyScrapedAssetsAsync(
-                    owner,
                     item,
                     result,
                     nodePath,
                     importSettings,
-                    allowConflictPromptsForAssets: false,
-                    appendAssetsOnConflictWithoutPrompt: importSettings.AppendAssetsDuringBulkScrape))
+                    appendAssetsWhenTypeExists: importSettings.AppendAssetsDuringBulkScrape))
                 changed = true;
             
             if (changed)
@@ -1658,78 +1661,52 @@ public partial class MainWindowViewModel
     }
 
     private async Task<bool> ApplyScrapedAssetsAsync(
-        Window owner,
         MediaItem item,
         ScraperSearchResult result,
         List<string> nodePath,
         ScraperImportSettings settings,
-        bool allowConflictPromptsForAssets,
-        bool appendAssetsOnConflictWithoutPrompt)
+        bool appendAssetsWhenTypeExists)
     {
         var changed = false;
-        var mode = settings.ExistingDataMode;
 
-        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Cover, result.CoverUrl, settings.ImportCover, mode, T("Button.Cover", "Cover"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Cover, result.CoverUrl, settings.ImportCover, appendAssetsWhenTypeExists))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Wallpaper, result.WallpaperUrl, settings.ImportWallpaper, mode, T("NodeSettings_ArtworkWallpaperLabel", "Wallpaper"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Wallpaper, result.WallpaperUrl, settings.ImportWallpaper, appendAssetsWhenTypeExists))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Screenshot, result.ScreenshotUrl, settings.ImportScreenshot, mode, T("Button.Screenshot", "Screenshot"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Screenshot, result.ScreenshotUrl, settings.ImportScreenshot, appendAssetsWhenTypeExists))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Logo, result.LogoUrl, settings.ImportLogo, mode, T("Button.Logo", "Logo"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Logo, result.LogoUrl, settings.ImportLogo, appendAssetsWhenTypeExists))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Marquee, result.MarqueeUrl, settings.ImportMarquee, mode, T("NodeSettings_ArtworkMarqueeLabel", "Marquee"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Marquee, result.MarqueeUrl, settings.ImportMarquee, appendAssetsWhenTypeExists))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.Bezel, result.BezelUrl, settings.ImportBezel, mode, T("Button.Bezel", "Bezel"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Bezel, result.BezelUrl, settings.ImportBezel, appendAssetsWhenTypeExists))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(owner, item, nodePath, AssetType.ControlPanel, result.ControlPanelUrl, settings.ImportControlPanel, mode, T("Button.ControlPanel", "Control panel"), allowConflictPromptsForAssets, appendAssetsOnConflictWithoutPrompt))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.ControlPanel, result.ControlPanelUrl, settings.ImportControlPanel, appendAssetsWhenTypeExists))
             changed = true;
 
         return changed;
     }
 
     private async Task<bool> TryImportScrapedAssetAsync(
-        Window owner,
         MediaItem item,
         List<string> nodePath,
         AssetType type,
         string? url,
         bool isEnabled,
-        ScraperExistingDataMode mode,
-        string assetLabel,
-        bool allowConflictPromptsForAssets,
-        bool appendAssetsOnConflictWithoutPrompt)
+        bool appendAssetsWhenTypeExists)
     {
         if (!isEnabled || string.IsNullOrWhiteSpace(url))
             return false;
 
         var hasExisting = item.Assets.Any(a => a.Type == type);
-        if (hasExisting)
-        {
-            if (appendAssetsOnConflictWithoutPrompt)
-                return await DownloadAndSetAsset(url, item, nodePath, type);
-
-            if (!allowConflictPromptsForAssets)
-                return false;
-
-            if (mode == ScraperExistingDataMode.OnlyMissing)
-                return false;
-
-            if (mode == ScraperExistingDataMode.AskOnConflict)
-            {
-                var message = string.Format(
-                    T("Dialog.Scraper.AssetConflictFormat", "Item already has {0}. Add another one?"),
-                    assetLabel);
-
-                if (!await ShowConfirmDialog(owner, message))
-                    return false;
-            }
-        }
+        if (hasExisting && !appendAssetsWhenTypeExists)
+            return false;
 
         return await DownloadAndSetAsset(url, item, nodePath, type);
     }

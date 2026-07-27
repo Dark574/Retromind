@@ -213,8 +213,31 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public ScraperExistingDataMode[] AvailableScraperExistingDataModes { get; } =
-        Enum.GetValues<ScraperExistingDataMode>();
+    public sealed record ScraperExistingDataModeOption(ScraperExistingDataMode Value, string Name);
+    public sealed record ScraperArtworkModeOption(bool AppendExisting, string Name);
+
+    public IReadOnlyList<ScraperExistingDataModeOption> AvailableScraperExistingDataModes { get; } =
+    [
+        new(
+            ScraperExistingDataMode.OnlyMissing,
+            T("Settings_ScraperMetadataModeOnlyMissing", "Fill empty fields only")),
+        new(
+            ScraperExistingDataMode.OverwriteAlways,
+            T("Settings_ScraperMetadataModeOverwrite", "Replace existing values")),
+        new(
+            ScraperExistingDataMode.AskOnConflict,
+            T("Settings_ScraperMetadataModeManual", "Choose manually"))
+    ];
+
+    public IReadOnlyList<ScraperArtworkModeOption> AvailableScraperArtworkModes { get; } =
+    [
+        new(
+            false,
+            T("Settings_ScraperArtworkModeOnlyMissing", "Add missing artwork types only")),
+        new(
+            true,
+            T("Settings_ScraperArtworkModeAppend", "Add further variants"))
+    ];
 
     public ScraperExistingDataMode ScraperExistingDataMode
     {
@@ -226,6 +249,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
             ScraperImportSettings.ExistingDataMode = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(ScraperExistingDataModeHint));
         }
     }
 
@@ -346,6 +370,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             {
                 ScraperImportSettings.AppendAssetsDuringBulkScrape = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(ScraperArtworkModeHint));
             }
         }
     }
@@ -356,12 +381,38 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         T("Settings_IgnoreLeadingArticlesInSort", "Ignore leading articles in title sorting");
     public string IgnoreLeadingArticlesInSortHint =>
         T("Settings_IgnoreLeadingArticlesInSort_Hint", "Applies to Title only. Sort Title is always used as entered.");
-    public string ScraperImportHint => T("Settings_ScraperImportHint", "Applies to both manual scrape and bulk scrape.");
-    public string ScraperExistingDataModeText => T("Settings_ScraperExistingDataMode", "If data already exists:");
-    public string ScraperBulkAppendAssetsText => T("Settings_ScraperBulkAssetConflictPrompt", "In manual and bulk scrape, append new artwork when artwork already exists");
-    public string ScraperBulkAppendAssetsHint => T("Settings_ScraperBulkAssetConflictHint", "Missing artwork is always imported.");
-    public string ScraperMetadataFieldsText => T("Settings_ScraperMetadataFields", "Metadata fields");
-    public string ScraperAssetFieldsText => T("Settings_ScraperAssetFields", "Artwork / assets");
+    public string ScraperImportHint => T(
+        "Settings_ScraperImportHint",
+        "Choose which data is copied from scraper results. Not every provider supplies every field.");
+    public string ScraperExistingDataModeText => T(
+        "Settings_ScraperExistingDataMode",
+        "Default for existing metadata");
+    public string ScraperExistingDataModeHint => ScraperExistingDataMode switch
+    {
+        ScraperExistingDataMode.OverwriteAlways => T(
+            "Settings_ScraperMetadataModeOverwriteHint",
+            "Manual scrape preselects changed values. Bulk scrape replaces existing values."),
+        ScraperExistingDataMode.AskOnConflict => T(
+            "Settings_ScraperMetadataModeManualHint",
+            "Manual scrape lets you select each change. Bulk scrape retains existing values."),
+        _ => T(
+            "Settings_ScraperMetadataModeOnlyMissingHint",
+            "Missing values are preselected. Existing values remain unchanged.")
+    };
+    public string ScraperArtworkModeText => T(
+        "Settings_ScraperArtworkMode",
+        "Default for existing artwork");
+    public string ScraperArtworkModeHint => ScraperAppendAssetsDuringBulkScrape
+        ? T(
+            "Settings_ScraperArtworkModeAppendHint",
+            "New images are added as variants. Existing images remain unchanged.")
+        : T(
+            "Settings_ScraperArtworkModeOnlyMissingHint",
+            "Artwork is imported only when that artwork type is still missing.");
+    public string ScraperMetadataFieldsText => T("Settings_ScraperMetadataFields", "Metadata to copy");
+    public string ScraperAssetFieldsText => T("Settings_ScraperAssetFields", "Artwork to add");
+    public string ScraperProvidersTabText => T("Settings_ScraperProvidersTab", "Providers");
+    public string ScraperImportTabText => T("Settings_ScraperImportTab", "Import");
 
     public string ParentalSectionTitle => T("Settings_SectionParental", "Parental control");
     public string ChangeParentalPasswordText => T("Settings_ChangeParentalPassword", "Change parental password");

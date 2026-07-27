@@ -319,12 +319,25 @@ This action cannot be undone.</value></data>
     <data name="Settings_TabRunnerShort" xml:space="preserve"><value>Runner</value></data>
     <data name="Settings_TabMiscShort" xml:space="preserve"><value>Misc</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper import</value></data>
-    <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Applies to both manual scrape and bulk scrape.</value></data>
-    <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>If data already exists:</value></data>
+    <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Choose which data is copied from scraper results. Not every provider supplies every field.</value></data>
+    <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Default for existing metadata</value></data>
     <data name="Settings_ScraperBulkAssetConflictPrompt" xml:space="preserve"><value>In manual and bulk scrape, append new artwork when artwork already exists</value></data>
     <data name="Settings_ScraperBulkAssetConflictHint" xml:space="preserve"><value>Missing artwork is always imported.</value></data>
-    <data name="Settings_ScraperMetadataFields" xml:space="preserve"><value>Metadata fields</value></data>
-    <data name="Settings_ScraperAssetFields" xml:space="preserve"><value>Artwork / assets</value></data>
+    <data name="Settings_ScraperMetadataFields" xml:space="preserve"><value>Metadata to copy</value></data>
+    <data name="Settings_ScraperAssetFields" xml:space="preserve"><value>Artwork to add</value></data>
+    <data name="Settings_ScraperProvidersTab" xml:space="preserve"><value>Providers</value></data>
+    <data name="Settings_ScraperImportTab" xml:space="preserve"><value>Import</value></data>
+    <data name="Settings_ScraperMetadataModeOnlyMissing" xml:space="preserve"><value>Fill empty fields only</value></data>
+    <data name="Settings_ScraperMetadataModeOnlyMissingHint" xml:space="preserve"><value>Missing values are preselected. Existing values remain unchanged.</value></data>
+    <data name="Settings_ScraperMetadataModeOverwrite" xml:space="preserve"><value>Replace existing values</value></data>
+    <data name="Settings_ScraperMetadataModeOverwriteHint" xml:space="preserve"><value>Manual scrape preselects changed values. Bulk scrape replaces existing values.</value></data>
+    <data name="Settings_ScraperMetadataModeManual" xml:space="preserve"><value>Choose manually</value></data>
+    <data name="Settings_ScraperMetadataModeManualHint" xml:space="preserve"><value>Manual scrape lets you select each change. Bulk scrape retains existing values.</value></data>
+    <data name="Settings_ScraperArtworkMode" xml:space="preserve"><value>Default for existing artwork</value></data>
+    <data name="Settings_ScraperArtworkModeOnlyMissing" xml:space="preserve"><value>Add missing artwork types only</value></data>
+    <data name="Settings_ScraperArtworkModeOnlyMissingHint" xml:space="preserve"><value>Artwork is imported only when that artwork type is still missing.</value></data>
+    <data name="Settings_ScraperArtworkModeAppend" xml:space="preserve"><value>Add further variants</value></data>
+    <data name="Settings_ScraperArtworkModeAppendHint" xml:space="preserve"><value>New images are added as variants. Existing images remain unchanged.</value></data>
     <data name="Settings_SectionParental" xml:space="preserve"><value>Parental control</value></data>
     <data name="Settings_ChangeParentalPassword" xml:space="preserve"><value>Change parental password</value></data>
     <data name="Settings_TabRunnerVersions" xml:space="preserve"><value>Wine-/Proton-Versionen</value></data>
@@ -439,6 +452,17 @@ This action cannot be undone.</value></data>
     <data name="Metadata.Designation" xml:space="preserve"><value>Designation</value></data>
     <data name="Metadata.NewScraper" xml:space="preserve"><value>New Scraper</value></data>
     <data name="Metadata.NoCover" xml:space="preserve"><value>No cover</value></data>
+    <data name="ScrapeDialog.MetadataSelectionTitle" xml:space="preserve"><value>Select metadata</value></data>
+    <data name="ScrapeDialog.MetadataSelectionHint" xml:space="preserve"><value>Select each value you want to copy. Existing values are only changed when selected.</value></data>
+    <data name="ScrapeDialog.ExistingValue" xml:space="preserve"><value>Existing</value></data>
+    <data name="ScrapeDialog.ScraperValue" xml:space="preserve"><value>Scraper</value></data>
+    <data name="ScrapeDialog.ArtworkSelectionTitle" xml:space="preserve"><value>Add artwork</value></data>
+    <data name="ScrapeDialog.ArtworkSelectionHint" xml:space="preserve"><value>Selected artwork is added as another variant. Existing artwork is never replaced.</value></data>
+    <data name="ScrapeDialog.SelectAll" xml:space="preserve"><value>Select all</value></data>
+    <data name="ScrapeDialog.ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
+    <data name="ScrapeDialog.Add" xml:space="preserve"><value>Add</value></data>
+    <data name="ScrapeDialog.ArtworkExistingStatus" xml:space="preserve"><value>Existing artwork is retained; this image will be added.</value></data>
+    <data name="ScrapeDialog.ArtworkMissingStatus" xml:space="preserve"><value>No artwork of this type exists yet.</value></data>
     <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping area</value></data>
     <data name="Metadata.SearchMetadata" xml:space="preserve"><value>Search metadata</value></data>
     <data name="Metadata.SearchMetadataAll" xml:space="preserve"><value>Search metadata (All)...</value></data>

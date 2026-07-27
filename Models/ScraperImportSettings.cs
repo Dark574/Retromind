@@ -8,7 +8,8 @@ namespace Retromind.Models;
 /// </summary>
 public class ScraperImportSettings
 {
-    // Conflict policy
+    // Default conflict policy for metadata. Manual scraping presents an
+    // explicit per-field selection; bulk scraping applies this mode directly.
     public ScraperExistingDataMode ExistingDataMode { get; set; } = ScraperExistingDataMode.OnlyMissing;
 
     // Metadata fields
@@ -37,8 +38,10 @@ public class ScraperImportSettings
     public bool ImportControlPanel { get; set; } = true;
 
     /// <summary>
-    /// Non-interactive scrape behavior for existing asset types:
-    /// false = skip when an asset already exists, true = append new asset anyway.
+    /// Default behavior for an artwork type that already exists:
+    /// false = skip it, true = add the downloaded image as another variant.
+    /// Existing artwork is never removed or overwritten, if you want to get rid of artwork you
+    /// can delete it in the asset settings for the item.
     /// Uses legacy JSON key for backward compatibility.
     /// </summary>
     [JsonPropertyName("AskAssetConflictsDuringBulkScrape")]
