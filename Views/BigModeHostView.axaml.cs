@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
@@ -45,6 +47,12 @@ public partial class BigModeHostView : UserControl
     private readonly Dictionary<string, LinkedListNode<string>> _systemThemeLruNodes =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _systemThemeLru = new();
+    private const int SystemLayoutCrossfadeMs = 180;
+    private const int SystemVideoRevealFadeMs = 220;
+    private int _systemLayoutTransitionGeneration;
+    private int _waitingSystemVideoGeneration;
+    private int _waitingSystemVideoFrameRevision;
+    private bool _waitingForSystemVideoFrame;
 
     // Shared primary video control for the main preview channel.
     private readonly CrossfadeVideoSurfaceControl _primaryVideoControl;
@@ -217,6 +225,9 @@ public partial class BigModeHostView : UserControl
         var isItemChange = e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedItem);
         var isCategoryChange = e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedCategory);
 
+        if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.MainVideoFrameRevision))
+            TryRevealSystemVideoAfterFrameReady();
+
         // SystemHost theme only: refresh the system layout on category change
         if (_isSystemHostTheme && isCategoryChange)
             UpdateSystemLayoutForSelectedCategory();
@@ -292,6 +303,8 @@ public partial class BigModeHostView : UserControl
         // a named content placeholder "SystemLayoutHost" in the visual tree
         _systemLayoutHost = themeRoot.FindControl<ContentControl>("SystemLayoutHost");
         _isSystemHostTheme = _systemLayoutHost != null;
+        _systemLayoutTransitionGeneration++;
+        _waitingForSystemVideoFrame = false;
 
         var vm = DataContext as Retromind.ViewModels.BigModeViewModel;
 
@@ -342,7 +355,11 @@ public partial class BigModeHostView : UserControl
         // immediately for the current SelectedCategory
         if (_isSystemHostTheme)
         {
-            UpdateSystemLayoutForSelectedCategory();
+            UpdateSystemLayoutForSelectedCategory(animateTransition: false);
+        }
+        else
+        {
+            SetPrimaryVideoPresentationVisible(visible: true, animate: false);
         }
         
         // Layout settles asynchronously; schedule VM "view ready" after render ticks
@@ -488,7 +505,7 @@ public partial class BigModeHostView : UserControl
     /// This keeps category switching fast while avoiding "already has a visual parent"
     /// crashes from reusing the same UserControl instance.
     /// </summary>
-    private void UpdateSystemLayoutForSelectedCategory()
+    private void UpdateSystemLayoutForSelectedCategory(bool animateTransition = true)
     {
         if (!_isSystemHostTheme || _systemLayoutHost is null)
             return;
@@ -496,10 +513,52 @@ public partial class BigModeHostView : UserControl
         if (DataContext is not Retromind.ViewModels.BigModeViewModel vm)
             return;
 
+        var generation = ++_systemLayoutTransitionGeneration;
+        _ = RunSystemLayoutUpdateSafelyAsync(vm, generation, animateTransition);
+    }
+
+    private async Task RunSystemLayoutUpdateSafelyAsync(
+        Retromind.ViewModels.BigModeViewModel vm,
+        int generation,
+        bool animateTransition)
+    {
+        try
+        {
+            await UpdateSystemLayoutForSelectedCategoryAsync(vm, generation, animateTransition);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[BigModeHost] System layout transition failed: {ex.Message}");
+
+            if (generation == _systemLayoutTransitionGeneration && _systemLayoutHost is not null)
+                _systemLayoutHost.Opacity = 1;
+        }
+    }
+
+    private async Task UpdateSystemLayoutForSelectedCategoryAsync(
+        Retromind.ViewModels.BigModeViewModel vm,
+        int generation,
+        bool animateTransition)
+    {
+        if (!_isSystemHostTheme || _systemLayoutHost is null)
+            return;
+
         var node = vm.SelectedCategory;
         if (node is null)
         {
+            if (animateTransition && _systemLayoutHost.Content != null)
+            {
+                SetOpacityTransition(_systemLayoutHost, SystemLayoutCrossfadeMs);
+                _systemLayoutHost.Opacity = 0;
+                await Task.Delay(SystemLayoutCrossfadeMs);
+
+                if (generation != _systemLayoutTransitionGeneration)
+                    return;
+            }
+
+            SetPrimaryVideoPresentationVisible(visible: false, animate: false);
             _systemLayoutHost.Content = null;
+            _systemLayoutHost.Opacity = 1;
             PruneDetachedTunedListBoxes();
             vm.CanShowVideo = false;
             return;
@@ -511,59 +570,42 @@ public partial class BigModeHostView : UserControl
             ? "Default"
             : node.SystemPreviewThemeId;
         
-        Theme systemTheme;
-
-        // Use cached Theme (with cached XAML and factory) when available
-        if (!_systemThemeCache.TryGetValue(id, out systemTheme!))
+        if (!TryCreateSystemSubtheme(id, vm, out var systemTheme, out var subView))
         {
-            try
-            {
-                var relativePath = System.IO.Path.Combine("System", id, "theme.axaml");
-                    systemTheme = ThemeLoader.LoadTheme(relativePath, setGlobalBasePath: false);
-            }
-            catch
-            {
-                // Try fallback to the "Default" system theme
-                if (!string.Equals(id, "Default", StringComparison.OrdinalIgnoreCase))
-                {
-                    try
-                    {
-                        var fallbackPath = System.IO.Path.Combine("System", "Default", "theme.axaml");
-                        systemTheme = ThemeLoader.LoadTheme(fallbackPath, setGlobalBasePath: false);
-                    }
-                    catch
-                    {
-                        _systemLayoutHost.Content = null;
-                        PruneDetachedTunedListBoxes();
-                        vm.CanShowVideo = false;
-                        return;
-                    }
-                }
-                else
-                {
-                    _systemLayoutHost.Content = null;
-                    PruneDetachedTunedListBoxes();
-                    vm.CanShowVideo = false;
-                    return;
-                }
-            }
+            SetPrimaryVideoPresentationVisible(visible: false, animate: false);
+            _systemLayoutHost.Content = null;
+            _systemLayoutHost.Opacity = 1;
+            PruneDetachedTunedListBoxes();
+            vm.CanShowVideo = false;
+            return;
+        }
 
-            _systemThemeCache[id] = systemTheme;
-            TouchSystemThemeCache(id);
-            TrimSystemThemeCacheIfNeeded();
+        // Gate the shared video before it is reparented so no frame from the
+        // previous system can appear in the new bezel.
+        SetPrimaryVideoPresentationVisible(visible: false, animate: false);
+
+        Control? oldContent = null;
+        Grid? crossfadeLayer = null;
+        if (animateTransition && _systemLayoutHost.Content is Control currentContent)
+        {
+            oldContent = currentContent;
+            crossfadeLayer = new Grid
+            {
+                ClipToBounds = true
+            };
+
+            subView.Opacity = 0;
+            _systemLayoutHost.Content = null;
+            crossfadeLayer.Children.Add(oldContent);
+            crossfadeLayer.Children.Add(subView);
+            _systemLayoutHost.Content = crossfadeLayer;
         }
         else
         {
-            TouchSystemThemeCache(id);
+            _systemLayoutHost.Content = subView;
         }
 
-        // Always create a fresh view instance for the system layout host.
-        // The underlying XAML content is cached by ThemeLoader/XamlCache, so this
-        // avoids both disk I/O and reusing a single control instance.
-        var subView = systemTheme.CreateView();
-        subView.DataContext = vm;
-
-        _systemLayoutHost.Content = subView;
+        _systemLayoutHost.Opacity = 1;
         ApplyThemeTuning(subView);
 
         AnimateVisualSlots(subView);
@@ -583,6 +625,144 @@ public partial class BigModeHostView : UserControl
         // per-system subtheme enables the primary channel.
         vm.CanShowVideo = vm.CanShowVideo || systemTheme.PrimaryVideoEnabled;
         vm.VideoFadeDurationMs = ThemeProperties.GetVideoFadeDurationMs(subView);
+
+        ConfigureSystemVideoPresentationGate(vm, generation);
+
+        if (crossfadeLayer is not null && oldContent is not null)
+        {
+            SetOpacityTransition(oldContent, SystemLayoutCrossfadeMs);
+            SetOpacityTransition(subView, SystemLayoutCrossfadeMs);
+            oldContent.Opacity = 0;
+            subView.Opacity = 1;
+
+            await Task.Delay(SystemLayoutCrossfadeMs);
+
+            if (generation != _systemLayoutTransitionGeneration)
+                return;
+
+            crossfadeLayer.Children.Remove(subView);
+            _systemLayoutHost.Content = subView;
+            PruneDetachedTunedListBoxes();
+        }
+    }
+
+    private bool TryCreateSystemSubtheme(
+        string id,
+        Retromind.ViewModels.BigModeViewModel vm,
+        out Theme systemTheme,
+        out Control subView)
+    {
+        if (!_systemThemeCache.TryGetValue(id, out systemTheme!))
+        {
+            try
+            {
+                var relativePath = System.IO.Path.Combine("System", id, "theme.axaml");
+                systemTheme = ThemeLoader.LoadTheme(relativePath, setGlobalBasePath: false);
+            }
+            catch
+            {
+                if (string.Equals(id, "Default", StringComparison.OrdinalIgnoreCase))
+                {
+                    subView = null!;
+                    return false;
+                }
+
+                try
+                {
+                    var fallbackPath = System.IO.Path.Combine("System", "Default", "theme.axaml");
+                    systemTheme = ThemeLoader.LoadTheme(fallbackPath, setGlobalBasePath: false);
+                }
+                catch
+                {
+                    subView = null!;
+                    return false;
+                }
+            }
+
+            _systemThemeCache[id] = systemTheme;
+            TouchSystemThemeCache(id);
+            TrimSystemThemeCacheIfNeeded();
+        }
+        else
+        {
+            TouchSystemThemeCache(id);
+        }
+
+        // Theme metadata/XAML is cached, while each visual gets a fresh instance.
+        subView = systemTheme.CreateView();
+        subView.DataContext = vm;
+        return true;
+    }
+
+    private void ConfigureSystemVideoPresentationGate(
+        Retromind.ViewModels.BigModeViewModel vm,
+        int generation)
+    {
+        var state = vm.GetPreviewPresentationState();
+        if (!state.HasTargetVideo)
+        {
+            _waitingForSystemVideoFrame = false;
+            return;
+        }
+
+        if (state.CanReuseCurrentFrame)
+        {
+            _waitingForSystemVideoFrame = false;
+            _primaryVideoControl.SnapToActiveSurface();
+            SetPrimaryVideoPresentationVisible(visible: true, animate: false);
+            return;
+        }
+
+        _waitingForSystemVideoFrame = true;
+        _waitingSystemVideoGeneration = generation;
+        _waitingSystemVideoFrameRevision = state.FrameRevision;
+    }
+
+    private void TryRevealSystemVideoAfterFrameReady()
+    {
+        if (!_isSystemHostTheme ||
+            !_waitingForSystemVideoFrame ||
+            _waitingSystemVideoGeneration != _systemLayoutTransitionGeneration ||
+            DataContext is not Retromind.ViewModels.BigModeViewModel vm)
+        {
+            return;
+        }
+
+        var state = vm.GetPreviewPresentationState();
+        if (!state.HasTargetVideo)
+        {
+            _waitingForSystemVideoFrame = false;
+            return;
+        }
+
+        if (!state.CanReuseCurrentFrame ||
+            state.FrameRevision <= _waitingSystemVideoFrameRevision)
+        {
+            return;
+        }
+
+        _waitingForSystemVideoFrame = false;
+        _primaryVideoControl.SnapToActiveSurface();
+        SetPrimaryVideoPresentationVisible(visible: true, animate: true);
+    }
+
+    private void SetPrimaryVideoPresentationVisible(bool visible, bool animate)
+    {
+        SetOpacityTransition(_primaryVideoControl, animate ? SystemVideoRevealFadeMs : 0);
+        _primaryVideoControl.Opacity = visible ? 1 : 0;
+    }
+
+    private static void SetOpacityTransition(Control target, int durationMs)
+    {
+        target.Transitions = new Transitions
+        {
+            new DoubleTransition
+            {
+                Property = OpacityProperty,
+                Duration = TimeSpan.FromMilliseconds(Math.Max(0, durationMs)),
+                Easing = new CubicEaseOut()
+            }
+        };
     }
 
     private void TouchSystemThemeCache(string key)

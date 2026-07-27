@@ -98,6 +98,26 @@ public sealed class CrossfadeVideoSurfaceControl : Grid
         set => SetValue(StretchProperty, value);
     }
 
+    /// <summary>
+    /// Immediately presents only the currently active surface. This is used when
+    /// an outer transition has already hidden the video and an inner crossfade
+    /// would otherwise reveal a stale frame from the previous preview.
+    /// </summary>
+    public void SnapToActiveSurface()
+    {
+        var transitionsA = _surfaceControlA.Transitions;
+        var transitionsB = _surfaceControlB.Transitions;
+
+        _surfaceControlA.Transitions = null;
+        _surfaceControlB.Transitions = null;
+
+        _surfaceControlA.Opacity = ActiveIndex == 0 ? 1 : 0;
+        _surfaceControlB.Opacity = ActiveIndex == 1 ? 1 : 0;
+
+        _surfaceControlA.Transitions = transitionsA;
+        _surfaceControlB.Transitions = transitionsB;
+    }
+
     private static VideoSurfaceControl CreateSurfaceControl(int zIndex)
     {
         var control = new VideoSurfaceControl

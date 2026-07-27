@@ -132,6 +132,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private bool _mainVideoHasFrame;
 
     [ObservableProperty]
+    private int _mainVideoFrameRevision;
+
+    [ObservableProperty]
     private bool _mainVideoIsPlaying;
 
     [ObservableProperty]

@@ -95,6 +95,7 @@ public partial class BigModeViewModel
     private int _audioCrossfadeStartedGeneration;
 
     private int _activePreviewIndex = -1;
+    private string? _presentedPreviewVideoPath;
 
     private bool _mainVideoHasFrameA;
     private bool _mainVideoHasFrameB;
@@ -254,8 +255,10 @@ public partial class BigModeViewModel
             _activePreviewIndex = index;
             MainVideoActiveSurfaceIndex = index;
             MediaPlayer = GetMediaPlayer(index);
+            _presentedPreviewVideoPath = _currentPreviewVideoPath;
             IsVideoOverlayVisible = true;
             IsVideoVisible = true;
+            MainVideoFrameRevision++;
 
             var videoFadeMs = Math.Max(0, VideoFadeDurationMs);
             var audioFadeMs = ResolveAudioFadeDurationMs(videoFadeMs);
@@ -822,6 +825,32 @@ public partial class BigModeViewModel
                     : null;
     }
 
+    /// <summary>
+    /// Supplies the system-layout host with presentation state without changing
+    /// playback. A reused node fallback remains ready because its effective path
+    /// is identical to the currently displayed preview.
+    /// </summary>
+    internal PreviewPresentationState GetPreviewPresentationState()
+    {
+        var targetPath = CanShowVideo ? ResolvePreviewVideoPath() : null;
+        var activeSurfaceHasFrame = MainVideoActiveSurfaceIndex switch
+        {
+            0 => _mainVideoHasFrameA,
+            1 => _mainVideoHasFrameB,
+            _ => false
+        };
+
+        var canReuseCurrentFrame =
+            !string.IsNullOrWhiteSpace(targetPath) &&
+            string.Equals(_presentedPreviewVideoPath, targetPath, StringComparison.OrdinalIgnoreCase) &&
+            activeSurfaceHasFrame;
+
+        return new PreviewPresentationState(
+            HasTargetVideo: !string.IsNullOrWhiteSpace(targetPath),
+            CanReuseCurrentFrame: canReuseCurrentFrame,
+            FrameRevision: MainVideoFrameRevision);
+    }
+
     private string? ResolveItemVideoPath(MediaItem? item, MediaNode? node)
     {
         if (item == null) return null;
@@ -1113,6 +1142,7 @@ public partial class BigModeViewModel
 
         MainVideoActiveSurfaceIndex = -1;
         _activePreviewIndex = -1;
+        _presentedPreviewVideoPath = null;
 
         StopPreviewPlayer(0);
         StopPreviewPlayer(1);
@@ -1259,6 +1289,7 @@ public partial class BigModeViewModel
         if (index == _activePreviewIndex && !_mainVideoHasFrameA && !_mainVideoHasFrameB)
         {
             _activePreviewIndex = -1;
+            _presentedPreviewVideoPath = null;
             MainVideoActiveSurfaceIndex = -1;
         }
     }
@@ -1437,4 +1468,12 @@ public partial class BigModeViewModel
                 IsVideoOverlayVisible = false;
         }, DispatcherPriority.Background);
     }
+
+    /// <summary>
+    /// Read-only handshake state used while the SystemHost swaps system subthemes.
+    /// </summary>
+    internal readonly record struct PreviewPresentationState(
+        bool HasTargetVideo,
+        bool CanReuseCurrentFrame,
+        int FrameRevision);
 }
