@@ -1215,35 +1215,6 @@ public partial class MainWindowViewModel
         return null;
     }
 
-    private static string? ResolveProtonRunnerRootPath(
-        GogInstallDialogViewModel.RunnerOption runner,
-        string? resolvedRunnerExecutablePath)
-    {
-        var configuredPath = runner.Path?.Trim() ?? string.Empty;
-        if (!string.IsNullOrWhiteSpace(configuredPath))
-        {
-            var resolvedConfiguredPath = Path.IsPathRooted(configuredPath)
-                ? Path.GetFullPath(configuredPath)
-                : AppPaths.ResolveDataPath(configuredPath);
-
-            if (Directory.Exists(resolvedConfiguredPath))
-                return resolvedConfiguredPath;
-
-            if (File.Exists(resolvedConfiguredPath))
-                return Path.GetDirectoryName(resolvedConfiguredPath);
-        }
-
-        if (string.IsNullOrWhiteSpace(resolvedRunnerExecutablePath))
-            return null;
-
-        if (Directory.Exists(resolvedRunnerExecutablePath))
-            return resolvedRunnerExecutablePath;
-
-        return File.Exists(resolvedRunnerExecutablePath)
-            ? Path.GetDirectoryName(resolvedRunnerExecutablePath)
-            : null;
-    }
-
     private async Task<bool> ValidateGogInstallRuntimeRequirementsAsync(
         Window owner,
         GogInstallDialogViewModel.GogInstallDialogResult request)
@@ -1418,36 +1389,6 @@ public partial class MainWindowViewModel
             return $"Z:{windowsSlashes}";
 
         return $@"Z:\{windowsSlashes.TrimStart('\\')}";
-    }
-
-    private static string ResolveSteamCompatClientInstallPath()
-    {
-        var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var candidates = new[]
-        {
-            string.IsNullOrWhiteSpace(userHome) ? string.Empty : Path.Combine(userHome, ".steam", "steam"),
-            string.IsNullOrWhiteSpace(userHome) ? string.Empty : Path.Combine(userHome, ".local", "share", "Steam"),
-            userHome,
-            AppPaths.DataRoot
-        };
-
-        foreach (var candidate in candidates)
-        {
-            if (string.IsNullOrWhiteSpace(candidate))
-                continue;
-
-            try
-            {
-                if (Directory.Exists(candidate))
-                    return Path.GetFullPath(candidate);
-            }
-            catch
-            {
-                // try next
-            }
-        }
-
-        return !string.IsNullOrWhiteSpace(userHome) ? userHome : AppPaths.DataRoot;
     }
 
     private readonly struct InstallPayloadSnapshot(int fileCount, DateTimeOffset latestWriteUtc)
@@ -2014,30 +1955,6 @@ public partial class MainWindowViewModel
             {
                 AppendProcessLog(logVm, $"[Windows prefix] {label} -> <unresolved: {ex.Message}>", installerLogPath);
             }
-        }
-    }
-
-    private static long TryGetFileSizeBytes(string path)
-    {
-        try
-        {
-            return new FileInfo(path).Length;
-        }
-        catch
-        {
-            return -1;
-        }
-    }
-
-    private static DateTimeOffset TryGetFileLastWriteUtc(string path)
-    {
-        try
-        {
-            return new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero);
-        }
-        catch
-        {
-            return DateTimeOffset.MinValue;
         }
     }
 
@@ -2970,4 +2887,3 @@ public partial class MainWindowViewModel
         };
     }
 }
-

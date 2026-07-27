@@ -281,30 +281,6 @@ public class TheGamesDbProvider : IMetadataProvider
         return $"{baseUrl}/{fileName.TrimStart('/')}";
     }
 
-    private static string? FirstStringFromArray(JsonArray? array)
-    {
-        if (array == null || array.Count == 0)
-            return null;
-
-        return array
-            .Select(v => v?.ToString())
-            .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
-    }
-
-    private static string? JoinArrayValues(JsonArray? array)
-    {
-        if (array == null || array.Count == 0)
-            return null;
-
-        var values = array
-            .Select(v => v?.ToString())
-            .Where(v => !string.IsNullOrWhiteSpace(v))
-            .Cast<string>()
-            .ToArray();
-
-        return values.Length == 0 ? null : string.Join(", ", values);
-    }
-
     private static bool TypeEqualsOrContains(string? actualType, string expected)
     {
         if (string.IsNullOrWhiteSpace(actualType))

@@ -30,10 +30,6 @@ public class StoreImportService
         Path.Combine(".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "steamapps")
     };
 
-    // Path suffix for Heroic Launcher configuration (GOG store).
-    private readonly string _heroicGogConfigSuffix =
-        Path.Combine(".config", "heroic", "gog_store", "installed.json");
-
     // Path suffix for Heroic Launcher configuration (Epic store).
     private readonly string _heroicEpicConfigSuffix =
         Path.Combine(".config", "heroic", "epic_store", "installed.json");
@@ -444,16 +440,6 @@ public class StoreImportService
         return paths.ToList();
     }
 
-    private IEnumerable<string> GetHeroicGogCandidatePaths()
-    {
-        var xdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-        if (!string.IsNullOrWhiteSpace(xdgConfig) && Path.IsPathRooted(xdgConfig))
-            yield return Path.Combine(xdgConfig, "heroic", "gog_store", "installed.json");
-
-        foreach (var home in GetHomeCandidates())
-            yield return Path.Combine(home, _heroicGogConfigSuffix);
-    }
-
     private IEnumerable<string> GetHeroicEpicCandidatePaths()
     {
         var xdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
@@ -462,54 +448,6 @@ public class StoreImportService
 
         foreach (var home in GetHomeCandidates())
             yield return Path.Combine(home, _heroicEpicConfigSuffix);
-    }
-
-    private static string? ResolveHeroicGogConfigPath(string? inputPath)
-    {
-        if (string.IsNullOrWhiteSpace(inputPath))
-            return null;
-
-        string fullPath;
-        try
-        {
-            fullPath = Path.GetFullPath(inputPath);
-        }
-        catch
-        {
-            return null;
-        }
-
-        if (File.Exists(fullPath))
-            return fullPath;
-
-        if (!Directory.Exists(fullPath))
-            return null;
-
-        var fileName = Path.GetFileName(fullPath);
-
-        if (string.Equals(fileName, "gog_store", StringComparison.OrdinalIgnoreCase))
-        {
-            var candidate = Path.Combine(fullPath, "installed.json");
-            if (File.Exists(candidate))
-                return candidate;
-        }
-
-        if (string.Equals(fileName, "heroic", StringComparison.OrdinalIgnoreCase))
-        {
-            var candidate = Path.Combine(fullPath, "gog_store", "installed.json");
-            if (File.Exists(candidate))
-                return candidate;
-        }
-
-        var gogStoreCandidate = Path.Combine(fullPath, "gog_store", "installed.json");
-        if (File.Exists(gogStoreCandidate))
-            return gogStoreCandidate;
-
-        var installedCandidate = Path.Combine(fullPath, "installed.json");
-        if (File.Exists(installedCandidate))
-            return installedCandidate;
-
-        return null;
     }
 
     private static string? ResolveHeroicEpicConfigPath(string? inputPath)

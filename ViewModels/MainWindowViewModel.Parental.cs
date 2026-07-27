@@ -65,9 +65,6 @@ public partial class MainWindowViewModel
         OnPropertyChanged(nameof(ShowParentalProtectionButton));
     }
 
-    private bool CanShowItemByParentalFilter(MediaItem item)
-        => ParentalControlHelper.CanShowItem(item, IsParentalFilterActive);
-
     private void RefreshTreeVisibility()
     {
         if (!UiThreadHelper.CheckAccess())
