@@ -94,5 +94,6 @@ public enum ScraperType
     GoogleBooks = 4,
     OpenLibrary = 5,
     ComicVine = 6,
-    TheGamesDB = 7
+    TheGamesDB = 7,
+    SteamGridDB = 8
 }

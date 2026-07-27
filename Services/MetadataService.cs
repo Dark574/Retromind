@@ -103,6 +103,7 @@ public class MetadataService
             ScraperType.TMDB        => new TmdbProvider(config, _httpClient),
             ScraperType.GoogleBooks => new GoogleBooksProvider(config, _httpClient),
             ScraperType.ComicVine   => new ComicVineProvider(config, _httpClient),
+            ScraperType.SteamGridDB => new SteamGridDbProvider(config, _httpClient),
             _                       => null
         };
     }

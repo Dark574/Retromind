@@ -1,7 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq; // For Debug.WriteLine
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json.Nodes;
@@ -16,12 +16,13 @@ namespace Retromind.Services.Scrapers;
 /// Metadata provider for EmuMovies.com API.
 /// Handles authentication and fetching of metadata and media assets.
 /// </summary>
-public class EmuMoviesProvider : IMetadataProvider
+public class EmuMoviesProvider : IMetadataProvider, IMetadataResultEnricher
 {
     private readonly ScraperConfig _config;
     // Use a shared static HttpClient to prevent socket exhaustion.
     // Ideally provided via IHttpClientFactory in a full DI setup.
     private readonly HttpClient _httpClient;
+    private readonly ConcurrentDictionary<string, string> _systemByGameId = new(StringComparer.Ordinal);
     private string? _sessionId;
 
     public EmuMoviesProvider(ScraperConfig config, HttpClient httpClient)
@@ -138,18 +139,13 @@ public class EmuMoviesProvider : IMetadataProvider
 
                 if (games == null) return results;
 
-                // create a list of tasks, instead of waiting
-                var scraperTasks = new List<Task<ScraperSearchResult?>>();
-
                 foreach (var game in games)
                 {
-                    // local function for processing of one item
-                    scraperTasks.Add(ProcessGameAsync(game, cancellationToken));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var result = ProcessGame(game);
+                    if (result != null)
+                        results.Add(result);
                 }
-
-                // wait for all task results. This reduces the waiting time from (20 * request time) to (1 * request time)
-                var processedResults = await Task.WhenAll(scraperTasks);
-                results.AddRange(processedResults.Where(r => r != null)!);
 
                 return results;
             }
@@ -164,15 +160,16 @@ public class EmuMoviesProvider : IMetadataProvider
         }
     }
 
-    // New helper method for parallel processing
-    private async Task<ScraperSearchResult?> ProcessGameAsync(JsonNode? game, CancellationToken cancellationToken)
+    private ScraperSearchResult? ProcessGame(JsonNode? game)
     {
         try
         {
-            cancellationToken.ThrowIfCancellationRequested();
             var id = game?["ID"]?.ToString() ?? "";
             var system = game?["System"]?.ToString() ?? "";
             var title = game?["Name"]?.ToString() ?? "Unknown";
+
+            if (!string.IsNullOrWhiteSpace(id))
+                _systemByGameId[id] = system;
 
             var res = new ScraperSearchResult
             {
@@ -180,23 +177,36 @@ public class EmuMoviesProvider : IMetadataProvider
                 Id = id,
                 Title = $"{title} ({system})",
                 Description = game?["Description"]?.ToString() ?? "",
-                MaxPlayers = game?["Players"]?.ToString()
+                MaxPlayers = game?["Players"]?.ToString(),
+                Platform = system
             };
 
-            // Load media (Async Call)
-            await EnrichWithMedia(res, id, system, cancellationToken);
-                
             return res;
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[EmuMovies] Error processing game result: {ex.Message}");
-            return null; // Return zero on error to prevent the rest from crashing
+            return null;
         }
+    }
+
+    public async Task EnrichAsync(
+        ScraperSearchResult result,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (string.IsNullOrWhiteSpace(result.Id))
+            return;
+
+        if (string.IsNullOrEmpty(_sessionId) && !await ConnectAsync(cancellationToken).ConfigureAwait(false))
+            throw new InvalidOperationException("EmuMovies login failed. Please check your credentials.");
+
+        var system = _systemByGameId.TryGetValue(result.Id, out var mappedSystem)
+            ? mappedSystem
+            : result.Platform ?? string.Empty;
+
+        await EnrichWithMedia(result, result.Id, system, cancellationToken).ConfigureAwait(false);
     }
     
     /// <summary>

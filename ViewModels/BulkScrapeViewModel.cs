@@ -180,6 +180,9 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
 
                     if (match != null)
                     {
+                        if (provider is IMetadataResultEnricher enricher)
+                            await enricher.EnrichAsync(match, token);
+
                         // Buffer log in worker thread (no UI)
                         AppendLogBuffer($"[MATCH] {item.Title} -> {match.Title}");
 

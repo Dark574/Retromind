@@ -393,9 +393,11 @@ The table below shows which metadata fields are currently populated by each prov
 | OpenLibrary | - | yes | - | - | - | - | yes | yes | yes | yes | - | - | - |
 | Google Books | yes | yes | - | - | - | - | yes | - | yes | yes | - | - | - |
 | ComicVine | yes | - | - | - | - | - | yes | yes | yes | yes | - | - | `IssueNumber`, `StartYear` |
+| SteamGridDB | - | - | - | - | - | - | - | - | - | - | - | - | - |
 Notes:
 - `CustomFields` are provider-specific key/value pairs and may vary by API response quality.
 - Missing values are normal when the upstream provider does not return that field for a specific item.
+- SteamGridDB is an artwork-focused provider and currently supplies cover, wallpaper and logo assets.
 - EmuMovies is currently not listed here because its API is being reworked.
 
 ### Where to get API keys
@@ -421,6 +423,13 @@ You need to create your own API keys on the respective provider pages:
      https://thegamesdb.net/
   2. Generate an API key in your account settings / API page.
   3. Enter the key in the TheGamesDB scraper configuration in Retromind.
+
+- **SteamGridDB**
+  1. Create an account at:
+     https://www.steamgriddb.com/
+  2. Generate a personal API key under *Preferences → API*:
+     https://www.steamgriddb.com/profile/preferences/api
+  3. Enter the key in the SteamGridDB scraper configuration in Retromind.
 
 - **Google Books (optional)**  
   The Google Books API can be used without a key in many cases, but you may

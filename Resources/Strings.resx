@@ -438,6 +438,7 @@ This action cannot be undone.</value></data>
     <data name="Metadata.DataLanguage" xml:space="preserve"><value>Data language</value></data>
     <data name="Metadata.Designation" xml:space="preserve"><value>Designation</value></data>
     <data name="Metadata.NewScraper" xml:space="preserve"><value>New Scraper</value></data>
+    <data name="Metadata.NoCover" xml:space="preserve"><value>No cover</value></data>
     <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping area</value></data>
     <data name="Metadata.SearchMetadata" xml:space="preserve"><value>Search metadata</value></data>
     <data name="Metadata.SearchMetadataAll" xml:space="preserve"><value>Search metadata (All)...</value></data>

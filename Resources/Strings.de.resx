@@ -439,6 +439,7 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Metadata.DataLanguage" xml:space="preserve"><value>Daten-Sprache</value></data>
     <data name="Metadata.Designation" xml:space="preserve"><value>Bezeichnung</value></data>
     <data name="Metadata.NewScraper" xml:space="preserve"><value>Neue Quelle</value></data>
+    <data name="Metadata.NoCover" xml:space="preserve"><value>Kein Cover</value></data>
     <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping-Bereich</value></data>
     <data name="Metadata.SearchMetadata" xml:space="preserve"><value>Metadaten suchen</value></data>
     <data name="Metadata.SearchMetadataAll" xml:space="preserve"><value>Metadaten suchen (alle)...</value></data>

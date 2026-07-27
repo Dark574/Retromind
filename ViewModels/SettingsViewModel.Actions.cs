@@ -28,6 +28,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(IsIgdbSelected));
         OnPropertyChanged(nameof(IsEmuMoviesSelected));
         OnPropertyChanged(nameof(IsTheGamesDbSelected));
+        OnPropertyChanged(nameof(IsSteamGridDbSelected));
         OnPropertyChanged(nameof(IsGoogleBooksSelected));
         OnPropertyChanged(nameof(IsComicVineSelected));
         OnPropertyChanged(nameof(IsApiKeyUsedSelected));

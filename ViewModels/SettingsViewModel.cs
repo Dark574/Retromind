@@ -696,10 +696,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public bool IsIgdbSelected => SelectedScraper?.Type == ScraperType.IGDB;
     public bool IsEmuMoviesSelected => SelectedScraper?.Type == ScraperType.EmuMovies;
     public bool IsTheGamesDbSelected => SelectedScraper?.Type == ScraperType.TheGamesDB;
+    public bool IsSteamGridDbSelected => SelectedScraper?.Type == ScraperType.SteamGridDB;
     public bool IsGoogleBooksSelected => SelectedScraper?.Type == ScraperType.GoogleBooks;
     public bool IsComicVineSelected => SelectedScraper?.Type == ScraperType.ComicVine;
-    public bool IsApiKeyUsedSelected => IsTmdbSelected || IsTheGamesDbSelected || IsComicVineSelected || IsGoogleBooksSelected;
-    public bool IsApiKeyRequiredSelected => IsTmdbSelected || IsTheGamesDbSelected || IsComicVineSelected;
+    public bool IsApiKeyUsedSelected => IsTmdbSelected || IsTheGamesDbSelected || IsSteamGridDbSelected || IsComicVineSelected || IsGoogleBooksSelected;
+    public bool IsApiKeyRequiredSelected => IsTmdbSelected || IsTheGamesDbSelected || IsSteamGridDbSelected || IsComicVineSelected;
     public bool IsLanguageSelectionSupported => IsTmdbSelected || IsTheGamesDbSelected || IsGoogleBooksSelected;
     
     // Handle property changes on the selected scraper to update UI hints

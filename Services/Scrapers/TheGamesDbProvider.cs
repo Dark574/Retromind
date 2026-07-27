@@ -14,7 +14,7 @@ namespace Retromind.Services.Scrapers;
 /// <summary>
 /// Metadata provider for TheGamesDB API (v1).
 /// </summary>
-public class TheGamesDbProvider : IMetadataProvider
+public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
 {
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
@@ -22,7 +22,6 @@ public class TheGamesDbProvider : IMetadataProvider
     private const string BaseUrl = "https://api.thegamesdb.net/v1";
     private const int MaxSearchResults = 40;
     private const int MaxPages = 5;
-    private const int MaxImageEnrichmentResults = 3;
 
     public TheGamesDbProvider(ScraperConfig config, HttpClient httpClient)
     {
@@ -130,7 +129,6 @@ public class TheGamesDbProvider : IMetadataProvider
                     .ConfigureAwait(false);
 
                 var countBeforePage = results.Count;
-                var imageEnrichmentCount = 0;
 
                 foreach (var game in games)
                 {
@@ -204,16 +202,6 @@ public class TheGamesDbProvider : IMetadataProvider
                                                 a => TypeEqualsOrContains(a["type"]?.ToString(), "banner"));
                     }
 
-                    var missingVisuals = string.IsNullOrWhiteSpace(result.LogoUrl)
-                                         || string.IsNullOrWhiteSpace(result.WallpaperUrl)
-                                         || string.IsNullOrWhiteSpace(result.MarqueeUrl);
-
-                    if (!string.IsNullOrWhiteSpace(id) && missingVisuals && imageEnrichmentCount < MaxImageEnrichmentResults)
-                    {
-                        await TryEnrichWithGameImagesAsync(apiKey, id, result, cancellationToken).ConfigureAwait(false);
-                        imageEnrichmentCount++;
-                    }
-
                     results.Add(result);
                     if (results.Count >= MaxSearchResults)
                         break;
@@ -234,6 +222,33 @@ public class TheGamesDbProvider : IMetadataProvider
         {
             throw new Exception($"TheGamesDB error: {ex.Message}", ex);
         }
+    }
+
+    public async Task EnrichAsync(
+        ScraperSearchResult result,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (string.IsNullOrWhiteSpace(result.Id))
+            return;
+
+        var hasAllSupportedArtwork =
+            !string.IsNullOrWhiteSpace(result.CoverUrl) &&
+            !string.IsNullOrWhiteSpace(result.WallpaperUrl) &&
+            !string.IsNullOrWhiteSpace(result.ScreenshotUrl) &&
+            !string.IsNullOrWhiteSpace(result.LogoUrl) &&
+            !string.IsNullOrWhiteSpace(result.MarqueeUrl);
+
+        if (hasAllSupportedArtwork)
+            return;
+
+        await TryEnrichWithGameImagesAsync(
+                GetApiKey(),
+                result.Id,
+                result,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private static string NormalizeLanguage(string? language)
@@ -399,6 +414,10 @@ public class TheGamesDbProvider : IMetadataProvider
                 result.MarqueeUrl = resolved.FirstOrDefault(p =>
                     ContainsAny(p, "marquee", "wheel", "banner"));
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {

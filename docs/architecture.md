@@ -118,6 +118,9 @@ Global search uses a dedicated `SearchAreaViewModel`:
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
+- providers with expensive per-result calls expose optional preview/result enrichment
+  capabilities; the manual dialog loads lightweight previews first and details only
+  for the current selection, while bulk scraping enriches only the matched result
 
 For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 

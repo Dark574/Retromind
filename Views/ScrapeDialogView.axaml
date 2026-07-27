@@ -49,10 +49,28 @@
                         <DataTemplate>
                             <Grid ColumnDefinitions="60, *">
                                 <!-- Async thumbnail (downsampled) -->
-                                <Border Grid.Column="0" Width="50" Height="70" Background="#EEE" Margin="0,5,10,5">
-                                    <Image helpers:AsyncImageHelper.Url="{Binding CoverUrl}"
-                                           helpers:AsyncImageHelper.DecodeWidth="100"
-                                           Stretch="Uniform"/>
+                                <Border Grid.Column="0"
+                                        Width="50"
+                                        Height="70"
+                                        Background="#18000000"
+                                        BorderBrush="#30000000"
+                                        BorderThickness="1"
+                                        Margin="0,5,10,5">
+                                    <Grid>
+                                        <TextBlock Text="{Binding $parent[Window].((vm:ScrapeDialogViewModel)DataContext).NoCoverText}"
+                                                   IsVisible="{Binding CoverUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   TextAlignment="Center"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="Gray"
+                                                   FontSize="9"
+                                                   Margin="3"/>
+                                        <Image helpers:AsyncImageHelper.Url="{Binding CoverUrl}"
+                                               helpers:AsyncImageHelper.DecodeWidth="100"
+                                               IsVisible="{Binding CoverUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                               Stretch="Uniform"/>
+                                    </Grid>
                                 </Border>
 
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -236,6 +254,17 @@
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
+
+            <!-- Selection details are loaded lazily without blocking the result list. -->
+            <Border Grid.Column="4"
+                    Background="#80000000"
+                    IsVisible="{Binding IsPreviewBusy}">
+                <TextBlock Text="{x:Static p:Strings.Metadata_Search_InProgress}"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center"
+                           Foreground="White"
+                           FontSize="16"/>
+            </Border>
 
             <!-- Loading overlay -->
             <Border Grid.Column="0" Grid.ColumnSpan="5" Background="#80000000" IsVisible="{Binding IsBusy}">
