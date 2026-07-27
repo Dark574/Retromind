@@ -26,20 +26,6 @@ public partial class BigModeViewModel
         ".mpeg"
     ];
 
-    private static readonly System.Collections.Generic.HashSet<string> VideoExtensions =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ".mp4",
-            ".mkv",
-            ".avi",
-            ".mov",
-            ".wmv",
-            ".webm",
-            ".m4v",
-            ".mpg",
-            ".mpeg"
-        };
-
     // --- Timing knobs ---
     private static readonly TimeSpan PreviewDebounceSmall = TimeSpan.FromMilliseconds(150);
     private static readonly TimeSpan PreviewDebounceMedium = TimeSpan.FromMilliseconds(200);
@@ -888,7 +874,8 @@ public partial class BigModeViewModel
                 try
                 {
                     var primaryExt = Path.GetExtension(primary);
-                    if (!string.IsNullOrEmpty(primaryExt) && VideoExtensions.Contains(primaryExt))
+                    if (!string.IsNullOrEmpty(primaryExt) &&
+                        VideoExtensionOrder.Contains(primaryExt, StringComparer.OrdinalIgnoreCase))
                     {
                         videoPath = primary;
                     }
