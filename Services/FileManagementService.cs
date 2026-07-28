@@ -373,7 +373,7 @@ public class FileManagementService
             .Where(name => name?.StartsWith($"{cleanTitle}_{suffix}_", StringComparison.OrdinalIgnoreCase) == true)
             .Select(name => int.TryParse(Regex.Match(name ?? "", @"_(\d+)\.").Groups[1].Value, out int num) ? num : 0);
 
-        int maxCounter = existingFiles.Any() ? existingFiles.Max() : 0;
+        int maxCounter = existingFiles.DefaultIfEmpty().Max();
         int nextCounter = maxCounter + 1;
         string number = nextCounter.ToString("D2");
         string fileName = $"{cleanTitle}_{suffix}_{number}{extension}";

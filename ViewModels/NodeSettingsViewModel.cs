@@ -139,14 +139,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
         "NodeSettings_GogStoreNodeHint",
         "If enabled, \"Add GOG media\" syncs this node against your complete owned GOG library (additive only).");
     
-    // System-theme selection is always available because it is used by SystemHost
-    // when this node is selected in a parent host.
-    public bool IsSystemThemeSelectionEnabled => true;
-    
     partial void OnSelectedThemeChanged(string? value)
     {
         OnPropertyChanged(nameof(IsThemeExplicitlySelected));
-        OnPropertyChanged(nameof(IsSystemThemeSelectionEnabled));
     }
 
     partial void OnSelectedEmulatorChanged(EmulatorConfig? value)
@@ -425,13 +420,6 @@ public partial class NodeSettingsViewModel : ViewModelBase
             ?? AvailableSystemThemes.FirstOrDefault(o =>
                 string.Equals(o.Id, "Default", StringComparison.OrdinalIgnoreCase));
     }
-    
-    public void SaveToNode()
-    {
-        // Option: Explicitly save the default as "Default"
-        _node.SystemPreviewThemeId = SelectedSystemTheme?.Id;
-    }
-    
     public bool IsNativeWrapperInherit
     {
         get => NativeWrapperMode == WrapperMode.Inherit;

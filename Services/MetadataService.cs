@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -106,16 +105,5 @@ public class MetadataService
             ScraperType.SteamGridDB => new SteamGridDbProvider(config, _httpClient),
             _                       => null
         };
-    }
-
-    /// <summary>
-    /// Retrieves all configured scraper profiles of a specific type.
-    /// Useful for populating UI selection lists (e.g., "Select a Game Scraper").
-    /// </summary>
-    public List<ScraperConfig> GetConfigsForType(ScraperType type)
-    {
-        return _settings.Scrapers
-            .Where(s => s.Type == type)
-            .ToList();
     }
 }

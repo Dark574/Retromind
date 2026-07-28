@@ -62,14 +62,6 @@ public static class RandomHelper
     }
 
     /// <summary>
-    /// Returns true or false with 50% probability (Coin Flip).
-    /// </summary>
-    public static bool CoinFlip()
-    {
-        return Random.Shared.Next(2) == 0;
-    }
-    
-    /// <summary>
     /// Returns a random integer between min (inclusive) and max (exclusive).
     /// </summary>
     public static int Next(int min, int max)

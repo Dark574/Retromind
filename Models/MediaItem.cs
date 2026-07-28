@@ -168,40 +168,10 @@ public partial class MediaItem : ObservableObject
             .ToList();
 
     [JsonIgnore]
-    public bool HasCustomFields => VisibleCustomFields.Count > 0;
-
-    /// <summary>
-    /// Adds a new manual/document asset for this item.
-    /// The path must be stored library-relative (e.g. "Games/PC/Manuals/Game_Manual_01.pdf")
-    /// </summary>
-    /// <param name="relativePath">Relative path under the library root.</param>
-    /// <returns>The created MediaAsset instance.</returns>
-    public MediaAsset AddManualAsset(string relativePath)
-    {
-        if (string.IsNullOrWhiteSpace(relativePath))
-            throw new ArgumentException("Relative path must not be empty.", nameof(relativePath));
-
-        var asset = new MediaAsset
-        {
-            Type = AssetType.Manual,
-            RelativePath = relativePath
-        };
-
-        Assets.Add(asset);
-        return asset;
-    }
-
-    /// <summary>
-    /// Removes the given manual/document asset from this item (best-effort).
-    /// If the asset is not part of the Assets collection, the call is ignored
-    /// </summary>
-    public void RemoveManualAsset(MediaAsset manualAsset)
-    {
-        if (manualAsset.Type != AssetType.Manual)
-            return;
-
-        Assets.Remove(manualAsset);
-    }
+    public bool HasCustomFields =>
+        CustomFields.Any(kv =>
+            !string.IsNullOrWhiteSpace(kv.Key) &&
+            !string.IsNullOrWhiteSpace(kv.Value));
     
     /// <summary>
     /// Sets an asset explicitly as "active" for display (used by randomization)
@@ -209,39 +179,7 @@ public partial class MediaItem : ObservableObject
     public void SetActiveAsset(AssetType type, string relativePath)
     {
         _activeAssets[type] = relativePath;
-
-        switch (type)
-        {
-            case AssetType.Cover:
-                OnPropertyChanged(nameof(PrimaryCoverPath));
-                break;
-            case AssetType.Wallpaper:
-                OnPropertyChanged(nameof(PrimaryWallpaperPath));
-                break;
-            case AssetType.Screenshot:
-                OnPropertyChanged(nameof(PrimaryScreenshotPath));
-                break;
-            case AssetType.Logo:
-                OnPropertyChanged(nameof(PrimaryLogoPath));
-                break;
-            case AssetType.Video:
-                OnPropertyChanged(nameof(PrimaryVideoPath));
-                break;
-            case AssetType.Marquee:
-                OnPropertyChanged(nameof(PrimaryMarqueePath));
-                break;
-            case AssetType.Banner:
-                OnPropertyChanged(nameof(PrimaryBannerPath));
-                break;
-            case AssetType.Bezel:
-                OnPropertyChanged(nameof(PrimaryBezelPath));
-                break;
-            case AssetType.ControlPanel:
-                OnPropertyChanged(nameof(PrimaryControlPanelPath));
-                break;
-            // Manuals are never "active" in the same sense as visual assets,
-            // so they do not participate in the randomization override logic.
-        }
+        NotifyPrimaryAssetPathChanged(type);
     }
 
     /// <summary>
@@ -252,19 +190,7 @@ public partial class MediaItem : ObservableObject
         if (_activeAssets.Count > 0)
         {
             _activeAssets.Clear();
-            OnPropertyChanged(nameof(PrimaryCoverPath));
-            OnPropertyChanged(nameof(PrimaryWallpaperPath));
-            OnPropertyChanged(nameof(PrimaryScreenshotPath));
-            OnPropertyChanged(nameof(PrimaryLogoPath));
-            OnPropertyChanged(nameof(PrimaryVideoPath));
-            OnPropertyChanged(nameof(PrimaryMarqueePath));
-            OnPropertyChanged(nameof(PrimaryBannerPath));
-            OnPropertyChanged(nameof(PrimaryBezelPath));
-            OnPropertyChanged(nameof(PrimaryControlPanelPath));
-            
-            // Manuals are exposed via the computed ManualAssets property.
-            // Notify bindings so views like MediaDetailView can refresh their list.
-            OnPropertyChanged(nameof(ManualAssets));
+            NotifyAssetPathsChanged();
         }
     }
 
@@ -276,36 +202,7 @@ public partial class MediaItem : ObservableObject
         if (!_activeAssets.Remove(type))
             return;
 
-        switch (type)
-        {
-            case AssetType.Cover:
-                OnPropertyChanged(nameof(PrimaryCoverPath));
-                break;
-            case AssetType.Wallpaper:
-                OnPropertyChanged(nameof(PrimaryWallpaperPath));
-                break;
-            case AssetType.Screenshot:
-                OnPropertyChanged(nameof(PrimaryScreenshotPath));
-                break;
-            case AssetType.Logo:
-                OnPropertyChanged(nameof(PrimaryLogoPath));
-                break;
-            case AssetType.Video:
-                OnPropertyChanged(nameof(PrimaryVideoPath));
-                break;
-            case AssetType.Marquee:
-                OnPropertyChanged(nameof(PrimaryMarqueePath));
-                break;
-            case AssetType.Banner:
-                OnPropertyChanged(nameof(PrimaryBannerPath));
-                break;
-            case AssetType.Bezel:
-                OnPropertyChanged(nameof(PrimaryBezelPath));
-                break;
-            case AssetType.ControlPanel:
-                OnPropertyChanged(nameof(PrimaryControlPanelPath));
-                break;
-        }
+        NotifyPrimaryAssetPathChanged(type);
     }
 
     // --- UI Properties (Binding Sources) ---
@@ -490,20 +387,7 @@ public partial class MediaItem : ObservableObject
             _activeAssets.Remove(key);
         }
 
-        OnPropertyChanged(nameof(PrimaryCoverPath));
-        OnPropertyChanged(nameof(PrimaryWallpaperPath));
-        OnPropertyChanged(nameof(PrimaryScreenshotPath));
-        OnPropertyChanged(nameof(PrimaryLogoPath));
-        OnPropertyChanged(nameof(PrimaryVideoPath));
-        OnPropertyChanged(nameof(PrimaryMarqueePath));
-        OnPropertyChanged(nameof(PrimaryBannerPath));
-        OnPropertyChanged(nameof(PrimaryBezelPath));
-        OnPropertyChanged(nameof(PrimaryControlPanelPath));
-        OnPropertyChanged(nameof(ItemLogoPath));
-        
-        // Manuals are exposed via the computed ManualAssets property.
-        // Notify bindings so views like MediaDetailView can refresh their list.
-        OnPropertyChanged(nameof(ManualAssets));
+        NotifyAssetPathsChanged();
     }
 
     /// <summary>
@@ -523,6 +407,26 @@ public partial class MediaItem : ObservableObject
         OnPropertyChanged(nameof(PrimaryControlPanelPath));
         OnPropertyChanged(nameof(ItemLogoPath));
         OnPropertyChanged(nameof(ManualAssets));
+    }
+
+    private void NotifyPrimaryAssetPathChanged(AssetType type)
+    {
+        var propertyName = type switch
+        {
+            AssetType.Cover => nameof(PrimaryCoverPath),
+            AssetType.Wallpaper => nameof(PrimaryWallpaperPath),
+            AssetType.Screenshot => nameof(PrimaryScreenshotPath),
+            AssetType.Logo => nameof(PrimaryLogoPath),
+            AssetType.Video => nameof(PrimaryVideoPath),
+            AssetType.Marquee => nameof(PrimaryMarqueePath),
+            AssetType.Banner => nameof(PrimaryBannerPath),
+            AssetType.Bezel => nameof(PrimaryBezelPath),
+            AssetType.ControlPanel => nameof(PrimaryControlPanelPath),
+            _ => null
+        };
+
+        if (propertyName != null)
+            OnPropertyChanged(propertyName);
     }
 
     partial void OnCustomFieldsChanged(Dictionary<string, string> value)

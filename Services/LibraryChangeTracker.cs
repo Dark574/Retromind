@@ -42,7 +42,6 @@ public class LibraryChangeTracker
         nameof(MediaItem.IsFavorite)
     };
     
-    public bool IsDirty => _isLibraryDirty;
     public event Action? LibraryDirtyStateChanged;
     
     public LibraryChangeTracker(

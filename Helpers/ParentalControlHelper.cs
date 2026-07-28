@@ -12,12 +12,4 @@ public static class ParentalControlHelper
         return !string.IsNullOrWhiteSpace(settings.ParentalLockPasswordEncrypted) &&
                !settings.ParentalLockUnlocked;
     }
-
-    public static bool CanShowItem(MediaItem item, bool filterActive)
-    {
-        if (item == null)
-            return false;
-
-        return !filterActive || !item.IsProtected;
-    }
 }

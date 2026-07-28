@@ -79,7 +79,6 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         "Selected artwork is added as another variant. Existing artwork is never replaced.");
     public string SelectAllText => T("ScrapeDialog.SelectAll", "Select all");
     public string ClearSelectionText => T("ScrapeDialog.ClearSelection", "Clear selection");
-    public string AddText => T("ScrapeDialog.Add", "Add");
 
     public IAsyncRelayCommand SearchCommand { get; }
     public IAsyncRelayCommand ApplyCommand { get; }

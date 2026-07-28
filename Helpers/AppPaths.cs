@@ -428,18 +428,4 @@ public static class AppPaths
             return false;
         }
     }
-
-    /// <summary>
-    /// Converts an absolute path to a DataRoot-relative path (portable).
-    /// If the path is already relative, it is returned normalized.
-    /// </summary>
-    public static string MakeDataRelative(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return string.Empty;
-
-        return Path.IsPathRooted(path)
-            ? Path.GetRelativePath(DataRoot, path)
-            : path;
-    }
 }

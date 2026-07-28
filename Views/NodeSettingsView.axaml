@@ -467,8 +467,7 @@
 
                     <ComboBox ItemsSource="{Binding AvailableSystemThemes}"
                               SelectedItem="{Binding SelectedSystemTheme}"
-                              HorizontalAlignment="Stretch"
-                              IsEnabled="{Binding IsSystemThemeSelectionEnabled}">
+                              HorizontalAlignment="Stretch">
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="helpers:SystemThemeOption">
                                 <TextBlock Text="{Binding DisplayName}" />

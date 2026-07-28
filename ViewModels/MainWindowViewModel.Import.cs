@@ -1078,32 +1078,6 @@ public partial class MainWindowViewModel
             ? MediaType.Native
             : MediaType.Emulator;
 
-        static bool TryMakeDataRelativeIfInsideDataRoot(string absolutePath, out string relativePath)
-        {
-            relativePath = string.Empty;
-
-            if (string.IsNullOrWhiteSpace(absolutePath))
-                return false;
-
-            if (!Path.IsPathRooted(absolutePath))
-                return false;
-
-            var dataRoot = Path.GetFullPath(AppPaths.DataRoot);
-            var dataRootWithSep = dataRoot.EndsWith(Path.DirectorySeparatorChar)
-                ? dataRoot
-                : dataRoot + Path.DirectorySeparatorChar;
-            var fullPath = Path.GetFullPath(absolutePath);
-
-            if (string.Equals(fullPath, dataRoot, StringComparison.Ordinal) ||
-                fullPath.StartsWith(dataRootWithSep, StringComparison.Ordinal))
-            {
-                relativePath = Path.GetRelativePath(dataRoot, fullPath);
-                return true;
-            }
-
-            return false;
-        }
-
         // 1) Build new items (UI-free)
         var itemsToAdd = new List<MediaItem>(result.Count);
 
@@ -1146,7 +1120,7 @@ public partial class MainWindowViewModel
                     var storedKind = MediaFileKind.Absolute;
 
                     if (usePortablePaths &&
-                        TryMakeDataRelativeIfInsideDataRoot(rawPath, out var relativePath))
+                        PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(rawPath, out var relativePath))
                     {
                         storedPath = relativePath;
                         storedKind = MediaFileKind.LibraryRelative;
@@ -1180,7 +1154,7 @@ public partial class MainWindowViewModel
                     var storedKind = MediaFileKind.Absolute;
 
                     if (usePortablePaths &&
-                        TryMakeDataRelativeIfInsideDataRoot(rawPath, out var relativePath))
+                        PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(rawPath, out var relativePath))
                     {
                         storedPath = relativePath;
                         storedKind = MediaFileKind.LibraryRelative;
@@ -1215,7 +1189,7 @@ public partial class MainWindowViewModel
             var storedKind = MediaFileKind.Absolute;
 
             if (usePortablePaths &&
-                TryMakeDataRelativeIfInsideDataRoot(rawPath, out var relativePath))
+                PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(rawPath, out var relativePath))
             {
                 storedPath = relativePath;
                 storedKind = MediaFileKind.LibraryRelative;
@@ -1392,7 +1366,7 @@ public partial class MainWindowViewModel
             // The manual dialog already contains an explicit per-field selection.
             // Selected metadata may therefore replace an existing value without
             // showing a second series of conflict prompts.
-            if (await ApplyScrapedMetadataAsync(owner, item, result, manualImportSettings, allowConflictPrompts: false))
+            if (ApplyScrapedMetadata(item, result, manualImportSettings))
                 changed = true;
 
             if (await ApplyScrapedAssetsAsync(
@@ -1433,7 +1407,7 @@ public partial class MainWindowViewModel
     
             var changed = false;
 
-            if (await ApplyScrapedMetadataAsync(owner, item, result, importSettings, allowConflictPrompts: false))
+            if (ApplyScrapedMetadata(item, result, importSettings))
                 changed = true;
 
             if (await ApplyScrapedAssetsAsync(
@@ -1460,24 +1434,19 @@ public partial class MainWindowViewModel
         return _currentSettings.ScraperImport;
     }
 
-    private async Task<bool> ApplyScrapedMetadataAsync(
-        Window owner,
+    private static bool ApplyScrapedMetadata(
         MediaItem item,
         ScraperSearchResult result,
-        ScraperImportSettings settings,
-        bool allowConflictPrompts)
+        ScraperImportSettings settings)
     {
         var changed = false;
         var mode = settings.ExistingDataMode;
 
         if (settings.ImportDescription &&
-            await TryApplyStringFieldAsync(
-                owner,
-                T("Common.Description", "Description"),
+            TryApplyStringField(
                 item.Description,
                 result.Description,
                 value => item.Description = value,
-                allowConflictPrompts,
                 mode,
                 StringComparison.Ordinal))
         {
@@ -1485,52 +1454,40 @@ public partial class MainWindowViewModel
         }
 
         if (settings.ImportReleaseDate &&
-            await TryApplyDateFieldAsync(
-                owner,
-                T("Common.ReleaseDate", "Release Date"),
+            TryApplyDateField(
                 item.ReleaseDate,
                 result.ReleaseDate,
                 value => item.ReleaseDate = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
         }
 
         if (settings.ImportRating &&
-            await TryApplyRatingFieldAsync(
-                owner,
-                T("Common.Rating", "Rating"),
+            TryApplyRatingField(
                 item.Rating,
                 result.Rating,
                 value => item.Rating = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
         }
 
         if (settings.ImportDeveloper &&
-            await TryApplyStringFieldAsync(
-                owner,
-                T("Common.Developer", "Developer"),
+            TryApplyStringField(
                 item.Developer,
                 result.Developer,
                 value => item.Developer = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
         }
 
         if (settings.ImportGenre &&
-            await TryApplyStringFieldAsync(
-                owner,
-                T("Common.Genre", "Genre"),
+            TryApplyStringField(
                 item.Genre,
                 result.Genre,
                 value => item.Genre = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
@@ -1538,13 +1495,10 @@ public partial class MainWindowViewModel
 
         if (settings.ImportPlatform)
         {
-            if (await TryApplyStringFieldAsync(
-                    owner,
-                    T("Common.Platform", "Platform"),
+            if (TryApplyStringField(
                     item.Platform,
                     result.Platform,
                     value => item.Platform = value,
-                    allowConflictPrompts,
                     mode))
             {
                 changed = true;
@@ -1561,98 +1515,77 @@ public partial class MainWindowViewModel
         }
 
         if (settings.ImportPublisher &&
-            await TryApplyStringFieldAsync(
-                owner,
-                T("Common.Publisher", "Publisher"),
+            TryApplyStringField(
                 item.Publisher,
                 result.Publisher,
                 value => item.Publisher = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
         }
 
         if (settings.ImportSeries &&
-            await TryApplyStringFieldAsync(
-                owner,
-                T("Common.Series", "Series"),
+            TryApplyStringField(
                 item.Series,
                 result.Series,
                 value => item.Series = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
         }
 
         if (settings.ImportReleaseType &&
-            await TryApplyStringFieldAsync(
-                owner,
-                T("Common.ReleaseType", "Release Type"),
+            TryApplyStringField(
                 item.ReleaseType,
                 result.ReleaseType,
                 value => item.ReleaseType = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
         }
 
         if (settings.ImportSortTitle &&
-            await TryApplyStringFieldAsync(
-                owner,
-                T("Common.SortTitle", "Sort Title"),
+            TryApplyStringField(
                 item.SortTitle,
                 result.SortTitle,
                 value => item.SortTitle = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
         }
 
         if (settings.ImportPlayMode &&
-            await TryApplyStringFieldAsync(
-                owner,
-                T("Common.PlayMode", "Play Mode"),
+            TryApplyStringField(
                 item.PlayMode,
                 result.PlayMode,
                 value => item.PlayMode = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
         }
 
         if (settings.ImportMaxPlayers &&
-            await TryApplyStringFieldAsync(
-                owner,
-                T("Common.MaxPlayers", "Max Players"),
+            TryApplyStringField(
                 item.MaxPlayers,
                 result.MaxPlayers,
                 value => item.MaxPlayers = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
         }
 
         if (settings.ImportSource &&
-            await TryApplyStringFieldAsync(
-                owner,
-                T("Common.Source", "Source"),
+            TryApplyStringField(
                 item.Source,
                 result.Source,
                 value => item.Source = value,
-                allowConflictPrompts,
                 mode))
         {
             changed = true;
         }
 
         if (settings.ImportCustomFields &&
-            await MergeCustomFieldsAsync(owner, item, result.CustomFields, allowConflictPrompts, mode))
+            MergeCustomFields(item, result.CustomFields, mode))
         {
             changed = true;
         }
@@ -1711,13 +1644,10 @@ public partial class MainWindowViewModel
         return await DownloadAndSetAsset(url, item, nodePath, type);
     }
 
-    private async Task<bool> TryApplyStringFieldAsync(
-        Window owner,
-        string fieldLabel,
+    private static bool TryApplyStringField(
         string? currentValue,
         string? incomingValue,
         Action<string> applyValue,
-        bool allowConflictPrompts,
         ScraperExistingDataMode mode,
         StringComparison comparison = StringComparison.OrdinalIgnoreCase)
     {
@@ -1735,20 +1665,17 @@ public partial class MainWindowViewModel
         if (string.Equals(current, incoming, comparison))
             return false;
 
-        if (!await ShouldOverwriteExistingAsync(owner, fieldLabel, current, incoming, allowConflictPrompts, mode))
+        if (mode != ScraperExistingDataMode.OverwriteAlways)
             return false;
 
         applyValue(incoming);
         return true;
     }
 
-    private async Task<bool> TryApplyDateFieldAsync(
-        Window owner,
-        string fieldLabel,
+    private static bool TryApplyDateField(
         DateTime? currentValue,
         DateTime? incomingValue,
         Action<DateTime?> applyValue,
-        bool allowConflictPrompts,
         ScraperExistingDataMode mode)
     {
         if (!incomingValue.HasValue)
@@ -1765,28 +1692,17 @@ public partial class MainWindowViewModel
         if (current == incoming)
             return false;
 
-        if (!await ShouldOverwriteExistingAsync(
-                owner,
-                fieldLabel,
-                current.ToShortDateString(),
-                incoming.ToShortDateString(),
-                allowConflictPrompts,
-                mode))
-        {
+        if (mode != ScraperExistingDataMode.OverwriteAlways)
             return false;
-        }
 
         applyValue(incoming);
         return true;
     }
 
-    private async Task<bool> TryApplyRatingFieldAsync(
-        Window owner,
-        string fieldLabel,
+    private static bool TryApplyRatingField(
         double currentValue,
         double? incomingValue,
         Action<double> applyValue,
-        bool allowConflictPrompts,
         ScraperExistingDataMode mode)
     {
         if (!incomingValue.HasValue)
@@ -1803,26 +1719,16 @@ public partial class MainWindowViewModel
         if (Math.Abs(currentValue - incoming) < 0.0001d)
             return false;
 
-        if (!await ShouldOverwriteExistingAsync(
-                owner,
-                fieldLabel,
-                currentValue.ToString("0.##"),
-                incoming.ToString("0.##"),
-                allowConflictPrompts,
-                mode))
-        {
+        if (mode != ScraperExistingDataMode.OverwriteAlways)
             return false;
-        }
 
         applyValue(incoming);
         return true;
     }
 
-    private async Task<bool> MergeCustomFieldsAsync(
-        Window owner,
+    private static bool MergeCustomFields(
         MediaItem item,
         Dictionary<string, string>? incoming,
-        bool allowConflictPrompts,
         ScraperExistingDataMode mode)
     {
         if (incoming == null || incoming.Count == 0)
@@ -1851,23 +1757,8 @@ public partial class MainWindowViewModel
             if (string.Equals(existing, value, StringComparison.Ordinal))
                 continue;
 
-            if (mode == ScraperExistingDataMode.OnlyMissing)
+            if (mode != ScraperExistingDataMode.OverwriteAlways)
                 continue;
-
-            if (mode == ScraperExistingDataMode.AskOnConflict)
-            {
-                if (!allowConflictPrompts)
-                    continue;
-
-                var message = string.Format(
-                    T("Dialog.Scraper.CustomFieldConflictFormat", "Update custom field '{0}'? Current: '{1}' | New: '{2}'"),
-                    key,
-                    BuildConflictPreview(existing),
-                    BuildConflictPreview(value));
-
-                if (!await ShowConfirmDialog(owner, message))
-                    continue;
-            }
 
             merged[key] = value;
             changed = true;
@@ -1878,43 +1769,6 @@ public partial class MainWindowViewModel
 
         item.CustomFields = merged;
         return true;
-    }
-
-    private async Task<bool> ShouldOverwriteExistingAsync(
-        Window owner,
-        string fieldLabel,
-        string currentValue,
-        string incomingValue,
-        bool allowConflictPrompts,
-        ScraperExistingDataMode mode)
-    {
-        if (mode == ScraperExistingDataMode.OverwriteAlways)
-            return true;
-
-        if (mode == ScraperExistingDataMode.OnlyMissing)
-            return false;
-
-        if (!allowConflictPrompts)
-            return false;
-
-        var message = string.Format(
-            T("Dialog.Scraper.FieldConflictFormat", "Update {0}? Current: '{1}' | New: '{2}'"),
-            fieldLabel.Trim().TrimEnd(':'),
-            BuildConflictPreview(currentValue),
-            BuildConflictPreview(incomingValue));
-
-        return await ShowConfirmDialog(owner, message);
-    }
-
-    private static string BuildConflictPreview(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return "-";
-
-        var compact = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
-        return compact.Length <= 80
-            ? compact
-            : compact.Substring(0, 80) + "...";
     }
 
     private async Task<bool> DownloadAndSetAsset(string url, MediaItem item, List<string> nodePath, AssetType type)
