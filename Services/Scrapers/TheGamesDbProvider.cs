@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 using Retromind.Models;
 
 namespace Retromind.Services.Scrapers;
@@ -59,7 +60,7 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
         try
         {
             var encodedQuery = Uri.EscapeDataString(query);
-            var language = NormalizeLanguage(_config.Language);
+            var language = LanguageCodeHelper.NormalizePrimaryCode(_config.Language);
             var results = new List<ScraperSearchResult>(MaxSearchResults);
             var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -249,18 +250,6 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
                 result,
                 cancellationToken)
             .ConfigureAwait(false);
-    }
-
-    private static string NormalizeLanguage(string? language)
-    {
-        if (string.IsNullOrWhiteSpace(language))
-            return "en";
-
-        var dashIndex = language.IndexOf('-');
-        if (dashIndex > 0)
-            language = language[..dashIndex];
-
-        return language.Trim().ToLowerInvariant();
     }
 
     private static string ResolveBoxartBaseUrl(JsonNode? root)

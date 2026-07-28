@@ -38,7 +38,7 @@ public class GoogleBooksProvider : IMetadataProvider
             
             var encodedQuery = HttpUtility.UrlEncode(query);
             var apiKey = _config.ApiKey ?? string.Empty;
-            var language = NormalizeLanguage(_config.Language);
+            var language = LanguageCodeHelper.NormalizePrimaryCode(_config.Language);
 
             var results = new List<ScraperSearchResult>(MaxSearchResults);
             var seenIds = new HashSet<string>(StringComparer.Ordinal);
@@ -144,17 +144,5 @@ public class GoogleBooksProvider : IMetadataProvider
         {
             throw new Exception($"GoogleBooks Error: {ex.Message}", ex);
         }
-    }
-
-    private static string NormalizeLanguage(string? language)
-    {
-        if (string.IsNullOrWhiteSpace(language))
-            return "en";
-
-        var dashIndex = language.IndexOf('-');
-        if (dashIndex > 0)
-            language = language[..dashIndex];
-
-        return language.Trim().ToLowerInvariant();
     }
 }
