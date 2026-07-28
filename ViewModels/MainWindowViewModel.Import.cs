@@ -20,13 +20,6 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
-    // Regex to detect Disk/Disc/Side/Part suffixes
-    // Matches: " (Disk 1)", "_Disk1", " (Side A)", " - CD 1", etc.
-    private static readonly System.Text.RegularExpressions.Regex MultiDiscRegex =
-        // Require a clear separator (start/space/_/-/bracket) before Disc/Side tokens to avoid
-        // matching inside words like "Unterirdische" (contains "disc").
-        new(@"(?:^|[\s_\-]|\(|\[)\s*(?<kind>Disk|Disc|CD|Side|Part)\s*(?<token>[0-9A-H]+)(?:\s*(?:\)|\]))?",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
     private const string GogProviderId = "gog";
     private const string GogDisplayName = "GOG";
     private const string StoreProviderIdField = "Store.ProviderId";
@@ -43,58 +36,6 @@ public partial class MainWindowViewModel
         "libwebkit2gtk-4.0.so.37",
         "libwebkit2gtk-4.0.so"
     ];
-
-    private static int? ParseDiscIndex(string token)
-    {
-        // Supports: "1", "2", ... and "A".."H" (Side A/B, etc.)
-        if (int.TryParse(token, out var n) && n > 0)
-            return n;
-
-        if (token.Length == 1)
-        {
-            var c = char.ToUpperInvariant(token[0]);
-            if (c is >= 'A' and <= 'H')
-                return (c - 'A') + 1;
-        }
-
-        return null;
-    }
-
-    private static string? BuildDiscLabel(string kind, string token, int? index)
-    {
-        // Keep labels user-friendly and stable for UI and playlist readability.
-        kind = kind.Trim();
-
-        if (string.Equals(kind, "Side", StringComparison.OrdinalIgnoreCase) && token.Length == 1)
-        {
-            var side = char.ToUpperInvariant(token[0]);
-            if (side is >= 'A' and <= 'H')
-                return $"Side {side}";
-        }
-
-        if (!string.IsNullOrWhiteSpace(token))
-            return $"{kind} {token}";
-
-        if (index.HasValue)
-            return $"{kind} {index.Value}";
-
-        return null;
-    }
-
-    private static (int? Index, string? Label) TryGetDiscInfoFromFileName(string fileNameWithoutExtension)
-    {
-        var match = MultiDiscRegex.Match(fileNameWithoutExtension);
-        if (!match.Success)
-            return (null, null);
-
-        var kind = match.Groups["kind"].Value.Trim();
-        var token = match.Groups["token"].Value.Trim();
-
-        var idx = ParseDiscIndex(token);
-        var label = BuildDiscLabel(kind, token, idx);
-
-        return (idx, label);
-    }
 
     private static string? TryGetStoreGameId(MediaItem item)
     {
@@ -1100,7 +1041,7 @@ public partial class MainWindowViewModel
                     .Select(f =>
                     {
                         var baseName = Path.GetFileNameWithoutExtension(f.Name);
-                        var (idx, label) = TryGetDiscInfoFromFileName(baseName);
+                        var (_, idx, label) = MultiDiscFileNameHelper.Parse(baseName);
                         return (File: f, Index: idx, Label: label);
                     })
                     .ToList();

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 using Retromind.Models;
 
 namespace Retromind.Services;
@@ -15,14 +15,6 @@ namespace Retromind.Services;
 /// </summary>
 public class ImportService
 {
-    // Regex to detect Disk/Disc/Side/Part suffixes
-    // Matches: " (Disk 1)", "_Disk1", " (Side A)", " - CD 1", etc.
-    private static readonly Regex MultiDiscRegex = new Regex(
-        // Require a clear separator (start/space/_/-/bracket) before Disc/Side tokens to avoid
-        // matching inside words like "Unterirdische" (contains "disc").
-        @"(?:^|[\s_\-]|\(|\[)\s*(?<kind>Disk|Disc|CD|Side|Part)\s*(?<token>[0-9A-H]+)(?:\s*(?:\)|\]))?",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     /// <summary>
     /// Recursively scans a directory for files matching the specified extensions.
     /// Handles inaccessible directories gracefully and optimizes for large file counts.
@@ -55,7 +47,7 @@ public class ImportService
                     .ToList();
 
                 // Step 1: collect import candidates and compute grouping keys + disc metadata
-                var candidates = new List<(string CleanTitle, string FullPath, int? Index, string? Label)>(
+                var candidates = new List<(string GroupingKey, string CleanTitle, string FullPath, int? Index, string? Label)>(
                     capacity: Math.Min(files.Count, 4096));
 
                 foreach (var file in files)
@@ -65,30 +57,16 @@ public class ImportService
                         continue;
 
                     var originalTitle = Path.GetFileNameWithoutExtension(file);
-                    var cleanTitle = originalTitle.Trim();
+                    var (cleanTitle, discIndex, discLabel) =
+                        MultiDiscFileNameHelper.Parse(originalTitle);
+                    var groupingKey = MultiDiscFileNameHelper.GetGroupingKey(cleanTitle);
 
-                    int? discIndex = null;
-                    string? discLabel = null;
-
-                    var match = MultiDiscRegex.Match(originalTitle);
-                    if (match.Success)
-                    {
-                        // Remove the suffix to get the clean game name
-                        cleanTitle = originalTitle.Replace(match.Value, "").Trim();
-
-                        // Extract disc indicator ("1", "2", "A", "B", ...)
-                        var token = match.Groups["token"].Value.Trim();
-
-                        discIndex = ParseDiscIndex(token);
-                        discLabel = BuildDiscLabel(match.Groups["kind"].Value, token, discIndex);
-                    }
-
-                    candidates.Add((cleanTitle, file, discIndex, discLabel));
+                    candidates.Add((groupingKey, cleanTitle, file, discIndex, discLabel));
                 }
 
                 // Step 2: group by clean title -> one MediaItem per game
                 var groups = candidates
-                    .GroupBy(c => c.CleanTitle, StringComparer.OrdinalIgnoreCase)
+                    .GroupBy(c => c.GroupingKey, StringComparer.OrdinalIgnoreCase)
                     .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
 
                 foreach (var g in groups)
@@ -98,10 +76,15 @@ public class ImportService
                         .ThenBy(c => c.Label, StringComparer.OrdinalIgnoreCase)
                         .ThenBy(c => c.FullPath, StringComparer.OrdinalIgnoreCase)
                         .ToList();
+                    var displayTitle = g
+                        .Select(c => c.CleanTitle)
+                        .FirstOrDefault(title =>
+                            string.Equals(title, g.Key, StringComparison.OrdinalIgnoreCase))
+                        ?? orderedFiles[0].CleanTitle;
 
                     var item = new MediaItem
                     {
-                        Title = g.Key,
+                        Title = displayTitle,
                         MediaType = MediaType.Native,
                         Files = orderedFiles.Select(c => new MediaFileRef
                         {
@@ -129,46 +112,5 @@ public class ImportService
 
             return results;
         });
-    }
-
-    private static int? ParseDiscIndex(string token)
-    {
-        // Supports: "1", "2", ... and "A".."H" (Side A/B, etc.)
-        if (int.TryParse(token, out var n) && n > 0)
-            return n;
-
-        if (token.Length == 1)
-        {
-            var c = char.ToUpperInvariant(token[0]);
-            if (c is >= 'A' and <= 'H')
-                return (c - 'A') + 1;
-        }
-
-        return null;
-    }
-
-    private static string? BuildDiscLabel(string kind, string token, int? index)
-    {
-        // Keep labels user-friendly and stable for UI and playlist readability.
-        // Examples:
-        // - "Disk 1" / "Disc 2" / "CD 1"
-        // - "Side A" -> index 1, label "Side A"
-        // - "Part 3" -> label "Part 3"
-        kind = kind.Trim();
-
-        if (string.Equals(kind, "Side", StringComparison.OrdinalIgnoreCase) && token.Length == 1)
-        {
-            var side = char.ToUpperInvariant(token[0]);
-            if (side is >= 'A' and <= 'H')
-                return $"Side {side}";
-        }
-
-        if (!string.IsNullOrWhiteSpace(token))
-            return $"{kind} {token}";
-
-        if (index.HasValue)
-            return $"{kind} {index.Value}";
-
-        return null;
     }
 }
