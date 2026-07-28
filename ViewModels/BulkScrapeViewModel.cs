@@ -86,32 +86,38 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         if (_disposed)
             return;
 
-        if (SelectedScraper == null) return;
+        if (SelectedScraper == null)
+            return;
 
         IsBusy = true;
-        _cancellationTokenSource = new CancellationTokenSource();
+        var cancellationTokenSource = new CancellationTokenSource();
+        _cancellationTokenSource = cancellationTokenSource;
+        var cancellationToken = cancellationTokenSource.Token;
         ClearLog();
         AppendLog($"Starting bulk scrape with {SelectedScraper.Name}...");
 
         IMetadataProvider? provider;
         try
         {
-            provider = await _metadataService.GetProviderAsync(SelectedScraper.Id, _cancellationTokenSource.Token);
+            provider = await _metadataService.GetProviderAsync(SelectedScraper.Id, cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             AppendLog("Scraping operation cancelled by user.");
             IsBusy = false;
-            _cancellationTokenSource.Dispose();
-            _cancellationTokenSource = null;
+            StatusMessage = "Processing cancelled.";
+            if (ReferenceEquals(_cancellationTokenSource, cancellationTokenSource))
+                _cancellationTokenSource = null;
+            cancellationTokenSource.Dispose();
             return;
         }
         catch (Exception ex)
         {
             AppendLog($"Error: Could not connect to provider. {ex.Message}");
             IsBusy = false;
-            _cancellationTokenSource.Dispose();
-            _cancellationTokenSource = null;
+            if (ReferenceEquals(_cancellationTokenSource, cancellationTokenSource))
+                _cancellationTokenSource = null;
+            cancellationTokenSource.Dispose();
             return;
         }
 
@@ -119,8 +125,9 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         {
             AppendLog("Error: Could not load provider.");
             IsBusy = false;
-            _cancellationTokenSource.Dispose();
-            _cancellationTokenSource = null;
+            if (ReferenceEquals(_cancellationTokenSource, cancellationTokenSource))
+                _cancellationTokenSource = null;
+            cancellationTokenSource.Dispose();
             return;
         }
 
@@ -129,19 +136,19 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         // but for now, we assume tree nodes are unique instances.
         var allItems = new List<MediaItem>();
         await CollectItemsRecursiveSnapshotAsync(_rootNode, allItems);
-        
+
         AppendLog($"Found {allItems.Count} media items in total.");
         ProgressValue = 0;
 
         // 2. Prepare Processing
         int processedCount = 0;
         int totalItems = Math.Max(1, allItems.Count);
-        
+
         // ParallelOptions to control concurrency
         var parallelOptions = new ParallelOptions
         {
-            MaxDegreeOfParallelism = MaxConcurrentRequests, 
-            CancellationToken = _cancellationTokenSource.Token
+            MaxDegreeOfParallelism = MaxConcurrentRequests,
+            CancellationToken = cancellationToken
         };
 
         // Timer to update the log UI periodically instead of constantly
@@ -153,9 +160,9 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
             await Parallel.ForEachAsync(allItems, parallelOptions, async (item, token) =>
             {
                 // Logic: Searching
-                try 
+                try
                 {
-                    // Only update status text every X items to save UI cycles, 
+                    // Only update status text every X items to save UI cycles,
                     // or if it's really slow, update always. With 250ms delay, updating always is okayish,
                     // but let's stick to updating progress bar always and text sometimes.
                     if (processedCount % 5 == 0)
@@ -169,11 +176,11 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                     var results = await provider.SearchAsync(item.Title, token);
 
                     // Heuristic: Exact match (Case Insensitive)
-                    var match = results.FirstOrDefault(r => 
+                    var match = results.FirstOrDefault(r =>
                         string.Equals(r.Title, item.Title, StringComparison.OrdinalIgnoreCase));
 
                     // Fallback: Take first if available
-                    if (match == null && results.Count > 0) 
+                    if (match == null && results.Count > 0)
                     {
                         match = results[0];
                     }
@@ -199,15 +206,24 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                         AppendLogBuffer($"[MISS] No results for: {item.Title}");
                     }
                 }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    // Expected user cancellation. Do not report it as a scraper error
+                    // and do not continue with progress updates or throttling delays.
+                    return;
+                }
                 catch (Exception ex)
                 {
-                     AppendLogBuffer($"[ERROR] {item.Title}: {ex.Message}");
+                    AppendLogBuffer($"[ERROR] {item.Title}: {ex.Message}");
                 }
+
+                if (token.IsCancellationRequested)
+                    return;
 
                 // Update Progress
                 // Interlocked is crucial here for thread safety without locking
                 var current = Interlocked.Increment(ref processedCount);
-                
+
                 // Throttle progress updates: Update UI only every 1% or at least every 10 items
                 // to avoid 30.000 Dispatcher calls.
                 if (current % 10 == 0 || current == totalItems)
@@ -216,11 +232,21 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                     await UiThreadHelper.InvokeAsync(() => ProgressValue = newVal);
                 }
 
+                if (token.IsCancellationRequested)
+                    return;
+
                 // Politeness Delay
-                await Task.Delay(RequestDelayMs, token);
+                try
+                {
+                    await Task.Delay(RequestDelayMs, token);
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    // Expected when cancellation happens during the delay.
+                }
             });
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             AppendLog("Scraping operation cancelled by user.");
         }
@@ -232,11 +258,16 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         {
             // Final Flush of logs
             FlushLogBufferToUi();
-            
+
             IsBusy = false;
-            StatusMessage = "Processing finished.";
-            _cancellationTokenSource.Dispose();
-            _cancellationTokenSource = null;
+            StatusMessage = cancellationToken.IsCancellationRequested
+                ? "Processing cancelled."
+                : "Processing finished.";
+
+            if (ReferenceEquals(_cancellationTokenSource, cancellationTokenSource))
+                _cancellationTokenSource = null;
+
+            cancellationTokenSource.Dispose();
         }
     }
 
@@ -283,7 +314,7 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         {
             _logBuffer.Clear();
         }
-        
+
         // ensure UI thread
         UiThreadHelper.Post(() => LogText = "");
     }
