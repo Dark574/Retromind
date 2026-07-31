@@ -95,8 +95,6 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _metadataService = metadataService ?? throw new ArgumentNullException(nameof(metadataService));
 
-        InitializeData();
-
         SearchCommand = new AsyncRelayCommand(SearchAsync);
         ApplyCommand = new AsyncRelayCommand(ApplyAsync, () => SelectedResult != null && !IsPreviewBusy);
         SelectAllMetadataCommand = new RelayCommand(
@@ -111,6 +109,10 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         ClearArtworkSelectionCommand = new RelayCommand(
             () => SetArtworkSelection(false),
             () => ArtworkChoices.Count > 0);
+
+        // Selecting the initial scraper triggers command-state updates, so all
+        // commands must exist before InitializeData assigns SelectedScraper.
+        InitializeData();
     }
 
     private void InitializeData()
