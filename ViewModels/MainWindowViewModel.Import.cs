@@ -1212,6 +1212,55 @@ public partial class MainWindowViewModel
         await SaveData();
     }
 
+    private async Task AddEmptyMediaAsync(MediaNode? node)
+    {
+        var targetNode = node ?? SelectedNode;
+        if (SelectedNode != null && targetNode != null && targetNode.Id == SelectedNode.Id && targetNode != SelectedNode)
+            targetNode = SelectedNode;
+
+        if (targetNode == null || CurrentWindow is not { } owner)
+            return;
+
+        var title = await PromptForName(
+            owner,
+            Strings.Dialog_EnterName_Message,
+            input => string.IsNullOrWhiteSpace(input)
+                ? new NamePromptViewModel.NamePromptValidationResult(
+                    false,
+                    Strings.Dialog_NamePrompt_EmptyName)
+                : new NamePromptViewModel.NamePromptValidationResult(true));
+
+        if (string.IsNullOrWhiteSpace(title))
+            return;
+
+        var effectiveDefaultEmulatorId = ResolveEffectiveDefaultEmulatorId(targetNode);
+        var item = new MediaItem
+        {
+            Title = title.Trim(),
+            Files = new List<MediaFileRef>(),
+            MediaType = string.IsNullOrWhiteSpace(effectiveDefaultEmulatorId)
+                ? MediaType.Native
+                : MediaType.Emulator
+        };
+
+        ApplyEffectiveParentalProtection(targetNode, [item]);
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            InsertMediaItemsOptimized(targetNode.Items, [item]);
+            _libraryTracker.MarkDirty();
+        });
+
+        _currentSettings.LastSelectedMediaId = item.Id;
+        RememberNodeSelection(targetNode.Id, item.Id);
+        SaveSettingsOnly();
+
+        if (IsNodeInCurrentView(targetNode))
+            await UpdateContentAsync();
+
+        await SaveData();
+    }
+
     private async Task EditMediaAsync(MediaItem? item)
     {
         if (item == null || CurrentWindow is not { } owner) return;

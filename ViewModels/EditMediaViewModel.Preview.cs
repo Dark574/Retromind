@@ -22,7 +22,7 @@ public partial class EditMediaViewModel
         get
         {
             // Use the primary launch file (Disc 1 / first entry). No fake/sample fallback.
-            var primaryPath = _originalItem.GetPrimaryLaunchPath();
+            var primaryPath = GetEditedPrimaryLaunchPath();
             var hasLaunchPath = !string.IsNullOrWhiteSpace(primaryPath);
             var launchPath = hasLaunchPath ? primaryPath! : string.Empty;
 
@@ -230,7 +230,7 @@ public partial class EditMediaViewModel
 
     private string? ResolveLaunchFileWorkingDirectory()
     {
-        var launchPath = _originalItem.GetPrimaryLaunchPath();
+        var launchPath = GetEditedPrimaryLaunchPath();
         if (string.IsNullOrWhiteSpace(launchPath))
             return null;
 

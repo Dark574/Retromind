@@ -64,6 +64,7 @@ public partial class EditMediaViewModel
 
         // Always store per-item launcher arguments (used for both Native and Emulator modes)
         _originalItem.LauncherArgs = LauncherArgs;
+        _originalItem.Files = CloneFiles(_editedFiles);
 
         _originalItem.WorkingDirectory = string.IsNullOrWhiteSpace(WorkingDirectory)
             ? null

@@ -26,6 +26,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     private EmulatorConfig? _resolvedInheritedEmulator;
     private string? _resolvedInheritedEmulatorSource;
     private readonly MediaItem _originalItem;
+    private readonly List<MediaFileRef> _editedFiles;
     private readonly FileManagementService _fileService;
     private readonly List<string> _nodePath;
     private NotifyCollectionChangedEventHandler? _assetsChangedHandler;
@@ -71,16 +72,19 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     {
         get
         {
-            var path = _originalItem.GetPrimaryLaunchPath();
+            var path = GetEditedPrimaryLaunchPath();
             return string.IsNullOrWhiteSpace(path) ? "(no launch file set)" : path;
         }
     }
 
+    public bool HasLaunchFiles => _editedFiles.Count > 0;
+
     /// <summary>
     /// Command to change the primary launch file (Disc 1 / main executable)
-    /// This updates MediaItem.Files so the launcher and preview both use the new path
+    /// The change is staged until the editor is saved.
     /// </summary>
     public IAsyncRelayCommand ChangePrimaryFileCommand { get; }
+    public IRelayCommand RemoveLaunchFilesCommand { get; }
     
     // --- Per-item environment overrides (e.g. PROTONPATH, PROTON_LOG) ---
 
@@ -525,6 +529,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         MediaNode? parentNode = null)
     {
         _originalItem = item;
+        _editedFiles = CloneFiles(item.Files);
         _fileService = fileService;
         _nodePath = nodePath; 
         _inheritedEmulator = inheritedEmulator;
@@ -544,6 +549,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         
         // Primary launch file command
         ChangePrimaryFileCommand = new AsyncRelayCommand(ChangePrimaryFileAsync);
+        RemoveLaunchFilesCommand = new RelayCommand(RemoveLaunchFiles, () => HasLaunchFiles);
         
         // Environment overrides commands
         AddEnvironmentVariableCommand = new RelayCommand(AddEnvironmentVariable);
@@ -650,6 +656,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         
         // Ensure preview reflects the current primary file at startup
         OnPropertyChanged(nameof(PrimaryFileDisplayPath));
+        OnPropertyChanged(nameof(HasLaunchFiles));
         OnPropertyChanged(nameof(PreviewText));
 
         SortAssets();
@@ -1337,9 +1344,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             storedKind = MediaFileKind.Absolute;
         }
         
-        // Update the primary file in the item's Files list
-        // If there is no file yet, add a new entry
-        var primary = _originalItem.GetPrimaryFile();
+        // Update the staged file list. The original item is only changed by Save().
+        var primary = GetEditedPrimaryFile();
         if (primary == null)
         {
             primary = new MediaFileRef
@@ -1348,9 +1354,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 Path = storedPath,
                 Index = 1
             };
-            var list = _originalItem.Files ?? new List<MediaFileRef>();
-            list.Add(primary);
-            _originalItem.Files = list;
+            _editedFiles.Add(primary);
         }
         else
         {
@@ -1358,14 +1362,68 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             primary.Kind = storedKind;
         }
 
-        // Notify UI about the change:
-        // - display path
-        // - effective working directory
-        // - preview command line (uses GetPrimaryLaunchPath())
+        NotifyLaunchFilesChanged();
+    }
+
+    private void RemoveLaunchFiles()
+    {
+        if (_editedFiles.Count == 0)
+            return;
+
+        _editedFiles.Clear();
+        NotifyLaunchFilesChanged();
+    }
+
+    private void NotifyLaunchFilesChanged()
+    {
         OnPropertyChanged(nameof(PrimaryFileDisplayPath));
+        OnPropertyChanged(nameof(HasLaunchFiles));
         OnPropertyChanged(nameof(EffectiveWorkingDirectory));
         OnPropertyChanged(nameof(PreviewText));
+        RemoveLaunchFilesCommand.NotifyCanExecuteChanged();
         CopyPreviewCommand.NotifyCanExecuteChanged();
+    }
+
+    private MediaFileRef? GetEditedPrimaryFile()
+    {
+        if (_editedFiles.Count == 0)
+            return null;
+
+        var byIndex = _editedFiles
+            .Where(file => file.Index is > 0)
+            .OrderBy(file => file.Index)
+            .ToList();
+
+        return byIndex.FirstOrDefault(file => file.Index == 1)
+               ?? byIndex.FirstOrDefault()
+               ?? _editedFiles[0];
+    }
+
+    private string? GetEditedPrimaryLaunchPath()
+    {
+        var primary = GetEditedPrimaryFile();
+        if (primary == null || string.IsNullOrWhiteSpace(primary.Path))
+            return null;
+
+        if (primary.Kind != MediaFileKind.LibraryRelative)
+            return primary.Path;
+
+        var resolved = AppPaths.ResolveDataPathInsideRootOrEmpty(primary.Path);
+        return string.IsNullOrWhiteSpace(resolved) ? null : resolved;
+    }
+
+    private static List<MediaFileRef> CloneFiles(IEnumerable<MediaFileRef>? files)
+    {
+        return files?
+            .Select(file => new MediaFileRef
+            {
+                Kind = file.Kind,
+                Path = file.Path,
+                Label = file.Label,
+                Index = file.Index
+            })
+            .ToList()
+            ?? new List<MediaFileRef>();
     }
     
     private async Task BrowseLauncherAsync()

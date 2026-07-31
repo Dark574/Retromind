@@ -584,6 +584,12 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Ctx.Media.Add", resourceCulture);
             }
         }
+
+        public static string Ctx_Media_AddEmpty {
+            get {
+                return ResourceManager.GetString("Ctx.Media.AddEmpty", resourceCulture);
+            }
+        }
         
         public static string Ctx_Media_AddManual {
             get {
@@ -2184,6 +2190,12 @@ namespace Retromind.Resources {
         public static string Media_StandardEmulator {
             get {
                 return ResourceManager.GetString("Media.StandardEmulator", resourceCulture);
+            }
+        }
+
+        public static string Media_RemoveLaunchFiles {
+            get {
+                return ResourceManager.GetString("Media.RemoveLaunchFiles", resourceCulture);
             }
         }
         

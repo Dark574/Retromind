@@ -126,6 +126,7 @@
     <data name="Ctx.Category.Add" xml:space="preserve"><value>Add Category</value></data>
     <data name="Ctx.ImportRoms" xml:space="preserve"><value>Import ROMs...</value></data>
     <data name="Ctx.Media.Add" xml:space="preserve"><value>Add Media</value></data>
+    <data name="Ctx.Media.AddEmpty" xml:space="preserve"><value>Add empty media</value></data>
     <data name="Ctx.Media.AddManual" xml:space="preserve"><value>Add manual</value></data>
     <data name="Ctx.ChangeCover" xml:space="preserve"><value>Change Cover...</value></data>
   
@@ -440,6 +441,7 @@ This action cannot be undone.</value></data>
     <data name="Media.SetMusicActive" xml:space="preserve"><value>Set as music</value></data>
     <data name="Media.Settings" xml:space="preserve"><value>Settings / Rename...</value></data>
     <data name="Media.StandardEmulator" xml:space="preserve"><value>Default emulator (for this folder):</value></data>
+    <data name="Media.RemoveLaunchFiles" xml:space="preserve"><value>Remove all launch files</value></data>
     <data name="Media.WatermarkOverrideWatchProcess" xml:space="preserve"><value>e.g. hl2_linux, retroarch, stardewvalley</value></data>
   
     <!-- METADATA -->

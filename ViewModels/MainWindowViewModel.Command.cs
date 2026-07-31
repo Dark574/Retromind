@@ -33,6 +33,7 @@ public partial class MainWindowViewModel
     // Using IAsyncRelayCommand allows the UI to bind to IsRunning properties if needed
     public IAsyncRelayCommand<MediaNode?> AddCategoryCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> AddMediaCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> AddEmptyMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> AddGogMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> DeleteCommand { get; private set; } = null!;
     
@@ -84,6 +85,7 @@ public partial class MainWindowViewModel
         
         AddCategoryCommand = new AsyncRelayCommand<MediaNode?>(AddCategoryAsync);
         AddMediaCommand = new AsyncRelayCommand<MediaNode?>(AddMediaAsync, CanOperateOnNode);
+        AddEmptyMediaCommand = new AsyncRelayCommand<MediaNode?>(AddEmptyMediaAsync, CanOperateOnNode);
         AddGogMediaCommand = new AsyncRelayCommand<MediaNode?>(AddGogMediaAsync, CanOperateOnNode);
         DeleteCommand = new AsyncRelayCommand<MediaNode?>(DeleteNodeAsync);
         
@@ -570,6 +572,7 @@ public partial class MainWindowViewModel
     private void NotifyNodeCommandsCanExecuteChanged()
     {
         AddMediaCommand.NotifyCanExecuteChanged();
+        AddEmptyMediaCommand.NotifyCanExecuteChanged();
         AddGogMediaCommand.NotifyCanExecuteChanged();
         ImportRomsCommand.NotifyCanExecuteChanged();
         ImportSteamCommand.NotifyCanExecuteChanged();
