@@ -4,10 +4,15 @@
   "PreferPortableLaunchPaths": true,
   "UsePortableHomeInAppImage": false,
   "ForcePortableHomeInAppImage": false,
+  "SavedSearchTerms": [],
+  "SteamLibraryPaths": [],
+  "HeroicEpicConfigPaths": [],
   "DefaultNativeWrappers": [],
   "VlcHardwareDecodeMode": "none",
   "EnableSelectionMusicPreview": true,
   "IgnoreLeadingArticlesInSort": false,
+  "ParentalLockPasswordEncrypted": null,
+  "ParentalLockUnlocked": true,
 
   "TreeColumnWidth": 260,
   "DetailColumnWidth": 380,
@@ -25,9 +30,9 @@
       "Id": "10000000-0000-0000-0000-000000000001",
       "Name": "GE-Proton10-34",
       "Kind": 0,
-      "SourceType": 1,
+      "SourceType": 0,
       "Path": "Emulators/ProtonVersions/GE-Proton10-34",
-      "ReleaseTag": null
+      "ReleaseTag": "GE-Proton10-34"
     }
   ],
 
@@ -42,10 +47,13 @@
       "RunnerType": 1,
       "DefaultRunnerVersionId": "10000000-0000-0000-0000-000000000001",
       "NativeWrapperMode": 0,
+      "XdgMode": 1,
+      "XdgConfigPath": null,
+      "XdgDataPath": null,
+      "XdgCachePath": null,
+      "XdgStatePath": null,
       "NativeWrappersOverride": [],
-      "EnvironmentOverrides": {
-        "PROTONPATH": "Emulators/ProtonVersions/Proton-10.0"
-      }
+      "EnvironmentOverrides": {}
     },
     {
       "Id": "00000000-0000-0000-0000-000000000002",
@@ -57,6 +65,11 @@
       "RunnerType": 0,
       "DefaultRunnerVersionId": null,
       "NativeWrapperMode": 0,
+      "XdgMode": 1,
+      "XdgConfigPath": null,
+      "XdgDataPath": null,
+      "XdgCachePath": null,
+      "XdgStatePath": null,
       "NativeWrappersOverride": null,
       "EnvironmentOverrides": {}
     },
@@ -70,6 +83,11 @@
       "RunnerType": 0,
       "DefaultRunnerVersionId": null,
       "NativeWrapperMode": 0,
+      "XdgMode": 1,
+      "XdgConfigPath": null,
+      "XdgDataPath": null,
+      "XdgCachePath": null,
+      "XdgStatePath": null,
       "NativeWrappersOverride": null,
       "EnvironmentOverrides": {}
     },
@@ -83,6 +101,11 @@
       "RunnerType": 0,
       "DefaultRunnerVersionId": null,
       "NativeWrapperMode": 0,
+      "XdgMode": 1,
+      "XdgConfigPath": null,
+      "XdgDataPath": null,
+      "XdgCachePath": null,
+      "XdgStatePath": null,
       "NativeWrappersOverride": null,
       "EnvironmentOverrides": {}
     }
@@ -126,6 +149,45 @@
       "EncryptedClientSecret": "",
 
       "Username": null
+    },
+    {
+      "Id": "00000000-0000-0000-0000-000000000104",
+      "Name": "SteamGridDB",
+      "Type": 8,
+      "Language": "en-US",
+
+      "ClientId": null,
+      "EncryptedApiKey": "",
+      "EncryptedPassword": "",
+      "EncryptedClientSecret": "",
+
+      "Username": null
     }
-  ]
+  ],
+
+  "ScraperImport": {
+    "ExistingDataMode": 0,
+    "ImportDescription": true,
+    "ImportReleaseDate": true,
+    "ImportRating": true,
+    "ImportDeveloper": true,
+    "ImportGenre": true,
+    "ImportPlatform": true,
+    "ImportPublisher": true,
+    "ImportSeries": true,
+    "ImportReleaseType": true,
+    "ImportSortTitle": true,
+    "ImportPlayMode": true,
+    "ImportMaxPlayers": true,
+    "ImportSource": true,
+    "ImportCustomFields": true,
+    "ImportCover": true,
+    "ImportWallpaper": true,
+    "ImportScreenshot": true,
+    "ImportLogo": true,
+    "ImportMarquee": true,
+    "ImportBezel": true,
+    "ImportControlPanel": true,
+    "AskAssetConflictsDuringBulkScrape": false
+  }
 }
