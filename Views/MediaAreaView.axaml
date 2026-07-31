@@ -298,6 +298,9 @@
                                             <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
                                                       CommandParameter="{Binding DataContext.Node, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                            <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddEmpty}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddEmptyMediaCommand}"
+                                                      CommandParameter="{Binding DataContext.Node, RelativeSource={RelativeSource AncestorType=UserControl}}" />
                                             <MenuItem Header="{x:Static p:Strings.Import_Folder}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
                                                       CommandParameter="{Binding DataContext.Node, RelativeSource={RelativeSource AncestorType=UserControl}}" />
