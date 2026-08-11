@@ -186,9 +186,8 @@ public sealed class LauncherService
 
             startInfo.UseShellExecute = requiresDirectExec ? false : useShellExecute;
 
-            var prefixInitialized = true;
             if (shouldApplyPrefix)
-                prefixInitialized = ConfigureWinePrefix(item, nodePath, startInfo, isProtonLaunch, isUmuLaunch);
+                ConfigureWinePrefix(item, nodePath, startInfo, isProtonLaunch, isUmuLaunch);
             
             SanitizeAppImageRuntimeEnvironment(startInfo);
             SanitizeFlatpakPortableEnvironment(startInfo, args);
@@ -213,9 +212,6 @@ public sealed class LauncherService
             ApplyEmulatorXdgOverrides(startInfo, inheritedConfig);
             ApplyXdgOverrides(startInfo, item);
 
-            if (shouldApplyPrefix && !prefixInitialized)
-                ApplyWineArchOverride(startInfo, item.WineArchOverride);
-            
             startInfo.Arguments = args ?? string.Empty;
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
@@ -708,18 +704,6 @@ public sealed class LauncherService
         startInfo.EnvironmentVariables[key] = resolved;
     }
 
-    private static void ApplyWineArchOverride(ProcessStartInfo startInfo, string? wineArchOverride)
-    {
-        if (string.IsNullOrWhiteSpace(wineArchOverride))
-            return;
-
-        var normalized = wineArchOverride.Trim().ToLowerInvariant();
-        if (normalized != "win32" && normalized != "win64")
-            return;
-
-        startInfo.EnvironmentVariables["WINEARCH"] = normalized;
-    }
-
     private static void EnsureLinuxExecutableBitBestEffort(string filePath)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
@@ -1159,7 +1143,7 @@ public sealed class LauncherService
         return LaunchArgumentHelper.NormalizeWhitespace(args);
     }
 
-    private bool ConfigureWinePrefix(
+    private void ConfigureWinePrefix(
         MediaItem item,
         List<string>? nodePath,
         ProcessStartInfo startInfo,
@@ -1206,7 +1190,7 @@ public sealed class LauncherService
         }
 
         if (string.IsNullOrWhiteSpace(prefixPath))
-            return true;
+            return;
 
         var prefixRoot = prefixPath;
         var winePrefixPath = prefixPath;
@@ -1290,8 +1274,6 @@ public sealed class LauncherService
             launchWinePrefixPath = winePrefixPath;
         }
 
-        var prefixInitialized = PrefixPathHelper.IsWinePrefixInitialized(winePrefixPath);
-
         // Ensure basic prefix structure
         Directory.CreateDirectory(prefixRoot);
 
@@ -1351,7 +1333,6 @@ public sealed class LauncherService
         if (relativePrefixPathToSave != null)
             item.PrefixPath = relativePrefixPathToSave;
 
-        return prefixInitialized;
     }
 
     private static bool IsProtonBased(

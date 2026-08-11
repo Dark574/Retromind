@@ -157,9 +157,6 @@ public partial class EditMediaViewModel
 
             var (compatRoot, winePrefix) = ResolvePrefixPathsForWinetricks(prefixRoot, isProton, useUmu);
 
-            if (!PrefixPathHelper.IsWinePrefixInitialized(winePrefix))
-                ApplyWineArchOverride(env, WineArchSelection);
-
             if (useUmu && isProton)
                 EnsureUmuWinetricksCwd(env);
 
@@ -433,21 +430,6 @@ public partial class EditMediaViewModel
             env["STEAM_COMPAT_DATA_PATH"] = compatRoot;
 
         env["WINEPREFIX"] = winePrefix;
-    }
-
-    private static void ApplyWineArchOverride(Dictionary<string, string> env, WineArchOption selection)
-    {
-        var value = selection switch
-        {
-            WineArchOption.Win32 => "win32",
-            WineArchOption.Win64 => "win64",
-            _ => null
-        };
-
-        if (string.IsNullOrWhiteSpace(value))
-            return;
-
-        env["WINEARCH"] = value;
     }
 
     private static void EnsurePortableGamesDriveMapping(string winePrefix)

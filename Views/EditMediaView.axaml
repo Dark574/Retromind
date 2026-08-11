@@ -259,22 +259,6 @@
                                                FontSize="11" />
                                 </StackPanel>
 
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="Prefix architecture" FontWeight="Bold" />
-                                    <ComboBox ItemsSource="{Binding WineArchOptions}"
-                                              SelectedItem="{Binding WineArchSelection}" />
-                                    <TextBlock Text="Auto = no WINEARCH override (uses runner default, usually win64)."
-                                               Opacity="0.7"
-                                               FontSize="11" />
-                                    <TextBlock Text="Applies only when creating a new prefix."
-                                               Opacity="0.7"
-                                               FontSize="11" />
-                                    <TextBlock Text="Note: change will not convert an existing prefix. Delete/rename the prefix folder to apply."
-                                               Opacity="0.7"
-                                               FontSize="11"
-                                               IsVisible="{Binding ShowWineArchExistingPrefixWarning}" />
-                                </StackPanel>
-
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Button Content="Generate"
                                             Command="{Binding GeneratePrefixCommand}" />

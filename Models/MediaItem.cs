@@ -331,12 +331,6 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private string? _prefixPath;
 
     /// <summary>
-    /// Optional: Force prefix architecture on creation ("win32" or "win64").
-    /// Only used when a new prefix is created.
-    /// </summary>
-    [ObservableProperty] private string? _wineArchOverride;
-
-    /// <summary>
     /// Optional per-item runtime version override (Wine/Proton).
     /// When set, this takes precedence over emulator-level runner selection.
     /// </summary>

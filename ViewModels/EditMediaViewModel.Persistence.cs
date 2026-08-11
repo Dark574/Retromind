@@ -52,12 +52,6 @@ public partial class EditMediaViewModel
         }
 
         _originalItem.PrefixPath = string.IsNullOrWhiteSpace(prefixPathToStore) ? null : prefixPathToStore;
-        _originalItem.WineArchOverride = WineArchSelection switch
-        {
-            WineArchOption.Win32 => "win32",
-            WineArchOption.Win64 => "win64",
-            _ => null
-        };
         _originalItem.RunnerVersionId = string.IsNullOrWhiteSpace(SelectedRunnerVersion?.Id)
             ? null
             : SelectedRunnerVersion.Id;
@@ -173,9 +167,6 @@ public partial class EditMediaViewModel
             if (string.IsNullOrWhiteSpace(row.Key))
                 continue;
 
-            if (string.Equals(row.Key.Trim(), "WINEARCH", StringComparison.OrdinalIgnoreCase))
-                continue;
-
             _originalItem.EnvironmentOverrides[row.Key.Trim()] = row.Value ?? string.Empty;
         }
     }
@@ -203,29 +194,4 @@ public partial class EditMediaViewModel
         return result;
     }
 
-    private static WineArchOption ResolveWineArchSelection(string? overrideValue, Dictionary<string, string> env)
-    {
-        var parsed = ParseWineArch(overrideValue);
-        if (parsed != WineArchOption.Auto)
-            return parsed;
-
-        if (env.TryGetValue("WINEARCH", out var envValue))
-            return ParseWineArch(envValue);
-
-        return WineArchOption.Auto;
-    }
-
-    private static WineArchOption ParseWineArch(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return WineArchOption.Auto;
-
-        var normalized = value.Trim();
-        if (normalized.Equals("win32", StringComparison.OrdinalIgnoreCase))
-            return WineArchOption.Win32;
-        if (normalized.Equals("win64", StringComparison.OrdinalIgnoreCase))
-            return WineArchOption.Win64;
-
-        return WineArchOption.Auto;
-    }
 }

@@ -46,7 +46,6 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     [NotifyCanExecuteChangedFor(nameof(OpenPrefixFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearPrefixCommand))]
     [NotifyCanExecuteChangedFor(nameof(RunWinetricksCommand))]
-    [NotifyPropertyChangedFor(nameof(ShowWineArchExistingPrefixWarning))]
     private string _prefixPath = string.Empty;
 
     public bool HasPrefix => !string.IsNullOrWhiteSpace(PrefixPath);
@@ -150,25 +149,6 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     public IRelayCommand AddCustomFieldCommand { get; }
     public IRelayCommand<CustomFieldRow?> RemoveCustomFieldCommand { get; }
     public IRelayCommand<string?> AcceptMetadataSuggestionCommand { get; }
-
-    public enum WineArchOption
-    {
-        Auto,
-        Win64,
-        Win32
-    }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsWineArchOverrideActive))]
-    [NotifyPropertyChangedFor(nameof(ShowWineArchExistingPrefixWarning))]
-    private WineArchOption _wineArchSelection = WineArchOption.Auto;
-
-    public List<WineArchOption> WineArchOptions { get; } =
-        new() { WineArchOption.Auto, WineArchOption.Win64, WineArchOption.Win32 };
-
-    public bool IsWineArchOverrideActive => WineArchSelection != WineArchOption.Auto;
-
-    public bool ShowWineArchExistingPrefixWarning => HasPrefix && IsWineArchOverrideActive;
 
     public string RunnerVersionLabel => T("EditMedia_RunnerVersionLabel", "Wine/Proton version");
     public string RunnerVersionHint => T("EditMedia_RunnerVersionHint", "Optional per-item override. Takes precedence over emulator default.");
@@ -745,7 +725,6 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         
         // Prefix
         PrefixPath = _originalItem.PrefixPath ?? string.Empty;
-        WineArchSelection = ResolveWineArchSelection(_originalItem.WineArchOverride, _originalItem.EnvironmentOverrides);
         
         // Arguments: load exactly what is stored on the item
         LauncherArgs = _originalItem.LauncherArgs ?? string.Empty;
