@@ -202,7 +202,7 @@
     <!-- HINT -->
     <data name="Hint.IgdbCredentials" xml:space="preserve"><value>(Optional: Leave blank for default access)</value></data>
     <data name="Hint.Required" xml:space="preserve"><value>(Necessary)</value></data>
-    <data name="Hint.TimePlayed" xml:space="preserve"><value>Only needed for Steam/GOG/scripts. Name of the actual game process (without .exe). So that the time is measured correctly.</value></data>
+    <data name="Hint.TimePlayed" xml:space="preserve"><value>Name of the actual game process (without .exe). So that the time is measured correctly.</value></data>
     <data name="Hint.WorkingDirectory" xml:space="preserve"><value>Optional. If empty, the launch file folder is used. Affects relative paths.</value></data>
     <data name="Hint.XdgSection" xml:space="preserve"><value>Optional. XDG is the Linux standard for where apps store config/data/cache/state. Applies to native launches only. You can set a base folder to auto-fill config/data/cache/state subfolders.</value></data>
     <data name="Hint.TmdbKey" xml:space="preserve"><value>(Optional)</value></data>
