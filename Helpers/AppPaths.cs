@@ -240,20 +240,7 @@ public static class AppPaths
 
             var relativeThemeDir = Path.GetRelativePath(shippedThemesRoot, shippedThemeDir);
             var targetThemeDir = Path.Combine(ThemesRoot, relativeThemeDir);
-            if (!Directory.Exists(targetThemeDir))
-            {
-                CopyDirectoryRecursive(shippedThemeDir, targetThemeDir);
-                WriteThemeManifest(targetThemeDir, shippedThemeDir);
-                continue;
-            }
-
-            if (IsThemeManifestUsable(TryReadThemeManifest(targetThemeDir)))
-                continue;
-
-            // A parent directory may have copied this nested theme during first-time
-            // setup. Add its own manifest only when it still matches the shipped files.
-            if (AreDirectoryContentsEquivalent(targetThemeDir, shippedThemeDir))
-                WriteThemeManifest(targetThemeDir, shippedThemeDir);
+            EnsurePortableThemeDirectory(shippedThemeDir, targetThemeDir);
         }
     }
 
