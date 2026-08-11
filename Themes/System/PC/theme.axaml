@@ -1,0 +1,181 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="Transparent"
+
+             ext:ThemeProperties.Name="PC Games"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.AccentColor="#25C8D8"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
+             ext:ThemeProperties.VideoStretchMode="Uniform"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
+             ext:ThemeProperties.SecondaryVideoEnabled="False">
+
+    <UserControl.Resources>
+        <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
+    </UserControl.Resources>
+
+    <Border Background="#07131B"
+            CornerRadius="8"
+            ClipToBounds="True">
+        <Grid>
+            <Rectangle>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#102A38" Offset="0" />
+                        <GradientStop Color="#091923" Offset="0.5" />
+                        <GradientStop Color="#050B10" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <!-- Shared horizontal system-theme accent. -->
+            <Border Background="#25C8D8"
+                    Height="4"
+                    VerticalAlignment="Top"
+                    Opacity="0.9" />
+
+            <!-- Subtle technical structure without tying the theme to one PC era. -->
+            <Border Width="380"
+                    Height="380"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,82,74,0"
+                    CornerRadius="190"
+                    BorderBrush="#1625C8D8"
+                    BorderThickness="1" />
+            <Border Width="250"
+                    Height="250"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,147,139,0"
+                    CornerRadius="125"
+                    BorderBrush="#1025C8D8"
+                    BorderThickness="1" />
+
+            <Grid ColumnDefinitions="0.82*,1.48*"
+                  Margin="44,34,38,30">
+
+                <Grid Grid.Column="0"
+                      RowDefinitions="Auto,Auto,*"
+                      Margin="0,12,36,10">
+                    <Grid Grid.Row="0" Height="112">
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               MaxWidth="370"
+                               IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                                                   Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                        <TextBlock Text="{Binding SelectedCategory.Name}"
+                                   FontSize="44"
+                                   FontWeight="Bold"
+                                   Foreground="#EEF9FB"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                                                       Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,14,0,20">
+                        <Border Height="3"
+                                Background="#25C8D8"
+                                HorizontalAlignment="Left"
+                                Width="124" />
+                        <Border Height="3"
+                                Background="#8EA7B2"
+                                HorizontalAlignment="Left"
+                                Margin="124,0,0,0"
+                                Width="42" />
+                    </Grid>
+
+                    <Border Grid.Row="2"
+                            BorderBrush="#5525C8D8"
+                            BorderThickness="1,0,0,0"
+                            Padding="18,2,4,4"
+                            ClipToBounds="True">
+                        <TextBlock Text="{Binding SelectedCategory.Description}"
+                                   FontSize="18"
+                                   LineHeight="27"
+                                   Foreground="#D5E5EA"
+                                   TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+
+                <!-- Fixed design surface keeps the video aligned with the transparent
+                     screen aperture while the independent hardware assets can overlap. -->
+                <Viewbox Grid.Column="1"
+                         Stretch="Uniform"
+                         StretchDirection="Both"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         MaxWidth="850"
+                         MaxHeight="750">
+                    <Canvas Width="1600" Height="1300">
+                        <!-- Exact 16:9 video surface below the transparent monitor aperture. -->
+                        <Border x:Name="SystemPrimaryVideoSlot"
+                                Canvas.Left="19"
+                                Canvas.Top="20"
+                                Width="1120"
+                                Height="630"
+                                Background="#020304"
+                                ClipToBounds="True" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/pc-modern-tower.png}"
+                               Canvas.Left="1200"
+                               Canvas.Top="350"
+                               Width="400"
+                               Height="628"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/pc-modern-monitor-frame.png}"
+                               Canvas.Left="0"
+                               Canvas.Top="0"
+                               Width="1158"
+                               Height="913"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/pc-modern-keyboard-mouse.png}"
+                               Canvas.Left="140"
+                               Canvas.Top="930"
+                               Width="1050"
+                               Height="367"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <StackPanel Canvas.Left="1310"
+                                    Canvas.Top="1000"
+                                    Orientation="Horizontal"
+                                    Spacing="10">
+                            <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Foreground="#8EA7B2"
+                                       VerticalAlignment="Bottom" />
+                            <TextBlock Text="{Binding SelectedCategory.Items.Count}"
+                                       FontSize="22"
+                                       FontWeight="Bold"
+                                       Foreground="#25C8D8" />
+                        </StackPanel>
+                    </Canvas>
+                </Viewbox>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

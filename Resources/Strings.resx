@@ -30,6 +30,7 @@
 
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Main menu</value></data>
+    <data name="BigMode_GameCountLabel" xml:space="preserve"><value>Games</value></data>
     
     <!-- BUTTONS -->
     <data name="Button.Cancel" xml:space="preserve"><value>Cancel</value></data>
