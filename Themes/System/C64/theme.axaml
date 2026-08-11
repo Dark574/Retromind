@@ -3,6 +3,7 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
              x:Name="ThemeRoot"
              Background="Transparent"
@@ -128,10 +129,11 @@
                                 Canvas.Top="830"
                                 Orientation="Horizontal"
                                 Spacing="10">
-                        <TextBlock Text="SPIELE"
+                        <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
                                    FontSize="15"
                                    FontWeight="SemiBold"
-                                   Foreground="#62594F" />
+                                   Foreground="#62594F"
+                                   VerticalAlignment="Center" />
                         <TextBlock Text="{Binding SelectedCategory.Items.Count}"
                                    FontSize="22"
                                    FontWeight="Bold"
