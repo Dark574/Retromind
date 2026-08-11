@@ -4,6 +4,7 @@
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              xmlns:video="using:Retromind.Helpers.Video"
              xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
              Background="#101010"
 
@@ -93,7 +94,7 @@
                                     HorizontalAlignment="Right"
                                     Spacing="12">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="Games:"
+                                <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
                                            Foreground="#AAAAAA"
                                            FontSize="14" />
                                 <TextBlock Text="{Binding SelectedCategory.Items.Count}"
