@@ -178,7 +178,7 @@ public class MediaDataService
             }
 
             // 2. If main file failed or didn't exist, try backup
-            if (result == null || result.Count == 0)
+            if (result == null)
             {
                 if (File.Exists(BackupPath))
                 {
@@ -188,12 +188,7 @@ public class MediaDataService
             }
 
             // 3. If everything failed, return a fresh tree
-            if (result == null || result.Count == 0)
-            {
-                return new ObservableCollection<MediaNode>();
-            }
-
-            return result;
+            return result ?? new ObservableCollection<MediaNode>();
         }
         finally
         {
