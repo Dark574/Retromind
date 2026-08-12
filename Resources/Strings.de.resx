@@ -262,6 +262,22 @@ Falls nötig, erneut öffnen:
   <data name="Gog.InstallRunnerMissingHint" xml:space="preserve"><value>Noch kein Wine/Proton-Runner konfiguriert. Bitte unter Einstellungen -&gt; Runner hinzufügen.</value></data>
   <data name="Gog.Install.CleanInstallLabel" xml:space="preserve"><value>Saubere Neuinstallation</value></data>
   <data name="Gog.Install.CleanInstallHint" xml:space="preserve"><value>Löscht vor der Installation vorhandene Dateien im Zielordner.</value></data>
+  <data name="Gog.Install.CleanInstallConfirmFormat" xml:space="preserve"><value>Die saubere Neuinstallation löscht dauerhaft die vorhandenen Dateien in diesem von Retromind verwalteten Ordner:
+{0}
+
+Fortfahren?</value></data>
+  <data name="Gog.Install.DirectoryUnsafeFormat" xml:space="preserve"><value>Der ausgewählte Installationsordner ist unsicher und kann nicht verwendet werden:
+{0}</value></data>
+  <data name="Gog.Install.DirectorySymbolicLinkFormat" xml:space="preserve"><value>Der ausgewählte Installationsordner enthält eine symbolische Verknüpfung und kann nicht automatisch bereinigt werden:
+{0}</value></data>
+  <data name="Gog.Install.DirectoryUnreadableFormat" xml:space="preserve"><value>Retromind konnte den ausgewählten Installationsordner nicht überprüfen:
+{0}</value></data>
+  <data name="Gog.Install.DirectoryUnownedFormat" xml:space="preserve"><value>Der ausgewählte Ordner enthält Dateien, wurde aber nicht als Retromind-Installation dieses Spiels erkannt. Bitte einen anderen Ordner wählen oder ihn manuell leeren:
+{0}</value></data>
+  <data name="Gog.Install.DirectoryInvalidFormat" xml:space="preserve"><value>Der ausgewählte Installationsordner ist ungültig:
+{0}</value></data>
+  <data name="Gog.Install.MarkerWriteFailedFormat" xml:space="preserve"><value>Retromind konnte den Installationsordner nicht sicher übernehmen: {0}</value></data>
+  <data name="Gog.Install.MarkerWriteWarningFormat" xml:space="preserve"><value>Die Installation war erfolgreich, aber Retromind konnte den Installationsordner nicht als verwaltet markieren: {0}</value></data>
   <data name="Gog.Update.BadgeTooltip" xml:space="preserve"><value>GOG-Update verfügbar</value></data>
   <data name="Gog.Update.Available" xml:space="preserve"><value>Für diesen Titel ist ein GOG-Update verfügbar.</value></data>
   <data name="Gog.Update.UpToDate" xml:space="preserve"><value>Kein neuerer GOG-Installer gefunden.</value></data>

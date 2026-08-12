@@ -230,6 +230,9 @@ public partial class MainWindowViewModel
 
         var selectedInstallerPackage = SelectInstallerPackageForRequest(installerPackage, installRequest);
 
+        if (!await PrepareGogInstallDirectoryAsync(owner, item, installRequest))
+            return;
+
         var platformFolder = installRequest.Platform == GogInstallPlatform.Windows ? "windows" : "linux";
         var stagingRoot = Path.Combine(
             installRequest.InstallPath,
@@ -391,7 +394,21 @@ public partial class MainWindowViewModel
                 item.CustomFields.Remove(StoreInstallWindowsInstallerPreferenceField);
             }
 
-            WriteInstallMarker(launchInfo.InstallRoot, item);
+            try
+            {
+                GogInstallDirectorySafety.WriteMarker(launchInfo.InstallRoot, item);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Warning] Failed to write final install marker to '{launchInfo.InstallRoot}': {ex.Message}");
+                AppendProcessLog(
+                    progressLogVm,
+                    string.Format(
+                        T(
+                            "Gog.Install.MarkerWriteWarningFormat",
+                            "Installation succeeded, but Retromind could not mark the install directory as managed: {0}"),
+                        BuildShortErrorDetail(ex)));
+            }
             
             UpdateInstalledGogFingerprint(item, selectedInstallerPackage);
 
@@ -414,33 +431,83 @@ public partial class MainWindowViewModel
         }
     }
 
-    private static void WriteInstallMarker(string installPath, MediaItem item)
+    private async Task<bool> PrepareGogInstallDirectoryAsync(
+        Window owner,
+        MediaItem item,
+        GogInstallDialogViewModel.GogInstallDialogResult request)
     {
-        if (string.IsNullOrWhiteSpace(installPath))
-            return;
+        var assessment = GogInstallDirectorySafety.Assess(
+            request.InstallPath,
+            item,
+            rejectSymbolicLinks: request.CleanInstall);
 
-        if (!item.CustomFields.TryGetValue("Store.GameId", out var gameId) ||
-            string.IsNullOrWhiteSpace(gameId))
+        if (!assessment.IsAllowed)
         {
-            return;
+            var message = assessment.Status switch
+            {
+                GogInstallDirectoryStatus.DangerousPath => string.Format(
+                    T(
+                        "Gog.Install.DirectoryUnsafeFormat",
+                        "The selected install directory is unsafe and cannot be used:\n{0}"),
+                    assessment.FullPath),
+                GogInstallDirectoryStatus.SymbolicLink => string.Format(
+                    T(
+                        "Gog.Install.DirectorySymbolicLinkFormat",
+                        "The selected install directory contains a symbolic link and cannot be cleaned automatically:\n{0}"),
+                    assessment.FullPath),
+                GogInstallDirectoryStatus.UnreadableDirectory => string.Format(
+                    T(
+                        "Gog.Install.DirectoryUnreadableFormat",
+                        "Retromind could not inspect the selected install directory:\n{0}"),
+                    assessment.FullPath),
+                GogInstallDirectoryStatus.UnownedDirectory => string.Format(
+                    T(
+                        "Gog.Install.DirectoryUnownedFormat",
+                        "The selected directory contains files but is not recognized as this game's Retromind installation. Choose another directory or empty it manually:\n{0}"),
+                    assessment.FullPath),
+                _ => string.Format(
+                    T(
+                        "Gog.Install.DirectoryInvalidFormat",
+                        "The selected install directory is invalid:\n{0}"),
+                    assessment.FullPath)
+            };
+
+            await ShowInfoDialog(owner, message);
+            return false;
         }
 
-        var marker = new
+        if (request.CleanInstall && assessment.Status == GogInstallDirectoryStatus.OwnedDirectory)
         {
-            ProviderId = "gog",
-            StoreGameId = gameId,
-            MediaItemId = item.Id
-        };
+            var confirmed = await ShowConfirmDialog(
+                owner,
+                string.Format(
+                    T(
+                        "Gog.Install.CleanInstallConfirmFormat",
+                        "Clean install will permanently delete the existing files in this Retromind-managed directory:\n{0}\n\nContinue?"),
+                    assessment.FullPath));
+            if (!confirmed)
+                return false;
+        }
 
-        var markerPath = Path.Combine(installPath, ".retromind-install.json");
         try
         {
-            var json = JsonSerializer.Serialize(marker, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(markerPath, json, Encoding.UTF8);
+            // Claim a new/empty directory before download data is written into it.
+            // A later clean-install check can then prove that the directory belongs
+            // to this exact GOG item.
+            GogInstallDirectorySafety.WriteMarker(assessment.FullPath, item);
+            return true;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Warning] Failed to write install marker to '{markerPath}': {ex.Message}");
+            Debug.WriteLine($"[GOG] Failed to write install marker to '{assessment.FullPath}': {ex.Message}");
+            await ShowInfoDialog(
+                owner,
+                string.Format(
+                    T(
+                        "Gog.Install.MarkerWriteFailedFormat",
+                        "Retromind could not safely claim the install directory: {0}"),
+                    BuildShortErrorDetail(ex)));
+            return false;
         }
     }
     
@@ -800,6 +867,7 @@ public partial class MainWindowViewModel
             {
                 AppendProcessLog(logVm, "Clean install requested: removing existing target files.", installerLogPath);
                 if (!TryPrepareCleanInstallDirectory(
+                        item,
                         request.InstallPath,
                         downloadedPackage.StagingDirectory,
                         logVm,
@@ -1696,6 +1764,7 @@ public partial class MainWindowViewModel
     }
 
     private static bool TryPrepareCleanInstallDirectory(
+        MediaItem item,
         string installPath,
         string? preservePath,
         ProcessLogViewModel logVm,
@@ -1707,16 +1776,23 @@ public partial class MainWindowViewModel
         if (string.IsNullOrWhiteSpace(installPath))
             return true;
 
-        var fullInstallPath = Path.GetFullPath(installPath);
-        if (IsUnsafeCleanInstallPath(fullInstallPath))
+        var assessment = GogInstallDirectorySafety.Assess(
+            installPath,
+            item,
+            rejectSymbolicLinks: true);
+        var fullInstallPath = assessment.FullPath;
+        if (!assessment.IsAllowed)
         {
-            errorMessage = "Clean install was blocked because the selected folder is unsafe.";
+            errorMessage = "Clean install was blocked because the selected folder is unsafe or is no longer owned by this Retromind item.";
             AppendProcessLog(logVm, errorMessage, installerLogPath);
             return false;
         }
 
         Directory.CreateDirectory(fullInstallPath);
-        var preservedPaths = new List<string>();
+        var preservedPaths = new List<string>
+        {
+            Path.Combine(fullInstallPath, GogInstallDirectorySafety.MarkerFileName)
+        };
         if (!string.IsNullOrWhiteSpace(preservePath))
         {
             var fullPreservePath = Path.GetFullPath(preservePath);
@@ -1747,32 +1823,18 @@ public partial class MainWindowViewModel
             }
         }
 
-        return true;
-    }
-
-    private static bool IsUnsafeCleanInstallPath(string fullInstallPath)
-    {
-        if (string.IsNullOrWhiteSpace(fullInstallPath))
-            return true;
-
-        var root = Path.GetPathRoot(fullInstallPath);
-        if (string.IsNullOrWhiteSpace(root))
-            return true;
-
-        if (PathsEqual(fullInstallPath, root))
-            return true;
-
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrWhiteSpace(home) && PathsEqual(fullInstallPath, home))
-            return true;
-
-        if (PathsEqual(fullInstallPath, AppPaths.DataRoot) ||
-            PathsEqual(fullInstallPath, AppPaths.LibraryRoot))
+        try
         {
-            return true;
+            GogInstallDirectorySafety.WriteMarker(fullInstallPath, item);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to restore the Retromind install marker: {ex.Message}";
+            AppendProcessLog(logVm, errorMessage, installerLogPath);
+            return false;
         }
 
-        return false;
+        return true;
     }
 
     private static bool ShouldPreserveDuringCleanInstall(string candidatePath, IReadOnlyList<string> preservedPaths)

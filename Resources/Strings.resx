@@ -261,6 +261,22 @@ If needed, reopen:
   <data name="Gog.Install.WindowsInstallerPreference.Prefer32" xml:space="preserve"><value>32-bit installer</value></data>
   <data name="Gog.Install.CleanInstallLabel" xml:space="preserve"><value>Clean install</value></data>
   <data name="Gog.Install.CleanInstallHint" xml:space="preserve"><value>Delete existing files in the target folder before installation.</value></data>
+  <data name="Gog.Install.CleanInstallConfirmFormat" xml:space="preserve"><value>Clean install will permanently delete the existing files in this Retromind-managed directory:
+{0}
+
+Continue?</value></data>
+  <data name="Gog.Install.DirectoryUnsafeFormat" xml:space="preserve"><value>The selected install directory is unsafe and cannot be used:
+{0}</value></data>
+  <data name="Gog.Install.DirectorySymbolicLinkFormat" xml:space="preserve"><value>The selected install directory contains a symbolic link and cannot be cleaned automatically:
+{0}</value></data>
+  <data name="Gog.Install.DirectoryUnreadableFormat" xml:space="preserve"><value>Retromind could not inspect the selected install directory:
+{0}</value></data>
+  <data name="Gog.Install.DirectoryUnownedFormat" xml:space="preserve"><value>The selected directory contains files but is not recognized as this game's Retromind installation. Choose another directory or empty it manually:
+{0}</value></data>
+  <data name="Gog.Install.DirectoryInvalidFormat" xml:space="preserve"><value>The selected install directory is invalid:
+{0}</value></data>
+  <data name="Gog.Install.MarkerWriteFailedFormat" xml:space="preserve"><value>Retromind could not safely claim the install directory: {0}</value></data>
+  <data name="Gog.Install.MarkerWriteWarningFormat" xml:space="preserve"><value>Installation succeeded, but Retromind could not mark the install directory as managed: {0}</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Delete staging data after successful installation</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Removes downloaded installer files after a successful install.</value></data>
   <data name="Gog.Update.BadgeTooltip" xml:space="preserve"><value>GOG update available</value></data>

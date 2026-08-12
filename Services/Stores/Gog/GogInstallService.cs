@@ -167,7 +167,7 @@ public sealed class GogInstallService
             return false;
         }
 
-        if (IsDangerousPath(fullPath))
+        if (GogInstallDirectorySafety.IsDangerousPath(fullPath))
             return false;
 
         var dataRoot = Path.GetFullPath(AppPaths.DataRoot);
@@ -184,91 +184,16 @@ public sealed class GogInstallService
             return true;
 
         if (AppPaths.IsPathInsideDataRoot(fullPath))
-            return HasValidInstallMarker(fullPath, item);
+            return GogInstallDirectorySafety.HasValidMarker(fullPath, item);
 
         var libraryRootWithSep = libraryRoot.EndsWith(Path.DirectorySeparatorChar.ToString())
             ? libraryRoot
             : libraryRoot + Path.DirectorySeparatorChar;
 
         if (fullPath.StartsWith(libraryRootWithSep, StringComparison.Ordinal))
-            return HasValidInstallMarker(fullPath, item);
+            return GogInstallDirectorySafety.HasValidMarker(fullPath, item);
 
-        return HasValidInstallMarker(fullPath, item);
-    }
-
-    private static bool HasValidInstallMarker(string fullPath, MediaItem item)
-    {
-        var markerPath = Path.Combine(fullPath, ".retromind-install.json");
-        if (!File.Exists(markerPath))
-        {
-            Debug.WriteLine($"[Warning] No install marker found at '{markerPath}'. Refusing to delete path '{fullPath}'.");
-            return false;
-        }
-
-        InstallMarker? marker;
-        try
-        {
-            var json = File.ReadAllText(markerPath);
-            marker = JsonSerializer.Deserialize<InstallMarker>(json);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Warning] Failed to read install marker at '{markerPath}': {ex.Message}");
-            return false;
-        }
-
-        if (marker == null)
-            return false;
-
-        if (!string.Equals(marker.ProviderId, "gog", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        if (!item.CustomFields.TryGetValue("Store.GameId", out var gameId) ||
-            !string.Equals(marker.StoreGameId, gameId, StringComparison.Ordinal))
-        {
-            Debug.WriteLine($"[Warning] Install marker StoreGameId mismatch: expected '{gameId}', got '{marker.StoreGameId}'.");
-            return false;
-        }
-
-        if (!string.Equals(marker.MediaItemId, item.Id, StringComparison.Ordinal))
-        {
-            Debug.WriteLine($"[Warning] Install marker MediaItemId mismatch: expected '{item.Id}', got '{marker.MediaItemId}'.");
-            return false;
-        }
-
-        return true;
-    }
-    
-    private static bool IsDangerousPath(string fullPath)
-    {
-        if (string.IsNullOrWhiteSpace(fullPath))
-            return true;
-
-        var root = Path.GetPathRoot(fullPath);
-        if (string.IsNullOrWhiteSpace(root))
-            return true;
-
-        if (string.Equals(fullPath, root, StringComparison.Ordinal))
-            return true;
-
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrWhiteSpace(home) &&
-            string.Equals(fullPath, Path.GetFullPath(home), StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        var blockedPaths = new[] { "/usr", "/bin", "/sbin", "/etc", "/var", "/boot", "/dev", "/proc", "/sys" };
-        foreach (var blocked in blockedPaths)
-        {
-            if (fullPath.StartsWith(blocked + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
-                string.Equals(fullPath, blocked, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return GogInstallDirectorySafety.HasValidMarker(fullPath, item);
     }
     
     public async Task<IReadOnlyList<GogInstallPlatform>> GetAvailableInstallerPlatformsAsync(
@@ -1021,8 +946,4 @@ public sealed class GogInstallService
         return trimmed.Length <= 260 ? trimmed : trimmed[..260] + "...";
     }
     
-    private sealed record InstallMarker(
-        string ProviderId,
-        string StoreGameId,
-        string MediaItemId);
 }
