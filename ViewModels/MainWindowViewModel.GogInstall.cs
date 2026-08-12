@@ -2735,7 +2735,14 @@ public partial class MainWindowViewModel
     {
         try
         {
-            return Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories).ToArray();
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
+                MatchCasing = MatchCasing.CaseInsensitive,
+                AttributesToSkip = 0
+            };
+            return Directory.EnumerateFiles(root, pattern, options).ToArray();
         }
         catch
         {
@@ -2816,14 +2823,23 @@ public partial class MainWindowViewModel
         }
 
         var direct = Path.Combine(installRoot, normalizedRelative);
-        if (File.Exists(direct))
-            return direct;
+        var resolvedDirect = ResolveRelativePathCaseInsensitive(
+            installRoot,
+            normalizedRelative,
+            expectDirectory: false);
+        if (!string.IsNullOrWhiteSpace(resolvedDirect))
+            return resolvedDirect;
 
         if (platform == GogInstallPlatform.Linux)
         {
-            var gameRelative = Path.Combine(installRoot, "game", normalizedRelative);
-            if (File.Exists(gameRelative))
-                return gameRelative;
+            var relativeBelowGame = Path.Combine("game", normalizedRelative);
+            var gameRelative = Path.Combine(installRoot, relativeBelowGame);
+            var resolvedBelowGame = ResolveRelativePathCaseInsensitive(
+                installRoot,
+                relativeBelowGame,
+                expectDirectory: false);
+            if (!string.IsNullOrWhiteSpace(resolvedBelowGame))
+                return resolvedBelowGame;
 
             return gameRelative;
         }
@@ -2831,7 +2847,17 @@ public partial class MainWindowViewModel
         var fileName = Path.GetFileName(normalizedRelative);
         if (!string.IsNullOrWhiteSpace(fileName))
         {
-            var byFileName = EnumerateFilesSafe(installRoot, fileName).FirstOrDefault();
+            // GOG's Windows metadata occasionally differs from the installed file
+            // only by casing (for example dosbox.exe vs DOSBox.exe). Prefer a full
+            // relative-path match before falling back to another file with the same name.
+            var byFileName = EnumerateFilesSafe(installRoot, fileName)
+                .OrderByDescending(candidate =>
+                    string.Equals(
+                        NormalizeRelativePathForComparison(Path.GetRelativePath(installRoot, candidate)),
+                        NormalizeRelativePathForComparison(normalizedRelative),
+                        StringComparison.OrdinalIgnoreCase))
+                .ThenBy(candidate => candidate.Length)
+                .FirstOrDefault();
             if (!string.IsNullOrWhiteSpace(byFileName))
                 return byFileName;
         }
@@ -2859,8 +2885,66 @@ public partial class MainWindowViewModel
                 .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
 
-        return Path.Combine(installRoot, normalized.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        normalized = normalized.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return ResolveRelativePathCaseInsensitive(installRoot, normalized, expectDirectory: true)
+               ?? Path.Combine(installRoot, normalized);
     }
+
+    private static string? ResolveRelativePathCaseInsensitive(
+        string root,
+        string relativePath,
+        bool expectDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(root) || string.IsNullOrWhiteSpace(relativePath))
+            return null;
+
+        try
+        {
+            var fullRoot = Path.GetFullPath(root);
+            var normalizedRelative = relativePath
+                .Replace('\\', Path.DirectorySeparatorChar)
+                .Replace('/', Path.DirectorySeparatorChar)
+                .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var expectedPath = Path.GetFullPath(Path.Combine(fullRoot, normalizedRelative));
+            if (!IsSubPathOfOrEqual(expectedPath, fullRoot))
+                return null;
+
+            if (expectDirectory ? Directory.Exists(expectedPath) : File.Exists(expectedPath))
+                return expectedPath;
+
+            var current = fullRoot;
+            var segments = Path.GetRelativePath(fullRoot, expectedPath)
+                .Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var segment in segments)
+            {
+                if (!Directory.Exists(current))
+                    return null;
+
+                var match = Directory.EnumerateFileSystemEntries(current)
+                    .FirstOrDefault(entry =>
+                        string.Equals(Path.GetFileName(entry), segment, StringComparison.OrdinalIgnoreCase));
+                if (string.IsNullOrWhiteSpace(match))
+                    return null;
+
+                current = match;
+            }
+
+            return expectDirectory
+                ? Directory.Exists(current) ? current : null
+                : File.Exists(current) ? current : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string NormalizeRelativePathForComparison(string path)
+        => path
+            .Replace('\\', '/')
+            .Replace(Path.DirectorySeparatorChar, '/')
+            .TrimStart('/');
 
     private static bool LooksLikeWindowsAbsolutePath(string path)
     {
