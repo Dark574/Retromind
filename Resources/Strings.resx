@@ -686,4 +686,14 @@ zelda AND platform:switch</value></data>
     <data name="Common.LibraryGameCountSummary" xml:space="preserve">
         <value>{0} shown | {1} total</value>
     </data>
+    <data name="Persistence.SaveFailedFormat" xml:space="preserve">
+        <value>Retromind could not save its data.
+
+{0}
+
+Unsaved changes remain in memory. Please check free disk space and write permissions.</value>
+    </data>
+    <data name="Persistence.ExitWithoutSavingConfirm" xml:space="preserve">
+        <value>Retromind could not save all changes. Exit anyway and risk losing unsaved changes?</value>
+    </data>
 </root>

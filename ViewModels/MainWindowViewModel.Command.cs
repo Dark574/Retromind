@@ -1633,7 +1633,7 @@ public partial class MainWindowViewModel
             SelectedNode = sourceNode;
         _libraryTracker.MarkDirty();
         if (parentChanged)
-            await _libraryTracker.SaveIfDirtyAsync(force: true).ConfigureAwait(false);
+            await SaveData().ConfigureAwait(false);
         return true;
     }
 

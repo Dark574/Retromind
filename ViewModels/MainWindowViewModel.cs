@@ -105,6 +105,9 @@ public partial class MainWindowViewModel : ViewModelBase
     // Debounced Settings Save
     private CancellationTokenSource? _saveSettingsCts;
     private readonly TimeSpan _saveSettingsDebounce = TimeSpan.FromMilliseconds(500);
+    private int _settingsDirtyVersion;
+    private int _persistenceErrorNoticeShown;
+    private int _suppressPersistenceErrorNotice;
 
     private readonly TaskCompletionSource<bool> _loadDataTcs =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -347,6 +350,8 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             UpdateLibraryGameCounters();
         };
+        _libraryTracker.SaveFailed += ReportPersistenceSaveFailure;
+        _libraryTracker.SaveSucceeded += ClearPersistenceSaveFailure;
         _fileService.LibraryChanged += _libraryTracker.MarkDirty;
         
         // Seed layout values early so bindings are stable before LoadData completes.
@@ -666,19 +671,35 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
     
-    public async Task SaveData()
+    public async Task<bool> SaveData()
     {
-        // SaveData is a “strong” save: when someone calls it explicitly,
-        // we persist the library (if dirty) + settings (immediately).
-        // Serialization happens on the UI thread to avoid cross-thread collection access.
-        await _libraryTracker.SaveIfDirtyAsync(force: false).ConfigureAwait(false);
-        var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
-            .ConfigureAwait(false);
-        await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
+        try
+        {
+            // SaveData is a “strong” save: when someone calls it explicitly,
+            // we persist the library (if dirty) + settings (immediately).
+            // Serialization happens on the UI thread to avoid cross-thread collection access.
+            await _libraryTracker.SaveIfDirtyAsync(force: false).ConfigureAwait(false);
+
+            var saveVersion = Volatile.Read(ref _settingsDirtyVersion);
+            var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
+                .ConfigureAwait(false);
+            await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
+
+            if (Volatile.Read(ref _settingsDirtyVersion) == saveVersion)
+                ClearPersistenceSaveFailure();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ReportPersistenceSaveFailure(ex);
+            return false;
+        }
     }
 
-    private async void SaveSettingsOnly()
+    private void SaveSettingsOnly()
     {
+        var saveVersion = Interlocked.Increment(ref _settingsDirtyVersion);
+
         _saveSettingsCts?.Cancel();
         _saveSettingsCts?.Dispose();
         _saveSettingsCts = new CancellationTokenSource();
@@ -696,6 +717,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
                     .ConfigureAwait(false);
                 await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
+
+                if (Volatile.Read(ref _settingsDirtyVersion) == saveVersion)
+                    ClearPersistenceSaveFailure();
             }
             catch (OperationCanceledException)
             {
@@ -704,8 +728,47 @@ public partial class MainWindowViewModel : ViewModelBase
             catch (Exception ex)
             {
                 Debug.WriteLine($"[Settings] Debounced save failed: {ex.Message}");
+                ReportPersistenceSaveFailure(ex);
             }
         }, token);
+    }
+
+    private void ReportPersistenceSaveFailure(Exception exception)
+    {
+        Debug.WriteLine($"[Persistence] Save failed: {exception}");
+
+        if (Volatile.Read(ref _suppressPersistenceErrorNotice) != 0 ||
+            Interlocked.CompareExchange(ref _persistenceErrorNoticeShown, 1, 0) != 0)
+        {
+            return;
+        }
+
+        UiThreadHelper.Post(async () =>
+        {
+            try
+            {
+                if (CurrentWindow is not { } owner)
+                {
+                    ClearPersistenceSaveFailure();
+                    return;
+                }
+
+                var format = T(
+                    "Persistence.SaveFailedFormat",
+                    "Retromind could not save its data.\n\n{0}\n\nUnsaved changes remain in memory. Please check free disk space and write permissions.");
+                await ShowInfoDialog(owner, string.Format(format, exception.Message));
+            }
+            catch (Exception dialogException)
+            {
+                Debug.WriteLine($"[Persistence] Could not show save failure: {dialogException.Message}");
+                ClearPersistenceSaveFailure();
+            }
+        });
+    }
+
+    private void ClearPersistenceSaveFailure()
+    {
+        Interlocked.Exchange(ref _persistenceErrorNoticeShown, 0);
     }
 
     private string? ResolveSelectedItemAsset(AssetType type)
@@ -770,10 +833,10 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Flushes pending saves (best effort) and then performs cleanup.
+    /// Flushes pending saves and performs cleanup only after a successful write.
     /// Must be awaited from the UI during window closing to avoid deadlocks.
     /// </summary>
-    public async Task FlushAndCleanupAsync()
+    public async Task<bool> FlushAndCleanupAsync()
     {
         // Stop playback immediately; saving can take a moment.
         _audioService.StopMusic();
@@ -782,6 +845,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _saveSettingsCts?.Cancel();
         _parentalRefreshCts?.Cancel();
 
+        Interlocked.Exchange(ref _suppressPersistenceErrorNotice, 1);
         try
         {
             // 1. Save FIRST (while tracking is still active)
@@ -791,22 +855,19 @@ public partial class MainWindowViewModel : ViewModelBase
             var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
                 .ConfigureAwait(false);
             await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
+
+            ClearPersistenceSaveFailure();
+            Cleanup();
+            return true;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Shutdown] Final save failed: {ex.Message}");
-            // best effort: still continue cleanup so the app can exit
+            return false;
         }
         finally
         {
-            try
-            {
-                Cleanup();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Shutdown] Cleanup failed: {ex}");
-            }    
+            Interlocked.Exchange(ref _suppressPersistenceErrorNotice, 0);
         }
     }
     
@@ -824,6 +885,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _audioService.MusicPlaybackEnded -= OnMusicPlaybackEnded;
         
         _fileService.LibraryChanged -= _libraryTracker.MarkDirty;
+        _libraryTracker.SaveFailed -= ReportPersistenceSaveFailure;
+        _libraryTracker.SaveSucceeded -= ClearPersistenceSaveFailure;
         _libraryTracker.StopTracking();
         
         // Detach content VM handlers to avoid leaks.

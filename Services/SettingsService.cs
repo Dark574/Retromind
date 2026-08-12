@@ -225,13 +225,16 @@ public class SettingsService
             // 3) Atomic replace (no "delete then move" gap)
             File.Move(TempPath, FilePath, overwrite: true);
         }
-        catch (UnauthorizedAccessException)
-        {
-            Debug.WriteLine("[SettingsService] Write permission denied. Run as Admin or move app to a user-writable folder.");
-        }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SettingsService] Critical error saving settings: {ex.Message}");
+            if (ex is UnauthorizedAccessException)
+            {
+                Debug.WriteLine("[SettingsService] Write permission denied. Move Retromind to a user-writable folder.");
+            }
+            else
+            {
+                Debug.WriteLine($"[SettingsService] Critical error saving settings: {ex.Message}");
+            }
 
             // Best effort cleanup of temp
             try
@@ -254,6 +257,10 @@ public class SettingsService
             {
                 // ignore
             }
+
+            // Do not report a failed write as success. UI and orchestration layers
+            // decide how to notify the user or whether to retry.
+            throw;
         }
         finally
         {

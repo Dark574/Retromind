@@ -43,6 +43,8 @@ public class LibraryChangeTracker
     };
     
     public event Action? LibraryDirtyStateChanged;
+    public event Action<Exception>? SaveFailed;
+    public event Action? SaveSucceeded;
     
     public LibraryChangeTracker(
         MediaDataService dataService,
@@ -117,7 +119,20 @@ public class LibraryChangeTracker
         
         MarkDirty();
         var version = _libraryDirtyVersion;
-        _ = SaveIfDirtyAsync(force: false, expectedVersion: version);
+        _ = ObserveImmediateSaveAsync(version);
+    }
+
+    private async Task ObserveImmediateSaveAsync(int expectedVersion)
+    {
+        try
+        {
+            await SaveIfDirtyAsync(force: false, expectedVersion: expectedVersion).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // SaveIfDirtyAsync already retained the dirty state and raised SaveFailed.
+            Debug.WriteLine($"[LibraryTracker] Immediate save failed: {ex.Message}");
+        }
     }
     
     private void DebouncedSave()
@@ -153,16 +168,16 @@ public class LibraryChangeTracker
         
         var saveVersion = expectedVersion ?? _libraryDirtyVersion;
         
-        // 1. Migration (z.B. Portable Paths)
-        if (_trackedRoots != null && _onBeforeSaveMigration != null)
-        {
-            var migrated = await UiThreadHelper.InvokeAsync(() => _onBeforeSaveMigration(_trackedRoots!));
-            if (migrated > 0)
-                Debug.WriteLine($"[LibraryTracker] Migrated {migrated} paths.");
-        }
-
         try
         {
+            // 1. Migration (e.g. portable paths)
+            if (_trackedRoots != null && _onBeforeSaveMigration != null)
+            {
+                var migrated = await UiThreadHelper.InvokeAsync(() => _onBeforeSaveMigration(_trackedRoots!));
+                if (migrated > 0)
+                    Debug.WriteLine($"[LibraryTracker] Migrated {migrated} paths.");
+            }
+
             var snapshot = await UiThreadHelper.InvokeAsync(() =>
             {
                 return _trackedRoots != null ? _dataService.CreateSnapshot(_trackedRoots) : null;
@@ -175,11 +190,15 @@ public class LibraryChangeTracker
             
             if (_libraryDirtyVersion == saveVersion)
                 _isLibraryDirty = false;
+
+            SaveSucceeded?.Invoke();
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[LibraryTracker] Save failed: {ex.Message}");
             _isLibraryDirty = true;
+            SaveFailed?.Invoke(ex);
+            throw;
         }
     }
     

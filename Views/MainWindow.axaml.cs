@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Resources;
 using Retromind.Views;
 using Retromind.ViewModels;
 
@@ -64,6 +65,7 @@ public partial class MainWindow : Window
         // 1st pass: cancel closing and start the flush/cleanup sequence.
         e.Cancel = true;
         _closeInProgress = true;
+        var previousWindowState = WindowState;
 
         // Hide ASAP to avoid the "window pops back up" effect while the close is cancelled.
         // Minimize is usually less glitchy than IsVisible=false on some compositors.
@@ -78,16 +80,57 @@ public partial class MainWindow : Window
             // Best-effort; never block closing because of UI state issues.
         }
 
+        var saveSucceeded = true;
+
         // Try to get the ViewModel.
         if (DataContext is MainWindowViewModel vm)
         {
             try
             {
-                await vm.FlushAndCleanupAsync();
+                saveSucceeded = await vm.FlushAndCleanupAsync();
             }
-            catch
+            catch (Exception ex)
             {
-                // Best effort: if saving crashes, still continue and close the app.
+                Console.Error.WriteLine($"[Shutdown] Final save failed unexpectedly: {ex}");
+                saveSucceeded = false;
+            }
+
+            if (!saveSucceeded)
+            {
+                // The close was cancelled before the flush. Restore the window so
+                // the user can decide whether to retry later or exit without saving.
+                IsEnabled = true;
+                ShowInTaskbar = true;
+                WindowState = previousWindowState == WindowState.Minimized
+                    ? WindowState.Normal
+                    : previousWindowState;
+                Activate();
+
+                var message = Strings.ResourceManager.GetString(
+                                  "Persistence.ExitWithoutSavingConfirm",
+                                  Strings.Culture)
+                              ?? "Retromind could not save all changes. Exit anyway and risk losing unsaved changes?";
+                var confirm = new ConfirmView { DataContext = message };
+
+                bool exitWithoutSaving;
+                try
+                {
+                    exitWithoutSaving = await confirm.ShowDialog<bool>(this);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"[Shutdown] Could not show save failure confirmation: {ex}");
+                    exitWithoutSaving = false;
+                }
+
+                if (!exitWithoutSaving)
+                {
+                    _closeInProgress = false;
+                    return;
+                }
+
+                // The user explicitly accepted possible data loss.
+                vm.Cleanup();
             }
         }
 

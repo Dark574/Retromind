@@ -112,6 +112,10 @@ public class MediaDataService
             {
                 // ignore
             }
+
+            // The caller must know that persistence failed. In particular, the
+            // library tracker may only clear its dirty state after a successful write.
+            throw;
         }
         finally
         {

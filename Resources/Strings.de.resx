@@ -688,4 +688,14 @@ zelda AND platform:switch</value></data>
     <data name="Common.LibraryGameCountSummary" xml:space="preserve">
         <value>{0} angezeigt | {1} gesamt</value>
     </data>
+    <data name="Persistence.SaveFailedFormat" xml:space="preserve">
+        <value>Retromind konnte seine Daten nicht speichern.
+
+{0}
+
+Ungespeicherte Änderungen bleiben im Arbeitsspeicher erhalten. Bitte prüfe den freien Speicherplatz und die Schreibrechte.</value>
+    </data>
+    <data name="Persistence.ExitWithoutSavingConfirm" xml:space="preserve">
+        <value>Retromind konnte nicht alle Änderungen speichern. Trotzdem beenden und den Verlust ungespeicherter Änderungen riskieren?</value>
+    </data>
 </root>
