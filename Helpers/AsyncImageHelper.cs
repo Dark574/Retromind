@@ -41,6 +41,8 @@ public class AsyncImageHelper : AvaloniaObject
     private static readonly HashSet<string> InvalidatedKeys = new(StringComparer.Ordinal);
     private static readonly LinkedList<string> LruList = new();
     private static readonly object CacheLock = new();
+
+    private readonly record struct CacheAddResult(Bitmap Bitmap, bool IsCached);
     
     // Transparent 1x1 fallback to avoid null Image.Source crashes during measure.
     private static readonly IImage PlaceholderImage = CreatePlaceholderImage();
@@ -198,19 +200,29 @@ public class AsyncImageHelper : AvaloniaObject
 
             if (loadedBitmap == null) return;
 
+            var bitmapToAssign = loadedBitmap;
+            var isCached = false;
             if (!disableCache && cacheKey != null)
-                AddToCache(cacheKey, loadedBitmap);
+            {
+                var cacheResult = AddToCache(cacheKey, loadedBitmap);
+                bitmapToAssign = cacheResult.Bitmap;
+                isCached = cacheResult.IsCached;
+            }
 
             UiThreadHelper.Post(() =>
             {
                 if (image.GetValue(CurrentLoadCtsProperty) != cts)
                 {
-                    if (disableCache)
-                        loadedBitmap.Dispose();
+                    if (!isCached)
+                        bitmapToAssign.Dispose();
                     return;
                 }
 
-                AssignImageSource(image, loadedBitmap, cacheKey, disableCache);
+                AssignImageSource(
+                    image,
+                    bitmapToAssign,
+                    isCached ? cacheKey : null,
+                    disableCache: !isCached);
             });
         }
         catch (OperationCanceledException)
@@ -323,21 +335,32 @@ public class AsyncImageHelper : AvaloniaObject
         }
     }
     
-    private static void AddToCache(string key, Bitmap bitmap)
+    private static CacheAddResult AddToCache(string key, Bitmap bitmap)
     {
         lock (CacheLock)
         {
-            if (Cache.ContainsKey(key)) return;
-
-            if (Cache.Count >= MaxCacheSize)
+            if (Cache.TryGetValue(key, out var existing))
             {
-                TryEvictOne();
+                if (InvalidatedKeys.Contains(key))
+                    return new CacheAddResult(bitmap, IsCached: false);
+
+                LruList.Remove(existing.Node);
+                LruList.AddLast(existing.Node);
+                bitmap.Dispose();
+                return new CacheAddResult(existing.Bitmap, IsCached: true);
+            }
+
+            while (Cache.Count >= MaxCacheSize)
+            {
+                if (!TryEvictOne())
+                    return new CacheAddResult(bitmap, IsCached: false);
             }
 
             InvalidatedKeys.Remove(key);
 
             var node = LruList.AddLast(key);
             Cache[key] = (bitmap, node);
+            return new CacheAddResult(bitmap, IsCached: true);
         }
     }
 
@@ -431,7 +454,7 @@ public class AsyncImageHelper : AvaloniaObject
         }
     }
 
-    private static void TryEvictOne()
+    private static bool TryEvictOne()
     {
         var node = LruList.First;
         while (node != null)
@@ -451,10 +474,14 @@ public class AsyncImageHelper : AvaloniaObject
                 LruList.Remove(node);
                 InvalidatedKeys.Remove(key);
                 entry.Bitmap.Dispose();
+                return true;
             }
 
-            break;
+            LruList.Remove(node);
+            node = next;
         }
+
+        return false;
     }
 
     private static void EnsureDetachHandler(Image image)
