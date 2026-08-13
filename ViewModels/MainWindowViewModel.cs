@@ -455,7 +455,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
             // Wait for the first selected node content to be built so the main view
             // appears quickly and predictably before background warmup starts.
-            await AwaitCurrentContentUpdateAsync().ConfigureAwait(false);
+            await AwaitCurrentContentUpdateAsync();
 
             StartGogUpdateBackgroundLoop();
 

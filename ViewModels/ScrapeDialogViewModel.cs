@@ -158,7 +158,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            var results = await provider.SearchAsync(SearchQuery, token).ConfigureAwait(false);
+            var results = await provider.SearchAsync(SearchQuery, token);
             token.ThrowIfCancellationRequested();
 
             if (results.Count == 0)
@@ -169,7 +169,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
 
             var limited = results.Take(MaxResults).ToList();
             if (provider is IMetadataSearchPreviewEnricher previewEnricher)
-                await previewEnricher.EnrichPreviewsAsync(limited, token).ConfigureAwait(false);
+                await previewEnricher.EnrichPreviewsAsync(limited, token);
 
             token.ThrowIfCancellationRequested();
             await UiThreadHelper.InvokeAsync(() => SearchResults.ReplaceAll(limited));
