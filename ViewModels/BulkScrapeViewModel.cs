@@ -175,15 +175,14 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
 
                     var results = await provider.SearchAsync(item.Title, token);
 
-                    // Heuristic: Exact match (Case Insensitive)
-                    var match = results.FirstOrDefault(r =>
-                        string.Equals(r.Title, item.Title, StringComparison.OrdinalIgnoreCase));
-
-                    // Fallback: Take first if available
-                    if (match == null && results.Count > 0)
-                    {
-                        match = results[0];
-                    }
+                    var decision = ScraperMatchEvaluator.SelectBestMatch(
+                        item.Title,
+                        results,
+                        item.Platform,
+                        item.ReleaseDate);
+                    var match = decision.Status == ScraperMatchStatus.Match
+                        ? decision.BestCandidate
+                        : null;
 
                     if (match != null)
                     {
@@ -191,7 +190,9 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                             await enricher.EnrichAsync(match, token);
 
                         // Buffer log in worker thread (no UI)
-                        AppendLogBuffer($"[MATCH] {item.Title} -> {match.Title}");
+                        AppendLogBuffer(
+                            $"[MATCH] {item.Title} -> {match.Title} " +
+                            $"(confidence: {Math.Min(decision.Score, 1):P0})");
 
                         // Apply scraping result on UI thread (likely touches bound objects)
                         await UiThreadHelper.InvokeAsync(async () =>
@@ -202,8 +203,23 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                     }
                     else
                     {
-                        // Fail Case
-                        AppendLogBuffer($"[MISS] No results for: {item.Title}");
+                        var candidateTitle = decision.BestCandidate?.Title;
+                        if (decision.Status == ScraperMatchStatus.Ambiguous &&
+                            !string.IsNullOrWhiteSpace(candidateTitle))
+                        {
+                            var runnerUpTitle = decision.RunnerUpCandidate?.Title ?? "?";
+                            AppendLogBuffer(
+                                $"[AMBIGUOUS] {item.Title}: {candidateTitle} {Math.Min(decision.Score, 1):P0} | " +
+                                $"{runnerUpTitle} {Math.Min(decision.RunnerUpScore ?? 0, 1):P0}");
+                        }
+                        else if (!string.IsNullOrWhiteSpace(candidateTitle))
+                        {
+                            AppendLogBuffer($"[MISS] No safe match for: {item.Title} (best: {candidateTitle})");
+                        }
+                        else
+                        {
+                            AppendLogBuffer($"[MISS] No results for: {item.Title}");
+                        }
                     }
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
