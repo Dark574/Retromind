@@ -3,6 +3,7 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              xmlns:helpers="clr-namespace:Retromind.Helpers"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
              x:Name="ThemeRoot"
              Background="Black"
@@ -59,7 +60,7 @@
                         </PathGeometry>
                     </Border.Clip>
                     <Grid>
-                        <TextBlock Text="Preview"
+                        <TextBlock Text="{x:Static resources:ThemeStrings.Preview}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
                                    Foreground="#404040"
@@ -114,7 +115,7 @@
                             Orientation="Horizontal"
                             Spacing="6"
                             HorizontalAlignment="Right">
-                    <TextBlock Text="Movie:"
+                    <TextBlock Text="{x:Static resources:ThemeStrings.MovieLabel}"
                                FontSize="14"
                                Foreground="#BDBDBD" />
                     <TextBlock Text="{Binding CurrentGameNumber}"

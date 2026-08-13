@@ -6,6 +6,7 @@
              xmlns:ac="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls"
              xmlns:video="using:Retromind.Helpers.Video"
              xmlns:media="using:Avalonia.Media"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
              x:Name="ThemeRoot"
              Background="Black"
@@ -130,7 +131,7 @@
                                                 ClipToBounds="True">
                                             <Grid>
                                                 <!-- Placeholder text when no video is displayed -->
-                                                <TextBlock Text="Preview"
+                                                <TextBlock Text="{x:Static resources:ThemeStrings.Preview}"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"
                                                            Foreground="#404040"
@@ -297,7 +298,7 @@
                             Spacing="4">
                     <TextBlock FontSize="14"
                                Foreground="#88FFFFFF"
-                               Text="Game:"/>
+                               Text="{x:Static resources:ThemeStrings.GameLabel}"/>
                     <TextBlock FontSize="14"
                                Foreground="#CCFFFFFF"
                                Text="{Binding CurrentGameNumber}"/>

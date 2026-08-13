@@ -249,7 +249,7 @@
                                     VerticalAlignment="Stretch">
                                 <Grid>
                                     <!-- Optional fallback text while no video is playing -->
-                                    <TextBlock Text="No preview video"
+                                    <TextBlock Text="{x:Static resources:ThemeStrings.NoPreviewVideo}"
                                                Foreground="#606060"
                                                FontSize="18"
                                                HorizontalAlignment="Center"

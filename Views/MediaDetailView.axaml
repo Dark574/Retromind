@@ -80,7 +80,7 @@
                               BorderThickness="0"
                               HorizontalAlignment="Left"
                               VerticalAlignment="Top"
-                              ToolTip.Tip="Mark or unmark this item as a favorite."
+                              ToolTip.Tip="{x:Static p:Strings.Media_FavoriteToggleHint}"
                               IsChecked="{Binding IsFavorite}">
                     <!-- Custom template: no border, no background, just the content -->
                     <ToggleButton.Template>

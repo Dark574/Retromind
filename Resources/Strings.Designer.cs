@@ -3206,5 +3206,137 @@ namespace Retromind.Resources {
                 return ResourceManager.GetString("Common.LibraryGameCountSummary", resourceCulture);
             }
         }
+
+        public static string Button_Copy {
+            get {
+                return ResourceManager.GetString("Button.Copy", resourceCulture);
+            }
+        }
+
+        public static string Button_Change {
+            get {
+                return ResourceManager.GetString("Button.Change", resourceCulture);
+            }
+        }
+
+        public static string Button_Generate {
+            get {
+                return ResourceManager.GetString("Button.Generate", resourceCulture);
+            }
+        }
+
+        public static string Button_OpenFolder {
+            get {
+                return ResourceManager.GetString("Button.OpenFolder", resourceCulture);
+            }
+        }
+
+        public static string Button_Clear {
+            get {
+                return ResourceManager.GetString("Button.Clear", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_LaunchFile {
+            get {
+                return ResourceManager.GetString("EditMedia.LaunchFile", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_NoLaunchFileSelected {
+            get {
+                return ResourceManager.GetString("EditMedia.NoLaunchFileSelected", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_PrefixHint {
+            get {
+                return ResourceManager.GetString("EditMedia.PrefixHint", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_PrefixPathLabel {
+            get {
+                return ResourceManager.GetString("EditMedia.PrefixPathLabel", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_WinetricksVerbs {
+            get {
+                return ResourceManager.GetString("EditMedia.WinetricksVerbs", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_RunWinetricks {
+            get {
+                return ResourceManager.GetString("EditMedia.RunWinetricks", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_WinetricksHint {
+            get {
+                return ResourceManager.GetString("EditMedia.WinetricksHint", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_EnvironmentTitle {
+            get {
+                return ResourceManager.GetString("EditMedia.EnvironmentTitle", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_EnvironmentHint {
+            get {
+                return ResourceManager.GetString("EditMedia.EnvironmentHint", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_EnvironmentKeyWatermark {
+            get {
+                return ResourceManager.GetString("EditMedia.EnvironmentKeyWatermark", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_WrapperChain {
+            get {
+                return ResourceManager.GetString("EditMedia.WrapperChain", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_CopyPreviewCommand {
+            get {
+                return ResourceManager.GetString("EditMedia.CopyPreviewCommand", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_Manuals {
+            get {
+                return ResourceManager.GetString("EditMedia.Manuals", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_SelectAssetToDelete {
+            get {
+                return ResourceManager.GetString("EditMedia.SelectAssetToDelete", resourceCulture);
+            }
+        }
+
+        public static string EditMedia_DeleteAssetLabel {
+            get {
+                return ResourceManager.GetString("EditMedia.DeleteAssetLabel", resourceCulture);
+            }
+        }
+
+        public static string Media_FavoriteToggleHint {
+            get {
+                return ResourceManager.GetString("Media.FavoriteToggleHint", resourceCulture);
+            }
+        }
+
+        public static string Main_BigPictureMode {
+            get {
+                return ResourceManager.GetString("Main.BigPictureMode", resourceCulture);
+            }
+        }
     }
 }

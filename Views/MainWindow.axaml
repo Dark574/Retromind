@@ -148,7 +148,7 @@
                                    <Button Grid.Column="3"
                                            Command="{Binding EnterBigModeCommand}"
                                            Background="Transparent" BorderThickness="0"
-                                           ToolTip.Tip="Big Picture Mode"
+                                           ToolTip.Tip="{x:Static p:Strings.Main_BigPictureMode}"
                                            Cursor="Hand" Margin="0,2,5,0"
                                            Foreground="{Binding TextColor}">
                                        <PathIcon Data="{StaticResource IconTv}"

@@ -35,11 +35,11 @@
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
             <Button Command="{Binding OkCommand}" 
                     CommandParameter="{Binding $parent[Window]}" 
-                    Content="OK"
+                    Content="{x:Static p:Strings.Button_Ok}"
                     IsDefault="True" />
             <Button Command="{Binding CancelCommand}"
                     CommandParameter="{Binding $parent[Window]}"
-                    Content="Cancel"
+                    Content="{x:Static p:Strings.Button_Cancel}"
                     IsCancel="True" />
         </StackPanel>
     </StackPanel>

@@ -72,7 +72,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         get
         {
             var path = GetEditedPrimaryLaunchPath();
-            return string.IsNullOrWhiteSpace(path) ? "(no launch file set)" : path;
+            return string.IsNullOrWhiteSpace(path) ? Strings.EditMedia_NoLaunchFileSelected : path;
         }
     }
 

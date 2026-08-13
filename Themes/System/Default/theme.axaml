@@ -80,7 +80,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center">
                             <Grid>
-                                <TextBlock Text="No system video"
+                                <TextBlock Text="{x:Static resources:ThemeStrings.NoSystemVideo}"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
                                            Foreground="#505050"

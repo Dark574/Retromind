@@ -3,6 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:p="clr-namespace:Retromind.Resources"
         mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="500"
         x:Class="Retromind.Views.ProcessLogView"
         x:DataType="vm:ProcessLogViewModel"
@@ -27,14 +28,14 @@
                        Opacity="0.7" />
 
             <Button Grid.Column="1"
-                    Content="Copy"
+                    Content="{x:Static p:Strings.Button_Copy}"
                     Click="CopyLog_Click"
                     Width="90"
                     Margin="0,0,8,0"
                     HorizontalAlignment="Right" />
 
             <Button Grid.Column="2"
-                    Content="Cancel"
+                    Content="{x:Static p:Strings.Button_Cancel}"
                     Command="{Binding CancelCommand}"
                     Width="90"
                     Margin="0,0,8,0"
@@ -43,7 +44,7 @@
                     IsEnabled="{Binding CanCancel}" />
 
             <Button Grid.Column="3"
-                    Content="Close"
+                    Content="{x:Static p:Strings.Button_Close}"
                     Command="{Binding CloseCommand}"
                     CommandParameter="{Binding $parent[Window]}"
                     Width="90"

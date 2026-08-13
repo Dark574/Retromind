@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
              Background="#111319"
 
@@ -92,7 +93,7 @@
                         Background="#181818"
                         CornerRadius="8">
                     <Grid>
-                        <TextBlock Text="System preview video"
+                        <TextBlock Text="{x:Static resources:ThemeStrings.SystemPreviewVideo}"
                                    Foreground="#505050"
                                    FontSize="18"
                                    HorizontalAlignment="Center"

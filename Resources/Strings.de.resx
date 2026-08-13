@@ -61,6 +61,11 @@
     <data name="Button_Update" xml:space="preserve"><value>Update</value></data>
     <data name="Button_ReinstallOrSwitchVersion" xml:space="preserve"><value>Neu installieren / Version wechseln</value></data>
     <data name="Button_CheckGogUpdates" xml:space="preserve"><value>GOG-Updates prüfen</value></data>
+    <data name="Button.Copy" xml:space="preserve"><value>Kopieren</value></data>
+    <data name="Button.Change" xml:space="preserve"><value>Ändern...</value></data>
+    <data name="Button.Generate" xml:space="preserve"><value>Generieren</value></data>
+    <data name="Button.OpenFolder" xml:space="preserve"><value>Ordner öffnen</value></data>
+    <data name="Button.Clear" xml:space="preserve"><value>Leeren</value></data>
 
 
     <!-- COMMON -->
@@ -196,6 +201,21 @@
     <data name="EditMedia.InheritedWrappersSourceGlobal" xml:space="preserve"><value>Globale Defaults</value></data>
     <data name="EditMedia.InheritedWrappersSourceGlobalViaEmulatorFormat" xml:space="preserve"><value>Globale Defaults (über {0})</value></data>
     <data name="EditMedia.EnvInheritedHint" xml:space="preserve"><value>Geerbte Werte sind vorbefüllt; Quelle zeigt die Herkunft.</value></data>
+    <data name="EditMedia.LaunchFile" xml:space="preserve"><value>Startdatei</value></data>
+    <data name="EditMedia.NoLaunchFileSelected" xml:space="preserve"><value>Keine Startdatei ausgewählt</value></data>
+    <data name="EditMedia.PrefixHint" xml:space="preserve"><value>Optional. Wenn gesetzt, wird WINEPREFIX beim Start verwendet. Bei Nativ+Wrapper wird das Prefix nur angewendet, wenn PrefixPath hier gesetzt ist.</value></data>
+    <data name="EditMedia.PrefixPathLabel" xml:space="preserve"><value>PrefixPath (relativ zu Library/)</value></data>
+    <data name="EditMedia.WinetricksVerbs" xml:space="preserve"><value>Winetricks-Verben</value></data>
+    <data name="EditMedia.RunWinetricks" xml:space="preserve"><value>Winetricks ausführen</value></data>
+    <data name="EditMedia.WinetricksHint" xml:space="preserve"><value>Führt Winetricks im Prefix dieses Eintrags aus.</value></data>
+    <data name="EditMedia.EnvironmentTitle" xml:space="preserve"><value>Umgebungsvariablen (pro Eintrag)</value></data>
+    <data name="EditMedia.EnvironmentHint" xml:space="preserve"><value>Optionale Schlüssel/Wert-Paare, die auf den gestarteten Prozess angewendet werden.</value></data>
+    <data name="EditMedia.EnvironmentKeyWatermark" xml:space="preserve"><value>VAR_NAME (z. B. PROTONPATH)</value></data>
+    <data name="EditMedia.WrapperChain" xml:space="preserve"><value>Wrapper-Kette (Linux)</value></data>
+    <data name="EditMedia.CopyPreviewCommand" xml:space="preserve"><value>Vorschau-Befehl kopieren</value></data>
+    <data name="EditMedia.Manuals" xml:space="preserve"><value>Handbücher</value></data>
+    <data name="EditMedia.SelectAssetToDelete" xml:space="preserve"><value>Zum Löschen ein Asset auswählen</value></data>
+    <data name="EditMedia.DeleteAssetLabel" xml:space="preserve"><value>Löschen:</value></data>
 
     <!-- FILETYPE -->
     <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>
@@ -460,6 +480,7 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Media.Settings" xml:space="preserve"><value>Einstellungen / Umbenennen...</value></data>
     <data name="Media.StandardEmulator" xml:space="preserve"><value>Standardemulator (für diesen Ordner):</value></data>
     <data name="Media.RemoveLaunchFiles" xml:space="preserve"><value>Alle Startdateien entfernen</value></data>
+    <data name="Media.FavoriteToggleHint" xml:space="preserve"><value>Diesen Eintrag als Favorit markieren oder die Markierung entfernen.</value></data>
     <data name="Media.WatermarkOverrideWatchProcess" xml:space="preserve"><value>z. B. hl2_linux, retroarch, stardewvalley</value></data>
 
     <!-- METADATA -->
@@ -666,6 +687,24 @@ zelda AND platform:switch</value></data>
     <data name="Theme_Error_FileNotFoundFormat" xml:space="preserve"><value>Theme-Datei nicht gefunden: {0}</value></data>
     <data name="Theme_Error_LoadedNullOrInvalid" xml:space="preserve"><value>Das geladene Theme ist ungültig oder leer.</value></data>
     <data name="Theme_Error_LoadFailedFormat" xml:space="preserve"><value>Fehler beim Laden des Themes: {0}</value></data>
+    <data name="Theme.NoPreviewVideo" xml:space="preserve"><value>Kein Vorschauvideo</value></data>
+    <data name="Theme.GameLabel" xml:space="preserve"><value>Spiel:</value></data>
+    <data name="Theme.MovieLabel" xml:space="preserve"><value>Film:</value></data>
+    <data name="Theme.NoSystemVideo" xml:space="preserve"><value>Kein Systemvideo</value></data>
+    <data name="Theme.SystemPreviewVideo" xml:space="preserve"><value>System-Vorschauvideo</value></data>
+    <data name="Theme.Archive.Index" xml:space="preserve"><value>INDEX</value></data>
+    <data name="Theme.Archive.Item" xml:space="preserve"><value>EINTRAG</value></data>
+    <data name="Theme.Archive.Of" xml:space="preserve"><value>VON</value></data>
+    <data name="Theme.Archive.Year" xml:space="preserve"><value>JAHR</value></data>
+    <data name="Theme.Archive.By" xml:space="preserve"><value>VON</value></data>
+    <data name="Theme.Archive.Details" xml:space="preserve"><value>DETAILS</value></data>
+    <data name="Theme.Archive.Genre" xml:space="preserve"><value>GENRE</value></data>
+    <data name="Theme.Archive.Players" xml:space="preserve"><value>SPIELER</value></data>
+    <data name="Theme.Archive.Rating" xml:space="preserve"><value>BEWERTUNG</value></data>
+    <data name="Theme.Archive.Status" xml:space="preserve"><value>STATUS</value></data>
+    <data name="Theme.Archive.PlayCount" xml:space="preserve"><value>SPIELSTARTS</value></data>
+    <data name="Theme.Archive.LastPlayed" xml:space="preserve"><value>ZULETZT GESPIELT</value></data>
+    <data name="Theme.Archive.TotalPlayTime" xml:space="preserve"><value>GESAMTSPIELZEIT</value></data>
 
     <!-- TIME -->
     <data name="TimePlayed.Never" xml:space="preserve"><value>Niemals gespielt</value></data>
@@ -685,6 +724,7 @@ zelda AND platform:switch</value></data>
     <data name="Media.PlayTime" xml:space="preserve">
         <value>Spieldauer:</value>
     </data>
+    <data name="Main.BigPictureMode" xml:space="preserve"><value>Big-Picture-Modus</value></data>
     <data name="Common.LibraryGameCountSummary" xml:space="preserve">
         <value>{0} angezeigt | {1} gesamt</value>
     </data>

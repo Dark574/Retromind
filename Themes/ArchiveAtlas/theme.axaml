@@ -3,6 +3,7 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
              Background="#F3EEE4"
 
@@ -159,7 +160,7 @@
                 <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="10">
                     <TextBlock Grid.Row="0"
                                Classes="Mono"
-                               Text="INDEX" />
+                               Text="{x:Static resources:ThemeStrings.ArchiveIndex}" />
 
                     <TextBlock Grid.Row="1"
                                Text="{Binding CategoryTitle}"
@@ -222,9 +223,12 @@
                     <TextBlock Grid.Row="4"
                                Classes="Mono"
                                Foreground="{DynamicResource MutedInkBrush}">
-                        <Run Text="ITEM " />
+                        <Run Text="{x:Static resources:ThemeStrings.ArchiveItem}" />
+                        <Run Text=" " />
                         <Run Text="{Binding CurrentGameNumber}" />
-                        <Run Text=" OF " />
+                        <Run Text=" " />
+                        <Run Text="{x:Static resources:ThemeStrings.ArchiveOf}" />
+                        <Run Text=" " />
                         <Run Text="{Binding TotalGames}" />
                     </TextBlock>
                 </Grid>
@@ -279,7 +283,7 @@
                             ClipToBounds="True"
                             Margin="0,12,0,0">
                         <Grid>
-                            <TextBlock Text="No preview video"
+                            <TextBlock Text="{x:Static resources:ThemeStrings.NoPreviewVideo}"
                                        Classes="Muted"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center" />
@@ -309,8 +313,11 @@
                         <Border Background="{DynamicResource AccentBrush}" CornerRadius="6" Padding="8,4">
                             <TextBlock Foreground="#F7F2E8"
                                        FontSize="12"
-                                       FontWeight="SemiBold"
-                                       Text="{Binding SelectedYear, StringFormat=YEAR {0}}" />
+                                       FontWeight="SemiBold">
+                                <Run Text="{x:Static resources:ThemeStrings.ArchiveYear}" />
+                                <Run Text=" " />
+                                <Run Text="{Binding SelectedYear}" />
+                            </TextBlock>
                         </Border>
                         <Border Background="#1F1A17"
                                 CornerRadius="6"
@@ -318,8 +325,11 @@
                                 IsVisible="{Binding SelectedDeveloper, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
                             <TextBlock Foreground="#E8DFC9"
                                        FontSize="12"
-                                       FontWeight="SemiBold"
-                                       Text="{Binding SelectedDeveloper, StringFormat=BY {0}}" />
+                                       FontWeight="SemiBold">
+                                <Run Text="{x:Static resources:ThemeStrings.ArchiveBy}" />
+                                <Run Text=" " />
+                                <Run Text="{Binding SelectedDeveloper}" />
+                            </TextBlock>
                         </Border>
                     </StackPanel>
                 </Grid>
@@ -334,7 +344,7 @@
                     Padding="18,20"
                     Margin="10,0,0,0">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="DETAILS" Classes="Mono" />
+                    <TextBlock Text="{x:Static resources:ThemeStrings.ArchiveDetails}" Classes="Mono" />
 
                     <StackPanel IsVisible="{Binding IsGameListActive}" Spacing="8">
                         <TextBlock Classes="Title"
@@ -349,16 +359,16 @@
                                    MaxHeight="180" />
 
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="6">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="Mono" Text="GENRE" />
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveGenre}" />
                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedItem.Genre}" />
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="Mono" Text="PLAYERS" />
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchivePlayers}" />
                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedItem.MaxPlayers}" />
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="Mono" Text="RATING" />
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveRating}" />
                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedItem.Rating}" />
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="Mono" Text="STATUS" />
+                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveStatus}" />
                             <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedItem.Status}" />
                         </Grid>
                     </StackPanel>
@@ -377,15 +387,15 @@
                     <Border Height="1" Background="#D8CBB9" Margin="0,6" IsVisible="{Binding IsGameListActive}" />
 
                     <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6" IsVisible="{Binding IsGameListActive}">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="Mono" Text="PLAY COUNT" />
-                        <TextBlock Grid.Row="0" Grid.Column="1" Classes="Mono" Text="LAST PLAYED" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchivePlayCount}" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveLastPlayed}" />
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding SelectedItem.PlayCount}" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedItem.LastPlayed}" />
                     </Grid>
 
                     <StackPanel Spacing="4" IsVisible="{Binding IsGameListActive}">
-                        <TextBlock Classes="Mono" Text="TOTAL PLAY TIME" />
+                        <TextBlock Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveTotalPlayTime}" />
                         <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}" />
                     </StackPanel>
                 </StackPanel>
