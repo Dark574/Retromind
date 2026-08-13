@@ -116,7 +116,7 @@ public static partial class NodeAssetFolderHelper
             if (string.IsNullOrWhiteSpace(name))
                 continue;
 
-            if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            if (!name.StartsWith(prefix, StringComparison.Ordinal))
                 continue;
 
             var remainder = name.Substring(prefix.Length);

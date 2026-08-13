@@ -84,7 +84,7 @@ public static partial class NodeAssetFolderHelper
                 continue;
 
             var newTypeFolder = Path.Combine(newFolder, type.ToString());
-            if (string.Equals(oldTypeFolder, newTypeFolder, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(oldTypeFolder, newTypeFolder, StringComparison.Ordinal))
                 continue;
 
             var reservation = GetTargetFolderReservation(newTypeFolder, reservationsByFolder);
@@ -111,11 +111,11 @@ public static partial class NodeAssetFolderHelper
                 var targetPath = Path.Combine(newTypeFolder, targetFileName);
                 var sourceRelativePath = NormalizeRelativePath(Path.GetRelativePath(AppPaths.DataRoot, file));
 
-                if (!string.Equals(targetFileName, fileName, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(targetFileName, fileName, StringComparison.Ordinal))
                 {
                     renamedRelativePath = NormalizeRelativePath(Path.GetRelativePath(AppPaths.DataRoot, targetPath));
                     if (plannedRenamedFiles.TryGetValue(sourceRelativePath, out var existing) &&
-                        !string.Equals(existing, renamedRelativePath, StringComparison.OrdinalIgnoreCase))
+                        !string.Equals(existing, renamedRelativePath, StringComparison.Ordinal))
                     {
                         Debug.WriteLine(
                             $"[NodeAssetFolderHelper] Planned rename collision for '{sourceRelativePath}': '{existing}' -> '{renamedRelativePath}'. Overwriting mapping.");
@@ -185,7 +185,7 @@ public static partial class NodeAssetFolderHelper
             foreach (var kvp in plannedRenamedFiles)
             {
                 if (renamedFiles.TryGetValue(kvp.Key, out var existing) &&
-                    !string.Equals(existing, kvp.Value, StringComparison.OrdinalIgnoreCase))
+                    !string.Equals(existing, kvp.Value, StringComparison.Ordinal))
                 {
                     Debug.WriteLine(
                         $"[NodeAssetFolderHelper] Renamed path collision for '{kvp.Key}': '{existing}' -> '{kvp.Value}'. Overwriting mapping.");

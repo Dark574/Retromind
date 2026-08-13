@@ -1183,7 +1183,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         var newFolder = PathHelper.ResolveNodeFolder(newSegments, AppPaths.LibraryRoot);
 
         if (!Directory.Exists(oldFolder) ||
-            string.Equals(oldFolder, newFolder, StringComparison.OrdinalIgnoreCase))
+            string.Equals(oldFolder, newFolder, StringComparison.Ordinal))
         {
             return (true, false);
         }
@@ -1200,7 +1200,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
             if (hasAssets)
             {
-                var renamedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var renamedFiles = new Dictionary<string, string>(StringComparer.Ordinal);
                 if (!NodeAssetFolderHelper.MoveAssetFoldersRecursive(_node, oldSegments, newSegments, renamedFiles))
                     return (false, false);
 

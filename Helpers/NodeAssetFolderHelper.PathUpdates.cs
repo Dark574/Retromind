@@ -70,7 +70,7 @@ public static partial class NodeAssetFolderHelper
             var updated = TryMapRenamedPath(activePath, renamedFiles, out var mapped)
                 ? mapped
                 : ReplaceRelativePrefix(activePath, oldPrefix, newPrefix);
-            if (!string.Equals(updated, activePath, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(updated, activePath, StringComparison.Ordinal))
                 node.SetActiveAsset(kvp.Key, updated);
         }
     }
@@ -120,11 +120,11 @@ public static partial class NodeAssetFolderHelper
         var normalizedOld = NormalizeRelativePath(oldPrefix);
         var normalizedNew = NormalizeRelativePath(newPrefix);
 
-        if (string.Equals(normalizedPath, normalizedOld, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(normalizedPath, normalizedOld, StringComparison.Ordinal))
             return normalizedNew;
 
         var oldWithSlash = normalizedOld.EndsWith("/", StringComparison.Ordinal) ? normalizedOld : normalizedOld + "/";
-        if (normalizedPath.StartsWith(oldWithSlash, StringComparison.OrdinalIgnoreCase))
+        if (normalizedPath.StartsWith(oldWithSlash, StringComparison.Ordinal))
         {
             var normalizedNewWithSlash = normalizedNew.EndsWith("/", StringComparison.Ordinal)
                 ? normalizedNew

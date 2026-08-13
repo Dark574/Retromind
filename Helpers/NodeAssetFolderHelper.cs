@@ -20,9 +20,9 @@ public static partial class NodeAssetFolderHelper
 
     private sealed class TargetFolderReservation
     {
-        public HashSet<string> ReservedNames { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> ReservedNames { get; } = new HashSet<string>(StringComparer.Ordinal);
         public Dictionary<string, int> NextNumberByPrefix { get; } =
-            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            new Dictionary<string, int>(StringComparer.Ordinal);
     }
 
     private static readonly AssetType[] AssetFolderTypes = Enum.GetValues(typeof(AssetType))
@@ -73,8 +73,8 @@ public static partial class NodeAssetFolderHelper
     {
         var relativeSegments = new List<string>();
         var plannedMoves = new List<PlannedFileMove>();
-        var plannedRenamedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var reservationsByFolder = new Dictionary<string, TargetFolderReservation>(StringComparer.OrdinalIgnoreCase);
+        var plannedRenamedFiles = new Dictionary<string, string>(StringComparer.Ordinal);
+        var reservationsByFolder = new Dictionary<string, TargetFolderReservation>(StringComparer.Ordinal);
         var visitedNodes = new HashSet<MediaNode>();
 
         if (!TryPlanAssetFolderMovesRecursive(

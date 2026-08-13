@@ -1555,7 +1555,7 @@ public partial class MainWindowViewModel
             var oldFolder = PathHelper.ResolveNodeFolder(oldPathSegments, AppPaths.LibraryRoot);
             var newFolder = PathHelper.ResolveNodeFolder(newPathSegments, AppPaths.LibraryRoot);
 
-            if (!string.Equals(oldFolder, newFolder, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(oldFolder, newFolder, StringComparison.Ordinal))
             {
                 try
                 {
@@ -1571,7 +1571,7 @@ public partial class MainWindowViewModel
 
                     if (hasAssets)
                     {
-                        var renamedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        var renamedFiles = new Dictionary<string, string>(StringComparer.Ordinal);
                         if (!NodeAssetFolderHelper.MoveAssetFoldersRecursive(sourceNode, oldPathSegments, newPathSegments, renamedFiles))
                             return false;
 
