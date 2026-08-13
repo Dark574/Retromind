@@ -89,6 +89,15 @@ public class MetadataService
         }
     }
 
+    /// <summary>
+    /// Discards providers created from an earlier settings snapshot. The next
+    /// request recreates them from the currently committed scraper configuration.
+    /// </summary>
+    public void ClearProviderCache()
+    {
+        _providerCache.Clear();
+    }
+
     private IMetadataProvider? CreateProvider(ScraperConfig config)
     {
         // Modern switch expression for cleaner factory logic.

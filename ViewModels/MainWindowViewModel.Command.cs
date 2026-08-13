@@ -1194,7 +1194,6 @@ public partial class MainWindowViewModel
     {
         if (CurrentWindow is not { } owner) return;
 
-        var ignoreLeadingArticlesBefore = _currentSettings.IgnoreLeadingArticlesInSort;
         var settingsVm = new SettingsViewModel(_currentSettings, _settingsService, RootItems);
         settingsVm.RequestRunnerVersionRemovalConfirmation += runner =>
         {
@@ -1216,6 +1215,7 @@ public partial class MainWindowViewModel
         };
 
         settingsVm.RequestClose += () => { dialog.Close(); };
+        settingsVm.RequestSortPreviewRefresh += UpdateContent;
         dialog.Closed += (_, _) => settingsVm.Dispose();
     
         // Allow the settings dialog to request a one-time portable migration
@@ -1235,15 +1235,20 @@ public partial class MainWindowViewModel
         
         await dialog.ShowDialog(owner);
 
-        var ignoreLeadingArticlesChanged =
-            ignoreLeadingArticlesBefore != _currentSettings.IgnoreLeadingArticlesInSort;
-
-        if (ignoreLeadingArticlesChanged)
-            await UpdateContentAsync();
-
         if (settingsVm.LibraryModified)
             _libraryTracker.MarkDirty();
-        await SaveData();
+
+        if (settingsVm.IsSaved)
+        {
+            _metadataService.ClearProviderCache();
+            await SaveData();
+        }
+        else if (settingsVm.LibraryModified)
+        {
+            // Confirmed runner removal can alter item-level runner overrides even
+            // when the remaining dialog edits are discarded.
+            await SaveData();
+        }
     }
 
     /// <summary>

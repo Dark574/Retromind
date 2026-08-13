@@ -275,23 +275,42 @@ public partial class SettingsViewModel
             }
         }
         
-        // Persist changes back to the main settings object
-        _appSettings.Emulators.Clear();
-        _appSettings.Emulators.AddRange(Emulators);
+        // Complete the working model first, then copy only the settings owned by
+        // this dialog into the shared runtime settings object.
+        _appSettings.Emulators = Emulators.ToList();
+        _appSettings.Scrapers = Scrapers.ToList();
+        _appSettings.RunnerVersions = RunnerVersions.Select(r => r.ToModel()).ToList();
+        _appSettings.SteamLibraryPaths = SteamLibraryPaths.ToList();
+        _appSettings.HeroicEpicConfigPaths = HeroicEpicConfigPaths.ToList();
 
-        _appSettings.Scrapers.Clear();
-        _appSettings.Scrapers.AddRange(Scrapers);
-
-        _appSettings.RunnerVersions.Clear();
-        _appSettings.RunnerVersions.AddRange(RunnerVersions.Select(r => r.ToModel()));
-
-        _appSettings.SteamLibraryPaths.Clear();
-        _appSettings.SteamLibraryPaths.AddRange(SteamLibraryPaths);
-
-        _appSettings.HeroicEpicConfigPaths.Clear();
-        _appSettings.HeroicEpicConfigPaths.AddRange(HeroicEpicConfigPaths);
-        
+        ApplyWorkingCopyToTarget();
+        IsSaved = true;
         RequestClose?.Invoke();
+    }
+
+    private void Cancel()
+    {
+        RequestClose?.Invoke();
+    }
+
+    private void ApplyWorkingCopyToTarget()
+    {
+        // Clone again so the closed dialog cannot retain mutable objects that are
+        // now part of the application's active settings.
+        var committed = CreateWorkingCopy(_appSettings);
+
+        _targetSettings.PreferPortableLaunchPaths = committed.PreferPortableLaunchPaths;
+        _targetSettings.UsePortableHomeInAppImage = committed.UsePortableHomeInAppImage;
+        _targetSettings.ForcePortableHomeInAppImage = committed.ForcePortableHomeInAppImage;
+        _targetSettings.EnableSelectionMusicPreview = committed.EnableSelectionMusicPreview;
+        _targetSettings.IgnoreLeadingArticlesInSort = committed.IgnoreLeadingArticlesInSort;
+        _targetSettings.DefaultNativeWrappers = committed.DefaultNativeWrappers;
+        _targetSettings.Emulators = committed.Emulators;
+        _targetSettings.Scrapers = committed.Scrapers;
+        _targetSettings.RunnerVersions = committed.RunnerVersions;
+        _targetSettings.SteamLibraryPaths = committed.SteamLibraryPaths;
+        _targetSettings.HeroicEpicConfigPaths = committed.HeroicEpicConfigPaths;
+        _targetSettings.ScraperImport = committed.ScraperImport;
     }
 
     private void EnsureRunnerVersionIds()
@@ -507,6 +526,12 @@ public partial class SettingsViewModel
             return;
 
         _disposed = true;
+
+        if (!IsSaved && IgnoreLeadingArticlesInSort != _originalIgnoreLeadingArticlesInSort)
+        {
+            MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(_originalIgnoreLeadingArticlesInSort);
+            RequestSortPreviewRefresh?.Invoke();
+        }
 
         if (SelectedScraper != null)
             SelectedScraper.PropertyChanged -= OnScraperPropertyChanged;

@@ -681,6 +681,8 @@
 
         <!-- Footer Buttons -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+            <Button Content="{x:Static p:Strings.Button_Cancel}" Command="{Binding CancelCommand}"
+                    IsCancel="True" />
             <Button Content="{x:Static p:Strings.Button_Save}" Command="{Binding SaveCommand}" Classes="accent"
                     IsDefault="True" />
         </StackPanel>

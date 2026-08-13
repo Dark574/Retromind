@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -27,9 +28,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private const int GeProtonMaxPages = 6;
     private const int GeProtonMaxItems = 300;
 
+    private readonly AppSettings _targetSettings;
     private readonly AppSettings _appSettings;
     private readonly SettingsService _settingsService;
     private readonly ObservableCollection<MediaNode> _rootNodes;
+    private readonly bool _originalIgnoreLeadingArticlesInSort;
     private readonly Dictionary<string, int> _runnerUsageById = new(StringComparer.Ordinal);
     private bool _hasAutoLoadedGeReleases;
     private bool _disposed;
@@ -201,6 +204,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             _appSettings.IgnoreLeadingArticlesInSort = value;
             MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(value);
             OnPropertyChanged();
+            RequestSortPreviewRefresh?.Invoke();
         }
     }
 
@@ -588,6 +592,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IRelayCommand AddHeroicEpicPathCommand { get; }
     public IRelayCommand RemoveHeroicEpicPathCommand { get; }
     public IRelayCommand SaveCommand { get; }
+    public IRelayCommand CancelCommand { get; }
     public IAsyncRelayCommand BrowsePathCommand { get; }
     public IAsyncRelayCommand BrowseSteamLibraryPathCommand { get; }
     public IAsyncRelayCommand BrowseHeroicEpicPathCommand { get; }
@@ -612,6 +617,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IAsyncRelayCommand DownloadSelectedGeReleaseCommand { get; }
 
     public event Action? RequestClose;
+    public event Action? RequestSortPreviewRefresh;
     
     /// <summary>
     /// Raised when the user explicitly requests to convert existing launch
@@ -633,6 +639,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public event Func<RunnerVersionRow, Task<bool>>? RequestRunnerVersionRemovalConfirmation;
 
     public bool LibraryModified { get; private set; }
+    public bool IsSaved { get; private set; }
 
     // Optional dependency injection for file dialogs (better for testing)
     public IStorageProvider? StorageProvider { get; set; }
@@ -642,9 +649,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         SettingsService settingsService,
         ObservableCollection<MediaNode>? rootNodes = null)
     {
-        _appSettings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _targetSettings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _appSettings = CreateWorkingCopy(_targetSettings);
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
+        _originalIgnoreLeadingArticlesInSort = _targetSettings.IgnoreLeadingArticlesInSort;
 
         MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(_appSettings.IgnoreLeadingArticlesInSort);
 
@@ -697,6 +706,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         RemoveHeroicEpicPathCommand = new RelayCommand(RemoveHeroicEpicPath, () => SelectedHeroicEpicPath != null);
         
         SaveCommand = new RelayCommand(Save, CanSave);
+        CancelCommand = new RelayCommand(Cancel);
         BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync, () => SelectedEmulator != null);
         BrowseSteamLibraryPathCommand = new AsyncRelayCommand(BrowseSteamLibraryPathAsync);
         BrowseHeroicEpicPathCommand = new AsyncRelayCommand(BrowseHeroicEpicPathAsync);
@@ -873,6 +883,28 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         SelectedEmulator.DefaultRunnerVersionId = string.IsNullOrWhiteSpace(value)
             ? null
             : value;
+    }
+
+    private static AppSettings CreateWorkingCopy(AppSettings source)
+    {
+        var json = JsonSerializer.Serialize(source);
+        var clone = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+
+        // Plain-text credentials are intentionally excluded from JSON. Copy them
+        // explicitly so the isolated editor still shows and can edit existing values.
+        foreach (var clonedScraper in clone.Scrapers)
+        {
+            var sourceScraper = source.Scrapers.FirstOrDefault(scraper =>
+                string.Equals(scraper.Id, clonedScraper.Id, StringComparison.Ordinal));
+            if (sourceScraper == null)
+                continue;
+
+            clonedScraper.ApiKey = sourceScraper.ApiKey;
+            clonedScraper.Password = sourceScraper.Password;
+            clonedScraper.ClientSecret = sourceScraper.ClientSecret;
+        }
+
+        return clone;
     }
 
     partial void OnIsGeReleaseBusyChanged(bool value)

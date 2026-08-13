@@ -129,7 +129,7 @@ public partial class SettingsViewModel
             RebuildSelectedEmulatorRunnerVersionOptions();
             RebuildRunnerReplacementOptions();
 
-            await PersistRunnerRemovalAsync(removed);
+            await PersistRunnerRemovalAsync(removed, replacementId);
             RunnerVersionStatusText = removed.SourceType == RunnerVersionSourceType.ManagedDownload
                 ? T("Settings_RunnerVersionRemoveManagedSuccess", "Runner files and configuration removed.")
                 : T("Settings_RunnerVersionRemoveExternalSuccess", "Runner configuration removed. External files were kept.");
@@ -293,7 +293,7 @@ public partial class SettingsViewModel
             throw new InvalidOperationException("The downloaded runner could not be registered.");
 
         var runnerConfig = runner.ToModel();
-        UpsertRunnerVersion(_appSettings.RunnerVersions, runnerConfig);
+        UpsertRunnerVersion(_targetSettings.RunnerVersions, runnerConfig);
 
         // Save a disk snapshot so unsaved changes elsewhere in the settings
         // dialog do not become persistent merely because a runner was downloaded.
@@ -302,15 +302,29 @@ public partial class SettingsViewModel
         await _settingsService.SaveAsync(persistedSettings).ConfigureAwait(false);
     }
 
-    private async Task PersistRunnerRemovalAsync(RunnerVersionRow removed)
+    private async Task PersistRunnerRemovalAsync(RunnerVersionRow removed, string? replacementId)
     {
-        RemoveRunnerVersion(_appSettings.RunnerVersions, removed);
+        RemoveRunnerVersion(_targetSettings.RunnerVersions, removed);
+        RemapEmulatorRunnerDefaults(_targetSettings.Emulators, removed.Id, replacementId);
 
         // Save a disk snapshot so this completed removal is retained without
         // persisting unrelated edits that are still open in the dialog.
         var persistedSettings = await _settingsService.LoadAsync().ConfigureAwait(false);
         RemoveRunnerVersion(persistedSettings.RunnerVersions, removed);
+        RemapEmulatorRunnerDefaults(persistedSettings.Emulators, removed.Id, replacementId);
         await _settingsService.SaveAsync(persistedSettings).ConfigureAwait(false);
+    }
+
+    private static void RemapEmulatorRunnerDefaults(
+        IEnumerable<EmulatorConfig> emulators,
+        string removedId,
+        string? replacementId)
+    {
+        foreach (var emulator in emulators)
+        {
+            if (string.Equals(emulator.DefaultRunnerVersionId, removedId, StringComparison.Ordinal))
+                emulator.DefaultRunnerVersionId = replacementId;
+        }
     }
 
     private static void UpsertRunnerVersion(List<RunnerVersionConfig> runners, RunnerVersionConfig runner)
