@@ -39,6 +39,13 @@ public class AppSettings
     public List<string> SavedSearchTerms { get; set; } = new();
 
     /// <summary>
+    /// Optional favorites-only state associated with a saved search term.
+    /// Kept separately so existing string-only saved searches remain compatible.
+    /// </summary>
+    public Dictionary<string, bool> SavedSearchOnlyFavorites { get; set; } =
+        new(System.StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Optional manual Steam library paths (folders containing steamapps or steamapps itself).
     /// If empty, Retromind uses automatic discovery only.
     /// </summary>

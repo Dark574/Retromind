@@ -1022,6 +1022,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (args.PropertyName == nameof(MediaAreaViewModel.SearchText))
         {
             _searchUiState.SharedSearchText = mediaVm.SearchText ?? string.Empty;
+            ApplySavedSearchFavoriteState(mediaVm.SearchText, value => mediaVm.OnlyFavorites = value);
             return;
         }
 

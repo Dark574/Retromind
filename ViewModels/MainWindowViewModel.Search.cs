@@ -40,6 +40,17 @@ public partial class MainWindowViewModel
 
         _currentSettings.SavedSearchTerms = normalizedTerms;
 
+        _currentSettings.SavedSearchOnlyFavorites ??=
+            new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var normalizedFavoriteStates = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        foreach (var savedTerm in normalizedTerms)
+        {
+            if (TryGetSavedSearchFavoriteState(savedTerm, out var onlyFavorites) && onlyFavorites)
+                normalizedFavoriteStates[savedTerm] = true;
+        }
+
+        _currentSettings.SavedSearchOnlyFavorites = normalizedFavoriteStates;
+
         SavedSearchTerms.Clear();
         foreach (var savedTerm in normalizedTerms)
             SavedSearchTerms.Add(savedTerm);
@@ -66,23 +77,31 @@ public partial class MainWindowViewModel
 
         var normalizedTerm = NormalizeSavedSearchTerm(term);
 
-        MutateSavedSearchTerms(terms =>
+        var onlyFavorites = GetCurrentOnlyFavorites();
+        var termsChanged = false;
+        _currentSettings.SavedSearchTerms ??= new List<string>();
+        var terms = _currentSettings.SavedSearchTerms;
+        var existingIndex = terms.FindIndex(t =>
+            string.Equals(t, normalizedTerm, StringComparison.OrdinalIgnoreCase));
+
+        if (existingIndex != 0 ||
+            !string.Equals(terms[0], normalizedTerm, StringComparison.Ordinal))
         {
-            var existingIndex = terms.FindIndex(t =>
-                string.Equals(t, normalizedTerm, StringComparison.OrdinalIgnoreCase));
-
-            if (existingIndex == 0 &&
-                string.Equals(terms[0], normalizedTerm, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
             if (existingIndex >= 0)
                 terms.RemoveAt(existingIndex);
 
             terms.Insert(0, normalizedTerm);
-            return true;
-        });
+            termsChanged = true;
+        }
+
+        _currentSettings.SavedSearchOnlyFavorites ??=
+            new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var stateChanged = SetSavedSearchFavoriteState(normalizedTerm, onlyFavorites);
+        if (!termsChanged && !stateChanged)
+            return;
+
+        SyncSavedSearchTermsCollectionFromSettings();
+        SaveSettingsOnly();
     }
 
     public void RemoveSavedSearchTerm(string? term)
@@ -91,8 +110,81 @@ public partial class MainWindowViewModel
             return;
 
         var normalizedTerm = NormalizeSavedSearchTerm(term);
+        var removedState = RemoveSavedSearchFavoriteState(normalizedTerm);
         MutateSavedSearchTerms(terms =>
-            terms.RemoveAll(t => string.Equals(t, normalizedTerm, StringComparison.OrdinalIgnoreCase)) > 0);
+            terms.RemoveAll(t => string.Equals(t, normalizedTerm, StringComparison.OrdinalIgnoreCase)) > 0 || removedState);
+    }
+
+    private bool GetCurrentOnlyFavorites()
+        => _currentSearchAreaVm?.OnlyFavorites
+           ?? _currentMediaAreaVm?.OnlyFavorites
+           ?? _searchUiState.SharedOnlyFavorites;
+
+    private bool TryGetSavedSearchFavoriteState(string term, out bool onlyFavorites)
+    {
+        onlyFavorites = false;
+        var states = _currentSettings.SavedSearchOnlyFavorites;
+        if (states == null)
+            return false;
+
+        foreach (var pair in states)
+        {
+            if (!string.Equals(pair.Key, term, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            onlyFavorites = pair.Value;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool SetSavedSearchFavoriteState(string term, bool onlyFavorites)
+    {
+        var states = _currentSettings.SavedSearchOnlyFavorites;
+        var existingKey = states.Keys.FirstOrDefault(key =>
+            string.Equals(key, term, StringComparison.OrdinalIgnoreCase));
+
+        if (!onlyFavorites)
+        {
+            return existingKey != null && states.Remove(existingKey);
+        }
+
+        if (existingKey != null && states[existingKey])
+            return false;
+
+        if (existingKey != null)
+            states.Remove(existingKey);
+
+        states[term] = true;
+        return true;
+    }
+
+    private bool RemoveSavedSearchFavoriteState(string term)
+    {
+        var states = _currentSettings.SavedSearchOnlyFavorites;
+        if (states == null)
+            return false;
+
+        var key = states.Keys.FirstOrDefault(existing =>
+            string.Equals(existing, term, StringComparison.OrdinalIgnoreCase));
+        return key != null && states.Remove(key);
+    }
+
+    private void ApplySavedSearchFavoriteState(string? term, Action<bool> apply)
+    {
+        if (string.IsNullOrWhiteSpace(term))
+            return;
+
+        var normalizedTerm = NormalizeSavedSearchTerm(term);
+        if (!SavedSearchTerms.Any(saved =>
+                string.Equals(saved, normalizedTerm, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        TryGetSavedSearchFavoriteState(normalizedTerm, out var onlyFavorites);
+        apply(onlyFavorites);
     }
 
     private void DetachSearchAreaHandlers()
@@ -142,6 +234,7 @@ public partial class MainWindowViewModel
         if (e.PropertyName == nameof(SearchAreaViewModel.SearchText))
         {
             _searchUiState.SharedSearchText = searchVm.SearchText ?? string.Empty;
+            ApplySavedSearchFavoriteState(searchVm.SearchText, value => searchVm.OnlyFavorites = value);
             return;
         }
 
