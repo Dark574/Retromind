@@ -187,6 +187,7 @@ public class FileManagementService
         catch (Exception ex)
         {
             Console.WriteLine($"Error deleting asset: {ex.Message}");
+            throw;
         }
 
         RaiseLibraryChanged();
