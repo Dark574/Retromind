@@ -200,15 +200,17 @@ Parental behavior is not isolated to one screen:
 `tests/**/*.cs` from its own default compile items, and selected internal contracts are exposed to the test
 assembly through `InternalsVisibleTo` rather than widening the production API.
 
-The initial suite targets `GogInstallDirectorySafety`, because this code guards recursive deletion. Tests use
-unique `/tmp/retromind-tests-<guid>` roots, validate the exact target before cleanup, and avoid following
-symbolic links. Covered cases include dangerous system/application roots, empty and unowned directories,
-matching and mismatching ownership markers, corrupt markers, and direct or nested symbolic links.
+The suite targets both `GogInstallDirectorySafety`, because it guards recursive deletion, and the portable
+path contract. Tests use unique `/tmp/retromind-tests-<guid>` roots, validate the exact target before cleanup,
+and avoid following symbolic links. Covered cases include dangerous system/application roots, ownership
+markers and symbolic links as well as Linux case sensitivity, path containment, prefix conversion,
+idempotent migration, preservation of external paths, and a persisted-library move from one DataRoot to
+another.
 
 Future coverage should stay risk-based and favor deterministic logic with low maintenance cost. The next
-useful candidates are persistence fallback/write-failure behavior, multi-disc filename recognition, scraper
-matching decisions, and portable path containment. UI tests should be added only where behavior cannot be
-tested below the Avalonia view layer.
+useful candidates are persistence fallback/write-failure behavior, multi-disc filename recognition, and
+scraper matching decisions. UI tests should be added only where behavior cannot be tested below the Avalonia
+view layer.
 
 ## Extending the app safely
 When adding features, preserve these invariants:

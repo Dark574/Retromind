@@ -112,9 +112,10 @@ Or (if you run the built app directly):
 
 ## Tests
 
-The automated test suite is intentionally small and risk-focused. Its first coverage protects the
-GOG install/uninstall directory boundary, where a regression could otherwise delete unrelated data.
-The tests use isolated temporary directories under `/tmp` and include Linux symbolic-link cases.
+The automated test suite is intentionally small and risk-focused. It protects the GOG install/uninstall
+directory boundary and Retromind's portable path contract. The tests use isolated temporary directories
+under `/tmp` and include Linux symbolic-link, case-sensitivity, path-containment, migration, and
+library-relocation cases.
 
 Run the complete solution test suite:
 

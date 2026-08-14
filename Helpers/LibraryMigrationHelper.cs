@@ -196,8 +196,8 @@ public static class LibraryMigrationHelper
         try
         {
             var normalizedAbsolute = Path.GetFullPath(absolutePath);
-            if (!normalizedAbsolute.StartsWith(libraryRootWithSep, StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(normalizedAbsolute, libraryRoot, StringComparison.OrdinalIgnoreCase))
+            if (!normalizedAbsolute.StartsWith(libraryRootWithSep, StringComparison.Ordinal) &&
+                !string.Equals(normalizedAbsolute, libraryRoot, StringComparison.Ordinal))
             {
                 return false;
             }
@@ -280,8 +280,8 @@ public static class LibraryMigrationHelper
         try
         {
             var normalizedAbsolute = Path.GetFullPath(absolutePath);
-            if (!normalizedAbsolute.StartsWith(dataRootWithSep, StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(normalizedAbsolute, dataRoot, StringComparison.OrdinalIgnoreCase))
+            if (!normalizedAbsolute.StartsWith(dataRootWithSep, StringComparison.Ordinal) &&
+                !string.Equals(normalizedAbsolute, dataRoot, StringComparison.Ordinal))
             {
                 return false;
             }
