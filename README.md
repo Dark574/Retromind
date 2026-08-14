@@ -28,12 +28,15 @@ See `docs/CHANGELOG.md` for version history.
 - Cover/grid view in the center
 - Details view on the right
 - Drag & drop categories in the tree to reorder or move between parents (merge prompt on conflicts)
-- Global search with classic title search plus optional metadata power-query mode
-- Metadata scraping (depends on your API keys)
+- Multi-disc import with filename-pattern detection and optional playlist launching
+- Global search with classic title search, saved filters, favorites, and optional metadata power-query mode
+- Metadata scraping with per-field import decisions and additive artwork handling (depends on your API keys)
 - Inline metadata autocomplete in the item editor based on values already present in the local library; accept the current suggestion with the Right Arrow key
 - Optional BigMode / controller-friendly UI with runtime themes
 - Per-item manuals/documents
 - Flexible launch configuration with wrappers, environment variables, and per-item arguments
+- Managed GE-Proton downloads and naturally sorted Wine/Proton runner selection
+- Experimental native GOG library sync, installer, update, and uninstall integration
 - Portable library layout with relative paths (USB/external drive friendly)
 - Optional AppImage portable HOME/XDG mode for Retromind runtime, with per-emulator overrides for child processes
 
@@ -60,7 +63,7 @@ See `docs/CHANGELOG.md` for version history.
 - you can design and add your own theme through axaml files
 
 ## Requirements
-- Linux (primary target)
+- Linux (currently the only supported platform)
 - .NET SDK 10.0
 - LibVLC runtime (required for this build; AppImage bundles it)
 
@@ -106,6 +109,22 @@ Or (if you run the built app directly):
 ```bash
 ./Retromind --bigmode
 ```
+
+## Tests
+
+The automated test suite is intentionally small and risk-focused. Its first coverage protects the
+GOG install/uninstall directory boundary, where a regression could otherwise delete unrelated data.
+The tests use isolated temporary directories under `/tmp` and include Linux symbolic-link cases.
+
+Run the complete solution test suite:
+
+```bash
+dotnet test Retromind.sln
+```
+
+The test project lives in `tests/Retromind.Tests/`. New tests should preferably target deterministic
+business rules, persistence behavior, path safety, multi-disc recognition, and scraper matching rather
+than Avalonia view details.
 
 ## Getting started (first run)
 1. Build and run once (see “Build & Run”). Retromind will create `app_settings.json` under the portable data root (see below).
@@ -398,6 +417,11 @@ Notes:
 - `CustomFields` are provider-specific key/value pairs and may vary by API response quality.
 - Missing values are normal when the upstream provider does not return that field for a specific item.
 - SteamGridDB is an artwork-focused provider and currently supplies cover, wallpaper and logo assets.
+- Providers can expose optional preview and result-enrichment capabilities. The manual dialog loads
+  lightweight result previews first and requests fuller data only for the selected result; bulk scraping
+  enriches only an accepted match.
+- Manual scraping lets you choose individual changed metadata fields. Existing artwork is retained and
+  selected new artwork is added instead of replacing it.
 - EmuMovies is currently not listed here because its API is being reworked.
 
 ### Where to get API keys
@@ -524,6 +548,14 @@ Please test it carefully and expect rough edges or breaking behavior between alp
 - Add individual GOG items into any node:
   1. Run **Add GOG media** on any target node.
   2. Use the picker dialog and select only the titles you want to add.
+
+- Install a linked title without a launch configuration by using its main **Install** action. Retromind
+  downloads the selected Linux or Windows installer, supports resumable downloads, runs the installer,
+  and derives a launch configuration where possible.
+
+- Uninstall actions remove an installation only when the directory passes the path-safety policy and
+  contains a matching Retromind ownership marker. Files outside the owned install directory are not
+  treated as disposable application data.
 
 ### Update workflow (Experimental baseline)
 

@@ -23,13 +23,15 @@ This document summarizes how Retromind is structured today and where core behavi
 
 ## Repository map (logical)
 - `Views/`: Avalonia views, including host-level behavior (`BigModeHostView`)
-- `ViewModels/`: orchestration and state; `MainWindowViewModel` is split into partial files by concern
+- `ViewModels/`: orchestration and state; large view models such as `MainWindowViewModel` and
+  `SettingsViewModel` are split into partial files by concern
 - `Models/`: persisted domain and settings (`MediaNode`, `MediaItem`, `AppSettings`, etc.)
 - `Services/`: persistence, launcher, import/store import, scraping, audio, themes
 - `Helpers/`: portability, path safety, converters, environment sanitizers, UI helpers
 - `Extensions/`: `ThemeProperties` attached-property surface for runtime themes
 - `Themes/`: shipped editable runtime themes
 - `Resources/`: localized strings
+- `tests/Retromind.Tests/`: xUnit tests for deterministic, high-risk application behavior
 
 ## Main UI architecture (desktop mode)
 Main window is a layered shell:
@@ -55,19 +57,34 @@ not in `DataRoot`.
 - service: `MediaDataService`
 - atomic write strategy: temp -> backup -> replace
 - IO is serialized with `SemaphoreSlim`
-- `MainWindowViewModel` tracks dirty state (`_isLibraryDirty`, versioned), performs debounced saves, snapshots on UI thread, serializes in background
+- `LibraryChangeTracker` owns versioned dirty tracking and debounced saves
+- bound collections are snapshotted on the UI thread and serialized in the background
+- dirty state is cleared only after a successful write; save failures remain dirty and are surfaced to the user
+- a valid empty primary library is authoritative; the backup is used only when the primary file is missing,
+  unreadable, or invalid
 
 ### Settings (`app_settings.json`)
 - service: `SettingsService`
 - same atomic temp/backup strategy with serialized IO
 - corrupt settings are quarantined and fallback restore from `.bak` is attempted
+- save failures propagate to the caller and are surfaced to the user
 - sensitive scraper secrets are encrypted/decrypted via `SecurityHelper`
+- the settings dialog edits a detached working copy; **Save** commits it, while Cancel or closing the
+  window discards it
+- title sorting remains a live preview while the dialog is open and is restored if the dialog closes
+  without saving
 
 ## Path and portability contract
 - persisted file paths are expected to be DataRoot-relative when possible
 - path resolution for runtime assets/documents/themes uses `AppPaths.ResolveDataPathInsideRootOrEmpty`
 - escaping `DataRoot` is intentionally blocked (`TryResolveDataPathInsideRoot`)
+- generic Linux filesystem identity and node asset-directory operations are case-sensitive
 - this boundary is central for portable use and for avoiding accidental absolute-path drift
+- provider-specific Windows metadata may use a case-insensitive, segment-by-segment fallback only after
+  containment in the selected install root has been established
+- destructive store operations have an additional ownership boundary: GOG install directories must not
+  be dangerous roots, must not traverse symbolic links, and must contain a matching
+  `.retromind-install.json` marker before recursive deletion
 
 ## Theme subsystem
 Themes are external runtime XAML loaded through `ThemeLoader`:
@@ -75,6 +92,7 @@ Themes are external runtime XAML loaded through `ThemeLoader`:
 - parses theme XAML at runtime and applies theme base path per view instance
 - caches XAML text with LRU to reduce repeated file IO/parse overhead
 - exposes theme metadata, visual tuning, selection effects, typography, video options, attract-mode options, etc. via `ThemeProperties` attached properties
+- user-visible runtime-theme text is exposed through localized `ThemeStrings` resource properties
 
 ### Portable theme sync/update at startup
 `AppPaths.EnsurePortableThemes()` implements best-effort shipped-theme sync:
@@ -84,6 +102,13 @@ Themes are external runtime XAML loaded through `ThemeLoader`:
 - restoration of missing theme directories (any directory containing `theme.axaml`)
 - local theme modifications are preserved (no forced overwrite when hashes differ)
 
+## Image loading and cache
+
+`AsyncImageHelper` owns asynchronous bitmap loading, downsampling, cancellation, and its shared LRU cache.
+Cache entries are reference-counted while controls display them. The cache has a hard limit of 200 entries;
+if every cached bitmap is currently in use, a newly loaded bitmap remains control-owned and uncached instead
+of allowing the shared cache to grow beyond its limit.
+
 ## BigMode architecture
 BigMode is an overlay workflow with clear host/VM split:
 
@@ -92,13 +117,15 @@ BigMode is an overlay workflow with clear host/VM split:
 - shared video control attachment to theme-defined slots
 - system-host mode with per-system subtheme loading (`Themes/System/<id>/theme.axaml`)
 - subtheme cache with LRU
+- shipped system themes currently include Default, C64, Amiga, and PC variants
 - theme guardrails/tuning for list behavior and selection visuals
 - global cursor idle hide/show behavior (mouse-only)
 
 ### ViewModel (`BigModeViewModel`)
 - navigation state (categories/items), selection memory, and robust restore from persisted settings
 - node-aware artwork resolution and fallback overrides (logo/marquee etc.)
-- dual preview surfaces with crossfade and defensive playback sequencing
+- dual preview surfaces with crossfade and defensive playback sequencing; presentation state avoids stale
+  frames and unnecessary restarts when multiple items share the same node fallback video
 - secondary background video channel support
 - attract mode (theme-driven idle navigation)
 - mirrors final BigMode selection back into core app settings on exit
@@ -110,9 +137,12 @@ Global search uses a dedicated `SearchAreaViewModel`:
 - parental-filter-aware visibility
 - row grouping for large virtualized result grids
 - shared filter state (text/favorites/status/year) coordinated by `MainWindowViewModel`
+- saved search terms persist their associated favorites-only state as part of the saved filter behavior
 
 ## Import and metadata flow
 - `ImportService`: recursive local file import with multi-disc grouping/labeling
+- `MultiDiscFileNameHelper`: shared recognition for separated `Disk`, `Disc`, `CD`, `Side`, `Part`, and
+  `Scen` filename forms; `LauncherService` can consume generated playlists for grouped media
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)
@@ -121,18 +151,36 @@ Global search uses a dedicated `SearchAreaViewModel`:
 - providers with expensive per-result calls expose optional preview/result enrichment
   capabilities; the manual dialog loads lightweight previews first and details only
   for the current selection, while bulk scraping enriches only the matched result
+- the manual metadata dialog presents changed fields individually; artwork imports are additive and never
+  silently replace existing files
+- `ScraperMatchEvaluator` gates automatic bulk imports by normalized title similarity, optional platform/year
+  signals, a minimum confidence, and a lead over the runner-up; ambiguous or unsafe results are logged but
+  not imported
 
 For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 
 ## Launch pipeline
 `LauncherService` resolves and executes media launches:
 - supports `Native`, `Emulator`, and `Command` media types
+- media items may intentionally have no launch file and act as catalog placeholders; the editor can add,
+  replace, or clear launch files later
 - launch plan layering: item launcher -> emulator config -> wrapper chain
 - supports multi-file launch decisions (including playlist mode)
 - supports merged environment overrides (node/emulator/item)
 - handles Wine/Proton/UMU prefix setup and compatibility environment shaping
 - sanitizes host/runtime environment in AppImage/Flatpak/store-related cases
 - session tracking updates playtime/playcount after launch
+- GOG launch detection prefers local or account `playTasks` metadata and preserves its executable,
+  arguments, and working directory before falling back to filesystem heuristics; this is important for
+  installer-supplied DOSBox configurations
+
+## Runner management
+
+Runner definitions are stored in `AppSettings` and selected through inheritance from emulator to media item.
+`SettingsViewModel.Runners` owns discovery, managed GE-Proton downloads, registration, usage/replacement, and
+removal. A completed managed download is registered immediately, managed files require confirmation before
+physical removal, and display order uses `MediaSortHelper.NaturalStringComparer` so numeric release segments
+sort naturally (for example, GE-Proton9 before GE-Proton10).
 
 ## Parental control as cross-cutting concern
 Parental behavior is not isolated to one screen:
@@ -146,10 +194,30 @@ Parental behavior is not isolated to one screen:
 - node-level fallback toggles control whether node artwork participates in item display resolution
 - `MediaItem.MediaType` models launch strategy (`Native`, `Emulator`, `Command`), not content taxonomy
 
+## Automated tests
+
+`Retromind.sln` includes the `tests/Retromind.Tests` xUnit project. The main SDK project explicitly excludes
+`tests/**/*.cs` from its own default compile items, and selected internal contracts are exposed to the test
+assembly through `InternalsVisibleTo` rather than widening the production API.
+
+The initial suite targets `GogInstallDirectorySafety`, because this code guards recursive deletion. Tests use
+unique `/tmp/retromind-tests-<guid>` roots, validate the exact target before cleanup, and avoid following
+symbolic links. Covered cases include dangerous system/application roots, empty and unowned directories,
+matching and mismatching ownership markers, corrupt markers, and direct or nested symbolic links.
+
+Future coverage should stay risk-based and favor deterministic logic with low maintenance cost. The next
+useful candidates are persistence fallback/write-failure behavior, multi-disc filename recognition, scraper
+matching decisions, and portable path containment. UI tests should be added only where behavior cannot be
+tested below the Avalonia view layer.
+
 ## Extending the app safely
 When adding features, preserve these invariants:
 - keep persisted paths portable and inside `DataRoot`
 - keep library/settings writes atomic and non-concurrent
+- never clear dirty state or report success after a failed persistence write
+- never restore a non-empty backup over a valid empty primary library
+- require explicit ownership evidence and symlink-safe containment before recursive deletion
 - avoid UI-thread blocking in import/scrape/search/rebuild paths
 - keep BigMode host/VM responsibilities separated
 - do not bypass launcher/environment sanitization for host helper processes
+- add focused regression coverage when changing destructive operations or other deterministic high-risk rules
