@@ -82,6 +82,8 @@ not in `DataRoot`.
 - this boundary is central for portable use and for avoiding accidental absolute-path drift
 - provider-specific Windows metadata may use a case-insensitive, segment-by-segment fallback only after
   containment in the selected install root has been established
+- GOG `Store.InstallPath` values inside DataRoot are stored DataRoot-relative when portable paths are
+  enabled; the shared GOG resolver also supports legacy and intentionally external absolute paths
 - destructive store operations have an additional ownership boundary: GOG install directories must not
   be dangerous roots, must not traverse symbolic links, and must contain a matching
   `.retromind-install.json` marker before recursive deletion
@@ -204,8 +206,8 @@ The suite targets both `GogInstallDirectorySafety`, because it guards recursive 
 path contract. Tests use unique `/tmp/retromind-tests-<guid>` roots, validate the exact target before cleanup,
 and avoid following symbolic links. Covered cases include dangerous system/application roots, ownership
 markers and symbolic links as well as Linux case sensitivity, path containment, prefix conversion,
-idempotent migration, preservation of external paths, and a persisted-library move from one DataRoot to
-another.
+idempotent migration, preservation of external paths, a persisted-library move from one DataRoot to another,
+and GOG uninstall resolution after such a move.
 
 Future coverage should stay risk-based and favor deterministic logic with low maintenance cost. The next
 useful candidates are persistence fallback/write-failure behavior, multi-disc filename recognition, and

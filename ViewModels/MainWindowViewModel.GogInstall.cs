@@ -20,7 +20,7 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
-    private const string StoreInstallPathField = "Store.InstallPath";
+    private const string StoreInstallPathField = GogInstallPathHelper.CustomFieldName;
     private const string StoreInstallPlatformField = "Store.InstallPlatform";
     private const string StoreInstallRunnerVersionIdField = "Store.InstallRunnerVersionId";
     private const string StoreInstallWindowsInstallerPreferenceField = "Store.InstallWindowsInstallerPreference";
@@ -381,7 +381,9 @@ public partial class MainWindowViewModel
                 return;
             }
 
-            item.CustomFields[StoreInstallPathField] = launchInfo.InstallRoot;
+            item.CustomFields[StoreInstallPathField] = GogInstallPathHelper.ToStoredPath(
+                launchInfo.InstallRoot,
+                _currentSettings.PreferPortableLaunchPaths);
             item.CustomFields[StoreInstallPlatformField] = installRequest.Platform == GogInstallPlatform.Windows ? "windows" : "linux";
             if (installRequest.Platform == GogInstallPlatform.Windows && installRequest.Runner != null)
             {
@@ -670,10 +672,9 @@ public partial class MainWindowViewModel
     private string ResolveDefaultGogInstallPath(MediaItem item, string storeGameId)
     {
         if (item.CustomFields.TryGetValue(StoreInstallPathField, out var savedPath) &&
-            !string.IsNullOrWhiteSpace(savedPath) &&
-            Path.IsPathRooted(savedPath))
+            GogInstallPathHelper.TryResolveStoredPath(savedPath, out var resolvedSavedPath))
         {
-            return savedPath;
+            return resolvedSavedPath;
         }
 
         var safeTitle = PathHelper.SanitizePathSegment(item.Title);

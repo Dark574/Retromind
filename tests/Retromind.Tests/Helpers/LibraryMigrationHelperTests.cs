@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services.Stores.Gog;
 using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Helpers;
@@ -121,6 +122,39 @@ public sealed class LibraryMigrationHelperTests
         Assert.Equal(MediaFileKind.Absolute, item.Files[0].Kind);
         Assert.Equal(launchPath, item.Files[0].Path);
         Assert.Equal(prefixPath, item.PrefixPath);
+    }
+
+    [Fact]
+    public void MigrateLaunchPaths_ConvertsExistingGogInstallPathAndRebindsAfterMove()
+    {
+        using var firstRoot = new TemporaryDirectory();
+        using var secondRoot = new TemporaryDirectory();
+        var item = new MediaItem();
+        item.CustomFields["Store.InstallPath"] =
+            firstRoot.GetPath("Library", "Games", "GOG", "Portable Game");
+        var node = new MediaNode();
+        node.Items.Add(item);
+
+        using (UseDataRoot(firstRoot.RootPath))
+        {
+            var migrated = LibraryMigrationHelper.MigrateLaunchFilePathsToLibraryRelative(
+                new ObservableCollection<MediaNode> { node });
+
+            Assert.Equal(1, migrated);
+            Assert.Equal(
+                Path.Combine("Library", "Games", "GOG", "Portable Game"),
+                item.CustomFields["Store.InstallPath"]);
+        }
+
+        using (UseDataRoot(secondRoot.RootPath))
+        {
+            Assert.True(GogInstallPathHelper.TryResolveStoredPath(
+                item.CustomFields["Store.InstallPath"],
+                out var resolvedPath));
+            Assert.Equal(
+                secondRoot.GetPath("Library", "Games", "GOG", "Portable Game"),
+                resolvedPath);
+        }
     }
 
     private static MediaItem CreateFullyConfiguredItem(

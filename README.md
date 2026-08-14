@@ -557,6 +557,9 @@ Please test it carefully and expect rough edges or breaking behavior between alp
 - Uninstall actions remove an installation only when the directory passes the path-safety policy and
   contains a matching Retromind ownership marker. Files outside the owned install directory are not
   treated as disposable application data.
+- With **Prefer portable launch paths** enabled, GOG installations inside Retromind store their install root
+  relative to the portable data root. Existing and deliberately external absolute install paths remain
+  supported.
 
 ### Update workflow (Experimental baseline)
 

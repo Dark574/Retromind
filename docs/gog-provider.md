@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-06-01
+Last updated: 2026-08-14
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -90,6 +90,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - final fallback: manual executable picker dialog
   - if mapping succeeds, item launch config is updated and the Start action switches back to launch behavior
   - if mapping still fails, install completes but manual launch config is required
+  - when portable paths are enabled, an install root inside `DataRoot` is stored DataRoot-relative in
+    `Store.InstallPath`; legacy and intentionally external absolute install paths remain supported
   - installer fingerprint is persisted after install (`Store.InstalledVersion`, `Store.InstalledInstallerSignature`)
   - installer download and execution now support user cancellation:
     - process log window includes a Cancel button for aborting downloads and installer runs
@@ -106,6 +108,9 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - dedicated uninstall action for installed GOG items
   - physical deletion runs before metadata cleanup (metadata is only cleared after successful deletion phase)
   - install-root deletion safety policy:
+    - stored relative install paths are resolved against the current `DataRoot` before validation or deletion
+    - relative paths escaping `DataRoot` are rejected; legacy external absolute paths continue through the
+      normal ownership-marker safety checks
     - hard block for dangerous targets (filesystem root, home, common Linux system paths)
     - `DataRoot` and `LibraryRoot` themselves are never deletable
     - for concrete install folders (inside or outside portable roots), deletion requires a valid `.retromind-install.json` ownership marker matching `ProviderId`, `StoreGameId`, and `MediaItemId`

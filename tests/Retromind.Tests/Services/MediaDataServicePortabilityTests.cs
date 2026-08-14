@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.Stores.Gog;
 using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services;
@@ -42,6 +43,8 @@ public sealed class MediaDataServicePortabilityTests
                     }
                 }
             };
+            item.CustomFields[GogInstallPathHelper.CustomFieldName] =
+                Path.Combine("Library", "Games", "Portable Game");
             var node = new MediaNode
             {
                 Name = "Portable Node",
@@ -73,6 +76,10 @@ public sealed class MediaDataServicePortabilityTests
                 secondRoot.GetPath("Library", relativePrefixPath),
                 Path.GetFullPath(Path.Combine(AppPaths.LibraryRoot, loadedItem.PrefixPath!)));
             Assert.Equal(secondRoot.GetPath(relativeAssetPath), loadedAsset.AbsolutePath);
+            Assert.True(GogInstallPathHelper.TryResolveStoredPath(
+                loadedItem.CustomFields[GogInstallPathHelper.CustomFieldName],
+                out var resolvedInstallPath));
+            Assert.Equal(secondRoot.GetPath("Library", "Games", "Portable Game"), resolvedInstallPath);
             Assert.Equal(
                 secondRoot.GetPath("Themes", "Default", "theme.axaml"),
                 AppPaths.ResolveDataPathInsideRootOrEmpty(loadedNode.ThemePath));

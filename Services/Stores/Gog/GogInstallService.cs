@@ -227,10 +227,16 @@ public sealed class GogInstallService
             throw new ArgumentNullException(nameof(item));
 
         // --- Extract paths from CustomFields ---
-        if (!item.CustomFields.TryGetValue("Store.InstallPath", out var installPath) ||
-            string.IsNullOrWhiteSpace(installPath))
+        if (!item.CustomFields.TryGetValue(GogInstallPathHelper.CustomFieldName, out var storedInstallPath) ||
+            string.IsNullOrWhiteSpace(storedInstallPath))
         {
             throw new InvalidOperationException("Cannot uninstall: install path is not set.");
+        }
+
+        if (!GogInstallPathHelper.TryResolveStoredPath(storedInstallPath, out var installPath))
+        {
+            throw new InvalidOperationException(
+                $"Cannot uninstall: install path '{storedInstallPath}' is invalid or escapes the portable data root.");
         }
         
         var prefixPath = item.PrefixPath;
@@ -317,7 +323,7 @@ public sealed class GogInstallService
         // Remove all Store.* custom fields related to the installation.
         var fieldsToRemove = new[]
         {
-            "Store.InstallPath",
+            GogInstallPathHelper.CustomFieldName,
             "Store.InstallPlatform",
             "Store.InstallRunnerVersionId",
             "Store.InstallWindowsInstallerPreference",

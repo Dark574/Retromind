@@ -15,6 +15,8 @@ namespace Retromind.Helpers;
 /// </summary>
 public static class LibraryMigrationHelper
 {
+    private const string StoreInstallPathField = "Store.InstallPath";
+
     private static readonly HashSet<string> EnvironmentPathKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "PROTONPATH",
@@ -171,6 +173,13 @@ public static class LibraryMigrationHelper
         if (TryMakeLibraryRootRelative(item.PrefixPath, libraryRoot, libraryRootWithSep, out var prefixPath))
         {
             item.PrefixPath = prefixPath;
+            migrated++;
+        }
+
+        if (item.CustomFields.TryGetValue(StoreInstallPathField, out var installPath) &&
+            TryMakeDataRootRelative(installPath, dataRoot, dataRootWithSep, out var relativeInstallPath))
+        {
+            item.CustomFields[StoreInstallPathField] = relativeInstallPath;
             migrated++;
         }
 
