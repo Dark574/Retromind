@@ -374,18 +374,7 @@
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 
-            <!-- 3) Summary -->
-            <StackPanel Spacing="5"
-                        IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                <TextBlock Text="{x:Static p:Strings.Common_Summary}" FontWeight="SemiBold" FontSize="16" />
-                <TextBlock Text="{Binding Description}"
-                           TextWrapping="Wrap"
-                           LineHeight="22"
-                           Opacity="0.8" />
-            </StackPanel>
-            
-            <Separator Height="2" Background="Gray" Opacity="0.3" />
-
+            <!-- 3) Custom fields -->
             <StackPanel Spacing="5" IsVisible="{Binding HasCustomFields}">
                 <TextBlock Text="{x:Static p:Strings.Common_CustomFields}" FontWeight="SemiBold" FontSize="16" />
                 <ItemsControl x:CompileBindings="False"
@@ -405,6 +394,21 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+
+                <Separator Height="2"
+                           Background="Gray"
+                           Opacity="0.3"
+                           IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+
+            <!-- 4) Summary -->
+            <StackPanel Spacing="5"
+                        IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{x:Static p:Strings.Common_Summary}" FontWeight="SemiBold" FontSize="16" />
+                <TextBlock Text="{Binding Description}"
+                           TextWrapping="Wrap"
+                           LineHeight="22"
+                           Opacity="0.8" />
             </StackPanel>
 
         </StackPanel>

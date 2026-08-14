@@ -97,8 +97,66 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
     public sealed partial class CustomFieldRow : ObservableObject
     {
+        private readonly MetadataSuggestionService _suggestionService;
+
+        public CustomFieldRow(
+            MetadataSuggestionService suggestionService,
+            string? key = null,
+            string? value = null)
+        {
+            _suggestionService = suggestionService;
+            _key = key ?? string.Empty;
+            _value = value ?? string.Empty;
+
+            AcceptKeySuggestionCommand = new RelayCommand(
+                AcceptKeySuggestion,
+                () => !string.IsNullOrEmpty(KeySuggestionSuffix));
+            AcceptValueSuggestionCommand = new RelayCommand(
+                AcceptValueSuggestion,
+                () => !string.IsNullOrEmpty(ValueSuggestionSuffix));
+        }
+
         [ObservableProperty] private string _key = string.Empty;
         [ObservableProperty] private string _value = string.Empty;
+
+        public IRelayCommand AcceptKeySuggestionCommand { get; }
+        public IRelayCommand AcceptValueSuggestionCommand { get; }
+
+        public string KeySuggestionSuffix => GetSuggestionSuffix(
+            Key,
+            _suggestionService.GetBestCustomFieldKeyMatch(Key));
+
+        public string ValueSuggestionSuffix => GetSuggestionSuffix(
+            Value,
+            _suggestionService.GetBestCustomFieldValueMatch(Key, Value));
+
+        partial void OnKeyChanged(string value)
+        {
+            OnPropertyChanged(nameof(KeySuggestionSuffix));
+            OnPropertyChanged(nameof(ValueSuggestionSuffix));
+            AcceptKeySuggestionCommand.NotifyCanExecuteChanged();
+            AcceptValueSuggestionCommand.NotifyCanExecuteChanged();
+        }
+
+        partial void OnValueChanged(string value)
+        {
+            OnPropertyChanged(nameof(ValueSuggestionSuffix));
+            AcceptValueSuggestionCommand.NotifyCanExecuteChanged();
+        }
+
+        private void AcceptKeySuggestion()
+        {
+            var suggestion = _suggestionService.GetBestCustomFieldKeyMatch(Key);
+            if (!string.IsNullOrEmpty(GetSuggestionSuffix(Key, suggestion)))
+                Key = suggestion!;
+        }
+
+        private void AcceptValueSuggestion()
+        {
+            var suggestion = _suggestionService.GetBestCustomFieldValueMatch(Key, Value);
+            if (!string.IsNullOrEmpty(GetSuggestionSuffix(Value, suggestion)))
+                Value = suggestion!;
+        }
     }
 
     public sealed class EmulatorProfileOption
@@ -517,7 +575,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
         _parentNode = parentNode;
         _settings = settings;
-        _metadataSuggestionService = new MetadataSuggestionService(_rootNodes);
+        _metadataSuggestionService = new MetadataSuggestionService(_rootNodes, _parentNode);
         _assetsChangedHandler = (_, _) => ScheduleSortAssets();
         _originalItem.Assets.CollectionChanged += _assetsChangedHandler;
 
@@ -738,16 +796,25 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     {
         CustomFields.Clear();
 
-        if (_originalItem.CustomFields == null || _originalItem.CustomFields.Count == 0)
-            return;
+        var rows = _originalItem.CustomFields
+            .Select(pair => (pair.Key, pair.Value))
+            .ToList();
+        var existingKeys = rows
+            .Select(row => row.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var kv in _originalItem.CustomFields.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var key in _metadataSuggestionService.GetKnownCustomFieldKeys())
         {
-            CustomFields.Add(new CustomFieldRow
-            {
-                Key = kv.Key,
-                Value = kv.Value
-            });
+            if (existingKeys.Add(key))
+                rows.Add((key, string.Empty));
+        }
+
+        foreach (var row in rows.OrderBy(row => row.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            CustomFields.Add(new CustomFieldRow(
+                _metadataSuggestionService,
+                row.Key,
+                row.Value));
         }
     }
 

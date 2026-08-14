@@ -34,7 +34,7 @@ public partial class EditMediaViewModel
 
     private void AddCustomField()
     {
-        CustomFields.Add(new CustomFieldRow());
+        CustomFields.Add(new CustomFieldRow(_metadataSuggestionService));
     }
 
     private void RemoveCustomField(CustomFieldRow? row)

@@ -583,12 +583,16 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Grid ColumnDefinitions="*,10,*,10,Auto" Margin="0,0,0,6">
-                                            <TextBox Grid.Column="0"
-                                                     Text="{Binding Key}"
-                                                     PlaceholderText="{x:Static p:Strings.Common_Key}" />
-                                            <TextBox Grid.Column="2"
-                                                     Text="{Binding Value}"
-                                                     PlaceholderText="{x:Static p:Strings.Common_Value}" />
+                                            <views:MetadataAutoCompleteTextBox Grid.Column="0"
+                                                                               Text="{Binding Key}"
+                                                                               SuggestionSuffix="{Binding KeySuggestionSuffix}"
+                                                                               AcceptSuggestionCommand="{Binding AcceptKeySuggestionCommand}"
+                                                                               PlaceholderText="{x:Static p:Strings.Common_Key}" />
+                                            <views:MetadataAutoCompleteTextBox Grid.Column="2"
+                                                                               Text="{Binding Value}"
+                                                                               SuggestionSuffix="{Binding ValueSuggestionSuffix}"
+                                                                               AcceptSuggestionCommand="{Binding AcceptValueSuggestionCommand}"
+                                                                               PlaceholderText="{x:Static p:Strings.Common_Value}" />
                                             <Button Grid.Column="4"
                                                     Content="{x:Static p:Strings.Button_Remove}"
                                                     Command="{Binding $parent[Window].((vm:EditMediaViewModel)DataContext).RemoveCustomFieldCommand}"

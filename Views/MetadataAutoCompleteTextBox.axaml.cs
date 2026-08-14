@@ -14,6 +14,9 @@ public partial class MetadataAutoCompleteTextBox : UserControl
     public static readonly StyledProperty<string?> SuggestionSuffixProperty =
         AvaloniaProperty.Register<MetadataAutoCompleteTextBox, string?>(nameof(SuggestionSuffix));
 
+    public static readonly StyledProperty<string?> PlaceholderTextProperty =
+        AvaloniaProperty.Register<MetadataAutoCompleteTextBox, string?>(nameof(PlaceholderText));
+
     public static readonly StyledProperty<ICommand?> AcceptSuggestionCommandProperty =
         AvaloniaProperty.Register<MetadataAutoCompleteTextBox, ICommand?>(nameof(AcceptSuggestionCommand));
 
@@ -35,6 +38,12 @@ public partial class MetadataAutoCompleteTextBox : UserControl
     {
         get => GetValue(SuggestionSuffixProperty);
         set => SetValue(SuggestionSuffixProperty, value);
+    }
+
+    public string? PlaceholderText
+    {
+        get => GetValue(PlaceholderTextProperty);
+        set => SetValue(PlaceholderTextProperty, value);
     }
 
     public ICommand? AcceptSuggestionCommand

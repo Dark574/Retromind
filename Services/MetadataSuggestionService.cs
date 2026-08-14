@@ -16,10 +16,13 @@ public sealed class MetadataSuggestionService
     public const string PlayModeField = "play_mode";
 
     private readonly IReadOnlyDictionary<string, IReadOnlyList<SuggestionEntry>> _entriesByField;
+    private readonly IReadOnlyList<SuggestionEntry> _customFieldKeys;
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<SuggestionEntry>> _customFieldValuesByKey;
 
-    public MetadataSuggestionService(IEnumerable<MediaNode>? rootNodes)
+    public MetadataSuggestionService(IEnumerable<MediaNode>? rootNodes, MediaNode? customFieldScope = null)
     {
         _entriesByField = BuildIndex(rootNodes ?? Array.Empty<MediaNode>());
+        (_customFieldKeys, _customFieldValuesByKey) = BuildCustomFieldIndex(customFieldScope);
     }
 
     public string? GetBestMatch(string fieldKey, string? input)
@@ -27,12 +30,41 @@ public sealed class MetadataSuggestionService
         if (string.IsNullOrWhiteSpace(fieldKey) || string.IsNullOrWhiteSpace(input))
             return null;
 
-        if (!_entriesByField.TryGetValue(fieldKey, out var entries) || entries.Count == 0)
+        if (!_entriesByField.TryGetValue(fieldKey, out var entries))
+            return null;
+
+        return GetBestMatch(entries, input);
+    }
+
+    public IReadOnlyList<string> GetKnownCustomFieldKeys()
+    {
+        return _customFieldKeys
+            .Select(entry => entry.Value)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public string? GetBestCustomFieldKeyMatch(string? input)
+        => GetBestMatch(_customFieldKeys, input);
+
+    public string? GetBestCustomFieldValueMatch(string? customFieldKey, string? input)
+    {
+        var key = customFieldKey?.Trim();
+        if (string.IsNullOrWhiteSpace(key) ||
+            !_customFieldValuesByKey.TryGetValue(key, out var entries))
+        {
+            return null;
+        }
+
+        return GetBestMatch(entries, input);
+    }
+
+    private static string? GetBestMatch(IReadOnlyList<SuggestionEntry> entries, string? input)
+    {
+        if (entries.Count == 0 || string.IsNullOrWhiteSpace(input))
             return null;
 
         var prefix = input.Trim();
-        if (prefix.Length == 0)
-            return null;
 
         var exact = entries.FirstOrDefault(entry =>
             string.Equals(entry.Value, prefix, StringComparison.OrdinalIgnoreCase));
@@ -41,6 +73,60 @@ public sealed class MetadataSuggestionService
 
         return entries.FirstOrDefault(entry =>
             entry.Value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))?.Value;
+    }
+
+    private static (IReadOnlyList<SuggestionEntry> Keys,
+        IReadOnlyDictionary<string, IReadOnlyList<SuggestionEntry>> ValuesByKey)
+        BuildCustomFieldIndex(MediaNode? scope)
+    {
+        if (scope == null)
+        {
+            return (
+                Array.Empty<SuggestionEntry>(),
+                new Dictionary<string, IReadOnlyList<SuggestionEntry>>(StringComparer.OrdinalIgnoreCase));
+        }
+
+        var keyEntries = new Dictionary<string, SuggestionEntry>(StringComparer.OrdinalIgnoreCase);
+        var valueEntriesByKey =
+            new Dictionary<string, Dictionary<string, SuggestionEntry>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in scope.Items)
+        {
+            foreach (var pair in item.CustomFields)
+            {
+                var key = pair.Key?.Trim();
+                if (!IsReusableCustomFieldKey(key))
+                    continue;
+
+                AddEntry(keyEntries, key!);
+
+                var value = pair.Value?.Trim();
+                if (string.IsNullOrWhiteSpace(value))
+                    continue;
+
+                if (!valueEntriesByKey.TryGetValue(key!, out var valueEntries))
+                {
+                    valueEntries = new Dictionary<string, SuggestionEntry>(StringComparer.OrdinalIgnoreCase);
+                    valueEntriesByKey[key!] = valueEntries;
+                }
+
+                AddEntry(valueEntries, value);
+            }
+        }
+
+        var orderedKeys = OrderEntries(keyEntries.Values);
+        var orderedValues = valueEntriesByKey.ToDictionary(
+            pair => pair.Key,
+            pair => (IReadOnlyList<SuggestionEntry>)OrderEntries(pair.Value.Values),
+            StringComparer.OrdinalIgnoreCase);
+
+        return (orderedKeys, orderedValues);
+    }
+
+    private static bool IsReusableCustomFieldKey(string? key)
+    {
+        return !string.IsNullOrWhiteSpace(key) &&
+               !key.StartsWith("Store.", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<SuggestionEntry>> BuildIndex(IEnumerable<MediaNode> rootNodes)
@@ -52,12 +138,17 @@ public sealed class MetadataSuggestionService
 
         return buckets.ToDictionary(
             pair => pair.Key,
-            pair => (IReadOnlyList<SuggestionEntry>)pair.Value.Values
-                .OrderByDescending(entry => entry.Count)
-                .ThenBy(entry => entry.Value.Length)
-                .ThenBy(entry => entry.Value, StringComparer.OrdinalIgnoreCase)
-                .ToList(),
+            pair => (IReadOnlyList<SuggestionEntry>)OrderEntries(pair.Value.Values),
             StringComparer.Ordinal);
+    }
+
+    private static List<SuggestionEntry> OrderEntries(IEnumerable<SuggestionEntry> entries)
+    {
+        return entries
+            .OrderByDescending(entry => entry.Count)
+            .ThenBy(entry => entry.Value.Length)
+            .ThenBy(entry => entry.Value, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static Dictionary<string, Dictionary<string, SuggestionEntry>> CreateBuckets()
@@ -101,6 +192,11 @@ public sealed class MetadataSuggestionService
             return;
 
         var entries = buckets[fieldKey];
+        AddEntry(entries, value);
+    }
+
+    private static void AddEntry(IDictionary<string, SuggestionEntry> entries, string value)
+    {
         if (entries.TryGetValue(value, out var existing))
         {
             existing.Count++;

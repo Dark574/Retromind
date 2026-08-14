@@ -8,6 +8,7 @@
                  Background="Transparent"
                  Foreground="Transparent"
                  Padding="8,6"
+                 PlaceholderText="{Binding PlaceholderText, RelativeSource={RelativeSource AncestorType=views:MetadataAutoCompleteTextBox}}"
                  Text="{Binding Text, RelativeSource={RelativeSource AncestorType=views:MetadataAutoCompleteTextBox}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  KeyDown="OnInputBoxKeyDown" />
         <Border Padding="8,6"
