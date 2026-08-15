@@ -143,12 +143,16 @@
                                Stretch="Fill"
                                IsHitTestVisible="False" />
 
-                        <StackPanel Canvas.Left="1090"
-                                    Canvas.Top="850"
+                        <StackPanel Canvas.Left="700"
+                                    Canvas.Top="1050"
                                     Orientation="Horizontal"
-                                    Spacing="10">
+                                    Spacing="10"
+                                    RenderTransformOrigin="0%,50%">
+                            <StackPanel.RenderTransform>
+                                <RotateTransform Angle="12" />
+                            </StackPanel.RenderTransform>
                             <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
-                                       FontSize="17"
+                                       FontSize="18"
                                        FontWeight="SemiBold"
                                        Foreground="#655E69"
                                        VerticalAlignment="Center" />
