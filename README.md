@@ -394,12 +394,6 @@ configured, the corresponding scraper simply cannot be used.
 Secrets are not stored in plain text. The app persists only encrypted fields
 (e.g. `EncryptedApiKey`).
 
-A template is provided for local development experiments:
-- `Helpers/ApiSecretsTemplate.cs`
-
-> NOTE: The main Retromind application does **not** use `ApiSecrets` for
-> scraping. This template is only for custom tools or debugging scenarios.
-
 ### Scraper metadata coverage
 
 The table below shows which metadata fields are currently populated by each provider.

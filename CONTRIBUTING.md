@@ -21,16 +21,14 @@ Start directly in BigMode:
 ## Secrets / API keys (Scrapers)
 This repository does not include real API keys.
 
-Use the template:
-- `Helpers/ApiSecretsTemplate.cs` → copy/rename to `Helpers/ApiSecrets.cs`
-- rename class `ApiSecretsTemplate` → `ApiSecrets`
-- keep `ApiSecrets.cs` ignored by Git
+Configure development API keys through Retromind's scraper settings. For
+configuration examples, see `app_settings.sample.json`. Never commit a local
+`app_settings.json` containing real credentials.
 
 ## Repository hygiene (please do not commit)
 - `Library/` (runtime library + assets)
 - `app_settings.json`
 - `retromind_tree.json` (+ `.bak` / `.tmp`)
-- `ApiSecrets.cs`
 
 Use `app_settings.sample.json` for examples instead.
 
