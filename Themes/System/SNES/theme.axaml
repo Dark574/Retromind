@@ -1,0 +1,165 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="Transparent"
+
+             ext:ThemeProperties.Name="Super Nintendo Entertainment System"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.AccentColor="#A899D7"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
+             ext:ThemeProperties.VideoStretchMode="UniformToFill"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
+             ext:ThemeProperties.SecondaryVideoEnabled="False">
+
+    <UserControl.Resources>
+        <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
+    </UserControl.Resources>
+
+    <Border Background="#171421"
+            CornerRadius="8"
+            ClipToBounds="True">
+        <Grid>
+            <Rectangle>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#332842" Offset="0" />
+                        <GradientStop Color="#1B1728" Offset="0.52" />
+                        <GradientStop Color="#0D0E16" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <Border Background="#A899D7"
+                    Height="4"
+                    VerticalAlignment="Top"
+                    Opacity="0.9" />
+
+            <!-- Restrained color accents recall the 16-bit era without incorporating
+                 a console logo, character, or game artwork. -->
+            <StackPanel Orientation="Horizontal"
+                        Spacing="13"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="0,34,46,0"
+                        Opacity="0.32">
+                <Ellipse Width="14" Height="14" Fill="#D46E73" />
+                <Ellipse Width="14" Height="14" Fill="#5E8ED7" />
+                <Ellipse Width="14" Height="14" Fill="#E7C45D" />
+                <Ellipse Width="14" Height="14" Fill="#9B78C9" />
+            </StackPanel>
+
+            <Grid ColumnDefinitions="0.82*,1.48*"
+                  Margin="44,34,38,30">
+
+                <Grid Grid.Column="0"
+                      RowDefinitions="Auto,Auto,*"
+                      Margin="0,12,36,10">
+                    <Grid Grid.Row="0" Height="112">
+                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               MaxWidth="370"
+                               IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                                                   Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                        <TextBlock Text="{Binding SelectedCategory.Name}"
+                                   FontSize="44"
+                                   FontWeight="Bold"
+                                   Foreground="#F4F0F7"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                                                       Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,14,0,20">
+                        <Border Height="3"
+                                Background="#A899D7"
+                                HorizontalAlignment="Left"
+                                Width="124" />
+                        <Border Height="3"
+                                Background="#D46E73"
+                                HorizontalAlignment="Left"
+                                Margin="124,0,0,0"
+                                Width="42" />
+                    </Grid>
+
+                    <Border Grid.Row="2"
+                            BorderBrush="#55A899D7"
+                            BorderThickness="1,0,0,0"
+                            Padding="18,2,4,4"
+                            ClipToBounds="True">
+                        <TextBlock Text="{Binding SelectedCategory.Description}"
+                                   FontSize="18"
+                                   LineHeight="27"
+                                   Foreground="#DDD7E5"
+                                   TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+
+                <!-- The fixed design surface keeps the shared video behind the
+                     transparent CRT aperture and the wired hardware in front. -->
+                <Viewbox Grid.Column="1"
+                         Stretch="Uniform"
+                         StretchDirection="Both"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         MaxWidth="930"
+                         MaxHeight="830">
+                    <Canvas Width="1536" Height="1450">
+                        <Border x:Name="SystemPrimaryVideoSlot"
+                                Canvas.Left="312"
+                                Canvas.Top="111"
+                                Width="911"
+                                Height="652"
+                                Background="#020202"
+                                ClipToBounds="True" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/snes-inspired-crt-frame.png}"
+                               Canvas.Left="0"
+                               Canvas.Top="0"
+                               Width="1536"
+                               Height="1024"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/snes-inspired-console-controllers.png}"
+                               Canvas.Left="250"
+                               Canvas.Top="790"
+                               Width="1030"
+                               Height="687"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <StackPanel Canvas.Left="1090"
+                                    Canvas.Top="850"
+                                    Orientation="Horizontal"
+                                    Spacing="10">
+                            <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
+                                       FontSize="17"
+                                       FontWeight="SemiBold"
+                                       Foreground="#655E69"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding SelectedCategory.Items.Count}"
+                                       FontSize="25"
+                                       FontWeight="Bold"
+                                       Foreground="#826CB6" />
+                        </StackPanel>
+                    </Canvas>
+                </Viewbox>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

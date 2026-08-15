@@ -589,3 +589,11 @@ Before opening issues or pull requests, please have a look at:
 
 ## License
 GPL-3.0-only (see `COPYING`).
+
+### Third-party trademarks
+
+Third-party product names and trademarks are used only to identify the systems and services
+that Retromind supports. They remain the property of their respective owners.
+
+“Super Nintendo Entertainment System” and “SNES” are trademarks of Nintendo. Retromind
+is an independent project and is not affiliated with, sponsored by, or endorsed by Nintendo.
