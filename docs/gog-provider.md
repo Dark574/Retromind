@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-08-14
+Last updated: 2026-08-20
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -62,6 +62,9 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - owned-games fetch is cached in-memory for a short TTL to avoid repeated full pagination on consecutive imports
   - long-running GOG import/picker preparation shows wait cursor feedback
   - background update sweep runs throttled (24h interval, per-item delays) with auth-state caching and in-flight guards
+- Local install discovery:
+  - provider contract and DI wiring are retained as a scaffold for the planned feature
+  - `GogProvider` intentionally does not advertise `InstallDiscovery` until real discovery results are implemented
 - Install/launch wiring (first functional step):
   - GOG-linked items without launch config are now treated as installable from the main Start action
   - Start button label switches to Install for those items
@@ -151,7 +154,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 
 - `Services/Stores/Gog/GogProvider.cs`
 - `Services/Stores/Gog/GogLibraryService.cs` (owned-games fetch implemented)
-- `Services/Stores/Gog/GogInstallDiscoveryService.cs` (returns empty)
+- `Services/Stores/Gog/GogInstallDiscoveryService.cs` (planned scaffold; returns empty and is not advertised as an available capability)
 - `Services/Stores/Gog/GogInstallService.cs` (installer metadata + downlink resolution + package download)
 - `Services/Stores/Gog/Auth/GogAuthService.cs` (interactive sign-in + refresh implemented)
 - `Services/Stores/Gog/Auth/GogOAuthClient.cs` (authorize URL + token/account HTTP flows implemented)
@@ -196,6 +199,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - `ISecretStore` as `CompositeSecretStore(SecretServiceSecretStore, InMemorySecretStore)`
   - `GogProvider`
   - `IStoreAuthProvider`, `IStoreLibraryProvider`, `IStoreInstallDiscoveryProvider` mapped to `GogProvider`
+  - install-discovery registration is retained for the planned implementation, but the capability flag remains disabled until then
 
 ## Security contract
 

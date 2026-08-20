@@ -28,10 +28,12 @@ public sealed class GogProvider : IStoreAuthProvider, IStoreLibraryProvider, ISt
 
     public string DisplayName => "GOG";
 
+    // Local install discovery is a planned provider feature. Keep the contract
+    // wired for future implementation, but do not advertise it as available
+    // while GogInstallDiscoveryService still returns no discovered installs.
     public StoreProviderCapabilities Capabilities =>
         StoreProviderCapabilities.Auth |
-        StoreProviderCapabilities.Library |
-        StoreProviderCapabilities.InstallDiscovery;
+        StoreProviderCapabilities.Library;
 
     public Task<StoreAuthState> GetAuthStateAsync(CancellationToken ct = default)
     {
