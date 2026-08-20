@@ -294,31 +294,9 @@ public partial class MainWindowViewModel
             catch (Exception ex)
             {
                 Debug.WriteLine($"[GOG] Interactive sign-in failed: {ex.Message}");
-                var inAppUnavailable = ex is PlatformNotSupportedException;
-                var waylandAppImageUnsupported = inAppUnavailable &&
-                                                 ex.Message.IndexOf("AppImage Wayland", StringComparison.OrdinalIgnoreCase) >= 0;
-                var mismatch = ex.Message.IndexOf("redirect_uri_mismatch", StringComparison.OrdinalIgnoreCase) >= 0;
-                var missingCode = ex.Message.IndexOf("authorization code", StringComparison.OrdinalIgnoreCase) >= 0;
-                var invalidAuthorizeUri = ex.Message.IndexOf("authorization URL", StringComparison.OrdinalIgnoreCase) >= 0;
-                var invalidRedirectUri = ex.Message.IndexOf("redirect URI", StringComparison.OrdinalIgnoreCase) >= 0;
-                var signInErrorMessage = waylandAppImageUnsupported
-                    ? T(
-                        "Gog.InAppAuthUnavailableWaylandAppImage",
-                        "Embedded web authentication is currently not supported in AppImage Wayland sessions. Restart Retromind with --avalonia-platform=x11 and retry.")
-                    : inAppUnavailable
-                    ? T("Gog.InAppAuthUnavailable", "Embedded web authentication is not available on this platform.")
-                    : mismatch
-                        ? T("Gog.RedirectMismatch", "GOG rejected the OAuth redirect URI. Please update OAuth client settings or use a compatible client.")
-                    : missingCode
-                        ? T("Gog.CallbackMissingCode", "The authentication callback did not include an authorization code.")
-                    : invalidAuthorizeUri
-                        ? T("Gog.InvalidAuthorizeUri", "The received GOG authorization URL is invalid.")
-                    : invalidRedirectUri
-                        ? T("Gog.InvalidRedirectUri", "The configured OAuth redirect URI is invalid.")
-                        : T("Gog.SignInFailed", "GOG sign-in failed.");
                 await ShowConfirmDialog(
                     owner,
-                    signInErrorMessage);
+                    GetGogSignInErrorMessage(ex));
                 return;
             }
         }
@@ -456,6 +434,36 @@ public partial class MainWindowViewModel
         });
 
         await SaveData();
+    }
+
+    private static string GetGogSignInErrorMessage(Exception exception)
+    {
+        var message = exception.Message;
+        var inAppUnavailable = exception is PlatformNotSupportedException;
+
+        if (inAppUnavailable && message.Contains("AppImage Wayland", StringComparison.OrdinalIgnoreCase))
+        {
+            return T(
+                "Gog.InAppAuthUnavailableWaylandAppImage",
+                "Embedded web authentication is currently not supported in AppImage Wayland sessions. Restart Retromind with --avalonia-platform=x11 and retry.");
+        }
+
+        if (inAppUnavailable)
+            return T("Gog.InAppAuthUnavailable", "Embedded web authentication is not available on this platform.");
+
+        if (message.Contains("redirect_uri_mismatch", StringComparison.OrdinalIgnoreCase))
+            return T("Gog.RedirectMismatch", "GOG rejected the OAuth redirect URI. Please update OAuth client settings or use a compatible client.");
+
+        if (message.Contains("authorization code", StringComparison.OrdinalIgnoreCase))
+            return T("Gog.CallbackMissingCode", "The authentication callback did not include an authorization code.");
+
+        if (message.Contains("authorization URL", StringComparison.OrdinalIgnoreCase))
+            return T("Gog.InvalidAuthorizeUri", "The received GOG authorization URL is invalid.");
+
+        if (message.Contains("redirect URI", StringComparison.OrdinalIgnoreCase))
+            return T("Gog.InvalidRedirectUri", "The configured OAuth redirect URI is invalid.");
+
+        return T("Gog.SignInFailed", "GOG sign-in failed.");
     }
 
     private async Task<Uri?> CaptureGogCallbackUriInAppAsync(Window owner, Uri authorizeUri, System.Threading.CancellationToken ct)
