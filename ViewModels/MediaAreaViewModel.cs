@@ -326,11 +326,13 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
     private void RebuildRows()
     {
-        var columnCount = ComputeColumnCount();
-        if (columnCount < 1) columnCount = 1;
-        _columnCount = columnCount;
-
-        EffectiveItemWidth = ComputeEffectiveItemWidth(columnCount);
+        var layout = MediaGridLayoutHelper.Calculate(
+            ViewportWidth,
+            ViewportPadding,
+            ItemWidth,
+            ItemSpacing);
+        _columnCount = layout.ColumnCount;
+        EffectiveItemWidth = layout.EffectiveItemWidth;
 
         if (FilteredItems.Count == 0)
         {
@@ -339,9 +341,9 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         }
 
         var rows = new List<MediaItemRow>();
-        for (var i = 0; i < FilteredItems.Count; i += columnCount)
+        for (var i = 0; i < FilteredItems.Count; i += layout.ColumnCount)
         {
-            var rowCount = Math.Min(columnCount, FilteredItems.Count - i);
+            var rowCount = Math.Min(layout.ColumnCount, FilteredItems.Count - i);
             var row = new List<MediaItem>(rowCount);
             for (var j = 0; j < rowCount; j++)
                 row.Add(FilteredItems[i + j]);
@@ -376,37 +378,6 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
         SelectedMediaItem = null;
     }
-
-    private int ComputeColumnCount()
-    {
-        var availableWidth = ViewportWidth - ViewportPadding;
-        if (availableWidth <= 0 || ItemWidth <= 0)
-            return 1;
-
-        var totalItemWidth = ItemWidth + ItemSpacing;
-        if (totalItemWidth <= 0)
-            return 1;
-
-        return Math.Max(1, (int)Math.Floor((availableWidth + ItemSpacing) / totalItemWidth));
-    }
-
-    private double ComputeEffectiveItemWidth(int columnCount)
-    {
-        if (columnCount < 1)
-            return ItemWidth;
-
-        var availableWidth = ViewportWidth - ViewportPadding;
-        if (availableWidth <= 0)
-            return ItemWidth;
-
-        var totalSpacing = ItemSpacing * (columnCount - 1);
-        var width = (availableWidth - totalSpacing) / columnCount;
-        if (double.IsNaN(width) || double.IsInfinity(width) || width <= 0)
-            return ItemWidth;
-
-        return width;
-    }
-
     private bool CanPlayRandom() => IsPlayRandomEnabled && FilteredItems.Count > 0;
 
     [RelayCommand(CanExecute = nameof(CanPlayRandom))]

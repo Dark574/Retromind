@@ -126,56 +126,21 @@ public partial class SearchAreaView : UserControl
             return;
         }
 
-        var columnCount = Math.Max(1, vm.ColumnCount);
-        var selectedIndex = FindSelectedIndex(items, vm.SelectedMediaItem);
-        var targetIndex = selectedIndex;
-
-        switch (e.Key)
+        var selectedIndex = MediaGridNavigationHelper.FindSelectedIndex(items, vm.SelectedMediaItem);
+        if (!MediaGridNavigationHelper.TryGetTargetIndex(
+                e.Key,
+                selectedIndex,
+                items.Count,
+                vm.ColumnCount,
+                out var targetIndex))
         {
-            case Key.Left:
-                targetIndex = selectedIndex <= 0 ? 0 : selectedIndex - 1;
-                break;
-            case Key.Right:
-                targetIndex = selectedIndex < 0 ? 0 : Math.Min(selectedIndex + 1, items.Count - 1);
-                break;
-            case Key.Up:
-                targetIndex = selectedIndex < 0 ? 0 : Math.Max(selectedIndex - columnCount, 0);
-                break;
-            case Key.Down:
-                targetIndex = selectedIndex < 0 ? 0 : Math.Min(selectedIndex + columnCount, items.Count - 1);
-                break;
-            case Key.Home:
-                targetIndex = 0;
-                break;
-            case Key.End:
-                targetIndex = items.Count - 1;
-                break;
-            default:
-                return;
+            return;
         }
 
         var next = items[targetIndex];
         vm.SelectedMediaItem = next;
         ScrollItemIntoView(next);
         e.Handled = true;
-    }
-
-    private static int FindSelectedIndex(IList<MediaItem> items, MediaItem? selected)
-    {
-        if (selected == null)
-            return -1;
-
-        for (var i = 0; i < items.Count; i++)
-        {
-            var item = items[i];
-            if (ReferenceEquals(item, selected) ||
-                string.Equals(item.Id, selected.Id, StringComparison.Ordinal))
-            {
-                return i;
-            }
-        }
-
-        return -1;
     }
 
     private void ScrollItemIntoView(MediaItem item)
