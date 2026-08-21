@@ -27,7 +27,7 @@ glibc 2.36 or newer. Other Linux distributions are expected to work, but have no
 - **Desktop and controller-friendly BigMode interfaces** with video previews and customizable runtime themes
 - **Flexible game launching** for native applications, scripts and emulators, including Wine, Proton, UMU, wrappers and environment overrides
 - **Metadata and artwork scraping** from multiple providers with bulk processing and per-field import decisions
-- **Fast library discovery** through global search, favorites, saved filters and an optional metadata query language
+- **Library discovery and filtering** through global search, favorites, saved filters and an optional metadata query language
 - **Smart local imports** with multi-disc recognition and optional playlist launching
 - **Store integration** for Steam and Heroic imports plus experimental native GOG library, installation, update and uninstall support
 - **Managed compatibility runners**, including direct GE-Proton downloads and reusable emulator profiles
