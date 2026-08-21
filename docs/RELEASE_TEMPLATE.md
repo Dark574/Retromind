@@ -30,7 +30,7 @@ chmod +x Retromind-{{VERSION}}-linux-x86_64.AppImage
 ### 2.1 Start BigMode directly
 
 ```bash
-./Retromind-{{VERSION}}-linux-x86_64.AppImage -- --bigmode
+./Retromind-{{VERSION}}-linux-x86_64.AppImage --bigmode
 ```
 
 ### 2.2 Start the regular desktop UI
@@ -76,7 +76,7 @@ Replace this list for each release:
 To capture additional LibVLC and console output (useful for bug reports), you can run:
 
 ```bash
-./Retromind-{{VERSION}}-linux-x86_64.AppImage -- --bigmode |& tee vlc-log.txt
+./Retromind-{{VERSION}}-linux-x86_64.AppImage --bigmode |& tee vlc-log.txt
 ```
 
 When opening an issue, please include:
