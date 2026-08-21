@@ -10,8 +10,12 @@ It is designed to be portable, controller‑friendly and run well on Linux deskt
 **Linux (x86_64)**
 
 - `Retromind-{{VERSION}}-linux-x86_64.AppImage`
+- `Retromind-{{VERSION}}-linux-x86_64.AppImage.zsync`
 
 SHA‑256 checksum: `checksum`
+
+Upload both files without renaming them. Alpha/beta releases must be marked as a GitHub **prerelease** so
+AppImage update tools select the correct release channel.
 
 ---
 

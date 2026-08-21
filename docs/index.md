@@ -70,7 +70,8 @@ The latest builds are available on GitHub Releases:
 - **Releases:**  
   [https://github.com/Dark574/Retromind/releases](https://github.com/Dark574/Retromind/releases)
 
-Look for the `Retromind-x86_64.AppImage` asset for the portable Linux build.
+Look for the `Retromind-<version>-linux-x86_64.AppImage` asset for the portable Linux build. The matching
+`.AppImage.zsync` asset enables compatible tools to download future updates as deltas.
 
 ---
 

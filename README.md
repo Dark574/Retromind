@@ -73,6 +73,7 @@ This project ships a build script that creates a portable **AppImage** containin
 - bundled **LibVLC + plugins** (video playback required)
 - helper/runtime libraries exported from a Debian 12 (bookworm) build container
 - a checksum-pinned, statically linked AppImage runtime
+- embedded GitHub Releases update information and matching `.zsync` metadata for delta updates
 
 Note: When using the AppImage, you do not need a system-wide VLC installation because LibVLC is bundled.
 The Wayland/X11 note below still applies because it affects how video is embedded into the Avalonia window.
@@ -92,8 +93,10 @@ chmod +x build/AppRun build/build-appimage.sh
 ./build/build-appimage.sh
 ```
 
-The resulting AppImage will be created at:
-- `dist/Retromind-x86_64.AppImage`
+The version is read from `InformationalVersion` in `Retromind.csproj`. The build creates two release assets:
+
+- `dist/Retromind-<version>-linux-x86_64.AppImage`
+- `dist/Retromind-<version>-linux-x86_64.AppImage.zsync`
 
 ## Build & Run
 ### Rider
@@ -234,7 +237,7 @@ You can also trigger a one-time migration from the settings dialog.
 
 A practical layout might look like this:
 ```text
-Retromind/ Retromind-x86_64.AppImage Library/ ROMs/ SNES/ PSX/ NativeGames/ MyPortedGame/ Prefixes/ 123e4567-..._Some_Wine_Game/ Themes/
+Retromind/ Retromind-0.1.6-alpha-linux-x86_64.AppImage Library/ ROMs/ SNES/ PSX/ NativeGames/ MyPortedGame/ Prefixes/ 123e4567-..._Some_Wine_Game/ Themes/
 ```
 
 If you add ROMs or native games from anywhere *inside* the `Retromind/` folder:

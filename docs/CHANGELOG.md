@@ -10,14 +10,14 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.1.6-alpha] - unreleased
 
 ### Added
-- you can now save search terms for quick reuse
 - new System theme 'PC Games'
 - text completion for custom fields, custom fields are shown before the item description
 - new console system theme
+- language support for texts in default system theme
+- zsync metadata and embedded GitHub Releases update information for AppImage delta updates
 
 ### Changed
 - removed Prefix architecture / selection is not used in Wine/Proton and misleading
-- language support for texts in default system theme
 - hardened GOG installer/ safety procedures for install/deinstall in system folders
 - better name comparison for mass scraping
 - unified save/abort handling for menus

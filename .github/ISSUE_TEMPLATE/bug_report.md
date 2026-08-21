@@ -37,5 +37,5 @@ What happened instead?
 
 If possible, include:
 
-- relevant console output (run from terminal: `./Retromind-x86_64.AppImage`),
+- relevant console output (run the downloaded `Retromind-<version>-linux-x86_64.AppImage` from a terminal),
 - or screenshots of the problem.

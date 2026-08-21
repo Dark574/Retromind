@@ -15,6 +15,9 @@ This document summarizes how Retromind is structured today and where core behavi
   - `--avalonia-platform` is currently constrained to `x11` on Linux (`wayland`/`auto` are intentionally disabled)
   - AppImage portable HOME/XDG redirection via `PortableEnvironment.ApplyPortableXdgPaths()`
   - mandatory LibVLC initialization (`Core.Initialize()`)
+- Release AppImages use checksum-pinned official `appimagetool` and static Type-2 runtime artifacts, removing
+  the host `libfuse2` dependency. Their versioned filename, embedded GitHub Releases update information, and
+  matching `.zsync` metadata are produced together and must not be renamed after the build.
 - `App.OnFrameworkInitializationCompleted` then:
   - synchronizes portable themes (`AppPaths.EnsurePortableThemes()`)
   - bootstraps settings first

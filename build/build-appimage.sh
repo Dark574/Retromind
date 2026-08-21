@@ -19,6 +19,25 @@ APPIMAGE_RUNTIME_COMMIT="75849dce7cc37e4319b633df1f116ca895c71a12"
 APPIMAGE_RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
 APPIMAGE_RUNTIME_SHA256="1cc49bcf1e2ccd593c379adb17c9f85a36d619088296504de95b1d06215aebbf"
 
+RETROMIND_VERSION="$(
+  sed -n 's:.*<InformationalVersion>\([^<]*\)</InformationalVersion>.*:\1:p' \
+    "$PROJECT_ROOT/Retromind.csproj" | head -n 1
+)"
+if [ -z "$RETROMIND_VERSION" ] || ! printf '%s' "$RETROMIND_VERSION" | grep -Eq '^[0-9A-Za-z][0-9A-Za-z._-]*$'; then
+  echo "ERROR: Could not read a filename-safe InformationalVersion from Retromind.csproj."
+  exit 1
+fi
+
+case "$RETROMIND_VERSION" in
+  *-*) APPIMAGE_UPDATE_CHANNEL="latest-all" ;;
+  *)   APPIMAGE_UPDATE_CHANNEL="latest" ;;
+esac
+
+APPIMAGE_NAME="Retromind-$RETROMIND_VERSION-linux-x86_64.AppImage"
+APPIMAGE_PATH="$OUT_DIR/$APPIMAGE_NAME"
+ZSYNC_PATH="$APPIMAGE_PATH.zsync"
+APPIMAGE_UPDATE_INFORMATION="gh-releases-zsync|Dark574|Retromind|$APPIMAGE_UPDATE_CHANNEL|Retromind-*-linux-x86_64.AppImage.zsync"
+
 echo "[1/8] Prepare folders..."
 rm -rf "$WORK_DIR"
 mkdir -p "$OUT_DIR" "$WORK_DIR"
@@ -225,9 +244,25 @@ echo "[8/8] Build AppImage..."
 cd "$WORK_DIR"
 # Extract-and-run keeps the packaging step independent of host FUSE support.
 # The generated Retromind AppImage still uses the explicitly pinned static runtime.
-ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
-  "$APPIMAGETOOL" --runtime-file "$APPIMAGE_RUNTIME" \
-  "$APPDIR" "$OUT_DIR/Retromind-x86_64.AppImage"
+rm -f "$APPIMAGE_PATH" "$ZSYNC_PATH"
+ARCH=x86_64 VERSION="$RETROMIND_VERSION" APPIMAGE_EXTRACT_AND_RUN=1 \
+  "$APPIMAGETOOL" \
+  --runtime-file "$APPIMAGE_RUNTIME" \
+  --updateinformation "$APPIMAGE_UPDATE_INFORMATION" \
+  "$APPDIR" "$APPIMAGE_PATH"
 
-echo "Done: $OUT_DIR/Retromind-x86_64.AppImage"
-echo "Run it with: $OUT_DIR/Retromind-x86_64.AppImage"
+# appimagetool writes the zsync file to its current working directory even
+# when the AppImage destination is absolute. Move both release assets together.
+GENERATED_ZSYNC_PATH="$WORK_DIR/$APPIMAGE_NAME.zsync"
+if [ -f "$GENERATED_ZSYNC_PATH" ]; then
+  mv "$GENERATED_ZSYNC_PATH" "$ZSYNC_PATH"
+fi
+
+if [ ! -f "$ZSYNC_PATH" ]; then
+  echo "ERROR: appimagetool did not create the expected zsync file at '$ZSYNC_PATH'."
+  exit 1
+fi
+
+echo "Done: $APPIMAGE_PATH"
+echo "Delta metadata: $ZSYNC_PATH"
+echo "Run it with: $APPIMAGE_PATH"
