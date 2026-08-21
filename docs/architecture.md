@@ -12,7 +12,8 @@ This document summarizes how Retromind is structured today and where core behavi
 ## Runtime profile and startup
 - `Program.Main` configures runtime behavior before Avalonia starts:
   - `--bigmode` startup mode
-  - `--avalonia-platform` is currently constrained to `x11` on Linux (`wayland`/`auto` are intentionally disabled)
+  - Linux defaults to X11/XWayland; `--avalonia-platform=wayland` opts into Avalonia's experimental native
+    Wayland backend with X11 initialization fallback, while `x11` and `auto` retain the stable X11 path
   - AppImage portable HOME/XDG redirection via `PortableEnvironment.ApplyPortableXdgPaths()`
   - mandatory LibVLC initialization (`Core.Initialize()`)
 - Release AppImages use checksum-pinned official `appimagetool` and static Type-2 runtime artifacts, removing

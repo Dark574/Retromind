@@ -6,8 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project (aims to) adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [0.1.7-alpha] - unreleased
 
-## [0.1.6-alpha] - unreleased
+### Added
+- experimental native Wayland opt-in with X11 initialization fallback
+
+### Changed
+- updated Avalonia to 12.1.1 and Avalonia WebView to 12.1.0
+
+### Fixed
+
+---
+
+## [0.1.6-alpha] - 2026-08-26
 
 ### Added
 - new System theme 'PC Games'

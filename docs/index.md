@@ -90,13 +90,21 @@ Start directly in BigMode:
 ./Retromind-<version>-linux-x86_64.AppImage --bigmode
 ```
 
+Native Wayland support is experimental and must be enabled explicitly:
+
+```bash
+./Retromind-<version>-linux-x86_64.AppImage --avalonia-platform=wayland
+```
+
+Without this option, Retromind keeps the stable X11/XWayland default.
+
 The matching `.AppImage.zsync` asset is metadata for compatible delta-update tools and is not required for
 a normal installation.
 
 ### AppImage requirements
 
 - Linux x86_64 with glibc 2.36 or newer
-- X11-compatible desktop session
+- X11/XWayland desktop session by default; native Wayland is available as an experimental opt-in
 
 The AppImage bundles .NET, LibVLC and its required helper tools. It does not require the host `libfuse2`
 userspace library; normal mounting still needs Linux kernel FUSE support, while extract-and-run remains
@@ -109,7 +117,7 @@ available as a fallback.
 Requirements:
 
 - .NET SDK 10.0
-- Linux with an X11-compatible desktop session
+- Linux with an X11/XWayland or Wayland desktop session
 - VLC / LibVLC runtime
 
 Basic usage:
@@ -122,6 +130,12 @@ dotnet run --project Retromind.csproj
 Start directly in BigMode:
 ```bash
 dotnet run --project Retromind.csproj -- --bigmode
+```
+
+To opt into native Wayland when running from source:
+
+```bash
+dotnet run --project Retromind.csproj -- --avalonia-platform=wayland
 ```
 
 For AppImage build instructions, configuration details, tests and the complete feature documentation, see

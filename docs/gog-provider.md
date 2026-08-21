@@ -55,7 +55,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - `Avalonia.Controls.WebView` is used for embedded OAuth authentication dialogs
   - Linux runtime prerequisite for embedded OAuth: `libwebkit2gtk` (WebKitGTK)
   - AppImage build does not bundle WebKitGTK runtime due stability/ABI issues across host environments; WebKitGTK is expected from the host when embedded OAuth is used.
-  - current runtime policy: Linux startup forces X11 (`AVALONIA_PLATFORM=x11`), Wayland is intentionally disabled for now
+  - Linux defaults to X11/XWayland; native Wayland is an explicit opt-in, and AppImage Wayland sessions use
+    the system-browser callback flow instead of embedded authentication
   - local Linux development/debug runs still require system WebKitGTK (e.g. on Arch/CachyOS: `sudo pacman -S webkit2gtk-4.1`)
   - missing WebKitGTK now fails gracefully with a localized user message (no hard app crash)
 - Performance/UX:

@@ -15,22 +15,7 @@ internal sealed class Program
     public static void Main(string[] args)
     {
         bool isBigModeOnly = args.Contains("--bigmode");
-
-        // Linux: Wayland is intentionally disabled for now.
-        // We force X11 for stable VLC embedding and embedded auth flows.
-        // When Avalonia Wayland is released we will switch back to Wayland.
-        if (OperatingSystem.IsLinux())
-        {
-            var platformArg = args.FirstOrDefault(a => a.StartsWith("--avalonia-platform=", StringComparison.OrdinalIgnoreCase));
-            var platformValue = platformArg?.Split('=', 2).ElementAtOrDefault(1)?.Trim();
-            if (!string.IsNullOrWhiteSpace(platformValue) &&
-                !platformValue.Equals("x11", StringComparison.OrdinalIgnoreCase))
-            {
-                Console.WriteLine($"[Startup] --avalonia-platform={platformValue} is currently disabled. Forcing x11.");
-            }
-
-            Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", "x11");
-        }
+        bool useWayland = ConfigureLinuxDisplayBackend(args);
 
         // AppImage portability: redirect XDG dirs into a local "Home" folder.
         // Safe to call before Avalonia initialization.
@@ -47,15 +32,50 @@ internal sealed class Program
             Environment.Exit(1);
         }
         
-        BuildAvaloniaApp(isBigModeOnly)
+        BuildAvaloniaApp(isBigModeOnly, useWayland)
             .StartWithClassicDesktopLifetime(args);
     }
 
-    // Avalonia configuration, used by the application
-    public static AppBuilder BuildAvaloniaApp(bool isBigModeOnly)
+    private static bool ConfigureLinuxDisplayBackend(string[] args)
     {
-        return AppBuilder.Configure<App>()
-            .UsePlatformDetect()
+        var platformArg = args.FirstOrDefault(a =>
+            a.StartsWith("--avalonia-platform=", StringComparison.OrdinalIgnoreCase));
+        var platformValue = platformArg?.Split('=', 2).ElementAtOrDefault(1)?.Trim();
+        var useWayland = string.Equals(platformValue, "wayland", StringComparison.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(platformValue) &&
+            !useWayland &&
+            !platformValue.Equals("x11", StringComparison.OrdinalIgnoreCase) &&
+            !platformValue.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"[Startup] Unknown Avalonia platform '{platformValue}'. Using x11.");
+        }
+        else if (platformValue?.Equals("auto", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            Console.WriteLine("[Startup] Native Wayland requires explicit opt-in. Using x11 for --avalonia-platform=auto.");
+        }
+
+        var selectedPlatform = useWayland ? "wayland" : "x11";
+        Environment.SetEnvironmentVariable("AVALONIA_PLATFORM", selectedPlatform);
+
+        if (useWayland)
+        {
+            Console.WriteLine("[Startup] Native Wayland requested; x11 remains the initialization fallback.");
+        }
+
+        return useWayland;
+    }
+
+    // Avalonia configuration, used by the application
+    public static AppBuilder BuildAvaloniaApp(bool isBigModeOnly, bool useWayland = false)
+    {
+        var builder = AppBuilder.Configure<App>()
+            .UsePlatformDetect();
+
+        if (OperatingSystem.IsLinux() && useWayland)
+            builder = builder.UseWaylandWithFallback();
+
+        return builder
             .WithInterFont()
             // Only log errors (suppress most binding warnings like "Value is null")
             .LogToTrace(Avalonia.Logging.LogEventLevel.Error)

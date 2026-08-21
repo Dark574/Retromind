@@ -532,7 +532,7 @@ public class AsyncImageHelper : AvaloniaObject
         {
             try
             {
-                bitmap.Save(destinationPath);
+                bitmap.Save(destinationPath, new PngBitmapEncoderOptions());
                 return true;
             }
             catch (Exception ex)

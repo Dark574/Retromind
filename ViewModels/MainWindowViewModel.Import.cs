@@ -472,18 +472,18 @@ public partial class MainWindowViewModel
         if (!IsValidGogAuthorizeUri(authorizeUri))
             throw new InvalidOperationException("Invalid GOG authorization URL.");
 
-        if (OperatingSystem.IsLinux())
-        {
-            if (IsLinuxWaylandAppImageSession())
-            {
-                return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
-            }
+        if (!OperatingSystem.IsLinux())
+            throw new PlatformNotSupportedException("Embedded GOG authentication is only supported on Linux.");
 
-            EnsureLinuxWebKitGtkAlias();
-            if (!HasLinuxWebKitGtkRuntime())
-            {
-                return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
-            }
+        if (IsLinuxWaylandAppImageSession())
+        {
+            return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
+        }
+
+        EnsureLinuxWebKitGtkAlias();
+        if (!HasLinuxWebKitGtkRuntime())
+        {
+            return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
         }
 
         var redirectUri = ResolveRedirectUriFromAuthorizeUri(authorizeUri);
@@ -494,7 +494,7 @@ public partial class MainWindowViewModel
 
         var options = new WebAuthenticatorOptions(authorizeUri, redirectUri)
         {
-            PreferNativeWebDialog = true,
+            Mode = WebAuthenticatorMode.NativeWebDialog,
             NonPersistent = true
         };
 

@@ -75,7 +75,7 @@ See `docs/CHANGELOG.md` for version history.
 ### AppImage
 
 - Linux x86_64 with glibc 2.36 or newer
-- X11-compatible desktop session (Retromind currently forces its X11 backend)
+- X11/XWayland desktop session by default; native Wayland is available as an experimental opt-in
 
 The AppImage is self-contained: a system-wide .NET runtime and LibVLC installation are not required.
 
@@ -509,21 +509,30 @@ Each user is responsible for their own API keys and must comply with the
 respective provider terms of service.
 
 ## Wayland / X11 note (VLC video embedding)
-Wayland is currently **fully disabled** in Retromind on Linux.
+Retromind uses X11/XWayland by default. Avalonia 12.1's native Wayland backend is available as an
+**experimental opt-in**:
 
-At startup, Retromind forces `AVALONIA_PLATFORM=x11` to keep VLC embedding and embedded authentication stable.
+```bash
+./Retromind-<version>-linux-x86_64.AppImage --avalonia-platform=wayland
+```
 
-If you pass `--avalonia-platform=wayland` or `--avalonia-platform=auto`, it is ignored for now and Retromind still runs on X11.
+For source builds, pass the Retromind argument after the `dotnet run` separator:
 
-Why this is currently disabled:
+```bash
+dotnet run --project Retromind.csproj -- --avalonia-platform=wayland
+```
 
-- Avalonia targets X11 directly on Linux. A native Wayland backend is available as an experimental opt-in
-  package starting with Avalonia 12.1.0. Retromind currently uses Avalonia 12.0.2 and does not include that package.
-  Source: <https://docs.avaloniaui.net/docs/supported-platforms>
-- Retromind's Linux runtime depends on stable native integration for both **LibVLC embedding** and **embedded OAuth/WebView**. In our AppImage testing, Wayland paths caused native instability (including process-level crashes), which cannot be handled safely in managed code.
-- Until Avalonia ships generally available, production-grade Wayland support for this stack, Retromind keeps Linux on X11 by policy.
+When Wayland is requested, Retromind uses Avalonia's Wayland initialization fallback and starts with X11
+if the native backend cannot be initialized. Omit the option or pass `--avalonia-platform=x11` to select
+X11 explicitly. `--avalonia-platform=auto` intentionally keeps the stable X11 default; Wayland always
+requires an explicit opt-in.
 
-No launch flag is required; Retromind selects X11 automatically.
+The Wayland backend is still classified as experimental by Avalonia. Retromind also depends on native
+integration for **LibVLC video embedding** and **embedded OAuth/WebView**, so these paths need additional
+real-world testing. In AppImage Wayland sessions, GOG authentication conservatively uses the system-browser
+fallback instead of the embedded WebView.
+
+Source: <https://docs.avaloniaui.net/docs/platform-specific-guides/linux#wayland>
 
 ## SortTitle
 - Retromind sorts media entries by `SortTitle` attribute if it is set.
@@ -570,7 +579,7 @@ Please test it carefully and expect rough edges or breaking behavior between alp
 
 ### Requirements
 
-- Linux desktop session with X11 runtime path (Retromind currently forces `AVALONIA_PLATFORM=x11`).
+- Linux desktop session with X11/XWayland, or native Wayland through the experimental opt-in described above.
 - Secret store support:
   - preferred: Secret Service (`secret-tool`, GNOME Keyring/KWallet/libsecret backend)
   - fallback: in-memory session storage (non-persistent)
