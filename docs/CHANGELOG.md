@@ -7,19 +7,150 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
-## [0.0.8-alpha] - Unreleased
+## [0.1.6-alpha] - unreleased
 
 ### Added
-- (none yet)
+- you can now save search terms for quick reuse
+- new System theme 'PC Games'
+- text completion for custom fields, custom fields are shown before the item description
+- new console system theme
 
 ### Changed
-- (none yet)
+- removed Prefix architecture / selection is not used in Wine/Proton and misleading
+- language support for texts in default system theme
+- hardened GOG installer/ safety procedures for install/deinstall in system folders
+- better name comparison for mass scraping
+- unified save/abort handling for menus
+- node names are now case sensitive
+- use appimagetool 1.9.1 and static Type-2 runtime for build process
 
 ### Fixed
-- (none yet)
+- theme sync didnt work correctly for system themes
+- better error handling when saving data
+- only load backup if the main file is missing/not readable/damaged
+- a few small bugs and changes
+- GOG installations are now portable when installed under dataroot
 
-### Removed
-- (none yet)
+---
+
+## [0.1.5-alpha] - 2026-06-25
+
+### Added
+- new system themes for the Commodore 64 and Amiga (more will follow soon)
+- SteamGridDB as a new artwork scraper
+- Added support for empty media entries without a launch file
+
+### Changed
+- Reworked the metadata and artwork import workflow with per-field selection
+- Improved multi-disc filename detection and handling
+- Improved GE-Proton runner management, sorting, registration and removal
+- Improved video transitions when switching system themes
+
+### Fixed
+- crash when cancelling bulk scraping or opening the metadata dialog
+- several smaller issues and removed unused code
+
+---
+
+## [0.1.4-alpha] - 2026-06-06
+
+### Added
+- you can now save search terms for quick reuse
+- metadata autocomplete
+
+### Changed
+- removed Heroic GOG import functionality, since GOG is now supported natively
+- only the x86_64 release of GE-Proton is now offered
+
+### Fixed
+- several small bugs
+
+---
+
+## [0.1.3-alpha] - 2026-06-01
+
+### Added
+- GOG integration (experimental):
+    Update, deinstall and cancel installation of GOG titles directly in Retromind.
+    Previously only Heroic‑based imports were supported.
+    This implementation is currently experimental, so expect bugs.
+    See the README for setup requirements and usage instructions.
+
+### Changed
+- small improvements to the search functionality
+
+---
+
+## [0.1.2-alpha] - 2026-05-18
+
+### Added
+- native GOG support, previous versions only supported GOG through Heroic import.
+This implementation is currently experimental, so expect bugs.
+See the README for setup requirements and usage instructions
+- improved and more logical library sorting
+- pressing Esc can now deselect the current item
+
+### Fixed
+- several smaller bugs and internal cleanup
+
+---
+
+## [0.1.1-alpha] - 2026-05-03
+
+### Added
+- management for wine and proton versions, download and refresh of GE-Proton releases
+
+### Changed
+- dynamic custom field handling and year comparison for search function
+
+### Fixed
+- a few small bug fixes and changes
+
+---
+
+## [0.1.0-alpha] - 2026-03-21
+
+### Added
+- Scraper support for the new metadata (if available)
+- Scrapers are now configurable in the settings
+
+### Changed
+- separate metadata tab in edit medium dialog for cleaner menus
+
+### Fixed
+- included SDL2 library in AppImage, reworked build process to only use Debian 12 bookworm libraries
+- a few small bugs
+
+---
+
+## [0.0.9-alpha] - 2026-04-10
+
+### Added
+- emulator-level XDG/HOME override logic in Emulator Settings (standard is that all emulators use system home/Xdg)
+- Screenshot as a new media asset type for media items
+- parental controls
+- an explicit Tmds.DBus.Protocol dependency to address the transitive security issue in Avalonia.FreeDesktop:
+GHSA-xrw6-gwf8-vvr9
+- metadata fields: Release Type, Max Players, Publisher, Series, Play Mode, Source, Sort Title, Custom Fields
+
+### Fixed
+- AppImage environment sanitization (DocumentService and Winetricks are now included).
+
+---
+
+## [0.0.8-alpha] - 2026-03-06
+
+### Added
+- new scraper TheGamesDB
+- scraper language selection where available
+- support for XDG environment variable overrides in Emulators
+
+### Changed
+- manual metadata search dialog reworked (more results and richer info)
+
+### Fixed
+- included SDL2 library in AppImage, reworked build process to only use Debian 12 bookworm libraries
+- a few small bugs
 
 ---
 
@@ -160,12 +291,19 @@ also a lot of small fixes and changes
 ## Versioning
 
 - `0.0.x` – early alpha versions, APIs and themes may change at any time.
-- Once the project stabilizes, versions will move to `0.1.0`, `0.2.0`, etc.
+- Once the project stabilizes, versions will move to `1.0.0`, `2.0.0`, etc.
 
 ---
 
-[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.0.8-alpha...HEAD
-[0.0.8-alpha]: https://github.com/Dark574/Retromind/compare/v0.0.7-alpha...v0.0.8-alpha
+[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.1.5-alpha...HEAD
+[0.1.5-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.5-alpha
+[0.1.4-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.4-alpha
+[0.1.3-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.3-alpha
+[0.1.2-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.2-alpha
+[0.1.1-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.1-alpha
+[0.1.0-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.0-alpha
+[0.0.9-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.0.9-alpha
+[0.0.8-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.0.8-alpha
 [0.0.7-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.0.7-alpha
 [0.0.6-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.0.6-alpha
 [0.0.5-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.0.5-alpha
