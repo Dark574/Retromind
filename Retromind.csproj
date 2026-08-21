@@ -6,7 +6,6 @@
         <UseAvaloniaXaml>true</UseAvaloniaXaml>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <NoWarn>$(NoWarn);NU1510;NU1900</NoWarn>
 
