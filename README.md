@@ -72,6 +72,7 @@ This project ships a build script that creates a portable **AppImage** containin
 - a self-contained .NET build (no system .NET required)
 - bundled **LibVLC + plugins** (video playback required)
 - helper/runtime libraries exported from a Debian 12 (bookworm) build container
+- a checksum-pinned, statically linked AppImage runtime
 
 Note: When using the AppImage, you do not need a system-wide VLC installation because LibVLC is bundled.
 The Wayland/X11 note below still applies because it affects how video is embedded into the Avalonia window.
@@ -79,6 +80,11 @@ The Wayland/X11 note below still applies because it affects how video is embedde
 ### Requirements (host)
 - Docker (for the full reproducible bookworm build pipeline)
 - `curl` (to download `appimagetool` if missing)
+- `sha256sum` (normally provided by GNU coreutils)
+
+The generated AppImage does not depend on the host `libfuse2` userspace library. Normal execution still
+requires Linux kernel FUSE support; AppImage's extract-and-run fallback remains available on systems where
+mounting through FUSE is unavailable.
 
 ### Build
 ```

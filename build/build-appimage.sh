@@ -8,6 +8,17 @@ WORK_DIR="$PROJECT_ROOT/.build-work"
 APPDIR="$WORK_DIR/AppDir"
 BUILDER_IMAGE="retromind-appimage-builder:bookworm"
 
+# Keep the packaging tool and embedded runtime reproducible. The type2-runtime
+# project currently publishes only a mutable "continuous" release, so its
+# commit and checksum are pinned here. A changed upstream asset must therefore
+# be reviewed and updated explicitly instead of silently entering a release.
+APPIMAGETOOL_VERSION="1.9.1"
+APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-x86_64.AppImage"
+APPIMAGETOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
+APPIMAGE_RUNTIME_COMMIT="75849dce7cc37e4319b633df1f116ca895c71a12"
+APPIMAGE_RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
+APPIMAGE_RUNTIME_SHA256="1cc49bcf1e2ccd593c379adb17c9f85a36d619088296504de95b1d06215aebbf"
+
 echo "[1/8] Prepare folders..."
 rm -rf "$WORK_DIR"
 mkdir -p "$OUT_DIR" "$WORK_DIR"
@@ -135,9 +146,9 @@ if [ -d "$PROJECT_ROOT/Licenses" ]; then
   cp -r "$PROJECT_ROOT/Licenses/." "$DOC_DIR/Licenses/"
 fi
 
-echo "[6/8] Download appimagetool (if missing)..."
+echo "[6/8] Download verified AppImage packaging tools..."
 APPIMAGETOOL="$WORK_DIR/appimagetool"
-APPIMAGETOOL_TMP="$WORK_DIR/appimagetool.tmp"
+APPIMAGE_RUNTIME="$WORK_DIR/runtime-x86_64"
 
 is_elf_file() {
   [ -f "$1" ] || return 1
@@ -145,41 +156,66 @@ is_elf_file() {
   [ "$magic" = "7f454c46" ]
 }
 
-download_appimagetool() {
-  url="$1"
-  rm -f "$APPIMAGETOOL_TMP"
+download_verified_elf() {
+  artifact_name="$1"
+  artifact_url="$2"
+  expected_sha256="$3"
+  artifact_destination="$4"
+  artifact_tmp="$artifact_destination.tmp"
 
-  echo "Downloading appimagetool from: $url"
+  rm -f "$artifact_tmp"
+  echo "Downloading $artifact_name from: $artifact_url"
   if ! curl --fail --location \
       --retry 5 --retry-delay 2 --retry-connrefused --retry-all-errors \
-      -o "$APPIMAGETOOL_TMP" "$url"; then
-    echo "Notice: download failed for $url"
-    rm -f "$APPIMAGETOOL_TMP"
+      -o "$artifact_tmp" "$artifact_url"; then
+    echo "ERROR: Download failed for $artifact_url"
+    rm -f "$artifact_tmp"
     return 1
   fi
 
-  if ! is_elf_file "$APPIMAGETOOL_TMP"; then
-    echo "Notice: downloaded file is not a valid AppImage binary (likely HTML error page)."
-    if head -c 120 "$APPIMAGETOOL_TMP" | tr -d '\000' | grep -Eiq "<html|<body|gateway|error"; then
+  if ! is_elf_file "$artifact_tmp"; then
+    echo "ERROR: Downloaded $artifact_name is not a valid ELF binary."
+    if head -c 120 "$artifact_tmp" | tr -d '\000' | grep -Eiq "<html|<body|gateway|error"; then
       echo "Hint: server returned an HTML error response. Please retry in a few minutes."
     fi
-    rm -f "$APPIMAGETOOL_TMP"
+    rm -f "$artifact_tmp"
     return 1
   fi
 
-  mv "$APPIMAGETOOL_TMP" "$APPIMAGETOOL"
-  chmod +x "$APPIMAGETOOL"
+  actual_sha256="$(sha256sum "$artifact_tmp" | awk '{print $1}')"
+  if [ "$actual_sha256" != "$expected_sha256" ]; then
+    echo "ERROR: SHA-256 verification failed for $artifact_name."
+    echo "       Expected: $expected_sha256"
+    echo "       Actual:   $actual_sha256"
+    rm -f "$artifact_tmp"
+    return 1
+  fi
+
+  mv "$artifact_tmp" "$artifact_destination"
+  chmod +x "$artifact_destination"
   return 0
 }
 
-if [ ! -x "$APPIMAGETOOL" ] || ! is_elf_file "$APPIMAGETOOL"; then
-  rm -f "$APPIMAGETOOL"
+if ! command -v sha256sum >/dev/null 2>&1; then
+  echo "ERROR: sha256sum is required to verify AppImage packaging downloads."
+  exit 1
+fi
 
-  if ! download_appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" \
-     && ! download_appimagetool "https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage"; then
-    echo "ERROR: Failed to download a valid appimagetool binary."
-    exit 1
-  fi
+if ! download_verified_elf \
+    "appimagetool $APPIMAGETOOL_VERSION" \
+    "$APPIMAGETOOL_URL" \
+    "$APPIMAGETOOL_SHA256" \
+    "$APPIMAGETOOL"; then
+  exit 1
+fi
+
+if ! download_verified_elf \
+    "AppImage type2 runtime ($APPIMAGE_RUNTIME_COMMIT)" \
+    "$APPIMAGE_RUNTIME_URL" \
+    "$APPIMAGE_RUNTIME_SHA256" \
+    "$APPIMAGE_RUNTIME"; then
+  echo "Hint: the upstream continuous runtime may have changed; review and update the pinned commit and checksum together."
+  exit 1
 fi
 
 echo "[7/8] Debug: listing desktop files..."
@@ -187,7 +223,11 @@ find "$APPDIR" -maxdepth 4 -type f -name "*.desktop" -print
 
 echo "[8/8] Build AppImage..."
 cd "$WORK_DIR"
-"$APPIMAGETOOL" "$APPDIR" "$OUT_DIR/Retromind-x86_64.AppImage"
+# Extract-and-run keeps the packaging step independent of host FUSE support.
+# The generated Retromind AppImage still uses the explicitly pinned static runtime.
+ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
+  "$APPIMAGETOOL" --runtime-file "$APPIMAGE_RUNTIME" \
+  "$APPDIR" "$OUT_DIR/Retromind-x86_64.AppImage"
 
 echo "Done: $OUT_DIR/Retromind-x86_64.AppImage"
 echo "Run it with: $OUT_DIR/Retromind-x86_64.AppImage"
