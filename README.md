@@ -20,25 +20,24 @@ IMPORTANT:
 
 Retromind is early alpha. Data formats (retromind_tree.json, app_settings.json) can change between releases without a migration path. Therefore, use this version more for testing than for a large, long-term library.
 
+Retromind is primarily developed and tested on CachyOS. The AppImage is built
+on Debian 12 and requires glibc 2.36 or newer. Other Linux distributions are
+expected to work, but have not all been tested yet. Reports and contributions
+from users of other distributions are welcome.
+
 Work in progress. Expect breaking changes while features and data formats evolve.
 See `docs/CHANGELOG.md` for version history.
 
-## Key features (high-level)
-- Library tree (areas/categories) on the left
-- Cover/grid view in the center
-- Details view on the right
-- Drag & drop categories in the tree to reorder or move between parents (merge prompt on conflicts)
-- Multi-disc import with filename-pattern detection and optional playlist launching
-- Global search with classic title search, saved filters, favorites, and optional metadata power-query mode
-- Metadata scraping with per-field import decisions and additive artwork handling (depends on your API keys)
-- Inline metadata autocomplete in the item editor based on values already present in the local library; accept the current suggestion with the Right Arrow key
-- Optional BigMode / controller-friendly UI with runtime themes
-- Per-item manuals/documents
-- Flexible launch configuration with wrappers, environment variables, and per-item arguments
-- Managed GE-Proton downloads and naturally sorted Wine/Proton runner selection
-- Experimental native GOG library sync, installer, update, and uninstall integration
-- Portable library layout with relative paths (USB/external drive friendly)
-- Optional AppImage portable HOME/XDG mode for Retromind runtime, with per-emulator overrides for child processes
+## Key features
+
+- **Portable media library** with relative paths, designed to move between Linux systems on an external drive
+- **Desktop and controller-friendly BigMode interfaces** with video previews and customizable runtime themes
+- **Flexible game launching** for native applications, scripts and emulators, including Wine, Proton, UMU, wrappers and environment overrides
+- **Metadata and artwork scraping** from multiple providers with bulk processing, per-field import decisions and additive artwork handling
+- **Fast library discovery** through global search, favorites, saved filters and an optional metadata query language
+- **Smart local imports** with multi-disc recognition and optional playlist launching
+- **Store integration** for Steam and Heroic imports plus experimental native GOG library, installation, update and uninstall support
+- **Managed compatibility runners**, including direct GE-Proton downloads and reusable emulator profiles
 
 ## Screenshots
 
@@ -60,12 +59,21 @@ See `docs/CHANGELOG.md` for version history.
 
 - Large, readable layout for couch / TV usage
 - Gamepad input support
-- you can design and add your own theme through axaml files
+- Design and add your own themes through AXAML files
 
 ## Requirements
-- Linux (currently the only supported platform)
+
+### AppImage
+
+- Linux x86_64 with glibc 2.36 or newer
+- X11-compatible desktop session (Retromind currently forces its X11 backend)
+
+The AppImage is self-contained: a system-wide .NET runtime and LibVLC installation are not required.
+
+### Source builds
+
 - .NET SDK 10.0
-- LibVLC runtime (required for this build; AppImage bundles it)
+- LibVLC runtime
 
 ## Build AppImage (portable release, includes VLC)
 This project ships a build script that creates a portable **AppImage** containing:
@@ -78,7 +86,7 @@ This project ships a build script that creates a portable **AppImage** containin
 Note: When using the AppImage, you do not need a system-wide VLC installation because LibVLC is bundled.
 The Wayland/X11 note below still applies because it affects how video is embedded into the Avalonia window.
 
-### Requirements (host)
+### Build requirements (host)
 - Docker (for the full reproducible bookworm build pipeline)
 - `curl` (to download `appimagetool` if missing)
 - `sha256sum` (normally provided by GNU coreutils)
@@ -122,9 +130,9 @@ Or (if you run the built app directly):
 ## Tests
 
 The automated test suite is intentionally small and risk-focused. It protects the GOG install/uninstall
-directory boundary and Retromind's portable path contract. The tests use isolated temporary directories
-under `/tmp` and include Linux symbolic-link, case-sensitivity, path-containment, migration, and
-library-relocation cases.
+directory boundary, Retromind's portable path contract, prefix-path handling, and category-scoped metadata
+suggestions. The tests use isolated temporary directories under `/tmp` and include Linux symbolic-link,
+case-sensitivity, path-containment, migration, and library-relocation cases.
 
 Run the complete solution test suite:
 
@@ -137,9 +145,14 @@ business rules, persistence behavior, path safety, multi-disc recognition, and s
 than Avalonia view details.
 
 ## Getting started (first run)
-1. Build and run once (see “Build & Run”). Retromind will create `app_settings.json` under the portable data root (see below).
-2. If you want to preconfigure settings, copy `app_settings.sample.json` to `app_settings.json` and adjust values.
-3. For metadata scraping, configure API keys (see “API keys / Secrets”).
+
+1. Download the latest AppImage from the [GitHub Releases page](https://github.com/Dark574/Retromind/releases) and make it executable.
+2. Start the AppImage. Retromind creates `app_settings.json` in the directory containing the AppImage.
+3. Configure optional metadata providers and API credentials in the settings dialog.
+
+Developers running from source can use the commands under “Build & Run”. In that case, the portable data
+root is the application output directory. To preconfigure a source build, copy `app_settings.sample.json`
+there as `app_settings.json` and adjust it before starting Retromind.
 
 ## Configuration (portable)
 Retromind stores data under its portable data root for portability:
@@ -199,16 +212,20 @@ Important behavior:
   1) Retromind itself is portable via `UsePortableHomeInAppImage`
   2) each launched tool/app is portable via emulator/item `XDG_*`/`HOME` overrides
 
-Enable in `app_settings.json`:
+The recommended way to enable this mode is **Settings -> Misc -> Use portable HOME/XDG for AppImage**.
+After confirmation, Retromind enables forced mode so existing host values are redirected as well.
+
+For equivalent manual configuration in `app_settings.json`, set both values:
 
 ```json
-"UsePortableHomeInAppImage": true
+"UsePortableHomeInAppImage": true,
+"ForcePortableHomeInAppImage": true
 ```
 
 Notes:
 - Only applies when running as **AppImage**.
 - Requires a **restart** to take effect.
-- Existing `HOME`/`XDG_*` environment variables are not overridden if already set (unless forced mode is enabled).
+- With `ForcePortableHomeInAppImage` set to `false`, only environment variables that are currently unset are redirected.
 - New emulator profiles default to **Host** XDG context for compatibility.
 - In emulator settings, you can use presets to quickly set portable `XDG_*` (and optional `HOME`) per profile.
 
@@ -236,8 +253,17 @@ This will:
 You can also trigger a one-time migration from the settings dialog.
 
 A practical layout might look like this:
+
 ```text
-Retromind/ Retromind-0.1.6-alpha-linux-x86_64.AppImage Library/ ROMs/ SNES/ PSX/ NativeGames/ MyPortedGame/ Prefixes/ 123e4567-..._Some_Wine_Game/ Themes/
+Retromind/
+├── Retromind-<version>-linux-x86_64.AppImage
+├── Library/
+│   └── Prefixes/
+├── ROMs/
+│   ├── SNES/
+│   └── PSX/
+├── NativeGames/
+└── Themes/
 ```
 
 If you add ROMs or native games from anywhere *inside* the `Retromind/` folder:
@@ -297,13 +323,13 @@ Thanks to GloriousEggroll and all contributors for maintaining and publishing GE
 
 In **Settings -> Emulators -> Advanced**:
 
-- enable **UseWinePrefix** for the emulator profile
+- enable **Use per-game prefix (WINEPREFIX)** for the emulator profile
 - set **Runner type** (`Auto`, `UmuProton`, `Wine`, `Generic`)
 - choose **Default runner version**
 
 Notes:
 
-- If `UseWinePrefix` is disabled, emulator-level default runner selection is disabled.
+- If **Use per-game prefix (WINEPREFIX)** is disabled, emulator-level default runner selection is disabled.
 - `Auto` keeps compatibility heuristics; explicit types (`UmuProton`/`Wine`) are recommended for fixed setups.
 
 #### 3) Optional item-level override
@@ -396,12 +422,12 @@ Retromind combines profile + item arguments into a single command line while exp
 
 ## API keys / Secrets (Scrapers)
 Retromind does **not** use any bundled default keys at runtime.  
-All scraper providers (TMDB, IGDB, TheGamesDB, Google Books, …) read their API credentials
-from the scraper configuration (e.g. via the settings dialog). If no key is
-configured, the corresponding scraper simply cannot be used.
+Providers that require credentials read them from the scraper configuration in the settings dialog.
+OpenLibrary does not require credentials, and the Google Books API key is optional.
 
-Secrets are not stored in plain text. The app persists only encrypted fields
-(e.g. `EncryptedApiKey`).
+Scraper secrets are not written to `app_settings.json` as plain text. Retromind stores them using portable
+application-level encryption (for example, `EncryptedApiKey`). Because its encryption key ships with the
+open-source application, this prevents casual disclosure but is not protection against a targeted attack.
 
 ### Scraper metadata coverage
 
@@ -447,9 +473,8 @@ You need to create your own API keys on the respective provider pages:
   3. Enter both values in the IGDB scraper configuration in Retromind.
 
 - **TheGamesDB**
-  1. Create an account at:
-     https://thegamesdb.net/
-  2. Generate an API key in your account settings / API page.
+  1. Create an account at <https://thegamesdb.net/>.
+  2. Log in and obtain your key from <https://api.thegamesdb.net/key.php>.
   3. Enter the key in the TheGamesDB scraper configuration in Retromind.
 
 - **SteamGridDB**
@@ -458,6 +483,11 @@ You need to create your own API keys on the respective provider pages:
   2. Generate a personal API key under *Preferences → API*:
      https://www.steamgriddb.com/profile/preferences/api
   3. Enter the key in the SteamGridDB scraper configuration in Retromind.
+
+- **ComicVine**
+  1. Create a ComicVine account.
+  2. Log in and obtain your key from <https://comicvine.gamespot.com/api/>.
+  3. Enter the key in the ComicVine scraper configuration in Retromind.
 
 - **Google Books (optional)**  
   The Google Books API can be used without a key in many cases, but you may
@@ -478,16 +508,13 @@ If you pass `--avalonia-platform=wayland` or `--avalonia-platform=auto`, it is i
 
 Why this is currently disabled:
 
-- As of **April 20, 2026**, Avalonia's official platform matrix states Linux desktop targets **X11** and that Wayland is in **private preview**.
-  Source: https://docs.avaloniaui.net/docs/overview/supported-platforms
+- Avalonia targets X11 directly on Linux. A native Wayland backend is available as an experimental opt-in
+  package starting with Avalonia 12.1.0. Retromind currently uses Avalonia 12.0.2 and does not include that package.
+  Source: <https://docs.avaloniaui.net/docs/supported-platforms>
 - Retromind's Linux runtime depends on stable native integration for both **LibVLC embedding** and **embedded OAuth/WebView**. In our AppImage testing, Wayland paths caused native instability (including process-level crashes), which cannot be handled safely in managed code.
 - Until Avalonia ships generally available, production-grade Wayland support for this stack, Retromind keeps Linux on X11 by policy.
 
-Use:
-
-```bash
-dotnet run --project Retromind.csproj -- --avalonia-platform=x11
-```
+No launch flag is required; Retromind selects X11 automatically.
 
 ## SortTitle
 - Retromind sorts media entries by `SortTitle` attribute if it is set.
