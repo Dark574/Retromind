@@ -44,9 +44,9 @@ See `docs/CHANGELOG.md` for version history.
 > Note: The screenshots are for demonstration purposes only.  
 > All product names, logos, and brands shown are property of their respective owners.
 
-### Main library view
+### Desktop library
 
-![Retromind main view](./docs/images/retromind-main.png)
+![Retromind desktop library](./docs/images/retromind-library.jpg)
 
 - Library tree on the left (areas / categories)
 - Cover grid in the center
@@ -54,12 +54,21 @@ See `docs/CHANGELOG.md` for version history.
 
 ### BigMode (controller-friendly UI)
 
-![Retromind BigMode](./docs/images/retromind-bigmode-default.png)
-![Retromind BigMode](./docs/images/retromind-bigmode-arcade.png)
-
 - Large, readable layout for couch / TV usage
 - Gamepad input support
 - Design and add your own themes through AXAML files
+
+#### HorizontalRow theme with C64 media
+
+![Retromind BigMode HorizontalRow theme with C64 media](./docs/images/retromind-bigmode-c64-horizontal-row.jpg)
+
+#### Amiga system theme
+
+![Retromind BigMode Amiga system theme](./docs/images/retromind-bigmode-amiga-system-theme.jpg)
+
+#### Arcade theme
+
+![Retromind BigMode Arcade theme](./docs/images/retromind-bigmode-arcade.jpg)
 
 ## Requirements
 

@@ -52,14 +52,23 @@ Retromind focuses on:
 > Note: The screenshots are for demonstration purposes only.  
 > All product names, logos, and brands shown are property of their respective owners.
 
-### Main library view
+### Desktop library
 
-![Retromind main view](./images/retromind-main.png)
+![Retromind desktop library](./images/retromind-library.jpg)
 
 ### BigMode (controller-friendly UI)
 
-![Retromind BigMode](./images/retromind-bigmode-default.png)
-![Retromind BigMode](./images/retromind-bigmode-arcade.png)
+#### HorizontalRow theme with C64 media
+
+![Retromind BigMode HorizontalRow theme with C64 media](./images/retromind-bigmode-c64-horizontal-row.jpg)
+
+#### Amiga system theme
+
+![Retromind BigMode Amiga system theme](./images/retromind-bigmode-amiga-system-theme.jpg)
+
+#### Arcade theme
+
+![Retromind BigMode Arcade theme](./images/retromind-bigmode-arcade.jpg)
 
 ---
 
