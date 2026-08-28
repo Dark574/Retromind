@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Added
 - experimental native Wayland opt-in with X11 initialization fallback
+- mass switching of proton versions
 
 ### Changed
 - updated Avalonia to 12.1.1 and Avalonia WebView to 12.1.0
