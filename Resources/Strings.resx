@@ -388,7 +388,12 @@ This action cannot be undone.</value></data>
     <data name="Settings_RunnerVersionDefaultPathHint" xml:space="preserve"><value>Managed downloads are stored under Emulators/ProtonVersions in the portable root.</value></data>
     <data name="Settings_RunnerVersionUsageLabel" xml:space="preserve"><value>Games using this version</value></data>
     <data name="Settings_RunnerReplacementLabel" xml:space="preserve"><value>Replace with</value></data>
-    <data name="Settings_RunnerReplacementHint" xml:space="preserve"><value>Select a replacement before removing this version.</value></data>
+    <data name="Settings_RunnerReplacementHint" xml:space="preserve"><value>Choose a same-type replacement. The selected runner remains installed when replacing its uses.</value></data>
+    <data name="Settings_RunnerReplaceAllUses" xml:space="preserve"><value>Replace all uses</value></data>
+    <data name="Settings_RunnerVersionReplaceConfirmFormat" xml:space="preserve"><value>Replace all game assignments and emulator defaults from {0} with {1}?&#10;&#10;{0} remains installed and registered.</value></data>
+    <data name="Settings_RunnerVersionReplaceSuccessFormat" xml:space="preserve"><value>Affected games: {0}. Updated runner assignments from {1} to {2}. The previous runner remains installed.</value></data>
+    <data name="Settings_RunnerVersionReplaceSaveFailed" xml:space="preserve"><value>Assignments were changed, but Retromind could not save them. Unsaved changes remain in memory.</value></data>
+    <data name="Settings_RunnerVersionReplaceFailedFormat" xml:space="preserve"><value>Could not replace runner assignments: {0}</value></data>
     <data name="Settings_RunnerVersionRemoveManagedConfirmFormat" xml:space="preserve"><value>Remove {0} and permanently delete its downloaded files?</value></data>
     <data name="Settings_RunnerVersionRemoveExternalConfirmFormat" xml:space="preserve"><value>Remove {0} from Retromind? Its external files will be kept.</value></data>
     <data name="Settings_RunnerVersionRemoveInvalidPath" xml:space="preserve"><value>The managed runner path is invalid. Nothing was removed.</value></data>

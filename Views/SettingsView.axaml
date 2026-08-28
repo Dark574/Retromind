@@ -578,6 +578,9 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
+                                <Button Content="{Binding RunnerReplaceAllUsesText}"
+                                        Command="{Binding ReplaceRunnerVersionAssignmentsCommand}"
+                                        HorizontalAlignment="Left" />
                                 <TextBlock Text="{Binding RunnerReplacementHint}"
                                            Opacity="0.6"
                                            TextWrapping="Wrap" />

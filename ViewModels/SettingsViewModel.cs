@@ -69,6 +69,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveRunnerVersionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceRunnerVersionAssignmentsCommand))]
     [NotifyPropertyChangedFor(nameof(IsRunnerReplacementVisible))]
     [NotifyPropertyChangedFor(nameof(RunnerReplacementHint))]
     private RunnerVersionRow? _selectedRunnerVersion;
@@ -83,11 +84,18 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveRunnerVersionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceRunnerVersionAssignmentsCommand))]
     private RunnerVersionSelectionOption? _selectedRunnerReplacement;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveRunnerVersionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceRunnerVersionAssignmentsCommand))]
     private bool _isRemovingRunnerVersion;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemoveRunnerVersionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceRunnerVersionAssignmentsCommand))]
+    private bool _isReplacingRunnerVersionAssignments;
 
     [ObservableProperty]
     private string _runnerVersionStatusText = string.Empty;
@@ -433,8 +441,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string RunnerVersionUsageLabel => T("Settings_RunnerVersionUsageLabel", "Games using this version");
     public string RunnerReplacementLabel => T("Settings_RunnerReplacementLabel", "Replace with");
     public string RunnerReplacementHint => IsRunnerReplacementVisible
-        ? T("Settings_RunnerReplacementHint", "Select a replacement before removing this version.")
+        ? T("Settings_RunnerReplacementHint", "Choose a same-type replacement. The selected runner remains installed when replacing its uses.")
         : string.Empty;
+    public string RunnerReplaceAllUsesText => T("Settings_RunnerReplaceAllUses", "Replace all uses");
     public string GeProtonSectionTitle => T("Settings_GeProtonSectionTitle", "GE-Proton download");
     public string GeProtonSelectionLabel => T("Settings_GeProtonSelectionLabel", "Available releases");
     public string GeProtonRefreshLabel => T("Settings_GeProtonRefreshLabel", "Refresh list");
@@ -612,6 +621,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IRelayCommand ApplyPortableXdgAndHomePresetCommand { get; }
     public IRelayCommand AddRunnerVersionCommand { get; }
     public IAsyncRelayCommand RemoveRunnerVersionCommand { get; }
+    public IAsyncRelayCommand ReplaceRunnerVersionAssignmentsCommand { get; }
     public IAsyncRelayCommand BrowseRunnerVersionPathCommand { get; }
     public IAsyncRelayCommand RefreshGeReleasesCommand { get; }
     public IAsyncRelayCommand DownloadSelectedGeReleaseCommand { get; }
@@ -637,6 +647,18 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     /// the confirmation dialog; the view model owns the removal policy.
     /// </summary>
     public event Func<RunnerVersionRow, Task<bool>>? RequestRunnerVersionRemovalConfirmation;
+
+    /// <summary>
+    /// Raised before all references to one configured runner are remapped to another.
+    /// The settings window owner is responsible for presenting the confirmation dialog.
+    /// </summary>
+    public event Func<RunnerVersionRow, RunnerVersionRow, Task<bool>>? RequestRunnerVersionReplacementConfirmation;
+
+    /// <summary>
+    /// Persists an explicitly confirmed runner reassignment immediately without
+    /// committing unrelated edits that are still open in the settings dialog.
+    /// </summary>
+    public event Func<Task<bool>>? RequestRunnerVersionAssignmentPersistence;
 
     public bool LibraryModified { get; private set; }
     public bool IsSaved { get; private set; }
@@ -738,6 +760,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         ApplyPortableXdgAndHomePresetCommand = new RelayCommand(ApplyPortableXdgAndHomePreset, () => SelectedEmulator != null);
         AddRunnerVersionCommand = new RelayCommand(AddRunnerVersion, CanAddRunnerVersion);
         RemoveRunnerVersionCommand = new AsyncRelayCommand(RemoveRunnerVersionAsync, CanRemoveRunnerVersion);
+        ReplaceRunnerVersionAssignmentsCommand = new AsyncRelayCommand(
+            ReplaceRunnerVersionAssignmentsAsync,
+            CanReplaceRunnerVersionAssignments);
         BrowseRunnerVersionPathCommand = new AsyncRelayCommand(BrowseRunnerVersionPathAsync);
         RefreshGeReleasesCommand = new AsyncRelayCommand(RefreshGeReleasesAsync, () => !IsGeReleaseBusy);
         DownloadSelectedGeReleaseCommand = new AsyncRelayCommand(DownloadSelectedGeReleaseAsync, CanDownloadSelectedGeRelease);

@@ -54,13 +54,86 @@ public partial class SettingsViewModel
 
     private bool CanRemoveRunnerVersion()
     {
-        if (IsRemovingRunnerVersion || SelectedRunnerVersion == null)
+        if (IsRemovingRunnerVersion || IsReplacingRunnerVersionAssignments || SelectedRunnerVersion == null)
             return false;
 
         if (SelectedRunnerVersion.UsedByGames <= 0)
             return true;
 
         return !string.IsNullOrWhiteSpace(SelectedRunnerReplacement?.Id);
+    }
+
+    private bool CanReplaceRunnerVersionAssignments()
+    {
+        if (IsRemovingRunnerVersion || IsReplacingRunnerVersionAssignments)
+            return false;
+
+        var source = SelectedRunnerVersion;
+        var replacement = SelectedRunnerReplacement;
+        if (source == null || source.UsedByGames <= 0 || string.IsNullOrWhiteSpace(replacement?.Id))
+            return false;
+
+        return replacement.Kind == source.Kind &&
+               !string.Equals(source.Id, replacement.Id, StringComparison.Ordinal);
+    }
+
+    private async Task ReplaceRunnerVersionAssignmentsAsync()
+    {
+        var source = SelectedRunnerVersion;
+        var replacementOption = SelectedRunnerReplacement;
+        if (source == null || replacementOption == null || !CanReplaceRunnerVersionAssignments())
+            return;
+
+        var replacement = RunnerVersions.FirstOrDefault(row =>
+            string.Equals(row.Id, replacementOption.Id, StringComparison.Ordinal));
+        if (replacement == null || replacement.Kind != source.Kind)
+            return;
+
+        var confirmation = RequestRunnerVersionReplacementConfirmation;
+        if (confirmation == null || !await confirmation(source, replacement))
+            return;
+
+        IsReplacingRunnerVersionAssignments = true;
+        RunnerVersionStatusText = string.Empty;
+
+        var affectedGames = source.UsedByGames;
+
+        try
+        {
+            RemapRunnerAssignmentsInWorkingState(source.Id, replacement.Id);
+
+            // Apply only this explicit operation to the live settings. Other edits
+            // in the detached settings working copy remain pending until Save.
+            RemapEmulatorRunnerDefaults(_targetSettings.Emulators, source.Id, replacement.Id);
+
+            RecomputeRunnerUsageCounts();
+            RebuildSelectedEmulatorRunnerVersionOptions();
+            RebuildRunnerReplacementOptions();
+
+            var persistence = RequestRunnerVersionAssignmentPersistence;
+            var persisted = persistence == null || await persistence();
+            RunnerVersionStatusText = persisted
+                ? string.Format(
+                    T(
+                        "Settings_RunnerVersionReplaceSuccessFormat",
+                        "Affected games: {0}. Updated runner assignments from {1} to {2}. The previous runner remains installed."),
+                    affectedGames,
+                    source.Name,
+                    replacement.Name)
+                : T(
+                    "Settings_RunnerVersionReplaceSaveFailed",
+                    "Assignments were changed, but Retromind could not save them. Unsaved changes remain in memory.");
+        }
+        catch (Exception ex)
+        {
+            RunnerVersionStatusText = string.Format(
+                T("Settings_RunnerVersionReplaceFailedFormat", "Could not replace runner assignments: {0}"),
+                ex.Message);
+        }
+        finally
+        {
+            IsReplacingRunnerVersionAssignments = false;
+        }
     }
 
     private async Task RemoveRunnerVersionAsync()
@@ -101,26 +174,7 @@ public partial class SettingsViewModel
                 });
             }
 
-            // Remap emulator-level defaults
-            foreach (var emulator in Emulators)
-            {
-                if (string.Equals(emulator.DefaultRunnerVersionId, removedId, StringComparison.Ordinal))
-                    emulator.DefaultRunnerVersionId = replacementId;
-            }
-
-            // Remap item-level overrides
-            var libraryChanged = false;
-            if (_rootNodes.Count > 0)
-            {
-                foreach (var root in _rootNodes)
-                {
-                    if (RemapRunnerVersionRecursive(root, removedId, replacementId))
-                        libraryChanged = true;
-                }
-            }
-
-            if (libraryChanged)
-                LibraryModified = true;
+            RemapRunnerAssignmentsInWorkingState(removedId, replacementId);
 
             RunnerVersions.Remove(removed);
             SelectedRunnerVersion = RunnerVersions.FirstOrDefault();
@@ -325,6 +379,21 @@ public partial class SettingsViewModel
             if (string.Equals(emulator.DefaultRunnerVersionId, removedId, StringComparison.Ordinal))
                 emulator.DefaultRunnerVersionId = replacementId;
         }
+    }
+
+    private void RemapRunnerAssignmentsInWorkingState(string sourceId, string? replacementId)
+    {
+        RemapEmulatorRunnerDefaults(Emulators, sourceId, replacementId);
+
+        var libraryChanged = false;
+        foreach (var root in _rootNodes)
+        {
+            if (RemapRunnerVersionRecursive(root, sourceId, replacementId))
+                libraryChanged = true;
+        }
+
+        if (libraryChanged)
+            LibraryModified = true;
     }
 
     private static void UpsertRunnerVersion(List<RunnerVersionConfig> runners, RunnerVersionConfig runner)
@@ -661,7 +730,10 @@ public partial class SettingsViewModel
             return;
         }
 
-        foreach (var row in RunnerVersions.Where(r => !string.Equals(r.Id, SelectedRunnerVersion.Id, StringComparison.Ordinal)))
+        foreach (var row in RunnerVersions
+                     .Where(r => r.Kind == SelectedRunnerVersion.Kind &&
+                                 !string.Equals(r.Id, SelectedRunnerVersion.Id, StringComparison.Ordinal))
+                     .OrderBy(r => r.Name, MediaSortHelper.NaturalStringComparer))
         {
             var suffix = row.Kind == RunnerVersionKind.Wine ? "Wine" : "Proton";
             RunnerReplacementOptions.Add(new RunnerVersionSelectionOption(
@@ -749,6 +821,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(IsRunnerReplacementVisible));
         OnPropertyChanged(nameof(RunnerReplacementHint));
         RemoveRunnerVersionCommand.NotifyCanExecuteChanged();
+        ReplaceRunnerVersionAssignmentsCommand.NotifyCanExecuteChanged();
     }
 
     private void CountRunnerUsageRecursive(MediaNode node, string? inheritedDefaultEmulatorId)

@@ -1209,6 +1209,22 @@ public partial class MainWindowViewModel
 
             return ShowConfirmDialog(owner, message);
         };
+        settingsVm.RequestRunnerVersionReplacementConfirmation += (source, replacement) =>
+        {
+            var format = Strings.ResourceManager.GetString(
+                             "Settings_RunnerVersionReplaceConfirmFormat",
+                             Strings.Culture)
+                         ?? "Replace all game assignments and emulator defaults from {0} with {1}?\n\n{0} remains installed and registered.";
+
+            return ShowConfirmDialog(owner, string.Format(format, source.Name, replacement.Name));
+        };
+        settingsVm.RequestRunnerVersionAssignmentPersistence += async () =>
+        {
+            if (settingsVm.LibraryModified)
+                _libraryTracker.MarkDirty();
+
+            return await SaveData();
+        };
         var dialog = new SettingsView
         {
             DataContext = settingsVm

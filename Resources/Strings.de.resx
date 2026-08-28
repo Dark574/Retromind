@@ -389,7 +389,12 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_RunnerVersionDefaultPathHint" xml:space="preserve"><value>Verwaltete Downloads werden im portablen Root unter Emulators/ProtonVersions abgelegt.</value></data>
     <data name="Settings_RunnerVersionUsageLabel" xml:space="preserve"><value>Spiele mit dieser Version</value></data>
     <data name="Settings_RunnerReplacementLabel" xml:space="preserve"><value>Ersetzen durch</value></data>
-    <data name="Settings_RunnerReplacementHint" xml:space="preserve"><value>Vor dem Entfernen bitte eine Ersatzversion auswählen.</value></data>
+    <data name="Settings_RunnerReplacementHint" xml:space="preserve"><value>Wähle einen Ersatz desselben Typs. Beim Ersetzen der Verwendungen bleibt der ausgewählte Runner installiert.</value></data>
+    <data name="Settings_RunnerReplaceAllUses" xml:space="preserve"><value>Alle Verwendungen ersetzen</value></data>
+    <data name="Settings_RunnerVersionReplaceConfirmFormat" xml:space="preserve"><value>Alle Spielzuweisungen und Emulator-Standardwerte von {0} durch {1} ersetzen?&#10;&#10;{0} bleibt installiert und registriert.</value></data>
+    <data name="Settings_RunnerVersionReplaceSuccessFormat" xml:space="preserve"><value>Betroffene Spiele: {0}. Die Runner-Zuweisungen wurden von {1} auf {2} umgestellt. Der bisherige Runner bleibt installiert.</value></data>
+    <data name="Settings_RunnerVersionReplaceSaveFailed" xml:space="preserve"><value>Die Zuweisungen wurden geändert, konnten aber nicht gespeichert werden. Nicht gespeicherte Änderungen bleiben im Arbeitsspeicher erhalten.</value></data>
+    <data name="Settings_RunnerVersionReplaceFailedFormat" xml:space="preserve"><value>Runner-Zuweisungen konnten nicht ersetzt werden: {0}</value></data>
     <data name="Settings_RunnerVersionRemoveManagedConfirmFormat" xml:space="preserve"><value>{0} aus Retromind entfernen und die heruntergeladenen Dateien endgültig löschen?</value></data>
     <data name="Settings_RunnerVersionRemoveExternalConfirmFormat" xml:space="preserve"><value>{0} aus Retromind entfernen? Die Dateien am externen Pfad bleiben erhalten.</value></data>
     <data name="Settings_RunnerVersionRemoveInvalidPath" xml:space="preserve"><value>Der verwaltete Runner-Pfad ist ungültig. Es wurde nichts entfernt.</value></data>
