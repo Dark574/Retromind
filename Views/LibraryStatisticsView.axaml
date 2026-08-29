@@ -1,0 +1,214 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:Retromind.ViewModels"
+        xmlns:helpers="using:Retromind.Helpers"
+        mc:Ignorable="d"
+        d:DesignWidth="1050"
+        d:DesignHeight="760"
+        x:Class="Retromind.Views.LibraryStatisticsView"
+        x:DataType="vm:LibraryStatisticsViewModel"
+        Title="{Binding Title}"
+        Width="1050"
+        Height="760"
+        MinWidth="820"
+        MinHeight="600"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Resources>
+        <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Border.statCard">
+            <Setter Property="BorderBrush" Value="Gray" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="Margin" Value="0,0,10,10" />
+            <Setter Property="Background" Value="#10000000" />
+        </Style>
+        <Style Selector="TextBlock.statValue">
+            <Setter Property="FontSize" Value="24" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.statLabel">
+            <Setter Property="Opacity" Value="0.7" />
+        </Style>
+        <Style Selector="Border.section">
+            <Setter Property="BorderBrush" Value="Gray" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="14" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="18">
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding SummaryTitle}" Opacity="0.65" Margin="0,3,0,0" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="16">
+                <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto">
+                    <Border Grid.Row="0" Grid.Column="0" Classes="statCard">
+                        <StackPanel>
+                            <TextBlock Text="{Binding TotalItems}" Classes="statValue" />
+                            <TextBlock Text="{Binding TotalItemsLabel}" Classes="statLabel" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="1" Classes="statCard">
+                        <StackPanel>
+                            <TextBlock Text="{Binding TotalPlayTime, Converter={StaticResource TimeConverter}}" Classes="statValue" />
+                            <TextBlock Text="{Binding TotalPlayTimeLabel}" Classes="statLabel" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="2" Classes="statCard">
+                        <StackPanel>
+                            <TextBlock Text="{Binding TotalLaunches}" Classes="statValue" />
+                            <TextBlock Text="{Binding TotalLaunchesLabel}" Classes="statLabel" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="3" Classes="statCard" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="{Binding FavoriteItems}" Classes="statValue" />
+                            <TextBlock Text="{Binding FavoritesLabel}" Classes="statLabel" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Grid.Column="0" Classes="statCard" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="{Binding CompletedItems}" Classes="statValue" />
+                            <TextBlock Text="{Binding CompletedLabel}" Classes="statLabel" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Row="1" Grid.Column="1" Classes="statCard" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="{Binding InProgressItems}" Classes="statValue" />
+                            <TextBlock Text="{Binding InProgressLabel}" Classes="statLabel" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Row="1" Grid.Column="2" Classes="statCard" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="{Binding AbandonedItems}" Classes="statValue" />
+                            <TextBlock Text="{Binding AbandonedLabel}" Classes="statLabel" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Row="1" Grid.Column="3" Classes="statCard" Margin="0">
+                        <StackPanel>
+                            <TextBlock Text="{Binding NeverStartedItems}" Classes="statValue" />
+                            <TextBlock Text="{Binding NeverStartedLabel}" Classes="statLabel" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                    <Border Grid.Column="0" Classes="section">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{Binding MostPlayedTitle}" FontSize="17" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding NoPlayDataText}"
+                                       Opacity="0.65"
+                                       IsVisible="{Binding !HasMostPlayedItems}" />
+                            <ItemsControl ItemsSource="{Binding MostPlayedItems}"
+                                          IsVisible="{Binding HasMostPlayedItems}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LibraryStatisticsRankingItem">
+                                        <Grid ColumnDefinitions="32,*,Auto" Margin="0,3">
+                                            <TextBlock Grid.Column="0" Text="{Binding Rank}" Opacity="0.55" />
+                                            <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Category}" FontSize="11" Opacity="0.55" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding PlayTime}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" Classes="section">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{Binding RecentlyPlayedTitle}" FontSize="17" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding NoPlayDataText}"
+                                       Opacity="0.65"
+                                       IsVisible="{Binding !HasRecentlyPlayedItems}" />
+                            <ItemsControl ItemsSource="{Binding RecentlyPlayedItems}"
+                                          IsVisible="{Binding HasRecentlyPlayedItems}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LibraryStatisticsRankingItem">
+                                        <Grid ColumnDefinitions="32,*,Auto" Margin="0,3">
+                                            <TextBlock Grid.Column="0" Text="{Binding Rank}" Opacity="0.55" />
+                                            <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Category}" FontSize="11" Opacity="0.55" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding LastPlayed}" FontSize="12" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                    <Border Grid.Column="0" Classes="section">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{Binding CategoriesTitle}" FontSize="17" FontWeight="SemiBold" />
+                            <ItemsControl ItemsSource="{Binding CategoryDistribution}"
+                                          IsVisible="{Binding HasCategoryData}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LibraryStatisticsDistributionItem">
+                                        <StackPanel Margin="0,3">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" Margin="0,0,10,0" />
+                                                <TextBlock Grid.Column="1" Text="{Binding DisplayValue}" Opacity="0.7" />
+                                            </Grid>
+                                            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percentage}" Height="5" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" Classes="section">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{Binding ReleaseYearsTitle}" FontSize="17" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding NoReleaseYearDataText}"
+                                       Opacity="0.65"
+                                       IsVisible="{Binding !HasReleaseYearData}" />
+                            <ItemsControl ItemsSource="{Binding ReleaseYearDistribution}"
+                                          IsVisible="{Binding HasReleaseYearData}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LibraryStatisticsDistributionItem">
+                                        <StackPanel Margin="0,3">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="{Binding Label}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding DisplayValue}" Opacity="0.7" />
+                                            </Grid>
+                                            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percentage}" Height="5" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="2"
+                Content="{Binding CloseButtonText}"
+                Command="{Binding CloseCommand}"
+                CommandParameter="{Binding $parent[Window]}"
+                Width="100"
+                HorizontalAlignment="Right"
+                Margin="0,14,0,0" />
+    </Grid>
+</Window>

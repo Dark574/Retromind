@@ -30,6 +30,9 @@
         <Geometry x:Key="IconSearch">
             M15.5 14h-.79l-.28-.27A6.5 6.5 0 1 0 14 15.5l.27.28v.79L20 21.5 21.5 20 15.5 14z M10 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z
         </Geometry>
+        <Geometry x:Key="IconStatistics">
+            M4 10h3v10H4z M10 4h3v16h-3z M16 7h3v13h-3z
+        </Geometry>
         <Geometry x:Key="IconTv">
             M3 5h18v12H3z M5 19h14v2H5z
         </Geometry>
@@ -117,7 +120,7 @@
                            <!-- Header bar with settings button -->
                            <!-- CORRECTED: Added one more "Car" column -->
                            <Grid Grid.Row="0" Margin="10">
-                               <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto">
+                               <Grid ColumnDefinitions="*, Auto, Auto, Auto, Auto, Auto">
                                    <TextBlock Grid.Column="0"
                                               Text="{x:Static p:Strings.Media_Library}" 
                                               FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
@@ -144,8 +147,19 @@
                                                  Width="16" Height="16" />
                                    </Button>
 
-                                   <!-- BIG MODE BUTTON -->
+                                   <!-- Library statistics -->
                                    <Button Grid.Column="3"
+                                           Command="{Binding OpenStatisticsCommand}"
+                                           Background="Transparent" BorderThickness="0"
+                                           ToolTip.Tip="{Binding StatisticsButtonToolTip}"
+                                           Cursor="Hand" Margin="0,2,5,0"
+                                           Foreground="{Binding TextColor}">
+                                       <PathIcon Data="{StaticResource IconStatistics}"
+                                                 Width="16" Height="16" />
+                                   </Button>
+
+                                   <!-- BIG MODE BUTTON -->
+                                   <Button Grid.Column="4"
                                            Command="{Binding EnterBigModeCommand}"
                                            Background="Transparent" BorderThickness="0"
                                            ToolTip.Tip="{x:Static p:Strings.Main_BigPictureMode}"
@@ -155,7 +169,7 @@
                                                  Width="16" Height="16" />
                                    </Button>
 
-                                   <Button Grid.Column="4"
+                                   <Button Grid.Column="5"
                                            Command="{Binding OpenSettingsCommand}"
                                            Background="Transparent" BorderThickness="0"
                                            ToolTip.Tip="{x:Static p:Strings.Settings_Title}"

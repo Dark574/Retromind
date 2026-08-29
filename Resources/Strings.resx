@@ -361,6 +361,25 @@ This action cannot be undone.</value></data>
     <data name="Gog.Uninstall.Failed" xml:space="preserve"><value>Uninstallation failed. See logs for details.</value></data>
     <data name="Gog.Uninstall.FailedWithMessage" xml:space="preserve"><value>Uninstallation failed: {0}</value></data>
 
+    <!-- STATISTICS -->
+    <data name="Statistics.Title" xml:space="preserve"><value>Library statistics</value></data>
+    <data name="Statistics.Summary" xml:space="preserve"><value>Overview of the entire library</value></data>
+    <data name="Statistics.TotalItems" xml:space="preserve"><value>Items</value></data>
+    <data name="Statistics.TotalPlayTime" xml:space="preserve"><value>Total play time</value></data>
+    <data name="Statistics.TotalLaunches" xml:space="preserve"><value>Launches</value></data>
+    <data name="Statistics.Favorites" xml:space="preserve"><value>Favorites</value></data>
+    <data name="Statistics.Completed" xml:space="preserve"><value>Completed</value></data>
+    <data name="Statistics.InProgress" xml:space="preserve"><value>In progress</value></data>
+    <data name="Statistics.Abandoned" xml:space="preserve"><value>Abandoned</value></data>
+    <data name="Statistics.NeverStarted" xml:space="preserve"><value>Never started</value></data>
+    <data name="Statistics.MostPlayed" xml:space="preserve"><value>Most played</value></data>
+    <data name="Statistics.RecentlyPlayed" xml:space="preserve"><value>Recently played</value></data>
+    <data name="Statistics.ByCategory" xml:space="preserve"><value>Items by category</value></data>
+    <data name="Statistics.ByReleaseYear" xml:space="preserve"><value>Most common release years</value></data>
+    <data name="Statistics.NoPlayData" xml:space="preserve"><value>No play data available yet.</value></data>
+    <data name="Statistics.NoReleaseYearData" xml:space="preserve"><value>No release year data available.</value></data>
+    <data name="Statistics.DistributionValueFormat" xml:space="preserve"><value>{0:N0} ({1:N1}%)</value></data>
+
     <!-- SETTINGS -->
     <data name="Settings.TabMisc" xml:space="preserve"><value>Misc</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Launch paths</value></data>

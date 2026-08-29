@@ -58,6 +58,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> UninstallGogCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
+    public IAsyncRelayCommand OpenStatisticsCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> EditNodeCommand { get; private set; } = null!;
     public IRelayCommand ToggleThemeCommand { get; private set; } = null!; // Sync is fine here
     
@@ -79,6 +80,7 @@ public partial class MainWindowViewModel
     public string GogMediaMenuText => T("Gog.Media.AddMenu", "Add GOG media");
     public string TestPlayMediaMenuText => T("Ctx.Media.TestLaunch", "Test launch (without tracking)");
     public string MoveMediaMenuText => T("Ctx.Media.Move", "Move to category...");
+    public string StatisticsButtonToolTip => T("Statistics.Title", "Library statistics");
     public string GogReinstallMenuText => T("Gog.Media.ReinstallMenu", "Reinstall / Switch Version");
     public string GogUninstallMenuText => T("Gog.Uninstall.ContextMenu", "Uninstall");
 
@@ -112,6 +114,7 @@ public partial class MainWindowViewModel
         UninstallGogCommand = new AsyncRelayCommand<MediaItem?>(UninstallGogMediaAsync, CanUninstallGogMedia);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
+        OpenStatisticsCommand = new AsyncRelayCommand(OpenStatisticsAsync);
         OpenManualCommand = new RelayCommand<MediaAsset?>(OpenManual);
         EditNodeCommand = new AsyncRelayCommand<MediaNode?>(EditNodeAsync);
         
@@ -130,6 +133,18 @@ public partial class MainWindowViewModel
         EnterBigModeCommand = new RelayCommand(EnterBigMode);
         
         AddManualToMediaCommand = new AsyncRelayCommand<MediaItem?>(AddManualToMediaAsync);
+    }
+
+    private async Task OpenStatisticsAsync()
+    {
+        if (CurrentWindow is not { } owner)
+            return;
+
+        var viewModel = new LibraryStatisticsViewModel(
+            RootItems,
+            excludeProtectedItems: IsParentalFilterActive);
+        var dialog = new LibraryStatisticsView { DataContext = viewModel };
+        await dialog.ShowDialog(owner);
     }
 
     partial void OnIsLaunchInProgressChanged(bool value)

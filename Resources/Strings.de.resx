@@ -362,6 +362,25 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Gog.Uninstall.Failed" xml:space="preserve"><value>Die Deinstallation ist fehlgeschlagen. Details entnehmen Sie bitte den Protokollen.</value></data>
     <data name="Gog.Uninstall.FailedWithMessage" xml:space="preserve"><value>Deinstallation fehlgeschlagen: {0}</value></data>
 
+    <!-- STATISTICS -->
+    <data name="Statistics.Title" xml:space="preserve"><value>Bibliotheksstatistik</value></data>
+    <data name="Statistics.Summary" xml:space="preserve"><value>Übersicht über die gesamte Bibliothek</value></data>
+    <data name="Statistics.TotalItems" xml:space="preserve"><value>Einträge</value></data>
+    <data name="Statistics.TotalPlayTime" xml:space="preserve"><value>Gesamtspielzeit</value></data>
+    <data name="Statistics.TotalLaunches" xml:space="preserve"><value>Spielstarts</value></data>
+    <data name="Statistics.Favorites" xml:space="preserve"><value>Favoriten</value></data>
+    <data name="Statistics.Completed" xml:space="preserve"><value>Abgeschlossen</value></data>
+    <data name="Statistics.InProgress" xml:space="preserve"><value>Begonnen</value></data>
+    <data name="Statistics.Abandoned" xml:space="preserve"><value>Abgebrochen</value></data>
+    <data name="Statistics.NeverStarted" xml:space="preserve"><value>Nie gestartet</value></data>
+    <data name="Statistics.MostPlayed" xml:space="preserve"><value>Meistgespielt</value></data>
+    <data name="Statistics.RecentlyPlayed" xml:space="preserve"><value>Zuletzt gespielt</value></data>
+    <data name="Statistics.ByCategory" xml:space="preserve"><value>Einträge nach Kategorie</value></data>
+    <data name="Statistics.ByReleaseYear" xml:space="preserve"><value>Häufigste Erscheinungsjahre</value></data>
+    <data name="Statistics.NoPlayData" xml:space="preserve"><value>Noch keine Spieldaten vorhanden.</value></data>
+    <data name="Statistics.NoReleaseYearData" xml:space="preserve"><value>Keine Erscheinungsjahre vorhanden.</value></data>
+    <data name="Statistics.DistributionValueFormat" xml:space="preserve"><value>{0:N0} ({1:N1} %)</value></data>
+
     <!-- SETTINGS -->
     <data name="Settings.TabMisc" xml:space="preserve"><value>Sonstiges</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Startpfade</value></data>
