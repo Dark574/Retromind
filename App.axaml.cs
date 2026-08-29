@@ -235,7 +235,7 @@ public partial class App : Application
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();
         
-        // --- Store providers (scaffold) ---
+        // --- Store providers ---
         services.AddSingleton<SecretServiceSecretStore>();
         services.AddSingleton<InMemorySecretStore>();
         services.AddSingleton<ISecretStore>(provider =>
@@ -248,12 +248,10 @@ public partial class App : Application
         services.AddSingleton<GogPkceService>();
         services.AddSingleton<GogAuthService>();
         services.AddSingleton<GogLibraryService>();
-        services.AddSingleton<GogInstallDiscoveryService>();
         services.AddSingleton<GogInstallService>();
         services.AddSingleton<GogProvider>();
         services.AddSingleton<IStoreAuthProvider>(provider => provider.GetRequiredService<GogProvider>());
         services.AddSingleton<IStoreLibraryProvider>(provider => provider.GetRequiredService<GogProvider>());
-        services.AddSingleton<IStoreInstallDiscoveryProvider>(provider => provider.GetRequiredService<GogProvider>());
 
         services.AddSingleton<SettingsService>();
         services.AddSingleton<MetadataService>();

@@ -8,29 +8,23 @@ using Retromind.Services.Stores.Gog.Auth;
 
 namespace Retromind.Services.Stores.Gog;
 
-public sealed class GogProvider : IStoreAuthProvider, IStoreLibraryProvider, IStoreInstallDiscoveryProvider
+public sealed class GogProvider : IStoreAuthProvider, IStoreLibraryProvider
 {
     private readonly GogAuthService _authService;
     private readonly GogLibraryService _libraryService;
-    private readonly GogInstallDiscoveryService _installDiscoveryService;
 
     public GogProvider(
         GogAuthService authService,
-        GogLibraryService libraryService,
-        GogInstallDiscoveryService installDiscoveryService)
+        GogLibraryService libraryService)
     {
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _libraryService = libraryService ?? throw new ArgumentNullException(nameof(libraryService));
-        _installDiscoveryService = installDiscoveryService ?? throw new ArgumentNullException(nameof(installDiscoveryService));
     }
 
     public string ProviderId => "gog";
 
     public string DisplayName => "GOG";
 
-    // Local install discovery is a planned provider feature. Keep the contract
-    // wired for future implementation, but do not advertise it as available
-    // while GogInstallDiscoveryService still returns no discovered installs.
     public StoreProviderCapabilities Capabilities =>
         StoreProviderCapabilities.Auth |
         StoreProviderCapabilities.Library;
@@ -60,10 +54,5 @@ public sealed class GogProvider : IStoreAuthProvider, IStoreLibraryProvider, ISt
     public Task<IReadOnlyList<StoreGameRecord>> GetOwnedGamesAsync(CancellationToken ct = default)
     {
         return _libraryService.GetOwnedGamesAsync(ct);
-    }
-
-    public Task<IReadOnlyList<StoreInstallRecord>> DiscoverInstallationsAsync(CancellationToken ct = default)
-    {
-        return _installDiscoveryService.DiscoverInstallationsAsync(ct);
     }
 }

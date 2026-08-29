@@ -63,9 +63,6 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - owned-games fetch is cached in-memory for a short TTL to avoid repeated full pagination on consecutive imports
   - long-running GOG import/picker preparation shows wait cursor feedback
   - background update sweep runs throttled (24h interval, per-item delays) with auth-state caching and in-flight guards
-- Local install discovery:
-  - provider contract and DI wiring are retained as a scaffold for the planned feature
-  - `GogProvider` intentionally does not advertise `InstallDiscovery` until real discovery results are implemented
 - Install/launch wiring (first functional step):
   - GOG-linked items without launch config are now treated as installable from the main Start action
   - Start button label switches to Install for those items
@@ -133,7 +130,6 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Models/Stores/StoreAuthState.cs`
 - `Models/Stores/StoreAccountInfo.cs`
 - `Models/Stores/StoreGameRecord.cs`
-- `Models/Stores/StoreInstallRecord.cs`
 - `Models/MediaNode.cs` (`StoreProviderId` for store-bound nodes)
 
 ### Store abstractions
@@ -142,7 +138,6 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Services/Stores/Abstractions/IStoreProvider.cs`
 - `Services/Stores/Abstractions/IStoreAuthProvider.cs`
 - `Services/Stores/Abstractions/IStoreLibraryProvider.cs`
-- `Services/Stores/Abstractions/IStoreInstallDiscoveryProvider.cs`
 
 ### Security layer
 
@@ -156,7 +151,6 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 
 - `Services/Stores/Gog/GogProvider.cs`
 - `Services/Stores/Gog/GogLibraryService.cs` (owned-games fetch implemented)
-- `Services/Stores/Gog/GogInstallDiscoveryService.cs` (planned scaffold; returns empty and is not advertised as an available capability)
 - `Services/Stores/Gog/GogInstallService.cs` (installer metadata + downlink resolution + package download)
 - `Services/Stores/Gog/Auth/GogAuthService.cs` (interactive sign-in + refresh implemented)
 - `Services/Stores/Gog/Auth/GogOAuthClient.cs` (authorize URL + token/account HTTP flows implemented)
@@ -200,8 +194,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `App.axaml.cs` registers:
   - `ISecretStore` as `CompositeSecretStore(SecretServiceSecretStore, InMemorySecretStore)`
   - `GogProvider`
-  - `IStoreAuthProvider`, `IStoreLibraryProvider`, `IStoreInstallDiscoveryProvider` mapped to `GogProvider`
-  - install-discovery registration is retained for the planned implementation, but the capability flag remains disabled until then
+  - `IStoreAuthProvider` and `IStoreLibraryProvider` mapped to `GogProvider`
 
 ## Security contract
 
@@ -233,7 +226,6 @@ Required behavior for native GOG auth:
    - interactive browser OAuth
    - token refresh
    - owned games fetch
-   - local install discovery
 2. V2 install/update:
    - installer flow and path integration
    - checksums, resume strategy, and user cancellation support
@@ -244,11 +236,9 @@ Required behavior for native GOG auth:
 ## Open items
 
 - Extend library mapping (genres/artwork/store URLs) and stabilization around API edge-cases.
-- Implement install discovery sync for store-linked entries (launch mapping is already integrated in install/update flow).
 - Optional UX follow-up:
 - add explicit “remove titles no longer owned” sync mode for store-bound GOG nodes (current sync is additive only).
 - broaden install robustness:
-  - optional explicit install discovery sync back into already-linked items
   - finer-grained installer log output buffering/throttling
 - broaden update flow ergonomics:
   - progress/cancel UI dedicated to update checks
