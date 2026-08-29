@@ -12,6 +12,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - experimental native Wayland opt-in with X11 initialization fallback
 - mass switching of proton versions
 - drag & drop for items is now possible
+- option to test launch items (without game time played counter)
 
 ### Changed
 - updated Avalonia to 12.1.1 and Avalonia WebView to 12.1.0
