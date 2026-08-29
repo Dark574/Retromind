@@ -36,6 +36,11 @@ public partial class App : Application
     /// Global flag indicating if the application should run in BigMode (UI optimized for controllers/TV).
     /// </summary>
     public bool IsBigModeOnly { get; set; } = false;
+
+    /// <summary>
+    /// Gets whether the native Wayland backend was requested at startup.
+    /// </summary>
+    public bool IsWaylandRequested { get; set; }
     
     public override void Initialize()
     {

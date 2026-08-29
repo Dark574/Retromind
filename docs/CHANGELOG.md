@@ -19,6 +19,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - updated Avalonia to 12.1.1 and Avalonia WebView to 12.1.0
 
 ### Fixed
+- wayland starts in fullscreen
 
 ---
 

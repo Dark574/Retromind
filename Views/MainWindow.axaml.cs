@@ -21,6 +21,8 @@ public partial class MainWindow : Window
     private const string DropBeforeClass = "drop-before";
     private const string DropAfterClass = "drop-after";
     private const string DropInsideClass = "drop-inside";
+    private static readonly TimeSpan WaylandMaximizedRevealTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan WaylandBigModeRevealTimeout = TimeSpan.FromSeconds(15);
 
     // Flag to check if we have already performed the final save/cleanup.
     private bool _canClose = false;
@@ -40,12 +42,83 @@ public partial class MainWindow : Window
     private static readonly TimeSpan TypeSearchResetDelay = TimeSpan.FromMilliseconds(2000);
     private string _typeSearchBuffer = string.Empty;
     private DateTime _typeSearchLastUtc = DateTime.MinValue;
+    private WindowState? _waylandStartupRevealState;
+    private bool _waylandStartupRevealPending;
     
     public MainWindow()
     {
         InitializeComponent();
+
+        // Native Wayland receives its first configure in the normal state before
+        // the compositor confirms a requested maximized/fullscreen state. Keep
+        // that initial 640x480 surface transparent so it cannot flash on screen.
+        if (App.Current?.IsWaylandRequested == true)
+        {
+            _waylandStartupRevealState = App.Current.IsBigModeOnly
+                ? WindowState.FullScreen
+                : WindowState.Maximized;
+            Opacity = 0;
+        }
+
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         AddHandler(KeyUpEvent, OnKeyUp, RoutingStrategies.Tunnel);
+    }
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+
+        if (_waylandStartupRevealState is not { } revealState)
+            return;
+
+        if (WindowState == revealState)
+        {
+            QueueWaylandStartupReveal();
+            return;
+        }
+
+        // Avalonia's native Wayland backend can receive the initial maximize
+        // request before the window is opened. Repeating it here makes sure the
+        // request is applied to the mapped surface. BigMode requests fullscreen
+        // itself after its data has loaded, preserving its restore state.
+        if (revealState == WindowState.Maximized)
+            WindowState = WindowState.Maximized;
+
+        var timeout = revealState == WindowState.FullScreen
+            ? WaylandBigModeRevealTimeout
+            : WaylandMaximizedRevealTimeout;
+        DispatcherTimer.RunOnce(RevealWaylandStartupWindow, timeout);
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == WindowStateProperty &&
+            _waylandStartupRevealState is { } revealState &&
+            WindowState == revealState)
+        {
+            QueueWaylandStartupReveal();
+        }
+    }
+
+    private void QueueWaylandStartupReveal()
+    {
+        if (_waylandStartupRevealPending)
+            return;
+
+        _waylandStartupRevealPending = true;
+        Dispatcher.UIThread.Post(RevealWaylandStartupWindow, DispatcherPriority.Render);
+    }
+
+    private void RevealWaylandStartupWindow()
+    {
+        if (_waylandStartupRevealState == null)
+            return;
+
+        _waylandStartupRevealState = null;
+        _waylandStartupRevealPending = false;
+        Opacity = 1;
     }
 
     // Override the method that is called when the window is closing.

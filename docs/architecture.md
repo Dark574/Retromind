@@ -24,6 +24,9 @@ This document summarizes how Retromind is structured today and where core behavi
   - bootstraps settings first
   - builds final DI container
   - creates `MainWindow` and triggers async `MainWindowViewModel.LoadData()`
+  - suppresses native Wayland server-side decoration negotiation before the first surface is created,
+    then keeps the startup surface transparent until the compositor confirms the requested
+    maximized/fullscreen state; together these prevent a brief decorated normal-window flash
 
 ## Repository map (logical)
 - `Views/`: Avalonia views, including host-level behavior (`BigModeHostView`)

@@ -73,7 +73,20 @@ internal sealed class Program
             .UsePlatformDetect();
 
         if (OperatingSystem.IsLinux() && useWayland)
-            builder = builder.UseWaylandWithFallback();
+        {
+            // Wayland negotiates server-side decorations while creating the
+            // platform window, before MainWindow.axaml can request none. KWin
+            // can therefore briefly show a decorated normal window. Retromind
+            // supplies its own window chrome, so suppress SSD negotiation from
+            // the outset.
+            // TODO: Re-test the startup reveal and decoration behavior whenever
+            // Avalonia is updated; ForceDrawnDecorations is an experimental API.
+#pragma warning disable AVALONIA_WAYLAND_FORCE_CSD
+            builder = builder
+                .With(new WaylandPlatformOptions { ForceDrawnDecorations = true })
+                .UseWaylandWithFallback();
+#pragma warning restore AVALONIA_WAYLAND_FORCE_CSD
+        }
 
         return builder
             .WithInterFont()
@@ -82,7 +95,10 @@ internal sealed class Program
             .AfterSetup(builder => 
             {
                 if (App.Current is App app)
+                {
                     app.IsBigModeOnly = isBigModeOnly;
+                    app.IsWaylandRequested = useWayland;
+                }
 
             });
     }
