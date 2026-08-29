@@ -58,11 +58,18 @@ public partial class MediaAreaView : UserControl
         if (sender is not Control { DataContext: MediaItem item })
             return;
 
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var properties = e.GetCurrentPoint(this).Properties;
+        if (!properties.IsLeftButtonPressed && !properties.IsRightButtonPressed)
             return;
 
         vm.SelectedMediaItem = item;
         _mediaList?.Focus();
+
+        if (!properties.IsLeftButtonPressed)
+        {
+            ResetItemDragState();
+            return;
+        }
 
         _draggedItem = item;
         _dragStartPoint = e.GetPosition(this);
