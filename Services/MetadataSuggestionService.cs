@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Retromind.Helpers;
 using Retromind.Models;
 
 namespace Retromind.Services;
@@ -126,7 +127,7 @@ public sealed class MetadataSuggestionService
     private static bool IsReusableCustomFieldKey(string? key)
     {
         return !string.IsNullOrWhiteSpace(key) &&
-               !key.StartsWith("Store.", StringComparison.OrdinalIgnoreCase);
+               !CustomFieldKeyHelper.IsInternal(key);
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<SuggestionEntry>> BuildIndex(IEnumerable<MediaNode> rootNodes)

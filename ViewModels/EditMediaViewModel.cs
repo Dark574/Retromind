@@ -797,6 +797,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         CustomFields.Clear();
 
         var rows = _originalItem.CustomFields
+            .Where(pair => !CustomFieldKeyHelper.IsInternal(pair.Key))
             .Select(pair => (pair.Key, pair.Value))
             .ToList();
         var existingKeys = rows

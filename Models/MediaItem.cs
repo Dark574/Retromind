@@ -159,17 +159,22 @@ public partial class MediaItem : ObservableObject
         Assets.Where(a => a.Type == AssetType.Manual).ToList();
 
     /// <summary>
-    /// Returns custom fields that have both a non-empty key and a non-empty value.
+    /// Returns user-defined custom fields that have both a non-empty key and a non-empty value.
+    /// Internal provider metadata remains persisted but is not presented as user metadata.
     /// </summary>
     [JsonIgnore]
     public IReadOnlyList<KeyValuePair<string, string>> VisibleCustomFields =>
         CustomFields
-            .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && !string.IsNullOrWhiteSpace(kv.Value))
+            .Where(kv =>
+                !CustomFieldKeyHelper.IsInternal(kv.Key) &&
+                !string.IsNullOrWhiteSpace(kv.Key) &&
+                !string.IsNullOrWhiteSpace(kv.Value))
             .ToList();
 
     [JsonIgnore]
     public bool HasCustomFields =>
         CustomFields.Any(kv =>
+            !CustomFieldKeyHelper.IsInternal(kv.Key) &&
             !string.IsNullOrWhiteSpace(kv.Key) &&
             !string.IsNullOrWhiteSpace(kv.Value));
     

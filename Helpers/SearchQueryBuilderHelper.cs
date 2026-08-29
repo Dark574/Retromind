@@ -92,6 +92,9 @@ public static class SearchQueryBuilderHelper
 
             foreach (var pair in item.CustomFields)
             {
+                if (CustomFieldKeyHelper.IsInternal(pair.Key))
+                    continue;
+
                 customFieldKeys.Add(pair.Key);
 
                 var dynamicFieldKey = BuildDynamicCustomFieldKey(pair.Key);

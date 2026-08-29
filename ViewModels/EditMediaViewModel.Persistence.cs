@@ -178,10 +178,16 @@ public partial class EditMediaViewModel
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
 
+        foreach (var pair in _originalItem.CustomFields)
+        {
+            if (CustomFieldKeyHelper.IsInternal(pair.Key))
+                result[pair.Key] = pair.Value;
+        }
+
         foreach (var row in CustomFields)
         {
             var key = row.Key?.Trim();
-            if (string.IsNullOrWhiteSpace(key))
+            if (string.IsNullOrWhiteSpace(key) || CustomFieldKeyHelper.IsInternal(key))
                 continue;
 
             var value = row.Value?.Trim();
