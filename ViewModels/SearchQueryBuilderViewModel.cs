@@ -5,7 +5,6 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
-using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
@@ -256,9 +255,4 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
         return true;
     }
 
-    private static string T(string key, string fallback)
-    {
-        var value = Strings.ResourceManager.GetString(key, Strings.Culture);
-        return string.IsNullOrWhiteSpace(value) ? fallback : value;
-    }
 }

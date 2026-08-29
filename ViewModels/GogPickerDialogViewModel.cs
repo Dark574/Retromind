@@ -215,8 +215,6 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private static string T(string key, string fallback)
-        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
 }
 
 public partial class GogPickerGameEntry : ObservableObject

@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
-using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
@@ -19,13 +18,13 @@ public sealed partial class MoveMediaDialogViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand))]
     private MoveMediaNodeOption? _selectedOption;
 
-    public string DialogTitle => R("MoveMedia.DialogTitle", "Move item");
-    public string InstructionText => R("MoveMedia.Instruction", "Select the target category:");
-    public string CancelText => R("Button.Cancel", "Cancel");
-    public string ApplyText => R("MoveMedia.Apply", "Move");
+    public string DialogTitle => T("MoveMedia.DialogTitle", "Move item");
+    public string InstructionText => T("MoveMedia.Instruction", "Select the target category:");
+    public string CancelText => T("Button.Cancel", "Cancel");
+    public string ApplyText => T("MoveMedia.Apply", "Move");
 
     public string ValidationMessage => SelectedOption == null
-        ? R("MoveMedia.SelectTarget", "Please select a target category.")
+        ? T("MoveMedia.SelectTarget", "Please select a target category.")
         : GetValidationMessage(SelectedOption.Assessment.Status);
 
     public bool HasValidationMessage => !string.IsNullOrWhiteSpace(ValidationMessage);
@@ -91,19 +90,16 @@ public sealed partial class MoveMediaDialogViewModel : ViewModelBase
         {
             MediaItemMoveTargetStatus.Allowed => string.Empty,
             MediaItemMoveTargetStatus.CurrentNode =>
-                R("MoveMedia.CurrentCategory", "The item is already in this category."),
+                T("MoveMedia.CurrentCategory", "The item is already in this category."),
             MediaItemMoveTargetStatus.StoreProviderMismatch =>
-                R("MoveMedia.StoreProviderMismatch", "This synchronized store category only accepts matching store items."),
+                T("MoveMedia.StoreProviderMismatch", "This synchronized store category only accepts matching store items."),
             MediaItemMoveTargetStatus.MissingStoreIdentity =>
-                R("MoveMedia.MissingStoreIdentity", "The item does not contain the complete identity required by this store category."),
+                T("MoveMedia.MissingStoreIdentity", "The item does not contain the complete identity required by this store category."),
             MediaItemMoveTargetStatus.DuplicateStoreItem =>
-                R("MoveMedia.DuplicateStoreItem", "This store item already exists in the selected category."),
-            _ => R("MoveMedia.InvalidTarget", "The selected category cannot be used as a target.")
+                T("MoveMedia.DuplicateStoreItem", "This store item already exists in the selected category."),
+            _ => T("MoveMedia.InvalidTarget", "The selected category cannot be used as a target.")
         };
     }
-
-    private static string R(string key, string fallback)
-        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
 }
 
 public sealed partial class MoveMediaNodeOption : ObservableObject

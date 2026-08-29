@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
@@ -8,6 +9,9 @@ namespace Retromind.ViewModels;
 /// </summary>
 public abstract class ViewModelBase : ObservableObject
 {
-    // No implementation needed here as ObservableObject provides SetProperty and OnPropertyChanged.
-    // Common ViewModel logic (e.g. IsBusy handling) could be added here in the future.
+    protected static string T(string key, string fallback)
+    {
+        var value = Strings.ResourceManager.GetString(key, Strings.Culture);
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
 }

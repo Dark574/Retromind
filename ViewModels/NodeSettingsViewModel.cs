@@ -21,9 +21,6 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class NodeSettingsViewModel : ViewModelBase
 {
-    private static string T(string key, string fallback)
-        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
-
     // Sentinel: "inherit / no default emulator".
     // We avoid null-suppression on Id by using an empty string.
     private const string InheritEmulatorId = "";

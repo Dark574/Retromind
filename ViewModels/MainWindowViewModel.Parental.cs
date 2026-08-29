@@ -7,7 +7,6 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using Retromind.Helpers;
 using Retromind.Models;
-using Retromind.Resources;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -17,9 +16,6 @@ public partial class MainWindowViewModel
     private bool _isApplyingProtectionChanges;
     private CancellationTokenSource? _parentalRefreshCts;
     private readonly TimeSpan _parentalRefreshDebounce = TimeSpan.FromMilliseconds(120);
-
-    private static string T(string key, string fallback)
-        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
 
     public bool HasParentalPassword =>
         !string.IsNullOrWhiteSpace(_currentSettings.ParentalLockPasswordEncrypted);

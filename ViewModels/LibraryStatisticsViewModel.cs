@@ -7,7 +7,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
-using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
@@ -319,9 +318,6 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
 
         return $"{(int)value.TotalDays}d {value.Hours}h {value.Minutes}m";
     }
-
-    private static string T(string key, string fallback)
-        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
 
     private sealed record LibraryStatisticsEntry(MediaItem Item, string CategoryPath);
 }

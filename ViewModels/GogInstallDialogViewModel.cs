@@ -9,7 +9,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
-using Retromind.Resources;
 using Retromind.Services.Stores.Gog;
 
 namespace Retromind.ViewModels;
@@ -43,9 +42,6 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         WindowsInstallerPreference WindowsInstallerPreference,
         bool CleanInstall,
         bool DeleteStagingAfterSuccess);
-
-    private static string T(string key, string fallback)
-        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
 
     [ObservableProperty]
     private string _title = string.Empty;

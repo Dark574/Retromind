@@ -19,9 +19,6 @@ namespace Retromind.ViewModels;
 
 public partial class EditMediaViewModel : ViewModelBase, IDisposable
 {
-    private static string T(string key, string fallback)
-        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
-
     private readonly EmulatorConfig? _inheritedEmulator;
     private EmulatorConfig? _resolvedInheritedEmulator;
     private string? _resolvedInheritedEmulatorSource;

@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
@@ -9,9 +8,6 @@ public partial class PasswordPromptViewModel : ViewModelBase
     public delegate string? PasswordValidator(string password, string confirmPassword);
 
     private readonly PasswordValidator? _validator;
-
-    private static string T(string key, string fallback)
-        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
 
     [ObservableProperty]
     private string _title;

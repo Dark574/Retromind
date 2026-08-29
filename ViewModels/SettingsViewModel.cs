@@ -11,7 +11,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
-using Retromind.Resources;
 using Retromind.Services;
 
 namespace Retromind.ViewModels;
@@ -36,9 +35,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private readonly Dictionary<string, int> _runnerUsageById = new(StringComparer.Ordinal);
     private bool _hasAutoLoadedGeReleases;
     private bool _disposed;
-
-    private static string T(string key, string fallback)
-        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
 
     // Currently selected emulator profile
     [ObservableProperty] 

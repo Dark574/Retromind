@@ -62,9 +62,6 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
     private ScraperImportSettings ImportSettings =>
         _settings.ScraperImport ??= new ScraperImportSettings();
 
-    private static string T(string key, string fallback)
-        => Strings.ResourceManager.GetString(key, Strings.Culture) ?? fallback;
-
     public string NoCoverText =>
         Strings.ResourceManager.GetString("Metadata.NoCover", Strings.Culture) ?? "No cover";
     public string MetadataSelectionTitle => T("ScrapeDialog.MetadataSelectionTitle", "Select metadata");
