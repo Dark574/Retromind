@@ -16,10 +16,6 @@ public sealed class SecretServiceSecretStore : ISecretStore
 {
     private const string SecretToolExecutable = "secret-tool";
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(10);
-    private static readonly TimeSpan AvailabilityCacheTtl = TimeSpan.FromSeconds(20);
-    private readonly SemaphoreSlim _availabilityLock = new(1, 1);
-    private bool _isAvailableCached;
-    private DateTimeOffset _isAvailableCachedUntilUtc = DateTimeOffset.MinValue;
     private static readonly string[] TrustedSecretToolDirectories =
     [
         "/usr/bin",
@@ -30,47 +26,18 @@ public sealed class SecretServiceSecretStore : ISecretStore
         "/run/current-system/sw/bin"
     ];
 
-    public async Task<bool> IsAvailableAsync(CancellationToken ct = default)
+    public Task<bool> IsAvailableAsync(CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (!OperatingSystem.IsLinux())
-            return false;
+            return Task.FromResult(false);
 
-        if (DateTimeOffset.UtcNow < _isAvailableCachedUntilUtc)
-            return _isAvailableCached;
-
-        await _availabilityLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (DateTimeOffset.UtcNow < _isAvailableCachedUntilUtc)
-                return _isAvailableCached;
-
-            var probeArgs = new[]
-            {
-                "lookup",
-                "__retromind_probe_key__",
-                "__retromind_probe_value__"
-            };
-
-            var result = await RunSecretToolAsync(probeArgs, null, ct).ConfigureAwait(false);
-            var available = result.Started &&
-                            (result.ExitCode == 0 ||
-                             (result.ExitCode == 1 && string.IsNullOrWhiteSpace(result.Stderr)));
-
-            _isAvailableCached = available;
-            _isAvailableCachedUntilUtc = DateTimeOffset.UtcNow.Add(AvailabilityCacheTtl);
-            return available;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[SecretStore] Secret Service probe failed: {ex.Message}");
-            _isAvailableCached = false;
-            _isAvailableCachedUntilUtc = DateTimeOffset.UtcNow.Add(AvailabilityCacheTtl);
-            return false;
-        }
-        finally
-        {
-            _availabilityLock.Release();
-        }
+        // A dummy lookup can unlock or prompt the desktop wallet. Availability only
+        // means that a trusted secret-tool executable exists; real operations handle
+        // Secret Service/DBus failures and fall back safely at the composite layer.
+        using var candidates = ResolveSecretToolCandidates().GetEnumerator();
+        return Task.FromResult(candidates.MoveNext());
     }
 
     public async Task SetAsync(SecretKey key, string secret, CancellationToken ct = default)

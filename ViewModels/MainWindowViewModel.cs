@@ -1040,7 +1040,7 @@ public partial class MainWindowViewModel : ViewModelBase
             NotifyPlayAvailabilityChanged();
 
             if (item != null && CanCheckGogUpdatesForItem(item))
-                _ = CheckGogUpdatesForItemCoreAsync(item, force: true, CancellationToken.None);
+                _ = CheckGogUpdatesForItemCoreAsync(item, force: false, CancellationToken.None);
 
             if (item != null)
                 RememberNodeSelection(mediaVm.Node.Id, item.Id);

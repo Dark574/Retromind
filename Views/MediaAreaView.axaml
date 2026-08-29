@@ -251,6 +251,8 @@
                                         CornerRadius="0"
                                         ClipToBounds="True"
                                         PointerPressed="OnItemPointerPressed"
+                                        PointerMoved="OnItemPointerMoved"
+                                        PointerReleased="OnItemPointerReleased"
                                         DoubleTapped="OnItemDoubleTapped">
 
                                     <Border.Background>
@@ -290,6 +292,9 @@
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddManualToMediaCommand}"
                                                       CommandParameter="{Binding .}" />
                                             <Separator/>
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaCommand}"
+                                                      CommandParameter="{Binding .}" />
                                             <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
                                                       CommandParameter="{Binding .}"

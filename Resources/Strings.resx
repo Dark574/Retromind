@@ -134,6 +134,7 @@
     <data name="Ctx.Media.Add" xml:space="preserve"><value>Add Media</value></data>
     <data name="Ctx.Media.AddEmpty" xml:space="preserve"><value>Add empty media</value></data>
     <data name="Ctx.Media.AddManual" xml:space="preserve"><value>Add manual</value></data>
+    <data name="Ctx.Media.Move" xml:space="preserve"><value>Move to category...</value></data>
     <data name="Ctx.ChangeCover" xml:space="preserve"><value>Change Cover...</value></data>
   
     <!-- DIALOG -->
@@ -152,6 +153,20 @@
     <data name="Dialog.MsgConfirmDelete" xml:space="preserve"><value>Do you really want to delete this?</value></data>
     <data name="Dialog.ConfirmMoveNodeAssetsFormat" xml:space="preserve"><value>Move all assets for '{0}' to the new location on disk? This may take a moment.</value></data>
     <data name="Dialog.ConfirmMergeNodeAssetsFormat" xml:space="preserve"><value>Target assets for '{0}' already exist. Merge and auto-renumber to avoid conflicts?</value></data>
+    <data name="MoveMedia.DialogTitle" xml:space="preserve"><value>Move item</value></data>
+    <data name="MoveMedia.Instruction" xml:space="preserve"><value>Select the target category:</value></data>
+    <data name="MoveMedia.Apply" xml:space="preserve"><value>Move</value></data>
+    <data name="MoveMedia.SelectTarget" xml:space="preserve"><value>Please select a target category.</value></data>
+    <data name="MoveMedia.CurrentCategory" xml:space="preserve"><value>The item is already in this category.</value></data>
+    <data name="MoveMedia.StoreProviderMismatch" xml:space="preserve"><value>This synchronized store category only accepts matching store items.</value></data>
+    <data name="MoveMedia.MissingStoreIdentity" xml:space="preserve"><value>The item does not contain the complete identity required by this store category.</value></data>
+    <data name="MoveMedia.DuplicateStoreItem" xml:space="preserve"><value>This store item already exists in the selected category.</value></data>
+    <data name="MoveMedia.InvalidTarget" xml:space="preserve"><value>The selected category cannot be used as a target.</value></data>
+    <data name="MoveMedia.ConfirmFormat" xml:space="preserve"><value>Move '{0}' from '{1}' to '{2}'?&#xA;&#xA;Associated assets will be moved as well. Settings inherited from the category may change.</value></data>
+    <data name="MoveMedia.StoreSyncWarning" xml:space="preserve"><value>Warning: the source is a synchronized store category. A later store sync may add the item there again.</value></data>
+    <data name="MoveMedia.TargetChanged" xml:space="preserve"><value>The source or target category changed. Please select the target again.</value></data>
+    <data name="MoveMedia.AssetMoveFailedFormat" xml:space="preserve"><value>The item could not be moved because its assets could not be moved safely.&#xA;&#xA;{0}</value></data>
+    <data name="MoveMedia.CollectionMoveFailed" xml:space="preserve"><value>The category assignment could not be changed.</value></data>
     <data name="Dialog.NoResult" xml:space="preserve"><value>No results found (or filters empty).</value></data>
     <data name="Dialog.SearchTerm" xml:space="preserve"><value>Search term</value></data>
     <data name="Dialog.TitleConfirm" xml:space="preserve"><value>Confirm</value></data>

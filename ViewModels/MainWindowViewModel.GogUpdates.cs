@@ -30,6 +30,7 @@ public partial class MainWindowViewModel
     private readonly object _gogUpdateLock = new();
     private readonly HashSet<string> _gogUpdateChecksInFlight = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _gogUpdateSweepSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _gogUpdateAuthSemaphore = new(1, 1);
     private CancellationTokenSource? _gogUpdateLoopCts;
     private Task? _gogUpdateLoopTask;
     private DateTimeOffset _gogUpdateAuthCacheValidUntilUtc = DateTimeOffset.MinValue;
@@ -113,7 +114,7 @@ public partial class MainWindowViewModel
             foreach (var item in candidates)
             {
                 ct.ThrowIfCancellationRequested();
-                await CheckGogUpdatesForItemCoreAsync(item, force: true, ct).ConfigureAwait(false);
+                await CheckGogUpdatesForItemCoreAsync(item, force: false, ct).ConfigureAwait(false);
                 await Task.Delay(GogUpdatePerItemDelay, ct).ConfigureAwait(false);
             }
         }
@@ -334,27 +335,35 @@ public partial class MainWindowViewModel
 
     private async Task<bool> EnsureGogAuthForUpdateChecksAsync(bool forceRefresh, CancellationToken ct)
     {
-        var now = DateTimeOffset.UtcNow;
-        if (!forceRefresh && now < _gogUpdateAuthCacheValidUntilUtc)
-            return _gogUpdateAuthAvailableCached;
-
-        var isAuthenticated = false;
+        await _gogUpdateAuthSemaphore.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var authState = await _storeAuthProvider.GetAuthStateAsync(ct).ConfigureAwait(false);
-            isAuthenticated = authState.IsAuthenticated;
-            if (!isAuthenticated)
-                isAuthenticated = await _storeAuthProvider.TryRefreshSessionAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GOG] Silent auth check for updates failed: {ex.Message}");
-            isAuthenticated = false;
-        }
+            var now = DateTimeOffset.UtcNow;
+            if (!forceRefresh && now < _gogUpdateAuthCacheValidUntilUtc)
+                return _gogUpdateAuthAvailableCached;
 
-        _gogUpdateAuthAvailableCached = isAuthenticated;
-        _gogUpdateAuthCacheValidUntilUtc = now.Add(GogUpdateAuthCacheTtl);
-        return isAuthenticated;
+            var isAuthenticated = false;
+            try
+            {
+                var authState = await _storeAuthProvider.GetAuthStateAsync(ct).ConfigureAwait(false);
+                isAuthenticated = authState.IsAuthenticated;
+                if (!isAuthenticated)
+                    isAuthenticated = await _storeAuthProvider.TryRefreshSessionAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GOG] Silent auth check for updates failed: {ex.Message}");
+                isAuthenticated = false;
+            }
+
+            _gogUpdateAuthAvailableCached = isAuthenticated;
+            _gogUpdateAuthCacheValidUntilUtc = now.Add(GogUpdateAuthCacheTtl);
+            return isAuthenticated;
+        }
+        finally
+        {
+            _gogUpdateAuthSemaphore.Release();
+        }
     }
 
     private bool TryEnterGogUpdateCheck(string itemId)

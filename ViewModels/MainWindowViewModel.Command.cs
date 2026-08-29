@@ -43,6 +43,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> SetMusicCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand<MediaItem?> EditMediaCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> MoveMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> DeleteMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> ToggleItemProtectionCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ToggleNodeProtectionCommand { get; private set; } = null!;
@@ -75,6 +76,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> AddManualToMediaCommand { get; private set; } = null!;
 
     public string GogMediaMenuText => T("Gog.Media.AddMenu", "Add GOG media");
+    public string MoveMediaMenuText => T("Ctx.Media.Move", "Move to category...");
     public string GogReinstallMenuText => T("Gog.Media.ReinstallMenu", "Reinstall / Switch Version");
     public string GogUninstallMenuText => T("Gog.Uninstall.ContextMenu", "Uninstall");
 
@@ -95,6 +97,7 @@ public partial class MainWindowViewModel
         SetMusicCommand = new AsyncRelayCommand<MediaItem?>(SetMusicAsync);
         
         EditMediaCommand = new AsyncRelayCommand<MediaItem?>(EditMediaAsync);
+        MoveMediaCommand = new AsyncRelayCommand<MediaItem?>(MoveMediaAsync);
         DeleteMediaCommand = new AsyncRelayCommand<MediaItem?>(DeleteMediaAsync);
         ToggleItemProtectionCommand = new AsyncRelayCommand<MediaItem?>(ToggleItemProtectionAsync);
         ToggleNodeProtectionCommand = new AsyncRelayCommand<MediaNode?>(ToggleNodeProtectionAsync);

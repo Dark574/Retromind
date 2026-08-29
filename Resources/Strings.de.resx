@@ -135,6 +135,7 @@
     <data name="Ctx.Media.Add" xml:space="preserve"><value>Medium hinzufügen</value></data>
     <data name="Ctx.Media.AddEmpty" xml:space="preserve"><value>Leeres Medium hinzufügen</value></data>
     <data name="Ctx.Media.AddManual" xml:space="preserve"><value>Handbuch hinzufügen</value></data>
+    <data name="Ctx.Media.Move" xml:space="preserve"><value>In Kategorie verschieben...</value></data>
     <data name="Ctx.ChangeCover" xml:space="preserve"><value>Cover ändern...</value></data>
 
     <!-- DIALOG -->
@@ -153,6 +154,20 @@
     <data name="Dialog.MsgConfirmDelete" xml:space="preserve"><value>Möchten Sie dies wirklich löschen?</value></data>
     <data name="Dialog.ConfirmMoveNodeAssetsFormat" xml:space="preserve"><value>Alle Assets für '{0}' auf den neuen Speicherort verschieben? Das kann einen Moment dauern.</value></data>
     <data name="Dialog.ConfirmMergeNodeAssetsFormat" xml:space="preserve"><value>Ziel-Assets für '{0}' existieren bereits. Zusammenführen und bei Konflikten automatisch umnummerieren?</value></data>
+    <data name="MoveMedia.DialogTitle" xml:space="preserve"><value>Medium verschieben</value></data>
+    <data name="MoveMedia.Instruction" xml:space="preserve"><value>Zielkategorie auswählen:</value></data>
+    <data name="MoveMedia.Apply" xml:space="preserve"><value>Verschieben</value></data>
+    <data name="MoveMedia.SelectTarget" xml:space="preserve"><value>Bitte eine Zielkategorie auswählen.</value></data>
+    <data name="MoveMedia.CurrentCategory" xml:space="preserve"><value>Das Medium befindet sich bereits in dieser Kategorie.</value></data>
+    <data name="MoveMedia.StoreProviderMismatch" xml:space="preserve"><value>Diese synchronisierte Store-Kategorie akzeptiert nur passende Store-Medien.</value></data>
+    <data name="MoveMedia.MissingStoreIdentity" xml:space="preserve"><value>Dem Medium fehlt die vollständige Kennung für diese Store-Kategorie.</value></data>
+    <data name="MoveMedia.DuplicateStoreItem" xml:space="preserve"><value>Dieses Store-Medium ist in der gewählten Kategorie bereits vorhanden.</value></data>
+    <data name="MoveMedia.InvalidTarget" xml:space="preserve"><value>Die gewählte Kategorie kann nicht als Ziel verwendet werden.</value></data>
+    <data name="MoveMedia.ConfirmFormat" xml:space="preserve"><value>'{0}' von '{1}' nach '{2}' verschieben?&#xA;&#xA;Zugehörige Assets werden ebenfalls verschoben. Von der Kategorie geerbte Einstellungen können sich ändern.</value></data>
+    <data name="MoveMedia.StoreSyncWarning" xml:space="preserve"><value>Achtung: Die Quellkategorie wird mit einem Store synchronisiert. Bei einer späteren Synchronisierung kann das Medium dort erneut angelegt werden.</value></data>
+    <data name="MoveMedia.TargetChanged" xml:space="preserve"><value>Quell- oder Zielkategorie wurde zwischenzeitlich geändert. Bitte das Ziel erneut auswählen.</value></data>
+    <data name="MoveMedia.AssetMoveFailedFormat" xml:space="preserve"><value>Das Medium konnte nicht verschoben werden, weil seine Assets nicht sicher verschoben werden konnten.&#xA;&#xA;{0}</value></data>
+    <data name="MoveMedia.CollectionMoveFailed" xml:space="preserve"><value>Die Kategoriezuordnung konnte nicht geändert werden.</value></data>
     <data name="Dialog.NoResult" xml:space="preserve"><value>Keine Ergebnisse gefunden (oder Filter leer).</value></data>
     <data name="Dialog.SearchTerm" xml:space="preserve"><value>Suchbegriff</value></data>
     <data name="Dialog.TitleConfirm" xml:space="preserve"><value>Bestätigung</value></data>

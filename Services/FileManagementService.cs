@@ -14,7 +14,7 @@ namespace Retromind.Services;
 /// Enforces naming convention (Title__Id_Type_Number).
 /// Manual/Music use Display__RM__Title__Id_Type_Number to preserve the original filename.
 /// </summary>
-public class FileManagementService
+public partial class FileManagementService
 {
     private const int ItemIdTokenLength = 8;
     private const string ItemIdSeparator = "__";

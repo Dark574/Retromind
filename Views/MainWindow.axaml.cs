@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -28,11 +29,13 @@ public partial class MainWindow : Window
     private bool _closeInProgress = false;
 
     private MediaNode? _draggedNode;
+    private MediaItem? _draggedMediaItem;
     private Point? _dragStartPoint;
     private PointerPressedEventArgs? _dragStartPressedEvent;
     private bool _dragInProgress;
     private Control? _dropIndicatorTarget;
     private MainWindowViewModel.NodeDropPosition? _dropIndicatorPosition;
+    private MediaNode? _pendingMediaDropTarget;
 
     private static readonly TimeSpan TypeSearchResetDelay = TimeSpan.FromMilliseconds(2000);
     private string _typeSearchBuffer = string.Empty;
@@ -231,6 +234,34 @@ public partial class MainWindow : Window
         }
     }
 
+    public async Task BeginMediaItemDragAsync(MediaItem item, PointerPressedEventArgs pressedEvent)
+    {
+        if (_dragInProgress || _draggedNode != null || _draggedMediaItem != null)
+            return;
+
+        _draggedMediaItem = item;
+        _dragInProgress = true;
+
+        var data = new DataTransfer();
+        data.Add(DataTransferItem.CreateText($"retromind-media:{item.Id}"));
+
+        MediaNode? dropTarget;
+        try
+        {
+            await DragDrop.DoDragDropAsync(pressedEvent, data, DragDropEffects.Move);
+        }
+        finally
+        {
+            dropTarget = _pendingMediaDropTarget;
+            ResetDragState();
+        }
+
+        // Complete the native drag operation before opening the modal confirmation.
+        // Otherwise the compositor can keep the dragged cover visible over the UI.
+        if (dropTarget != null && DataContext is MainWindowViewModel vm)
+            await vm.TryMoveMediaAsync(item, dropTarget);
+    }
+
     private void OnTreeNodePointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (_dragInProgress)
@@ -244,14 +275,30 @@ public partial class MainWindow : Window
         if (sender is not Control targetControl)
             return;
 
-        if (_draggedNode == null)
+        if (targetControl.DataContext is not MediaNode targetNode)
         {
             e.DragEffects = DragDropEffects.None;
             ClearDropIndicator();
             return;
         }
 
-        if (targetControl.DataContext is not MediaNode targetNode)
+        if (_draggedMediaItem != null)
+        {
+            if (DataContext is not MainWindowViewModel vm ||
+                !vm.CanMoveMediaItemTo(_draggedMediaItem, targetNode))
+            {
+                e.DragEffects = DragDropEffects.None;
+                ClearDropIndicator();
+                return;
+            }
+
+            ApplyDropIndicator(targetControl, MainWindowViewModel.NodeDropPosition.Inside);
+            e.DragEffects = DragDropEffects.Move;
+            e.Handled = true;
+            return;
+        }
+
+        if (_draggedNode == null)
         {
             e.DragEffects = DragDropEffects.None;
             ClearDropIndicator();
@@ -291,10 +338,23 @@ public partial class MainWindow : Window
         if (sender is not Control targetControl)
             return;
 
-        if (_draggedNode == null)
+        if (targetControl.DataContext is not MediaNode targetNode)
             return;
 
-        if (targetControl.DataContext is not MediaNode targetNode)
+        if (DataContext is not MainWindowViewModel vm)
+            return;
+
+        if (_draggedMediaItem != null)
+        {
+            if (vm.CanMoveMediaItemTo(_draggedMediaItem, targetNode))
+                _pendingMediaDropTarget = targetNode;
+
+            ClearDropIndicator();
+            e.Handled = true;
+            return;
+        }
+
+        if (_draggedNode == null)
             return;
 
         var sourceNode = _draggedNode;
@@ -302,9 +362,6 @@ public partial class MainWindow : Window
             return;
 
         if (IsDescendant(sourceNode, targetNode))
-            return;
-
-        if (DataContext is not MainWindowViewModel vm)
             return;
 
         var dropPosition = GetDropPosition(targetControl, e);
@@ -348,10 +405,12 @@ public partial class MainWindow : Window
     private void ResetDragState()
     {
         _draggedNode = null;
+        _draggedMediaItem = null;
         _dragStartPoint = null;
         _dragStartPressedEvent = null;
         _dragInProgress = false;
         ClearDropIndicator();
+        _pendingMediaDropTarget = null;
     }
 
     private void ApplyDropIndicator(Control target, MainWindowViewModel.NodeDropPosition position)

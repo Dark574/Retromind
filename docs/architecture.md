@@ -51,6 +51,9 @@ Main window is a layered shell:
 - rebuilds center content through a cancelable `UpdateContent()` pipeline
 - keeps content updates race-safe (CTS + TCS), with background item collection and single UI-thread commit
 - preserves and restores search/filter UI state when switching between node view and global search
+- coordinates explicit item moves between nodes through a single-selection tree or tile-to-tree drag-and-drop;
+  both paths share the same confirmation and move transaction, while inherited launch settings are resolved
+  from the new parent without copying node defaults onto the item
 
 ## Persistence model
 Persisted app/library data is portable under `AppPaths.DataRoot` (AppImage directory or app base directory).
@@ -91,6 +94,11 @@ not in `DataRoot`.
 - destructive store operations have an additional ownership boundary: GOG install directories must not
   be dangerous roots, must not traverse symbolic links, and must contain a matching
   `.retromind-install.json` marker before recursive deletion
+- moving an item between nodes transfers its referenced assets through a staging transaction; failures roll
+  files and the collection assignment back, while assets shared with another item or node are copied instead
+  of removing the shared source
+- synchronized store nodes accept only items with the matching provider identity and reject duplicate store
+  game IDs; moving an item out remains possible but warns that a later full store sync may add it again
 
 ## Theme subsystem
 Themes are external runtime XAML loaded through `ThemeLoader`:

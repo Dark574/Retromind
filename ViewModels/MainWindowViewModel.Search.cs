@@ -261,7 +261,7 @@ public partial class MainWindowViewModel
             _pendingGlobalSearchSelectionItemId = null;
 
         if (item != null && CanCheckGogUpdatesForItem(item))
-            _ = CheckGogUpdatesForItemCoreAsync(item, force: true, CancellationToken.None);
+            _ = CheckGogUpdatesForItemCoreAsync(item, force: false, CancellationToken.None);
 
         NotifyPlayAvailabilityChanged();
 

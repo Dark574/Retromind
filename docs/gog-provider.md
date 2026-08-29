@@ -103,8 +103,9 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - closing the log window during an operation triggers cancellation
     - staging data (including partial `.part` downloads) is preserved after cancellation for seamless resume
 - Update check/install wiring:
-  - automatic non-interactive update checks on selection
-  - automatic full-library sweep over all installed GOG titles every 24h
+  - automatic non-interactive update checks on selection, respecting the persisted 24-hour check interval
+  - automatic full-library sweep over due installed GOG titles every 24h
+  - Secret Service authentication checks are serialized and executable availability probing never opens the wallet
   - update availability flag persisted in custom fields (`Store.UpdateAvailable`, `Store.LastUpdateCheckUtc`, `Store.LastUpdateCheckStatus`)
   - search-card badge is shown when update is available
   - primary Start action now surfaces `Update` and runs the existing installer flow for update installs

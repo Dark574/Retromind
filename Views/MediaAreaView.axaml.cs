@@ -16,7 +16,13 @@ namespace Retromind.Views;
 
 public partial class MediaAreaView : UserControl
 {
+    private const double DragThreshold = 6.0;
+
     private ListBox? _mediaList;
+    private MediaItem? _draggedItem;
+    private Point? _dragStartPoint;
+    private PointerPressedEventArgs? _dragStartPressedEvent;
+    private bool _dragInProgress;
 
     public MediaAreaView()
     {
@@ -57,7 +63,59 @@ public partial class MediaAreaView : UserControl
 
         vm.SelectedMediaItem = item;
         _mediaList?.Focus();
+
+        _draggedItem = item;
+        _dragStartPoint = e.GetPosition(this);
+        _dragStartPressedEvent = e;
         e.Handled = true;
+    }
+
+    private async void OnItemPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_dragInProgress || _draggedItem == null || _dragStartPoint == null || _dragStartPressedEvent == null)
+            return;
+
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            ResetItemDragState();
+            return;
+        }
+
+        var currentPosition = e.GetPosition(this);
+        var delta = currentPosition - _dragStartPoint.Value;
+        if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold)
+            return;
+
+        var window = this.FindAncestorOfType<MainWindow>();
+        if (window == null)
+        {
+            ResetItemDragState();
+            return;
+        }
+
+        _dragInProgress = true;
+        try
+        {
+            await window.BeginMediaItemDragAsync(_draggedItem, _dragStartPressedEvent);
+        }
+        finally
+        {
+            ResetItemDragState();
+        }
+    }
+
+    private void OnItemPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!_dragInProgress)
+            ResetItemDragState();
+    }
+
+    private void ResetItemDragState()
+    {
+        _draggedItem = null;
+        _dragStartPoint = null;
+        _dragStartPressedEvent = null;
+        _dragInProgress = false;
     }
     
     /// <summary>
