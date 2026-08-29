@@ -134,6 +134,7 @@ public partial class MediaAreaView : UserControl
             return;
 
         vm.ViewportWidth = _mediaList.Bounds.Width;
+        ScheduleInitialSelectionScroll(vm);
     }
 
     private void OnMediaListSizeChanged(object? sender, SizeChangedEventArgs e)
@@ -151,16 +152,30 @@ public partial class MediaAreaView : UserControl
         if (DataContext is MediaAreaViewModel vm)
         {
             _mediaList ??= this.FindControl<ListBox>("MediaList");
-            if (_mediaList != null)
-                vm.ViewportWidth = _mediaList.Bounds.Width;
-
-            if (vm.SelectedMediaItem != null)
+            if (_mediaList is { Bounds.Width: > 0 })
             {
-                Dispatcher.UIThread.Post(
-                    () => ScrollItemIntoView(vm.SelectedMediaItem),
-                    DispatcherPriority.Loaded);
+                vm.ViewportWidth = _mediaList.Bounds.Width;
+                ScheduleInitialSelectionScroll(vm);
             }
         }
+    }
+
+    private void ScheduleInitialSelectionScroll(MediaAreaViewModel vm)
+    {
+        var item = vm.SelectedMediaItem;
+        if (item == null)
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!ReferenceEquals(DataContext, vm) ||
+                !string.Equals(vm.SelectedMediaItem?.Id, item.Id, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            ScrollItemIntoView(item);
+        }, DispatcherPriority.Background);
     }
 
     private void OnMediaListKeyDown(object? sender, KeyEventArgs e)

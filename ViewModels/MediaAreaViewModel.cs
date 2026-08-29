@@ -326,6 +326,17 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
     private void RebuildRows()
     {
+        // Do not create a temporary one-column layout before the view has a real
+        // width. Replacing that layout while restoring and scrolling the initial
+        // selection can leave a recycled Avalonia item container visible.
+        if (ViewportWidth <= 0)
+        {
+            _columnCount = 1;
+            EffectiveItemWidth = ItemWidth;
+            ItemRows.Clear();
+            return;
+        }
+
         var layout = MediaGridLayoutHelper.Calculate(
             ViewportWidth,
             ViewportPadding,
