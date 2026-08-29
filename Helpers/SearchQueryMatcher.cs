@@ -89,6 +89,7 @@ public sealed class SearchQueryMatcher
         CustomNamedKey,
         Id,
         Favorite,
+        Played,
         Rating
     }
 
@@ -480,6 +481,10 @@ public sealed class SearchQueryMatcher
             case "favourite":
                 field = QueryField.Favorite;
                 return true;
+            case "played":
+            case "started":
+                field = QueryField.Played;
+                return true;
             case "rating":
             case "score":
                 field = QueryField.Rating;
@@ -551,6 +556,8 @@ public sealed class SearchQueryMatcher
                 return ContainsIgnoreCase(item.Id, value);
             case QueryField.Favorite:
                 return MatchesFavorite(item.IsFavorite, value);
+            case QueryField.Played:
+                return MatchesPlayed(item, value);
             case QueryField.Rating:
                 return MatchesRating(item.Rating, value);
             default:
@@ -605,6 +612,8 @@ public sealed class SearchQueryMatcher
                 return string.IsNullOrWhiteSpace(item.Id);
             case QueryField.Favorite:
                 return false;
+            case QueryField.Played:
+                return !MediaPlayStateHelper.HasPlayEvidence(item);
             case QueryField.Rating:
                 return item.Rating <= 0d;
             default:
@@ -691,6 +700,18 @@ public sealed class SearchQueryMatcher
 
         var favoriteText = isFavorite ? "true" : "false";
         return ContainsIgnoreCase(favoriteText, rawValue);
+    }
+
+    private static bool MatchesPlayed(MediaItem item, string rawValue)
+    {
+        var hasPlayEvidence = MediaPlayStateHelper.HasPlayEvidence(item);
+        var normalized = rawValue.Trim().ToLowerInvariant();
+        if (normalized is "1" or "true" or "yes" or "y")
+            return hasPlayEvidence;
+        if (normalized is "0" or "false" or "no" or "n")
+            return !hasPlayEvidence;
+
+        return false;
     }
 
     private static bool MatchesMaxPlayers(string? maxPlayers, string rawValue)

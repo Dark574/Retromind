@@ -36,7 +36,8 @@ public static class SearchQueryBuilderHelper
         new SearchQueryFieldOption("date", GetFilterFieldLabel("Search.FilterField.ReleaseDate", "Release Date")),
         new SearchQueryFieldOption("tag", GetFilterFieldLabel("Search.FilterField.Tag", "Tag")),
         new SearchQueryFieldOption("id", GetFilterFieldLabel("Search.FilterField.Id", "ID")),
-        new SearchQueryFieldOption("favorite", GetFilterFieldLabel("Search.FilterField.Favorite", "Favorite"))
+        new SearchQueryFieldOption("favorite", GetFilterFieldLabel("Search.FilterField.Favorite", "Favorite")),
+        new SearchQueryFieldOption("played", GetFilterFieldLabel("Search.FilterField.Played", "Played"))
     };
 
     public static SearchQueryBuilderData BuildData(IEnumerable<MediaItem> items)
@@ -60,7 +61,8 @@ public static class SearchQueryBuilderHelper
             ["date"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             ["tag"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             ["id"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            ["favorite"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            ["favorite"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            ["played"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         };
         var customFieldKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -108,6 +110,8 @@ public static class SearchQueryBuilderHelper
 
         buckets["favorite"].Add("true");
         buckets["favorite"].Add("false");
+        buckets["played"].Add("true");
+        buckets["played"].Add("false");
 
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var pair in buckets)

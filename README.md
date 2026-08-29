@@ -35,6 +35,7 @@ See `docs/CHANGELOG.md` for version history.
 - **Flexible game launching** for native applications, scripts and emulators, including Wine, Proton, UMU, wrappers and environment overrides
 - **Metadata and artwork scraping** from multiple providers with bulk processing, per-field import decisions and additive artwork handling
 - **Library discovery and filtering** through global search, favorites, saved filters and an optional metadata query language
+- **Interactive library statistics** for play time, launches, progress, recent and most-played items, with category-aware filtering and metadata distributions
 - **Smart local imports** with multi-disc recognition and optional playlist launching
 - **Store integration** for Steam and Heroic imports plus experimental native GOG library, installation, update and uninstall support
 - **Managed compatibility runners**, including direct GE-Proton downloads and reusable emulator profiles
@@ -139,9 +140,10 @@ Or (if you run the built app directly):
 ## Tests
 
 The automated test suite is intentionally small and risk-focused. It protects the GOG install/uninstall
-directory boundary, Retromind's portable path contract, prefix-path handling, and category-scoped metadata
-suggestions. The tests use isolated temporary directories under `/tmp` and include Linux symbolic-link,
-case-sensitivity, path-containment, migration, and library-relocation cases.
+directory boundary, Retromind's portable path contract, prefix-path handling, category-scoped metadata
+suggestions, and deterministic search-query matching. The tests use isolated temporary directories under
+`/tmp` and include Linux symbolic-link, case-sensitivity, path-containment, migration, library-relocation,
+and played/not-played filter cases.
 
 Run the complete solution test suite:
 
@@ -553,7 +555,9 @@ Source: <https://docs.avaloniaui.net/docs/platform-specific-guides/linux#wayland
 Supported keys (aliases included):
 - `title`, `sorttitle`, `description`/`notes`, `developer`, `publisher`, `platform`, `source`
 - `genre`, `series`, `releasetype`, `playmode`, `players`/`maxplayers`
-- `status`/`state`, `year`, `date`/`released`, `tag`/`tags`, `id`, `favorite`
+- `status`/`state`, `year`, `date`/`released`, `tag`/`tags`, `id`, `favorite`, `played`/`started`
+- `played:true` matches an item when it has a launch count, recorded play time, or a last-played timestamp;
+  `played:false` matches items without any of that play evidence.
 - Custom fields:
   - `cf:<text>` searches custom field keys and values.
   - `cfk:<text>` searches only custom field keys.
@@ -565,6 +569,8 @@ Examples:
 - `platform:snes AND developer:nintendo`
 - `maxplayers:2 AND status:completed`
 - `year=1998 favorite=true`
+- `status:incomplete AND played:true`
+- `status:incomplete AND played:false`
 - `year:>=1995 AND year:<2000`
 - `missing:genre OR missing:developer`
 - `has:genre AND NOT genre:unknown`

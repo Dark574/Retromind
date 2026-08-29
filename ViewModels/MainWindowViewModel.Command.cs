@@ -145,6 +145,109 @@ public partial class MainWindowViewModel
             excludeProtectedItems: IsParentalFilterActive);
         var dialog = new LibraryStatisticsView { DataContext = viewModel };
         await dialog.ShowDialog(owner);
+
+        if (viewModel.NavigationTarget is { } target)
+            await NavigateToStatisticsItemAsync(target);
+        else if (viewModel.FilterRequest is { } filterRequest)
+            await ApplyStatisticsFilterAsync(filterRequest);
+    }
+
+    private async Task ApplyStatisticsFilterAsync(LibraryStatisticsFilterRequest request)
+    {
+        var (query, favoritesOnly) = request.Kind switch
+        {
+            LibraryStatisticsFilterKind.Favorites => (string.Empty, true),
+            LibraryStatisticsFilterKind.Completed => ("status:completed", false),
+            LibraryStatisticsFilterKind.InProgress => ("status:incomplete played:true", false),
+            LibraryStatisticsFilterKind.Abandoned => ("status:abandoned", false),
+            LibraryStatisticsFilterKind.NeverStarted => ("status:incomplete played:false", false),
+            _ => (string.Empty, false)
+        };
+
+        if (request.ScopeNode == null)
+        {
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                if (SelectedNodeContent is not SearchAreaViewModel)
+                    OpenIntegratedSearch();
+
+                if (_currentSearchAreaVm == null)
+                    return;
+
+                _pendingGlobalSearchSelectionItemId = null;
+                _currentSearchAreaVm.SelectedMediaItem = null;
+                _currentSearchAreaVm.ApplyScopeSelection(RootItems.Select(root => root.Id).ToArray());
+                _currentSearchAreaVm.SearchYear = string.Empty;
+                _currentSearchAreaVm.SelectedStatus = null;
+                _currentSearchAreaVm.SearchText = query;
+                _currentSearchAreaVm.OnlyFavorites = favoritesOnly;
+            });
+            return;
+        }
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            _searchUiState.SharedSearchText = query;
+            _searchUiState.SharedOnlyFavorites = favoritesOnly;
+            if (_currentMediaAreaVm != null)
+            {
+                _currentMediaAreaVm.SearchText = query;
+                _currentMediaAreaVm.OnlyFavorites = favoritesOnly;
+                _currentMediaAreaVm.SelectedStatus = null;
+            }
+
+            RememberNodeDeselection(request.ScopeNode.Id);
+            _currentSettings.LastSelectedMediaId = null;
+            ExpandPathToNode(RootItems, request.ScopeNode);
+
+            if (ReferenceEquals(SelectedNode, request.ScopeNode))
+                UpdateContent();
+            else
+                SelectedNode = request.ScopeNode;
+        });
+
+        await UpdateContentAsync();
+    }
+
+    private async Task NavigateToStatisticsItemAsync(MediaItem item)
+    {
+        var targetNode = FindParentNode(RootItems, item);
+        if (targetNode == null)
+            return;
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            // A statistics result must remain visible after navigation, regardless
+            // of filters that were active in the previous node or global search.
+            _searchUiState.SharedSearchText = string.Empty;
+            _searchUiState.SharedOnlyFavorites = false;
+            if (_currentMediaAreaVm != null)
+            {
+                _currentMediaAreaVm.SearchText = string.Empty;
+                _currentMediaAreaVm.OnlyFavorites = false;
+                _currentMediaAreaVm.SelectedStatus = null;
+            }
+
+            RememberNodeSelection(targetNode.Id, item.Id);
+            _currentSettings.LastSelectedMediaId = item.Id;
+            ExpandPathToNode(RootItems, targetNode);
+
+            if (ReferenceEquals(SelectedNode, targetNode))
+                UpdateContent();
+            else
+                SelectedNode = targetNode;
+        });
+
+        await UpdateContentAsync();
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            if (SelectedNodeContent is not MediaAreaViewModel mediaViewModel)
+                return;
+
+            var target = mediaViewModel.Node.Items.FirstOrDefault(candidate => candidate.Id == item.Id);
+            if (target != null)
+                mediaViewModel.SelectedMediaItem = target;
+        });
     }
 
     partial void OnIsLaunchInProgressChanged(bool value)

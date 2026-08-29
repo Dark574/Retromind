@@ -363,7 +363,9 @@ This action cannot be undone.</value></data>
 
     <!-- STATISTICS -->
     <data name="Statistics.Title" xml:space="preserve"><value>Library statistics</value></data>
-    <data name="Statistics.Summary" xml:space="preserve"><value>Overview of the entire library</value></data>
+    <data name="Statistics.Summary" xml:space="preserve"><value>Overview of your library data</value></data>
+    <data name="Statistics.Scope" xml:space="preserve"><value>Scope:</value></data>
+    <data name="Statistics.Scope.All" xml:space="preserve"><value>Entire library</value></data>
     <data name="Statistics.TotalItems" xml:space="preserve"><value>Items</value></data>
     <data name="Statistics.TotalPlayTime" xml:space="preserve"><value>Total play time</value></data>
     <data name="Statistics.TotalLaunches" xml:space="preserve"><value>Launches</value></data>
@@ -374,10 +376,18 @@ This action cannot be undone.</value></data>
     <data name="Statistics.NeverStarted" xml:space="preserve"><value>Never started</value></data>
     <data name="Statistics.MostPlayed" xml:space="preserve"><value>Most played</value></data>
     <data name="Statistics.RecentlyPlayed" xml:space="preserve"><value>Recently played</value></data>
-    <data name="Statistics.ByCategory" xml:space="preserve"><value>Items by category</value></data>
-    <data name="Statistics.ByReleaseYear" xml:space="preserve"><value>Most common release years</value></data>
     <data name="Statistics.NoPlayData" xml:space="preserve"><value>No play data available yet.</value></data>
-    <data name="Statistics.NoReleaseYearData" xml:space="preserve"><value>No release year data available.</value></data>
+    <data name="Statistics.OpenItem" xml:space="preserve"><value>Show item in library</value></data>
+    <data name="Statistics.FilterCard" xml:space="preserve"><value>Show matching items</value></data>
+    <data name="Statistics.Distribution" xml:space="preserve"><value>Distribution:</value></data>
+    <data name="Statistics.Distribution.Category" xml:space="preserve"><value>Category</value></data>
+    <data name="Statistics.Distribution.Platform" xml:space="preserve"><value>Platform</value></data>
+    <data name="Statistics.Distribution.Genre" xml:space="preserve"><value>Genre</value></data>
+    <data name="Statistics.Distribution.Year" xml:space="preserve"><value>Release year</value></data>
+    <data name="Statistics.Distribution.Status" xml:space="preserve"><value>Status</value></data>
+    <data name="Statistics.Distribution.Unspecified" xml:space="preserve"><value>Not specified</value></data>
+    <data name="Statistics.NoDistributionData" xml:space="preserve"><value>No matching metadata available.</value></data>
+    <data name="Statistics.Status.Incomplete" xml:space="preserve"><value>Incomplete</value></data>
     <data name="Statistics.DistributionValueFormat" xml:space="preserve"><value>{0:N0} ({1:N1}%)</value></data>
 
     <!-- SETTINGS -->
@@ -656,6 +666,7 @@ Enter = Add, Ctrl+Enter = Replace.</value></data>
 Plain terms search title by default.
 field:value or field=value
 has:field / missing:field
+played:true / played:false
 Operators: AND, OR, NOT, ( )
 Space between terms = AND
 Use quotes for values with spaces.
@@ -664,6 +675,7 @@ Examples:
 genre:platformer
 genre:platformer AND platform:snes
 year:>=1995 AND year:&lt;2000
+status:incomplete AND played:true
 missing:genre OR missing:developer
 has:genre AND NOT genre:unknown
 (genre:platformer OR genre:metroidvania) AND NOT missing:rating
@@ -690,6 +702,7 @@ zelda AND platform:switch</value></data>
     <data name="Search.FilterField.CustomValue" xml:space="preserve"><value>Custom Value</value></data>
     <data name="Search.FilterField.Id" xml:space="preserve"><value>ID</value></data>
     <data name="Search.FilterField.Favorite" xml:space="preserve"><value>Favorite</value></data>
+    <data name="Search.FilterField.Played" xml:space="preserve"><value>Played</value></data>
     <data name="Search.Field.Year" xml:space="preserve"><value>Year</value></data>
     <data name="Search.Field.Tag" xml:space="preserve"><value>Tag</value></data>
     <data name="Search.Field.Id" xml:space="preserve"><value>ID</value></data>

@@ -3,18 +3,26 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Avalonia.Controls;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 
 namespace Retromind.ViewModels;
 
-public sealed class LibraryStatisticsViewModel : ViewModelBase
+public sealed partial class LibraryStatisticsViewModel : ViewModelBase
 {
-    private const int RankingLimit = 10;
+    private const int RankingItemLimit = 10;
+    private const int DistributionItemLimit = 10;
+
+    private readonly IReadOnlyList<MediaNode> _roots;
+    private readonly bool _excludeProtectedItems;
 
     public string Title => T("Statistics.Title", "Library statistics");
     public string SummaryTitle => T("Statistics.Summary", "Overview");
+    public string ScopeLabel => T("Statistics.Scope", "Scope:");
+    public string DistributionLabel => T("Statistics.Distribution", "Distribution:");
     public string TotalItemsLabel => T("Statistics.TotalItems", "Items");
     public string TotalPlayTimeLabel => T("Statistics.TotalPlayTime", "Total play time");
     public string TotalLaunchesLabel => T("Statistics.TotalLaunches", "Launches");
@@ -25,38 +33,94 @@ public sealed class LibraryStatisticsViewModel : ViewModelBase
     public string NeverStartedLabel => T("Statistics.NeverStarted", "Never started");
     public string MostPlayedTitle => T("Statistics.MostPlayed", "Most played");
     public string RecentlyPlayedTitle => T("Statistics.RecentlyPlayed", "Recently played");
-    public string CategoriesTitle => T("Statistics.ByCategory", "Items by category");
-    public string ReleaseYearsTitle => T("Statistics.ByReleaseYear", "Most common release years");
     public string NoPlayDataText => T("Statistics.NoPlayData", "No play data available yet.");
-    public string NoReleaseYearDataText => T("Statistics.NoReleaseYearData", "No release year data available.");
+    public string NoDistributionDataText => T("Statistics.NoDistributionData", "No matching metadata available.");
+    public string OpenItemToolTip => T("Statistics.OpenItem", "Show item in library");
+    public string FilterCardToolTip => T("Statistics.FilterCard", "Show matching items");
     public string CloseButtonText => T("Button_Close", "Close");
 
-    public int TotalItems { get; }
-    public TimeSpan TotalPlayTime { get; }
-    public int TotalLaunches { get; }
-    public int FavoriteItems { get; }
-    public int CompletedItems { get; }
-    public int InProgressItems { get; }
-    public int AbandonedItems { get; }
-    public int NeverStartedItems { get; }
+    public IReadOnlyList<LibraryStatisticsScopeOption> ScopeOptions { get; }
+    public IReadOnlyList<LibraryStatisticsDistributionOption> DistributionOptions { get; }
 
-    public IReadOnlyList<LibraryStatisticsRankingItem> MostPlayedItems { get; }
-    public IReadOnlyList<LibraryStatisticsRankingItem> RecentlyPlayedItems { get; }
-    public IReadOnlyList<LibraryStatisticsDistributionItem> CategoryDistribution { get; }
-    public IReadOnlyList<LibraryStatisticsDistributionItem> ReleaseYearDistribution { get; }
+    [ObservableProperty]
+    private LibraryStatisticsScopeOption _selectedScope;
+
+    [ObservableProperty]
+    private LibraryStatisticsDistributionOption _selectedDistribution;
+
+    public int TotalItems { get; private set; }
+    public TimeSpan TotalPlayTime { get; private set; }
+    public int TotalLaunches { get; private set; }
+    public int FavoriteItems { get; private set; }
+    public int CompletedItems { get; private set; }
+    public int InProgressItems { get; private set; }
+    public int AbandonedItems { get; private set; }
+    public int NeverStartedItems { get; private set; }
+
+    public IReadOnlyList<LibraryStatisticsRankingItem> MostPlayedItems { get; private set; } = [];
+    public IReadOnlyList<LibraryStatisticsRankingItem> RecentlyPlayedItems { get; private set; } = [];
+    public IReadOnlyList<LibraryStatisticsDistributionItem> DistributionItems { get; private set; } = [];
 
     public bool HasMostPlayedItems => MostPlayedItems.Count > 0;
     public bool HasRecentlyPlayedItems => RecentlyPlayedItems.Count > 0;
-    public bool HasCategoryData => CategoryDistribution.Count > 0;
-    public bool HasReleaseYearData => ReleaseYearDistribution.Count > 0;
+    public bool HasDistributionData => DistributionItems.Count > 0;
+
+    public MediaItem? NavigationTarget { get; private set; }
+    public LibraryStatisticsFilterRequest? FilterRequest { get; private set; }
 
     public IRelayCommand<Window?> CloseCommand { get; }
+    public IRelayCommand<LibraryStatisticsRankingItem?> OpenItemCommand { get; }
+    public IRelayCommand<LibraryStatisticsFilterKind> ApplyFilterCommand { get; }
 
-    public LibraryStatisticsViewModel(IEnumerable<MediaNode> roots, bool excludeProtectedItems)
+    public event Action? RequestClose;
+
+    public LibraryStatisticsViewModel(
+        IEnumerable<MediaNode> roots,
+        bool excludeProtectedItems)
     {
         ArgumentNullException.ThrowIfNull(roots);
 
-        var entries = EnumerateItems(roots, [], excludeProtectedItems).ToArray();
+        _roots = roots.ToArray();
+        _excludeProtectedItems = excludeProtectedItems;
+
+        var scopes = new List<LibraryStatisticsScopeOption>
+        {
+            new(T("Statistics.Scope.All", "Entire library"), null)
+        };
+        scopes.AddRange(CreateScopeOptions(_roots, [], excludeProtectedItems));
+
+        ScopeOptions = scopes;
+        DistributionOptions =
+        [
+            new(T("Statistics.Distribution.Category", "Category"), LibraryStatisticsDistributionKind.Category),
+            new(T("Statistics.Distribution.Platform", "Platform"), LibraryStatisticsDistributionKind.Platform),
+            new(T("Statistics.Distribution.Genre", "Genre"), LibraryStatisticsDistributionKind.Genre),
+            new(T("Statistics.Distribution.Year", "Release year"), LibraryStatisticsDistributionKind.ReleaseYear),
+            new(T("Statistics.Distribution.Status", "Status"), LibraryStatisticsDistributionKind.Status)
+        ];
+
+        _selectedScope = ScopeOptions[0];
+        _selectedDistribution = DistributionOptions[0];
+        CloseCommand = new RelayCommand<Window?>(window => window?.Close());
+        OpenItemCommand = new RelayCommand<LibraryStatisticsRankingItem?>(OpenItem);
+        ApplyFilterCommand = new RelayCommand<LibraryStatisticsFilterKind>(ApplyFilter);
+
+        RefreshStatistics();
+    }
+
+    partial void OnSelectedScopeChanged(LibraryStatisticsScopeOption value)
+        => RefreshStatistics();
+
+    partial void OnSelectedDistributionChanged(LibraryStatisticsDistributionOption value)
+        => RefreshStatistics();
+
+    private void RefreshStatistics()
+    {
+        var sourceNodes = SelectedScope.Node == null
+            ? _roots
+            : new[] { SelectedScope.Node };
+        var entries = EnumerateItems(sourceNodes, [], _excludeProtectedItems).ToArray();
+
         TotalItems = entries.Length;
         TotalPlayTime = TimeSpan.FromTicks(entries.Sum(entry => entry.Item.TotalPlayTime.Ticks));
         TotalLaunches = entries.Sum(entry => Math.Max(0, entry.Item.PlayCount));
@@ -64,16 +128,16 @@ public sealed class LibraryStatisticsViewModel : ViewModelBase
         CompletedItems = entries.Count(entry => entry.Item.Status == PlayStatus.Completed);
         AbandonedItems = entries.Count(entry => entry.Item.Status == PlayStatus.Abandoned);
         InProgressItems = entries.Count(entry =>
-            entry.Item.Status == PlayStatus.Incomplete && HasPlayEvidence(entry.Item));
+            entry.Item.Status == PlayStatus.Incomplete && MediaPlayStateHelper.HasPlayEvidence(entry.Item));
         NeverStartedItems = entries.Count(entry =>
-            entry.Item.Status == PlayStatus.Incomplete && !HasPlayEvidence(entry.Item));
+            entry.Item.Status == PlayStatus.Incomplete && !MediaPlayStateHelper.HasPlayEvidence(entry.Item));
 
         MostPlayedItems = entries
             .Where(entry => entry.Item.TotalPlayTime > TimeSpan.Zero)
             .OrderByDescending(entry => entry.Item.TotalPlayTime)
             .ThenByDescending(entry => entry.Item.PlayCount)
             .ThenBy(entry => entry.Item.Title, StringComparer.CurrentCultureIgnoreCase)
-            .Take(RankingLimit)
+            .Take(RankingItemLimit)
             .Select((entry, index) => CreateRankingItem(entry, index + 1))
             .ToArray();
 
@@ -81,61 +145,141 @@ public sealed class LibraryStatisticsViewModel : ViewModelBase
             .Where(entry => entry.Item.LastPlayed.HasValue)
             .OrderByDescending(entry => entry.Item.LastPlayed)
             .ThenBy(entry => entry.Item.Title, StringComparer.CurrentCultureIgnoreCase)
-            .Take(RankingLimit)
+            .Take(RankingItemLimit)
             .Select((entry, index) => CreateRankingItem(entry, index + 1))
             .ToArray();
 
-        CategoryDistribution = CreateDistribution(
-            entries.GroupBy(entry => entry.CategoryPath, StringComparer.CurrentCultureIgnoreCase)
-                .Select(group => (Label: group.Key, Count: group.Count())),
-            TotalItems,
-            RankingLimit);
+        DistributionItems = CreateDistribution(entries, SelectedDistribution.Kind);
 
-        ReleaseYearDistribution = CreateDistribution(
-            entries.Where(entry => entry.Item.ReleaseDate.HasValue)
-                .GroupBy(entry => entry.Item.ReleaseDate!.Value.Year)
-                .Select(group => (Label: group.Key.ToString(CultureInfo.CurrentCulture), Count: group.Count())),
-            TotalItems,
-            RankingLimit);
-
-        CloseCommand = new RelayCommand<Window?>(window => window?.Close());
+        OnPropertyChanged(nameof(TotalItems));
+        OnPropertyChanged(nameof(TotalPlayTime));
+        OnPropertyChanged(nameof(TotalLaunches));
+        OnPropertyChanged(nameof(FavoriteItems));
+        OnPropertyChanged(nameof(CompletedItems));
+        OnPropertyChanged(nameof(InProgressItems));
+        OnPropertyChanged(nameof(AbandonedItems));
+        OnPropertyChanged(nameof(NeverStartedItems));
+        OnPropertyChanged(nameof(MostPlayedItems));
+        OnPropertyChanged(nameof(RecentlyPlayedItems));
+        OnPropertyChanged(nameof(DistributionItems));
+        OnPropertyChanged(nameof(HasMostPlayedItems));
+        OnPropertyChanged(nameof(HasRecentlyPlayedItems));
+        OnPropertyChanged(nameof(HasDistributionData));
     }
 
-    private static bool HasPlayEvidence(MediaItem item)
-        => item.PlayCount > 0 || item.TotalPlayTime > TimeSpan.Zero || item.LastPlayed.HasValue;
+    private void OpenItem(LibraryStatisticsRankingItem? rankingItem)
+    {
+        if (rankingItem == null)
+            return;
+
+        NavigationTarget = rankingItem.Item;
+        RequestClose?.Invoke();
+    }
+
+    private void ApplyFilter(LibraryStatisticsFilterKind kind)
+    {
+        FilterRequest = new LibraryStatisticsFilterRequest(SelectedScope.Node, kind);
+        RequestClose?.Invoke();
+    }
 
     private static LibraryStatisticsRankingItem CreateRankingItem(
         LibraryStatisticsEntry entry,
         int rank)
     {
         return new LibraryStatisticsRankingItem(
+            entry.Item,
             rank,
             entry.Item.Title,
             entry.CategoryPath,
             FormatPlayTime(entry.Item.TotalPlayTime),
-            entry.Item.PlayCount,
             entry.Item.LastPlayed?.ToString("g", CultureInfo.CurrentCulture) ?? "–");
     }
 
-    private static IReadOnlyList<LibraryStatisticsDistributionItem> CreateDistribution(
-        IEnumerable<(string Label, int Count)> source,
-        int totalItems,
-        int limit)
+    private IReadOnlyList<LibraryStatisticsDistributionItem> CreateDistribution(
+        IReadOnlyList<LibraryStatisticsEntry> entries,
+        LibraryStatisticsDistributionKind kind)
     {
+        var unspecified = T("Statistics.Distribution.Unspecified", "Not specified");
+        IEnumerable<(string Label, int Count)> source = kind switch
+        {
+            LibraryStatisticsDistributionKind.Category => GroupByLabel(
+                entries,
+                entry => entry.CategoryPath,
+                unspecified),
+            LibraryStatisticsDistributionKind.Platform => GroupByLabel(
+                entries,
+                entry => entry.Item.Platform,
+                unspecified),
+            LibraryStatisticsDistributionKind.Genre => GroupByLabel(
+                entries,
+                entry => entry.Item.Genre,
+                unspecified),
+            LibraryStatisticsDistributionKind.ReleaseYear => GroupByLabel(
+                entries,
+                entry => entry.Item.ReleaseDate?.Year.ToString(CultureInfo.CurrentCulture),
+                unspecified),
+            LibraryStatisticsDistributionKind.Status => entries
+                .GroupBy(entry => GetStatusLabel(entry.Item.Status), StringComparer.CurrentCultureIgnoreCase)
+                .Select(group => (group.Key, group.Count())),
+            _ => []
+        };
+
         return source
             .OrderByDescending(entry => entry.Count)
             .ThenBy(entry => entry.Label, StringComparer.CurrentCultureIgnoreCase)
-            .Take(limit)
+            .Take(DistributionItemLimit)
             .Select(entry => new LibraryStatisticsDistributionItem(
                 entry.Label,
-                entry.Count,
-                totalItems == 0 ? 0 : entry.Count * 100d / totalItems,
+                entries.Count == 0 ? 0 : entry.Count * 100d / entries.Count,
                 string.Format(
                     CultureInfo.CurrentCulture,
                     T("Statistics.DistributionValueFormat", "{0:N0} ({1:N1}%)"),
                     entry.Count,
-                    totalItems == 0 ? 0 : entry.Count * 100d / totalItems)))
+                    entries.Count == 0 ? 0 : entry.Count * 100d / entries.Count)))
             .ToArray();
+    }
+
+    private static IEnumerable<(string Label, int Count)> GroupByLabel(
+        IEnumerable<LibraryStatisticsEntry> entries,
+        Func<LibraryStatisticsEntry, string?> selector,
+        string unspecified)
+    {
+        return entries
+            .GroupBy(
+                entry => NormalizeDistributionLabel(selector(entry), unspecified),
+                StringComparer.CurrentCultureIgnoreCase)
+            .Select(group => (group.Key, group.Count()));
+    }
+
+    private static IEnumerable<LibraryStatisticsScopeOption> CreateScopeOptions(
+        IEnumerable<MediaNode> nodes,
+        IReadOnlyList<string> parentPath,
+        bool excludeHiddenNodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (excludeHiddenNodes && !node.IsVisibleInTree)
+                continue;
+
+            var path = parentPath.Concat([node.Name]).ToArray();
+            yield return new LibraryStatisticsScopeOption(string.Join(" / ", path), node);
+
+            foreach (var option in CreateScopeOptions(node.Children, path, excludeHiddenNodes))
+                yield return option;
+        }
+    }
+
+    private static string NormalizeDistributionLabel(string? value, string unspecified)
+        => string.IsNullOrWhiteSpace(value) ? unspecified : value.Trim();
+
+    private static string GetStatusLabel(PlayStatus status)
+    {
+        return status switch
+        {
+            PlayStatus.Completed => T("Statistics.Completed", "Completed"),
+            PlayStatus.Abandoned => T("Statistics.Abandoned", "Abandoned"),
+            _ => T("Statistics.Status.Incomplete", "Incomplete")
+        };
     }
 
     private static IEnumerable<LibraryStatisticsEntry> EnumerateItems(
@@ -182,16 +326,43 @@ public sealed class LibraryStatisticsViewModel : ViewModelBase
     private sealed record LibraryStatisticsEntry(MediaItem Item, string CategoryPath);
 }
 
+public sealed record LibraryStatisticsScopeOption(string Label, MediaNode? Node);
+
+public sealed record LibraryStatisticsDistributionOption(
+    string Label,
+    LibraryStatisticsDistributionKind Kind);
+
+public enum LibraryStatisticsDistributionKind
+{
+    Category,
+    Platform,
+    Genre,
+    ReleaseYear,
+    Status
+}
+
+public enum LibraryStatisticsFilterKind
+{
+    Favorites,
+    Completed,
+    InProgress,
+    Abandoned,
+    NeverStarted
+}
+
+public sealed record LibraryStatisticsFilterRequest(
+    MediaNode? ScopeNode,
+    LibraryStatisticsFilterKind Kind);
+
 public sealed record LibraryStatisticsRankingItem(
+    MediaItem Item,
     int Rank,
     string Title,
     string Category,
     string PlayTime,
-    int PlayCount,
     string LastPlayed);
 
 public sealed record LibraryStatisticsDistributionItem(
     string Label,
-    int Count,
     double Percentage,
     string DisplayValue);

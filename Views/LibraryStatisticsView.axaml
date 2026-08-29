@@ -42,12 +42,43 @@
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="14" />
         </Style>
+        <Style Selector="Button.rankingRow">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="5,3" />
+        </Style>
+        <Style Selector="Button.statCardButton">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="BorderBrush" Value="Gray" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="Margin" Value="0,0,10,10" />
+            <Setter Property="Background" Value="#10000000" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="18">
         <StackPanel Grid.Row="0" Margin="0,0,0,14">
             <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" />
             <TextBlock Text="{Binding SummaryTitle}" Opacity="0.65" Margin="0,3,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+                <TextBlock Text="{Binding ScopeLabel}" VerticalAlignment="Center" />
+                <ComboBox ItemsSource="{Binding ScopeOptions}"
+                          SelectedItem="{Binding SelectedScope}"
+                          MinWidth="360"
+                          MaxWidth="620"
+                          MaxDropDownHeight="420">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:LibraryStatisticsScopeOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
         </StackPanel>
 
         <ScrollViewer Grid.Row="1"
@@ -73,37 +104,62 @@
                             <TextBlock Text="{Binding TotalLaunchesLabel}" Classes="statLabel" />
                         </StackPanel>
                     </Border>
-                    <Border Grid.Row="0" Grid.Column="3" Classes="statCard" Margin="0,0,0,10">
+                    <Button Grid.Row="0" Grid.Column="3"
+                            Classes="statCardButton"
+                            Margin="0,0,0,10"
+                            Command="{Binding ApplyFilterCommand}"
+                            CommandParameter="{x:Static vm:LibraryStatisticsFilterKind.Favorites}"
+                            ToolTip.Tip="{Binding FilterCardToolTip}">
                         <StackPanel>
                             <TextBlock Text="{Binding FavoriteItems}" Classes="statValue" />
                             <TextBlock Text="{Binding FavoritesLabel}" Classes="statLabel" />
                         </StackPanel>
-                    </Border>
+                    </Button>
 
-                    <Border Grid.Row="1" Grid.Column="0" Classes="statCard" Margin="0,0,10,0">
+                    <Button Grid.Row="1" Grid.Column="0"
+                            Classes="statCardButton"
+                            Margin="0,0,10,0"
+                            Command="{Binding ApplyFilterCommand}"
+                            CommandParameter="{x:Static vm:LibraryStatisticsFilterKind.Completed}"
+                            ToolTip.Tip="{Binding FilterCardToolTip}">
                         <StackPanel>
                             <TextBlock Text="{Binding CompletedItems}" Classes="statValue" />
                             <TextBlock Text="{Binding CompletedLabel}" Classes="statLabel" />
                         </StackPanel>
-                    </Border>
-                    <Border Grid.Row="1" Grid.Column="1" Classes="statCard" Margin="0,0,10,0">
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="1"
+                            Classes="statCardButton"
+                            Margin="0,0,10,0"
+                            Command="{Binding ApplyFilterCommand}"
+                            CommandParameter="{x:Static vm:LibraryStatisticsFilterKind.InProgress}"
+                            ToolTip.Tip="{Binding FilterCardToolTip}">
                         <StackPanel>
                             <TextBlock Text="{Binding InProgressItems}" Classes="statValue" />
                             <TextBlock Text="{Binding InProgressLabel}" Classes="statLabel" />
                         </StackPanel>
-                    </Border>
-                    <Border Grid.Row="1" Grid.Column="2" Classes="statCard" Margin="0,0,10,0">
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="2"
+                            Classes="statCardButton"
+                            Margin="0,0,10,0"
+                            Command="{Binding ApplyFilterCommand}"
+                            CommandParameter="{x:Static vm:LibraryStatisticsFilterKind.Abandoned}"
+                            ToolTip.Tip="{Binding FilterCardToolTip}">
                         <StackPanel>
                             <TextBlock Text="{Binding AbandonedItems}" Classes="statValue" />
                             <TextBlock Text="{Binding AbandonedLabel}" Classes="statLabel" />
                         </StackPanel>
-                    </Border>
-                    <Border Grid.Row="1" Grid.Column="3" Classes="statCard" Margin="0">
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="3"
+                            Classes="statCardButton"
+                            Margin="0"
+                            Command="{Binding ApplyFilterCommand}"
+                            CommandParameter="{x:Static vm:LibraryStatisticsFilterKind.NeverStarted}"
+                            ToolTip.Tip="{Binding FilterCardToolTip}">
                         <StackPanel>
                             <TextBlock Text="{Binding NeverStartedItems}" Classes="statValue" />
                             <TextBlock Text="{Binding NeverStartedLabel}" Classes="statLabel" />
                         </StackPanel>
-                    </Border>
+                    </Button>
                 </Grid>
 
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
@@ -117,14 +173,19 @@
                                           IsVisible="{Binding HasMostPlayedItems}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:LibraryStatisticsRankingItem">
-                                        <Grid ColumnDefinitions="32,*,Auto" Margin="0,3">
-                                            <TextBlock Grid.Column="0" Text="{Binding Rank}" Opacity="0.55" />
-                                            <StackPanel Grid.Column="1" Margin="0,0,10,0">
-                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{Binding Category}" FontSize="11" Opacity="0.55" TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="2" Text="{Binding PlayTime}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                        </Grid>
+                                        <Button Classes="rankingRow"
+                                                Command="{Binding $parent[Window].((vm:LibraryStatisticsViewModel)DataContext).OpenItemCommand}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip.Tip="{Binding $parent[Window].((vm:LibraryStatisticsViewModel)DataContext).OpenItemToolTip}">
+                                            <Grid ColumnDefinitions="32,*,Auto">
+                                                <TextBlock Grid.Column="0" Text="{Binding Rank}" Opacity="0.55" />
+                                                <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Category}" FontSize="11" Opacity="0.55" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding PlayTime}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Button>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -141,65 +202,62 @@
                                           IsVisible="{Binding HasRecentlyPlayedItems}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:LibraryStatisticsRankingItem">
-                                        <Grid ColumnDefinitions="32,*,Auto" Margin="0,3">
-                                            <TextBlock Grid.Column="0" Text="{Binding Rank}" Opacity="0.55" />
-                                            <StackPanel Grid.Column="1" Margin="0,0,10,0">
-                                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{Binding Category}" FontSize="11" Opacity="0.55" TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="2" Text="{Binding LastPlayed}" FontSize="12" VerticalAlignment="Center" />
+                                        <Button Classes="rankingRow"
+                                                Command="{Binding $parent[Window].((vm:LibraryStatisticsViewModel)DataContext).OpenItemCommand}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip.Tip="{Binding $parent[Window].((vm:LibraryStatisticsViewModel)DataContext).OpenItemToolTip}">
+                                            <Grid ColumnDefinitions="32,*,Auto">
+                                                <TextBlock Grid.Column="0" Text="{Binding Rank}" Opacity="0.55" />
+                                                <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Category}" FontSize="11" Opacity="0.55" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding LastPlayed}" FontSize="12" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Classes="section">
+                    <StackPanel Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding DistributionLabel}"
+                                       FontSize="17"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <ComboBox ItemsSource="{Binding DistributionOptions}"
+                                      SelectedItem="{Binding SelectedDistribution}"
+                                      MinWidth="190">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LibraryStatisticsDistributionOption">
+                                        <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                        <TextBlock Text="{Binding NoDistributionDataText}"
+                                   Opacity="0.65"
+                                   IsVisible="{Binding !HasDistributionData}" />
+                        <ItemsControl ItemsSource="{Binding DistributionItems}"
+                                      IsVisible="{Binding HasDistributionData}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:LibraryStatisticsDistributionItem">
+                                    <StackPanel Margin="0,3">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" Margin="0,0,10,0" />
+                                            <TextBlock Grid.Column="1" Text="{Binding DisplayValue}" Opacity="0.7" />
                                         </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-                    <Border Grid.Column="0" Classes="section">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="{Binding CategoriesTitle}" FontSize="17" FontWeight="SemiBold" />
-                            <ItemsControl ItemsSource="{Binding CategoryDistribution}"
-                                          IsVisible="{Binding HasCategoryData}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:LibraryStatisticsDistributionItem">
-                                        <StackPanel Margin="0,3">
-                                            <Grid ColumnDefinitions="*,Auto">
-                                                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" Margin="0,0,10,0" />
-                                                <TextBlock Grid.Column="1" Text="{Binding DisplayValue}" Opacity="0.7" />
-                                            </Grid>
-                                            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percentage}" Height="5" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Column="1" Classes="section">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="{Binding ReleaseYearsTitle}" FontSize="17" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding NoReleaseYearDataText}"
-                                       Opacity="0.65"
-                                       IsVisible="{Binding !HasReleaseYearData}" />
-                            <ItemsControl ItemsSource="{Binding ReleaseYearDistribution}"
-                                          IsVisible="{Binding HasReleaseYearData}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:LibraryStatisticsDistributionItem">
-                                        <StackPanel Margin="0,3">
-                                            <Grid ColumnDefinitions="*,Auto">
-                                                <TextBlock Text="{Binding Label}" />
-                                                <TextBlock Grid.Column="1" Text="{Binding DisplayValue}" Opacity="0.7" />
-                                            </Grid>
-                                            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percentage}" Height="5" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percentage}" Height="5" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 

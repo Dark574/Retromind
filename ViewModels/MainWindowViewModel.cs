@@ -186,6 +186,11 @@ public partial class MainWindowViewModel : ViewModelBase
             OnPropertyChanged(nameof(ShowEmptyLibraryHint));
             UpdateLibraryGameCounters();
             NotifyPlayAvailabilityChanged();
+            OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+            OnPropertyChanged(nameof(ResolvedDisplayNode));
         }
     }
 

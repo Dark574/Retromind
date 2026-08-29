@@ -51,6 +51,8 @@ Main window is a layered shell:
 - rebuilds center content through a cancelable `UpdateContent()` pipeline
 - keeps content updates race-safe (CTS + TCS), with background item collection and single UI-thread commit
 - preserves and restores search/filter UI state when switching between node view and global search
+- opens the library-statistics dialog and translates its navigation/filter requests back into the existing
+  node-content or global-search workflows
 - coordinates explicit item moves between nodes through a single-selection tree or tile-to-tree drag-and-drop;
   both paths share the same confirmation and move transaction, while inherited launch settings are resolved
   from the new parent without copying node defaults onto the item
@@ -152,6 +154,23 @@ Global search uses a dedicated `SearchAreaViewModel`:
 - row grouping for large virtualized result grids
 - shared filter state (text/favorites/status/year) coordinated by `MainWindowViewModel`
 - saved search terms persist their associated favorites-only state as part of the saved filter behavior
+- structured query matching includes `played:true` and `played:false` (alias: `started`); play evidence is
+  defined centrally by `MediaPlayStateHelper` as a launch count, recorded play time, or last-played timestamp
+
+## Library statistics
+`LibraryStatisticsViewModel` calculates statistics on demand from the existing media tree; there is no
+separate statistics database or persisted aggregate state.
+
+- scope defaults to the entire visible library and can be changed to any selectable category including its
+  descendants; categories are identified by their full tree path
+- protected items are omitted while parental filtering is active
+- summary values cover item count, total play time, launches, favorites, and play status
+- rankings show the ten most-played and ten most-recently played items and can navigate back to the real item
+- distributions group the ten largest values by category, platform, genre, release year, or status
+- clickable summary cards reuse the normal filters rather than maintaining a second filtering implementation;
+  category scope stays in `MediaAreaViewModel`, while library-wide results use `SearchAreaViewModel`
+- “In progress” and “Never started” combine the normal `Incomplete` status with `played:true` or
+  `played:false`, using the same `MediaPlayStateHelper` definition as the displayed counts
 
 ## Import and metadata flow
 - `ImportService`: recursive local file import with multi-disc grouping/labeling
@@ -220,7 +239,8 @@ path contract. Tests use unique `/tmp/retromind-tests-<guid>` roots, validate th
 and avoid following symbolic links. Covered cases include dangerous system/application roots, ownership
 markers and symbolic links as well as Linux case sensitivity, path containment, prefix conversion,
 idempotent migration, preservation of external paths, a persisted-library move from one DataRoot to another,
-and GOG uninstall resolution after such a move.
+GOG uninstall resolution after such a move, and deterministic search-query behavior such as the shared
+played/not-played semantics used by library-statistics filters.
 
 Future coverage should stay risk-based and favor deterministic logic with low maintenance cost. The next
 useful candidates are persistence fallback/write-failure behavior, multi-disc filename recognition, and
