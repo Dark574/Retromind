@@ -36,6 +36,7 @@ public sealed class LauncherService
         IReadOnlyList<LaunchWrapper>? nativeWrappers = null,
         IReadOnlyDictionary<string, string>? environmentOverrides = null,
         bool usePlaylistForMultiDisc = false,
+        bool recordStatistics = true,
         CancellationToken cancellationToken = default)
     {
         if (item == null) return;
@@ -87,7 +88,7 @@ public sealed class LauncherService
             process?.Dispose();
         }
 
-        if (shouldRecordSession)
+        if (shouldRecordSession && recordStatistics)
             await EvaluateSessionAsync(item, elapsed).ConfigureAwait(false);
     }
 

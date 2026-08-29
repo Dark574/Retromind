@@ -43,6 +43,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> SetMusicCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand<MediaItem?> EditMediaCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> TestPlayMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> MoveMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> DeleteMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> ToggleItemProtectionCommand { get; private set; } = null!;
@@ -76,6 +77,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> AddManualToMediaCommand { get; private set; } = null!;
 
     public string GogMediaMenuText => T("Gog.Media.AddMenu", "Add GOG media");
+    public string TestPlayMediaMenuText => T("Ctx.Media.TestLaunch", "Test launch (without tracking)");
     public string MoveMediaMenuText => T("Ctx.Media.Move", "Move to category...");
     public string GogReinstallMenuText => T("Gog.Media.ReinstallMenu", "Reinstall / Switch Version");
     public string GogUninstallMenuText => T("Gog.Uninstall.ContextMenu", "Uninstall");
@@ -97,13 +99,14 @@ public partial class MainWindowViewModel
         SetMusicCommand = new AsyncRelayCommand<MediaItem?>(SetMusicAsync);
         
         EditMediaCommand = new AsyncRelayCommand<MediaItem?>(EditMediaAsync);
+        TestPlayMediaCommand = new AsyncRelayCommand<MediaItem?>(TestPlayMediaAsync, CanTestPlayMedia);
         MoveMediaCommand = new AsyncRelayCommand<MediaItem?>(MoveMediaAsync);
         DeleteMediaCommand = new AsyncRelayCommand<MediaItem?>(DeleteMediaAsync);
         ToggleItemProtectionCommand = new AsyncRelayCommand<MediaItem?>(ToggleItemProtectionAsync);
         ToggleNodeProtectionCommand = new AsyncRelayCommand<MediaNode?>(ToggleNodeProtectionAsync);
         ToggleParentalLockCommand = new AsyncRelayCommand(ToggleParentalLockAsync);
         ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
-        PlayCommand = new AsyncRelayCommand<MediaItem?>(PlayMediaAsync, CanPlayMedia);
+        PlayCommand = new AsyncRelayCommand<MediaItem?>(item => PlayMediaAsync(item), CanPlayMedia);
         ReinstallGogCommand = new AsyncRelayCommand<MediaItem?>(ReinstallGogMediaAsync, CanReinstallGogMedia);
         UpdateGogCommand = new AsyncRelayCommand<MediaItem?>(UpdateGogMediaAsync, CanUpdateGogMedia);
         UninstallGogCommand = new AsyncRelayCommand<MediaItem?>(UninstallGogMediaAsync, CanUninstallGogMedia);
@@ -156,6 +159,7 @@ public partial class MainWindowViewModel
     private void NotifyPlayAvailabilityChanged()
     {
         PlayCommand.NotifyCanExecuteChanged();
+        TestPlayMediaCommand.NotifyCanExecuteChanged();
         ReinstallGogCommand.NotifyCanExecuteChanged();
         UpdateGogCommand.NotifyCanExecuteChanged();
         UninstallGogCommand.NotifyCanExecuteChanged();
@@ -186,6 +190,9 @@ public partial class MainWindowViewModel
         var primaryLaunchPath = item.GetPrimaryLaunchPath();
         return !string.IsNullOrWhiteSpace(primaryLaunchPath);
     }
+
+    private bool CanTestPlayMedia(MediaItem? item)
+        => CanPlayMedia(item) && !ShouldOfferInstallForItem(item);
 
     private bool CanReinstallGogMedia(MediaItem? item)
     {
@@ -748,7 +755,10 @@ public partial class MainWindowViewModel
         return fallbackThemePath;
     }
 
-    private async Task PlayMediaAsync(MediaItem? item)
+    private Task TestPlayMediaAsync(MediaItem? item)
+        => PlayMediaAsync(item, recordStatistics: false);
+
+    private async Task PlayMediaAsync(MediaItem? item, bool recordStatistics = true)
     {
         if (item == null)
             return;
@@ -900,7 +910,8 @@ public partial class MainWindowViewModel
                 nodePath,
                 nativeWrappers: effectiveWrappers,
                 environmentOverrides: effectiveEnvironment,
-                usePlaylistForMultiDisc: emulator?.UsePlaylistForMultiDisc == true);
+                usePlaylistForMultiDisc: emulator?.UsePlaylistForMultiDisc == true,
+                recordStatistics: recordStatistics);
 
             // Resume background music after game exit (if applicable)
             if (SelectedNodeContent is MediaAreaViewModel vm &&
@@ -919,8 +930,11 @@ public partial class MainWindowViewModel
                 }
             }
 
-            _libraryTracker.MarkDirty();
-            await SaveData();
+            if (recordStatistics)
+            {
+                _libraryTracker.MarkDirty();
+                await SaveData();
+            }
         }
         catch (Exception ex)
         {

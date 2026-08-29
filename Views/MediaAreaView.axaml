@@ -273,6 +273,10 @@
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditMediaCommand}"
                                                       CommandParameter="{Binding .}" 
                                                       FontWeight="Bold"/>
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TestPlayMediaMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TestPlayMediaCommand}"
+                                                      CommandParameter="{Binding .}" />
+                                            <Separator/>
                                             <MenuItem Header="{x:Static p:Strings.Dialog_LoadMetadata}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeMediaCommand}"
                                                       CommandParameter="{Binding .}" />

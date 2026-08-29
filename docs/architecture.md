@@ -179,6 +179,7 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 - media items may intentionally have no launch file and act as catalog placeholders; the editor can add,
   replace, or clear launch files later
 - launch plan layering: item launcher -> emulator config -> wrapper chain
+- explicit test launches use the same launch plan while suppressing play count, last-played, and playtime updates
 - supports multi-file launch decisions (including playlist mode)
 - supports merged environment overrides (node/emulator/item)
 - handles Wine/Proton/UMU prefix setup and compatibility environment shaping

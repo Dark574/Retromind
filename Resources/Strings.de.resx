@@ -136,6 +136,7 @@
     <data name="Ctx.Media.AddEmpty" xml:space="preserve"><value>Leeres Medium hinzufügen</value></data>
     <data name="Ctx.Media.AddManual" xml:space="preserve"><value>Handbuch hinzufügen</value></data>
     <data name="Ctx.Media.Move" xml:space="preserve"><value>In Kategorie verschieben...</value></data>
+    <data name="Ctx.Media.TestLaunch" xml:space="preserve"><value>Testweise starten (ohne Statistik)</value></data>
     <data name="Ctx.ChangeCover" xml:space="preserve"><value>Cover ändern...</value></data>
 
     <!-- DIALOG -->

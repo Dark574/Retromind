@@ -135,6 +135,7 @@
     <data name="Ctx.Media.AddEmpty" xml:space="preserve"><value>Add empty media</value></data>
     <data name="Ctx.Media.AddManual" xml:space="preserve"><value>Add manual</value></data>
     <data name="Ctx.Media.Move" xml:space="preserve"><value>Move to category...</value></data>
+    <data name="Ctx.Media.TestLaunch" xml:space="preserve"><value>Test launch (without tracking)</value></data>
     <data name="Ctx.ChangeCover" xml:space="preserve"><value>Change Cover...</value></data>
   
     <!-- DIALOG -->
