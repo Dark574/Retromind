@@ -1,6 +1,5 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:helpers="clr-namespace:Retromind.Helpers"
              x:Class="Retromind.App"
              RequestedThemeVariant="Default">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
@@ -11,8 +10,6 @@
     
     <Application.Resources>
         <ResourceDictionary>
-            <helpers:PathToBitmapConverter x:Key="PathToBitmapConverter" />
-
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="TileFallbackTitleBrush" Color="#1A1A1A" />

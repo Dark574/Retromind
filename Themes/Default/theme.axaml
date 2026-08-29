@@ -34,25 +34,6 @@
                                            Duration="0:0:0.80" />
         </Transitions>
 
-        <!-- Slightly slower slide+fade for the cover overlay -->
-        <Transitions x:Key="CoverTransitions">
-            <DoubleTransition Property="{x:Static Visual.OpacityProperty}"
-                              Duration="0:0:2.00">
-                <DoubleTransition.Easing>
-                    <CubicEaseOut />
-                </DoubleTransition.Easing>
-            </DoubleTransition>
-            <TransformOperationsTransition Property="{x:Static Visual.RenderTransformProperty}"
-                                           Duration="0:0:2.00">
-                <TransformOperationsTransition.Easing>
-                    <CubicEaseOut />
-                </TransformOperationsTransition.Easing>
-            </TransformOperationsTransition>
-        </Transitions>
-
-        <!-- Opacity helper for video visibility -->
-        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1.0" FalseOpacity="0.0" />
-
         <!-- Playtime formatting -->
         <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
     </UserControl.Resources>

@@ -11,8 +11,6 @@ namespace Retromind.Helpers;
 /// </summary>
 public class TimeSpanToHumanReadableConverter : IValueConverter
 {
-    public static readonly TimeSpanToHumanReadableConverter Instance = new();
-
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is TimeSpan span)

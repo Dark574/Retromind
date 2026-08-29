@@ -35,14 +35,12 @@
 
     <UserControl.Resources>
         <helpers:ThemeFontFamilyConverter x:Key="ThemeFontConverter" />
-        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1.0" FalseOpacity="0.0" />
         <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
 
         <SolidColorBrush x:Key="InkBrush" Color="#1E1A16" />
         <SolidColorBrush x:Key="MutedInkBrush" Color="#5C534C" />
         <SolidColorBrush x:Key="AccentBrush" Color="#1E6F70" />
         <SolidColorBrush x:Key="AccentSoftBrush" Color="#CFE3DD" />
-        <SolidColorBrush x:Key="RustBrush" Color="#B64A32" />
         <SolidColorBrush x:Key="CardBorderBrush" Color="#D6CAB8" />
         <SolidColorBrush x:Key="CardBackgroundBrush" Color="#F8F2E7" />
 

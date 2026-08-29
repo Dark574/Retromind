@@ -35,10 +35,6 @@
     <UserControl.Resources>
         <!-- Converter to load theme-local images (e.g. Images/cabinet.png, Images/pointer.png) -->
         <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
-        <!-- Converter to load absolute/relative file paths into Bitmaps (used for item/node assets) -->
-        <helpers:PathToBitmapConverter x:Key="PathToBitmapConverter" />
-        <!-- Opacity helper for pointer visibility -->
-        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1.0" FalseOpacity="0.0" />
         <!-- Logo scale converter: local zoom for the ArcadeLogoList -->
         <helpers:BoolToScaleConverter x:Key="LogoScaleConverter"
                                       NormalScale="1.0"

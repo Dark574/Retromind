@@ -34,8 +34,6 @@
         <x:Double x:Key="CoverHeight">245</x:Double>
         <CornerRadius x:Key="CoverRadius">12</CornerRadius>
 
-        <helpers:BoolToOpacityConverter x:Key="BoolToOpacity" TrueOpacity="1.0" FalseOpacity="0.0" />
-
         <SolidColorBrush x:Key="ChipBackground" Color="#3A3A3A" />
         <SolidColorBrush x:Key="ChipBorder" Color="#6A6A6A" />
         <SolidColorBrush x:Key="CoverStripBackground" Color="#98000000" />
@@ -43,11 +41,6 @@
         <LinearGradientBrush x:Key="TopFade" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#CC000000" Offset="0" />
             <GradientStop Color="#00000000" Offset="1" />
-        </LinearGradientBrush>
-
-        <LinearGradientBrush x:Key="BottomFade" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#00000000" Offset="0" />
-            <GradientStop Color="#3A000000" Offset="1" />
         </LinearGradientBrush>
 
         <SolidColorBrush x:Key="BackgroundShade" Color="#06000000" />
