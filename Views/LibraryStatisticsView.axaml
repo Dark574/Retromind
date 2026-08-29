@@ -26,7 +26,6 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="14" />
-            <Setter Property="Margin" Value="0,0,10,10" />
             <Setter Property="Background" Value="#10000000" />
         </Style>
         <Style Selector="TextBlock.statValue">
@@ -49,13 +48,14 @@
             <Setter Property="Padding" Value="5,3" />
         </Style>
         <Style Selector="Button.statCardButton">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="BorderBrush" Value="Gray" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="14" />
-            <Setter Property="Margin" Value="0,0,10,10" />
             <Setter Property="Background" Value="#10000000" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
@@ -85,7 +85,10 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="16">
-                <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto">
+                <Grid ColumnDefinitions="*,*,*,*"
+                      RowDefinitions="Auto,Auto"
+                      ColumnSpacing="10"
+                      RowSpacing="10">
                     <Border Grid.Row="0" Grid.Column="0" Classes="statCard">
                         <StackPanel>
                             <TextBlock Text="{Binding TotalItems}" Classes="statValue" />
@@ -106,7 +109,6 @@
                     </Border>
                     <Button Grid.Row="0" Grid.Column="3"
                             Classes="statCardButton"
-                            Margin="0,0,0,10"
                             Command="{Binding ApplyFilterCommand}"
                             CommandParameter="{x:Static vm:LibraryStatisticsFilterKind.Favorites}"
                             ToolTip.Tip="{Binding FilterCardToolTip}">
@@ -118,7 +120,6 @@
 
                     <Button Grid.Row="1" Grid.Column="0"
                             Classes="statCardButton"
-                            Margin="0,0,10,0"
                             Command="{Binding ApplyFilterCommand}"
                             CommandParameter="{x:Static vm:LibraryStatisticsFilterKind.Completed}"
                             ToolTip.Tip="{Binding FilterCardToolTip}">
@@ -129,7 +130,6 @@
                     </Button>
                     <Button Grid.Row="1" Grid.Column="1"
                             Classes="statCardButton"
-                            Margin="0,0,10,0"
                             Command="{Binding ApplyFilterCommand}"
                             CommandParameter="{x:Static vm:LibraryStatisticsFilterKind.InProgress}"
                             ToolTip.Tip="{Binding FilterCardToolTip}">
@@ -140,7 +140,6 @@
                     </Button>
                     <Button Grid.Row="1" Grid.Column="2"
                             Classes="statCardButton"
-                            Margin="0,0,10,0"
                             Command="{Binding ApplyFilterCommand}"
                             CommandParameter="{x:Static vm:LibraryStatisticsFilterKind.Abandoned}"
                             ToolTip.Tip="{Binding FilterCardToolTip}">
@@ -151,7 +150,6 @@
                     </Button>
                     <Button Grid.Row="1" Grid.Column="3"
                             Classes="statCardButton"
-                            Margin="0"
                             Command="{Binding ApplyFilterCommand}"
                             CommandParameter="{x:Static vm:LibraryStatisticsFilterKind.NeverStarted}"
                             ToolTip.Tip="{Binding FilterCardToolTip}">
