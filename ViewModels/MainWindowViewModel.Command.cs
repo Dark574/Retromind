@@ -154,6 +154,11 @@ public partial class MainWindowViewModel
 
     private async Task ApplyStatisticsFilterAsync(LibraryStatisticsFilterRequest request)
     {
+        // Applying a statistics filter deliberately clears the active item selection.
+        // A freshly opened search already has a null selection, so no selection-change
+        // notification would otherwise stop music from the previously selected item.
+        _audioService.StopMusic();
+
         var (query, favoritesOnly) = request.Kind switch
         {
             LibraryStatisticsFilterKind.Favorites => (string.Empty, true),
