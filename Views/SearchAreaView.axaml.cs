@@ -77,12 +77,15 @@ public partial class SearchAreaView : UserControl
         if (sender is not Control { DataContext: MediaItem item })
             return;
 
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var properties = e.GetCurrentPoint(this).Properties;
+        if (!properties.IsLeftButtonPressed && !properties.IsRightButtonPressed)
             return;
 
         vm.SelectedMediaItem = item;
         _resultsList?.Focus();
-        e.Handled = true;
+
+        if (properties.IsLeftButtonPressed)
+            e.Handled = true;
     }
 
     private void OnLoaded(object? sender, RoutedEventArgs e)

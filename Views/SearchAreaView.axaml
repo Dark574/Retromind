@@ -291,9 +291,41 @@
 
                                     <Border.ContextMenu>
                                         <ContextMenu>
-                                            <MenuItem Header="{x:Static p:Strings.Button_Launch}"
-                                                      Command="{Binding $parent[UserControl].((vm:SearchAreaViewModel)DataContext).PlayCommand, ElementName=Root}"
-                                                      CommandParameter="{Binding .}"/>
+                                            <MenuItem Header="{x:Static p:Strings.Button_Edit}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditMediaCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      FontWeight="Bold" />
+                                            <MenuItem Header="{x:Static p:Strings.Dialog_LoadMetadata}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeMediaCommand}"
+                                                      CommandParameter="{Binding .}" />
+                                            <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddManual}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddManualToMediaCommand}"
+                                                      CommandParameter="{Binding .}" />
+                                            <Separator />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TestPlayMediaMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TestPlayMediaCommand}"
+                                                      CommandParameter="{Binding .}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaCommand}"
+                                                      CommandParameter="{Binding .}" />
+                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogReinstallMenuVisible}}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUpdateSelectedMediaButtonText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UpdateGogCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUpdateMenuVisible}}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogReinstallMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ReinstallGogCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogReinstallMenuVisible}}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUninstallMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UninstallGogCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}" />
+                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogReinstallMenuVisible}}" />
+                                            <MenuItem Header="{x:Static p:Strings.Button_Delete}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      Foreground="Red" />
                                         </ContextMenu>
                                     </Border.ContextMenu>
 

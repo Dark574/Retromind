@@ -17,9 +17,11 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Changed
 - updated Avalonia to 12.1.1 and Avalonia WebView to 12.1.0
+- expand and unify item context menus
 
 ### Fixed
 - wayland starts in fullscreen
+- cleaned up code and fixed a few small bugs
 
 ---
 
