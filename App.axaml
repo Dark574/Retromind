@@ -1,11 +1,18 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:chrome="using:Avalonia.Controls.Chrome"
              x:Class="Retromind.App"
              RequestedThemeVariant="Default">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.Styles>
         <FluentTheme />
+        <!-- BigMode owns the complete fullscreen surface. Avalonia 12's drawn
+             Wayland decorations otherwise reveal a caption popover when the
+             pointer reaches the top edge. -->
+        <Style Selector="chrome|WindowDrawnDecorations:fullscreen /template/ chrome|WindowDrawnDecorationsContent > Panel">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
     </Application.Styles>
     
     <Application.Resources>
