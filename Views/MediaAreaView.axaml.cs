@@ -18,6 +18,7 @@ public partial class MediaAreaView : UserControl
 {
     private const double DragThreshold = 6.0;
 
+    private MediaAreaViewModel? _currentViewModel;
     private ListBox? _mediaList;
     private MediaItem? _draggedItem;
     private Point? _dragStartPoint;
@@ -156,8 +157,13 @@ public partial class MediaAreaView : UserControl
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        if (DataContext is MediaAreaViewModel vm)
+        if (_currentViewModel != null)
+            _currentViewModel.RequestScrollIntoView -= OnRequestScrollIntoView;
+
+        _currentViewModel = DataContext as MediaAreaViewModel;
+        if (_currentViewModel is { } vm)
         {
+            vm.RequestScrollIntoView += OnRequestScrollIntoView;
             _mediaList ??= this.FindControl<ListBox>("MediaList");
             if (_mediaList is { Bounds.Width: > 0 })
             {
@@ -165,6 +171,22 @@ public partial class MediaAreaView : UserControl
                 ScheduleInitialSelectionScroll(vm);
             }
         }
+    }
+
+    private void OnRequestScrollIntoView(MediaItem item)
+    {
+        var vm = _currentViewModel;
+        if (vm == null)
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(DataContext, vm) &&
+                string.Equals(vm.SelectedMediaItem?.Id, item.Id, StringComparison.Ordinal))
+            {
+                ScrollItemIntoView(item);
+            }
+        }, DispatcherPriority.Background);
     }
 
     private void ScheduleInitialSelectionScroll(MediaAreaViewModel vm)

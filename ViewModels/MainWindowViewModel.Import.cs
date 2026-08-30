@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Avalonia.Controls;
@@ -1297,9 +1298,43 @@ public partial class MainWindowViewModel
             _libraryTracker.MarkDirty();
             await SaveData();
 
-            if (parentNode != null && IsNodeInCurrentView(parentNode))
-                UpdateContent();
+            if (parentNode != null)
+                await RefreshItemPresentationAsync(parentNode);
         }
+    }
+
+    private async Task RefreshItemPresentationAsync(MediaNode parentNode)
+    {
+        if (_currentSearchAreaVm is { } searchVm)
+        {
+            searchVm.RefreshResults();
+            return;
+        }
+
+        var mediaVm = _currentMediaAreaVm;
+        var selectedNode = SelectedNode;
+        if (mediaVm == null ||
+            selectedNode == null ||
+            !IsNodeInCurrentView(parentNode))
+        {
+            return;
+        }
+
+        var items = new List<MediaItem>();
+        await CollectItemsRecursiveSnapshotAsync(
+            selectedNode,
+            items,
+            CancellationToken.None,
+            IsParentalFilterActive);
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            if (ReferenceEquals(_currentMediaAreaVm, mediaVm) &&
+                ReferenceEquals(SelectedNode, selectedNode))
+            {
+                mediaVm.RefreshItems(items);
+            }
+        });
     }
 
     private async Task SetMusicAsync(MediaItem? item) 

@@ -120,6 +120,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     public IRelayCommand ClearSearchTextCommand { get; }
     
     public event Action<MediaItem>? RequestPlay;
+    public event Action<MediaItem>? RequestScrollIntoView;
     
     public bool HasResults => SearchResults.Count > 0;
     public bool HasNoResults => SearchResults.Count == 0;
@@ -192,6 +193,12 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         _parentalFilterActive = active;
         RequestSearch();
     }
+
+    /// <summary>
+    /// Re-evaluates the current global search after an existing item was edited.
+    /// The view model and its current search settings remain intact.
+    /// </summary>
+    public void RefreshResults() => RequestSearch(keepSelectionVisible: true);
 
     private IEnumerable<MediaNode> RootNodes => _rootNodesObservable ?? _rootNodesSnapshot;
 
@@ -314,7 +321,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void RequestSearch()
+    private void RequestSearch(bool keepSelectionVisible = false)
     {
         if (_disposed)
             return;
@@ -333,7 +340,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
                 await Task.Delay(SearchDebounceDelay, token).ConfigureAwait(false);
                 if (token.IsCancellationRequested) return;
 
-                await ExecuteSearchAsync(token, cts).ConfigureAwait(false);
+                await ExecuteSearchAsync(token, cts, keepSelectionVisible).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -342,7 +349,10 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         }, token);
     }
 
-    private async Task ExecuteSearchAsync(CancellationToken token, CancellationTokenSource cts)
+    private async Task ExecuteSearchAsync(
+        CancellationToken token,
+        CancellationTokenSource cts,
+        bool keepSelectionVisible)
     {
         if (_disposed)
             return;
@@ -442,9 +452,14 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             if (!ReferenceEquals(_searchCts, cts) || token.IsCancellationRequested)
                 return;
 
-            SearchResults.ReplaceAll(results);
+            var resultsChanged = !HaveSameItemOrder(SearchResults, results);
+            if (resultsChanged)
+            {
+                SearchResults.ReplaceAll(results);
+                RebuildRows();
+            }
+
             EnsureSelectionIsValid(SearchResults);
-            RebuildRows();
             ApplyNodeHitCountsToTree(RootNodes, nodeHitCounts, showNodeHitCounts);
 
             OnPropertyChanged(nameof(HasResults));
@@ -453,6 +468,9 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
             // Keep "Play random" enabled state accurate
             (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
+
+            if (keepSelectionVisible && resultsChanged && SelectedMediaItem is { } selectedItem)
+                RequestScrollIntoView?.Invoke(selectedItem);
         });
     }
 
@@ -510,6 +528,21 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
         SelectedMediaItem = null;
     }
+
+    private static bool HaveSameItemOrder(IList<MediaItem> current, IReadOnlyList<MediaItem> updated)
+    {
+        if (current.Count != updated.Count)
+            return false;
+
+        for (var i = 0; i < current.Count; i++)
+        {
+            if (!ReferenceEquals(current[i], updated[i]))
+                return false;
+        }
+
+        return true;
+    }
+
     public void Dispose()
     {
         if (_disposed)

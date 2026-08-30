@@ -155,6 +155,60 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     /// Handled by the parent coordinator (MainWindowViewModel).
     /// </summary>
     public event Action<MediaItem>? RequestPlay;
+
+    /// <summary>
+    /// Raised when an edit changed the item order and the current selection
+    /// should remain visible in the existing view.
+    /// </summary>
+    public event Action<MediaItem>? RequestScrollIntoView;
+
+    /// <summary>
+    /// Refreshes the source snapshot after an existing item was edited without
+    /// replacing the complete content view. If filtering and ordering remain
+    /// unchanged, the UI-bound collections are left untouched.
+    /// </summary>
+    public void RefreshItems(IEnumerable<MediaItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        if (_isDisposed)
+            return;
+
+        var refreshedItems = items.ToList();
+        refreshedItems.Sort(MediaSortHelper.DisplayOrderComparer);
+
+        var itemOrderChanged = !HaveSameItemOrder(_allItems, refreshedItems);
+        if (itemOrderChanged)
+        {
+            foreach (var item in _allItems)
+                item.PropertyChanged -= OnItemPropertyChanged;
+
+            _allItems.Clear();
+            _allItems.AddRange(refreshedItems);
+
+            foreach (var item in _allItems)
+                item.PropertyChanged += OnItemPropertyChanged;
+
+            // Node is the lightweight display node used by filter-builder and
+            // context-menu actions. Keep its snapshot in the same order.
+            Node.Items.Clear();
+            foreach (var item in _allItems)
+                Node.Items.Add(item);
+        }
+
+        var matches = BuildMatches(SearchText, CancellationToken.None);
+        if (HaveSameItemOrder(FilteredItems, matches))
+        {
+            EnsureSelectionIsValid(FilteredItems);
+            PlayRandomCommand.NotifyCanExecuteChanged();
+            return;
+        }
+
+        PopulateItems(matches);
+
+        if (itemOrderChanged && SelectedMediaItem is { } selectedItem)
+            RequestScrollIntoView?.Invoke(selectedItem);
+    }
     
     partial void OnSearchTextChanged(string value)
     {
@@ -389,6 +443,21 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
         SelectedMediaItem = null;
     }
+
+    private static bool HaveSameItemOrder(IList<MediaItem> current, IReadOnlyList<MediaItem> updated)
+    {
+        if (current.Count != updated.Count)
+            return false;
+
+        for (var i = 0; i < current.Count; i++)
+        {
+            if (!ReferenceEquals(current[i], updated[i]))
+                return false;
+        }
+
+        return true;
+    }
+
     private bool CanPlayRandom() => IsPlayRandomEnabled && FilteredItems.Count > 0;
 
     [RelayCommand(CanExecute = nameof(CanPlayRandom))]

@@ -32,11 +32,16 @@ public partial class SearchAreaView : UserControl
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (_currentViewModel != null && !ReferenceEquals(_currentViewModel, DataContext))
+        {
+            _currentViewModel.RequestScrollIntoView -= OnRequestScrollIntoView;
             _currentViewModel.Dispose();
+        }
 
         _currentViewModel = DataContext as SearchAreaViewModel;
         if (_currentViewModel != null)
         {
+            _currentViewModel.RequestScrollIntoView -= OnRequestScrollIntoView;
+            _currentViewModel.RequestScrollIntoView += OnRequestScrollIntoView;
             _resultsList ??= this.FindControl<ListBox>("ResultsList");
             if (_resultsList != null)
                 _currentViewModel.ViewportWidth = _resultsList.Bounds.Width;
@@ -47,8 +52,27 @@ public partial class SearchAreaView : UserControl
     {
         base.OnDetachedFromVisualTree(e);
 
+        if (_currentViewModel != null)
+            _currentViewModel.RequestScrollIntoView -= OnRequestScrollIntoView;
+
         _currentViewModel?.Dispose();
         _currentViewModel = null;
+    }
+
+    private void OnRequestScrollIntoView(MediaItem item)
+    {
+        var vm = _currentViewModel;
+        if (vm == null)
+            return;
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(DataContext, vm) &&
+                string.Equals(vm.SelectedMediaItem?.Id, item.Id, StringComparison.Ordinal))
+            {
+                ScrollItemIntoView(item);
+            }
+        }, Avalonia.Threading.DispatcherPriority.Background);
     }
 
     // Triggered by XAML "DoubleTapped" on a result tile.
