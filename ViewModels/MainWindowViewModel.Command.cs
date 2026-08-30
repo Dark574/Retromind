@@ -142,7 +142,7 @@ public partial class MainWindowViewModel
 
         var viewModel = new LibraryStatisticsViewModel(
             RootItems,
-            excludeProtectedItems: IsParentalFilterActive);
+            isParentalFilterActive: IsParentalFilterActive);
         var dialog = new LibraryStatisticsView { DataContext = viewModel };
         await dialog.ShowDialog(owner);
 

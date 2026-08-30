@@ -166,7 +166,8 @@ separate statistics database or persisted aggregate state.
 
 - scope defaults to the entire visible library and can be changed to any selectable category including its
   descendants; categories are identified by their full tree path
-- protected items are omitted while parental filtering is active
+- protected items remain part of every aggregate and ranking while parental filtering is active, but direct
+  navigation from protected ranking entries is disabled until the lock is opened
 - summary values cover item count, total play time, launches, favorites, and play status
 - rankings show the ten most-played and ten most-recently played items and can navigate back to the real item
 - distributions group the ten largest values by category, platform, genre, release year, or status

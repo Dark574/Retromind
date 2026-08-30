@@ -16,7 +16,7 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
     private const int DistributionItemLimit = 10;
 
     private readonly IReadOnlyList<MediaNode> _roots;
-    private readonly bool _excludeProtectedItems;
+    private readonly bool _isParentalFilterActive;
 
     public string Title => T("Statistics.Title", "Library statistics");
     public string SummaryTitle => T("Statistics.Summary", "Overview");
@@ -75,18 +75,18 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
 
     public LibraryStatisticsViewModel(
         IEnumerable<MediaNode> roots,
-        bool excludeProtectedItems)
+        bool isParentalFilterActive)
     {
         ArgumentNullException.ThrowIfNull(roots);
 
         _roots = roots.ToArray();
-        _excludeProtectedItems = excludeProtectedItems;
+        _isParentalFilterActive = isParentalFilterActive;
 
         var scopes = new List<LibraryStatisticsScopeOption>
         {
             new(T("Statistics.Scope.All", "Entire library"), null)
         };
-        scopes.AddRange(CreateScopeOptions(_roots, [], excludeProtectedItems));
+        scopes.AddRange(CreateScopeOptions(_roots, []));
 
         ScopeOptions = scopes;
         DistributionOptions =
@@ -101,7 +101,9 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
         _selectedScope = ScopeOptions[0];
         _selectedDistribution = DistributionOptions[0];
         CloseCommand = new RelayCommand<Window?>(window => window?.Close());
-        OpenItemCommand = new RelayCommand<LibraryStatisticsRankingItem?>(OpenItem);
+        OpenItemCommand = new RelayCommand<LibraryStatisticsRankingItem?>(
+            OpenItem,
+            rankingItem => rankingItem?.CanNavigate == true);
         ApplyFilterCommand = new RelayCommand<LibraryStatisticsFilterKind>(ApplyFilter);
 
         RefreshStatistics();
@@ -118,7 +120,7 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
         var sourceNodes = SelectedScope.Node == null
             ? _roots
             : new[] { SelectedScope.Node };
-        var entries = EnumerateItems(sourceNodes, [], _excludeProtectedItems).ToArray();
+        var entries = EnumerateItems(sourceNodes, []).ToArray();
 
         TotalItems = entries.Length;
         TotalPlayTime = TimeSpan.FromTicks(entries.Sum(entry => entry.Item.TotalPlayTime.Ticks));
@@ -168,7 +170,7 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
 
     private void OpenItem(LibraryStatisticsRankingItem? rankingItem)
     {
-        if (rankingItem == null)
+        if (rankingItem?.CanNavigate != true)
             return;
 
         NavigationTarget = rankingItem.Item;
@@ -181,7 +183,7 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
         RequestClose?.Invoke();
     }
 
-    private static LibraryStatisticsRankingItem CreateRankingItem(
+    private LibraryStatisticsRankingItem CreateRankingItem(
         LibraryStatisticsEntry entry,
         int rank)
     {
@@ -191,7 +193,8 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
             entry.Item.Title,
             entry.CategoryPath,
             FormatPlayTime(entry.Item.TotalPlayTime),
-            entry.Item.LastPlayed?.ToString("g", CultureInfo.CurrentCulture) ?? "–");
+            entry.Item.LastPlayed?.ToString("g", CultureInfo.CurrentCulture) ?? "–",
+            !_isParentalFilterActive || !entry.Item.IsProtected);
     }
 
     private IReadOnlyList<LibraryStatisticsDistributionItem> CreateDistribution(
@@ -252,18 +255,14 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
 
     private static IEnumerable<LibraryStatisticsScopeOption> CreateScopeOptions(
         IEnumerable<MediaNode> nodes,
-        IReadOnlyList<string> parentPath,
-        bool excludeHiddenNodes)
+        IReadOnlyList<string> parentPath)
     {
         foreach (var node in nodes)
         {
-            if (excludeHiddenNodes && !node.IsVisibleInTree)
-                continue;
-
             var path = parentPath.Concat([node.Name]).ToArray();
             yield return new LibraryStatisticsScopeOption(string.Join(" / ", path), node);
 
-            foreach (var option in CreateScopeOptions(node.Children, path, excludeHiddenNodes))
+            foreach (var option in CreateScopeOptions(node.Children, path))
                 yield return option;
         }
     }
@@ -283,8 +282,7 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
 
     private static IEnumerable<LibraryStatisticsEntry> EnumerateItems(
         IEnumerable<MediaNode> nodes,
-        IReadOnlyList<string> parentPath,
-        bool excludeProtectedItems)
+        IReadOnlyList<string> parentPath)
     {
         foreach (var node in nodes)
         {
@@ -292,12 +290,9 @@ public sealed partial class LibraryStatisticsViewModel : ViewModelBase
             var categoryPath = string.Join(" / ", path);
 
             foreach (var item in node.Items)
-            {
-                if (!excludeProtectedItems || !item.IsProtected)
-                    yield return new LibraryStatisticsEntry(item, categoryPath);
-            }
+                yield return new LibraryStatisticsEntry(item, categoryPath);
 
-            foreach (var entry in EnumerateItems(node.Children, path, excludeProtectedItems))
+            foreach (var entry in EnumerateItems(node.Children, path))
                 yield return entry;
         }
     }
@@ -356,7 +351,8 @@ public sealed record LibraryStatisticsRankingItem(
     string Title,
     string Category,
     string PlayTime,
-    string LastPlayed);
+    string LastPlayed,
+    bool CanNavigate);
 
 public sealed record LibraryStatisticsDistributionItem(
     string Label,
