@@ -222,23 +222,6 @@ public static class ObjectConverters
         return fallback;
     }
 
-    private static string? ResolvePathForExistenceCheck(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return null;
-
-        if (System.IO.Path.IsPathRooted(path))
-            return System.IO.Path.GetFullPath(path);
-
-        if (!path.Contains(System.IO.Path.DirectorySeparatorChar) &&
-            !path.Contains(System.IO.Path.AltDirectorySeparatorChar))
-        {
-            return null;
-        }
-
-        return AppPaths.ResolveDataPath(path);
-    }
-
     private static bool IsInstalledGogItem(MediaItem? item)
     {
         if (item == null)
@@ -264,7 +247,7 @@ public static class ObjectConverters
         if (string.IsNullOrWhiteSpace(launcherPath))
             return false;
 
-        var resolvedLauncherPath = ResolvePathForExistenceCheck(launcherPath);
+        var resolvedLauncherPath = EnvironmentPathHelper.ResolveExecutablePathForExistenceCheck(launcherPath);
         if (string.IsNullOrWhiteSpace(resolvedLauncherPath))
             return true;
 

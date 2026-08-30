@@ -11,8 +11,6 @@ namespace Retromind.Helpers;
 /// </summary>
 public static class HostProcessEnvironmentSanitizer
 {
-    private const string PasswdPath = "/etc/passwd";
-
     public static void Sanitize(ProcessStartInfo psi)
     {
         if (psi == null)
@@ -42,7 +40,7 @@ public static class HostProcessEnvironmentSanitizer
         if (!IsUnderPortableHome(home, portableHomeRoot))
             return;
 
-        var realHome = TryGetRealUserHomePath();
+        var realHome = EnvironmentPathHelper.TryGetRealUserHomePath();
         if (!string.IsNullOrWhiteSpace(realHome))
             psi.Environment["HOME"] = realHome;
         else
@@ -115,34 +113,4 @@ public static class HostProcessEnvironmentSanitizer
         return normalized;
     }
 
-    private static string? TryGetRealUserHomePath()
-    {
-        try
-        {
-            var userName = Environment.UserName;
-            if (string.IsNullOrWhiteSpace(userName))
-                return null;
-
-            if (!File.Exists(PasswdPath))
-                return null;
-
-            foreach (var line in File.ReadLines(PasswdPath))
-            {
-                if (!line.StartsWith(userName + ":", StringComparison.Ordinal))
-                    continue;
-
-                var parts = line.Split(':');
-                if (parts.Length <= 5 || string.IsNullOrWhiteSpace(parts[5]))
-                    return null;
-
-                return parts[5];
-            }
-        }
-        catch
-        {
-            // Best-effort.
-        }
-
-        return null;
-    }
 }

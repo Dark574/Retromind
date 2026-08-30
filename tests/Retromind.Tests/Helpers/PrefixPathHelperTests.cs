@@ -6,6 +6,21 @@ namespace Retromind.Tests.Helpers;
 public sealed class PrefixPathHelperTests
 {
     [Fact]
+    public void EnsureDosDeviceMapping_CreatesMappingAndPreservesExistingTarget()
+    {
+        using var temp = new TemporaryDirectory();
+        var dosDevicesPath = temp.CreateDirectory("prefix", "dosdevices");
+        temp.CreateDirectory("prefix", "drive_c");
+
+        PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesPath, "c:", "../drive_c");
+        PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesPath, "c:", "../different-target");
+
+        var linkPath = Path.Combine(dosDevicesPath, "c:");
+        Assert.True(Directory.Exists(linkPath));
+        Assert.Equal("../drive_c", new DirectoryInfo(linkPath).LinkTarget);
+    }
+
+    [Fact]
     public void TryMakeLibraryRelative_ConvertsPrefixInsideLibraryRoot()
     {
         using var temp = new TemporaryDirectory();

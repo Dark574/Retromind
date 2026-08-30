@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 
 namespace Retromind.Helpers;
@@ -49,6 +50,37 @@ public static class PrefixPathHelper
 
         var driveC = Path.Combine(path, "drive_c");
         return Directory.Exists(driveC);
+    }
+
+    internal static void EnsureDosDeviceMapping(
+        string dosDevicesDir,
+        string driveName,
+        string relativeTarget)
+    {
+        if (string.IsNullOrWhiteSpace(driveName))
+            throw new ArgumentException("Drive name must not be empty.", nameof(driveName));
+
+        if (!driveName.EndsWith(":", StringComparison.Ordinal))
+            throw new ArgumentException("Drive name must end with ':' (e.g. 'd:').", nameof(driveName));
+
+        Directory.CreateDirectory(dosDevicesDir);
+
+        var linkPath = Path.Combine(dosDevicesDir, driveName);
+        var targetValue = relativeTarget.Replace('\\', '/');
+
+        // Existing mappings belong to the user/prefix and must never be overwritten.
+        if (File.Exists(linkPath) || Directory.Exists(linkPath))
+            return;
+
+        try
+        {
+            File.CreateSymbolicLink(linkPath, targetValue);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"[Prefix] Failed to create dosdevices mapping {driveName} -> {relativeTarget}: {ex.Message}");
+        }
     }
 
     public static bool TryMakeLibraryRelativeIfInsideLibraryRoot(

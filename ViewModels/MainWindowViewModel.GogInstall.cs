@@ -54,25 +54,11 @@ public partial class MainWindowViewModel
         if (string.IsNullOrWhiteSpace(launcherPath))
             return false;
 
-        var resolvedLauncherPath = ResolvePathForExistenceCheck(launcherPath);
+        var resolvedLauncherPath = EnvironmentPathHelper.ResolveExecutablePathForExistenceCheck(launcherPath);
         if (string.IsNullOrWhiteSpace(resolvedLauncherPath))
             return true;
 
         return File.Exists(resolvedLauncherPath);
-    }
-
-    private static string? ResolvePathForExistenceCheck(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return null;
-
-        if (Path.IsPathRooted(path))
-            return Path.GetFullPath(path);
-
-        if (!path.Contains(Path.DirectorySeparatorChar) && !path.Contains(Path.AltDirectorySeparatorChar))
-            return null;
-
-        return AppPaths.ResolveDataPath(path);
     }
 
     private async Task InstallGogItemAsync(MediaItem item)
@@ -1150,7 +1136,7 @@ public partial class MainWindowViewModel
         if (!OperatingSystem.IsLinux())
             return new LinuxInstallerCompatibilityEnvironment(null, null);
 
-        var realKonsolePath = TryFindExecutableInCurrentPath("konsole");
+        var realKonsolePath = EnvironmentPathHelper.TryFindExecutableInCurrentPath("konsole");
         if (string.IsNullOrWhiteSpace(realKonsolePath))
             return new LinuxInstallerCompatibilityEnvironment(null, null);
 
@@ -1228,40 +1214,6 @@ public partial class MainWindowViewModel
         }
     }
 
-    private static string? TryFindExecutableInCurrentPath(string executableName)
-    {
-        if (string.IsNullOrWhiteSpace(executableName))
-            return null;
-
-        var pathValue = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrWhiteSpace(pathValue))
-            return null;
-
-        foreach (var segment in pathValue.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            var directory = segment.Trim();
-            if (string.IsNullOrWhiteSpace(directory))
-                continue;
-
-            string candidatePath;
-            try
-            {
-                candidatePath = Path.Combine(directory, executableName);
-            }
-            catch
-            {
-                continue;
-            }
-
-            if (!File.Exists(candidatePath))
-                continue;
-
-            return candidatePath;
-        }
-
-        return null;
-    }
-
     private async Task<bool> ValidateGogInstallRuntimeRequirementsAsync(
         Window owner,
         GogInstallDialogViewModel.GogInstallDialogResult request)
@@ -1284,7 +1236,7 @@ public partial class MainWindowViewModel
     }
 
     private static bool IsUmuRunAvailable()
-        => !string.IsNullOrWhiteSpace(TryFindExecutableInCurrentPath("umu-run"));
+        => !string.IsNullOrWhiteSpace(EnvironmentPathHelper.TryFindExecutableInCurrentPath("umu-run"));
 
     private static List<WindowsInstallerArgumentProfile> BuildWindowsInstallerArgumentProfiles()
     {
@@ -2168,7 +2120,7 @@ public partial class MainWindowViewModel
             return false;
 
         if (request.Platform == GogInstallPlatform.Linux)
-            EnsureLinuxExecutableBitBestEffort(launchInfo.ExecutablePath);
+            LinuxFileSystemHelper.EnsureExecutableBitBestEffort(launchInfo.ExecutablePath);
 
         item.MediaType = MediaType.Native;
 
@@ -2242,31 +2194,6 @@ public partial class MainWindowViewModel
         return true;
     }
 
-    private static void EnsureLinuxExecutableBitBestEffort(string executablePath)
-    {
-        if (!OperatingSystem.IsLinux() ||
-            string.IsNullOrWhiteSpace(executablePath) ||
-            !File.Exists(executablePath))
-        {
-            return;
-        }
-
-        try
-        {
-            var currentMode = File.GetUnixFileMode(executablePath);
-            var withExec = currentMode |
-                           UnixFileMode.UserExecute |
-                           UnixFileMode.GroupExecute |
-                           UnixFileMode.OtherExecute;
-            if (withExec != currentMode)
-                File.SetUnixFileMode(executablePath, withExec);
-        }
-        catch
-        {
-            // best-effort
-        }
-    }
-
     private static void EnsureLinuxInstalledExecutablePermissionsBestEffort(string installRoot)
     {
         if (!OperatingSystem.IsLinux() || string.IsNullOrWhiteSpace(installRoot) || !Directory.Exists(installRoot))
@@ -2290,7 +2217,7 @@ public partial class MainWindowViewModel
             if (!ShouldEnsureLinuxExecutableBit(filePath))
                 continue;
 
-            EnsureLinuxExecutableBitBestEffort(filePath);
+            LinuxFileSystemHelper.EnsureExecutableBitBestEffort(filePath);
         }
     }
 

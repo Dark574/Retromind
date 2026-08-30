@@ -18,7 +18,6 @@ namespace Retromind.Services;
 public sealed class LauncherService
 {
     private const int MinPlayTimeSeconds = 5;
-    private const string PasswdPath = "/etc/passwd";
 
     private readonly string _libraryRootPath;
     private readonly AppSettings _settings;
@@ -219,7 +218,7 @@ public sealed class LauncherService
                 item.MediaType == MediaType.Native &&
                 !string.IsNullOrWhiteSpace(launchFilePath))
             {
-                EnsureLinuxExecutableBitBestEffort(launchFilePath);
+                LinuxFileSystemHelper.EnsureExecutableBitBestEffort(launchFilePath);
             }
 
             LogIfEnvSet(startInfo, "PROTONPATH");
@@ -705,31 +704,6 @@ public sealed class LauncherService
         startInfo.EnvironmentVariables[key] = resolved;
     }
 
-    private static void EnsureLinuxExecutableBitBestEffort(string filePath)
-    {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
-            string.IsNullOrWhiteSpace(filePath) ||
-            !File.Exists(filePath))
-        {
-            return;
-        }
-
-        try
-        {
-            var currentMode = File.GetUnixFileMode(filePath);
-            var withExec = currentMode |
-                           UnixFileMode.UserExecute |
-                           UnixFileMode.GroupExecute |
-                           UnixFileMode.OtherExecute;
-            if (withExec != currentMode)
-                File.SetUnixFileMode(filePath, withExec);
-        }
-        catch
-        {
-            // best-effort
-        }
-    }
-
     private static void SanitizeAppImageRuntimeEnvironment(ProcessStartInfo startInfo)
     {
         // Environment variable overrides require direct execution.
@@ -866,7 +840,7 @@ public sealed class LauncherService
             return;
         }
 
-        var realHome = TryGetRealUserHomePath();
+        var realHome = EnvironmentPathHelper.TryGetRealUserHomePath();
         if (!string.IsNullOrWhiteSpace(realHome))
             startInfo.EnvironmentVariables["HOME"] = realHome;
         else
@@ -987,35 +961,6 @@ public sealed class LauncherService
             return true;
 
         return executable.Contains("proton", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string? TryGetRealUserHomePath()
-    {
-        try
-        {
-            var userName = Environment.UserName;
-            if (string.IsNullOrWhiteSpace(userName))
-                return null;
-
-            if (!File.Exists(PasswdPath))
-                return null;
-
-            foreach (var line in File.ReadLines(PasswdPath))
-            {
-                if (!line.StartsWith(userName + ":", StringComparison.Ordinal))
-                    continue;
-
-                var parts = line.Split(':');
-                if (parts.Length > 5 && !string.IsNullOrWhiteSpace(parts[5]))
-                    return parts[5];
-            }
-        }
-        catch
-        {
-            // Best-effort.
-        }
-
-        return null;
     }
 
     private static string[] BuildAppImageLdPrefixes(string? appDir)
@@ -1302,7 +1247,7 @@ public sealed class LauncherService
             // drive_c + c: mapping for regular Wine-style prefixes.
             var driveCPath = Path.Combine(scaffoldPrefixPath, "drive_c");
             Directory.CreateDirectory(driveCPath);
-            EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
+            PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
         }
         
         var libraryRoot = Path.GetFullPath(_libraryRootPath); // .../Library
@@ -1321,7 +1266,7 @@ public sealed class LauncherService
             Directory.CreateDirectory(gamesRoot);
 
             var relativeTarget = Path.GetRelativePath(dosDevicesDir, gamesRoot);
-            EnsureDosDeviceMapping(dosDevicesDir, "d:", relativeTarget);
+            PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDir, "d:", relativeTarget);
         }
         
         if (isProton)
@@ -1387,60 +1332,6 @@ public sealed class LauncherService
         return nativeWrappers != null &&
                nativeWrappers.Any(w => LaunchRuntimeHelper.ContainsUmuToken(w.Path));
     }
-
-    /// <summary>
-    /// Ensures a dosdevices mapping like "d:" -> "../../Games" exists.
-    /// On Linux this is implemented as a symbolic link, which is what Wine/Proton expect.
-    /// Existing mappings are left untouched.
-    /// </summary>
-    private static void EnsureDosDeviceMapping(string dosDevicesDir, string driveName, string relativeTarget)
-    {
-        if (string.IsNullOrWhiteSpace(driveName))
-            throw new ArgumentException("Drive name must not be empty.", nameof(driveName));
-
-        if (!driveName.EndsWith(":", StringComparison.Ordinal))
-            throw new ArgumentException("Drive name must end with ':' (e.g. 'd:').", nameof(driveName));
-
-        Directory.CreateDirectory(dosDevicesDir);
-
-        var linkPath    = Path.Combine(dosDevicesDir, driveName);
-        var targetValue = relativeTarget.Replace('\\', '/'); // Wine/Proton typically use Unix-style paths here
-
-        // If there is already something at this path, we assume the user knows what they are doing
-        // and do not override it automatically.
-        if (File.Exists(linkPath) || Directory.Exists(linkPath))
-            return;
-
-        try
-        {
-            #if NET6_0_OR_GREATER
-            // .NET on Linux can create directory symlinks directly.
-            File.CreateSymbolicLink(linkPath, targetValue);
-            #else
-            // Fallback: call ln -s on Linux.
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return;
-
-            var psi = new ProcessStartInfo
-            {
-                FileName               = "ln",
-                ArgumentList           = { "-s", targetValue, linkPath },
-                UseShellExecute        = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true
-            };
-
-            using var proc = Process.Start(psi);
-            proc?.WaitForExit();
-            #endif
-        }
-        catch (Exception ex)
-        {
-            // Best-effort only – prefix wiring must not crash the launcher.
-            Debug.WriteLine($"[Launcher] Failed to create dosdevices mapping {driveName} -> {relativeTarget}: {ex.Message}");
-        }
-    }
-    
 
     private static string BuildArgumentsString(string? filePath, string? templateArgs)
     {

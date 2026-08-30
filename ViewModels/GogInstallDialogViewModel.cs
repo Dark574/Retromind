@@ -271,37 +271,5 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
     }
 
     private static bool IsUmuRunAvailable()
-        => !string.IsNullOrWhiteSpace(TryFindExecutableInCurrentPath("umu-run"));
-
-    private static string? TryFindExecutableInCurrentPath(string executableName)
-    {
-        if (string.IsNullOrWhiteSpace(executableName))
-            return null;
-
-        var pathValue = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrWhiteSpace(pathValue))
-            return null;
-
-        foreach (var segment in pathValue.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            var directory = segment.Trim();
-            if (string.IsNullOrWhiteSpace(directory))
-                continue;
-
-            string candidatePath;
-            try
-            {
-                candidatePath = Path.Combine(directory, executableName);
-            }
-            catch
-            {
-                continue;
-            }
-
-            if (File.Exists(candidatePath))
-                return candidatePath;
-        }
-
-        return null;
-    }
+        => !string.IsNullOrWhiteSpace(EnvironmentPathHelper.TryFindExecutableInCurrentPath("umu-run"));
 }

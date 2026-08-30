@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 using Retromind.Models;
 
 namespace Retromind.Services;
@@ -16,8 +17,6 @@ namespace Retromind.Services;
 /// </summary>
 public class StoreImportService
 {
-    private const string PasswdPath = "/etc/passwd";
-
     private readonly AppSettings _settings;
 
     // --- Configuration ---
@@ -208,7 +207,7 @@ public class StoreImportService
         if (!ShouldAddRealHomeFallback())
             yield break;
 
-        var realHome = TryGetRealUserHomePath();
+        var realHome = EnvironmentPathHelper.TryGetRealUserHomePath();
         if (string.IsNullOrWhiteSpace(realHome))
             yield break;
 
@@ -224,35 +223,6 @@ public class StoreImportService
         var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
         var appDir = Environment.GetEnvironmentVariable("APPDIR");
         return !string.IsNullOrWhiteSpace(appImage) || !string.IsNullOrWhiteSpace(appDir);
-    }
-
-    private static string? TryGetRealUserHomePath()
-    {
-        try
-        {
-            var userName = Environment.UserName;
-            if (string.IsNullOrWhiteSpace(userName))
-                return null;
-
-            if (!File.Exists(PasswdPath))
-                return null;
-
-            foreach (var line in File.ReadLines(PasswdPath))
-            {
-                if (!line.StartsWith(userName + ":", StringComparison.Ordinal))
-                    continue;
-
-                var parts = line.Split(':');
-                if (parts.Length > 5)
-                    return parts[5];
-            }
-        }
-        catch
-        {
-            // Best-effort: if we can't read the real home, just skip it.
-        }
-
-        return null;
     }
 
     private async Task<List<string>> ParseSteamLibraryFoldersAsync(string vdfPath)

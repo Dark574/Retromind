@@ -444,44 +444,18 @@ public partial class EditMediaViewModel
 
             var driveCPath = Path.Combine(winePrefix, "drive_c");
             Directory.CreateDirectory(driveCPath);
-            EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
+            PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
 
             var libraryRoot = Path.GetFullPath(AppPaths.LibraryRoot);
             var gamesRoot = Path.Combine(libraryRoot, "Games");
             Directory.CreateDirectory(gamesRoot);
 
             var relativeTarget = Path.GetRelativePath(dosDevicesDir, gamesRoot);
-            EnsureDosDeviceMapping(dosDevicesDir, "d:", relativeTarget);
+            PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDir, "d:", relativeTarget);
         }
         catch
         {
             // best-effort only: missing D: mapping must not block prefix operations
-        }
-    }
-
-    private static void EnsureDosDeviceMapping(string dosDevicesDir, string driveName, string relativeTarget)
-    {
-        if (string.IsNullOrWhiteSpace(driveName))
-            throw new ArgumentException("Drive name must not be empty.", nameof(driveName));
-
-        if (!driveName.EndsWith(":", StringComparison.Ordinal))
-            throw new ArgumentException("Drive name must end with ':' (e.g. 'd:').", nameof(driveName));
-
-        Directory.CreateDirectory(dosDevicesDir);
-
-        var linkPath = Path.Combine(dosDevicesDir, driveName);
-        var targetValue = relativeTarget.Replace('\\', '/');
-
-        if (File.Exists(linkPath) || Directory.Exists(linkPath))
-            return;
-
-        try
-        {
-            File.CreateSymbolicLink(linkPath, targetValue);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Winetricks] Failed to create dosdevices mapping {driveName} -> {relativeTarget}: {ex.Message}");
         }
     }
 
