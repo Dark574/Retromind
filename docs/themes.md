@@ -1093,6 +1093,18 @@ The folder name `<Id>` is used as:
 - the **key** in the system theme dropdown,
 - part of the relative path `System/<Id>/theme.axaml` passed to `ThemeLoader`.
 
+The host assigns `ext:ThemeProperties.SystemPreviewNode` to every system-subtheme
+instance. Bind node-specific content through that attached property instead of the live
+`SelectedCategory`. This keeps the outgoing theme's text and artwork stable during a
+crossfade:
+
+```xml
+<UserControl x:Name="ThemeRoot" ...>
+    <TextBlock Text="{Binding ElementName=ThemeRoot,
+                              Path=(ext:ThemeProperties.SystemPreviewNode).Name}" />
+</UserControl>
+```
+
 A minimal subtheme:
 ```xml
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Retromind.ViewModels" xmlns:ext="clr-namespace:Retromind.Extensions" x:DataType="vm:BigModeViewModel" Background="#101010"

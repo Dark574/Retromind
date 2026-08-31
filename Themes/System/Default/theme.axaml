@@ -6,6 +6,7 @@
              xmlns:helpers="using:Retromind.Helpers"
              xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
              Background="#101010"
 
              ext:ThemeProperties.Name="Default System Layout"
@@ -30,22 +31,24 @@
                     Grid.Column="0"
                     VerticalAlignment="Center"
                     Spacing="8">
-            <!-- Current system name (SelectedCategory is the active node in system view) -->
-            <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+            <!-- Each subtheme instance keeps its own node while themes crossfade. -->
+            <Image helpers:AsyncImageHelper.Url="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath}"
                    Height="80"
                    Stretch="Uniform"
                    HorizontalAlignment="Center"
-                   IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                   IsVisible="{Binding ElementName=ThemeRoot,
+                                           Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
                                                    Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
 
             <!-- Fallback: text title if no logo -->
-            <TextBlock Text="{Binding SelectedCategory.Name}"
+            <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Name}"
                        FontSize="40"
                        FontWeight="Bold"
                        Foreground="White"
                        TextTrimming="CharacterEllipsis"
                        MaxWidth="260"
-                       IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                       IsVisible="{Binding ElementName=ThemeRoot,
+                                           Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
                                                        Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
         </StackPanel>
 
@@ -97,7 +100,7 @@
                                 <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
                                            Foreground="#AAAAAA"
                                            FontSize="14" />
-                                <TextBlock Text="{Binding SelectedCategory.Items.Count}"
+                                <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Items.Count}"
                                            Foreground="#FFFFFF"
                                            FontSize="14" />
                             </StackPanel>

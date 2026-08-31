@@ -135,6 +135,8 @@ BigMode is an overlay workflow with clear host/VM split:
 - theme root attachment/swapping (`SetThemeContent`)
 - shared video control attachment to theme-defined slots
 - system-host mode with per-system subtheme loading (`Themes/System/<id>/theme.axaml`)
+- each subtheme instance receives a fixed `SystemPreviewNode`, keeping the outgoing
+  theme's node-specific bindings stable throughout the crossfade
 - subtheme cache with LRU
 - shipped system themes currently include Default, C64, Amiga, PC, SNES, and PS1 variants
 - theme guardrails/tuning for list behavior and selection visuals

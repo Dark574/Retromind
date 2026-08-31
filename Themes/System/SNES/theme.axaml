@@ -62,21 +62,23 @@
                       RowDefinitions="Auto,Auto,*"
                       Margin="0,12,36,10">
                     <Grid Grid.Row="0" Height="112">
-                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+                        <Image helpers:AsyncImageHelper.Url="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath}"
                                Stretch="Uniform"
                                HorizontalAlignment="Left"
                                VerticalAlignment="Center"
                                MaxWidth="370"
-                               IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                               IsVisible="{Binding ElementName=ThemeRoot,
+                                                   Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
                                                    Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
-                        <TextBlock Text="{Binding SelectedCategory.Name}"
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Name}"
                                    FontSize="44"
                                    FontWeight="Bold"
                                    Foreground="#F4F0F7"
                                    VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis"
-                                   IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath,
+                                   IsVisible="{Binding ElementName=ThemeRoot,
+                                                       Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
                                                        Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
                     </Grid>
 
@@ -97,7 +99,7 @@
                             BorderThickness="1,0,0,0"
                             Padding="18,2,4,4"
                             ClipToBounds="True">
-                        <TextBlock Text="{Binding SelectedCategory.Description}"
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Description}"
                                    FontSize="18"
                                    LineHeight="27"
                                    Foreground="#DDD7E5"
@@ -156,7 +158,7 @@
                                        FontWeight="SemiBold"
                                        Foreground="#655E69"
                                        VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding SelectedCategory.Items.Count}"
+                            <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Items.Count}"
                                        FontSize="25"
                                        FontWeight="Bold"
                                        Foreground="#826CB6" />

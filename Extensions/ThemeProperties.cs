@@ -13,6 +13,7 @@ namespace Retromind.Extensions;
 /// - ThemeProperties.Video.cs
 /// - ThemeProperties.AttractMode.cs
 /// - ThemeProperties.Filesystem.cs
+/// - ThemeProperties.System.cs
 /// </summary>
 public partial class ThemeProperties
 {

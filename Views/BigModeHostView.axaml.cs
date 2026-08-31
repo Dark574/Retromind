@@ -580,6 +580,11 @@ public partial class BigModeHostView : UserControl
             return;
         }
 
+        // Keep each subtheme bound to the node it represents. During the
+        // crossfade the old view therefore retains its previous texts and
+        // artwork instead of immediately adopting the new live selection.
+        ThemeProperties.SetSystemPreviewNode(subView, node);
+
         // Gate the shared video before it is reparented so no frame from the
         // previous system can appear in the new bezel.
         SetPrimaryVideoPresentationVisible(visible: false, animate: false);
