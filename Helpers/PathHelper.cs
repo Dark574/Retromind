@@ -135,9 +135,37 @@ public static class PathHelper
         if (string.Equals(rawPath, sanitizedPath, StringComparison.Ordinal))
             return rawPath;
 
-        if (Directory.Exists(rawPath))
+        // Preserve existing legacy folders with unsanitized names, but never let
+        // persisted node names escape the library root through rooted paths,
+        // traversal segments, or case-only root mismatches on Linux.
+        if (Directory.Exists(rawPath) && IsPathInsideRoot(rawPath, libraryRootPath))
             return rawPath;
 
         return sanitizedPath;
+    }
+
+    private static bool IsPathInsideRoot(string candidatePath, string rootPath)
+    {
+        try
+        {
+            var candidateFullPath = Path.GetFullPath(candidatePath);
+            var rootFullPath = Path.GetFullPath(rootPath);
+            var rootWithSeparator = rootFullPath.EndsWith(Path.DirectorySeparatorChar)
+                ? rootFullPath
+                : rootFullPath + Path.DirectorySeparatorChar;
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            return string.Equals(candidateFullPath, rootFullPath, comparison) ||
+                   candidateFullPath.StartsWith(rootWithSeparator, comparison);
+        }
+        catch (Exception ex) when (
+            ex is ArgumentException ||
+            ex is NotSupportedException ||
+            ex is PathTooLongException)
+        {
+            return false;
+        }
     }
 }

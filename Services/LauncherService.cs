@@ -481,25 +481,7 @@ public sealed class LauncherService
     }
 
     private string ResolveNodeFolder(List<string> nodePath)
-    {
-        var rawPath = Path.Combine(_libraryRootPath, Path.Combine(nodePath.ToArray()));
-
-        var sanitizedStack = new string[nodePath.Count];
-        for (var i = 0; i < nodePath.Count; i++)
-        {
-            sanitizedStack[i] = PathHelper.SanitizePathSegment(nodePath[i]);
-        }
-        var sanitizedPath = Path.Combine(_libraryRootPath, Path.Combine(sanitizedStack));
-
-        if (string.Equals(rawPath, sanitizedPath, StringComparison.Ordinal))
-            return rawPath;
-
-        // Prefer existing raw paths for backward compatibility.
-        if (Directory.Exists(rawPath))
-            return rawPath;
-
-        return sanitizedPath;
-    }
+        => PathHelper.ResolveNodeFolder(nodePath, _libraryRootPath);
 
     private static string SanitizeForFilename(string input)
     {
