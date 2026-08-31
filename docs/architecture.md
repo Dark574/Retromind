@@ -213,6 +213,12 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 - supports merged environment overrides (node/emulator/item)
 - handles Wine/Proton/UMU prefix setup and compatibility environment shaping
 - sanitizes host/runtime environment in AppImage/Flatpak/store-related cases
+- reports launch-plan and process-start failures to the caller for visible user feedback
+- waits up to 60 seconds for a configured `OverrideWatchProcess` and reports separately when the launcher starts
+  but the expected game process never appears; already-running processes remain a neutral, untracked case
+- captures a bounded tail of stdout/stderr for direct process starts and includes it in missing-process or
+  non-zero-exit feedback within ten seconds of process start; shell-based launches remain limited to
+  operating-system start diagnostics
 - session tracking updates playtime/playcount after launch
 - GOG launch detection prefers local or account `playTasks` metadata and preserves its executable,
   arguments, and working directory before falling back to filesystem heuristics; this is important for

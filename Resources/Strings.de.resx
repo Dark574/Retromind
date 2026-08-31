@@ -796,4 +796,22 @@ Die vorhandenen Bibliotheksdateien werden nicht überschrieben. Beende Retromind
     <data name="Persistence.ExitWithoutSavingConfirm" xml:space="preserve">
         <value>Retromind konnte nicht alle Änderungen speichern. Trotzdem beenden und den Verlust ungespeicherter Änderungen riskieren?</value>
     </data>
+    <data name="Launch.FailedFormat" xml:space="preserve">
+        <value>„{0}“ konnte nicht gestartet werden.
+
+{1}
+
+Bitte prüfe Startdatei, Emulator/Runner, Wrapper und Berechtigungen.</value>
+    </data>
+    <data name="Launch.WatchedProcessNotFoundFormat" xml:space="preserve">
+        <value>Der Launcher für „{0}“ wurde gestartet, aber der erwartete Prozess „{1}“ ist nicht erschienen.
+
+Möglicherweise wurde das Spiel nicht gestartet oder der konfigurierte Prozessname ist falsch.</value>
+    </data>
+    <data name="Launch.ExitedEarlyFormat" xml:space="preserve">
+        <value>„{0}“ wurde kurz nach dem Start mit Exit-Code {1} beendet.
+
+Möglicherweise wurde das Programm nicht korrekt gestartet.</value>
+    </data>
+    <data name="Launch.ConsoleOutputHeader" xml:space="preserve"><value>Konsolenausgabe:</value></data>
 </root>

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
@@ -18,6 +19,9 @@ namespace Retromind.Services;
 public sealed class LauncherService
 {
     private const int MinPlayTimeSeconds = 5;
+    private const int EarlyFailureThresholdSeconds = 10;
+    private static readonly TimeSpan WatchProcessStartupTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan WatchProcessStartupPollInterval = TimeSpan.FromSeconds(1);
 
     private readonly string _libraryRootPath;
     private readonly AppSettings _settings;
@@ -28,7 +32,7 @@ public sealed class LauncherService
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
-    public async Task LaunchAsync(
+    public async Task<LaunchResult> LaunchAsync(
         MediaItem item,
         EmulatorConfig? inheritedConfig = null,
         List<string>? nodePath = null,
@@ -38,38 +42,80 @@ public sealed class LauncherService
         bool recordStatistics = true,
         CancellationToken cancellationToken = default)
     {
-        if (item == null) return;
+        ArgumentNullException.ThrowIfNull(item);
 
         Process? process = null;
+        ProcessOutputCapture? outputCapture = null;
         var stopwatch = Stopwatch.StartNew();
         var shouldRecordSession = false;
+        var watchedProcessName = string.IsNullOrWhiteSpace(item.OverrideWatchProcess)
+            ? null
+            : item.OverrideWatchProcess;
+        string? missingWatchedProcessName = null;
+        var watchedProcessWasAlreadyRunning = false;
+        int? exitCode = null;
+        string? consoleOutput = null;
+        TimeSpan? processStartedAt = null;
         var elapsed = TimeSpan.Zero;
+
+        if (watchedProcessName != null)
+        {
+            try
+            {
+                watchedProcessWasAlreadyRunning = IsProcessRunning(GetWatchProcessName(watchedProcessName));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Launcher] Could not inspect watched process before launch: {ex.Message}");
+            }
+        }
 
         try
         {
             process = item.MediaType == MediaType.Command
                 ? LaunchCommand(item, environmentOverrides)
                 : LaunchNativeOrEmulator(item, inheritedConfig, nodePath, nativeWrappers, usePlaylistForMultiDisc, environmentOverrides);
+            processStartedAt = stopwatch.Elapsed;
+            outputCapture = ProcessOutputCapture.TryStart(process);
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            process?.Dispose();
+            Debug.WriteLine($"[Launcher] Failed to launch: {ex.Message}");
+            return LaunchResult.Failed(ex.Message);
+        }
 
+        try
+        {
             // Tracking strategy:
             // A) If OverrideWatchProcess is set, we track by process name (for launchers like Steam).
             // B) Otherwise, if we have a process handle, wait for it.
             // C) If neither is available (typical for URL commands), we cannot track duration reliably.
-            if (!string.IsNullOrWhiteSpace(item.OverrideWatchProcess))
+            if (watchedProcessName != null)
             {
-                shouldRecordSession = await WatchProcessByNameAsync(item.OverrideWatchProcess, cancellationToken)
+                var watchOutcome = await WatchProcessByNameAsync(
+                        watchedProcessName,
+                        watchedProcessWasAlreadyRunning,
+                        cancellationToken)
                     .ConfigureAwait(false);
+                shouldRecordSession = watchOutcome == ProcessWatchOutcome.Tracked;
+                if (watchOutcome == ProcessWatchOutcome.NotFound)
+                    missingWatchedProcessName = watchedProcessName;
             }
             else if (process is { HasExited: false })
             {
                 shouldRecordSession = true;
                 await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+                exitCode = process.ExitCode;
             }
             else if (process != null)
             {
                 // Process started but already exited (very fast failure or immediate exit).
                 // Still count as a launch attempt.
                 shouldRecordSession = true;
+                await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+                exitCode = process.ExitCode;
             }
         }
         catch (OperationCanceledException)
@@ -78,17 +124,58 @@ public sealed class LauncherService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Launcher] Error during launch/tracking: {ex.Message}");
+            // The process was already started. A tracking failure must not be reported as a launch failure.
+            Debug.WriteLine($"[Launcher] Error during session tracking: {ex.Message}");
         }
         finally
         {
             stopwatch.Stop();
             elapsed = stopwatch.Elapsed;
+
+            if (outputCapture != null)
+            {
+                try
+                {
+                    if (process is { HasExited: true })
+                    {
+                        await outputCapture.WaitForCompletionAsync(TimeSpan.FromMilliseconds(250))
+                            .ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Launcher] Could not finish reading process output: {ex.Message}");
+                }
+            }
+
+            consoleOutput = outputCapture?.GetOutput();
+            outputCapture?.Dispose();
             process?.Dispose();
         }
 
         if (shouldRecordSession && recordStatistics)
-            await EvaluateSessionAsync(item, elapsed).ConfigureAwait(false);
+        {
+            try
+            {
+                await EvaluateSessionAsync(item, elapsed).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Launcher] Failed to record session statistics: {ex.Message}");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(missingWatchedProcessName))
+            return LaunchResult.WatchedProcessNotFound(missingWatchedProcessName, consoleOutput);
+
+        if (exitCode is not null and not 0 &&
+            processStartedAt is { } startedAt &&
+            elapsed - startedAt <= TimeSpan.FromSeconds(EarlyFailureThresholdSeconds))
+        {
+            return LaunchResult.ExitedEarly(exitCode.Value, consoleOutput);
+        }
+
+        return LaunchResult.Started;
     }
 
     private static Process? LaunchCommand(
@@ -101,7 +188,7 @@ public sealed class LauncherService
         var target = item.GetPrimaryLaunchPath();
 
         if (string.IsNullOrWhiteSpace(target))
-            return null;
+            throw new InvalidOperationException("The command has no launch target.");
 
         // Linux-first: prefer xdg-open for URI/protocol
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && LooksLikeUriOrProtocol(target))
@@ -119,7 +206,7 @@ public sealed class LauncherService
             SanitizeStorePortableEnvironment(psi, target, forceStoreCompatSanitization: true);
             ApplyEnvironmentOverrides(psi, environmentOverrides);
 
-            return Process.Start(psi);
+            return StartProcess(psi);
         }
 
         // Otherwise treat as executable command
@@ -138,7 +225,7 @@ public sealed class LauncherService
         SanitizeStorePortableEnvironment(startInfo, item.LauncherArgs, forceStoreCompatSanitization: true);
         ApplyEnvironmentOverrides(startInfo, environmentOverrides);
         ApplyXdgOverrides(startInfo, item);
-        return Process.Start(startInfo);
+        return StartProcess(startInfo);
     }
 
     private Process? LaunchNativeOrEmulator(
@@ -149,91 +236,125 @@ public sealed class LauncherService
         bool usePlaylistForMultiDisc,
         IReadOnlyDictionary<string, string>? environmentOverrides)
     {
+        var (fileName, args, useShellExecute, launchFilePath) =
+            ResolveLaunchPlan(item, inheritedConfig, nodePath, nativeWrappers, usePlaylistForMultiDisc);
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = fileName
+        };
+
+        startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, fileName, launchFilePath);
+
+        var hasEnvOverrides =
+            (environmentOverrides?.Count ?? 0) > 0 ||
+            ((environmentOverrides == null) &&
+             ((inheritedConfig?.EnvironmentOverrides?.Count ?? 0) > 0 ||
+              (item.EnvironmentOverrides?.Count ?? 0) > 0));
+        var isUmuLaunch = IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
+        var isProtonLaunch = isUmuLaunch || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
+
+        // Prefix management rules:
+        // - explicit item PrefixPath -> always apply
+        // - emulator profile with UsesWinePrefix=true -> apply
+        var shouldApplyPrefix =
+            !string.IsNullOrWhiteSpace(item.PrefixPath) ||
+            (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
+        var isAppImageRuntime = IsRunningInsideAppImageRuntime();
+
+        // Ensure env vars + wrapper arguments are honored (shell exec can drop env vars).
+        var requiresDirectExec = isAppImageRuntime ||
+                                 shouldApplyPrefix ||
+                                 hasEnvOverrides ||
+                                 (nativeWrappers is { Count: > 0 }) ||
+                                 !string.IsNullOrWhiteSpace(args);
+
+        startInfo.UseShellExecute = requiresDirectExec ? false : useShellExecute;
+
+        if (shouldApplyPrefix)
+            ConfigureWinePrefix(item, nodePath, startInfo, isProtonLaunch, isUmuLaunch);
+            
+        SanitizeAppImageRuntimeEnvironment(startInfo);
+        SanitizeFlatpakPortableEnvironment(startInfo, args);
+        SanitizeStorePortableEnvironment(startInfo, args, forceStoreCompatSanitization: true);
+
+        // Apply environment overrides (node/emulator/item merged by caller when provided).
+        if (environmentOverrides is { Count: > 0 })
+        {
+            ApplyEnvironmentOverrides(startInfo, environmentOverrides);
+        }
+        else
+        {
+            // Apply emulator-level environment overrides (base layer)
+            if (inheritedConfig?.EnvironmentOverrides is { Count: > 0 })
+                ApplyEnvironmentOverrides(startInfo, inheritedConfig.EnvironmentOverrides);
+
+            // Apply per-item environment overrides (e.g. PROTONPATH, PROTON_LOG, DXVK_HUD)
+            if (item.EnvironmentOverrides is { Count: > 0 })
+                ApplyEnvironmentOverrides(startInfo, item.EnvironmentOverrides);
+        }
+
+        ApplyEmulatorXdgOverrides(startInfo, inheritedConfig);
+        ApplyXdgOverrides(startInfo, item);
+
+        startInfo.Arguments = args ?? string.Empty;
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
+            item.MediaType == MediaType.Native &&
+            !string.IsNullOrWhiteSpace(launchFilePath))
+        {
+            LinuxFileSystemHelper.EnsureExecutableBitBestEffort(launchFilePath);
+        }
+
+        LogIfEnvSet(startInfo, "PROTONPATH");
+        LogIfEnvSet(startInfo, "STEAM_COMPAT_DATA_PATH");
+        LogIfEnvSet(startInfo, "WINEPREFIX");
+        // DEBUG: log the exact command-line we are about to run
+        Debug.WriteLine($"[Launcher] START: {startInfo.FileName} {startInfo.Arguments}");
+
+        return StartProcess(startInfo);
+    }
+
+    private static Process? StartProcess(ProcessStartInfo startInfo)
+    {
+        if (!startInfo.UseShellExecute)
+        {
+            startInfo.RedirectStandardOutput = true;
+            startInfo.RedirectStandardError = true;
+        }
+
         try
         {
-            var (fileName, args, useShellExecute, launchFilePath) =
-                ResolveLaunchPlan(item, inheritedConfig, nodePath, nativeWrappers, usePlaylistForMultiDisc);
-
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = fileName
-            };
-
-            startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, fileName, launchFilePath);
-
-            var hasEnvOverrides =
-                (environmentOverrides?.Count ?? 0) > 0 ||
-                ((environmentOverrides == null) &&
-                 ((inheritedConfig?.EnvironmentOverrides?.Count ?? 0) > 0 ||
-                  (item.EnvironmentOverrides?.Count ?? 0) > 0));
-            var isUmuLaunch = IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
-            var isProtonLaunch = isUmuLaunch || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
-
-            // Prefix management rules:
-            // - explicit item PrefixPath -> always apply
-            // - emulator profile with UsesWinePrefix=true -> apply
-            var shouldApplyPrefix =
-                !string.IsNullOrWhiteSpace(item.PrefixPath) ||
-                (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
-            var isAppImageRuntime = IsRunningInsideAppImageRuntime();
-
-            // Ensure env vars + wrapper arguments are honored (shell exec can drop env vars).
-            var requiresDirectExec = isAppImageRuntime ||
-                                     shouldApplyPrefix ||
-                                     hasEnvOverrides ||
-                                     (nativeWrappers is { Count: > 0 }) ||
-                                     !string.IsNullOrWhiteSpace(args);
-
-            startInfo.UseShellExecute = requiresDirectExec ? false : useShellExecute;
-
-            if (shouldApplyPrefix)
-                ConfigureWinePrefix(item, nodePath, startInfo, isProtonLaunch, isUmuLaunch);
-            
-            SanitizeAppImageRuntimeEnvironment(startInfo);
-            SanitizeFlatpakPortableEnvironment(startInfo, args);
-            SanitizeStorePortableEnvironment(startInfo, args, forceStoreCompatSanitization: true);
-
-            // Apply environment overrides (node/emulator/item merged by caller when provided).
-            if (environmentOverrides is { Count: > 0 })
-            {
-                ApplyEnvironmentOverrides(startInfo, environmentOverrides);
-            }
-            else
-            {
-                // Apply emulator-level environment overrides (base layer)
-                if (inheritedConfig?.EnvironmentOverrides is { Count: > 0 })
-                    ApplyEnvironmentOverrides(startInfo, inheritedConfig.EnvironmentOverrides);
-
-                // Apply per-item environment overrides (e.g. PROTONPATH, PROTON_LOG, DXVK_HUD)
-                if (item.EnvironmentOverrides is { Count: > 0 })
-                    ApplyEnvironmentOverrides(startInfo, item.EnvironmentOverrides);
-            }
-
-            ApplyEmulatorXdgOverrides(startInfo, inheritedConfig);
-            ApplyXdgOverrides(startInfo, item);
-
-            startInfo.Arguments = args ?? string.Empty;
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
-                item.MediaType == MediaType.Native &&
-                !string.IsNullOrWhiteSpace(launchFilePath))
-            {
-                LinuxFileSystemHelper.EnsureExecutableBitBestEffort(launchFilePath);
-            }
-
-            LogIfEnvSet(startInfo, "PROTONPATH");
-            LogIfEnvSet(startInfo, "STEAM_COMPAT_DATA_PATH");
-            LogIfEnvSet(startInfo, "WINEPREFIX");
-            // DEBUG: log the exact command-line we are about to run
-            Debug.WriteLine($"[Launcher] START: {startInfo.FileName} {startInfo.Arguments}");
-
             return Process.Start(startInfo);
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Launcher] Failed to launch: {ex.Message}");
-            return null;
+            var command = BuildCommandDisplay(startInfo);
+            var details = new StringBuilder(ex.Message)
+                .AppendLine()
+                .Append("Command: ")
+                .Append(command);
+
+            if (!string.IsNullOrWhiteSpace(startInfo.WorkingDirectory))
+            {
+                details.AppendLine()
+                    .Append("Working directory: ")
+                    .Append(startInfo.WorkingDirectory);
+            }
+
+            throw new InvalidOperationException(details.ToString(), ex);
         }
+    }
+
+    private static string BuildCommandDisplay(ProcessStartInfo startInfo)
+    {
+        var arguments = startInfo.ArgumentList.Count > 0
+            ? string.Join(' ', startInfo.ArgumentList.Select(QuoteIfNeeded))
+            : startInfo.Arguments;
+
+        return string.IsNullOrWhiteSpace(arguments)
+            ? QuoteIfNeeded(startInfo.FileName)
+            : $"{QuoteIfNeeded(startInfo.FileName)} {arguments}";
     }
 
     private (string FileName, string? Args, bool UseShellExecute, string? LaunchFilePath) ResolveLaunchPlan(
@@ -1386,32 +1507,49 @@ public sealed class LauncherService
         }
     }
 
-    private static async Task<bool> WatchProcessByNameAsync(string processName, CancellationToken cancellationToken)
-    {
-        var cleanName = Path.GetFileNameWithoutExtension(processName);
+    private static Task<ProcessWatchOutcome> WatchProcessByNameAsync(
+        string processName,
+        bool wasRunningBeforeLaunch,
+        CancellationToken cancellationToken)
+        => WatchProcessByNameAsync(
+            processName,
+            wasRunningBeforeLaunch,
+            WatchProcessStartupTimeout,
+            WatchProcessStartupPollInterval,
+            cancellationToken);
 
-        var startupTimeout = TimeSpan.FromMinutes(3);
+    internal static async Task<ProcessWatchOutcome> WatchProcessByNameAsync(
+        string processName,
+        bool wasRunningBeforeLaunch,
+        TimeSpan startupTimeout,
+        TimeSpan startupPollInterval,
+        CancellationToken cancellationToken)
+    {
+        var cleanName = GetWatchProcessName(processName);
         var startWatch = Stopwatch.StartNew();
 
         // If the process is already running, do not block waiting for it to exit.
         // This avoids hanging the launch flow when watching long-running launchers (e.g. Steam).
-        if (IsProcessRunning(cleanName))
-            return false;
+        if (wasRunningBeforeLaunch)
+            return ProcessWatchOutcome.AlreadyRunning;
 
         // Phase 1: wait for process to appear.
-        while (startWatch.Elapsed < startupTimeout)
+        while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (IsProcessRunning(cleanName))
                 break;
 
-            await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
-        }
+            var remaining = startupTimeout - startWatch.Elapsed;
+            if (remaining <= TimeSpan.Zero)
+                return ProcessWatchOutcome.NotFound;
 
-        // If not found in time, we cannot track.
-        if (!IsProcessRunning(cleanName))
-            return false;
+            var delay = remaining < startupPollInterval
+                ? remaining
+                : startupPollInterval;
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+        }
 
         // Phase 2: wait for process to disappear.
         while (true)
@@ -1424,8 +1562,11 @@ public sealed class LauncherService
                 break;
         }
 
-        return true;
+        return ProcessWatchOutcome.Tracked;
     }
+
+    private static string GetWatchProcessName(string processName)
+        => Path.GetFileNameWithoutExtension(processName);
 
     private static async Task EvaluateSessionAsync(MediaItem item, TimeSpan elapsed)
     {
@@ -1451,5 +1592,156 @@ public sealed class LauncherService
         item.LastPlayed = DateTime.Now;
         item.PlayCount++;
         item.TotalPlayTime += sessionTime;
+    }
+
+    private sealed class ProcessOutputCapture : IDisposable
+    {
+        private const int MaxCharactersPerStream = 2000;
+
+        private readonly object _gate = new();
+        private readonly Process _process;
+        private readonly StringBuilder _standardOutput = new();
+        private readonly StringBuilder _standardError = new();
+        private readonly TaskCompletionSource _outputCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _errorCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private bool _outputReadStarted;
+        private bool _errorReadStarted;
+
+        private ProcessOutputCapture(Process process)
+        {
+            _process = process;
+            _process.OutputDataReceived += OnOutputDataReceived;
+            _process.ErrorDataReceived += OnErrorDataReceived;
+        }
+
+        public static ProcessOutputCapture? TryStart(Process? process)
+        {
+            if (process == null ||
+                !process.StartInfo.RedirectStandardOutput ||
+                !process.StartInfo.RedirectStandardError)
+            {
+                return null;
+            }
+
+            var capture = new ProcessOutputCapture(process);
+            try
+            {
+                process.BeginOutputReadLine();
+                capture._outputReadStarted = true;
+                process.BeginErrorReadLine();
+                capture._errorReadStarted = true;
+                return capture;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Launcher] Could not capture process output: {ex.Message}");
+                capture.Dispose();
+                return null;
+            }
+        }
+
+        public string? GetOutput()
+        {
+            lock (_gate)
+            {
+                var output = _standardOutput.ToString().Trim();
+                var error = _standardError.ToString().Trim();
+                if (output.Length == 0 && error.Length == 0)
+                    return null;
+
+                var result = new StringBuilder();
+                if (error.Length > 0)
+                    result.AppendLine("stderr:").AppendLine(error);
+
+                if (output.Length > 0)
+                {
+                    if (result.Length > 0)
+                        result.AppendLine();
+
+                    result.AppendLine("stdout:").Append(output);
+                }
+
+                return result.ToString();
+            }
+        }
+
+        public async Task WaitForCompletionAsync(TimeSpan timeout)
+        {
+            try
+            {
+                await Task.WhenAll(_outputCompleted.Task, _errorCompleted.Task)
+                    .WaitAsync(timeout)
+                    .ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                // A child process may have inherited the output pipes. Keep the launch flow bounded.
+            }
+        }
+
+        public void Dispose()
+        {
+            if (_outputReadStarted)
+            {
+                try
+                {
+                    _process.CancelOutputRead();
+                }
+                catch (InvalidOperationException)
+                {
+                    // The asynchronous reader already completed.
+                }
+            }
+
+            if (_errorReadStarted)
+            {
+                try
+                {
+                    _process.CancelErrorRead();
+                }
+                catch (InvalidOperationException)
+                {
+                    // The asynchronous reader already completed.
+                }
+            }
+
+            _process.OutputDataReceived -= OnOutputDataReceived;
+            _process.ErrorDataReceived -= OnErrorDataReceived;
+        }
+
+        private void OnOutputDataReceived(object sender, DataReceivedEventArgs args)
+        {
+            if (args.Data == null)
+            {
+                _outputCompleted.TrySetResult();
+                return;
+            }
+
+            AppendTail(_standardOutput, args.Data);
+        }
+
+        private void OnErrorDataReceived(object sender, DataReceivedEventArgs args)
+        {
+            if (args.Data == null)
+            {
+                _errorCompleted.TrySetResult();
+                return;
+            }
+
+            AppendTail(_standardError, args.Data);
+        }
+
+        private void AppendTail(StringBuilder target, string? line)
+        {
+            if (line == null)
+                return;
+
+            lock (_gate)
+            {
+                target.AppendLine(line);
+                if (target.Length > MaxCharactersPerStream)
+                    target.Remove(0, target.Length - MaxCharactersPerStream);
+            }
+        }
     }
 }

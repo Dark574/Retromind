@@ -1032,7 +1032,7 @@ public partial class MainWindowViewModel
 
             var effectiveEnvironment = ResolveEffectiveEnvironmentOverrides(item, emulator, trueParent);
 
-            await _launcherService.LaunchAsync(
+            var launchResult = await _launcherService.LaunchAsync(
                 item,
                 emulator,
                 nodePath,
@@ -1040,6 +1040,47 @@ public partial class MainWindowViewModel
                 environmentOverrides: effectiveEnvironment,
                 usePlaylistForMultiDisc: emulator?.UsePlaylistForMultiDisc == true,
                 recordStatistics: recordStatistics);
+
+            if (!launchResult.IsStarted)
+            {
+                Debug.WriteLine($"[Launch] Failed to start '{item.Title}': {launchResult.ErrorMessage}");
+                if (CurrentWindow is { } owner)
+                {
+                    var format = T(
+                        "Launch.FailedFormat",
+                        "\"{0}\" could not be started.\n\n{1}\n\nPlease check the launch file, emulator/runner, wrapper, and permissions.");
+                    await ShowInfoDialog(owner, string.Format(format, item.Title, launchResult.ErrorMessage));
+                }
+            }
+            else if (launchResult.MissingWatchedProcessName is { } missingProcessName)
+            {
+                Debug.WriteLine(
+                    $"[Launch] Expected process '{missingProcessName}' did not appear after starting '{item.Title}'.");
+                if (CurrentWindow is { } owner)
+                {
+                    var format = T(
+                        "Launch.WatchedProcessNotFoundFormat",
+                        "The launcher for \"{0}\" was started, but the expected process \"{1}\" did not appear.\n\nThe game may not have started, or the configured process name may be incorrect.");
+                    var message = AppendLaunchConsoleOutput(
+                        string.Format(format, item.Title, missingProcessName),
+                        launchResult.ConsoleOutput);
+                    await ShowInfoDialog(owner, message);
+                }
+            }
+            else if (launchResult.Outcome == LaunchOutcome.ExitedEarly && launchResult.ExitCode is { } exitCode)
+            {
+                Debug.WriteLine($"[Launch] '{item.Title}' exited early with code {exitCode}.");
+                if (CurrentWindow is { } owner)
+                {
+                    var format = T(
+                        "Launch.ExitedEarlyFormat",
+                        "\"{0}\" ended shortly after launch with exit code {1}.\n\nThe program may not have started correctly.");
+                    var message = AppendLaunchConsoleOutput(
+                        string.Format(format, item.Title, exitCode),
+                        launchResult.ConsoleOutput);
+                    await ShowInfoDialog(owner, message);
+                }
+            }
 
             // Resume background music after game exit (if applicable)
             if (SelectedNodeContent is MediaAreaViewModel vm &&
@@ -1072,6 +1113,15 @@ public partial class MainWindowViewModel
         {
             IsLaunchInProgress = false;
         }
+    }
+
+    private static string AppendLaunchConsoleOutput(string message, string? consoleOutput)
+    {
+        if (string.IsNullOrWhiteSpace(consoleOutput))
+            return message;
+
+        var header = T("Launch.ConsoleOutputHeader", "Console output:");
+        return $"{message}{Environment.NewLine}{Environment.NewLine}{header}{Environment.NewLine}{consoleOutput}";
     }
 
     private async Task ReinstallGogMediaAsync(MediaItem? item)

@@ -794,4 +794,22 @@ Existing library files will not be overwritten. Close Retromind and check retrom
     <data name="Persistence.ExitWithoutSavingConfirm" xml:space="preserve">
         <value>Retromind could not save all changes. Exit anyway and risk losing unsaved changes?</value>
     </data>
+    <data name="Launch.FailedFormat" xml:space="preserve">
+        <value>"{0}" could not be started.
+
+{1}
+
+Please check the launch file, emulator/runner, wrapper, and permissions.</value>
+    </data>
+    <data name="Launch.WatchedProcessNotFoundFormat" xml:space="preserve">
+        <value>The launcher for "{0}" was started, but the expected process "{1}" did not appear.
+
+The game may not have started, or the configured process name may be incorrect.</value>
+    </data>
+    <data name="Launch.ExitedEarlyFormat" xml:space="preserve">
+        <value>"{0}" ended shortly after launch with exit code {1}.
+
+The program may not have started correctly.</value>
+    </data>
+    <data name="Launch.ConsoleOutputHeader" xml:space="preserve"><value>Console output:</value></data>
 </root>
