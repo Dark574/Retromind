@@ -70,6 +70,7 @@ not in `DataRoot`.
 - atomic write strategy: temp -> backup -> replace
 - IO is serialized with `SemaphoreSlim`
 - `LibraryChangeTracker` owns versioned dirty tracking and debounced saves
+- complete library-save pipelines are serialized so snapshot serialization cannot reorder writes
 - bound collections are snapshotted on the UI thread and serialized in the background
 - dirty state is cleared only after a successful write; save failures remain dirty and are surfaced to the user
 - a valid empty primary library is authoritative; the backup is used only when the primary file is missing,

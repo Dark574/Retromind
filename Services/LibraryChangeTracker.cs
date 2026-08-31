@@ -36,6 +36,7 @@ public class LibraryChangeTracker
     // Debounced save
     private CancellationTokenSource? _saveCts;
     private readonly TimeSpan _saveDebounce = TimeSpan.FromMilliseconds(800);
+    private readonly LibrarySaveSequencer _saveSequencer = new();
     
     private static readonly HashSet<string> DirtyTrackedItemProperties = new(StringComparer.Ordinal)
     {
@@ -161,13 +162,18 @@ public class LibraryChangeTracker
         }, token);
     }
     
-    public async Task SaveIfDirtyAsync(bool force, int? expectedVersion = null)
+    public Task SaveIfDirtyAsync(bool force, int? expectedVersion = null)
+        => _saveSequencer.RunAsync(() => SaveIfDirtyCoreAsync(force, expectedVersion));
+
+    private async Task SaveIfDirtyCoreAsync(bool force, int? expectedVersion)
     {
+        // Re-check after waiting: a newer queued save may already have persisted
+        // this version, or this expected version may have become obsolete.
         if (!force && !_isLibraryDirty) return;
         if (expectedVersion.HasValue && expectedVersion.Value != _libraryDirtyVersion) return;
-        
+
         var saveVersion = expectedVersion ?? _libraryDirtyVersion;
-        
+
         try
         {
             // 1. Migration (e.g. portable paths)
@@ -182,12 +188,12 @@ public class LibraryChangeTracker
             {
                 return _trackedRoots != null ? _dataService.CreateSnapshot(_trackedRoots) : null;
             }).ConfigureAwait(false);
-            
+
             if (snapshot == null) return;
-            
+
             var json = await Task.Run(() => _dataService.Serialize(snapshot)).ConfigureAwait(false);
             await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
-            
+
             if (_libraryDirtyVersion == saveVersion)
                 _isLibraryDirty = false;
 

@@ -1152,13 +1152,12 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             int migrated = 0;
-            ObservableCollection<MediaNode>? snapshot = null;
 
             await UiThreadHelper.InvokeAsync(() =>
             {
                 migrated = LibraryMigrationHelper.MigrateLaunchFilePathsToLibraryRelative(RootItems);
                 if (migrated > 0)
-                    snapshot = _dataService.CreateSnapshot(RootItems);
+                    _libraryTracker.MarkDirty();
             });
 
             if (migrated <= 0)
@@ -1168,8 +1167,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             Console.WriteLine($"[Migration] Converted {migrated} launch file paths to LibraryRelative.");
-            var json = await Task.Run(() => _dataService.Serialize(snapshot!)).ConfigureAwait(false);
-            await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
+            await _libraryTracker.SaveIfDirtyAsync(force: false).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
