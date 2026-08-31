@@ -127,10 +127,15 @@ public class MediaDataService
     /// Loads the library from disk. 
     /// Attempts to load the main file first, then falls back to the backup if corruption is detected.
     /// </summary>
-    /// <returns>The media tree or a new default tree if nothing exists.</returns>
+    /// <returns>The media tree, or a new empty tree when no persisted library exists yet.</returns>
+    /// <exception cref="LibraryLoadException">
+    /// Thrown when persisted library data exists but neither the primary file nor its backup can be loaded.
+    /// </exception>
     public async Task<ObservableCollection<MediaNode>> LoadAsync()
     {
         await _ioGate.WaitAsync().ConfigureAwait(false);
+        Exception? primaryError = null;
+        Exception? backupError = null;
         try
         {
             Directory.CreateDirectory(AppPaths.DataRoot);
@@ -147,17 +152,18 @@ public class MediaDataService
             }
 
             ObservableCollection<MediaNode>? result = null;
+            var mainFileExists = PathEntryExists(FilePath);
 
             // 1. Try loading the main file
-            if (File.Exists(FilePath))
+            if (mainFileExists)
             {
                 try
                 {
-                    using var stream = File.OpenRead(FilePath);
-                    result = await JsonSerializer.DeserializeAsync<ObservableCollection<MediaNode>>(stream).ConfigureAwait(false);
+                    result = await LoadFromFileAsync(FilePath).ConfigureAwait(false);
                 }
                 catch (JsonException ex)
                 {
+                    primaryError = ex;
                     Console.Error.WriteLine($"[MediaDataService] CRITICAL: Main DB corrupt: {ex.Message}");
 
                     // Quarantine the corrupt file for manual inspection
@@ -173,22 +179,49 @@ public class MediaDataService
                 }
                 catch (Exception ex)
                 {
+                    primaryError = ex;
                     Console.Error.WriteLine($"[MediaDataService] General Load Error: {ex.Message}");
                 }
             }
 
+            if (result != null)
+                return result;
+
             // 2. If main file failed or didn't exist, try backup
-            if (result == null)
+            var backupFileExists = PathEntryExists(BackupPath);
+            if (backupFileExists)
             {
-                if (File.Exists(BackupPath))
+                Console.WriteLine("[MediaDataService] Attempting to restore from backup...");
+                try
                 {
-                    Console.WriteLine("[MediaDataService] Attempting to restore from backup...");
                     result = await LoadFromFileAsync(BackupPath).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    backupError = ex;
+                    Console.Error.WriteLine($"[MediaDataService] Failed to load backup: {ex.Message}");
                 }
             }
 
-            // 3. If everything failed, return a fresh tree
-            return result ?? new ObservableCollection<MediaNode>();
+            if (result != null)
+                return result;
+
+            // No files means a legitimate first start. Existing but unreadable or
+            // invalid files must never be treated as an authoritative empty library.
+            if (!mainFileExists && !backupFileExists)
+                return new ObservableCollection<MediaNode>();
+
+            throw new LibraryLoadException(primaryError, backupError);
+        }
+        catch (LibraryLoadException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new LibraryLoadException(
+                primaryError ?? ex,
+                primaryError != null ? backupError ?? ex : backupError);
         }
         finally
         {
@@ -196,17 +229,28 @@ public class MediaDataService
         }
     }
 
-    private async Task<ObservableCollection<MediaNode>?> LoadFromFileAsync(string path)
+    private static async Task<ObservableCollection<MediaNode>> LoadFromFileAsync(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return await JsonSerializer.DeserializeAsync<ObservableCollection<MediaNode>>(stream)
+                   .ConfigureAwait(false)
+               ?? throw new JsonException($"Library file '{path}' contains null instead of a media tree.");
+    }
+
+    private static bool PathEntryExists(string path)
     {
         try
         {
-            using var stream = File.OpenRead(path);
-            return await JsonSerializer.DeserializeAsync<ObservableCollection<MediaNode>>(stream);
+            _ = File.GetAttributes(path);
+            return true;
         }
-        catch (Exception ex)
+        catch (FileNotFoundException)
         {
-            Console.Error.WriteLine($"[MediaDataService] Failed to load from {path}: {ex.Message}");
-            return null;
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
         }
     }
 

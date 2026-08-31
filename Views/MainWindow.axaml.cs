@@ -121,6 +121,21 @@ public partial class MainWindow : Window
         Opacity = 1;
     }
 
+    internal void ShowDesktopAfterBigModeStartupFailure()
+    {
+        // Direct BigMode startup normally reveals the native Wayland window only
+        // after fullscreen is confirmed. If loading prevents BigMode entry, switch
+        // the expected state to the normal desktop state and reveal immediately.
+        if (_waylandStartupRevealState != null)
+            _waylandStartupRevealState = WindowState.Maximized;
+
+        if (WindowState != WindowState.Maximized)
+            WindowState = WindowState.Maximized;
+
+        if (_waylandStartupRevealState == WindowState.Maximized)
+            QueueWaylandStartupReveal();
+    }
+
     // Override the method that is called when the window is closing.
     protected override async void OnClosing(WindowClosingEventArgs e)
     {

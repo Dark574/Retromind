@@ -24,6 +24,7 @@ This document summarizes how Retromind is structured today and where core behavi
   - bootstraps settings first
   - builds final DI container
   - creates `MainWindow` and triggers async `MainWindowViewModel.LoadData()`
+  - falls back to the visible maximized desktop when direct BigMode startup cannot continue after a library-load failure
   - suppresses native Wayland server-side decoration negotiation before the first surface is created,
     then keeps the startup surface transparent until the compositor confirms the requested
     maximized/fullscreen state; together these prevent a brief decorated normal-window flash
@@ -75,6 +76,8 @@ not in `DataRoot`.
 - dirty state is cleared only after a successful write; save failures remain dirty and are surfaced to the user
 - a valid empty primary library is authoritative; the backup is used only when the primary file is missing,
   unreadable, or invalid
+- if persisted library files exist but neither primary nor backup can be loaded, startup keeps the library
+  untracked and read-only so shutdown cannot replace the failed data with an empty library
 
 ### Settings (`app_settings.json`)
 - service: `SettingsService`

@@ -73,7 +73,13 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowLibraryLoadingHint))]
     [NotifyPropertyChangedFor(nameof(ShowEmptyLibraryHint))]
+    [NotifyPropertyChangedFor(nameof(ShowLibraryLoadError))]
     private bool _isLibraryLoading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyLibraryHint))]
+    [NotifyPropertyChangedFor(nameof(ShowLibraryLoadError))]
+    private string? _libraryLoadErrorMessage;
 
     // Holds the currently loaded theme view. If null, standard desktop mode is shown.
     [ObservableProperty]
@@ -108,6 +114,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private int _settingsDirtyVersion;
     private int _persistenceErrorNoticeShown;
     private int _suppressPersistenceErrorNotice;
+    private bool _libraryLoadFailed;
 
     private readonly TaskCompletionSource<bool> _loadDataTcs =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -195,10 +202,16 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     public bool ShowLibraryLoadingHint => IsLibraryLoading && SelectedNodeContent is null;
+    public bool ShowLibraryLoadError =>
+        !IsLibraryLoading && !string.IsNullOrWhiteSpace(LibraryLoadErrorMessage);
 
     // Empty-library hint should only be shown for truly empty libraries,
     // not while startup loading is still building the first content.
-    public bool ShowEmptyLibraryHint => !IsLibraryLoading && SelectedNodeContent is null && RootItems.Count == 0;
+    public bool ShowEmptyLibraryHint =>
+        !IsLibraryLoading &&
+        !ShowLibraryLoadError &&
+        SelectedNodeContent is null &&
+        RootItems.Count == 0;
     public bool ShowLibraryGameCountSummary => TotalLibraryGameCount > 0;
     public int CurrentShownGameCount => _currentShownGameCount;
     public int TotalLibraryGameCount => _totalLibraryGameCount;
@@ -467,6 +480,15 @@ public partial class MainWindowViewModel : ViewModelBase
             // Heavy startup maintenance runs in the background after first content is visible.
             _ = RunDeferredStartupWarmupAsync();
         }
+        catch (LibraryLoadException ex)
+        {
+            _libraryLoadFailed = true;
+            LibraryLoadErrorMessage = T(
+                "Persistence.LoadFailed",
+                "Retromind could not load the media library. The primary file and its backup are unreadable or invalid. Existing library files will not be overwritten. Close Retromind and check retromind_tree.json, its backup, and file permissions.");
+            NotifyNodeCommandsCanExecuteChanged();
+            Debug.WriteLine($"[ViewModel] Library load failed: {ex}");
+        }
         catch (Exception ex)
         {
             Debug.WriteLine($"[ViewModel] LoadData Error: {ex}");
@@ -683,7 +705,8 @@ public partial class MainWindowViewModel : ViewModelBase
             // SaveData is a “strong” save: when someone calls it explicitly,
             // we persist the library (if dirty) + settings (immediately).
             // Serialization happens on the UI thread to avoid cross-thread collection access.
-            await _libraryTracker.SaveIfDirtyAsync(force: false).ConfigureAwait(false);
+            if (!_libraryLoadFailed)
+                await _libraryTracker.SaveIfDirtyAsync(force: false).ConfigureAwait(false);
 
             var saveVersion = Volatile.Read(ref _settingsDirtyVersion);
             var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
@@ -854,7 +877,8 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             // 1. Save FIRST (while tracking is still active)
-            await _libraryTracker.SaveIfDirtyAsync(force: true).ConfigureAwait(false);
+            if (!_libraryLoadFailed)
+                await _libraryTracker.SaveIfDirtyAsync(force: true).ConfigureAwait(false);
             
             // Serialize on UI thread to avoid cross-thread collection access.
             var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))

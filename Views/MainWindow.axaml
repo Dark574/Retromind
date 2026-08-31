@@ -334,6 +334,20 @@
                                       FontSize="16"
                                       FontStyle="Italic"
                                       IsVisible="{Binding ShowEmptyLibraryHint}" />
+                           <Border MaxWidth="560"
+                                   Margin="24"
+                                   Padding="20"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"
+                                   Background="{Binding PanelBackground}"
+                                   CornerRadius="8"
+                                   IsVisible="{Binding ShowLibraryLoadError}">
+                               <TextBlock Text="{Binding LibraryLoadErrorMessage}"
+                                          Foreground="{Binding TextColor}"
+                                          FontSize="16"
+                                          TextAlignment="Center"
+                                          TextWrapping="Wrap" />
+                           </Border>
                            <ContentControl Content="{Binding SelectedNodeContent}"
                                            IsVisible="{Binding SelectedNodeContent, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
                        </Grid>

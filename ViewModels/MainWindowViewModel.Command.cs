@@ -89,7 +89,7 @@ public partial class MainWindowViewModel
         // Replaced RelayCommand with AsyncRelayCommand to handle Tasks properly
         // and avoid "async void" pitfalls
         
-        AddCategoryCommand = new AsyncRelayCommand<MediaNode?>(AddCategoryAsync);
+        AddCategoryCommand = new AsyncRelayCommand<MediaNode?>(AddCategoryAsync, _ => !_libraryLoadFailed);
         AddMediaCommand = new AsyncRelayCommand<MediaNode?>(AddMediaAsync, CanOperateOnNode);
         AddEmptyMediaCommand = new AsyncRelayCommand<MediaNode?>(AddEmptyMediaAsync, CanOperateOnNode);
         AddGogMediaCommand = new AsyncRelayCommand<MediaNode?>(AddGogMediaAsync, CanOperateOnNode);
@@ -130,7 +130,7 @@ public partial class MainWindowViewModel
         SaveSearchTermCommand = new RelayCommand<string?>(SaveSearchTerm);
         RemoveSavedSearchTermCommand = new RelayCommand<string?>(RemoveSavedSearchTerm);
         
-        EnterBigModeCommand = new RelayCommand(EnterBigMode);
+        EnterBigModeCommand = new RelayCommand(EnterBigMode, () => !_libraryLoadFailed);
         
         AddManualToMediaCommand = new AsyncRelayCommand<MediaItem?>(AddManualToMediaAsync);
     }
@@ -395,6 +395,9 @@ public partial class MainWindowViewModel
 
     private void EnterBigModeCore()
     {
+        if (_libraryLoadFailed)
+            return;
+
         Debug.WriteLine("[CoreApp] EnterBigMode starting.");
 
         // Stop music immediately to avoid overlap and to keep the UI responsive.
@@ -704,6 +707,8 @@ public partial class MainWindowViewModel
 
     private void NotifyNodeCommandsCanExecuteChanged()
     {
+        AddCategoryCommand.NotifyCanExecuteChanged();
+        EnterBigModeCommand.NotifyCanExecuteChanged();
         AddMediaCommand.NotifyCanExecuteChanged();
         AddEmptyMediaCommand.NotifyCanExecuteChanged();
         AddGogMediaCommand.NotifyCanExecuteChanged();

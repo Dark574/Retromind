@@ -788,6 +788,11 @@ zelda AND platform:switch</value></data>
 
 Ungespeicherte Änderungen bleiben im Arbeitsspeicher erhalten. Bitte prüfe den freien Speicherplatz und die Schreibrechte.</value>
     </data>
+    <data name="Persistence.LoadFailed" xml:space="preserve">
+        <value>Retromind konnte die Medienbibliothek nicht laden. Die Primärdatei und das Backup sind nicht lesbar oder ungültig.
+
+Die vorhandenen Bibliotheksdateien werden nicht überschrieben. Beende Retromind und prüfe retromind_tree.json, das Backup und die Dateiberechtigungen.</value>
+    </data>
     <data name="Persistence.ExitWithoutSavingConfirm" xml:space="preserve">
         <value>Retromind konnte nicht alle Änderungen speichern. Trotzdem beenden und den Verlust ungespeicherter Änderungen riskieren?</value>
     </data>

@@ -109,6 +109,8 @@ public partial class App : Application
 
                         if (mainViewModel.EnterBigModeCommand.CanExecute(null))
                             mainViewModel.EnterBigModeCommand.Execute(null);
+                        else
+                            mainWindow.ShowDesktopAfterBigModeStartupFailure();
                     };
                 }
 

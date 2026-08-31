@@ -786,6 +786,11 @@ zelda AND platform:switch</value></data>
 
 Unsaved changes remain in memory. Please check free disk space and write permissions.</value>
     </data>
+    <data name="Persistence.LoadFailed" xml:space="preserve">
+        <value>Retromind could not load the media library. The primary file and its backup are unreadable or invalid.
+
+Existing library files will not be overwritten. Close Retromind and check retromind_tree.json, its backup, and file permissions.</value>
+    </data>
     <data name="Persistence.ExitWithoutSavingConfirm" xml:space="preserve">
         <value>Retromind could not save all changes. Exit anyway and risk losing unsaved changes?</value>
     </data>
