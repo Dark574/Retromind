@@ -6,7 +6,10 @@
         x:DataType="vm:BulkScrapeViewModel"
         Title="{x:Static p:Strings.Metadata_ScrapeArea}"
         Width="600" Height="400"
-        WindowStartupLocation="CenterOwner">
+        MinWidth="480" MinHeight="320"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        CanMaximize="False">
     
     <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="20">
         

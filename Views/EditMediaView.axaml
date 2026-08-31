@@ -9,9 +9,11 @@
         x:DataType="vm:EditMediaViewModel"
         Title="{x:Static p:Strings.Dialog_EditMedia}"
         Width="800" Height="850"
+        MinWidth="700" MinHeight="600"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        CanResize="False">
+        CanResize="True"
+        CanMaximize="False">
 
     <Window.Resources>
         <!-- Converters for asset visualization -->
