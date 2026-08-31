@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - drag & drop for items is now possible
 - option to test launch items (without game time played counter)
 - statistics for Library
+- new system theme for Playstation 1
 
 ### Changed
 - updated Avalonia to 12.1.1 and Avalonia WebView to 12.1.0

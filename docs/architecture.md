@@ -136,7 +136,7 @@ BigMode is an overlay workflow with clear host/VM split:
 - shared video control attachment to theme-defined slots
 - system-host mode with per-system subtheme loading (`Themes/System/<id>/theme.axaml`)
 - subtheme cache with LRU
-- shipped system themes currently include Default, C64, Amiga, PC, and SNES variants
+- shipped system themes currently include Default, C64, Amiga, PC, SNES, and PS1 variants
 - theme guardrails/tuning for list behavior and selection visuals
 - global cursor idle hide/show behavior (mouse-only)
 
