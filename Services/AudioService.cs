@@ -14,6 +14,7 @@ namespace Retromind.Services;
 public class AudioService
 {
     private const string PlayerExecutable = "ffplay";
+    private const int SidPlaybackDurationSeconds = 3 * 60;
     
     // Default volume (0-100). ffplay accepts values > 100 for amplification, but we stick to standard range.
     private const int DefaultVolume = 70;
@@ -96,6 +97,13 @@ public class AudioService
 
                         // Quiet mode (-q) to minimize console/log noise
                         startInfo.ArgumentList.Add("-q");
+
+                        // SID tunes do not carry a reliable duration and may keep the
+                        // player process alive after becoming silent. Limit playback to
+                        // the preset subtune so the normal track-ended flow can restart
+                        // this file or advance to another music asset.
+                        startInfo.ArgumentList.Add("-os");
+                        startInfo.ArgumentList.Add($"-t{SidPlaybackDurationSeconds}");
                         
                         // SID file path
                         startInfo.ArgumentList.Add(filePath);
