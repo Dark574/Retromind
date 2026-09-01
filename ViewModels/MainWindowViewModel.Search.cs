@@ -271,23 +271,8 @@ public partial class MainWindowViewModel
         OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
         OnPropertyChanged(nameof(ResolvedDisplayNode));
 
-        if (!_currentSettings.EnableSelectionMusicPreview)
-        {
-            _audioService.StopMusic();
-            return;
-        }
-
-        var musicAsset = item?.GetPrimaryAssetPath(AssetType.Music);
-        if (!string.IsNullOrEmpty(musicAsset))
-        {
-            var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(musicAsset);
-            if (!string.IsNullOrWhiteSpace(fullPath))
-                _ = _audioService.PlayMusicAsync(fullPath);
-            else
-                _audioService.StopMusic();
-        }
-        else
-            _audioService.StopMusic();
+        var contextNode = item == null ? null : FindParentNode(RootItems, item);
+        _ = PlaySelectionMusicAsync(item, contextNode);
     }
 
     private void OnSearchAreaResultsChanged(object? sender, NotifyCollectionChangedEventArgs e)

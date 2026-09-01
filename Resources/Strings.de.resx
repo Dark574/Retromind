@@ -716,8 +716,8 @@ zelda AND platform:switch</value></data>
     <data name="Settings.ConvertExistingLaunchPaths" xml:space="preserve"><value>Startpfade konvertieren</value></data>
     <data name="Settings.DefaultArguments" xml:space="preserve"><value>Standardargumente</value></data>
     <data name="Settings.ExecutablePath" xml:space="preserve"><value>Ausführungsdatei-Pfad</value></data>
-    <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Zufällige Musik abspielen</value></data>
-    <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>Wenn aktiviert, spielt die Auswahl im Hauptgrid automatisch die Musik (falls vorhanden).</value></data>
+    <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Musik bei Auswahl abspielen</value></data>
+    <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>Spielt in der Hauptansicht automatisch die Musik des ausgewählten Mediums ab, falls vorhanden.</value></data>
     <data name="Settings.PortableHome" xml:space="preserve"><value>Portables HOME/XDG für AppImage verwenden</value></data>
     <data name="Settings.PortableHome.Hint" xml:space="preserve"><value>Leitet HOME/XDG für den Retromind-AppImage-Prozess in einen lokalen Home/-Ordner um (Neustart erforderlich). Externe Starts nutzen standardmäßig Host-HOME/XDG; für portable Child-Prozesse bitte Emulator-/Eintrag-Overrides setzen.</value></data>
     <data name="Settings.PortableHome.WarningForceConfirm" xml:space="preserve"><value>Portables HOME/XDG im erzwungenen Modus aktivieren? Das gilt für den Retromind-AppImage-Prozess und kann Integrationen beeinflussen. Externe Starts bleiben standardmäßig bei Host-HOME/XDG, außer wenn pro Emulator/Eintrag überschrieben. Ein Neustart ist erforderlich.</value></data>

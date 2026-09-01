@@ -1013,27 +1013,61 @@ public partial class MainWindowViewModel : ViewModelBase
     private void OnMusicPlaybackEnded(string filePath)
     {
         // Process exit happens on a background thread. Marshal to UI thread before touching VM state.
-        UiThreadHelper.Post(() => _ = RestartSelectionMusicAsync());
+        UiThreadHelper.Post(() => _ = RestartSelectionMusicAsync(filePath));
     }
 
-    private async Task RestartSelectionMusicAsync()
+    private async Task RestartSelectionMusicAsync(string endedFilePath)
     {
         if (!_currentSettings.EnableSelectionMusicPreview)
             return;
 
-        var mediaVm = _currentMediaAreaVm;
-        var item = mediaVm?.SelectedMediaItem;
-
-        if (mediaVm == null || item == null)
+        var item = GetCurrentSelectedItem();
+        var contextNode = GetSelectionMusicContextNode(item);
+        if (item == null || contextNode == null)
             return;
 
-        var musicPath = ResolveSelectionMusicPath(mediaVm, item);
-        if (string.IsNullOrWhiteSpace(musicPath))
+        // Ignore a delayed exit notification if the user selected another item
+        // before it reached the UI thread.
+        var activeMusicPath = item.GetPrimaryAssetPath(AssetType.Music);
+        var activeFullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(activeMusicPath);
+        var pathComparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (string.IsNullOrWhiteSpace(activeFullPath) ||
+            !string.Equals(activeFullPath, endedFilePath, pathComparison))
+        {
+            return;
+        }
+
+        await PlaySelectionMusicAsync(item, contextNode);
+    }
+
+    private MediaNode? GetSelectionMusicContextNode(MediaItem? item)
+    {
+        if (item == null)
+            return null;
+
+        if (_currentMediaAreaVm?.SelectedMediaItem == item)
+            return _currentMediaAreaVm.Node;
+
+        if (_currentSearchAreaVm?.SelectedMediaItem == item)
+            return FindParentNode(RootItems, item);
+
+        return null;
+    }
+
+    private async Task PlaySelectionMusicAsync(MediaItem? item, MediaNode? contextNode)
+    {
+        if (FullScreenContent != null ||
+            !_currentSettings.EnableSelectionMusicPreview ||
+            item == null ||
+            contextNode == null)
         {
             _audioService.StopMusic();
             return;
         }
 
+        var musicPath = ResolveSelectionMusicPath(contextNode, item);
         var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(musicPath);
         if (string.IsNullOrWhiteSpace(fullPath))
         {
@@ -1093,30 +1127,17 @@ public partial class MainWindowViewModel : ViewModelBase
             OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
             OnPropertyChanged(nameof(ResolvedDisplayNode));
 
-            // Respect user preference for automatic selection-based music preview
-            if (item != null && _currentSettings.EnableSelectionMusicPreview)
-            {
-                var musicPath = ResolveSelectionMusicPath(mediaVm, item);
-                if (!string.IsNullOrEmpty(musicPath))
-                {
-                    var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(musicPath);
-                    if (!string.IsNullOrWhiteSpace(fullPath))
-                    {
-                        _ = _audioService.PlayMusicAsync(fullPath);
-                        return;
-                    }
-                }
-            }
-
-            // Either no item, no music asset, or preview disabled -> ensure music is stopped
-            _audioService.StopMusic();
+            _ = PlaySelectionMusicAsync(item, mediaVm.Node);
         }
     }
 
-    private string? ResolveSelectionMusicPath(MediaAreaViewModel mediaVm, MediaItem item)
+    private string? ResolveSelectionMusicPath(MediaNode contextNode, MediaItem item)
     {
-        if (!IsRandomizeMusicActive(mediaVm.Node))
+        if (!IsRandomizeMusicActive(contextNode))
+        {
+            item.ClearActiveAsset(AssetType.Music);
             return item.GetPrimaryAssetPath(AssetType.Music);
+        }
 
         var musicAssets = item.Assets
             .Where(a => a.Type == AssetType.Music && !string.IsNullOrWhiteSpace(a.RelativePath))

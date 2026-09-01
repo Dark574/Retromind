@@ -1082,21 +1082,11 @@ public partial class MainWindowViewModel
                 }
             }
 
-            // Resume background music after game exit (if applicable)
-            if (SelectedNodeContent is MediaAreaViewModel vm &&
-                vm.SelectedMediaItem == item)
+            // Resume selection music after game exit in either desktop content view.
+            if (ReferenceEquals(GetCurrentSelectedItem(), item))
             {
-                if (!_currentSettings.EnableSelectionMusicPreview)
-                    return;
-
-                var relativeMusicPath = item.GetPrimaryAssetPath(AssetType.Music);
-
-                if (!string.IsNullOrEmpty(relativeMusicPath))
-                {
-                    var musicPath = AppPaths.ResolveDataPathInsideRootOrEmpty(relativeMusicPath);
-                    if (!string.IsNullOrWhiteSpace(musicPath))
-                        _ = _audioService.PlayMusicAsync(musicPath);
-                }
+                var contextNode = GetSelectionMusicContextNode(item);
+                await PlaySelectionMusicAsync(item, contextNode);
             }
 
             if (recordStatistics)

@@ -714,8 +714,8 @@ zelda AND platform:switch</value></data>
     <data name="Settings.ConvertExistingLaunchPaths" xml:space="preserve"><value>Convert existing launch paths</value></data>
     <data name="Settings.DefaultArguments" xml:space="preserve"><value>Default Arguments</value></data>
     <data name="Settings.ExecutablePath" xml:space="preserve"><value>Executable Path</value></data>
-    <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Play random music</value></data>
-    <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>When enabled, selecting an item in the main grid automatically plays its music asset (if available).</value></data>
+    <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Play music on selection</value></data>
+    <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>Automatically plays the selected item's music in the main view, when available.</value></data>
     <data name="Settings.PortableHome" xml:space="preserve"><value>Use portable HOME/XDG for AppImage</value></data>
     <data name="Settings.PortableHome.Hint" xml:space="preserve"><value>Redirects HOME/XDG for the Retromind AppImage process to a local Home/ folder (requires restart). External launches use host HOME/XDG by default; use emulator/item overrides for portable child processes.</value></data>
     <data name="Settings.PortableHome.WarningForceConfirm" xml:space="preserve"><value>Enable portable HOME/XDG in forced mode? This applies to the Retromind AppImage process and can change integration behavior. External launches still default to host HOME/XDG unless overridden per emulator/item. A restart is required.</value></data>
