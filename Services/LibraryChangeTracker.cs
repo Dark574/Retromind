@@ -351,7 +351,7 @@ public class LibraryChangeTracker
             _onItemProtectionChanged?.Invoke(item);
         }
 
-        // Forward to VM for asset path updates (only if not protection)
+        // Forward other item changes to the UI coordinator.
         if (!isProtectionProperty)
             _onItemPropertyChanged?.Invoke(sender, e);
     }

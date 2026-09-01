@@ -165,7 +165,7 @@ public partial class MainWindowViewModel
         _audioService.StopMusic();
         _libraryTracker.MarkDirty();
         await SaveData();
-        UpdateContent();
+        RefreshContentAfterMediaCollectionChange();
         return true;
     }
 

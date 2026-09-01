@@ -1296,9 +1296,12 @@ public partial class MainWindowViewModel
         {
             if (!await ShowConfirmDialog(owner, Strings.Dialog_MsgConfirmDelete)) return;
 
-            if (item == (SelectedNodeContent as MediaAreaViewModel)?.SelectedMediaItem) 
+            if (ReferenceEquals(item, GetCurrentSelectedItem()))
             {
-                _audioService.StopMusic();
+                if (_currentSearchAreaVm is { } searchVm)
+                    searchVm.SelectedMediaItem = null;
+                else
+                    _audioService.StopMusic();
             }
             
             var parentNode = FindParentNode(RootItems, item);
@@ -1309,7 +1312,7 @@ public partial class MainWindowViewModel
                 _libraryTracker.MarkDirty();
                 await SaveData();
                 
-                UpdateContent();
+                RefreshContentAfterMediaCollectionChange();
             }
         }
         catch (Exception ex)

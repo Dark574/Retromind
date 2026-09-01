@@ -347,7 +347,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _audioService.MusicPlaybackEnded += OnMusicPlaybackEnded;
         _libraryTracker = new LibraryChangeTracker(
             _dataService,
-            OnItemPropertyChangedForAssets,
+            OnTrackedItemPropertyChanged,
             onStructureChanged: () =>
             {
                 RefreshTreeVisibility();
@@ -584,15 +584,23 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>
     /// Called by LibraryChangeTracker when item properties change.
-    /// Only handles asset path notifications here.
+    /// Keeps active presentation and filtering state in sync.
     /// </summary>
-    private void OnItemPropertyChangedForAssets(object? sender, PropertyChangedEventArgs e)
+    private void OnTrackedItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         var item = sender as MediaItem;
         if (item == null) return;
     
         if (string.IsNullOrWhiteSpace(e.PropertyName))
             return;
+
+        if (e.PropertyName == nameof(MediaItem.IsFavorite))
+        {
+            if (UiThreadHelper.CheckAccess())
+                _currentSearchAreaVm?.RefreshResults();
+            else
+                UiThreadHelper.Post(() => _currentSearchAreaVm?.RefreshResults());
+        }
     
         var isAssetProperty = e.PropertyName switch
         {
@@ -1200,6 +1208,17 @@ public partial class MainWindowViewModel : ViewModelBase
     }
     
     // --- Content Logic (The heart of the UI) ---
+    private void RefreshContentAfterMediaCollectionChange()
+    {
+        if (_currentSearchAreaVm is { } searchVm)
+        {
+            searchVm.RefreshResults();
+            return;
+        }
+
+        UpdateContent();
+    }
+
     private void UpdateContent()
     {
         _audioService.StopMusic();
