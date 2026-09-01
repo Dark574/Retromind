@@ -7,7 +7,10 @@
         x:DataType="vm:SettingsViewModel"
         Title="{x:Static p:Strings.Settings_Title}"
         Width="750" Height="550"
-        WindowStartupLocation="CenterOwner">
+        MinWidth="650" MinHeight="450"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        CanMaximize="False">
 
     <Grid RowDefinitions="*, Auto" Margin="20">
         

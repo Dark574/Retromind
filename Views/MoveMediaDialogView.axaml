@@ -8,7 +8,9 @@
         Height="620"
         MinWidth="420"
         MinHeight="420"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        CanMaximize="False">
 
     <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="20">
         <TextBlock Grid.Row="0"
