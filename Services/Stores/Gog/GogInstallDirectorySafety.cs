@@ -116,7 +116,7 @@ internal static class GogInstallDirectorySafety
             return false;
         }
 
-        if (!item.CustomFields.TryGetValue("Store.GameId", out var gameId) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var gameId) ||
             !string.Equals(marker.StoreGameId, gameId, StringComparison.Ordinal))
         {
             Debug.WriteLine($"[Warning] Install marker StoreGameId mismatch: expected '{gameId}', got '{marker.StoreGameId}'.");
@@ -137,7 +137,7 @@ internal static class GogInstallDirectorySafety
         if (string.IsNullOrWhiteSpace(installPath))
             throw new ArgumentException("Install path is required.", nameof(installPath));
 
-        if (!item.CustomFields.TryGetValue("Store.GameId", out var gameId) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var gameId) ||
             string.IsNullOrWhiteSpace(gameId))
         {
             throw new InvalidOperationException("The media item has no GOG game ID.");

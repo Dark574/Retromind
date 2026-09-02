@@ -20,10 +20,6 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
-    private const string StoreInstallPathField = GogInstallPathHelper.CustomFieldName;
-    private const string StoreInstallPlatformField = "Store.InstallPlatform";
-    private const string StoreInstallRunnerVersionIdField = "Store.InstallRunnerVersionId";
-    private const string StoreInstallWindowsInstallerPreferenceField = "Store.InstallWindowsInstallerPreference";
     private static readonly object InstallerLogFileWriteLock = new();
 
     private sealed record DetectedGogLaunchInfo(
@@ -367,19 +363,19 @@ public partial class MainWindowViewModel
                 return;
             }
 
-            item.CustomFields[StoreInstallPathField] = GogInstallPathHelper.ToStoredPath(
+            item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = GogInstallPathHelper.ToStoredPath(
                 launchInfo.InstallRoot,
                 _currentSettings.PreferPortableLaunchPaths);
-            item.CustomFields[StoreInstallPlatformField] = installRequest.Platform == GogInstallPlatform.Windows ? "windows" : "linux";
+            item.CustomFields[CustomFieldKeyHelper.StoreInstallPlatform] = installRequest.Platform == GogInstallPlatform.Windows ? "windows" : "linux";
             if (installRequest.Platform == GogInstallPlatform.Windows && installRequest.Runner != null)
             {
-                item.CustomFields[StoreInstallRunnerVersionIdField] = installRequest.Runner.Id;
-                item.CustomFields[StoreInstallWindowsInstallerPreferenceField] = ToInstallerPreferenceStorageValue(installRequest.WindowsInstallerPreference);
+                item.CustomFields[CustomFieldKeyHelper.StoreInstallRunnerVersionId] = installRequest.Runner.Id;
+                item.CustomFields[CustomFieldKeyHelper.StoreInstallWindowsInstallerPreference] = ToInstallerPreferenceStorageValue(installRequest.WindowsInstallerPreference);
             }
             else
             {
-                item.CustomFields.Remove(StoreInstallRunnerVersionIdField);
-                item.CustomFields.Remove(StoreInstallWindowsInstallerPreferenceField);
+                item.CustomFields.Remove(CustomFieldKeyHelper.StoreInstallRunnerVersionId);
+                item.CustomFields.Remove(CustomFieldKeyHelper.StoreInstallWindowsInstallerPreference);
             }
 
             try
@@ -635,7 +631,7 @@ public partial class MainWindowViewModel
 
     private string ResolveDefaultGogInstallPath(MediaItem item, string storeGameId)
     {
-        if (item.CustomFields.TryGetValue(StoreInstallPathField, out var savedPath) &&
+        if (item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var savedPath) &&
             GogInstallPathHelper.TryResolveStoredPath(savedPath, out var resolvedSavedPath))
         {
             return resolvedSavedPath;
@@ -650,7 +646,7 @@ public partial class MainWindowViewModel
 
     private static GogInstallPlatform? GetPreferredInstalledGogPlatform(MediaItem item)
     {
-        if (!item.CustomFields.TryGetValue(StoreInstallPlatformField, out var raw) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPlatform, out var raw) ||
             string.IsNullOrWhiteSpace(raw))
         {
             return null;
@@ -666,7 +662,7 @@ public partial class MainWindowViewModel
 
     private static string? GetPreferredInstalledGogRunnerVersionId(MediaItem item)
     {
-        if (!item.CustomFields.TryGetValue(StoreInstallRunnerVersionIdField, out var runnerId) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallRunnerVersionId, out var runnerId) ||
             string.IsNullOrWhiteSpace(runnerId))
         {
             return null;
@@ -677,7 +673,7 @@ public partial class MainWindowViewModel
 
     private static GogInstallDialogViewModel.WindowsInstallerPreference? GetPreferredInstalledWindowsInstallerPreference(MediaItem item)
     {
-        if (!item.CustomFields.TryGetValue(StoreInstallWindowsInstallerPreferenceField, out var raw) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallWindowsInstallerPreference, out var raw) ||
             string.IsNullOrWhiteSpace(raw))
         {
             return null;

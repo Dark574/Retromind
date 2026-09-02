@@ -11,8 +11,6 @@ namespace Retromind.Services.Stores.Gog;
 /// </summary>
 internal static class GogInstallPathHelper
 {
-    public const string CustomFieldName = "Store.InstallPath";
-
     public static string ToStoredPath(string installPath, bool preferPortablePath)
     {
         if (string.IsNullOrWhiteSpace(installPath))

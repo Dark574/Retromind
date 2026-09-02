@@ -43,7 +43,7 @@ public sealed class MediaDataServicePortabilityTests
                     }
                 }
             };
-            item.CustomFields[GogInstallPathHelper.CustomFieldName] =
+            item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] =
                 Path.Combine("Library", "Games", "Portable Game");
             var node = new MediaNode
             {
@@ -77,7 +77,7 @@ public sealed class MediaDataServicePortabilityTests
                 Path.GetFullPath(Path.Combine(AppPaths.LibraryRoot, loadedItem.PrefixPath!)));
             Assert.Equal(secondRoot.GetPath(relativeAssetPath), loadedAsset.AbsolutePath);
             Assert.True(GogInstallPathHelper.TryResolveStoredPath(
-                loadedItem.CustomFields[GogInstallPathHelper.CustomFieldName],
+                loadedItem.CustomFields[CustomFieldKeyHelper.StoreInstallPath],
                 out var resolvedInstallPath));
             Assert.Equal(secondRoot.GetPath("Library", "Games", "Portable Game"), resolvedInstallPath);
             Assert.Equal(

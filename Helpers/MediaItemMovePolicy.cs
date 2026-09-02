@@ -20,9 +20,6 @@ internal sealed record MediaItemMoveTargetAssessment(MediaItemMoveTargetStatus S
 
 internal static class MediaItemMovePolicy
 {
-    private const string StoreProviderIdField = "Store.ProviderId";
-    private const string StoreGameIdField = "Store.GameId";
-
     public static MediaItemMoveTargetAssessment Assess(
         MediaItem item,
         MediaNode sourceNode,
@@ -35,22 +32,22 @@ internal static class MediaItemMovePolicy
         if (string.IsNullOrWhiteSpace(targetProvider))
             return new MediaItemMoveTargetAssessment(MediaItemMoveTargetStatus.Allowed);
 
-        var itemProvider = GetStoreValue(item, StoreProviderIdField);
+        var itemProvider = GetStoreValue(item, CustomFieldKeyHelper.StoreProviderId);
         if (!string.Equals(itemProvider, targetProvider, StringComparison.OrdinalIgnoreCase))
             return new MediaItemMoveTargetAssessment(MediaItemMoveTargetStatus.StoreProviderMismatch);
 
-        var itemGameId = GetStoreValue(item, StoreGameIdField);
+        var itemGameId = GetStoreValue(item, CustomFieldKeyHelper.StoreGameId);
         if (string.IsNullOrWhiteSpace(itemGameId))
             return new MediaItemMoveTargetAssessment(MediaItemMoveTargetStatus.MissingStoreIdentity);
 
         var duplicateExists = targetNode.Items.Any(candidate =>
             !ReferenceEquals(candidate, item) &&
             string.Equals(
-                GetStoreValue(candidate, StoreProviderIdField),
+                GetStoreValue(candidate, CustomFieldKeyHelper.StoreProviderId),
                 itemProvider,
                 StringComparison.OrdinalIgnoreCase) &&
             string.Equals(
-                GetStoreValue(candidate, StoreGameIdField),
+                GetStoreValue(candidate, CustomFieldKeyHelper.StoreGameId),
                 itemGameId,
                 StringComparison.Ordinal));
 

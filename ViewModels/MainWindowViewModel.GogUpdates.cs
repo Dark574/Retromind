@@ -17,12 +17,6 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
-    private const string StoreInstalledVersionField = "Store.InstalledVersion";
-    private const string StoreInstalledInstallerSignatureField = "Store.InstalledInstallerSignature";
-    private const string StoreUpdateAvailableField = "Store.UpdateAvailable";
-    private const string StoreUpdateLastCheckedUtcField = "Store.LastUpdateCheckUtc";
-    private const string StoreUpdateLastStatusField = "Store.LastUpdateCheckStatus";
-
     private static readonly TimeSpan GogUpdateSweepInterval = TimeSpan.FromHours(24);
     private static readonly TimeSpan GogUpdateAuthCacheTtl = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan GogUpdatePerItemDelay = TimeSpan.FromSeconds(2);
@@ -165,7 +159,7 @@ public partial class MainWindowViewModel
         if (ShouldOfferInstallForItem(item))
             return false;
 
-        return item.CustomFields.TryGetValue(StoreUpdateAvailableField, out var raw) &&
+        return item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) &&
                IsTruthyCustomField(raw);
     }
 
@@ -310,11 +304,11 @@ public partial class MainWindowViewModel
         if (!platform.HasValue)
             return null;
 
-        item.CustomFields.TryGetValue(StoreInstalledVersionField, out var installedVersion);
-        item.CustomFields.TryGetValue(StoreInstalledInstallerSignatureField, out var installedSignature);
+        item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstalledVersion, out var installedVersion);
+        item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstalledInstallerSignature, out var installedSignature);
 
         DateTimeOffset? lastCheckedUtc = null;
-        if (item.CustomFields.TryGetValue(StoreUpdateLastCheckedUtcField, out var rawLastChecked) &&
+        if (item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateLastCheckedUtc, out var rawLastChecked) &&
             DateTimeOffset.TryParse(
                 rawLastChecked,
                 CultureInfo.InvariantCulture,
@@ -425,17 +419,17 @@ public partial class MainWindowViewModel
             var fields = new Dictionary<string, string>(item.CustomFields, StringComparer.Ordinal);
             var hasChanged = false;
 
-            hasChanged |= SetField(fields, StoreUpdateLastStatusField, status);
-            hasChanged |= SetField(fields, StoreUpdateLastCheckedUtcField, checkedUtc.ToString("O", CultureInfo.InvariantCulture));
+            hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateLastStatus, status);
+            hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateLastCheckedUtc, checkedUtc.ToString("O", CultureInfo.InvariantCulture));
 
             if (updateAvailable.HasValue)
-                hasChanged |= SetField(fields, StoreUpdateAvailableField, updateAvailable.Value ? "true" : "false");
+                hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateAvailable, updateAvailable.Value ? "true" : "false");
 
             if (!string.IsNullOrWhiteSpace(installedVersion))
-                hasChanged |= SetField(fields, StoreInstalledVersionField, installedVersion.Trim());
+                hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreInstalledVersion, installedVersion.Trim());
 
             if (!string.IsNullOrWhiteSpace(installedSignature))
-                hasChanged |= SetField(fields, StoreInstalledInstallerSignatureField, installedSignature.Trim());
+                hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreInstalledInstallerSignature, installedSignature.Trim());
 
             if (!hasChanged)
                 return false;
@@ -466,11 +460,11 @@ public partial class MainWindowViewModel
         var version = NormalizeGogVersion(package.Version);
         var signature = BuildInstallerSignature(package);
         var fields = new Dictionary<string, string>(item.CustomFields, StringComparer.Ordinal);
-        SetField(fields, StoreInstalledVersionField, version);
-        SetField(fields, StoreInstalledInstallerSignatureField, signature);
-        SetField(fields, StoreUpdateAvailableField, "false");
-        SetField(fields, StoreUpdateLastStatusField, "up_to_date");
-        SetField(fields, StoreUpdateLastCheckedUtcField, DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+        SetField(fields, CustomFieldKeyHelper.StoreInstalledVersion, version);
+        SetField(fields, CustomFieldKeyHelper.StoreInstalledInstallerSignature, signature);
+        SetField(fields, CustomFieldKeyHelper.StoreUpdateAvailable, "false");
+        SetField(fields, CustomFieldKeyHelper.StoreUpdateLastStatus, "up_to_date");
+        SetField(fields, CustomFieldKeyHelper.StoreUpdateLastCheckedUtc, DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
         item.CustomFields = fields;
     }
 }

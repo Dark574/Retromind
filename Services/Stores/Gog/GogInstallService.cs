@@ -227,7 +227,7 @@ public sealed class GogInstallService
             throw new ArgumentNullException(nameof(item));
 
         // --- Extract paths from CustomFields ---
-        if (!item.CustomFields.TryGetValue(GogInstallPathHelper.CustomFieldName, out var storedInstallPath) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var storedInstallPath) ||
             string.IsNullOrWhiteSpace(storedInstallPath))
         {
             throw new InvalidOperationException("Cannot uninstall: install path is not set.");
@@ -323,15 +323,15 @@ public sealed class GogInstallService
         // Remove all Store.* custom fields related to the installation.
         var fieldsToRemove = new[]
         {
-            GogInstallPathHelper.CustomFieldName,
-            "Store.InstallPlatform",
-            "Store.InstallRunnerVersionId",
-            "Store.InstallWindowsInstallerPreference",
-            "Store.UpdateAvailable",
-            "Store.InstalledVersion",
-            "Store.InstalledInstallerSignature",
-            "Store.LastUpdateCheckStatus",
-            "Store.LastUpdateCheckUtc"
+            CustomFieldKeyHelper.StoreInstallPath,
+            CustomFieldKeyHelper.StoreInstallPlatform,
+            CustomFieldKeyHelper.StoreInstallRunnerVersionId,
+            CustomFieldKeyHelper.StoreInstallWindowsInstallerPreference,
+            CustomFieldKeyHelper.StoreUpdateAvailable,
+            CustomFieldKeyHelper.StoreInstalledVersion,
+            CustomFieldKeyHelper.StoreInstalledInstallerSignature,
+            CustomFieldKeyHelper.StoreUpdateLastStatus,
+            CustomFieldKeyHelper.StoreUpdateLastCheckedUtc
         };
 
         // Reassign the dictionary to trigger INotifyPropertyChanged.

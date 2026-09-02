@@ -344,16 +344,16 @@ public partial class MainWindowViewModel
             return false;
 
         // Only installed GOG items can be uninstalled
-        if (!item.CustomFields.TryGetValue("Store.ProviderId", out var providerId) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var providerId) ||
             !string.Equals(providerId, "gog", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        if (!item.CustomFields.TryGetValue("Store.GameId", out var storeGameId) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var storeGameId) ||
             string.IsNullOrWhiteSpace(storeGameId))
             return false;
 
         // Must have an install path to uninstall
-        return item.CustomFields.TryGetValue("Store.InstallPath", out var installPath) &&
+        return item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var installPath) &&
                !string.IsNullOrWhiteSpace(installPath);
     }
     

@@ -23,8 +23,6 @@ public partial class MainWindowViewModel
 {
     private const string GogProviderId = "gog";
     private const string GogDisplayName = "GOG";
-    private const string StoreProviderIdField = "Store.ProviderId";
-    private const string StoreGameIdField = "Store.GameId";
     private static readonly Uri GogDefaultWebAuthRedirectUri = new("https://embed.gog.com/on_login_success?origin=client");
     private const string LinuxWebKitGtkLibraryName = "libwebkit2gtk";
     private const string LinuxWebKitGtkAliasFileName = "libwebkit2gtk.so";
@@ -40,13 +38,13 @@ public partial class MainWindowViewModel
 
     private static string? TryGetStoreGameId(MediaItem item)
     {
-        if (!item.CustomFields.TryGetValue(StoreProviderIdField, out var providerId) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var providerId) ||
             !IsGogProvider(providerId))
         {
             return null;
         }
 
-        return item.CustomFields.TryGetValue(StoreGameIdField, out var gameId)
+        return item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var gameId)
             ? gameId
             : null;
     }
@@ -62,8 +60,8 @@ public partial class MainWindowViewModel
         if (string.IsNullOrWhiteSpace(key))
             return false;
 
-        return string.Equals(key, StoreProviderIdField, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(key, StoreGameIdField, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(key, CustomFieldKeyHelper.StoreProviderId, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(key, CustomFieldKeyHelper.StoreGameId, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsPlaceholderGogDeveloper(string? developer)
@@ -400,8 +398,8 @@ public partial class MainWindowViewModel
                     Platform = game.Platform,
                     CustomFields = new Dictionary<string, string>(StringComparer.Ordinal)
                     {
-                        [StoreProviderIdField] = GogProviderId,
-                        [StoreGameIdField] = game.StoreGameId
+                        [CustomFieldKeyHelper.StoreProviderId] = GogProviderId,
+                        [CustomFieldKeyHelper.StoreGameId] = game.StoreGameId
                     }
                 };
 

@@ -1,3 +1,4 @@
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Auth;
@@ -34,7 +35,7 @@ public sealed class GogInstallServicePortabilityTests
 
         Assert.False(Directory.Exists(secondInstallPath));
         Assert.True(File.Exists(oldRootSentinel));
-        Assert.False(item.CustomFields.ContainsKey(GogInstallPathHelper.CustomFieldName));
+        Assert.False(item.CustomFields.ContainsKey(CustomFieldKeyHelper.StoreInstallPath));
     }
 
     private static MediaItem CreateInstalledItem(string storedInstallPath)
@@ -46,7 +47,7 @@ public sealed class GogInstallServicePortabilityTests
         };
         item.CustomFields["Store.ProviderId"] = "gog";
         item.CustomFields["Store.GameId"] = "portable-game-id";
-        item.CustomFields[GogInstallPathHelper.CustomFieldName] = storedInstallPath;
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = storedInstallPath;
         return item;
     }
 

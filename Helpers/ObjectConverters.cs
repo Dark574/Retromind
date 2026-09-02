@@ -89,7 +89,7 @@ public static class ObjectConverters
             if (customFields == null)
                 return false;
 
-            if (!customFields.TryGetValue("Store.UpdateAvailable", out var raw) ||
+            if (!customFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) ||
                 string.IsNullOrWhiteSpace(raw))
             {
                 return false;
@@ -131,7 +131,7 @@ public static class ObjectConverters
             if (!IsInstalledGogItem(item))
                 return false;
 
-            return item!.CustomFields.TryGetValue("Store.UpdateAvailable", out var raw) &&
+            return item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) &&
                    IsTruthyCustomField(raw);
         });
 
@@ -227,13 +227,13 @@ public static class ObjectConverters
         if (item == null)
             return false;
 
-        if (!item.CustomFields.TryGetValue("Store.ProviderId", out var providerId) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var providerId) ||
             !string.Equals(providerId, "gog", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        if (!item.CustomFields.TryGetValue("Store.GameId", out var storeGameId) ||
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var storeGameId) ||
             string.IsNullOrWhiteSpace(storeGameId))
         {
             return false;
