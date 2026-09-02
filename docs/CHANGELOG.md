@@ -6,7 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project (aims to) adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## [0.1.7-alpha] - unreleased
+
+## [0.1.8-alpha] - unreleased
+
+### Added
+
+### Changed
+
+### Fixed
+
+---
+
+## [0.1.7-alpha] - 2026-09-02
 
 ### Added
 - experimental native Wayland opt-in with X11 initialization fallback
