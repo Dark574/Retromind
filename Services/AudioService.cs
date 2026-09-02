@@ -204,23 +204,37 @@ public class AudioService
 
     private async Task MonitorProcessExitAsync(Process process, int playbackId, string filePath, CancellationToken token)
     {
+        int exitCode;
         try
         {
             await process.WaitForExitAsync().ConfigureAwait(false);
+            exitCode = process.ExitCode;
         }
         catch
         {
             return;
         }
 
-        if (token.IsCancellationRequested)
-            return;
+        lock (_processLock)
+        {
+            if (token.IsCancellationRequested ||
+                playbackId != _currentPlaybackId ||
+                playbackId == _stopRequestedPlaybackId ||
+                !ReferenceEquals(process, _currentProcess))
+            {
+                return;
+            }
 
-        if (playbackId != Volatile.Read(ref _currentPlaybackId))
-            return;
+            _currentProcess.Dispose();
+            _currentProcess = null;
+        }
 
-        if (playbackId == Volatile.Read(ref _stopRequestedPlaybackId))
+        if (exitCode != 0)
+        {
+            Debug.WriteLine(
+                $"[AudioService] Player exited with code {exitCode}; playback will not be restarted: {filePath}");
             return;
+        }
 
         MusicPlaybackEnded?.Invoke(filePath);
     }
