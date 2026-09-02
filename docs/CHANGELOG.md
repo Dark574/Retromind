@@ -328,6 +328,8 @@ also a lot of small fixes and changes
 ---
 
 [Unreleased]: https://github.com/Dark574/Retromind/compare/v0.1.5-alpha...HEAD
+[0.1.7-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.7-alpha
+[0.1.6-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.6-alpha
 [0.1.5-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.5-alpha
 [0.1.4-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.4-alpha
 [0.1.3-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.3-alpha
