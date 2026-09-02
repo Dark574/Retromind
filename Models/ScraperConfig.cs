@@ -9,7 +9,7 @@ namespace Retromind.Models;
 /// Configuration profile for a metadata provider (Scraper).
 /// Stores credentials and preferences for services like TMDB, IGDB, etc.
 /// </summary>
-public partial class ScraperConfig : ObservableObject
+public partial class ScraperConfig : ObservableObject, IJsonOnDeserialized
 {
     /// <summary>
     /// Unique identifier for this profile.
@@ -21,7 +21,8 @@ public partial class ScraperConfig : ObservableObject
     // UNTIL the user manually edits the name. 
 
     private string _name = Strings.Metadata_NewScraper; // Localized default
-    private bool _isNameCustomized = false;
+    private bool _isNameCustomized;
+    private bool _hasPersistedNameCustomizationState;
 
     /// <summary>
     /// Display name of the profile. 
@@ -40,6 +41,21 @@ public partial class ScraperConfig : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Remembers whether the profile name was entered manually so automatic
+    /// provider names continue to work after reloading the settings.
+    /// </summary>
+    [JsonInclude]
+    public bool IsNameCustomized
+    {
+        get => _isNameCustomized;
+        private set
+        {
+            _isNameCustomized = value;
+            _hasPersistedNameCustomizationState = true;
+        }
+    }
+
     [ObservableProperty] 
     private ScraperType _type = ScraperType.None;
 
@@ -54,6 +70,16 @@ public partial class ScraperConfig : ObservableObject
             _name = value.ToString();
             OnPropertyChanged(nameof(Name));
         }
+    }
+
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        if (_hasPersistedNameCustomizationState)
+            return;
+
+        // Compatibility with profiles saved before IsNameCustomized existed.
+        // Provider names were generated from ScraperType.ToString().
+        _isNameCustomized = !string.Equals(_name, Type.ToString(), StringComparison.Ordinal);
     }
 
     // --- Credentials ---
