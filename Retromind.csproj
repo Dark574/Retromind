@@ -10,10 +10,10 @@
         <NoWarn>$(NoWarn);NU1900</NoWarn>
 
         <!-- App / NuGet / Assembly version -->
-        <Version>0.1.7</Version>
-        <AssemblyVersion>0.1.7.0</AssemblyVersion>
-        <FileVersion>0.1.7.0</FileVersion>
-        <InformationalVersion>0.1.7-alpha</InformationalVersion>
+        <Version>0.1.8</Version>
+        <AssemblyVersion>0.1.8.0</AssemblyVersion>
+        <FileVersion>0.1.8.0</FileVersion>
+        <InformationalVersion>0.1.8-alpha</InformationalVersion>
     </PropertyGroup>
 
     <ItemGroup>
