@@ -309,11 +309,10 @@ public partial class MainWindow : Window
 
         _dragInProgress = true;
 
-        var data = new DataTransfer();
-        data.Add(DataTransferItem.CreateText(_draggedNode.Id));
-
         try
         {
+            using var data = new DataTransfer();
+            data.Add(DataTransferItem.CreateText(_draggedNode.Id));
             await DragDrop.DoDragDropAsync(_dragStartPressedEvent, data, DragDropEffects.Move);
         }
         finally
@@ -330,12 +329,11 @@ public partial class MainWindow : Window
         _draggedMediaItem = item;
         _dragInProgress = true;
 
-        var data = new DataTransfer();
-        data.Add(DataTransferItem.CreateText($"retromind-media:{item.Id}"));
-
         MediaNode? dropTarget;
         try
         {
+            using var data = new DataTransfer();
+            data.Add(DataTransferItem.CreateText($"retromind-media:{item.Id}"));
             await DragDrop.DoDragDropAsync(pressedEvent, data, DragDropEffects.Move);
         }
         finally
