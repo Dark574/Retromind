@@ -57,15 +57,12 @@ public partial class App : Application
             // Ensure portable themes are present in the user directory.
             AppPaths.EnsurePortableThemes();
 
-            // Build a minimal container to load settings first (sync startup, async IO inside).
-            var bootstrapServices = new ServiceCollection();
-            bootstrapServices.AddSingleton<SettingsService>();
-            using var bootstrapProvider = bootstrapServices.BuildServiceProvider();
-
+            // Load settings before constructing dependent services, then keep this exact
+            // service instance so a protected load failure remains visible for the session.
+            var settingsService = new SettingsService();
             AppSettings settings;
             try
             {
-                var settingsService = bootstrapProvider.GetRequiredService<SettingsService>();
                 settings = Task.Run(settingsService.LoadAsync).GetAwaiter().GetResult();
             }
             catch (Exception ex)
@@ -77,6 +74,7 @@ public partial class App : Application
             // Now build the final container exactly once (single Settings instance for the whole app).
             var services = new ServiceCollection();
             services.AddSingleton(settings);
+            services.AddSingleton(settingsService);
             ConfigureServices(services);
 
             Services = services.BuildServiceProvider();
@@ -90,6 +88,14 @@ public partial class App : Application
                 {
                     IsBigModeOnly = true;
                     Debug.WriteLine("[App] CLI: --bigmode detected.");
+                }
+
+                // Keep the desktop visible when settings recovery failed so the persistent
+                // warning cannot be hidden behind a direct BigMode startup.
+                if (IsBigModeOnly && mainViewModel.ShowSettingsLoadError)
+                {
+                    IsBigModeOnly = false;
+                    Debug.WriteLine("[App] Direct BigMode startup skipped because settings could not be loaded.");
                 }
 
                 var mainWindow = new MainWindow
@@ -108,9 +114,13 @@ public partial class App : Application
                         await dataLoadingTask;
 
                         if (mainViewModel.EnterBigModeCommand.CanExecute(null))
+                        {
                             mainViewModel.EnterBigModeCommand.Execute(null);
+                        }
                         else
+                        {
                             mainWindow.ShowDesktopAfterBigModeStartupFailure();
+                        }
                     };
                 }
 
@@ -255,7 +265,6 @@ public partial class App : Application
         services.AddSingleton<IStoreAuthProvider>(provider => provider.GetRequiredService<GogProvider>());
         services.AddSingleton<IStoreLibraryProvider>(provider => provider.GetRequiredService<GogProvider>());
 
-        services.AddSingleton<SettingsService>();
         services.AddSingleton<MetadataService>();
         services.AddSingleton<IDocumentService, DocumentService>();
 

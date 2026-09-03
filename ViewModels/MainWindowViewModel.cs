@@ -81,6 +81,10 @@ public partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowLibraryLoadError))]
     private string? _libraryLoadErrorMessage;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowSettingsLoadError))]
+    private string? _settingsLoadErrorMessage;
+
     // Holds the currently loaded theme view. If null, standard desktop mode is shown.
     [ObservableProperty]
     private object? _fullScreenContent;
@@ -204,6 +208,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool ShowLibraryLoadingHint => IsLibraryLoading && SelectedNodeContent is null;
     public bool ShowLibraryLoadError =>
         !IsLibraryLoading && !string.IsNullOrWhiteSpace(LibraryLoadErrorMessage);
+    public bool ShowSettingsLoadError => !string.IsNullOrWhiteSpace(SettingsLoadErrorMessage);
 
     // Empty-library hint should only be shown for truly empty libraries,
     // not while startup loading is still building the first content.
@@ -343,6 +348,13 @@ public partial class MainWindowViewModel : ViewModelBase
         _httpClient = httpClient;
         _currentSettings = preloadedSettings;
         _documentService = documentService;
+        if (_settingsService.HasLoadFailure)
+        {
+            SettingsLoadErrorMessage = T(
+                "Persistence.SettingsLoadFailed",
+                "Retromind could not load the application settings. The primary file and its backup are unreadable or invalid. Existing settings files will not be overwritten, and settings changes made during this session will not be saved. Close Retromind and check app_settings.json, its backup, any .corrupt_* file, and file permissions.");
+        }
+
         MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(_currentSettings.IgnoreLeadingArticlesInSort);
         _audioService.MusicPlaybackEnded += OnMusicPlaybackEnded;
         _libraryTracker = new LibraryChangeTracker(
@@ -716,13 +728,17 @@ public partial class MainWindowViewModel : ViewModelBase
             if (!_libraryLoadFailed)
                 await _libraryTracker.SaveIfDirtyAsync(force: false).ConfigureAwait(false);
 
-            var saveVersion = Volatile.Read(ref _settingsDirtyVersion);
-            var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
-                .ConfigureAwait(false);
-            await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
+            if (!_settingsService.HasLoadFailure)
+            {
+                var saveVersion = Volatile.Read(ref _settingsDirtyVersion);
+                var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
+                    .ConfigureAwait(false);
+                await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
 
-            if (Volatile.Read(ref _settingsDirtyVersion) == saveVersion)
-                ClearPersistenceSaveFailure();
+                if (Volatile.Read(ref _settingsDirtyVersion) == saveVersion)
+                    ClearPersistenceSaveFailure();
+            }
+
             return true;
         }
         catch (Exception ex)
@@ -734,6 +750,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void SaveSettingsOnly()
     {
+        if (_settingsService.HasLoadFailure)
+            return;
+
         var saveVersion = Interlocked.Increment(ref _settingsDirtyVersion);
 
         _saveSettingsCts?.Cancel();
@@ -888,10 +907,13 @@ public partial class MainWindowViewModel : ViewModelBase
             if (!_libraryLoadFailed)
                 await _libraryTracker.SaveIfDirtyAsync(force: true).ConfigureAwait(false);
             
-            // Serialize on UI thread to avoid cross-thread collection access.
-            var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
-                .ConfigureAwait(false);
-            await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
+            if (!_settingsService.HasLoadFailure)
+            {
+                // Serialize on UI thread to avoid cross-thread collection access.
+                var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
+                    .ConfigureAwait(false);
+                await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
+            }
 
             ClearPersistenceSaveFailure();
             Cleanup();

@@ -793,6 +793,11 @@ Ungespeicherte Änderungen bleiben im Arbeitsspeicher erhalten. Bitte prüfe den
 
 Die vorhandenen Bibliotheksdateien werden nicht überschrieben. Beende Retromind und prüfe retromind_tree.json, das Backup und die Dateiberechtigungen.</value>
     </data>
+    <data name="Persistence.SettingsLoadFailed" xml:space="preserve">
+        <value>Retromind konnte die Anwendungseinstellungen nicht laden. Die Primärdatei und das Backup sind nicht lesbar oder ungültig.
+
+Vorhandene Einstellungsdateien werden nicht überschrieben, und Änderungen an den Einstellungen werden in dieser Sitzung nicht gespeichert. Beende Retromind und prüfe app_settings.json, das Backup, eine mögliche .corrupt_*-Datei und die Dateiberechtigungen.</value>
+    </data>
     <data name="Persistence.ExitWithoutSavingConfirm" xml:space="preserve">
         <value>Retromind konnte nicht alle Änderungen speichern. Trotzdem beenden und den Verlust ungespeicherter Änderungen riskieren?</value>
     </data>

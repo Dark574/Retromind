@@ -791,6 +791,11 @@ Unsaved changes remain in memory. Please check free disk space and write permiss
 
 Existing library files will not be overwritten. Close Retromind and check retromind_tree.json, its backup, and file permissions.</value>
     </data>
+    <data name="Persistence.SettingsLoadFailed" xml:space="preserve">
+        <value>Retromind could not load the application settings. The primary file and its backup are unreadable or invalid.
+
+Existing settings files will not be overwritten, and settings changes made during this session will not be saved. Close Retromind and check app_settings.json, its backup, any .corrupt_* file, and file permissions.</value>
+    </data>
     <data name="Persistence.ExitWithoutSavingConfirm" xml:space="preserve">
         <value>Retromind could not save all changes. Exit anyway and risk losing unsaved changes?</value>
     </data>

@@ -386,6 +386,23 @@
            </Grid>
        </Grid>
 
+       <Border MaxWidth="900"
+               Margin="24,42,24,0"
+               Padding="14"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Top"
+               Background="#D98B0000"
+               BorderBrush="#FFFFB4AB"
+               BorderThickness="1"
+               CornerRadius="8"
+               IsVisible="{Binding ShowSettingsLoadError}">
+           <TextBlock Text="{Binding SettingsLoadErrorMessage}"
+                      Foreground="White"
+                      FontSize="15"
+                      TextAlignment="Center"
+                      TextWrapping="Wrap" />
+       </Border>
+
         <!-- Resize Grips (Invisible Edges) -->
         <!-- We use x:Static for WindowEdge. The Avalonia.Controls namespace is there by default -->
         <Grid RowDefinitions="5,*,5" ColumnDefinitions="5,*,5">

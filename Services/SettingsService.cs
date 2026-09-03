@@ -27,6 +27,11 @@ public class SettingsService
     
     // Serialize settings IO to avoid concurrent temp/backup/replace races.
     private readonly SemaphoreSlim _ioGate = new(1, 1);
+    private SettingsLoadException? _loadFailure;
+
+    public SettingsLoadException? LoadFailure => Volatile.Read(ref _loadFailure);
+
+    public bool HasLoadFailure => LoadFailure != null;
     
     /// <summary>
     /// Saves the settings asynchronously.
@@ -34,118 +39,115 @@ public class SettingsService
     /// </summary>
     public async Task SaveAsync(AppSettings settings)
     {
+        ThrowIfLoadFailed();
         var json = Serialize(settings);
         await SaveJsonAsync(json).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Loads the settings from disk.
-    /// Creates a backup if the existing file is corrupted.
+    /// Restores a valid backup when the primary file cannot be loaded.
     /// </summary>
+    /// <exception cref="SettingsLoadException">
+    /// Thrown when persisted settings exist but neither the primary file nor its backup can be loaded.
+    /// Further writes are blocked for this service instance after this failure.
+    /// </exception>
     public async Task<AppSettings> LoadAsync()
     {
+        ThrowIfLoadFailed();
         await _ioGate.WaitAsync().ConfigureAwait(false);
+        Exception? primaryError = null;
+        Exception? backupError = null;
         try
         {
+            ThrowIfLoadFailed();
+
             // Ensure settings directory exists so later SaveAsync won't fail on missing folder.
             Directory.CreateDirectory(SettingsFolder);
 
-            // 0) Nothing there -> defaults
-            if (!File.Exists(FilePath))
+            // Cleanup stale temp file (e.g. after a crash during SaveAsync).
+            try
             {
-                // If only backup exists (rare), try to restore it.
-                if (File.Exists(BackupPath))
+                if (File.Exists(TempPath))
+                    File.Delete(TempPath);
+            }
+            catch
+            {
+                // best effort
+            }
+
+            var mainFileExists = PathEntryExists(FilePath);
+            if (mainFileExists)
+            {
+                try
                 {
+                    return await LoadFromFileAsync(FilePath).ConfigureAwait(false);
+                }
+                catch (JsonException ex)
+                {
+                    primaryError = ex;
+                    Debug.WriteLine($"[SettingsService] Settings file corrupted: {ex.Message}");
+
+                    // Quarantine corrupt JSON for inspection. Other read failures stay untouched.
                     try
                     {
-                        File.Copy(BackupPath, FilePath, overwrite: true);
-                        var settings = await LoadFromFileAsync(FilePath, throwOnJsonError: false).ConfigureAwait(false);
-                        if (settings != null)
-                            return settings;
+                        var corruptPath = FilePath + $".corrupt_{DateTime.Now:yyyyMMdd_HHmmss}";
+                        File.Move(FilePath, corruptPath, overwrite: true);
+                        Debug.WriteLine($"[SettingsService] Corrupted settings moved to: {corruptPath}");
                     }
                     catch
                     {
-                        // fall through to defaults
+                        // best effort
                     }
                 }
-
-                return new AppSettings();
+                catch (Exception ex)
+                {
+                    primaryError = ex;
+                    Debug.WriteLine($"[SettingsService] Error loading settings: {ex.Message}");
+                }
             }
 
-            // 1) Try main file
-            try
+            var backupFileExists = PathEntryExists(BackupPath);
+            if (backupFileExists)
             {
-                var settings = await LoadFromFileAsync(FilePath, throwOnJsonError: true).ConfigureAwait(false);
-                if (settings != null) return settings;
-
-                // Treat a null result as a failure so we still try the backup path.
-                throw new IOException("Settings file could not be read.");
-            }
-            catch (JsonException jsonEx)
-            {
-                Debug.WriteLine($"[SettingsService] Settings file corrupted: {jsonEx.Message}");
-
-                // Quarantine corrupt file for inspection
+                Debug.WriteLine("[SettingsService] Attempting to restore settings from .bak ...");
                 try
                 {
-                    var corruptPath = FilePath + $".corrupt_{DateTime.Now:yyyyMMdd_HHmmss}";
-                    File.Move(FilePath, corruptPath, overwrite: true);
-                    Debug.WriteLine($"[SettingsService] Corrupted settings moved to: {corruptPath}");
-                }
-                catch
-                {
-                    // ignore
-                }
+                    var restored = await LoadFromFileAsync(BackupPath).ConfigureAwait(false);
 
-                // 2) Try backup
-                if (File.Exists(BackupPath))
-                {
-                    Debug.WriteLine("[SettingsService] Attempting to restore settings from .bak ...");
-                    var restored = await LoadFromFileAsync(BackupPath, throwOnJsonError: false).ConfigureAwait(false);
-                    if (restored != null)
+                    // Best effort: restore backup to the primary path so the next start is clean.
+                    try
                     {
-                        // Best effort: restore backup to main file so next start is clean
-                        try
-                        {
-                            File.Copy(BackupPath, FilePath, overwrite: true);
-                        }
-                        catch
-                        {
-                            // ignore
-                        }
-
-                        return restored;
+                        File.Copy(BackupPath, FilePath, overwrite: true);
                     }
-                }
+                    catch
+                    {
+                        // best effort
+                    }
 
+                    return restored;
+                }
+                catch (Exception ex)
+                {
+                    backupError = ex;
+                    Debug.WriteLine($"[SettingsService] Failed to load backup: {ex.Message}");
+                }
+            }
+
+            // No persisted settings means a legitimate first start. Existing but unreadable
+            // or invalid settings must never be treated as authoritative defaults.
+            if (!mainFileExists && !backupFileExists)
                 return new AppSettings();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SettingsService] Error loading settings: {ex.Message}");
 
-                // As a last resort, try backup
-                if (File.Exists(BackupPath))
-                {
-                    var restored = await LoadFromFileAsync(BackupPath, throwOnJsonError: false).ConfigureAwait(false);
-                    if (restored != null) return restored;
-                }
-
-                return new AppSettings();
-            }
-            finally
-            {
-                // Cleanup stale temp file (best effort)
-                try
-                {
-                    if (File.Exists(TempPath))
-                        File.Delete(TempPath);
-                }
-                catch
-                {
-                    // ignore
-                }
-            }
+            throw RecordLoadFailure(primaryError, backupError);
+        }
+        catch (SettingsLoadException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw RecordLoadFailure(primaryError ?? ex, backupError);
         }
         finally
         {
@@ -153,28 +155,14 @@ public class SettingsService
         }
     }
 
-    private async Task<AppSettings?> LoadFromFileAsync(string path, bool throwOnJsonError)
+    private async Task<AppSettings> LoadFromFileAsync(string path)
     {
-        try
-        {
-            using var stream = File.OpenRead(path);
-            var settings = await JsonSerializer.DeserializeAsync<AppSettings>(stream).ConfigureAwait(false);
-            if (settings == null)
-                return null;
+        using var stream = File.OpenRead(path);
+        var settings = await JsonSerializer.DeserializeAsync<AppSettings>(stream).ConfigureAwait(false)
+                       ?? throw new JsonException($"Settings file '{path}' contains null instead of settings.");
 
-            UnprotectSensitiveData(settings);
-            return settings;
-        }
-        catch (JsonException)
-        {
-            if (throwOnJsonError)
-                throw;
-            return null;
-        }
-        catch
-        {
-            return null;
-        }
+        UnprotectSensitiveData(settings);
+        return settings;
     }
 
     /// <summary>
@@ -199,10 +187,13 @@ public class SettingsService
     public async Task SaveJsonAsync(string json)
     {
         if (json == null) throw new ArgumentNullException(nameof(json));
+        ThrowIfLoadFailed();
 
         await _ioGate.WaitAsync().ConfigureAwait(false);
         try
         {
+            ThrowIfLoadFailed();
+
             // Ensure settings directory exists (portable installs may start from a fresh folder).
             Directory.CreateDirectory(SettingsFolder);
 
@@ -224,6 +215,10 @@ public class SettingsService
 
             // 3) Atomic replace (no "delete then move" gap)
             File.Move(TempPath, FilePath, overwrite: true);
+        }
+        catch (SettingsLoadException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -265,6 +260,35 @@ public class SettingsService
         finally
         {
             _ioGate.Release();
+        }
+    }
+
+    private SettingsLoadException RecordLoadFailure(Exception? primaryError, Exception? backupError)
+    {
+        var failure = new SettingsLoadException(primaryError, backupError);
+        return Interlocked.CompareExchange(ref _loadFailure, failure, null) ?? failure;
+    }
+
+    private void ThrowIfLoadFailed()
+    {
+        if (LoadFailure is { } failure)
+            throw failure;
+    }
+
+    private static bool PathEntryExists(string path)
+    {
+        try
+        {
+            _ = File.GetAttributes(path);
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
         }
     }
     
