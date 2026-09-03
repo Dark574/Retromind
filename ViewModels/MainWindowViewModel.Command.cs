@@ -1332,11 +1332,16 @@ public partial class MainWindowViewModel
     private async Task<string?> PromptForName(
         Window owner,
         string message,
-        NamePromptViewModel.NamePromptValidator? validator = null)
+        NamePromptViewModel.NamePromptValidator? validator = null,
+        string? initialText = null)
     {
-        var dialog = new NamePromptView { DataContext = new NamePromptViewModel(message, message, validator) };
+        var viewModel = new NamePromptViewModel(message, message, validator);
+        if (initialText != null)
+            viewModel.InputText = initialText;
+
+        var dialog = new NamePromptView { DataContext = viewModel };
         var result = await dialog.ShowDialog<bool>(owner);
-        return result && dialog.DataContext is NamePromptViewModel vm ? vm.InputText : null;
+        return result ? viewModel.InputText : null;
     }
 
     private static NamePromptViewModel.NamePromptValidator CreateNodeNameValidator(

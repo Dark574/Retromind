@@ -725,7 +725,11 @@ public partial class MainWindowViewModel
         var sourcePath = folders[0].Path.LocalPath;
 
         var defaultExt = "iso,bin,cue,rom,smc,sfc,nes,gb,gba,nds,md,n64,z64,v64,exe,sh";
-        var extensionsStr = await PromptForName(owner, Strings.Dialog_FileExtensionsPrompt) ?? defaultExt;
+        var extensionsStr = await PromptForName(
+            owner,
+            Strings.Dialog_FileExtensionsPrompt,
+            initialText: defaultExt);
+        if (extensionsStr == null) return;
         if (string.IsNullOrWhiteSpace(extensionsStr)) return;
 
         var extensions = extensionsStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
@@ -1040,7 +1044,11 @@ public partial class MainWindowViewModel
             {
                 var first = result[0];
                 var rawTitle = Path.GetFileNameWithoutExtension(first.Name);
-                var title = await PromptForName(owner, $"{Strings.Common_Title} '{first.Name}':") ?? rawTitle;
+                var title = await PromptForName(
+                    owner,
+                    $"{Strings.Common_Title} '{first.Name}':",
+                    initialText: rawTitle);
+                if (title == null) return;
                 if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
 
                 // Build file refs with "smart" disc detection from filenames
@@ -1095,7 +1103,11 @@ public partial class MainWindowViewModel
                 foreach (var file in result)
                 {
                     var rawTitle = Path.GetFileNameWithoutExtension(file.Name);
-                    var title = await PromptForName(owner, $"{Strings.Common_Title} '{file.Name}':") ?? rawTitle;
+                    var title = await PromptForName(
+                        owner,
+                        $"{Strings.Common_Title} '{file.Name}':",
+                        initialText: rawTitle);
+                    if (title == null) return;
                     if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
                     var rawPath = file.Path.LocalPath;
                     var storedPath = rawPath;
@@ -1130,7 +1142,11 @@ public partial class MainWindowViewModel
         {
             var file = result[0];
             var rawTitle = Path.GetFileNameWithoutExtension(file.Name);
-            var title = await PromptForName(owner, $"{Strings.Common_Title} '{file.Name}':") ?? rawTitle;
+            var title = await PromptForName(
+                owner,
+                $"{Strings.Common_Title} '{file.Name}':",
+                initialText: rawTitle);
+            if (title == null) return;
             if (string.IsNullOrWhiteSpace(title)) title = rawTitle;
             var rawPath = file.Path.LocalPath;
             var storedPath = rawPath;
