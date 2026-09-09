@@ -85,6 +85,18 @@ The AppImage is self-contained: a system-wide .NET runtime and LibVLC installati
 - .NET SDK 10.0
 - LibVLC runtime
 
+## Getting started (first run)
+
+1. Download the latest AppImage from the [GitHub Releases page](https://github.com/Dark574/Retromind/releases) and make it executable.
+2. Start the AppImage. Retromind creates `app_settings.json` in the directory containing the AppImage.
+3. Configure optional metadata providers and API credentials in the settings dialog.
+
+To update, simply replace the AppImage file in the same directory. Check the release notes for any migration instructions.
+
+Developers running from source can use the commands under “Build & Run”. In that case, the portable data
+root is the application output directory. To preconfigure a source build, copy `app_settings.sample.json`
+there as `app_settings.json` and adjust it before starting Retromind.
+
 ## Build AppImage (portable release, includes VLC)
 This project ships a build script that creates a portable **AppImage** containing:
 - a self-contained .NET build (no system .NET required)
@@ -154,16 +166,6 @@ dotnet test Retromind.sln
 The test project lives in `tests/Retromind.Tests/`. New tests should preferably target deterministic
 business rules, persistence behavior, path safety, multi-disc recognition, and scraper matching rather
 than Avalonia view details.
-
-## Getting started (first run)
-
-1. Download the latest AppImage from the [GitHub Releases page](https://github.com/Dark574/Retromind/releases) and make it executable.
-2. Start the AppImage. Retromind creates `app_settings.json` in the directory containing the AppImage.
-3. Configure optional metadata providers and API credentials in the settings dialog.
-
-Developers running from source can use the commands under “Build & Run”. In that case, the portable data
-root is the application output directory. To preconfigure a source build, copy `app_settings.sample.json`
-there as `app_settings.json` and adjust it before starting Retromind.
 
 ## Configuration (portable)
 Retromind stores data under its portable data root for portability:
