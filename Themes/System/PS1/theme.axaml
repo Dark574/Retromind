@@ -113,15 +113,17 @@
                 </Grid>
 
                 <!-- The video sits behind the transparent CRT aperture. The
-                     brand-neutral console and wired controllers overlap it in front. -->
+                     brand-neutral console and wired controllers overlap it in front.
+                     Allow the controllers to extend below the canvas without clipping. -->
                 <Viewbox Grid.Column="1"
                          Stretch="Uniform"
                          StretchDirection="Both"
+                         ClipToBounds="False"
                          HorizontalAlignment="Center"
                          VerticalAlignment="Center"
                          MaxWidth="930"
                          MaxHeight="830">
-                    <Canvas Width="1536" Height="1500">
+                    <Canvas Width="1536" Height="1669">
                         <Border x:Name="SystemPrimaryVideoSlot"
                                 Canvas.Left="250"
                                 Canvas.Top="164"
@@ -143,17 +145,17 @@
                         <Image Source="{Binding $parent[UserControl],
                                                 Converter={StaticResource ThemeAssetConverter},
                                                 ConverterParameter=Images/ps1-inspired-console-controllers.png}"
-                               Canvas.Left="318"
-                               Canvas.Top="860"
-                               Width="900"
-                               Height="600"
+                               Canvas.Left="250.5"
+                               Canvas.Top="1048"
+                               Width="1035"
+                               Height="690"
                                Stretch="Fill"
                                IsHitTestVisible="False" />
 
-                        <Border Canvas.Left="675"
-                                Canvas.Top="955"
-                                Width="250"
-                                Height="58"
+                        <Border Canvas.Left="661"
+                                Canvas.Top="1157"
+                                Width="288"
+                                Height="67"
                                 RenderTransformOrigin="50%,50%">
                             <Border.RenderTransform>
                                 <RotateTransform Angle="2" />
