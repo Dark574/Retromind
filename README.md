@@ -129,9 +129,9 @@ The version is read from `InformationalVersion` in `Retromind.csproj`. The build
 - `dist/Retromind-<version>-linux-x86_64.AppImage.zsync`
 
 ## Build & Run
-### Rider
+### IDE
 
-Open `Retromind.sln` and run the default configuration.
+Open `Retromind.sln` in your preferred .NET-compatible IDE, select `Retromind` as the startup project, and build and run it.
 
 ### CLI
 ```bash
