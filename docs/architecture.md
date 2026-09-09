@@ -142,7 +142,7 @@ BigMode is an overlay workflow with clear host/VM split:
 - each subtheme instance receives a fixed `SystemPreviewNode`, keeping the outgoing
   theme's node-specific bindings stable throughout the crossfade
 - subtheme cache with LRU
-- shipped system themes currently include Default, C64, Amiga, PC, SNES, and PS1 variants
+- shipped system themes currently include Default, C64, Amiga, PC, SNES, PS1, and MAME variants
 - theme guardrails/tuning for list behavior and selection visuals
 - global cursor idle hide/show behavior (mouse-only)
 

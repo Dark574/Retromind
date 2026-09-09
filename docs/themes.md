@@ -1085,6 +1085,7 @@ Recommended structure:
 - `Themes/System/Default/theme.axaml`
 - `Themes/System/C64/theme.axaml`
 - `Themes/System/SNES/theme.axaml`
+...
 - (optional: `Images/`, `Videos/` per folder)
 
 The folder name `<Id>` is used as:

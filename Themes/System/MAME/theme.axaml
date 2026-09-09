@@ -1,0 +1,159 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="Transparent"
+
+             ext:ThemeProperties.Name="Arcade (MAME)"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.AccentColor="#29CBDB"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
+             ext:ThemeProperties.VideoStretchMode="Uniform"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
+             ext:ThemeProperties.SecondaryVideoEnabled="False">
+
+    <UserControl.Resources>
+        <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
+    </UserControl.Resources>
+
+    <Border Background="#0B1118"
+            CornerRadius="8"
+            ClipToBounds="True">
+        <Grid>
+            <Rectangle>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#19303B" Offset="0" />
+                        <GradientStop Color="#101B25" Offset="0.48" />
+                        <GradientStop Color="#080C12" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <Border Height="4"
+                    VerticalAlignment="Top"
+                    Opacity="0.92">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Color="#29CBDB" Offset="0" />
+                        <GradientStop Color="#29CBDB" Offset="0.65" />
+                        <GradientStop Color="#F2A33B" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <Grid ColumnDefinitions="0.82*,1.48*"
+                  Margin="44,34,38,30">
+
+                <Grid Grid.Column="0"
+                      RowDefinitions="Auto,Auto,*"
+                      Margin="0,12,36,10">
+                    <Grid Grid.Row="0" Height="112">
+                        <Image helpers:AsyncImageHelper.Url="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               MaxWidth="370"
+                               IsVisible="{Binding ElementName=ThemeRoot,
+                                                   Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+                                                   Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Name}"
+                                   FontSize="44"
+                                   FontWeight="Bold"
+                                   Foreground="#F1F7F8"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding ElementName=ThemeRoot,
+                                                       Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+                                                       Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,14,0,20">
+                        <Border Height="3"
+                                Background="#29CBDB"
+                                HorizontalAlignment="Left"
+                                Width="124" />
+                        <Border Height="3"
+                                Background="#F2A33B"
+                                HorizontalAlignment="Left"
+                                Margin="124,0,0,0"
+                                Width="42" />
+                    </Grid>
+
+                    <Border Grid.Row="2"
+                            BorderBrush="#5529CBDB"
+                            BorderThickness="1,0,0,0"
+                            Padding="18,2,4,4"
+                            ClipToBounds="True">
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Description}"
+                                   FontSize="18"
+                                   LineHeight="27"
+                                   Foreground="#D6E2E8"
+                                   TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+
+                <!-- Keep the entire cabinet inside the design surface. The video
+                     sits behind its transparent screen opening; Uniform preserves
+                     both horizontal and vertical arcade footage. -->
+                <Viewbox Grid.Column="1"
+                         Stretch="Uniform"
+                         StretchDirection="Both"
+                         ClipToBounds="False"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         MaxWidth="930"
+                         MaxHeight="900">
+                    <Canvas Width="1024" Height="1536">
+                        <Border x:Name="SystemPrimaryVideoSlot"
+                                Canvas.Left="224"
+                                Canvas.Top="320"
+                                Width="576"
+                                Height="400"
+                                Background="#010204"
+                                ClipToBounds="True" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/arcade-cabinet-frame.png}"
+                               Canvas.Left="0"
+                               Canvas.Top="0"
+                               Width="1024"
+                               Height="1536"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <!-- The game count occupies the cabinet's blank marquee. -->
+                        <Border Canvas.Left="312"
+                                Canvas.Top="100"
+                                Width="400"
+                                Height="78">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="14"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
+                                           FontSize="32"
+                                           FontWeight="SemiBold"
+                                           Foreground="#C9E9ED"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Items.Count}"
+                                           FontSize="46"
+                                           FontWeight="Bold"
+                                           Foreground="#F2B65F"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Canvas>
+                </Viewbox>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>
