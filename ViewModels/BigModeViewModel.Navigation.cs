@@ -102,6 +102,7 @@ public partial class BigModeViewModel
                     }
                     else
                     {
+                        CurrentNode = parentNode;
                         IsGameListActive = true;
                         Items = visibleItems;
                         SelectedCategory = parentNode;
@@ -138,6 +139,7 @@ public partial class BigModeViewModel
                     }
                     else
                     {
+                        CurrentNode = parentNode;
                         IsGameListActive = true;
                         Items = visibleItems;
                         SelectedCategory = parentNode;
@@ -243,7 +245,9 @@ public partial class BigModeViewModel
 
     partial void OnCurrentCategoriesChanged(ObservableCollection<MediaNode> value)
     {
-        SelectedCategoryIndex = -1;
+        // The selected node can stay the same when returning from its item list.
+        // Recompute its index even when SelectedCategory's setter does not fire.
+        SelectedCategoryIndex = SelectedCategory != null ? value.IndexOf(SelectedCategory) : -1;
     }
 
     partial void OnItemsChanging(ObservableCollection<MediaItem> value)
