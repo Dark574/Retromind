@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -64,19 +65,35 @@ public partial class MediaAreaView : UserControl
             not PointerUpdateKind.RightButtonPressed)
             return;
 
-        vm.SelectedMediaItem = item;
-        _mediaList?.Focus();
-
         if (updateKind == PointerUpdateKind.RightButtonPressed)
         {
             ResetItemDragState();
             return;
         }
 
+        vm.SelectedMediaItem = item;
+        _mediaList?.Focus();
+
         _draggedItem = item;
         _dragStartPoint = e.GetPosition(this);
         _dragStartPressedEvent = e;
         e.Handled = true;
+    }
+
+    private void OnItemContextMenuOpening(object? sender, CancelEventArgs e)
+    {
+        _mediaList?.Focus();
+    }
+
+    private void OnItemContextMenuOpened(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MediaAreaViewModel vm)
+            return;
+
+        if (sender is not ContextMenu { DataContext: MediaItem item })
+            return;
+
+        vm.SelectedMediaItem = item;
     }
 
     private async void OnItemPointerMoved(object? sender, PointerEventArgs e)

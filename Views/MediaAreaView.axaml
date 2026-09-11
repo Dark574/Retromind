@@ -268,7 +268,8 @@
                                     <Border.BorderThickness>0</Border.BorderThickness>
 
                                     <Border.ContextMenu>
-                                        <ContextMenu>
+                                        <ContextMenu Opening="OnItemContextMenuOpening"
+                                                     Opened="OnItemContextMenuOpened">
                                             <MenuItem Header="{x:Static p:Strings.Button_Edit}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditMediaCommand}"
                                                       CommandParameter="{Binding .}" 
