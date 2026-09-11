@@ -224,7 +224,7 @@
     <data name="EditMedia.WinetricksVerbs" xml:space="preserve"><value>Winetricks-Verben</value></data>
     <data name="EditMedia.RunWinetricks" xml:space="preserve"><value>Winetricks ausführen</value></data>
     <data name="EditMedia.WinetricksHint" xml:space="preserve"><value>Führt Winetricks im Prefix dieses Eintrags aus.</value></data>
-    <data name="EditMedia.EnvironmentTitle" xml:space="preserve"><value>Umgebungsvariablen (pro Eintrag)</value></data>
+    <data name="EditMedia.EnvironmentTitle" xml:space="preserve"><value>Umgebungsvariablen</value></data>
     <data name="EditMedia.EnvironmentHint" xml:space="preserve"><value>Optionale Schlüssel/Wert-Paare, die auf den gestarteten Prozess angewendet werden.</value></data>
     <data name="EditMedia.EnvironmentKeyWatermark" xml:space="preserve"><value>VAR_NAME (z. B. PROTONPATH)</value></data>
     <data name="EditMedia.WrapperChain" xml:space="preserve"><value>Wrapper-Kette (Linux)</value></data>
