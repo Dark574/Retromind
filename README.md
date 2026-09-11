@@ -109,9 +109,21 @@ Note: When using the AppImage, you do not need a system-wide VLC installation be
 The Wayland/X11 note below still applies because it affects how video is embedded into the Avalonia window.
 
 ### Build requirements (host)
-- Docker (for the full reproducible bookworm build pipeline)
+- Docker with the Buildx plugin (for the full reproducible BuildKit/bookworm build pipeline)
 - `curl` (to download `appimagetool` if missing)
 - `sha256sum` (normally provided by GNU coreutils)
+
+Verify that Buildx is available:
+
+```bash
+docker buildx version
+```
+
+On CachyOS and Arch Linux, install the plugin with:
+
+```bash
+sudo pacman -S docker-buildx
+```
 
 The generated AppImage does not depend on the host `libfuse2` userspace library. Normal execution still
 requires Linux kernel FUSE support; AppImage's extract-and-run fallback remains available on systems where
