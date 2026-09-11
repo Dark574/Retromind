@@ -227,7 +227,7 @@
     <data name="EditMedia.EnvironmentTitle" xml:space="preserve"><value>Umgebungsvariablen</value></data>
     <data name="EditMedia.EnvironmentHint" xml:space="preserve"><value>Optionale Schlüssel/Wert-Paare, die auf den gestarteten Prozess angewendet werden.</value></data>
     <data name="EditMedia.EnvironmentKeyWatermark" xml:space="preserve"><value>VAR_NAME (z. B. PROTONPATH)</value></data>
-    <data name="EditMedia.WrapperChain" xml:space="preserve"><value>Wrapper-Kette (Linux)</value></data>
+    <data name="EditMedia.WrapperChain" xml:space="preserve"><value>Wrapper-Kette</value></data>
     <data name="EditMedia.CopyPreviewCommand" xml:space="preserve"><value>Vorschau-Befehl kopieren</value></data>
     <data name="EditMedia.Manuals" xml:space="preserve"><value>Handbücher</value></data>
     <data name="EditMedia.SelectAssetToDelete" xml:space="preserve"><value>Zum Löschen ein Asset auswählen</value></data>
