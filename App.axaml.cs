@@ -123,6 +123,14 @@ public partial class App : Application
                         }
                     };
                 }
+                else
+                {
+                    mainWindow.Loaded += async (_, _) =>
+                    {
+                        await dataLoadingTask;
+                        mainWindow.FocusSelectedMediaArea();
+                    };
+                }
 
                 // Ensure resources (like music playback) are cleaned up on exit
                 desktop.Exit += (_, _) => { mainViewModel.Cleanup(); };

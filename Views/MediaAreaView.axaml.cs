@@ -34,6 +34,11 @@ public partial class MediaAreaView : UserControl
         if (_mediaList != null)
             _mediaList.SizeChanged += OnMediaListSizeChanged;
 
+        AddHandler(
+            KeyDownEvent,
+            OnMediaListKeyDown,
+            RoutingStrategies.Tunnel);
+
         // Ensure we run our scroll logic once the control is loaded.
         this.Loaded += OnLoadedOnce;
         DataContextChanged += OnDataContextChanged;
@@ -239,6 +244,9 @@ public partial class MediaAreaView : UserControl
 
     private void OnMediaListKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_mediaList?.IsKeyboardFocusWithin != true)
+            return;
+
         if (DataContext is not MediaAreaViewModel vm)
             return;
 
@@ -289,6 +297,8 @@ public partial class MediaAreaView : UserControl
 
         _mediaList.ScrollIntoView(row);
     }
+
+    internal void FocusItemList() => _mediaList?.Focus();
 
     private async void OnOpenFilterBuilderClick(object? sender, RoutedEventArgs e)
     {

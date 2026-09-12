@@ -136,6 +136,48 @@ public partial class MainWindow : Window
             QueueWaylandStartupReveal();
     }
 
+    internal void FocusSelectedMediaArea()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (DataContext is not MainWindowViewModel
+                {
+                    SelectedNodeContent: MediaAreaViewModel { SelectedMediaItem: not null } mediaVm
+                })
+            {
+                return;
+            }
+
+            this.GetVisualDescendants()
+                .OfType<MediaAreaView>()
+                .FirstOrDefault(view => ReferenceEquals(view.DataContext, mediaVm))
+                ?.FocusItemList();
+        }, DispatcherPriority.Render);
+    }
+
+    internal void FocusActiveItemArea()
+    {
+        if (DataContext is not MainWindowViewModel vm)
+            return;
+
+        switch (vm.SelectedNodeContent)
+        {
+            case MediaAreaViewModel mediaVm:
+                this.GetVisualDescendants()
+                    .OfType<MediaAreaView>()
+                    .FirstOrDefault(view => ReferenceEquals(view.DataContext, mediaVm))
+                    ?.FocusItemList();
+                break;
+
+            case SearchAreaViewModel searchVm:
+                this.GetVisualDescendants()
+                    .OfType<SearchAreaView>()
+                    .FirstOrDefault(view => ReferenceEquals(view.DataContext, searchVm))
+                    ?.FocusItemList();
+                break;
+        }
+    }
+
     // Override the method that is called when the window is closing.
     protected override async void OnClosing(WindowClosingEventArgs e)
     {

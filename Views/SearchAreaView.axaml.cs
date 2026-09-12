@@ -27,6 +27,11 @@ public partial class SearchAreaView : UserControl
         _resultsList = this.FindControl<ListBox>("ResultsList");
         if (_resultsList != null)
             _resultsList.SizeChanged += OnResultsSizeChanged;
+
+        AddHandler(
+            KeyDownEvent,
+            OnResultsListKeyDown,
+            RoutingStrategies.Tunnel);
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -147,6 +152,9 @@ public partial class SearchAreaView : UserControl
 
     private void OnResultsListKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_resultsList?.IsKeyboardFocusWithin != true)
+            return;
+
         if (DataContext is not SearchAreaViewModel vm)
             return;
 
@@ -198,6 +206,8 @@ public partial class SearchAreaView : UserControl
 
         _resultsList.ScrollIntoView(row);
     }
+
+    internal void FocusItemList() => _resultsList?.Focus();
 
     private async void OnEditScopesClick(object? sender, RoutedEventArgs e)
     {
