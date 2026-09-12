@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -111,12 +112,16 @@ public partial class SearchAreaView : UserControl
             not PointerUpdateKind.RightButtonPressed)
             return;
 
-        if (vm.IsMultiSelectMode && updateKind == PointerUpdateKind.LeftButtonPressed)
+        if (vm.IsMultiSelectMode)
         {
-            vm.SelectedMediaItem = item;
-            vm.MultiSelection.Toggle(item);
-            _resultsList?.Focus();
-            e.Handled = true;
+            if (updateKind == PointerUpdateKind.LeftButtonPressed)
+            {
+                vm.SelectedMediaItem = item;
+                vm.MultiSelection.Toggle(item);
+                _resultsList?.Focus();
+                e.Handled = true;
+            }
+
             return;
         }
 
@@ -125,6 +130,12 @@ public partial class SearchAreaView : UserControl
 
         if (updateKind == PointerUpdateKind.LeftButtonPressed)
             e.Handled = true;
+    }
+
+    private void OnItemContextMenuOpening(object? sender, CancelEventArgs e)
+    {
+        if (DataContext is SearchAreaViewModel { IsMultiSelectMode: true })
+            e.Cancel = true;
     }
 
     private void OnLoaded(object? sender, RoutedEventArgs e)

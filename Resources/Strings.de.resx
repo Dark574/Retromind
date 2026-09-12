@@ -72,6 +72,24 @@
     <data name="BulkEdit.Selection.SelectedLabel" xml:space="preserve"><value>ausgewählt</value></data>
     <data name="BulkEdit.Selection.SelectAllVisible" xml:space="preserve"><value>Alle angezeigten auswählen</value></data>
     <data name="BulkEdit.Selection.Clear" xml:space="preserve"><value>Auswahl aufheben</value></data>
+    <data name="BulkEdit.Selection.Edit" xml:space="preserve"><value>Ausgewählte bearbeiten...</value></data>
+    <data name="BulkEdit.DialogTitle" xml:space="preserve"><value>Ausgewählte Medien bearbeiten</value></data>
+    <data name="BulkEdit.ItemCountFormat" xml:space="preserve"><value>Die Änderungen werden auf {0:N0} ausgewählte Medien angewendet.</value></data>
+    <data name="BulkEdit.Hint" xml:space="preserve"><value>Nur aktivierte Änderungen werden angewendet. Alle anderen Werte bleiben unverändert.</value></data>
+    <data name="BulkEdit.ChangeStatus" xml:space="preserve"><value>Status ändern</value></data>
+    <data name="BulkEdit.Status.Incomplete" xml:space="preserve"><value>Unvollständig</value></data>
+    <data name="BulkEdit.Status.Completed" xml:space="preserve"><value>Abgeschlossen</value></data>
+    <data name="BulkEdit.Status.Abandoned" xml:space="preserve"><value>Abgebrochen</value></data>
+    <data name="BulkEdit.CustomFields.Hint" xml:space="preserve"><value>Füge eine Zeile hinzu, um dasselbe Feld bei allen ausgewählten Medien zu setzen oder zu entfernen.</value></data>
+    <data name="BulkEdit.CustomFields.Add" xml:space="preserve"><value>Feldänderung hinzufügen</value></data>
+    <data name="BulkEdit.CustomFields.Set" xml:space="preserve"><value>Setzen</value></data>
+    <data name="BulkEdit.CustomFields.Remove" xml:space="preserve"><value>Entfernen</value></data>
+    <data name="BulkEdit.CustomFields.DiscardChange" xml:space="preserve"><value>Änderung verwerfen</value></data>
+    <data name="BulkEdit.Apply" xml:space="preserve"><value>Änderungen anwenden</value></data>
+    <data name="BulkEdit.Validation.KeyRequired" xml:space="preserve"><value>Gib für jede Feldänderung einen Schlüssel ein.</value></data>
+    <data name="BulkEdit.Validation.InternalKey" xml:space="preserve"><value>Interne Store.*-Felder können hier nicht geändert werden.</value></data>
+    <data name="BulkEdit.Validation.DuplicateKey" xml:space="preserve"><value>Jedes benutzerdefinierte Feld darf nur einmal vorkommen.</value></data>
+    <data name="BulkEdit.Validation.ValueRequired" xml:space="preserve"><value>Gib einen Wert ein oder wähle Entfernen.</value></data>
 
 
     <!-- COMMON -->

@@ -72,6 +72,24 @@
     <data name="BulkEdit.Selection.SelectedLabel" xml:space="preserve"><value>selected</value></data>
     <data name="BulkEdit.Selection.SelectAllVisible" xml:space="preserve"><value>Select all shown</value></data>
     <data name="BulkEdit.Selection.Clear" xml:space="preserve"><value>Clear selection</value></data>
+    <data name="BulkEdit.Selection.Edit" xml:space="preserve"><value>Edit selected...</value></data>
+    <data name="BulkEdit.DialogTitle" xml:space="preserve"><value>Edit selected items</value></data>
+    <data name="BulkEdit.ItemCountFormat" xml:space="preserve"><value>Changes will be applied to {0:N0} selected items.</value></data>
+    <data name="BulkEdit.Hint" xml:space="preserve"><value>Only enabled changes are applied. All other values remain unchanged.</value></data>
+    <data name="BulkEdit.ChangeStatus" xml:space="preserve"><value>Change status</value></data>
+    <data name="BulkEdit.Status.Incomplete" xml:space="preserve"><value>Incomplete</value></data>
+    <data name="BulkEdit.Status.Completed" xml:space="preserve"><value>Completed</value></data>
+    <data name="BulkEdit.Status.Abandoned" xml:space="preserve"><value>Abandoned</value></data>
+    <data name="BulkEdit.CustomFields.Hint" xml:space="preserve"><value>Add a row to set or remove the same field on all selected items.</value></data>
+    <data name="BulkEdit.CustomFields.Add" xml:space="preserve"><value>Add field change</value></data>
+    <data name="BulkEdit.CustomFields.Set" xml:space="preserve"><value>Set</value></data>
+    <data name="BulkEdit.CustomFields.Remove" xml:space="preserve"><value>Remove</value></data>
+    <data name="BulkEdit.CustomFields.DiscardChange" xml:space="preserve"><value>Discard change</value></data>
+    <data name="BulkEdit.Apply" xml:space="preserve"><value>Apply changes</value></data>
+    <data name="BulkEdit.Validation.KeyRequired" xml:space="preserve"><value>Enter a key for every field change.</value></data>
+    <data name="BulkEdit.Validation.InternalKey" xml:space="preserve"><value>Internal Store.* fields cannot be changed here.</value></data>
+    <data name="BulkEdit.Validation.DuplicateKey" xml:space="preserve"><value>Each custom field may only occur once.</value></data>
+    <data name="BulkEdit.Validation.ValueRequired" xml:space="preserve"><value>Enter a value or select Remove.</value></data>
     
     <!-- COMMON -->
     <data name="Common.Active" xml:space="preserve"><value>Active</value></data>

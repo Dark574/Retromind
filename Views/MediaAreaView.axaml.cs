@@ -97,6 +97,12 @@ public partial class MediaAreaView : UserControl
 
     private void OnItemContextMenuOpening(object? sender, CancelEventArgs e)
     {
+        if (DataContext is MediaAreaViewModel { IsMultiSelectMode: true })
+        {
+            e.Cancel = true;
+            return;
+        }
+
         _mediaList?.Focus();
     }
 

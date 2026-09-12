@@ -201,6 +201,11 @@
                 <WrapPanel Grid.Column="1"
                            HorizontalAlignment="Right"
                            VerticalAlignment="Center">
+                    <Button Content="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BulkEditSelectedMediaText}"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BulkEditSelectedMediaCommand}"
+                            IsEnabled="{Binding MultiSelection.HasSelection}"
+                            Padding="10,4"
+                            Margin="8,0,0,0" />
                     <Button Content="{Binding SelectAllVisibleItemsText}"
                             Command="{Binding SelectAllVisibleItemsCommand}"
                             Click="OnMultiSelectionActionClick"
@@ -262,7 +267,7 @@
 
             <!-- Context menu for the EMPTY area -->
             <ListBox.ContextMenu>
-                <ContextMenu>
+                <ContextMenu Opening="OnItemContextMenuOpening">
                     <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
                               Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
                               CommandParameter="{Binding Node}" />
