@@ -5,6 +5,7 @@
              xmlns:helpers="clr-namespace:Retromind.Helpers"
              xmlns:p="clr-namespace:Retromind.Resources"
              x:Class="Retromind.Views.MediaAreaView"
+             KeyDown="OnViewKeyDown"
              x:DataType="vm:MediaAreaViewModel">
 
     <Grid RowDefinitions="Auto, *">
@@ -36,16 +37,31 @@
                        VerticalAlignment="Center">
                     
                 <!-- Random Button -->
-                <Button Command="{Binding PlayRandomCommand}" 
+                <Button Classes="compactToolbarIcon"
+                        Command="{Binding PlayRandomCommand}"
                         ToolTip.Tip="{x:Static p:Strings.Tip_RandomGame}"
-                        Padding="10,5"
-                        Margin="0,0,12,8"
+                        Width="32"
+                        Height="28"
+                        Padding="5"
+                        Margin="0,0,4,8"
                         IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IsLaunchIdle}">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                        <TextBlock Text="🎲"/>
-                        <TextBlock Text="{x:Static p:Strings.Button_Random}"/>
-                    </StackPanel>
+                    <PathIcon Data="{StaticResource IconRandomDice}"
+                              Width="18"
+                              Height="18" />
                 </Button>
+
+                <!-- Multi-selection mode -->
+                <ToggleButton Classes="compactToolbarIcon"
+                              IsChecked="{Binding IsMultiSelectMode, Mode=TwoWay}"
+                              ToolTip.Tip="{Binding MultiSelectModeToolTip}"
+                              Width="32"
+                              Height="28"
+                              Padding="5"
+                              Margin="0,0,12,8">
+                    <PathIcon Data="{StaticResource IconMultiSelect}"
+                              Width="18"
+                              Height="18" />
+                </ToggleButton>
 
                 <!-- Favorites-only toggle -->
                 <CheckBox IsChecked="{Binding OnlyFavorites}"

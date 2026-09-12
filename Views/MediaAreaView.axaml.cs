@@ -225,6 +225,18 @@ public partial class MediaAreaView : UserControl
         }, DispatcherPriority.Background);
     }
 
+    private void OnViewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape ||
+            DataContext is not MediaAreaViewModel { IsMultiSelectMode: true } vm)
+        {
+            return;
+        }
+
+        vm.IsMultiSelectMode = false;
+        e.Handled = true;
+    }
+
     private void OnMediaListKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not MediaAreaViewModel vm)

@@ -67,6 +67,9 @@
     <data name="Button.OpenFolder" xml:space="preserve"><value>Ordner öffnen</value></data>
     <data name="Button.Clear" xml:space="preserve"><value>Leeren</value></data>
 
+    <!-- BULK EDIT -->
+    <data name="BulkEdit.SelectionMode.Tooltip" xml:space="preserve"><value>Mehrere Medien auswählen</value></data>
+
 
     <!-- COMMON -->
     <data name="Common.Active" xml:space="preserve"><value>Aktiv</value></data>

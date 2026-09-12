@@ -55,6 +55,9 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     private MediaItem? _selectedMediaItem;
 
     [ObservableProperty]
+    private bool _isMultiSelectMode;
+
+    [ObservableProperty]
     private string _searchText = string.Empty;
 
     /// <summary>
@@ -105,6 +108,9 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     /// </summary>
     public IRelayCommand ResetFiltersCommand { get; }
     public IRelayCommand ClearSearchTextCommand { get; }
+
+    public string MultiSelectModeToolTip =>
+        T("BulkEdit.SelectionMode.Tooltip", "Select multiple items");
     
     public MediaAreaViewModel(
         MediaNode node,
@@ -240,6 +246,11 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     partial void OnItemWidthChanged(double value) => RebuildRows();
 
     partial void OnViewportWidthChanged(double value) => RebuildRows();
+
+    partial void OnIsMultiSelectModeChanged(bool value)
+    {
+        PlayRandomCommand.NotifyCanExecuteChanged();
+    }
     
     private void DebouncedApplyFilter(string querySnapshot)
     {
@@ -458,7 +469,8 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         return true;
     }
 
-    private bool CanPlayRandom() => IsPlayRandomEnabled && FilteredItems.Count > 0;
+    private bool CanPlayRandom() =>
+        !IsMultiSelectMode && IsPlayRandomEnabled && FilteredItems.Count > 0;
 
     [RelayCommand(CanExecute = nameof(CanPlayRandom))]
     private async Task PlayRandom()

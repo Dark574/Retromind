@@ -133,6 +133,18 @@ public partial class SearchAreaView : UserControl
         }
     }
 
+    private void OnViewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape ||
+            DataContext is not SearchAreaViewModel { IsMultiSelectMode: true } vm)
+        {
+            return;
+        }
+
+        vm.IsMultiSelectMode = false;
+        e.Handled = true;
+    }
+
     private void OnResultsListKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not SearchAreaViewModel vm)

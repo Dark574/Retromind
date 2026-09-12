@@ -6,6 +6,7 @@
              xmlns:helpers="clr-namespace:Retromind.Helpers"
              x:Class="Retromind.Views.SearchAreaView"
              x:DataType="vm:SearchAreaViewModel"
+             KeyDown="OnViewKeyDown"
              x:Name="Root">
 
     <Grid RowDefinitions="Auto, *">
@@ -56,16 +57,32 @@
                                HorizontalAlignment="Right">
 
                         <!-- Random item from results -->
-                        <Button Command="{Binding PlayRandomCommand}"
-                                IsEnabled="{Binding HasResults}"
+                        <Button Classes="compactToolbarIcon"
+                                Command="{Binding PlayRandomCommand}"
                                 HorizontalAlignment="Left"
-                                Margin="0,0,12,8"
-                                Padding="10,5">
-                            <StackPanel Orientation="Horizontal" Spacing="5">
-                                <TextBlock Text="🎲"/>
-                                <TextBlock Text="{x:Static p:Strings.Button_Random}"/>
-                            </StackPanel>
+                                ToolTip.Tip="{x:Static p:Strings.Tip_RandomGame}"
+                                Width="32"
+                                Height="28"
+                                Margin="0,0,4,8"
+                                Padding="5">
+                            <PathIcon Data="{StaticResource IconRandomDice}"
+                                      Width="18"
+                                      Height="18" />
                         </Button>
+
+                        <!-- Multi-selection mode -->
+                        <ToggleButton Classes="compactToolbarIcon"
+                                      IsChecked="{Binding IsMultiSelectMode, Mode=TwoWay}"
+                                      IsEnabled="{Binding HasResults}"
+                                      ToolTip.Tip="{Binding MultiSelectModeToolTip}"
+                                      Width="32"
+                                      Height="28"
+                                      Padding="5"
+                                      Margin="0,0,12,8">
+                            <PathIcon Data="{StaticResource IconMultiSelect}"
+                                      Width="18"
+                                      Height="18" />
+                        </ToggleButton>
 
                         <!-- Favorites-only toggle -->
                         <CheckBox IsChecked="{Binding OnlyFavorites}"

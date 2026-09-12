@@ -66,6 +66,9 @@
     <data name="Button.Generate" xml:space="preserve"><value>Generate</value></data>
     <data name="Button.OpenFolder" xml:space="preserve"><value>Open Folder</value></data>
     <data name="Button.Clear" xml:space="preserve"><value>Clear</value></data>
+
+    <!-- BULK EDIT -->
+    <data name="BulkEdit.SelectionMode.Tooltip" xml:space="preserve"><value>Select multiple items</value></data>
     
     <!-- COMMON -->
     <data name="Common.Active" xml:space="preserve"><value>Active</value></data>

@@ -103,6 +103,9 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private MediaItem? _selectedMediaItem;
 
+    [ObservableProperty]
+    private bool _isMultiSelectMode;
+
     public int SelectedScopeCount => CountSelectedNodes();
 
     public string SelectedScopeSummary =>
@@ -118,6 +121,9 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     /// </summary>
     public IRelayCommand ResetFiltersCommand { get; }
     public IRelayCommand ClearSearchTextCommand { get; }
+
+    public string MultiSelectModeToolTip =>
+        T("BulkEdit.SelectionMode.Tooltip", "Select multiple items");
     
     public event Action<MediaItem>? RequestPlay;
     public event Action<MediaItem>? RequestScrollIntoView;
@@ -151,7 +157,9 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         // Keep the initial state consistent (empty results until user enters criteria)
         SearchResults.Clear();
 
-        PlayRandomCommand = new RelayCommand(PlayRandom, () => SearchResults.Count > 0);
+        PlayRandomCommand = new RelayCommand(
+            PlayRandom,
+            () => !IsMultiSelectMode && SearchResults.Count > 0);
 
         PlayCommand = new RelayCommand<MediaItem>(item =>
         {
@@ -184,6 +192,11 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     partial void OnItemWidthChanged(double value) => RebuildRows();
 
     partial void OnViewportWidthChanged(double value) => RebuildRows();
+
+    partial void OnIsMultiSelectModeChanged(bool value)
+    {
+        (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
+    }
 
     public void SetParentalFilterActive(bool active)
     {

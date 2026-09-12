@@ -13,10 +13,37 @@
         <Style Selector="chrome|WindowDrawnDecorations:fullscreen /template/ chrome|WindowDrawnDecorationsContent > Panel">
             <Setter Property="IsVisible" Value="False" />
         </Style>
+        <Style Selector="Button.compactToolbarIcon">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.compactToolbarIcon:disabled">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="ToggleButton.compactToolbarIcon">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
     </Application.Styles>
     
     <Application.Resources>
         <ResourceDictionary>
+            <!-- Shared compact toolbar icons (24 x 24 SVG path coordinates). -->
+            <Geometry x:Key="IconRandomDice">
+                M5 2H19C20.657 2 22 3.343 22 5V19C22 20.657 20.657 22 19 22H5C3.343 22 2 20.657 2 19V5C2 3.343 3.343 2 5 2Z
+                M5 4C4.448 4 4 4.448 4 5V19C4 19.552 4.448 20 5 20H19C19.552 20 20 19.552 20 19V5C20 4.448 19.552 4 19 4H5Z
+                M7 5.5A1.5 1.5 0 1 1 7 8.5A1.5 1.5 0 1 1 7 5.5Z
+                M17 5.5A1.5 1.5 0 1 1 17 8.5A1.5 1.5 0 1 1 17 5.5Z
+                M12 10.5A1.5 1.5 0 1 1 12 13.5A1.5 1.5 0 1 1 12 10.5Z
+                M7 15.5A1.5 1.5 0 1 1 7 18.5A1.5 1.5 0 1 1 7 15.5Z
+                M17 15.5A1.5 1.5 0 1 1 17 18.5A1.5 1.5 0 1 1 17 15.5Z
+            </Geometry>
+            <Geometry x:Key="IconMultiSelect">
+                M2 2H8V8H2Z M4 4V6H6V4H4Z M11 4H22V6H11Z
+                M2 9H8V15H2Z M4 11V13H6V11H4Z M11 11H22V13H11Z
+                M2 16H8V22H2Z M4 18V20H6V18H4Z M11 18H22V20H11Z
+            </Geometry>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="TileFallbackTitleBrush" Color="#1A1A1A" />
