@@ -1363,7 +1363,7 @@ public partial class MainWindowViewModel
         {
             Title = Strings.Dialog_Select_Music,
             AllowMultiple = false,
-            FileTypeFilter = new[] { new FilePickerFileType("Audio") { Patterns = new[] { "*.mp3", "*.wav", "*.ogg", "*.flac", "*.sid" } } }
+            FileTypeFilter = new[] { RetromindFilePickerTypes.Audio }
         });
 
         if (result != null && result.Count == 1)

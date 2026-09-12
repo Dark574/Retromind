@@ -12,6 +12,8 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Added
 - Protect settings from overwrite after load failure
 - new arcade system theme
+- Multiediting implemented
+- opus audio support
 
 ### Changed
 

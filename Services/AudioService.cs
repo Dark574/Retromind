@@ -9,7 +9,7 @@ namespace Retromind.Services;
 
 /// <summary>
 /// Service responsible for handling background music playback using an external player (ffplay).
-/// Supports a wide range of formats including mp3, ogg, flac, wav, and chiptunes (sid, nsf).
+/// Supports a wide range of formats including mp3, ogg, opus, flac, wav, and SID chiptunes.
 /// </summary>
 public class AudioService
 {

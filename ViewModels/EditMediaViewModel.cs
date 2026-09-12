@@ -1273,10 +1273,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         {
             AssetType.Music => new[]
             {
-                new FilePickerFileType("Audio")
-                {
-                    Patterns = new[] { "*.mp3", "*.ogg", "*.wav", "*.flac", "*.sid" }
-                }
+                RetromindFilePickerTypes.Audio
             },
             AssetType.Video => new[]
             {
