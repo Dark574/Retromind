@@ -9,7 +9,7 @@
              KeyDown="OnViewKeyDown"
              x:Name="Root">
 
-    <Grid RowDefinitions="Auto, *">
+    <Grid RowDefinitions="Auto, Auto, *">
 
         <!-- Header: Filters & controls -->
         <Border Grid.Row="0"
@@ -225,9 +225,44 @@
             </Grid>
         </Border>
 
+        <Border Grid.Row="1"
+                Margin="10,0,10,8"
+                Padding="10,6"
+                Background="#26000000"
+                BorderBrush="#55808080"
+                BorderThickness="1"
+                CornerRadius="4"
+                IsVisible="{Binding IsMultiSelectMode}">
+            <Grid ColumnDefinitions="Auto, *">
+                <StackPanel Orientation="Horizontal"
+                            Spacing="4"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="{Binding MultiSelection.Count}"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding MultiSelectionSelectedLabel}" />
+                </StackPanel>
+
+                <WrapPanel Grid.Column="1"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center">
+                    <Button Content="{Binding SelectAllVisibleItemsText}"
+                            Command="{Binding SelectAllVisibleItemsCommand}"
+                            Click="OnMultiSelectionActionClick"
+                            Padding="10,4"
+                            Margin="8,0,0,0" />
+                    <Button Content="{Binding ClearMultiSelectionText}"
+                            Command="{Binding ClearMultiSelectionCommand}"
+                            Click="OnMultiSelectionActionClick"
+                            IsEnabled="{Binding MultiSelection.HasSelection}"
+                            Padding="10,4"
+                            Margin="8,0,0,0" />
+                </WrapPanel>
+            </Grid>
+        </Border>
+
         <!-- Results -->
         <ListBox x:Name="ResultsList"
-                 Grid.Row="1"
+                 Grid.Row="2"
                  ItemsSource="{Binding ItemRows}"
                  Padding="0"
                  Background="Transparent"

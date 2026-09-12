@@ -42,4 +42,21 @@ public sealed class MediaMultiSelectionStateTests
         selection.Clear();
         Assert.Empty(selection.ResolveFrom([first, second, third]));
     }
+
+    [Fact]
+    public void ReplaceWith_ReplacesSelectionsThatAreNoLongerShown()
+    {
+        var hidden = new MediaItem("Hidden");
+        var firstShown = new MediaItem("First shown");
+        var secondShown = new MediaItem("Second shown");
+        var selection = new MediaMultiSelectionState();
+
+        selection.Toggle(hidden);
+        selection.ReplaceWith([firstShown, secondShown]);
+
+        Assert.False(selection.Contains(hidden));
+        Assert.True(selection.Contains(firstShown));
+        Assert.True(selection.Contains(secondShown));
+        Assert.Equal(2, selection.Count);
+    }
 }

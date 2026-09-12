@@ -69,6 +69,9 @@
 
     <!-- BULK EDIT -->
     <data name="BulkEdit.SelectionMode.Tooltip" xml:space="preserve"><value>Select multiple items</value></data>
+    <data name="BulkEdit.Selection.SelectedLabel" xml:space="preserve"><value>selected</value></data>
+    <data name="BulkEdit.Selection.SelectAllVisible" xml:space="preserve"><value>Select all shown</value></data>
+    <data name="BulkEdit.Selection.Clear" xml:space="preserve"><value>Clear selection</value></data>
     
     <!-- COMMON -->
     <data name="Common.Active" xml:space="preserve"><value>Active</value></data>

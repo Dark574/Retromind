@@ -123,9 +123,20 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     /// </summary>
     public IRelayCommand ResetFiltersCommand { get; }
     public IRelayCommand ClearSearchTextCommand { get; }
+    public IRelayCommand SelectAllVisibleItemsCommand { get; }
+    public IRelayCommand ClearMultiSelectionCommand { get; }
 
     public string MultiSelectModeToolTip =>
         T("BulkEdit.SelectionMode.Tooltip", "Select multiple items");
+
+    public string MultiSelectionSelectedLabel =>
+        T("BulkEdit.Selection.SelectedLabel", "selected");
+
+    public string SelectAllVisibleItemsText =>
+        T("BulkEdit.Selection.SelectAllVisible", "Select all shown");
+
+    public string ClearMultiSelectionText =>
+        T("BulkEdit.Selection.Clear", "Clear selection");
     
     public event Action<MediaItem>? RequestPlay;
     public event Action<MediaItem>? RequestScrollIntoView;
@@ -171,6 +182,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         // Allow resetting all filters back to defaults
         ResetFiltersCommand = new RelayCommand(ResetFilters);
         ClearSearchTextCommand = new RelayCommand(ClearSearchText);
+        SelectAllVisibleItemsCommand = new RelayCommand(() => MultiSelection.ReplaceWith(SearchResults));
+        ClearMultiSelectionCommand = new RelayCommand(MultiSelection.Clear);
         SelectedStatusOption = StatusOptions[0];
     }
 

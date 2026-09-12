@@ -43,6 +43,19 @@ public sealed class MediaMultiSelectionState : ObservableObject
         NotifySelectionChanged();
     }
 
+    public void ReplaceWith(IEnumerable<MediaItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        var selectedIds = items.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
+        if (_selectedIds.SetEquals(selectedIds))
+            return;
+
+        _selectedIds.Clear();
+        _selectedIds.UnionWith(selectedIds);
+        NotifySelectionChanged();
+    }
+
     public IReadOnlyList<MediaItem> ResolveFrom(IEnumerable<MediaItem> items) =>
         items.Where(Contains).ToList();
 

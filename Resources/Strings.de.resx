@@ -69,6 +69,9 @@
 
     <!-- BULK EDIT -->
     <data name="BulkEdit.SelectionMode.Tooltip" xml:space="preserve"><value>Mehrere Medien auswählen</value></data>
+    <data name="BulkEdit.Selection.SelectedLabel" xml:space="preserve"><value>ausgewählt</value></data>
+    <data name="BulkEdit.Selection.SelectAllVisible" xml:space="preserve"><value>Alle angezeigten auswählen</value></data>
+    <data name="BulkEdit.Selection.Clear" xml:space="preserve"><value>Auswahl aufheben</value></data>
 
 
     <!-- COMMON -->

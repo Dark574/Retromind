@@ -166,6 +166,13 @@ public partial class SearchAreaView : UserControl
             Avalonia.Threading.DispatcherPriority.Input);
     }
 
+    private void OnMultiSelectionActionClick(object? sender, RoutedEventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(
+            () => _resultsList?.Focus(),
+            Avalonia.Threading.DispatcherPriority.Input);
+    }
+
     private void OnResultsListKeyDown(object? sender, KeyEventArgs e)
     {
         if (_resultsList?.IsKeyboardFocusWithin != true)

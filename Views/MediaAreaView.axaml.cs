@@ -259,6 +259,13 @@ public partial class MediaAreaView : UserControl
             DispatcherPriority.Input);
     }
 
+    private void OnMultiSelectionActionClick(object? sender, RoutedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(
+            () => _mediaList?.Focus(),
+            DispatcherPriority.Input);
+    }
+
     private void OnMediaListKeyDown(object? sender, KeyEventArgs e)
     {
         if (_mediaList?.IsKeyboardFocusWithin != true)
