@@ -36,6 +36,7 @@ public partial class MainWindowViewModel : ViewModelBase
     // --- Services ---
     private readonly AudioService _audioService;
     private readonly MediaDataService _dataService;
+    private readonly MetadataBackupService _metadataBackupService;
     private readonly FileManagementService _fileService;
     private readonly ImportService _importService;
     private readonly LauncherService _launcherService;
@@ -119,6 +120,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private int _persistenceErrorNoticeShown;
     private int _suppressPersistenceErrorNotice;
     private bool _libraryLoadFailed;
+    private bool _closeWithoutPersistenceAfterRestore;
 
     private readonly TaskCompletionSource<bool> _loadDataTcs =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -319,6 +321,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(
         AudioService audioService,
         MediaDataService dataService,
+        MetadataBackupService metadataBackupService,
         FileManagementService fileService,
         ImportService importService,
         LauncherService launcherService,
@@ -335,6 +338,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _audioService = audioService;
         _dataService = dataService;
+        _metadataBackupService = metadataBackupService;
         _fileService = fileService;
         _importService = importService;
         _launcherService = launcherService;
@@ -895,6 +899,12 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         // Stop playback immediately; saving can take a moment.
         _audioService.StopMusic();
+
+        if (_closeWithoutPersistenceAfterRestore)
+        {
+            Cleanup();
+            return true;
+        }
 
         // Cancel pending debounces so we don't race with our final flush.
         _saveSettingsCts?.Cancel();

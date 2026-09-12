@@ -67,6 +67,9 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     // Event raised when an item has been successfully scraped/matched.
     public Func<MediaItem, ScraperSearchResult, Task>? OnItemScrapedAsync;
 
+    // Called only after the user presses Start and before the first item can be changed.
+    public Func<Task<bool>>? OnBeforeStartAsync;
+
     private void InitializeScrapers()
     {
         AvailableScrapers.Clear();
@@ -87,6 +90,9 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
             return;
 
         if (SelectedScraper == null)
+            return;
+
+        if (OnBeforeStartAsync != null && !await OnBeforeStartAsync())
             return;
 
         IsBusy = true;

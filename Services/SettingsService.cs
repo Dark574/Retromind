@@ -187,12 +187,39 @@ public class SettingsService
     public async Task SaveJsonAsync(string json)
     {
         if (json == null) throw new ArgumentNullException(nameof(json));
-        ThrowIfLoadFailed();
+        await SaveJsonCoreAsync(json, enforceLoadState: true).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Validates and restores serialized settings through the normal atomic write gate.
+    /// Unlike a regular save, this can recover a service whose persisted settings failed to load.
+    /// </summary>
+    public async Task RestoreJsonAsync(string json)
+    {
+        ValidateSerializedSettings(json);
+        await SaveJsonCoreAsync(json, enforceLoadState: false).ConfigureAwait(false);
+        Interlocked.Exchange(ref _loadFailure, null);
+    }
+
+    internal static void ValidateSerializedSettings(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            throw new JsonException("The serialized settings are empty.");
+
+        _ = JsonSerializer.Deserialize<AppSettings>(json)
+            ?? throw new JsonException("The serialized settings contain null instead of application settings.");
+    }
+
+    private async Task SaveJsonCoreAsync(string json, bool enforceLoadState)
+    {
+        if (enforceLoadState)
+            ThrowIfLoadFailed();
 
         await _ioGate.WaitAsync().ConfigureAwait(false);
         try
         {
-            ThrowIfLoadFailed();
+            if (enforceLoadState)
+                ThrowIfLoadFailed();
 
             // Ensure settings directory exists (portable installs may start from a fresh folder).
             Directory.CreateDirectory(SettingsFolder);
@@ -216,7 +243,7 @@ public class SettingsService
             // 3) Atomic replace (no "delete then move" gap)
             File.Move(TempPath, FilePath, overwrite: true);
         }
-        catch (SettingsLoadException)
+        catch (SettingsLoadException) when (enforceLoadState)
         {
             throw;
         }

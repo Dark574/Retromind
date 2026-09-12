@@ -12,6 +12,11 @@
   "VlcHardwareDecodeMode": "none",
   "EnableSelectionMusicPreview": true,
   "IgnoreLeadingArticlesInSort": false,
+  "EnableAutomaticMetadataBackups": true,
+  "BackupBeforeBulkEdit": true,
+  "BackupBeforeBulkScrape": true,
+  "BackupOnStartup": false,
+  "BackupBeforeRestore": true,
   "ParentalLockPasswordEncrypted": null,
   "ParentalLockUnlocked": true,
 

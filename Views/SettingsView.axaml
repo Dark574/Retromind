@@ -615,6 +615,31 @@
 
                         <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
 
+                        <TextBlock Text="{Binding MetadataBackupSectionTitle}" FontWeight="Bold" FontSize="16" />
+                        <TextBlock Text="{Binding MetadataBackupSectionHint}"
+                                   Opacity="0.6" TextWrapping="Wrap" />
+                        <CheckBox Content="{Binding EnableAutomaticMetadataBackupsText}"
+                                  IsChecked="{Binding EnableAutomaticMetadataBackups}" />
+                        <StackPanel Margin="22,0,0,0"
+                                    Spacing="5"
+                                    IsEnabled="{Binding EnableAutomaticMetadataBackups}">
+                            <CheckBox Content="{Binding BackupBeforeBulkEditText}"
+                                      IsChecked="{Binding BackupBeforeBulkEdit}" />
+                            <CheckBox Content="{Binding BackupBeforeBulkScrapeText}"
+                                      IsChecked="{Binding BackupBeforeBulkScrape}" />
+                            <CheckBox Content="{Binding BackupOnStartupText}"
+                                      IsChecked="{Binding BackupOnStartup}" />
+                            <CheckBox Content="{Binding BackupBeforeRestoreText}"
+                                      IsChecked="{Binding BackupBeforeRestore}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding MetadataBackupRetentionHint}"
+                                   Opacity="0.6" TextWrapping="Wrap" />
+                        <Button Content="{Binding ManageMetadataBackupsText}"
+                                Command="{Binding OpenMetadataBackupsCommand}"
+                                HorizontalAlignment="Left" />
+
+                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
+
                         <TextBlock Text="{Binding SortingSectionTitle}" FontWeight="Bold" FontSize="16" />
                         <CheckBox Content="{Binding IgnoreLeadingArticlesInSortText}"
                                   IsChecked="{Binding IgnoreLeadingArticlesInSort}"

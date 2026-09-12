@@ -304,6 +304,11 @@ public partial class SettingsViewModel
         _targetSettings.ForcePortableHomeInAppImage = committed.ForcePortableHomeInAppImage;
         _targetSettings.EnableSelectionMusicPreview = committed.EnableSelectionMusicPreview;
         _targetSettings.IgnoreLeadingArticlesInSort = committed.IgnoreLeadingArticlesInSort;
+        _targetSettings.EnableAutomaticMetadataBackups = committed.EnableAutomaticMetadataBackups;
+        _targetSettings.BackupBeforeBulkEdit = committed.BackupBeforeBulkEdit;
+        _targetSettings.BackupBeforeBulkScrape = committed.BackupBeforeBulkScrape;
+        _targetSettings.BackupOnStartup = committed.BackupOnStartup;
+        _targetSettings.BackupBeforeRestore = committed.BackupBeforeRestore;
         _targetSettings.DefaultNativeWrappers = committed.DefaultNativeWrappers;
         _targetSettings.Emulators = committed.Emulators;
         _targetSettings.Scrapers = committed.Scrapers;

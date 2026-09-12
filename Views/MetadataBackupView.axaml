@@ -1,0 +1,121 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:Retromind.ViewModels"
+        mc:Ignorable="d"
+        d:DesignWidth="820"
+        d:DesignHeight="520"
+        x:Class="Retromind.Views.MetadataBackupView"
+        x:DataType="vm:MetadataBackupViewModel"
+        Title="{Binding Title}"
+        Width="820"
+        Height="520"
+        MinWidth="680"
+        MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        CanMaximize="False">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="18">
+        <TextBlock Grid.Row="0"
+                   Text="{Binding Title}"
+                   FontSize="24"
+                   FontWeight="SemiBold" />
+
+        <TextBlock Grid.Row="1"
+                   Text="{Binding Description}"
+                   TextWrapping="Wrap"
+                   Opacity="0.7"
+                   Margin="0,5,0,14" />
+
+        <Border Grid.Row="2"
+                BorderBrush="Gray"
+                BorderThickness="1"
+                CornerRadius="6">
+            <Grid RowDefinitions="Auto,*">
+                <Grid Grid.Row="0"
+                      ColumnDefinitions="155,150,*,80"
+                      ColumnSpacing="12"
+                      Background="#18000000"
+                      Margin="10,7">
+                    <TextBlock Grid.Column="0" Text="{Binding CreatedHeader}" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="1" Text="{Binding ReasonHeader}" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="2" Text="{Binding VersionHeader}" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="3" Text="{Binding SizeHeader}" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                </Grid>
+
+                <Grid Grid.Row="1">
+                    <ListBox ItemsSource="{Binding Backups}"
+                             SelectedItem="{Binding SelectedBackup}"
+                             Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MetadataBackupRow">
+                                <Grid ColumnDefinitions="155,150,*,80"
+                                      ColumnSpacing="12"
+                                      Margin="5,2"
+                                      ToolTip.Tip="{Binding DetailText}">
+                                    <TextBlock Grid.Column="0" Text="{Binding CreatedText}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding ReasonText}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding VersionText}" />
+                                    <TextBlock Grid.Column="3" Text="{Binding SizeText}" HorizontalAlignment="Right" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock Text="{Binding EmptyText}"
+                               IsVisible="{Binding !HasBackups}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Opacity="0.65" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="3"
+                   Text="{Binding StatusText}"
+                   IsVisible="{Binding HasStatusText}"
+                   TextWrapping="Wrap"
+                   Margin="0,10,0,0" />
+
+        <Grid Grid.Row="4"
+              RowDefinitions="Auto,Auto"
+              RowSpacing="8"
+              Margin="0,14,0,0">
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0"
+                        Content="{Binding CreateText}"
+                        Command="{Binding CreateBackupCommand}"
+                        Classes="accent" />
+                <Button Grid.Column="2"
+                        Content="{Binding DeleteText}"
+                        Command="{Binding DeleteBackupCommand}" />
+            </Grid>
+
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="Auto,220,Auto,*,Auto"
+                  ColumnSpacing="8">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding RestoreModeLabel}"
+                           VerticalAlignment="Center" />
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding RestoreModes}"
+                          SelectedItem="{Binding SelectedRestoreMode}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:MetadataRestoreModeOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Grid.Column="2"
+                        Content="{Binding RestoreText}"
+                        Command="{Binding RestoreBackupCommand}" />
+                <Button Grid.Column="4"
+                        Content="{Binding CloseText}"
+                        Command="{Binding CloseCommand}"
+                        IsCancel="True" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

@@ -15,6 +15,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Models.Stores;
 using Retromind.Resources;
+using Retromind.Services;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -1446,6 +1447,26 @@ public partial class MainWindowViewModel
         var importSettings = GetScraperImportSettings();
 
         var vm = new BulkScrapeViewModel(node, _currentSettings, _metadataService);
+        var dialog = new BulkScrapeView { DataContext = vm };
+        vm.OnBeforeStartAsync = async () =>
+        {
+            if (!ShouldCreateAutomaticMetadataBackup(MetadataBackupReason.BeforeBulkScrape))
+                return true;
+
+            try
+            {
+                await CreateCurrentMetadataBackupAsync(MetadataBackupReason.BeforeBulkScrape);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                var format = T(
+                    "MetadataBackup.BeforeBulkScrapeFailedFormat",
+                    "The bulk scrape was not started because the safety backup could not be created.\n\n{0}");
+                await ShowInfoDialog(dialog, string.Format(format, ex.Message));
+                return false;
+            }
+        };
         vm.OnItemScrapedAsync = async (item, result) =>
         {
             var parent = FindParentNode(RootItems, item);
@@ -1469,7 +1490,6 @@ public partial class MainWindowViewModel
                 _libraryTracker.MarkDirty();
         };
     
-        var dialog = new BulkScrapeView { DataContext = vm };
         await dialog.ShowDialog(owner);
         await SaveData();
         if (IsNodeInCurrentView(node)) UpdateContent();

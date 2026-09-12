@@ -112,6 +112,7 @@ public partial class App : Application
                     mainWindow.Loaded += async (_, _) =>
                     {
                         await dataLoadingTask;
+                        await mainViewModel.CreateStartupMetadataBackupIfEnabledAsync();
 
                         if (mainViewModel.EnterBigModeCommand.CanExecute(null))
                         {
@@ -128,6 +129,7 @@ public partial class App : Application
                     mainWindow.Loaded += async (_, _) =>
                     {
                         await dataLoadingTask;
+                        await mainViewModel.CreateStartupMetadataBackupIfEnabledAsync();
                         mainWindow.FocusSelectedMediaArea();
                     };
                 }
@@ -246,6 +248,7 @@ public partial class App : Application
         services.AddSingleton<AudioService>();
         services.AddSingleton<SoundEffectService>();
         services.AddSingleton<MediaDataService>();
+        services.AddSingleton<MetadataBackupService>();
         services.AddSingleton<FileManagementService>(_ => new FileManagementService(libraryPath));
         services.AddSingleton<LauncherService>(provider =>
         {

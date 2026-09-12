@@ -86,6 +86,16 @@ public class AppSettings
     public bool IgnoreLeadingArticlesInSort { get; set; } = false;
 
     /// <summary>
+    /// Master switch for event-driven metadata backups. Manual backups remain available.
+    /// </summary>
+    public bool EnableAutomaticMetadataBackups { get; set; } = true;
+
+    public bool BackupBeforeBulkEdit { get; set; } = true;
+    public bool BackupBeforeBulkScrape { get; set; } = true;
+    public bool BackupOnStartup { get; set; } = false;
+    public bool BackupBeforeRestore { get; set; } = true;
+
+    /// <summary>
     /// Encrypted parental-control password (AES via SecurityHelper).
     /// Empty/null means parental lock is not configured.
     /// </summary>

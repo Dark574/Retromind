@@ -90,6 +90,28 @@ not in `DataRoot`.
 - title sorting remains a live preview while the dialog is open and is restored if the dialog closes
   without saving
 
+### Versioned metadata backups (`Backups/`)
+- service: `MetadataBackupService`; UI: `MetadataBackupViewModel` / `MetadataBackupView`
+- each ZIP contains serialized snapshots of `retromind_tree.json` and `app_settings.json` plus a manifest
+  with format version, Retromind version, creation reason, and SHA-256 checksums
+- archives are written to a temporary file, fully reopened and validated, and only then published
+- automatic backups have a master switch and separate triggers for startup, accepted bulk metadata edits,
+  bulk scraping, and restore; startup defaults off while the mutation-related triggers default on
+- manual and pre-restore backups are retained until explicitly deleted; the ten newest startup, bulk-edit,
+  and bulk-scrape backups are retained together
+- when its trigger is enabled, an accepted bulk edit or started bulk scrape requires a successful pre-change
+  backup before any item is mutated
+- restore validates both archive integrity and the actual library/settings serialization contracts, optionally
+  creates a configured pre-restore safety backup when the current state is valid, and writes through the
+  existing persistence gates
+- restore defaults to the library only; the optional full mode also restores `app_settings.json`, including
+  emulator/runner configuration and the encrypted parental-control password, while item protection flags are
+  always restored because they belong to the library model
+- after restore, normal shutdown persistence is skipped because the in-memory models still contain the
+  preceding state; Retromind closes and loads the restored files on its next start
+- metadata backups intentionally exclude `Library/`, themes, portable HOME data, runners, games, media,
+  external saves, and host-secret-store credentials; full portable-folder copies remain the disaster backup
+
 ## Path and portability contract
 - persisted file paths are expected to be DataRoot-relative when possible
 - path resolution for runtime assets/documents/themes uses `AppPaths.ResolveDataPathInsideRootOrEmpty`

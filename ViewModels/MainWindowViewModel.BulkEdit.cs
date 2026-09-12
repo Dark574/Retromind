@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -41,6 +43,20 @@ public partial class MainWindowViewModel
 
         if (!accepted || viewModel.ResultPatch is not { } patch)
             return;
+
+        try
+        {
+            if (ShouldCreateAutomaticMetadataBackup(MetadataBackupReason.BeforeBulkEdit))
+                await CreateCurrentMetadataBackupAsync(MetadataBackupReason.BeforeBulkEdit);
+        }
+        catch (Exception ex)
+        {
+            var format = T(
+                "MetadataBackup.BeforeBulkEditFailedFormat",
+                "The selected items were not changed because the safety backup could not be created.\n\n{0}");
+            await ShowInfoDialog(owner, string.Format(format, ex.Message));
+            return;
+        }
 
         var changed = selectedItems.Aggregate(
             false,

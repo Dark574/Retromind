@@ -124,6 +124,24 @@ public class MediaDataService
     }
 
     /// <summary>
+    /// Validates and restores a serialized library through the normal atomic write gate.
+    /// </summary>
+    public async Task RestoreJsonAsync(string json)
+    {
+        ValidateSerializedLibrary(json);
+        await SaveJsonAsync(json).ConfigureAwait(false);
+    }
+
+    internal static void ValidateSerializedLibrary(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            throw new JsonException("The serialized library is empty.");
+
+        _ = JsonSerializer.Deserialize<ObservableCollection<MediaNode>>(json)
+            ?? throw new JsonException("The serialized library contains null instead of a media tree.");
+    }
+
+    /// <summary>
     /// Loads the library from disk. 
     /// Attempts to load the main file first, then falls back to the backup if corruption is detected.
     /// </summary>

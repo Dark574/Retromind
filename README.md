@@ -188,11 +188,34 @@ Make sure the folder is writable.
 
 Ignored runtime files (not committed):
 - `Library/`
+- `Backups/`
 - `app_settings.json`
 - `retromind_tree.json` (+ `.bak` / `.tmp`)
 
 A sample settings file is provided:
 - `app_settings.sample.json`
+
+### Metadata backups
+
+Retromind can create versioned ZIP backups under `Backups/` next to the AppImage. Each archive contains
+`retromind_tree.json`, `app_settings.json`, and a checksum-protected manifest. Open
+**Settings -> Misc -> Metadata backups** to create, restore, or delete backups.
+
+Automatic backups can be enabled globally and configured separately for application startup, accepted bulk
+metadata edits, bulk scraping, and backup restore. Startup backups are disabled by default; the other three
+triggers are enabled by default. Manual backups remain available when automatic backups are disabled. The ten
+newest startup, bulk-edit, and bulk-scrape backups are retained together. Manual backups and pre-restore safety
+backups are never removed automatically. After a restore, Retromind closes so the preceding in-memory state
+cannot overwrite the restored files.
+
+Restore defaults to **Library only**, which keeps the target system's emulator profiles, runner paths,
+scraper configuration, UI preferences, and parental-control password. **Library and settings** restores the
+complete archived application configuration as well. Item protection flags belong to the library and are
+therefore restored in either mode.
+
+Metadata backups intentionally exclude `Library/`, games, artwork, videos, music, manuals, themes, portable
+`Home/` data, external save files, and credentials stored in the host secret service. They are quick rollback
+points, not a replacement for copying the complete portable Retromind directory to another drive.
 
 ### LibVLC hardware decoding (BigMode previews)
 

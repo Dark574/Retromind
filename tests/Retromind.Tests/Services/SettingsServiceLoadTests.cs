@@ -91,6 +91,25 @@ public sealed class SettingsServiceLoadTests
     }
 
     [Fact]
+    public async Task RestoreJsonAsync_RecoversServiceAfterPersistedSettingsFailedToLoad()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+        var service = new SettingsService();
+        File.WriteAllText(temp.GetPath("app_settings.json"), "{ invalid primary");
+        File.WriteAllText(temp.GetPath("app_settings.json.bak"), "{ invalid backup");
+
+        await Assert.ThrowsAsync<SettingsLoadException>(() => service.LoadAsync());
+
+        var restoredJson = service.Serialize(new AppSettings { ItemWidth = 234 });
+        await service.RestoreJsonAsync(restoredJson);
+        var restored = await service.LoadAsync();
+
+        Assert.False(service.HasLoadFailure);
+        Assert.Equal(234, restored.ItemWidth);
+    }
+
+    [Fact]
     public async Task LoadAsync_ThrowsAndBlocksWritesWhenPrimaryPathCannotBeReadAsAFile()
     {
         using var temp = new TemporaryDirectory();

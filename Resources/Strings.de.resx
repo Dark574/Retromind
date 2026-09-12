@@ -848,4 +848,58 @@ Möglicherweise wurde das Spiel nicht gestartet oder der konfigurierte Prozessna
 Möglicherweise wurde das Programm nicht korrekt gestartet.</value>
     </data>
     <data name="Launch.ConsoleOutputHeader" xml:space="preserve"><value>Konsolenausgabe:</value></data>
+    <data name="MetadataBackup.SettingsSection" xml:space="preserve"><value>Metadaten-Backups</value></data>
+    <data name="MetadataBackup.SettingsHint" xml:space="preserve"><value>Manuelle Backups sind immer verfügbar. Wähle, bei welchen Ereignissen automatische Backups erstellt werden.</value></data>
+    <data name="MetadataBackup.EnableAutomatic" xml:space="preserve"><value>Automatische Metadaten-Backups erstellen</value></data>
+    <data name="MetadataBackup.Trigger.BeforeBulkEdit" xml:space="preserve"><value>Vor dem Anwenden einer Massenänderung</value></data>
+    <data name="MetadataBackup.Trigger.BeforeBulkScrape" xml:space="preserve"><value>Vor dem Start eines Massen-Scrapings</value></data>
+    <data name="MetadataBackup.Trigger.OnStartup" xml:space="preserve"><value>Beim Start von Retromind</value></data>
+    <data name="MetadataBackup.Trigger.BeforeRestore" xml:space="preserve"><value>Vor der Wiederherstellung eines Backups</value></data>
+    <data name="MetadataBackup.RetentionHint" xml:space="preserve"><value>Die zehn neuesten automatischen Start-, Massenänderungs- und Massen-Scraping-Backups bleiben erhalten. Manuelle und Vor-Wiederherstellungs-Backups bleiben erhalten, bis du sie löschst.</value></data>
+    <data name="MetadataBackup.Manage" xml:space="preserve"><value>Backups verwalten...</value></data>
+    <data name="MetadataBackup.Title" xml:space="preserve"><value>Metadaten-Backups</value></data>
+    <data name="MetadataBackup.Description" xml:space="preserve"><value>Backups enthalten Bibliothek und Einstellungen, aber keine Spiele, Bilder, Videos, Musik, Handbücher, Themes oder portable HOME-Daten.</value></data>
+    <data name="MetadataBackup.Created" xml:space="preserve"><value>Erstellt</value></data>
+    <data name="MetadataBackup.Reason" xml:space="preserve"><value>Grund</value></data>
+    <data name="MetadataBackup.Version" xml:space="preserve"><value>Version</value></data>
+    <data name="MetadataBackup.Size" xml:space="preserve"><value>Größe</value></data>
+    <data name="MetadataBackup.Empty" xml:space="preserve"><value>Noch keine Metadaten-Backups vorhanden.</value></data>
+    <data name="MetadataBackup.Create" xml:space="preserve"><value>Backup jetzt erstellen</value></data>
+    <data name="MetadataBackup.Restore" xml:space="preserve"><value>Wiederherstellen</value></data>
+    <data name="MetadataBackup.RestoreMode" xml:space="preserve"><value>Wiederherstellen</value></data>
+    <data name="MetadataBackup.RestoreMode.LibraryOnly" xml:space="preserve"><value>Nur Bibliothek</value></data>
+    <data name="MetadataBackup.RestoreMode.LibraryAndSettings" xml:space="preserve"><value>Bibliothek und Einstellungen</value></data>
+    <data name="MetadataBackup.Delete" xml:space="preserve"><value>Löschen</value></data>
+    <data name="MetadataBackup.CreatedSuccess" xml:space="preserve"><value>Das Metadaten-Backup wurde erfolgreich erstellt.</value></data>
+    <data name="MetadataBackup.DeletedSuccess" xml:space="preserve"><value>Das Metadaten-Backup wurde gelöscht.</value></data>
+    <data name="MetadataBackup.RestoreLibraryConfirmFormat" xml:space="preserve"><value>Nur die Bibliothek aus dem Backup vom {0} wiederherstellen?
+
+Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
+    <data name="MetadataBackup.RestoreAllConfirmFormat" xml:space="preserve"><value>Bibliothek und Einstellungen aus dem Backup vom {0} wiederherstellen?</value></data>
+    <data name="MetadataBackup.RestoreSafetyEnabled" xml:space="preserve"><value>Wenn die aktuellen Metadaten erfolgreich geladen wurden, werden sie zuvor nochmals gesichert.</value></data>
+    <data name="MetadataBackup.RestoreSafetyDisabled" xml:space="preserve"><value>Automatische Backups vor Wiederherstellungen sind deaktiviert. Es wird kein zusätzliches Sicherheits-Backup erstellt.</value></data>
+    <data name="MetadataBackup.RestoreCloseNotice" xml:space="preserve"><value>Anschließend wird Retromind beendet.</value></data>
+    <data name="MetadataBackup.DeleteConfirmFormat" xml:space="preserve"><value>Das Metadaten-Backup vom {0} endgültig löschen?</value></data>
+    <data name="MetadataBackup.OperationFailedFormat" xml:space="preserve"><value>Die Backup-Aktion ist fehlgeschlagen.
+
+{0}</value></data>
+    <data name="MetadataBackup.Reason.Manual" xml:space="preserve"><value>Manuell</value></data>
+    <data name="MetadataBackup.Reason.BeforeBulkEdit" xml:space="preserve"><value>Vor Massenänderung</value></data>
+    <data name="MetadataBackup.Reason.BeforeBulkScrape" xml:space="preserve"><value>Vor Massen-Scraping</value></data>
+    <data name="MetadataBackup.Reason.OnStartup" xml:space="preserve"><value>Beim Start</value></data>
+    <data name="MetadataBackup.Reason.BeforeRestore" xml:space="preserve"><value>Vor Wiederherstellung</value></data>
+    <data name="MetadataBackup.Reason.Invalid" xml:space="preserve"><value>Ungültiges Backup</value></data>
+    <data name="MetadataBackup.InvalidFormat" xml:space="preserve"><value>Ungültiges Backup: {0}</value></data>
+    <data name="MetadataBackup.UnknownError" xml:space="preserve"><value>Unbekannter Fehler</value></data>
+    <data name="MetadataBackup.LibraryUnavailable" xml:space="preserve"><value>Es kann kein Metadaten-Backup erstellt werden, weil die Bibliothek nicht erfolgreich geladen wurde.</value></data>
+    <data name="MetadataBackup.SettingsUnavailable" xml:space="preserve"><value>Es kann kein Metadaten-Backup erstellt werden, weil die Anwendungseinstellungen nicht erfolgreich geladen wurden.</value></data>
+    <data name="MetadataBackup.BeforeBulkEditFailedFormat" xml:space="preserve"><value>Die ausgewählten Elemente wurden nicht geändert, weil das Sicherheits-Backup nicht erstellt werden konnte.
+
+{0}</value></data>
+    <data name="MetadataBackup.BeforeBulkScrapeFailedFormat" xml:space="preserve"><value>Das Massen-Scraping wurde nicht gestartet, weil das Sicherheits-Backup nicht erstellt werden konnte.
+
+{0}</value></data>
+    <data name="MetadataBackup.StartupFailedFormat" xml:space="preserve"><value>Das automatische Start-Backup konnte nicht erstellt werden. Retromind wird normal fortgesetzt.
+
+{0}</value></data>
 </root>

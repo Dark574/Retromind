@@ -846,4 +846,58 @@ The game may not have started, or the configured process name may be incorrect.<
 The program may not have started correctly.</value>
     </data>
     <data name="Launch.ConsoleOutputHeader" xml:space="preserve"><value>Console output:</value></data>
+    <data name="MetadataBackup.SettingsSection" xml:space="preserve"><value>Metadata backups</value></data>
+    <data name="MetadataBackup.SettingsHint" xml:space="preserve"><value>Manual backups are always available. Choose which events should create automatic backups.</value></data>
+    <data name="MetadataBackup.EnableAutomatic" xml:space="preserve"><value>Create automatic metadata backups</value></data>
+    <data name="MetadataBackup.Trigger.BeforeBulkEdit" xml:space="preserve"><value>Before applying a bulk edit</value></data>
+    <data name="MetadataBackup.Trigger.BeforeBulkScrape" xml:space="preserve"><value>Before starting a bulk scrape</value></data>
+    <data name="MetadataBackup.Trigger.OnStartup" xml:space="preserve"><value>When Retromind starts</value></data>
+    <data name="MetadataBackup.Trigger.BeforeRestore" xml:space="preserve"><value>Before restoring another backup</value></data>
+    <data name="MetadataBackup.RetentionHint" xml:space="preserve"><value>The ten newest automatic startup, bulk-edit and bulk-scrape backups are retained. Manual and pre-restore backups remain until you delete them.</value></data>
+    <data name="MetadataBackup.Manage" xml:space="preserve"><value>Manage backups...</value></data>
+    <data name="MetadataBackup.Title" xml:space="preserve"><value>Metadata backups</value></data>
+    <data name="MetadataBackup.Description" xml:space="preserve"><value>Backups contain the library and settings, but no games, artwork, videos, music, manuals, themes or portable HOME data.</value></data>
+    <data name="MetadataBackup.Created" xml:space="preserve"><value>Created</value></data>
+    <data name="MetadataBackup.Reason" xml:space="preserve"><value>Reason</value></data>
+    <data name="MetadataBackup.Version" xml:space="preserve"><value>Version</value></data>
+    <data name="MetadataBackup.Size" xml:space="preserve"><value>Size</value></data>
+    <data name="MetadataBackup.Empty" xml:space="preserve"><value>No metadata backups exist yet.</value></data>
+    <data name="MetadataBackup.Create" xml:space="preserve"><value>Create backup now</value></data>
+    <data name="MetadataBackup.Restore" xml:space="preserve"><value>Restore</value></data>
+    <data name="MetadataBackup.RestoreMode" xml:space="preserve"><value>Restore</value></data>
+    <data name="MetadataBackup.RestoreMode.LibraryOnly" xml:space="preserve"><value>Library only</value></data>
+    <data name="MetadataBackup.RestoreMode.LibraryAndSettings" xml:space="preserve"><value>Library and settings</value></data>
+    <data name="MetadataBackup.Delete" xml:space="preserve"><value>Delete</value></data>
+    <data name="MetadataBackup.CreatedSuccess" xml:space="preserve"><value>The metadata backup was created successfully.</value></data>
+    <data name="MetadataBackup.DeletedSuccess" xml:space="preserve"><value>The metadata backup was deleted.</value></data>
+    <data name="MetadataBackup.RestoreLibraryConfirmFormat" xml:space="preserve"><value>Restore only the library from the backup dated {0}?
+
+The current application settings will be kept.</value></data>
+    <data name="MetadataBackup.RestoreAllConfirmFormat" xml:space="preserve"><value>Restore the library and settings from the backup dated {0}?</value></data>
+    <data name="MetadataBackup.RestoreSafetyEnabled" xml:space="preserve"><value>If the current metadata was loaded successfully, it will be backed up first.</value></data>
+    <data name="MetadataBackup.RestoreSafetyDisabled" xml:space="preserve"><value>Automatic pre-restore backups are disabled. No additional safety backup will be created.</value></data>
+    <data name="MetadataBackup.RestoreCloseNotice" xml:space="preserve"><value>Retromind will then close.</value></data>
+    <data name="MetadataBackup.DeleteConfirmFormat" xml:space="preserve"><value>Permanently delete the metadata backup from {0}?</value></data>
+    <data name="MetadataBackup.OperationFailedFormat" xml:space="preserve"><value>The backup operation failed.
+
+{0}</value></data>
+    <data name="MetadataBackup.Reason.Manual" xml:space="preserve"><value>Manual</value></data>
+    <data name="MetadataBackup.Reason.BeforeBulkEdit" xml:space="preserve"><value>Before bulk edit</value></data>
+    <data name="MetadataBackup.Reason.BeforeBulkScrape" xml:space="preserve"><value>Before bulk scrape</value></data>
+    <data name="MetadataBackup.Reason.OnStartup" xml:space="preserve"><value>At startup</value></data>
+    <data name="MetadataBackup.Reason.BeforeRestore" xml:space="preserve"><value>Before restore</value></data>
+    <data name="MetadataBackup.Reason.Invalid" xml:space="preserve"><value>Invalid backup</value></data>
+    <data name="MetadataBackup.InvalidFormat" xml:space="preserve"><value>Invalid backup: {0}</value></data>
+    <data name="MetadataBackup.UnknownError" xml:space="preserve"><value>Unknown error</value></data>
+    <data name="MetadataBackup.LibraryUnavailable" xml:space="preserve"><value>A metadata backup cannot be created because the library was not loaded successfully.</value></data>
+    <data name="MetadataBackup.SettingsUnavailable" xml:space="preserve"><value>A metadata backup cannot be created because the application settings were not loaded successfully.</value></data>
+    <data name="MetadataBackup.BeforeBulkEditFailedFormat" xml:space="preserve"><value>The selected items were not changed because the safety backup could not be created.
+
+{0}</value></data>
+    <data name="MetadataBackup.BeforeBulkScrapeFailedFormat" xml:space="preserve"><value>The bulk scrape was not started because the safety backup could not be created.
+
+{0}</value></data>
+    <data name="MetadataBackup.StartupFailedFormat" xml:space="preserve"><value>The automatic startup backup could not be created. Retromind will continue normally.
+
+{0}</value></data>
 </root>

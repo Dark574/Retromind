@@ -1434,6 +1434,15 @@ public partial class MainWindowViewModel
 
         settingsVm.RequestClose += () => { dialog.Close(); };
         settingsVm.RequestSortPreviewRefresh += UpdateContent;
+        settingsVm.RequestOpenMetadataBackups += async () =>
+        {
+            var restored = await OpenMetadataBackupsAsync(dialog);
+            if (!restored)
+                return;
+
+            dialog.Close();
+            UiThreadHelper.Post(owner.Close, DispatcherPriority.Background);
+        };
         dialog.Closed += (_, _) => settingsVm.Dispose();
     
         // Allow the settings dialog to request a one-time portable migration
@@ -1450,8 +1459,14 @@ public partial class MainWindowViewModel
         {
             await ChangeParentalPasswordAsync(owner);
         };
-        
+
         await dialog.ShowDialog(owner);
+
+        // A metadata restore deliberately replaced the persisted files and requested
+        // application shutdown. Never let the settings-dialog continuation save the
+        // preceding in-memory settings over that restored state.
+        if (_closeWithoutPersistenceAfterRestore)
+            return;
 
         if (settingsVm.LibraryModified)
             _libraryTracker.MarkDirty();
