@@ -83,6 +83,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     /// </summary>
     public RangeObservableCollection<MediaItem> SearchResults { get; } = new();
 
+    public MediaMultiSelectionState MultiSelection { get; } = new();
+
     public sealed class MediaItemRow
     {
         public IReadOnlyList<MediaItem> Items { get; }
@@ -196,6 +198,9 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     partial void OnIsMultiSelectModeChanged(bool value)
     {
         (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
+
+        if (!value)
+            MultiSelection.Clear();
     }
 
     public void SetParentalFilterActive(bool active)

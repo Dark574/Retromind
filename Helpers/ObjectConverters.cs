@@ -46,6 +46,20 @@ public static class ObjectConverters
         });
 
     /// <summary>
+    /// Returns whether the current media item belongs to a transient multi-selection.
+    /// Bindings order: current item, selection state, selection version.
+    /// </summary>
+    public static readonly IMultiValueConverter MultiSelectionContains =
+        new FuncMultiValueConverter<object?, bool>(values =>
+        {
+            var entries = values?.Select(UnwrapValue).ToArray() ?? Array.Empty<object?>();
+            return entries.Length >= 2 &&
+                   entries[0] is MediaItem item &&
+                   entries[1] is MediaMultiSelectionState selection &&
+                   selection.Contains(item);
+        });
+
+    /// <summary>
     /// Returns a cover glow shadow for selected items.
     /// Bindings order: IsSelected, SelectedGlowOpacity, SelectedGlowRadius, AccentColor.
     /// </summary>

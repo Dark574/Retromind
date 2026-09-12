@@ -253,6 +253,13 @@ public partial class MainWindowViewModel
             return;
         }
 
+        if (e.PropertyName == nameof(SearchAreaViewModel.IsMultiSelectMode))
+        {
+            OnPropertyChanged(nameof(AreSingleItemActionsEnabled));
+            NotifyPlayAvailabilityChanged();
+            return;
+        }
+
         if (e.PropertyName != nameof(SearchAreaViewModel.SelectedMediaItem))
             return;
 

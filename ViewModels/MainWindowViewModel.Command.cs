@@ -261,6 +261,8 @@ public partial class MainWindowViewModel
     }
 
     public bool CanPlaySelectedMedia => CanPlayMedia(GetCurrentSelectedItem());
+    public bool AreSingleItemActionsEnabled => !IsMultiSelectModeActive;
+
     public string PlaySelectedMediaButtonText
     {
         get
@@ -298,7 +300,7 @@ public partial class MainWindowViewModel
 
     private bool CanPlayMedia(MediaItem? item)
     {
-        if (IsLaunchInProgress || item == null)
+        if (IsLaunchInProgress || IsMultiSelectModeActive || item == null)
             return false;
 
         if (ShouldOfferInstallForItem(item))
@@ -313,6 +315,10 @@ public partial class MainWindowViewModel
         var primaryLaunchPath = item.GetPrimaryLaunchPath();
         return !string.IsNullOrWhiteSpace(primaryLaunchPath);
     }
+
+    private bool IsMultiSelectModeActive =>
+        _currentMediaAreaVm?.IsMultiSelectMode == true ||
+        _currentSearchAreaVm?.IsMultiSelectMode == true;
 
     private bool CanTestPlayMedia(MediaItem? item)
         => CanPlayMedia(item) && !ShouldOfferInstallForItem(item);

@@ -72,6 +72,7 @@
 
                         <!-- Multi-selection mode -->
                         <ToggleButton Classes="compactToolbarIcon"
+                                      Click="OnMultiSelectModeClick"
                                       IsChecked="{Binding IsMultiSelectMode, Mode=TwoWay}"
                                       IsEnabled="{Binding HasResults}"
                                       ToolTip.Tip="{Binding MultiSelectModeToolTip}"
@@ -372,6 +373,23 @@
                                                 Margin="8"
                                                 ToolTip.Tip="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUpdateAvailableBadgeTooltip}"
                                                 IsVisible="{Binding CustomFields, Converter={x:Static helpers:ObjectConverters.GogUpdateBadgeVisible}}"/>
+
+                                        <CheckBox HorizontalAlignment="Right"
+                                                  VerticalAlignment="Top"
+                                                  Margin="8"
+                                                  Focusable="False"
+                                                  IsHitTestVisible="False"
+                                                  IsVisible="{Binding DataContext.IsMultiSelectMode, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                            <CheckBox.IsChecked>
+                                                <MultiBinding Converter="{x:Static helpers:ObjectConverters.MultiSelectionContains}">
+                                                    <Binding />
+                                                    <Binding Path="DataContext.MultiSelection"
+                                                             RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                                    <Binding Path="DataContext.MultiSelection.Version"
+                                                             RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                                </MultiBinding>
+                                            </CheckBox.IsChecked>
+                                        </CheckBox>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

@@ -1125,6 +1125,13 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        if (args.PropertyName == nameof(MediaAreaViewModel.IsMultiSelectMode))
+        {
+            OnPropertyChanged(nameof(AreSingleItemActionsEnabled));
+            NotifyPlayAvailabilityChanged();
+            return;
+        }
+
         if (args.PropertyName == nameof(MediaAreaViewModel.SelectedMediaItem))
         {
             var item = mediaVm.SelectedMediaItem;

@@ -52,7 +52,7 @@ public partial class MediaAreaView : UserControl
     // transfers the double click to the view model
     private void OnItemDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (DataContext is MediaAreaViewModel vm)
+        if (DataContext is MediaAreaViewModel { IsMultiSelectMode: false } vm)
             if (vm.DoubleClickCommand.CanExecute(null))
                 vm.DoubleClickCommand.Execute(null);
     }
@@ -73,6 +73,16 @@ public partial class MediaAreaView : UserControl
         if (updateKind == PointerUpdateKind.RightButtonPressed)
         {
             ResetItemDragState();
+            return;
+        }
+
+        if (vm.IsMultiSelectMode)
+        {
+            ResetItemDragState();
+            vm.SelectedMediaItem = item;
+            vm.MultiSelection.Toggle(item);
+            _mediaList?.Focus();
+            e.Handled = true;
             return;
         }
 
@@ -242,6 +252,13 @@ public partial class MediaAreaView : UserControl
         e.Handled = true;
     }
 
+    private void OnMultiSelectModeClick(object? sender, RoutedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(
+            () => _mediaList?.Focus(),
+            DispatcherPriority.Input);
+    }
+
     private void OnMediaListKeyDown(object? sender, KeyEventArgs e)
     {
         if (_mediaList?.IsKeyboardFocusWithin != true)
@@ -253,6 +270,15 @@ public partial class MediaAreaView : UserControl
         var items = vm.FilteredItems;
         if (items.Count == 0)
             return;
+
+        if (vm.IsMultiSelectMode && e.Key is Key.Enter or Key.Space)
+        {
+            if (vm.SelectedMediaItem != null)
+                vm.MultiSelection.Toggle(vm.SelectedMediaItem);
+
+            e.Handled = true;
+            return;
+        }
 
         if (e.Key == Key.Enter)
         {

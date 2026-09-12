@@ -86,6 +86,8 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     /// </summary>
     public RangeObservableCollection<MediaItem> FilteredItems { get; } = new();
 
+    public MediaMultiSelectionState MultiSelection { get; } = new();
+
     public sealed class MediaItemRow
     {
         public IReadOnlyList<MediaItem> Items { get; }
@@ -250,6 +252,9 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     partial void OnIsMultiSelectModeChanged(bool value)
     {
         PlayRandomCommand.NotifyCanExecuteChanged();
+
+        if (!value)
+            MultiSelection.Clear();
     }
     
     private void DebouncedApplyFilter(string querySnapshot)

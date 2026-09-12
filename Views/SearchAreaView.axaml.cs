@@ -83,7 +83,7 @@ public partial class SearchAreaView : UserControl
     // Triggered by XAML "DoubleTapped" on a result tile.
     private void OnItemDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (DataContext is not SearchAreaViewModel vm)
+        if (DataContext is not SearchAreaViewModel { IsMultiSelectMode: false } vm)
             return;
 
         // The Border's DataContext is the bound item (MediaItem).
@@ -110,6 +110,15 @@ public partial class SearchAreaView : UserControl
         if (updateKind is not PointerUpdateKind.LeftButtonPressed and
             not PointerUpdateKind.RightButtonPressed)
             return;
+
+        if (vm.IsMultiSelectMode && updateKind == PointerUpdateKind.LeftButtonPressed)
+        {
+            vm.SelectedMediaItem = item;
+            vm.MultiSelection.Toggle(item);
+            _resultsList?.Focus();
+            e.Handled = true;
+            return;
+        }
 
         vm.SelectedMediaItem = item;
         _resultsList?.Focus();
@@ -150,6 +159,13 @@ public partial class SearchAreaView : UserControl
         e.Handled = true;
     }
 
+    private void OnMultiSelectModeClick(object? sender, RoutedEventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(
+            () => _resultsList?.Focus(),
+            Avalonia.Threading.DispatcherPriority.Input);
+    }
+
     private void OnResultsListKeyDown(object? sender, KeyEventArgs e)
     {
         if (_resultsList?.IsKeyboardFocusWithin != true)
@@ -161,6 +177,15 @@ public partial class SearchAreaView : UserControl
         var items = vm.SearchResults;
         if (items.Count == 0)
             return;
+
+        if (vm.IsMultiSelectMode && e.Key is Key.Enter or Key.Space)
+        {
+            if (vm.SelectedMediaItem != null)
+                vm.MultiSelection.Toggle(vm.SelectedMediaItem);
+
+            e.Handled = true;
+            return;
+        }
 
         if (e.Key == Key.Enter)
         {

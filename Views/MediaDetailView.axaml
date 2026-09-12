@@ -65,6 +65,7 @@
                         BorderThickness="0"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
+                        IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AreSingleItemActionsEnabled}"
                         Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditMediaCommand}"
                         CommandParameter="{Binding .}">
                     <PathIcon Data="{StaticResource IconPencilGeometry}"
@@ -81,15 +82,19 @@
                               HorizontalAlignment="Left"
                               VerticalAlignment="Top"
                               ToolTip.Tip="{x:Static p:Strings.Media_FavoriteToggleHint}"
+                              IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AreSingleItemActionsEnabled}"
                               IsChecked="{Binding IsFavorite}">
                     <!-- Custom template: no border, no background, just the content -->
                     <ToggleButton.Template>
                         <ControlTemplate TargetType="ToggleButton">
-                            <ContentPresenter
+                            <ContentPresenter x:Name="FavoriteButtonSurface"
                                 Content="{TemplateBinding Content}"
                                 ContentTemplate="{TemplateBinding ContentTemplate}"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center" />
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                CornerRadius="{TemplateBinding CornerRadius}" />
                         </ControlTemplate>
                     </ToggleButton.Template>
 
@@ -102,6 +107,10 @@
                         <!-- When checked: gold star -->
                         <Style Selector="ToggleButton#FavoriteToggle:checked TextBlock#FavoriteStar">
                             <Setter Property="Foreground" Value="Gold" />
+                        </Style>
+
+                        <Style Selector="ToggleButton#FavoriteToggle:disabled /template/ ContentPresenter#FavoriteButtonSurface">
+                            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundDisabled}" />
                         </Style>
                     </ToggleButton.Styles>
 
@@ -121,6 +130,7 @@
                         VerticalAlignment="Top"
                         Margin="36,0,0,0"
                         IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowParentalProtectionButton}"
+                        IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AreSingleItemActionsEnabled}"
                         ToolTip.Tip="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ParentalProtectButtonToolTip}"
                         Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ToggleItemProtectionCommand}"
                         CommandParameter="{Binding .}">
@@ -165,6 +175,7 @@
                     Margin="0,0,0,8"
                     Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UpdateGogCommand}"
                     CommandParameter="{Binding .}"
+                    IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AreSingleItemActionsEnabled}"
                     IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowGogUpdateSelectedMediaButton}"/>
 
             <Button Content="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogReinstallSelectedMediaButtonText}"
@@ -176,6 +187,7 @@
                     Margin="0,0,0,8"
                     Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ReinstallGogCommand}"
                     CommandParameter="{Binding .}"
+                    IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AreSingleItemActionsEnabled}"
                     IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowGogReinstallSelectedMediaButton}"/>
 
             <Button Content="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUninstallSelectedMediaButtonText}"
@@ -188,6 +200,7 @@
                     Foreground="Red"
                     Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UninstallGogCommand}"
                     CommandParameter="{Binding .}"
+                    IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AreSingleItemActionsEnabled}"
                     IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowGogUninstallSelectedMediaButton}"/>
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
@@ -209,6 +222,7 @@
                                 Background="Transparent"
                                 BorderThickness="0"
                                 ToolTip.Tip="{Binding DisplayLabel}"
+                                IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AreSingleItemActionsEnabled}"
                                 Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenManualCommand}"
                                 CommandParameter="{Binding .}">
                             <!-- Icon is chosen based on the file extension (pdf, txt, html, ...) -->
