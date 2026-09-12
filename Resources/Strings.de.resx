@@ -76,7 +76,11 @@
     <data name="BulkEdit.DialogTitle" xml:space="preserve"><value>Ausgewählte Medien bearbeiten</value></data>
     <data name="BulkEdit.ItemCountFormat" xml:space="preserve"><value>Die Änderungen werden auf {0:N0} ausgewählte Medien angewendet.</value></data>
     <data name="BulkEdit.Hint" xml:space="preserve"><value>Nur aktivierte Änderungen werden angewendet. Alle anderen Werte bleiben unverändert.</value></data>
-    <data name="BulkEdit.ChangeStatus" xml:space="preserve"><value>Status ändern</value></data>
+    <data name="BulkEdit.Metadata.TabTitle" xml:space="preserve"><value>Metadaten</value></data>
+    <data name="BulkEdit.Metadata.Hint" xml:space="preserve"><value>Wähle nur bei Feldern eine Aktion, die geändert werden sollen.</value></data>
+    <data name="BulkEdit.Metadata.NoChange" xml:space="preserve"><value>Nicht ändern</value></data>
+    <data name="BulkEdit.Metadata.Set" xml:space="preserve"><value>Setzen</value></data>
+    <data name="BulkEdit.Metadata.Clear" xml:space="preserve"><value>Leeren</value></data>
     <data name="BulkEdit.Status.Incomplete" xml:space="preserve"><value>Unvollständig</value></data>
     <data name="BulkEdit.Status.Completed" xml:space="preserve"><value>Abgeschlossen</value></data>
     <data name="BulkEdit.Status.Abandoned" xml:space="preserve"><value>Abgebrochen</value></data>
@@ -90,6 +94,7 @@
     <data name="BulkEdit.Validation.InternalKey" xml:space="preserve"><value>Interne Store.*-Felder können hier nicht geändert werden.</value></data>
     <data name="BulkEdit.Validation.DuplicateKey" xml:space="preserve"><value>Jedes benutzerdefinierte Feld darf nur einmal vorkommen.</value></data>
     <data name="BulkEdit.Validation.ValueRequired" xml:space="preserve"><value>Gib einen Wert ein oder wähle Entfernen.</value></data>
+    <data name="BulkEdit.Validation.MetadataValueRequired" xml:space="preserve"><value>Gib einen Wert für „{0}“ ein oder wähle Leeren.</value></data>
 
 
     <!-- COMMON -->

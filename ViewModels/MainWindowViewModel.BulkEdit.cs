@@ -35,7 +35,7 @@ public partial class MainWindowViewModel
             return;
         }
 
-        var viewModel = new BulkEditMediaViewModel(selectedItems.Count);
+        var viewModel = new BulkEditMediaViewModel(selectedItems.Count, RootItems);
         var dialog = new BulkEditMediaView { DataContext = viewModel };
         var accepted = await dialog.ShowDialog<bool>(owner);
 

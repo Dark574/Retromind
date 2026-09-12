@@ -1,13 +1,14 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:views="clr-namespace:Retromind.Views"
         x:Class="Retromind.Views.BulkEditMediaView"
         x:DataType="vm:BulkEditMediaViewModel"
         Title="{Binding DialogTitle}"
-        Width="720"
-        Height="560"
-        MinWidth="580"
-        MinHeight="430"
+        Width="760"
+        Height="650"
+        MinWidth="620"
+        MinHeight="480"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
         CanMaximize="False">
@@ -22,68 +23,96 @@
                        TextWrapping="Wrap" />
         </StackPanel>
 
-        <ScrollViewer Grid.Row="1">
-            <StackPanel Spacing="20">
-                <Border BorderBrush="#55808080"
-                        BorderThickness="1"
-                        CornerRadius="5"
-                        Padding="12">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
-                        <CheckBox Content="{Binding ChangeStatusText}"
-                                  IsChecked="{Binding ChangeStatus}"
-                                  VerticalAlignment="Center" />
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding StatusOptions}"
-                                  SelectedItem="{Binding SelectedStatus}"
-                                  DisplayMemberBinding="{Binding Label}"
-                                  IsEnabled="{Binding ChangeStatus}"
-                                  MinWidth="180"
-                                  HorizontalAlignment="Left" />
-                    </Grid>
-                </Border>
+        <TabControl Grid.Row="1">
+            <TabItem Header="{Binding MetadataTabTitle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12" Margin="10,14,16,10">
+                        <TextBlock Text="{Binding MetadataHint}"
+                                   Opacity="0.7"
+                                   TextWrapping="Wrap" />
 
-                <StackPanel Spacing="8">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{Binding CustomFieldsTitle}"
-                                   FontSize="16"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center" />
-                        <Button Grid.Column="1"
-                                Content="{Binding AddCustomFieldText}"
-                                Command="{Binding AddCustomFieldPatchCommand}" />
-                    </Grid>
+                        <Grid ColumnDefinitions="155,145,*" ColumnSpacing="10">
+                            <TextBlock Text="{Binding StatusText}"
+                                       VerticalAlignment="Center" />
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding StatusOperationOptions}"
+                                      SelectedItem="{Binding SelectedStatusOperation}"
+                                      DisplayMemberBinding="{Binding Label}" />
+                            <ComboBox Grid.Column="2"
+                                      ItemsSource="{Binding StatusOptions}"
+                                      SelectedItem="{Binding SelectedStatus}"
+                                      DisplayMemberBinding="{Binding Label}"
+                                      IsEnabled="{Binding IsStatusSetOperation}" />
+                        </Grid>
 
-                    <TextBlock Text="{Binding CustomFieldsHint}"
-                               Opacity="0.7"
-                               TextWrapping="Wrap" />
+                        <ItemsControl ItemsSource="{Binding TextMetadataFields}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:BulkTextMetadataPatchRow">
+                                    <Grid ColumnDefinitions="155,145,*"
+                                          ColumnSpacing="10"
+                                          Margin="0,0,0,7">
+                                        <TextBlock Text="{Binding Label}"
+                                                   VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1"
+                                                  ItemsSource="{Binding OperationOptions}"
+                                                  SelectedItem="{Binding SelectedOperation}"
+                                                  DisplayMemberBinding="{Binding Label}" />
+                                        <views:MetadataAutoCompleteTextBox Grid.Column="2"
+                                                                           Text="{Binding Value}"
+                                                                           SuggestionSuffix="{Binding SuggestionSuffix}"
+                                                                           AcceptSuggestionCommand="{Binding AcceptSuggestionCommand}"
+                                                                           IsEnabled="{Binding IsSetOperation}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
-                    <ItemsControl ItemsSource="{Binding CustomFieldPatches}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:BulkCustomFieldPatchRow">
-                                <Grid ColumnDefinitions="120,*,*,Auto"
-                                      ColumnSpacing="8"
-                                      Margin="0,0,0,7">
-                                    <ComboBox ItemsSource="{Binding OperationOptions}"
-                                              SelectedItem="{Binding SelectedOperation}"
-                                              DisplayMemberBinding="{Binding Label}" />
-                                    <TextBox Grid.Column="1"
-                                             Text="{Binding Key}"
-                                             PlaceholderText="{Binding $parent[Window].((vm:BulkEditMediaViewModel)DataContext).KeyPlaceholderText}" />
-                                    <TextBox Grid.Column="2"
-                                             Text="{Binding Value}"
-                                             PlaceholderText="{Binding $parent[Window].((vm:BulkEditMediaViewModel)DataContext).ValuePlaceholderText}"
-                                             IsEnabled="{Binding IsSetOperation}" />
-                                    <Button Grid.Column="3"
-                                            Content="{Binding DiscardChangeText}"
-                                            Command="{Binding $parent[Window].((vm:BulkEditMediaViewModel)DataContext).RemoveCustomFieldPatchCommand}"
-                                            CommandParameter="{Binding .}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </StackPanel>
-        </ScrollViewer>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="{Binding CustomFieldsTitle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="8" Margin="10,14,16,10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="{Binding CustomFieldsHint}"
+                                       Opacity="0.7"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="1"
+                                    Content="{Binding AddCustomFieldText}"
+                                    Command="{Binding AddCustomFieldPatchCommand}"
+                                    Margin="12,0,0,0" />
+                        </Grid>
+
+                        <ItemsControl ItemsSource="{Binding CustomFieldPatches}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:BulkCustomFieldPatchRow">
+                                    <Grid ColumnDefinitions="120,*,*,Auto"
+                                          ColumnSpacing="8"
+                                          Margin="0,0,0,7">
+                                        <ComboBox ItemsSource="{Binding OperationOptions}"
+                                                  SelectedItem="{Binding SelectedOperation}"
+                                                  DisplayMemberBinding="{Binding Label}" />
+                                        <TextBox Grid.Column="1"
+                                                 Text="{Binding Key}"
+                                                 PlaceholderText="{Binding $parent[Window].((vm:BulkEditMediaViewModel)DataContext).KeyPlaceholderText}" />
+                                        <TextBox Grid.Column="2"
+                                                 Text="{Binding Value}"
+                                                 PlaceholderText="{Binding $parent[Window].((vm:BulkEditMediaViewModel)DataContext).ValuePlaceholderText}"
+                                                 IsEnabled="{Binding IsSetOperation}" />
+                                        <Button Grid.Column="3"
+                                                Content="{Binding DiscardChangeText}"
+                                                Command="{Binding $parent[Window].((vm:BulkEditMediaViewModel)DataContext).RemoveCustomFieldPatchCommand}"
+                                                CommandParameter="{Binding .}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
 
         <Grid Grid.Row="2"
               ColumnDefinitions="*,Auto"

@@ -11,6 +11,30 @@ public enum CustomFieldPatchOperation
     Remove
 }
 
+public enum TextMetadataField
+{
+    Developer,
+    Publisher,
+    Platform,
+    Source,
+    Genre,
+    Series,
+    ReleaseType,
+    PlayMode,
+    MaxPlayers
+}
+
+public enum MetadataPatchOperation
+{
+    Set,
+    Clear
+}
+
+public sealed record TextMetadataPatch(
+    TextMetadataField Field,
+    MetadataPatchOperation Operation,
+    string? Value = null);
+
 public sealed record CustomFieldPatch(
     CustomFieldPatchOperation Operation,
     string Key,
@@ -24,6 +48,7 @@ public sealed class MediaBulkEditPatch
 {
     public bool ChangeStatus { get; init; }
     public PlayStatus Status { get; init; }
+    public IReadOnlyList<TextMetadataPatch> TextMetadata { get; init; } = [];
     public IReadOnlyList<CustomFieldPatch> CustomFields { get; init; } = [];
 
     public bool ApplyTo(MediaItem item)
@@ -36,6 +61,9 @@ public sealed class MediaBulkEditPatch
             item.Status = Status;
             changed = true;
         }
+
+        foreach (var patch in TextMetadata)
+            changed = ApplyTextMetadataPatch(item, patch) || changed;
 
         if (CustomFields.Count == 0)
             return changed;
@@ -82,6 +110,39 @@ public sealed class MediaBulkEditPatch
         item.CustomFields = updatedFields;
         return true;
     }
+
+    private static bool ApplyTextMetadataPatch(MediaItem item, TextMetadataPatch patch)
+    {
+        var value = patch.Operation == MetadataPatchOperation.Clear
+            ? null
+            : NormalizeOptionalText(patch.Value);
+
+        return patch.Field switch
+        {
+            TextMetadataField.Developer => SetText(item.Developer, value, updated => item.Developer = updated),
+            TextMetadataField.Publisher => SetText(item.Publisher, value, updated => item.Publisher = updated),
+            TextMetadataField.Platform => SetText(item.Platform, value, updated => item.Platform = updated),
+            TextMetadataField.Source => SetText(item.Source, value, updated => item.Source = updated),
+            TextMetadataField.Genre => SetText(item.Genre, value, updated => item.Genre = updated),
+            TextMetadataField.Series => SetText(item.Series, value, updated => item.Series = updated),
+            TextMetadataField.ReleaseType => SetText(item.ReleaseType, value, updated => item.ReleaseType = updated),
+            TextMetadataField.PlayMode => SetText(item.PlayMode, value, updated => item.PlayMode = updated),
+            TextMetadataField.MaxPlayers => SetText(item.MaxPlayers, value, updated => item.MaxPlayers = updated),
+            _ => false
+        };
+    }
+
+    private static bool SetText(string? current, string? value, Action<string?> setter)
+    {
+        if (string.Equals(current, value, StringComparison.Ordinal))
+            return false;
+
+        setter(value);
+        return true;
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static bool HaveSameFields(
         IReadOnlyDictionary<string, string> first,

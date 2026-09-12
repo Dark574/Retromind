@@ -87,4 +87,37 @@ public sealed class MediaBulkEditPatchTests
 
         Assert.False(patch.ApplyTo(item));
     }
+
+    [Fact]
+    public void ApplyTo_SetsAndClearsSelectedTextMetadataOnly()
+    {
+        var item = new MediaItem("Item")
+        {
+            Developer = "Old developer",
+            Publisher = "Keep publisher",
+            Genre = "Old genre",
+            Description = "Keep description"
+        };
+
+        var patch = new MediaBulkEditPatch
+        {
+            TextMetadata =
+            [
+                new TextMetadataPatch(
+                    TextMetadataField.Developer,
+                    MetadataPatchOperation.Set,
+                    " New developer "),
+                new TextMetadataPatch(
+                    TextMetadataField.Genre,
+                    MetadataPatchOperation.Clear)
+            ]
+        };
+
+        Assert.True(patch.ApplyTo(item));
+        Assert.Equal("New developer", item.Developer);
+        Assert.Null(item.Genre);
+        Assert.Equal("Keep publisher", item.Publisher);
+        Assert.Equal("Keep description", item.Description);
+    }
+
 }
