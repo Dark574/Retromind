@@ -150,28 +150,11 @@ public partial class MainWindowViewModel
         if (item == null || IsLaunchInProgress)
             return false;
 
-        var storeGameId = TryGetStoreGameId(item);
-        if (string.IsNullOrWhiteSpace(storeGameId))
-            return false;
-
-        return !ShouldOfferInstallForItem(item);
+        return GogMediaItemStateHelper.IsInstalled(item);
     }
 
-    private bool ShouldOfferGogUpdateForItem(MediaItem? item)
-    {
-        if (item == null)
-            return false;
-
-        var storeGameId = TryGetStoreGameId(item);
-        if (string.IsNullOrWhiteSpace(storeGameId))
-            return false;
-
-        if (ShouldOfferInstallForItem(item))
-            return false;
-
-        return item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) &&
-               IsTruthyCustomField(raw);
-    }
+    private static bool ShouldOfferGogUpdateForItem(MediaItem? item) =>
+        GogMediaItemStateHelper.HasUpdateAvailable(item);
 
     private async Task<GogUpdateResult> CheckGogUpdatesForItemCoreAsync(
         MediaItem item,
@@ -303,7 +286,7 @@ public partial class MainWindowViewModel
 
     private GogInstalledSnapshot? CreateInstalledGogSnapshot(MediaItem item)
     {
-        var storeGameId = TryGetStoreGameId(item);
+        var storeGameId = GogMediaItemStateHelper.TryGetGameId(item);
         if (string.IsNullOrWhiteSpace(storeGameId))
             return null;
 
@@ -384,17 +367,6 @@ public partial class MainWindowViewModel
 
     private static string NormalizeGogVersion(string? version)
         => string.IsNullOrWhiteSpace(version) ? string.Empty : version.Trim();
-
-    private static bool IsTruthyCustomField(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-            return false;
-
-        if (bool.TryParse(raw, out var parsed))
-            return parsed;
-
-        return string.Equals(raw.Trim(), "1", StringComparison.OrdinalIgnoreCase);
-    }
 
     private static string BuildInstallerSignature(GogInstallerPackage package)
     {

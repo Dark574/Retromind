@@ -37,19 +37,6 @@ public partial class MainWindowViewModel
         "libwebkit2gtk-4.0.so"
     ];
 
-    private static string? TryGetStoreGameId(MediaItem item)
-    {
-        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var providerId) ||
-            !IsGogProvider(providerId))
-        {
-            return null;
-        }
-
-        return item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var gameId)
-            ? gameId
-            : null;
-    }
-
     private static bool IsGogProvider(string? providerId)
         => string.Equals(providerId, GogProviderId, StringComparison.OrdinalIgnoreCase);
 
@@ -120,7 +107,7 @@ public partial class MainWindowViewModel
     {
         foreach (var item in node.Items)
         {
-            var gameId = TryGetStoreGameId(item);
+            var gameId = GogMediaItemStateHelper.TryGetGameId(item);
             if (string.IsNullOrWhiteSpace(gameId))
                 continue;
 
@@ -332,7 +319,7 @@ public partial class MainWindowViewModel
         var existingStoreGameIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in targetNode.Items)
         {
-            var existingId = TryGetStoreGameId(item);
+            var existingId = GogMediaItemStateHelper.TryGetGameId(item);
             if (!string.IsNullOrWhiteSpace(existingId))
                 existingStoreGameIds.Add(existingId);
         }
@@ -691,7 +678,7 @@ public partial class MainWindowViewModel
     {
         foreach (var item in node.Items)
         {
-            var storeGameId = TryGetStoreGameId(item);
+            var storeGameId = GogMediaItemStateHelper.TryGetGameId(item);
             if (string.IsNullOrWhiteSpace(storeGameId))
                 continue;
 

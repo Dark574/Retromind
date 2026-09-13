@@ -331,12 +331,8 @@ public partial class MainWindowViewModel
         if (IsLaunchInProgress || item == null)
             return false;
 
-        var storeGameId = TryGetStoreGameId(item);
-        if (string.IsNullOrWhiteSpace(storeGameId))
-            return false;
-
         // If no playable config exists yet, the primary button already acts as "Install".
-        return !ShouldOfferInstallForItem(item);
+        return GogMediaItemStateHelper.IsInstalled(item);
     }
 
     private bool CanUpdateGogMedia(MediaItem? item)
@@ -352,18 +348,7 @@ public partial class MainWindowViewModel
         if (IsLaunchInProgress || item == null)
             return false;
 
-        // Only installed GOG items can be uninstalled
-        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var providerId) ||
-            !string.Equals(providerId, "gog", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var storeGameId) ||
-            string.IsNullOrWhiteSpace(storeGameId))
-            return false;
-
-        // Must have an install path to uninstall
-        return item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var installPath) &&
-               !string.IsNullOrWhiteSpace(installPath);
+        return GogMediaItemStateHelper.CanUninstall(item);
     }
     
     // --- Basic Actions ---

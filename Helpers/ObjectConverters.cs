@@ -103,16 +103,8 @@ public static class ObjectConverters
             if (customFields == null)
                 return false;
 
-            if (!customFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) ||
-                string.IsNullOrWhiteSpace(raw))
-            {
-                return false;
-            }
-
-            if (bool.TryParse(raw, out var parsed))
-                return parsed;
-
-            return string.Equals(raw.Trim(), "1", StringComparison.OrdinalIgnoreCase);
+            return customFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) &&
+                   GogMediaItemStateHelper.IsTruthyCustomField(raw);
         });
 
     /// <summary>
@@ -122,7 +114,7 @@ public static class ObjectConverters
     public static readonly IValueConverter GogReinstallMenuVisible =
         new FuncValueConverter<MediaItem?, bool>(item =>
         {
-            return IsInstalledGogItem(item);
+            return GogMediaItemStateHelper.IsInstalled(item);
         });
 
     /// <summary>
@@ -132,7 +124,7 @@ public static class ObjectConverters
     public static readonly IValueConverter GogUninstallMenuVisible =
         new FuncValueConverter<MediaItem?, bool>(item =>
         {
-            return IsInstalledGogItem(item);
+            return GogMediaItemStateHelper.CanUninstall(item);
         });
     
     /// <summary>
@@ -142,11 +134,7 @@ public static class ObjectConverters
     public static readonly IValueConverter GogUpdateMenuVisible =
         new FuncValueConverter<MediaItem?, bool>(item =>
         {
-            if (!IsInstalledGogItem(item))
-                return false;
-
-            return item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) &&
-                   IsTruthyCustomField(raw);
+            return GogMediaItemStateHelper.HasUpdateAvailable(item);
         });
 
 
@@ -236,46 +224,4 @@ public static class ObjectConverters
         return fallback;
     }
 
-    private static bool IsInstalledGogItem(MediaItem? item)
-    {
-        if (item == null)
-            return false;
-
-        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var providerId) ||
-            !string.Equals(providerId, "gog", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var storeGameId) ||
-            string.IsNullOrWhiteSpace(storeGameId))
-        {
-            return false;
-        }
-
-        var primaryLaunchPath = item.GetPrimaryLaunchPath();
-        if (!string.IsNullOrWhiteSpace(primaryLaunchPath) && System.IO.File.Exists(primaryLaunchPath))
-            return true;
-
-        var launcherPath = item.LauncherPath?.Trim();
-        if (string.IsNullOrWhiteSpace(launcherPath))
-            return false;
-
-        var resolvedLauncherPath = EnvironmentPathHelper.ResolveExecutablePathForExistenceCheck(launcherPath);
-        if (string.IsNullOrWhiteSpace(resolvedLauncherPath))
-            return true;
-
-        return System.IO.File.Exists(resolvedLauncherPath);
-    }
-
-    private static bool IsTruthyCustomField(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-            return false;
-
-        if (bool.TryParse(raw, out var parsed))
-            return parsed;
-
-        return string.Equals(raw.Trim(), "1", StringComparison.OrdinalIgnoreCase);
-    }
 }

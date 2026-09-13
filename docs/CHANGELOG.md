@@ -17,6 +17,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Changed
 - Protect settings from overwrite after load failure
+- centralized GOG media item state checks
 
 ### Fixed
 - correct selection when starting BigMode

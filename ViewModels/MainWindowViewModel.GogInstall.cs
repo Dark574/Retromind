@@ -29,40 +29,14 @@ public partial class MainWindowViewModel
         string InstallRoot);
 
     private bool ShouldOfferInstallForItem(MediaItem? item)
-    {
-        if (item == null)
-            return false;
-
-        var storeGameId = TryGetStoreGameId(item);
-        if (string.IsNullOrWhiteSpace(storeGameId))
-            return false;
-
-        return !HasPlayableLaunchConfiguration(item);
-    }
-
-    private static bool HasPlayableLaunchConfiguration(MediaItem item)
-    {
-        var primaryLaunchPath = item.GetPrimaryLaunchPath();
-        if (!string.IsNullOrWhiteSpace(primaryLaunchPath) && File.Exists(primaryLaunchPath))
-            return true;
-
-        var launcherPath = item.LauncherPath?.Trim();
-        if (string.IsNullOrWhiteSpace(launcherPath))
-            return false;
-
-        var resolvedLauncherPath = EnvironmentPathHelper.ResolveExecutablePathForExistenceCheck(launcherPath);
-        if (string.IsNullOrWhiteSpace(resolvedLauncherPath))
-            return true;
-
-        return File.Exists(resolvedLauncherPath);
-    }
+        => GogMediaItemStateHelper.ShouldOfferInstall(item);
 
     private async Task InstallGogItemAsync(MediaItem item)
     {
         if (CurrentWindow is not { } owner)
             return;
 
-        var storeGameId = TryGetStoreGameId(item);
+        var storeGameId = GogMediaItemStateHelper.TryGetGameId(item);
         if (string.IsNullOrWhiteSpace(storeGameId))
             return;
 
