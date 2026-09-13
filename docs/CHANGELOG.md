@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - new arcade system theme
 - Multiediting implemented
 - opus audio support
+- automatic backup/restore functionality for metadta and editor settings
 
 ### Changed
 
