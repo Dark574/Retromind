@@ -9,7 +9,7 @@ public partial class ThemeProperties
 {
     /// <summary>
     /// Per-channel flag for the primary preview video channel (MainVideoSurface).
-    /// When not set explicitly, the host falls back to VideoEnabled.
+    /// When not set explicitly, the host enables the primary channel.
     /// </summary>
     public static readonly AttachedProperty<bool?> PrimaryVideoEnabledProperty =
         AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool?>(
@@ -24,8 +24,7 @@ public partial class ThemeProperties
     /// <summary>
     /// Per-channel flag for the secondary video channel (SecondaryVideoSurface),
     /// typically background loops / B-roll. When not set explicitly, the host
-    /// falls back to VideoEnabled or treats it as enabled if a background video
-    /// is configured.
+    /// enables it only when a background video is configured.
     /// </summary>
     public static readonly AttachedProperty<bool?> SecondaryVideoEnabledProperty =
         AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool?>(
