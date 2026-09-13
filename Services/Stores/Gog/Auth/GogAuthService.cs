@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using Retromind.Helpers;
 using Retromind.Models.Stores;
 using Retromind.Services.Stores.Security;
 
@@ -132,7 +133,8 @@ public sealed class GogAuthService
         if (IsLoopbackUri(_redirectUri))
         {
             using var listener = new GogOAuthLoopbackListener(_redirectUri);
-            OpenSystemBrowser(authorizeUri);
+            if (!SystemBrowserLauncher.TryOpen(authorizeUri, out var browserError))
+                throw new InvalidOperationException("Could not open system browser for GOG login.", browserError);
 
             using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             waitCts.CancelAfter(LoopbackAuthTimeout);
@@ -278,25 +280,6 @@ public sealed class GogAuthService
             throw new InvalidOperationException("GOG OAuth callback did not include an authorization code.");
 
         return new OAuthCallbackResult(code, state);
-    }
-
-    private static void OpenSystemBrowser(Uri uri)
-    {
-        try
-        {
-            var process = Process.Start(new ProcessStartInfo
-            {
-                FileName = uri.ToString(),
-                UseShellExecute = true
-            });
-
-            if (process == null)
-                throw new InvalidOperationException("Browser process could not be started.");
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException("Could not open system browser for GOG login.", ex);
-        }
     }
 
     private static string CreateState()

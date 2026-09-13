@@ -508,20 +508,8 @@ public partial class MainWindowViewModel
     {
         ct.ThrowIfCancellationRequested();
 
-        try
-        {
-            var process = Process.Start(new ProcessStartInfo
-            {
-                FileName = authorizeUri.ToString(),
-                UseShellExecute = true
-            });
-            if (process == null)
-                throw new InvalidOperationException("Browser process could not be started.");
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException("Could not open system browser for GOG login.", ex);
-        }
+        if (!SystemBrowserLauncher.TryOpen(authorizeUri, out var browserError))
+            throw new InvalidOperationException("Could not open system browser for GOG login.", browserError);
 
         while (true)
         {
