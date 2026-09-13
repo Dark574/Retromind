@@ -35,7 +35,7 @@ public partial class SettingsViewModel
 
     public string MetadataBackupRetentionHint => T(
         "MetadataBackup.RetentionHint",
-        "The ten newest automatic startup, bulk-edit and bulk-scrape backups are retained. Manual and pre-restore backups remain until you delete them.");
+        "The ten newest valid automatic startup, bulk-edit and bulk-scrape backups are retained. Invalid archives do not count toward this limit. Manual, pre-restore and invalid backups remain until you delete them.");
 
     public string ManageMetadataBackupsText =>
         T("MetadataBackup.Manage", "Manage backups...");

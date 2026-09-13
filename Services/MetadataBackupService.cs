@@ -130,12 +130,14 @@ public sealed class MetadataBackupService
                 .ConfigureAwait(false);
 
             // Never publish a partially written or unreadable archive.
-            _ = await ReadBackupCoreAsync(temporaryPath, cancellationToken).ConfigureAwait(false);
+            var validated = await ReadBackupCoreAsync(temporaryPath, cancellationToken).ConfigureAwait(false);
             File.Move(temporaryPath, finalPath, overwrite: false);
             temporaryPath = null;
 
-            await PruneAutomaticBackupsCoreAsync(cancellationToken).ConfigureAwait(false);
-            return await ReadBackupInfoCoreAsync(finalPath, cancellationToken).ConfigureAwait(false);
+            var createdBackup = CreateBackupInfo(finalPath, validated.Manifest);
+            await PruneAutomaticBackupsCoreAsync(createdBackup, cancellationToken).ConfigureAwait(false);
+            // Recheck file metadata after retention without unpacking the archive again.
+            return CreateBackupInfo(finalPath, validated.Manifest);
         }
         finally
         {
@@ -224,7 +226,9 @@ public sealed class MetadataBackupService
         }
     }
 
-    private async Task PruneAutomaticBackupsCoreAsync(CancellationToken cancellationToken)
+    private async Task PruneAutomaticBackupsCoreAsync(
+        MetadataBackupInfo createdBackup,
+        CancellationToken cancellationToken)
     {
         if (!Directory.Exists(BackupDirectory))
             return;
@@ -238,7 +242,11 @@ public sealed class MetadataBackupService
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var backup = await ReadBackupInfoCoreAsync(path, cancellationToken).ConfigureAwait(false);
+                // Reuse only the archive validated and published by this creation operation.
+                // Existing archives must be checked again in case their contents changed.
+                var backup = string.Equals(path, createdBackup.FilePath, StringComparison.Ordinal)
+                    ? createdBackup
+                    : await ReadBackupInfoCoreAsync(path, cancellationToken).ConfigureAwait(false);
                 if (backup.Reason is MetadataBackupReason.BeforeBulkEdit or
                     MetadataBackupReason.BeforeBulkScrape or
                     MetadataBackupReason.OnStartup)
@@ -259,11 +267,16 @@ public sealed class MetadataBackupService
         }
     }
 
-    private async Task<MetadataBackupInfo> ReadBackupInfoCoreAsync(
+    private static async Task<MetadataBackupInfo> ReadBackupInfoCoreAsync(
         string path,
         CancellationToken cancellationToken)
     {
-        var manifest = await ReadManifestCoreAsync(path, cancellationToken).ConfigureAwait(false);
+        var validated = await ReadBackupCoreAsync(path, cancellationToken).ConfigureAwait(false);
+        return CreateBackupInfo(path, validated.Manifest);
+    }
+
+    private static MetadataBackupInfo CreateBackupInfo(string path, MetadataBackupManifest manifest)
+    {
         var file = new FileInfo(path);
         return new MetadataBackupInfo(
             file.FullName,
@@ -275,22 +288,14 @@ public sealed class MetadataBackupService
             IsValid: true);
     }
 
-    private static async Task<MetadataBackupManifest> ReadManifestCoreAsync(
+    private static Task<ValidatedBackup> ReadBackupCoreAsync(
         string path,
         CancellationToken cancellationToken)
-    {
-        await using var stream = new FileStream(
-            path,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 81920,
-            useAsync: true);
-        using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
-        return await ReadAndValidateManifestAsync(archive, cancellationToken).ConfigureAwait(false);
-    }
+        // ZIP processing, hashing and JSON parsing must also stay off the UI thread
+        // when the asynchronous reads complete synchronously from filesystem caches.
+        => Task.Run(() => ReadBackupArchiveAsync(path, cancellationToken), cancellationToken);
 
-    private static async Task<ValidatedBackup> ReadBackupCoreAsync(
+    private static async Task<ValidatedBackup> ReadBackupArchiveAsync(
         string path,
         CancellationToken cancellationToken)
     {

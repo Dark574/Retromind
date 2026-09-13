@@ -204,7 +204,8 @@ Retromind can create versioned ZIP backups under `Backups/` next to the AppImage
 Automatic backups can be enabled globally and configured separately for application startup, accepted bulk
 metadata edits, bulk scraping, and backup restore. Startup backups are disabled by default; the other three
 triggers are enabled by default. Manual backups remain available when automatic backups are disabled. The ten
-newest startup, bulk-edit, and bulk-scrape backups are retained together. Manual backups and pre-restore safety
+newest valid startup, bulk-edit, and bulk-scrape backups are retained together. Damaged archives are marked
+invalid and neither count toward this limit nor get deleted automatically. Manual backups and pre-restore safety
 backups are never removed automatically. After a restore, Retromind closes so the preceding in-memory state
 cannot overwrite the restored files.
 

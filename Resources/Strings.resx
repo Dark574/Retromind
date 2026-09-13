@@ -853,7 +853,7 @@ The program may not have started correctly.</value>
     <data name="MetadataBackup.Trigger.BeforeBulkScrape" xml:space="preserve"><value>Before starting a bulk scrape</value></data>
     <data name="MetadataBackup.Trigger.OnStartup" xml:space="preserve"><value>When Retromind starts</value></data>
     <data name="MetadataBackup.Trigger.BeforeRestore" xml:space="preserve"><value>Before restoring another backup</value></data>
-    <data name="MetadataBackup.RetentionHint" xml:space="preserve"><value>The ten newest automatic startup, bulk-edit and bulk-scrape backups are retained. Manual and pre-restore backups remain until you delete them.</value></data>
+    <data name="MetadataBackup.RetentionHint" xml:space="preserve"><value>The ten newest valid automatic startup, bulk-edit and bulk-scrape backups are retained. Invalid archives do not count toward this limit. Manual, pre-restore and invalid backups remain until you delete them.</value></data>
     <data name="MetadataBackup.Manage" xml:space="preserve"><value>Manage backups...</value></data>
     <data name="MetadataBackup.Title" xml:space="preserve"><value>Metadata backups</value></data>
     <data name="MetadataBackup.Description" xml:space="preserve"><value>Backups contain the library and settings, but no games, artwork, videos, music, manuals, themes or portable HOME data.</value></data>

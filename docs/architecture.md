@@ -97,8 +97,11 @@ not in `DataRoot`.
 - archives are written to a temporary file, fully reopened and validated, and only then published
 - automatic backups have a master switch and separate triggers for startup, accepted bulk metadata edits,
   bulk scraping, and restore; startup defaults off while the mutation-related triggers default on
-- manual and pre-restore backups are retained until explicitly deleted; the ten newest startup, bulk-edit,
-  and bulk-scrape backups are retained together
+- manual and pre-restore backups are retained until explicitly deleted; the ten newest valid startup,
+  bulk-edit, and bulk-scrape backups are retained together
+- listing and retention fully validate archive contents and checksums off the UI thread; invalid archives
+  remain visible and are neither counted toward retention nor deleted automatically. Restore validates
+  again independently of any earlier listing
 - when its trigger is enabled, an accepted bulk edit or started bulk scrape requires a successful pre-change
   backup before any item is mutated
 - restore validates both archive integrity and the actual library/settings serialization contracts, optionally

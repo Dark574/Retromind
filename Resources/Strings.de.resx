@@ -855,7 +855,7 @@ Möglicherweise wurde das Programm nicht korrekt gestartet.</value>
     <data name="MetadataBackup.Trigger.BeforeBulkScrape" xml:space="preserve"><value>Vor dem Start eines Massen-Scrapings</value></data>
     <data name="MetadataBackup.Trigger.OnStartup" xml:space="preserve"><value>Beim Start von Retromind</value></data>
     <data name="MetadataBackup.Trigger.BeforeRestore" xml:space="preserve"><value>Vor der Wiederherstellung eines Backups</value></data>
-    <data name="MetadataBackup.RetentionHint" xml:space="preserve"><value>Die zehn neuesten automatischen Start-, Massenänderungs- und Massen-Scraping-Backups bleiben erhalten. Manuelle und Vor-Wiederherstellungs-Backups bleiben erhalten, bis du sie löschst.</value></data>
+    <data name="MetadataBackup.RetentionHint" xml:space="preserve"><value>Die zehn neuesten gültigen automatischen Start-, Massenänderungs- und Massen-Scraping-Backups bleiben erhalten. Ungültige Archive zählen nicht zu diesem Limit. Manuelle, Vor-Wiederherstellungs- und ungültige Backups bleiben erhalten, bis du sie löschst.</value></data>
     <data name="MetadataBackup.Manage" xml:space="preserve"><value>Backups verwalten...</value></data>
     <data name="MetadataBackup.Title" xml:space="preserve"><value>Metadaten-Backups</value></data>
     <data name="MetadataBackup.Description" xml:space="preserve"><value>Backups enthalten Bibliothek und Einstellungen, aber keine Spiele, Bilder, Videos, Musik, Handbücher, Themes oder portable HOME-Daten.</value></data>
