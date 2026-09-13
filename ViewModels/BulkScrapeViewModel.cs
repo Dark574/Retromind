@@ -95,6 +95,10 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         if (OnBeforeStartAsync != null && !await OnBeforeStartAsync())
             return;
 
+        // The dialog may have closed while its pre-scrape backup was running.
+        if (_disposed)
+            return;
+
         IsBusy = true;
         var cancellationTokenSource = new CancellationTokenSource();
         _cancellationTokenSource = cancellationTokenSource;
