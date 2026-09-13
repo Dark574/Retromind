@@ -108,8 +108,9 @@ public partial class MainWindowViewModel
             foreach (var item in candidates)
             {
                 ct.ThrowIfCancellationRequested();
-                await CheckGogUpdatesForItemCoreAsync(item, force: false, ct).ConfigureAwait(false);
-                await Task.Delay(GogUpdatePerItemDelay, ct).ConfigureAwait(false);
+                var result = await CheckGogUpdatesForItemCoreAsync(item, force: false, ct).ConfigureAwait(false);
+                if (ShouldThrottleGogUpdateSweep(result))
+                    await Task.Delay(GogUpdatePerItemDelay, ct).ConfigureAwait(false);
             }
         }
         finally
@@ -126,14 +127,23 @@ public partial class MainWindowViewModel
         return result;
     }
 
-    private static void CollectInstalledGogItemsRecursive(MediaNode node, ICollection<MediaItem> buffer)
+    private void CollectInstalledGogItemsRecursive(MediaNode node, ICollection<MediaItem> buffer)
     {
         foreach (var item in node.Items)
-            buffer.Add(item);
+        {
+            if (CreateInstalledGogSnapshot(item) != null)
+                buffer.Add(item);
+        }
 
         foreach (var child in node.Children)
             CollectInstalledGogItemsRecursive(child, buffer);
     }
+
+    private static bool ShouldThrottleGogUpdateSweep(GogUpdateResult result)
+        => result is GogUpdateResult.UpToDate
+            or GogUpdateResult.UpdateAvailable
+            or GogUpdateResult.NoBaseline
+            or GogUpdateResult.Failed;
 
     private bool CanCheckGogUpdatesForItem(MediaItem? item)
     {
