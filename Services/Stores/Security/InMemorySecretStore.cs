@@ -12,12 +12,17 @@ public sealed class InMemorySecretStore : ISecretStore
 {
     private readonly ConcurrentDictionary<string, string> _secrets = new(StringComparer.Ordinal);
 
-    public Task<bool> IsAvailableAsync(CancellationToken ct = default) => Task.FromResult(true);
+    public Task<bool> IsAvailableAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(true);
+    }
 
     public Task SetAsync(SecretKey key, string secret, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(secret);
+        ct.ThrowIfCancellationRequested();
 
         _secrets[BuildCompositeKey(key)] = secret;
         return Task.CompletedTask;
@@ -26,6 +31,7 @@ public sealed class InMemorySecretStore : ISecretStore
     public Task<string?> GetAsync(SecretKey key, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(key);
+        ct.ThrowIfCancellationRequested();
 
         return Task.FromResult(_secrets.TryGetValue(BuildCompositeKey(key), out var value) ? value : null);
     }
@@ -33,6 +39,7 @@ public sealed class InMemorySecretStore : ISecretStore
     public Task DeleteAsync(SecretKey key, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(key);
+        ct.ThrowIfCancellationRequested();
 
         _secrets.TryRemove(BuildCompositeKey(key), out _);
         return Task.CompletedTask;

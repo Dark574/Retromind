@@ -337,7 +337,7 @@ public partial class MainWindowViewModel
                 if (!isAuthenticated)
                     isAuthenticated = await _storeAuthProvider.TryRefreshSessionAsync(ct).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Debug.WriteLine($"[GOG] Silent auth check for updates failed: {ex.Message}");
                 isAuthenticated = false;

@@ -21,12 +21,16 @@ public sealed class CompositeSecretStore : ISecretStore
 
     public async Task<bool> IsAvailableAsync(CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         return await IsPrimaryAvailableAsync(ct).ConfigureAwait(false) ||
                await _fallback.IsAvailableAsync(ct).ConfigureAwait(false);
     }
 
     public async Task SetAsync(SecretKey key, string secret, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (await IsPrimaryAvailableAsync(ct).ConfigureAwait(false))
         {
             try
@@ -34,7 +38,7 @@ public sealed class CompositeSecretStore : ISecretStore
                 await _primary.SetAsync(key, secret, ct).ConfigureAwait(false);
                 return;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Debug.WriteLine($"[SecretStore] Primary set failed. Using fallback store. Reason: {ex.Message}");
             }
@@ -45,6 +49,8 @@ public sealed class CompositeSecretStore : ISecretStore
 
     public async Task<string?> GetAsync(SecretKey key, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (await IsPrimaryAvailableAsync(ct).ConfigureAwait(false))
         {
             try
@@ -53,7 +59,7 @@ public sealed class CompositeSecretStore : ISecretStore
                 if (!string.IsNullOrWhiteSpace(value))
                     return value;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Debug.WriteLine($"[SecretStore] Primary get failed. Trying fallback store. Reason: {ex.Message}");
             }
@@ -64,13 +70,15 @@ public sealed class CompositeSecretStore : ISecretStore
 
     public async Task DeleteAsync(SecretKey key, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (await IsPrimaryAvailableAsync(ct).ConfigureAwait(false))
         {
             try
             {
                 await _primary.DeleteAsync(key, ct).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Debug.WriteLine($"[SecretStore] Primary delete failed. Continuing with fallback store. Reason: {ex.Message}");
             }
@@ -85,7 +93,7 @@ public sealed class CompositeSecretStore : ISecretStore
         {
             return await _primary.IsAvailableAsync(ct).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Debug.WriteLine($"[SecretStore] Primary availability check failed: {ex.Message}");
             return false;
