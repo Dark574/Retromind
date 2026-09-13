@@ -351,8 +351,7 @@ public sealed class GogInstallService
             Debug.WriteLine($"[Info] Prefix path metadata preserved for manual cleanup: '{item.PrefixPath}'");
         }
 
-        // Clear launcher path/args since the executable is gone.
-        item.LauncherPath = null;
+        GogLaunchConfigurationHelper.ClearAfterUninstall(item);
     }
 
     /// <summary>

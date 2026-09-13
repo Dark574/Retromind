@@ -36,6 +36,11 @@ public sealed class GogInstallServicePortabilityTests
         Assert.False(Directory.Exists(secondInstallPath));
         Assert.True(File.Exists(oldRootSentinel));
         Assert.False(item.CustomFields.ContainsKey(CustomFieldKeyHelper.StoreInstallPath));
+        Assert.Equal(MediaType.Native, item.MediaType);
+        Assert.Null(item.EmulatorId);
+        Assert.Null(item.LauncherPath);
+        Assert.Null(item.LauncherArgs);
+        Assert.Null(item.RunnerVersionId);
     }
 
     private static MediaItem CreateInstalledItem(string storedInstallPath)
@@ -48,6 +53,11 @@ public sealed class GogInstallServicePortabilityTests
         item.CustomFields["Store.ProviderId"] = "gog";
         item.CustomFields["Store.GameId"] = "portable-game-id";
         item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = storedInstallPath;
+        item.MediaType = MediaType.Emulator;
+        item.EmulatorId = "stale-emulator";
+        item.LauncherPath = "umu-run";
+        item.LauncherArgs = "{file}";
+        item.RunnerVersionId = "proton-runner";
         return item;
     }
 

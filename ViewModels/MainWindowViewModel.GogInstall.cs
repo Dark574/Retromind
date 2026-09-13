@@ -2092,8 +2092,6 @@ public partial class MainWindowViewModel
         if (request.Platform == GogInstallPlatform.Linux)
             LinuxFileSystemHelper.EnsureExecutableBitBestEffort(launchInfo.ExecutablePath);
 
-        item.MediaType = MediaType.Native;
-
         var storedFilePath = launchInfo.ExecutablePath;
         var storedFileKind = MediaFileKind.Absolute;
         if (_currentSettings.PreferPortableLaunchPaths &&
@@ -2143,6 +2141,7 @@ public partial class MainWindowViewModel
                 ? baseArgs
                 : LaunchArgumentHelper.NormalizeWhitespace($"{baseArgs} {launchInfo.LaunchArguments}");
             item.RunnerVersionId = request.Runner.Id;
+            GogLaunchConfigurationHelper.SetInstalledMediaType(item, request.Platform);
 
             if (string.IsNullOrWhiteSpace(item.PrefixPath))
             {
@@ -2155,6 +2154,7 @@ public partial class MainWindowViewModel
         }
         else
         {
+            GogLaunchConfigurationHelper.SetInstalledMediaType(item, request.Platform);
             item.LauncherPath = null;
             item.LauncherArgs = null;
             item.RunnerVersionId = null;

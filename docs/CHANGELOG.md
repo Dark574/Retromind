@@ -23,6 +23,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - correct selection when starting BigMode
 - limit GOG update sweep to relevant items
 - respect separate primary and secondary video settings
+- store GOG Windows games as manual runner launches
 
 ---
 
