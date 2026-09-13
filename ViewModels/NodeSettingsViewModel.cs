@@ -696,86 +696,8 @@ public partial class NodeSettingsViewModel : ViewModelBase
         NodeVideoFallbackEnabled = _node.VideoFallbackEnabled;
         NodeMarqueeFallbackEnabled = _node.MarqueeFallbackEnabled;
 
-        ParentalProtectionEnabled = IsNodeEffectivelyProtected(_node);
+        ParentalProtectionEnabled = ParentalControlHelper.IsNodeEffectivelyProtected(_node);
         _initialParentalProtectionEnabled = ParentalProtectionEnabled;
-    }
-
-    private static bool AreAllItemsProtectedInSubtree(MediaNode node, out bool hasAnyItems)
-    {
-        hasAnyItems = false;
-        var allProtected = true;
-
-        foreach (var item in node.Items)
-        {
-            hasAnyItems = true;
-            if (!item.IsProtected)
-                allProtected = false;
-        }
-
-        foreach (var child in node.Children)
-        {
-            var childAllProtected = AreAllItemsProtectedInSubtree(child, out var childHasItems);
-            if (!childHasItems)
-                continue;
-
-            hasAnyItems = true;
-            if (!childAllProtected)
-                allProtected = false;
-        }
-
-        return allProtected;
-    }
-
-    private static bool IsNodeEffectivelyProtected(MediaNode node)
-    {
-        var allProtected = AreAllItemsProtectedInSubtree(node, out var hasAnyItems);
-        return hasAnyItems ? allProtected : node.AutoProtectNewChildren;
-    }
-
-    private static void ApplyNodeProtectionRecursive(MediaNode node, bool isProtected)
-    {
-        node.AutoProtectNewChildren = isProtected;
-
-        foreach (var item in node.Items)
-            item.IsProtected = isProtected;
-
-        foreach (var child in node.Children)
-            ApplyNodeProtectionRecursive(child, isProtected);
-    }
-
-    private static void RecalculateAutoProtectStates(IEnumerable<MediaNode> roots)
-    {
-        foreach (var root in roots)
-            RecalculateAutoProtectStateRecursive(root, out _);
-    }
-
-    private static bool RecalculateAutoProtectStateRecursive(MediaNode node, out bool hasAnyItems)
-    {
-        hasAnyItems = false;
-        var allProtected = true;
-
-        foreach (var item in node.Items)
-        {
-            hasAnyItems = true;
-            if (!item.IsProtected)
-                allProtected = false;
-        }
-
-        foreach (var child in node.Children)
-        {
-            var childAllProtected = RecalculateAutoProtectStateRecursive(child, out var childHasItems);
-            if (!childHasItems)
-                continue;
-
-            hasAnyItems = true;
-            if (!childAllProtected)
-                allProtected = false;
-        }
-
-        if (hasAnyItems)
-            node.AutoProtectNewChildren = allProtected;
-
-        return allProtected;
     }
 
     private void InitializeEmulators()
@@ -980,8 +902,8 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
         if (ParentalProtectionEnabled != _initialParentalProtectionEnabled)
         {
-            ApplyNodeProtectionRecursive(_node, ParentalProtectionEnabled);
-            RecalculateAutoProtectStates(_rootNodes);
+            ParentalControlHelper.ApplyNodeProtectionRecursive(_node, ParentalProtectionEnabled);
+            ParentalControlHelper.RecalculateAutoProtectStates(_rootNodes);
             _initialParentalProtectionEnabled = ParentalProtectionEnabled;
         }
 

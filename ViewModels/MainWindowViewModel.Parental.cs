@@ -171,7 +171,7 @@ public partial class MainWindowViewModel
                     if (_isApplyingProtectionChanges)
                         return;
 
-                    RecalculateAllAutoProtectStates();
+                    ParentalControlHelper.RecalculateAutoProtectStates(RootItems);
                     RefreshParentalFilteringState();
                 }, DispatcherPriority.Background).ConfigureAwait(false);
             }
@@ -180,73 +180,6 @@ public partial class MainWindowViewModel
                 // Expected while protection state changes are still flowing in.
             }
         }, token);
-    }
-
-    private static bool AreAllItemsProtectedInSubtree(MediaNode node, out bool hasAnyItems)
-    {
-        hasAnyItems = false;
-        var allProtected = true;
-
-        foreach (var item in node.Items)
-        {
-            hasAnyItems = true;
-            if (!item.IsProtected)
-                allProtected = false;
-        }
-
-        foreach (var child in node.Children)
-        {
-            var childAllProtected = AreAllItemsProtectedInSubtree(child, out var childHasItems);
-            if (!childHasItems)
-                continue;
-
-            hasAnyItems = true;
-            if (!childAllProtected)
-                allProtected = false;
-        }
-
-        return allProtected;
-    }
-
-    private bool IsNodeEffectivelyProtected(MediaNode node)
-    {
-        var allProtected = AreAllItemsProtectedInSubtree(node, out var hasAnyItems);
-        return hasAnyItems ? allProtected : node.AutoProtectNewChildren;
-    }
-
-    private void RecalculateAllAutoProtectStates()
-    {
-        foreach (var root in RootItems)
-            RecalculateAutoProtectStateRecursive(root, out _);
-    }
-
-    private static bool RecalculateAutoProtectStateRecursive(MediaNode node, out bool hasAnyItems)
-    {
-        hasAnyItems = false;
-        var allProtected = true;
-
-        foreach (var item in node.Items)
-        {
-            hasAnyItems = true;
-            if (!item.IsProtected)
-                allProtected = false;
-        }
-
-        foreach (var child in node.Children)
-        {
-            var childAllProtected = RecalculateAutoProtectStateRecursive(child, out var childHasItems);
-            if (!childHasItems)
-                continue;
-
-            hasAnyItems = true;
-            if (!childAllProtected)
-                allProtected = false;
-        }
-
-        if (hasAnyItems)
-            node.AutoProtectNewChildren = allProtected;
-
-        return allProtected;
     }
 
     private bool IsAutoProtectActiveForNode(MediaNode node)
@@ -268,17 +201,6 @@ public partial class MainWindowViewModel
             item.IsProtected = true;
     }
 
-    private void ApplyNodeProtectionRecursive(MediaNode node, bool isProtected)
-    {
-        node.AutoProtectNewChildren = isProtected;
-
-        foreach (var item in node.Items)
-            item.IsProtected = isProtected;
-
-        foreach (var child in node.Children)
-            ApplyNodeProtectionRecursive(child, isProtected);
-    }
-
     private void RefreshAncestorAutoProtectStates(MediaNode? node)
     {
         if (node == null)
@@ -291,7 +213,7 @@ public partial class MainWindowViewModel
         for (var i = chain.Count - 1; i >= 0; i--)
         {
             var current = chain[i];
-            var allProtected = AreAllItemsProtectedInSubtree(current, out var hasAnyItems);
+            var allProtected = ParentalControlHelper.AreAllItemsProtectedInSubtree(current, out var hasAnyItems);
             if (hasAnyItems)
                 current.AutoProtectNewChildren = allProtected;
         }
@@ -502,12 +424,12 @@ public partial class MainWindowViewModel
             return;
         }
 
-        var targetState = !IsNodeEffectivelyProtected(node);
+        var targetState = !ParentalControlHelper.IsNodeEffectivelyProtected(node);
 
         _isApplyingProtectionChanges = true;
         try
         {
-            ApplyNodeProtectionRecursive(node, targetState);
+            ParentalControlHelper.ApplyNodeProtectionRecursive(node, targetState);
             RefreshAncestorAutoProtectStates(node);
         }
         finally
