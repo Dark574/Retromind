@@ -22,15 +22,9 @@ public sealed class GamepadService : IDisposable
     }
 
     // Events (raised on the SDL polling thread; subscribers should marshal to UI thread if needed).
-    public event Action? OnUp;
-    public event Action? OnDown;
-    public event Action? OnLeft;
-    public event Action? OnRight;
     public event Action? OnSelect;   // A / Cross
     public event Action? OnBack;     // B / Circle
     public event Action? OnGuide;    // Guide / Home
-    public event Action? OnPrevTab;  // L1 / LB
-    public event Action? OnNextTab;  // R1 / RB
     public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
 
     private readonly Sdl _sdl;
@@ -330,14 +324,6 @@ public sealed class GamepadService : IDisposable
             case GameControllerButton.DpadRight:
                 RaiseDirectionState(GamepadDirection.Right, true);
                 break;
-
-            case GameControllerButton.Leftshoulder:
-                OnPrevTab?.Invoke();
-                break;
-
-            case GameControllerButton.Rightshoulder:
-                OnNextTab?.Invoke();
-                break;
         }
     }
 
@@ -401,29 +387,8 @@ public sealed class GamepadService : IDisposable
         }
     }
 
-    private void RaiseDirectionState(GamepadDirection direction, bool isPressed)
-    {
+    private void RaiseDirectionState(GamepadDirection direction, bool isPressed) =>
         OnDirectionStateChanged?.Invoke(direction, isPressed);
-
-        if (!isPressed)
-            return;
-
-        switch (direction)
-        {
-            case GamepadDirection.Up:
-                OnUp?.Invoke();
-                break;
-            case GamepadDirection.Down:
-                OnDown?.Invoke();
-                break;
-            case GamepadDirection.Left:
-                OnLeft?.Invoke();
-                break;
-            case GamepadDirection.Right:
-                OnRight?.Invoke();
-                break;
-        }
-    }
 
     public void Dispose()
     {
