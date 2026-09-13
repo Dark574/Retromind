@@ -10,16 +10,18 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.1.8-alpha] - unreleased
 
 ### Added
-- Protect settings from overwrite after load failure
 - new arcade system theme
 - Multiediting implemented
 - opus audio support
-- automatic backup/restore functionality for metadta and editor settings
+- automatic backup/restore functionality for metadata and editor settings
 
 ### Changed
+- Protect settings from overwrite after load failure
 
 ### Fixed
 - correct selection when starting BigMode
+- limit GOG update sweep to relevant items
+- respect separate primary and secondary video settings
 
 ---
 

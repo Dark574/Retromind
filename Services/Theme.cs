@@ -101,17 +101,7 @@ public class Theme
         
         // Per-channel flags
         PrimaryVideoEnabled = primaryVideoEnabled;
-
-        // Secondary: if a background video path is set, default to enabled
-        // unless explicitly disabled.
-        if (!secondaryVideoEnabled && !string.IsNullOrWhiteSpace(secondaryBackgroundVideoPath))
-        {
-            SecondaryVideoEnabled = true;
-        }
-        else
-        {
-            SecondaryVideoEnabled = secondaryVideoEnabled;
-        }
+        SecondaryVideoEnabled = secondaryVideoEnabled;
 
         VideoSlotName = string.IsNullOrWhiteSpace(videoSlotName) ? "VideoSlot" : videoSlotName;
 

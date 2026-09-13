@@ -389,8 +389,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         // Keep some theme metadata available for bindings/debug overlays
         CurrentThemeDirectory = _theme.BasePath;
 
-        // Default capability based on the loaded theme (the host may further restrict this based on VideoSlot existence)
-        CanShowVideo = _theme.PrimaryVideoEnabled || _theme.SecondaryVideoEnabled;
+        // Main preview capability based on the loaded theme (the host may further restrict this).
+        CanShowVideo = _theme.PrimaryVideoEnabled;
 
         CategoryTitle = Strings.BigMode_MainMenu;
 
@@ -595,7 +595,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         SecondaryVideoHasContent = false;
         SecondaryVideoIsPlaying = false;
 
-        if (!CanShowVideo || _secondaryPlayer == null || _secondaryVideoSurface == null)
+        if (!_theme.SecondaryVideoEnabled || _secondaryPlayer == null || _secondaryVideoSurface == null)
             return;
 
         // Resolve theme folder + theme-defined relative path for background video
@@ -632,7 +632,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void EnsureSecondaryBackgroundPlayingIfReady()
     {
-        if (!CanShowVideo || !_isViewReady || _isLaunching)
+        if (!_theme.SecondaryVideoEnabled || !_isViewReady || _isLaunching)
             return;
 
         if (!SecondaryVideoHasContent || _secondaryPlayer == null || _secondaryBackgroundMedia == null)
@@ -733,8 +733,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         StopVideo();
 
-        // Update default capability (host may still disable based on missing slot)
-        CanShowVideo = _theme.PrimaryVideoEnabled || _theme.SecondaryVideoEnabled;
+        // Update main preview capability (host may still disable it).
+        CanShowVideo = _theme.PrimaryVideoEnabled;
         
         // Theme swap may change how many items are visible or how they are
         // interpreted by the theme; keep counters consistent
