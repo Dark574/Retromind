@@ -367,28 +367,12 @@ public sealed class MetadataBackupService
             throw new InvalidDataException("The backup manifest is incomplete.");
         }
 
-        ValidateEntryMetadata(archive, LibraryEntryName, MaximumJsonEntryBytes);
-        ValidateEntryMetadata(archive, SettingsEntryName, MaximumJsonEntryBytes);
+        GetValidatedEntry(archive, LibraryEntryName, MaximumJsonEntryBytes);
+        GetValidatedEntry(archive, SettingsEntryName, MaximumJsonEntryBytes);
         return manifest;
     }
 
-    private static void ValidateEntryMetadata(ZipArchive archive, string entryName, long maximumBytes)
-    {
-        var matchingEntries = archive.Entries
-            .Where(entry => string.Equals(entry.FullName, entryName, StringComparison.Ordinal))
-            .ToArray();
-        if (matchingEntries.Length != 1)
-            throw new InvalidDataException($"The backup must contain exactly one '{entryName}' entry.");
-
-        if (matchingEntries[0].Length < 0 || matchingEntries[0].Length > maximumBytes)
-            throw new InvalidDataException($"The backup entry '{entryName}' is too large.");
-    }
-
-    private static async Task<byte[]> ReadRequiredEntryAsync(
-        ZipArchive archive,
-        string entryName,
-        long maximumBytes,
-        CancellationToken cancellationToken)
+    private static ZipArchiveEntry GetValidatedEntry(ZipArchive archive, string entryName, long maximumBytes)
     {
         var matchingEntries = archive.Entries
             .Where(entry => string.Equals(entry.FullName, entryName, StringComparison.Ordinal))
@@ -399,6 +383,17 @@ public sealed class MetadataBackupService
         var entry = matchingEntries[0];
         if (entry.Length < 0 || entry.Length > maximumBytes)
             throw new InvalidDataException($"The backup entry '{entryName}' is too large.");
+
+        return entry;
+    }
+
+    private static async Task<byte[]> ReadRequiredEntryAsync(
+        ZipArchive archive,
+        string entryName,
+        long maximumBytes,
+        CancellationToken cancellationToken)
+    {
+        var entry = GetValidatedEntry(archive, entryName, maximumBytes);
 
         await using var entryStream = entry.Open();
         using var memory = new MemoryStream((int)Math.Min(entry.Length, int.MaxValue));

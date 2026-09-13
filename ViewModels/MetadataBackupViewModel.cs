@@ -118,25 +118,8 @@ public sealed partial class MetadataBackupViewModel : ViewModelBase
         Backups.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasBackups));
     }
 
-    public async Task LoadAsync()
-    {
-        await RunBusyAsync(async () =>
-        {
-            var selectedPath = SelectedBackup?.Backup.FilePath;
-            var backups = await _backupService.GetBackupsAsync();
-
-            Backups.Clear();
-            foreach (var backup in backups)
-                Backups.Add(CreateRow(backup));
-
-            SelectedBackup = Backups.FirstOrDefault(row =>
-                                     string.Equals(
-                                         row.Backup.FilePath,
-                                         selectedPath,
-                                         StringComparison.Ordinal))
-                                 ?? Backups.FirstOrDefault();
-        }, clearStatus: false);
-    }
+    public Task LoadAsync()
+        => RunBusyAsync(() => ReloadCoreAsync(SelectedBackup?.Backup.FilePath), clearStatus: false);
 
     private async Task CreateBackupAsync()
     {
