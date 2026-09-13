@@ -359,6 +359,7 @@ Continue?</value></data>
     <data name="Gog.Install.ValidationRunnerRequired" xml:space="preserve"><value>Select a Wine/Proton runner for Windows installation.</value></data>
     <data name="Gog.Install.ValidationUmuRequired" xml:space="preserve"><value>Proton runner requires umu-run in PATH. Install umu or select a Wine runner.</value></data>
     <data name="Gog.Install.UmuRequired" xml:space="preserve"><value>Proton runner requires umu-run in PATH. Install umu or choose a Wine runner.</value></data>
+    <data name="Gog.Install.RunnerInvalidFormat" xml:space="preserve"><value>The selected runner '{0}' is unavailable or incomplete. Check its path in Settings -&gt; Runner.</value></data>
     <data name="Gog.Install.ResolveFailed" xml:space="preserve"><value>GOG installer metadata could not be loaded.</value></data>
     <data name="Gog.Install.ResolveFailedFormat" xml:space="preserve"><value>GOG installer metadata could not be loaded: {0}</value></data>
     <data name="Gog.Install.NoInstallerAvailable" xml:space="preserve"><value>No installable package is available for this GOG title.</value></data>

@@ -1188,13 +1188,34 @@ public partial class MainWindowViewModel
         Window owner,
         GogInstallDialogViewModel.GogInstallDialogResult request)
     {
-        if (request.Platform != GogInstallPlatform.Windows ||
-            request.Runner?.Kind != RunnerVersionKind.Proton)
-        {
+        if (request.Platform != GogInstallPlatform.Windows)
             return true;
+
+        if (request.Runner == null)
+        {
+            await ShowInfoDialog(
+                owner,
+                T(
+                    "Gog.Install.ValidationRunnerRequired",
+                    "Select a Wine/Proton runner for Windows installation."));
+            return false;
         }
 
-        if (IsUmuRunAvailable())
+        if (string.IsNullOrWhiteSpace(GogLaunchConfigurationHelper.ResolveRunnerExecutablePath(
+                request.Runner.Kind,
+                request.Runner.Path)))
+        {
+            await ShowInfoDialog(
+                owner,
+                string.Format(
+                    T(
+                        "Gog.Install.RunnerInvalidFormat",
+                        "The selected runner '{0}' is unavailable or incomplete. Check its path in Settings -> Runner."),
+                    request.Runner.Name));
+            return false;
+        }
+
+        if (request.Runner.Kind != RunnerVersionKind.Proton || IsUmuRunAvailable())
             return true;
 
         await ShowInfoDialog(
@@ -2044,42 +2065,6 @@ public partial class MainWindowViewModel
         return absolutePrefixPath;
     }
 
-    private static string? ResolveRunnerExecutablePath(GogInstallDialogViewModel.RunnerOption runner)
-    {
-        var configuredPath = runner.Path?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(configuredPath))
-            return null;
-
-        var resolvedPath = Path.IsPathRooted(configuredPath)
-            ? Path.GetFullPath(configuredPath)
-            : AppPaths.ResolveDataPath(configuredPath);
-
-        if (File.Exists(resolvedPath))
-            return resolvedPath;
-
-        if (!Directory.Exists(resolvedPath))
-            return null;
-
-        if (runner.Kind == RunnerVersionKind.Wine)
-        {
-            var binWine = Path.Combine(resolvedPath, "bin", "wine");
-            if (File.Exists(binWine))
-                return binWine;
-
-            var rootWine = Path.Combine(resolvedPath, "wine");
-            if (File.Exists(rootWine))
-                return rootWine;
-        }
-        else
-        {
-            var proton = Path.Combine(resolvedPath, "proton");
-            if (File.Exists(proton))
-                return proton;
-        }
-
-        return null;
-    }
-
     private bool ApplyDetectedGogLaunchConfiguration(
         MediaItem item,
         string storeGameId,
@@ -2088,6 +2073,52 @@ public partial class MainWindowViewModel
     {
         if (string.IsNullOrWhiteSpace(launchInfo.ExecutablePath))
             return false;
+
+        string? launcherPath;
+        string? launcherArgs;
+        string? runnerVersionId;
+        string? prefixPath;
+        if (request.Platform == GogInstallPlatform.Windows)
+        {
+            var runner = request.Runner;
+            if (runner == null)
+                return false;
+
+            var runnerExecutable = GogLaunchConfigurationHelper.ResolveRunnerExecutablePath(
+                runner.Kind,
+                runner.Path);
+            if (string.IsNullOrWhiteSpace(runnerExecutable))
+                return false;
+
+            if (runner.Kind == RunnerVersionKind.Proton && !IsUmuRunAvailable())
+                return false;
+
+            launcherPath = runner.Kind == RunnerVersionKind.Proton
+                ? "umu-run"
+                : PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(runnerExecutable)
+                  ?? runnerExecutable;
+            launcherArgs = string.IsNullOrWhiteSpace(launchInfo.LaunchArguments)
+                ? "{file}"
+                : LaunchArgumentHelper.NormalizeWhitespace($"{{file}} {launchInfo.LaunchArguments}");
+            runnerVersionId = runner.Id;
+
+            prefixPath = item.PrefixPath;
+            if (string.IsNullOrWhiteSpace(prefixPath))
+            {
+                var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(item.Title);
+                var folderName = string.IsNullOrWhiteSpace(safeTitle)
+                    ? $"gog_{storeGameId}"
+                    : $"gog_{storeGameId}_{safeTitle}";
+                prefixPath = Path.Combine("Prefixes", folderName);
+            }
+        }
+        else
+        {
+            launcherPath = null;
+            launcherArgs = null;
+            runnerVersionId = null;
+            prefixPath = null;
+        }
 
         if (request.Platform == GogInstallPlatform.Linux)
             LinuxFileSystemHelper.EnsureExecutableBitBestEffort(launchInfo.ExecutablePath);
@@ -2101,7 +2132,7 @@ public partial class MainWindowViewModel
             storedFileKind = MediaFileKind.LibraryRelative;
         }
 
-        item.Files = new List<MediaFileRef>
+        var files = new List<MediaFileRef>
         {
             new()
             {
@@ -2110,56 +2141,16 @@ public partial class MainWindowViewModel
                 Index = 1
             }
         };
+        var workingDirectory = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(
+            launchInfo.WorkingDirectory);
 
-        item.WorkingDirectory = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(launchInfo.WorkingDirectory);
-
-        if (request.Platform == GogInstallPlatform.Windows)
-        {
-            if (request.Runner == null)
-                return false;
-
-            var baseArgs = "{file}";
-            if (request.Runner.Kind == RunnerVersionKind.Proton)
-            {
-                if (!IsUmuRunAvailable())
-                    return false;
-
-                item.LauncherPath = "umu-run";
-            }
-            else
-            {
-                var runnerExecutable = ResolveRunnerExecutablePath(request.Runner);
-                if (string.IsNullOrWhiteSpace(runnerExecutable))
-                    return false;
-
-                var launcherPath = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(runnerExecutable)
-                                   ?? runnerExecutable;
-                item.LauncherPath = launcherPath;
-            }
-
-            item.LauncherArgs = string.IsNullOrWhiteSpace(launchInfo.LaunchArguments)
-                ? baseArgs
-                : LaunchArgumentHelper.NormalizeWhitespace($"{baseArgs} {launchInfo.LaunchArguments}");
-            item.RunnerVersionId = request.Runner.Id;
-            GogLaunchConfigurationHelper.SetInstalledMediaType(item, request.Platform);
-
-            if (string.IsNullOrWhiteSpace(item.PrefixPath))
-            {
-                var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(item.Title);
-                var folderName = string.IsNullOrWhiteSpace(safeTitle)
-                    ? $"gog_{storeGameId}"
-                    : $"gog_{storeGameId}_{safeTitle}";
-                item.PrefixPath = Path.Combine("Prefixes", folderName);
-            }
-        }
-        else
-        {
-            GogLaunchConfigurationHelper.SetInstalledMediaType(item, request.Platform);
-            item.LauncherPath = null;
-            item.LauncherArgs = null;
-            item.RunnerVersionId = null;
-            item.PrefixPath = null;
-        }
+        item.Files = files;
+        item.WorkingDirectory = workingDirectory;
+        item.LauncherPath = launcherPath;
+        item.LauncherArgs = launcherArgs;
+        item.RunnerVersionId = runnerVersionId;
+        item.PrefixPath = prefixPath;
+        GogLaunchConfigurationHelper.SetInstalledMediaType(item, request.Platform);
 
         return true;
     }
