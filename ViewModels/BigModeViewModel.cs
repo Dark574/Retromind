@@ -144,7 +144,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private bool _secondaryVideoIsPlaying;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(MainVideoSurface))]
     private int _mainVideoActiveSurfaceIndex = -1;
 
     [ObservableProperty]
@@ -193,18 +192,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     public IVideoSurface MainVideoSurfaceB => _videoSurfaceB;
 
     /// <summary>
-    /// Backwards-compatible surface: returns the currently active surface.
-    /// </summary>
-    public IVideoSurface? MainVideoSurface =>
-        MainVideoActiveSurfaceIndex == 0
-            ? _videoSurfaceA
-            : MainVideoActiveSurfaceIndex == 1
-                ? _videoSurfaceB
-                : null;
-
-    /// <summary>
-    /// Optional second video channel (e.g., system intro, B-roll)
-    /// Will be fully integrated with LibVLC in a later step
+    /// Secondary video surface for theme background loops and B-roll.
     /// </summary>
     public IVideoSurface? SecondaryVideoSurface => _secondaryVideoSurface;
     

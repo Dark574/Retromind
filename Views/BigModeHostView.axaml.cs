@@ -370,8 +370,8 @@ public partial class BigModeHostView : UserControl
     /// <summary>
     /// Attaches the shared primary video control to the active theme's video slot.
     /// Uses Theme.PrimaryVideoEnabled and Theme.VideoSlotName to decide whether and where
-    /// to place the control. This avoids creating multiple VideoSurfaceControls
-    /// bound to the same MainVideoSurface.
+    /// to place the control. This avoids creating multiple controls bound to
+    /// the same primary video surfaces.
     /// </summary>
     private void AttachPrimaryVideoToSlot(Control themeRoot, Theme theme)
     {

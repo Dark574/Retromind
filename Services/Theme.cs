@@ -36,7 +36,7 @@ public class Theme
     public string? SecondaryBackgroundVideoPath { get; }
 
     /// <summary>
-    /// Whether the theme intends to show the primary preview channel (MainVideoSurface).
+    /// Whether the theme intends to show the primary preview channel.
     /// </summary>
     public bool PrimaryVideoEnabled { get; }
 

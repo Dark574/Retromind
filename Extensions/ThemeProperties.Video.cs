@@ -8,7 +8,7 @@ namespace Retromind.Extensions;
 public partial class ThemeProperties
 {
     /// <summary>
-    /// Per-channel flag for the primary preview video channel (MainVideoSurface).
+    /// Per-channel flag for the primary preview video channel.
     /// When not set explicitly, the host enables the primary channel.
     /// </summary>
     public static readonly AttachedProperty<bool?> PrimaryVideoEnabledProperty =
