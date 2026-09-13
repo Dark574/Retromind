@@ -82,6 +82,8 @@ not in `DataRoot`.
 ### Settings (`app_settings.json`)
 - service: `SettingsService`
 - same atomic temp/backup strategy with serialized IO
+- debounced saves carry cancellation through the write gate; once a write starts, its atomic
+  temp/backup/replace transaction completes before a restore can proceed
 - corrupt settings are quarantined and fallback restore from `.bak` is attempted
 - save failures propagate to the caller and are surfaced to the user
 - sensitive scraper secrets are encrypted/decrypted via `SecurityHelper`
@@ -107,6 +109,9 @@ not in `DataRoot`.
 - restore validates both archive integrity and the actual library/settings serialization contracts, optionally
   creates a configured pre-restore safety backup when the current state is valid, and writes through the
   existing persistence gates
+- a settings restore scope drains active writes and rejects all regular settings saves before capturing
+  the pre-restore state, including direct runner-registration saves. Restore and rollback writes remain
+  available; failure releases the block, while success retains it until the application restarts
 - restore defaults to the library only; the optional full mode also restores `app_settings.json`, including
   emulator/runner configuration and the encrypted parental-control password, while item protection flags are
   always restored because they belong to the library model

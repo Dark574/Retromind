@@ -745,6 +745,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
             return true;
         }
+        catch (OperationCanceledException)
+        {
+            // A restore deliberately rejects regular settings saves. Do not report
+            // success or open a persistence-error dialog while shutdown is requested.
+            return false;
+        }
         catch (Exception ex)
         {
             ReportPersistenceSaveFailure(ex);
@@ -775,7 +781,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 // Serialize on UI thread to avoid cross-thread collection access.
                 var json = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))
                     .ConfigureAwait(false);
-                await _settingsService.SaveJsonAsync(json).ConfigureAwait(false);
+                await _settingsService.SaveJsonAsync(json, token).ConfigureAwait(false);
 
                 if (Volatile.Read(ref _settingsDirtyVersion) == saveVersion)
                     ClearPersistenceSaveFailure();

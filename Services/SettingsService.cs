@@ -28,6 +28,7 @@ public class SettingsService
     // Serialize settings IO to avoid concurrent temp/backup/replace races.
     private readonly SemaphoreSlim _ioGate = new(1, 1);
     private SettingsLoadException? _loadFailure;
+    private bool _regularSavesBlocked;
 
     public SettingsLoadException? LoadFailure => Volatile.Read(ref _loadFailure);
 
@@ -37,11 +38,54 @@ public class SettingsService
     /// Saves the settings asynchronously.
     /// Uses a temporary file strategy to prevent data corruption during crashes.
     /// </summary>
-    public async Task SaveAsync(AppSettings settings)
+    public async Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
     {
-        ThrowIfLoadFailed();
+        cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfRegularSaveDisallowed();
         var json = Serialize(settings);
-        await SaveJsonAsync(json).ConfigureAwait(false);
+        await SaveJsonAsync(json, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Drains any active settings write and blocks regular saves while metadata is restored.
+    /// Complete the scope after a successful restore to retain the block until restart;
+    /// disposing an incomplete scope allows regular saves again after failure or rollback.
+    /// </summary>
+    internal async Task<RestoreScope> BeginRestoreAsync()
+    {
+        await _ioGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (Volatile.Read(ref _regularSavesBlocked))
+                throw new InvalidOperationException("A metadata restore already blocks regular settings saves.");
+
+            var scope = new RestoreScope(this);
+            Volatile.Write(ref _regularSavesBlocked, true);
+            return scope;
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
+
+    internal sealed class RestoreScope(SettingsService owner) : IDisposable
+    {
+        private SettingsService? _owner = owner;
+        private bool _completed;
+
+        public void Complete()
+        {
+            ObjectDisposedException.ThrowIf(_owner == null, this);
+            _completed = true;
+        }
+
+        public void Dispose()
+        {
+            var service = Interlocked.Exchange(ref _owner, null);
+            if (service != null && !_completed)
+                Volatile.Write(ref service._regularSavesBlocked, false);
+        }
     }
 
     /// <summary>
@@ -184,10 +228,10 @@ public class SettingsService
     /// Saves a pre-serialized JSON snapshot to disk asynchronously using
     /// the same atomic write strategy as SaveAsync.
     /// </summary>
-    public async Task SaveJsonAsync(string json)
+    public async Task SaveJsonAsync(string json, CancellationToken cancellationToken = default)
     {
         if (json == null) throw new ArgumentNullException(nameof(json));
-        await SaveJsonCoreAsync(json, enforceLoadState: true).ConfigureAwait(false);
+        await SaveJsonCoreAsync(json, enforceSaveState: true, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -197,7 +241,7 @@ public class SettingsService
     public async Task RestoreJsonAsync(string json)
     {
         ValidateSerializedSettings(json);
-        await SaveJsonCoreAsync(json, enforceLoadState: false).ConfigureAwait(false);
+        await SaveJsonCoreAsync(json, enforceSaveState: false).ConfigureAwait(false);
         Interlocked.Exchange(ref _loadFailure, null);
     }
 
@@ -210,17 +254,24 @@ public class SettingsService
             ?? throw new JsonException("The serialized settings contain null instead of application settings.");
     }
 
-    private async Task SaveJsonCoreAsync(string json, bool enforceLoadState)
+    private async Task SaveJsonCoreAsync(
+        string json,
+        bool enforceSaveState,
+        CancellationToken cancellationToken = default)
     {
-        if (enforceLoadState)
-            ThrowIfLoadFailed();
+        cancellationToken.ThrowIfCancellationRequested();
+        if (enforceSaveState)
+            ThrowIfRegularSaveDisallowed();
 
-        await _ioGate.WaitAsync().ConfigureAwait(false);
+        await _ioGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (enforceLoadState)
-                ThrowIfLoadFailed();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (enforceSaveState)
+                ThrowIfRegularSaveDisallowed();
 
+            // Once writing begins, finish the atomic transaction without cancellation.
+            // A restore must acquire this same gate before it can block subsequent saves.
             // Ensure settings directory exists (portable installs may start from a fresh folder).
             Directory.CreateDirectory(SettingsFolder);
 
@@ -243,7 +294,12 @@ public class SettingsService
             // 3) Atomic replace (no "delete then move" gap)
             File.Move(TempPath, FilePath, overwrite: true);
         }
-        catch (SettingsLoadException) when (enforceLoadState)
+        catch (OperationCanceledException)
+        {
+            // Cancellation and restore-blocked saves have not modified any files.
+            throw;
+        }
+        catch (SettingsLoadException) when (enforceSaveState)
         {
             throw;
         }
@@ -300,6 +356,13 @@ public class SettingsService
     {
         if (LoadFailure is { } failure)
             throw failure;
+    }
+
+    private void ThrowIfRegularSaveDisallowed()
+    {
+        ThrowIfLoadFailed();
+        if (Volatile.Read(ref _regularSavesBlocked))
+            throw new OperationCanceledException("Regular settings saves are blocked by a metadata restore.");
     }
 
     private static bool PathEntryExists(string path)

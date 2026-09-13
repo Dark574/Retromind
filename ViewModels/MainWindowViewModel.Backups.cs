@@ -50,6 +50,11 @@ public partial class MainWindowViewModel
         if (restoreMode == MetadataRestoreMode.LibraryAndSettings)
             SettingsService.ValidateSerializedSettings(restored.SettingsJson);
 
+        // Block every regular settings save before capturing the preceding state.
+        // The scope drains an active write and unblocks automatically if restore fails.
+        _saveSettingsCts?.Cancel();
+        using var settingsRestore = await _settingsService.BeginRestoreAsync();
+
         MetadataBackupContent? current = null;
         if (!_libraryLoadFailed && !_settingsService.HasLoadFailure)
         {
@@ -58,9 +63,7 @@ public partial class MainWindowViewModel
                 await _metadataBackupService.CreateBackupAsync(current, MetadataBackupReason.BeforeRestore);
         }
 
-        // Prevent delayed settings writes from overtaking the restored settings. The library
-        // sequencer is drained before the restore and the persistence services serialize file IO.
-        _saveSettingsCts?.Cancel();
+        // Drain the library sequencer before replacing its persisted data as well.
         if (!_libraryLoadFailed)
             await _libraryTracker.SaveIfDirtyAsync(force: false);
 
@@ -94,6 +97,7 @@ public partial class MainWindowViewModel
 
         // The in-memory models still represent the preceding state. The normal shutdown save
         // must therefore be skipped or it would immediately overwrite the restored files.
+        settingsRestore.Complete();
         _closeWithoutPersistenceAfterRestore = true;
         _libraryTracker.StopTracking();
         _audioService.StopMusic();
