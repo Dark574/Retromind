@@ -258,9 +258,9 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
             SelectedStatus = value?.Value;
     }
 
-    partial void OnItemWidthChanged(double value) => RebuildRows();
+    partial void OnItemWidthChanged(double value) => UpdateGridLayout();
 
-    partial void OnViewportWidthChanged(double value) => RebuildRows();
+    partial void OnViewportWidthChanged(double value) => UpdateGridLayout();
 
     partial void OnIsMultiSelectModeChanged(bool value)
     {
@@ -403,11 +403,11 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     {
         FilteredItems.ReplaceAll(items);
         EnsureSelectionIsValid(FilteredItems);
-        RebuildRows();
+        UpdateGridLayout(itemsChanged: true);
         PlayRandomCommand.NotifyCanExecuteChanged();
     }
 
-    private void RebuildRows()
+    private void UpdateGridLayout(bool itemsChanged = false)
     {
         // Do not create a temporary one-column layout before the view has a real
         // width. Replacing that layout while restoring and scrolling the initial
@@ -416,7 +416,8 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         {
             _columnCount = 1;
             EffectiveItemWidth = ItemWidth;
-            ItemRows.Clear();
+            if (ItemRows.Count > 0)
+                ItemRows.Clear();
             return;
         }
 
@@ -425,19 +426,29 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
             ViewportPadding,
             ItemWidth,
             ItemSpacing);
+        var columnsChanged = _columnCount != layout.ColumnCount;
         _columnCount = layout.ColumnCount;
         EffectiveItemWidth = layout.EffectiveItemWidth;
 
+        // Width changes within the same column count only resize existing tiles.
+        // Empty rows also cover the first real viewport after a zero-width layout.
+        if (itemsChanged || columnsChanged || (ItemRows.Count == 0 && FilteredItems.Count > 0))
+            RebuildRows();
+    }
+
+    private void RebuildRows()
+    {
         if (FilteredItems.Count == 0)
         {
-            ItemRows.Clear();
+            if (ItemRows.Count > 0)
+                ItemRows.Clear();
             return;
         }
 
         var rows = new List<MediaItemRow>();
-        for (var i = 0; i < FilteredItems.Count; i += layout.ColumnCount)
+        for (var i = 0; i < FilteredItems.Count; i += _columnCount)
         {
-            var rowCount = Math.Min(layout.ColumnCount, FilteredItems.Count - i);
+            var rowCount = Math.Min(_columnCount, FilteredItems.Count - i);
             var row = new List<MediaItem>(rowCount);
             for (var j = 0; j < rowCount; j++)
                 row.Add(FilteredItems[i + j]);

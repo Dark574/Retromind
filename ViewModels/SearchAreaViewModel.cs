@@ -204,9 +204,9 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             SelectedStatus = value?.Value;
     }
 
-    partial void OnItemWidthChanged(double value) => RebuildRows();
+    partial void OnItemWidthChanged(double value) => UpdateGridLayout();
 
-    partial void OnViewportWidthChanged(double value) => RebuildRows();
+    partial void OnViewportWidthChanged(double value) => UpdateGridLayout();
 
     partial void OnIsMultiSelectModeChanged(bool value)
     {
@@ -487,7 +487,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             if (resultsChanged)
             {
                 SearchResults.ReplaceAll(results);
-                RebuildRows();
+                UpdateGridLayout(itemsChanged: true);
             }
 
             EnsureSelectionIsValid(SearchResults);
@@ -505,26 +505,35 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void RebuildRows()
+    private void UpdateGridLayout(bool itemsChanged = false)
     {
         var layout = MediaGridLayoutHelper.Calculate(
             ViewportWidth,
             ViewportPadding,
             ItemWidth,
             ItemSpacing);
+        var columnsChanged = _columnCount != layout.ColumnCount;
         _columnCount = layout.ColumnCount;
         EffectiveItemWidth = layout.EffectiveItemWidth;
 
+        // Keep row and tile bindings intact while only their display width changes.
+        if (itemsChanged || columnsChanged || (ItemRows.Count == 0 && SearchResults.Count > 0))
+            RebuildRows();
+    }
+
+    private void RebuildRows()
+    {
         if (SearchResults.Count == 0)
         {
-            ItemRows.Clear();
+            if (ItemRows.Count > 0)
+                ItemRows.Clear();
             return;
         }
 
         var rows = new List<MediaItemRow>();
-        for (var i = 0; i < SearchResults.Count; i += layout.ColumnCount)
+        for (var i = 0; i < SearchResults.Count; i += _columnCount)
         {
-            var rowCount = Math.Min(layout.ColumnCount, SearchResults.Count - i);
+            var rowCount = Math.Min(_columnCount, SearchResults.Count - i);
             var row = new List<MediaItem>(rowCount);
             for (var j = 0; j < rowCount; j++)
                 row.Add(SearchResults[i + j]);
