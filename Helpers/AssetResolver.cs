@@ -1,4 +1,3 @@
-using Retromind.Extensions;
 using Retromind.Models;
 
 namespace Retromind.Helpers;
@@ -9,7 +8,6 @@ namespace Retromind.Helpers;
 /// Resolution order:
 /// 1) Item-level asset (absolute path via MediaItem helpers)
 /// 2) Node-level asset (relative path resolved via AppPaths)
-/// 3) Theme-level fallback (relative to the active theme directory)
 /// </summary>
 public static class AssetResolver
 {
@@ -21,18 +19,13 @@ public static class AssetResolver
     /// Optional node that hosts the item. Can provide node-level artwork for platforms/categories.
     /// </param>
     /// <param name="type">Type of the artwork to resolve (Bezel, ControlPanel, Marquee, etc.).</param>
-    /// <param name="themeFallbackRelativePath">
-    /// Optional path inside the current theme directory used as final fallback,
-    /// e.g. "Images/cabinet_bezel.png".
-    /// </param>
     /// <returns>
     /// Absolute file system path if any source provides a value; otherwise null.
     /// </returns>
     public static string? ResolveAssetPath(
         MediaItem item,
         MediaNode? node,
-        AssetType type,
-        string? themeFallbackRelativePath = null)
+        AssetType type)
     {
         if (item is null)
             return null;
@@ -52,12 +45,6 @@ public static class AssetResolver
                 if (!string.IsNullOrWhiteSpace(resolved))
                     return resolved;
             }
-        }
-
-        // 3) Theme-level fallback (relative to active theme base directory).
-        if (!string.IsNullOrWhiteSpace(themeFallbackRelativePath))
-        {
-            return ThemeProperties.GetThemeFilePath(themeFallbackRelativePath);
         }
 
         return null;

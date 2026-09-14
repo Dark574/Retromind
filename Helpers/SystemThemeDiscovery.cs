@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-using Retromind.Extensions;
 using Retromind.Services;
 
 namespace Retromind.Helpers;
@@ -20,7 +19,6 @@ public static class SystemThemeDiscovery
     public static List<SystemThemeOption> GetAvailableSystemThemes()
     {
         var result = new List<SystemThemeOption>();
-        var originalThemeBasePath = ThemeProperties.GlobalThemeBasePath;
 
         // Base directory: .../Themes/System
         var systemRoot = Path.Combine(AppPaths.ThemesRoot, "System");
@@ -42,7 +40,7 @@ public static class SystemThemeDiscovery
                 // Use the existing ThemeLoader so we get ThemeProperties.Name, VideoEnabled, etc.
                 // Passing a relative path keeps it portable (ThemeLoader resolves via AppPaths.ThemesRoot).
                 var relativePath = Path.Combine("System", id, "theme.axaml");
-                var theme = ThemeLoader.LoadTheme(relativePath, setGlobalBasePath: false);
+                var theme = ThemeLoader.LoadTheme(relativePath);
 
                 if (!string.IsNullOrWhiteSpace(theme.Name))
                     displayName = theme.Name!;
@@ -51,12 +49,6 @@ public static class SystemThemeDiscovery
             {
                 // Best-effort only: if loading fails, fall back to the folder name.
             }
-            finally
-            {
-                // Restore legacy global base path (best-effort, avoids side effects in older code paths).
-                ThemeProperties.GlobalThemeBasePath = originalThemeBasePath;
-            }
-
             result.Add(new SystemThemeOption
             {
                 Id = id,

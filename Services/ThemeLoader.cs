@@ -30,7 +30,7 @@ public static class ThemeLoader
     private static readonly LinkedList<string> XamlLruList = new();
     private static readonly object XamlCacheLock = new();
 
-    public static Theme LoadTheme(string filePath, bool setGlobalBasePath = true)
+    public static Theme LoadTheme(string filePath)
     {
         // Allow passing "Wheel/theme.axaml" etc. (relative to portable ThemesRoot).
         if (!string.IsNullOrWhiteSpace(filePath) && !Path.IsPathRooted(filePath))
@@ -48,11 +48,6 @@ public static class ThemeLoader
         if (string.IsNullOrWhiteSpace(themeDir) || !File.Exists(filePath))
         {
             var errorView = CreateErrorView(string.Format(Strings.Theme_Error_FileNotFoundFormat, filePath));
-            
-            // In error mode we reset the legacy global path to avoid pointing to a stale directory.
-            if (setGlobalBasePath)
-                ThemeProperties.GlobalThemeBasePath = null;
-            
             return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, primaryVideoEnabled: false, secondaryVideoEnabled: false);
         }
 
@@ -68,9 +63,6 @@ public static class ThemeLoader
                        ?? CreateErrorView(Strings.Theme_Error_LoadedNullOrInvalid);
             ThemeProperties.SetThemeBasePath(view, themeDir);
             NormalizeThemeTypography(view, themeDir);
-
-            if (setGlobalBasePath)
-                ThemeProperties.GlobalThemeBasePath = themeDir;
 
             var sounds = new ThemeSounds
             {
@@ -166,25 +158,11 @@ public static class ThemeLoader
         var pathPart = hashIndex >= 0 ? spec[..hashIndex] : spec;
         var familyPart = hashIndex >= 0 ? spec[hashIndex..] : string.Empty;
 
-        if (!LooksLikePath(pathPart) || Path.IsPathRooted(pathPart))
+        if (!ThemeFontFamilyConverter.LooksLikeFontPath(pathPart) || Path.IsPathRooted(pathPart))
             return;
 
         var resolved = Path.Combine(themeDir, pathPart) + familyPart;
         setter(view, resolved);
-    }
-
-    private static bool LooksLikePath(string value)
-    {
-        if (value.Contains('/', StringComparison.Ordinal) || value.Contains('\\', StringComparison.Ordinal))
-            return true;
-
-        var ext = Path.GetExtension(value);
-        if (string.IsNullOrWhiteSpace(ext))
-            return false;
-
-        return ext.Equals(".ttf", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".otf", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".ttc", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ReadXamlWithCache(string filePath)

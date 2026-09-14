@@ -662,7 +662,7 @@ public partial class BigModeHostView : UserControl
             try
             {
                 var relativePath = System.IO.Path.Combine("System", id, "theme.axaml");
-                systemTheme = ThemeLoader.LoadTheme(relativePath, setGlobalBasePath: false);
+                systemTheme = ThemeLoader.LoadTheme(relativePath);
             }
             catch
             {
@@ -675,7 +675,7 @@ public partial class BigModeHostView : UserControl
                 try
                 {
                     var fallbackPath = System.IO.Path.Combine("System", "Default", "theme.axaml");
-                    systemTheme = ThemeLoader.LoadTheme(fallbackPath, setGlobalBasePath: false);
+                    systemTheme = ThemeLoader.LoadTheme(fallbackPath);
                 }
                 catch
                 {

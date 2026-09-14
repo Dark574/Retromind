@@ -3,13 +3,12 @@ using System.Globalization;
 using System.IO;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
-using Retromind.Extensions;
 
 namespace Retromind.Helpers;
 
 /// <summary>
-/// Resolves a theme-relative font path (e.g. "Fonts/MyFont.ttf#Family")
-/// into a FontFamily using ThemeProperties.GetThemeFilePath.
+/// Resolves a system font name or an absolute font file path into a FontFamily.
+/// ThemeLoader normalizes theme-relative font paths before this converter runs.
 /// </summary>
 public sealed class ThemeFontFamilyConverter : IValueConverter
 {
@@ -32,28 +31,24 @@ public sealed class ThemeFontFamilyConverter : IValueConverter
         var family = hashIndex >= 0 ? spec[(hashIndex + 1)..] : null;
 
         // If it doesn't look like a path, treat it as a system font family name.
-        if (!LooksLikePath(pathOrName))
+        if (!LooksLikeFontPath(pathOrName))
             return new FontFamily(spec);
 
-        var fullPath = Path.IsPathRooted(pathOrName)
-            ? pathOrName
-            : ThemeProperties.GetThemeFilePath(pathOrName);
-
-        if (string.IsNullOrWhiteSpace(fullPath))
+        if (!Path.IsPathRooted(pathOrName))
             return fallback;
 
-        if (!File.Exists(fullPath))
+        if (!File.Exists(pathOrName))
             return fallback;
 
         string fontUri;
         try
         {
             // Avalonia expects an absolute URI for file-based fonts.
-            fontUri = new Uri(fullPath, UriKind.Absolute).AbsoluteUri;
+            fontUri = new Uri(pathOrName, UriKind.Absolute).AbsoluteUri;
         }
         catch
         {
-            fontUri = "file://" + fullPath;
+            fontUri = "file://" + pathOrName;
         }
 
         var fontSpec = string.IsNullOrWhiteSpace(family)
@@ -63,7 +58,7 @@ public sealed class ThemeFontFamilyConverter : IValueConverter
         return new FontFamily(fontSpec);
     }
 
-    private static bool LooksLikePath(string value)
+    internal static bool LooksLikeFontPath(string value)
     {
         if (value.Contains('/', StringComparison.Ordinal) || value.Contains('\\', StringComparison.Ordinal))
             return true;

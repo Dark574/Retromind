@@ -19,6 +19,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - Protect settings from overwrite after load failure
 - centralized GOG media item state checks
 - replaced the GOG WebKitGTK login with an embedded WPE dialog and system-browser fallback
+- removed the old redundant global theme-path fallback
 
 ### Fixed
 - correct selection when starting BigMode
