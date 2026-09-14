@@ -1793,6 +1793,10 @@ public partial class MainWindowViewModel
             return;
         }
 
+        // The new search view starts without a selection. Since null -> null does not
+        // raise a selection change, stop the previous media area's music explicitly.
+        _audioService.StopMusic();
+
         if (_currentMediaAreaVm != null)
         {
             _searchUiState.SharedSearchText = _currentMediaAreaVm.SearchText ?? string.Empty;
