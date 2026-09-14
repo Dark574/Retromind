@@ -50,6 +50,8 @@ public partial class BigModeViewModel
     // --- Preview state ---
     private DispatcherTimer? _previewDebounceTimer;
     private DispatcherTimer? _bezelDebounceTimer;
+    private string? _pendingBezelPath;
+    private string? _pendingBezelVideoPath;
     
     // One-time estimate of overall library size to tune debounce for huge collections.
     private int? _estimatedTotalItems;
@@ -242,6 +244,7 @@ public partial class BigModeViewModel
             MainVideoActiveSurfaceIndex = index;
             MediaPlayer = GetMediaPlayer(index);
             _presentedPreviewVideoPath = _currentPreviewVideoPath;
+            PresentPendingBezelForVideo(_presentedPreviewVideoPath);
             IsVideoOverlayVisible = true;
             IsVideoVisible = true;
             MainVideoFrameRevision++;
@@ -493,6 +496,7 @@ public partial class BigModeViewModel
         if (!IsGameListActive || SelectedItem == null)
         {
             CancelActiveBezelDebounce();
+            ClearPendingBezel();
             SetActiveBezelPathResolved(null);
             return;
         }
@@ -520,7 +524,44 @@ public partial class BigModeViewModel
         if (_bezelDebounceTimer != null)
             _bezelDebounceTimer.IsEnabled = false;
 
-        SetActiveBezelPathResolved(ResolveArtworkForSelection(AssetType.Bezel));
+        var bezelPath = ResolveArtworkForSelection(AssetType.Bezel);
+        var targetVideoPath = CanShowVideo ? ResolvePreviewVideoPath() : null;
+
+        if (!string.IsNullOrWhiteSpace(targetVideoPath) &&
+            !string.Equals(
+                _presentedPreviewVideoPath,
+                targetVideoPath,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            _pendingBezelPath = bezelPath;
+            _pendingBezelVideoPath = targetVideoPath;
+            return;
+        }
+
+        ClearPendingBezel();
+        SetActiveBezelPathResolved(bezelPath);
+    }
+
+    private void PresentPendingBezelForVideo(string? presentedVideoPath)
+    {
+        if (string.IsNullOrWhiteSpace(_pendingBezelVideoPath) ||
+            !string.Equals(
+                _pendingBezelVideoPath,
+                presentedVideoPath,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var bezelPath = _pendingBezelPath;
+        ClearPendingBezel();
+        SetActiveBezelPathResolved(bezelPath);
+    }
+
+    private void ClearPendingBezel()
+    {
+        _pendingBezelPath = null;
+        _pendingBezelVideoPath = null;
     }
 
     private void CancelActiveBezelDebounce()

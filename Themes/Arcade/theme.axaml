@@ -27,8 +27,6 @@
              ext:ThemeProperties.AttractModeIdleSeconds="60"
              ext:ThemeProperties.PrimaryVisualElementName="ArcadeMarquee"
              ext:ThemeProperties.PrimaryVisualEnterMode="Fade"
-             ext:ThemeProperties.SecondaryVisualElementName="ArcadeBezel"
-             ext:ThemeProperties.SecondaryVisualEnterMode="Fade"
              ext:ThemeProperties.FadeDurationMs="600"
              ext:ThemeProperties.AttractModeSound="sounds/attract_spin.wav">
 
@@ -139,11 +137,12 @@
                                                             Url="{Binding ActiveBezelPath}"
                                                             DecodeWidth="768"
                                                             Stretch="UniformToFill"
-                                                            FadeDurationMs="900"
+                                                            FadeDurationMs="{Binding VideoFadeDurationMs}"
+                                                            FadeOutOnClear="True"
                                                             HorizontalAlignment="Stretch"
                                                             VerticalAlignment="Stretch"
                                                             IsHitTestVisible="False"
-                                                            IsVisible="{Binding ActiveBezelPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                                                            />
                                     </Grid>
                                 </Border>
                             </Grid>

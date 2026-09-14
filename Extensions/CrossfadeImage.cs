@@ -30,6 +30,9 @@ public class CrossfadeImage : Grid
     public static readonly StyledProperty<int> FadeDelayMsProperty =
         AvaloniaProperty.Register<CrossfadeImage, int>(nameof(FadeDelayMs), 0);
 
+    public static readonly StyledProperty<bool> FadeOutOnClearProperty =
+        AvaloniaProperty.Register<CrossfadeImage, bool>(nameof(FadeOutOnClear));
+
     private readonly Image _imageA;
     private readonly Image _imageB;
     private int _activeIndex;
@@ -110,6 +113,12 @@ public class CrossfadeImage : Grid
         set => SetValue(FadeDelayMsProperty, value);
     }
 
+    public bool FadeOutOnClear
+    {
+        get => GetValue(FadeOutOnClearProperty);
+        set => SetValue(FadeOutOnClearProperty, value);
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         _imageA.Measure(availableSize);
@@ -172,7 +181,7 @@ public class CrossfadeImage : Grid
 
         if (string.IsNullOrWhiteSpace(url))
         {
-            ClearImages();
+            BeginClearImages();
             return;
         }
 
@@ -207,7 +216,51 @@ public class CrossfadeImage : Grid
         ScheduleFallbackFadeOut(old, generation, targetIndex, ResolveFallbackHoldDelay());
     }
 
-    private void ClearImages()
+    private void BeginClearImages()
+    {
+        var generation = ++_loadGeneration;
+
+        if (!FadeOutOnClear)
+        {
+            ClearImagesImmediately();
+            return;
+        }
+
+        UpdateTransitions();
+        _imageA.Opacity = 0;
+        _imageB.Opacity = 0;
+
+        var delayMs = (int)ResolveFadeDuration().TotalMilliseconds;
+        if (delayMs <= 0)
+        {
+            ClearImagesImmediately();
+            return;
+        }
+
+        _ = ClearImagesAfterFadeAsync(generation, delayMs);
+    }
+
+    private async Task ClearImagesAfterFadeAsync(int generation, int delayMs)
+    {
+        try
+        {
+            await Task.Delay(delayMs).ConfigureAwait(false);
+        }
+        catch
+        {
+            return;
+        }
+
+        UiThreadHelper.Post(() =>
+        {
+            if (generation != _loadGeneration || !string.IsNullOrWhiteSpace(_currentUrl))
+                return;
+
+            ClearImagesImmediately();
+        });
+    }
+
+    private void ClearImagesImmediately()
     {
         AsyncImageHelper.SetUrl(_imageA, null);
         AsyncImageHelper.SetUrl(_imageB, null);
