@@ -7,6 +7,16 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
+## [0.1.9-alpha] - unreleased
+
+### Added
+
+### Changed
+
+### Fixed
+
+---
+
 ## [0.1.8-alpha] - 2026-09-14
 
 ### Added
