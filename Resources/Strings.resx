@@ -455,7 +455,7 @@ This action cannot be undone.</value></data>
     <data name="Settings_ScraperArtworkModeAppendHint" xml:space="preserve"><value>New images are added as variants. Existing images remain unchanged.</value></data>
     <data name="Settings_SectionParental" xml:space="preserve"><value>Parental control</value></data>
     <data name="Settings_ChangeParentalPassword" xml:space="preserve"><value>Change parental password</value></data>
-    <data name="Settings_TabRunnerVersions" xml:space="preserve"><value>Wine-/Proton-Versionen</value></data>
+    <data name="Settings_TabRunnerVersions" xml:space="preserve"><value>Wine/Proton versions</value></data>
     <data name="Settings_SectionRunnerVersions" xml:space="preserve"><value>Wine/Proton versions</value></data>
     <data name="Settings_RunnerVersionNameLabel" xml:space="preserve"><value>Name</value></data>
     <data name="Settings_RunnerVersionPathLabel" xml:space="preserve"><value>Path</value></data>

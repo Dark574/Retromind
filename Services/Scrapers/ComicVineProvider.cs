@@ -138,7 +138,7 @@ public class ComicVineProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            throw new Exception($"ComicVine Fehler: {ex.Message}", ex);
+            throw new Exception($"ComicVine: {ex.Message}", ex);
         }
     }
 

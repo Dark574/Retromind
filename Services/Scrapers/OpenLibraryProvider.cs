@@ -103,7 +103,7 @@ public class OpenLibraryProvider : IMetadataProvider
         }
         catch (Exception ex)
         {
-            throw new Exception($"OpenLibrary Fehler: {ex.Message}", ex);
+            throw new Exception($"OpenLibrary: {ex.Message}", ex);
         }
     }
 }
