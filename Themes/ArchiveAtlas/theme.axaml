@@ -23,8 +23,8 @@
              ext:ThemeProperties.BodyFontFamily="Sans"
              ext:ThemeProperties.CaptionFontFamily="Sans"
              ext:ThemeProperties.MonoFontFamily="Fonts/IBMPlexMono-Regular.ttf"
-             ext:ThemeProperties.FadeDurationMs="4000"
-             ext:ThemeProperties.MoveDurationMs="950"
+             ext:ThemeProperties.FadeDurationMs="250"
+             ext:ThemeProperties.MoveDurationMs="160"
              ext:ThemeProperties.PrimaryVisualElementName="CoverCard"
              ext:ThemeProperties.PrimaryVisualEnterMode="None"
              ext:ThemeProperties.PrimaryVisualEnterOffsetY="140"
@@ -130,14 +130,14 @@
 
             <!-- Low-opacity wallpaper for item or category -->
             <ext:CrossfadeImage Url="{Binding ActiveWallpaperPath}"
-                                DecodeWidth="1920"
+                                DecodeWidth="1280"
                                 DisableCache="True"
                                 Stretch="UniformToFill"
                                 Opacity="0.10"
                                 IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
             <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
-                                DecodeWidth="1920"
+                                DecodeWidth="1280"
                                 DisableCache="True"
                                 Stretch="UniformToFill"
                                 Opacity="0.08"
@@ -179,6 +179,7 @@
                              BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                             ext:ThemeProperties.UseHostSelectionEffects="False"
                              IsVisible="{Binding IsCategorySelectionActive}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -203,7 +204,8 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Hidden"
                              IsVisible="{Binding IsGameListActive}"
-                             helpers:ListBoxBehaviors.CenterSelectedItem="True">
+                             helpers:ListBoxBehaviors.CenterSelectedItem="True"
+                             ext:ThemeProperties.UseHostSelectionEffects="False">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border x:Name="ItemFrame"
@@ -241,7 +243,6 @@
                             <!-- Item logo (preferred) -->
                             <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
                                    helpers:AsyncImageHelper.DecodeWidth="384"
-                                   helpers:AsyncImageHelper.DisableCache="True"
                                    Height="36"
                                    Stretch="Uniform"
                                    HorizontalAlignment="Left"
@@ -250,7 +251,6 @@
                             <!-- Fallback logo (node-level) -->
                             <Image helpers:AsyncImageHelper.Url="{Binding ActiveLogoPath}"
                                    helpers:AsyncImageHelper.DecodeWidth="256"
-                                   helpers:AsyncImageHelper.DisableCache="True"
                                    Height="24"
                                    Stretch="Uniform"
                                    HorizontalAlignment="Left"
@@ -302,8 +302,7 @@
                             ClipToBounds="True"
                             IsVisible="{Binding SelectedItem.PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
                         <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryCoverPath}"
-                                            DecodeWidth="700"
-                                            DisableCache="True"
+                                            DecodeWidth="420"
                                             Stretch="Uniform" />
                     </Border>
 
