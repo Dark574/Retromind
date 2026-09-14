@@ -37,7 +37,8 @@ Project maintainers are responsible for clarifying and enforcing this Code of Co
 If you experience or observe unacceptable behavior, you can:
 
 - open an issue in this repository (if appropriate), or
-- contact the maintainer privately (e.g. via the email address in the project profile).
+- contact the maintainer privately at
+  [retromind.project@proton.me](mailto:retromind.project@proton.me).
 
 Maintainers may take any action they consider appropriate, including:
 

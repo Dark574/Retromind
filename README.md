@@ -681,6 +681,13 @@ Before opening issues or pull requests, please have a look at:
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) – contribution guidelines
 - [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) – expected behavior in the project community
 
+## Contact
+
+- Bug reports and feature requests: [GitHub Issues](https://github.com/Dark574/Retromind/issues)
+- Questions and general discussion: [GitHub Discussions](https://github.com/Dark574/Retromind/discussions)
+- Private contact: [retromind.project@proton.me](mailto:retromind.project@proton.me)
+- Security vulnerabilities: [private vulnerability reporting](https://github.com/Dark574/Retromind/security/advisories/new)
+
 ## License
 GPL-3.0-only (see `COPYING`).
 
