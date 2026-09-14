@@ -3,9 +3,7 @@ namespace Retromind.Models;
 public enum MediaFileKind
 {
     Absolute = 0,
-    // Future-proof: allows portable "mount IDs" later without changing the item schema again.
-    MountRelative = 1,
-    // Optional for later if you ever support copying ROMs into the library.
+    // Stored relative to AppPaths.DataRoot for portable libraries.
     LibraryRelative = 2,
 }
 
@@ -14,7 +12,8 @@ public sealed class MediaFileRef
     public MediaFileKind Kind { get; set; } = MediaFileKind.Absolute;
 
     /// <summary>
-    /// Absolute path (Kind=Absolute) or a relative path (Kind=MountRelative/LibraryRelative).
+    /// Absolute path (Kind=Absolute) or a path relative to AppPaths.DataRoot
+    /// (Kind=LibraryRelative).
     /// </summary>
     public string Path { get; set; } = string.Empty;
 

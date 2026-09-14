@@ -287,11 +287,6 @@ public partial class MediaItem : ObservableObject
                 // Return the stored absolute path as-is.
                 return primary.Path;
 
-            case MediaFileKind.MountRelative:
-                // Future: implement mount-root based resolution here
-                // For now, treat it like a raw path
-                return primary.Path;
-
             default:
                 return primary.Path;
         }
