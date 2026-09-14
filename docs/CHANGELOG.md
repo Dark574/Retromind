@@ -7,7 +7,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
-## [0.1.8-alpha] - unreleased
+## [0.1.8-alpha] - 2026-09-14
 
 ### Added
 - new arcade system theme
