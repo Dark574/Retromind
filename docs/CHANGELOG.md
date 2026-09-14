@@ -18,12 +18,14 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 - Protect settings from overwrite after load failure
 - centralized GOG media item state checks
+- replaced the GOG WebKitGTK login with an embedded WPE dialog and system-browser fallback
 
 ### Fixed
 - correct selection when starting BigMode
 - limit GOG update sweep to relevant items
 - respect separate primary and secondary video settings
 - store GOG Windows games as manual runner launches
+- made GOG login cancellable and prevented unavailable embedded-browser runtimes from crashing the application
 
 ---
 

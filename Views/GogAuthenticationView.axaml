@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:p="clr-namespace:Retromind.Resources"
+        x:Class="Retromind.Views.GogAuthenticationView"
+        Width="900"
+        Height="720"
+        MinWidth="640"
+        MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border Grid.Row="0" Padding="16,12">
+            <TextBlock x:Name="StatusTextBlock"
+                       FontSize="15"
+                       TextWrapping="Wrap" />
+        </Border>
+
+        <NativeWebView x:Name="LoginWebView"
+                       Grid.Row="1"
+                       Background="White"
+                       EnvironmentRequested="OnEnvironmentRequested"
+                       AdapterCreated="OnAdapterCreated"
+                       NavigationStarted="OnNavigationStarted"
+                       NavigationCompleted="OnNavigationCompleted" />
+
+        <Border Grid.Row="2" Padding="16,12">
+            <Button HorizontalAlignment="Right"
+                    Content="{x:Static p:Strings.Button_Cancel}"
+                    IsCancel="True"
+                    Click="OnCancelClick" />
+        </Border>
+    </Grid>
+</Window>

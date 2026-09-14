@@ -4,12 +4,12 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -24,18 +24,8 @@ public partial class MainWindowViewModel
 {
     private const string GogProviderId = "gog";
     private const string GogDisplayName = "GOG";
+    private const string GogForceBrowserLoginEnvironmentVariable = "RETROMIND_GOG_FORCE_BROWSER_LOGIN";
     private static readonly Uri GogDefaultWebAuthRedirectUri = new("https://embed.gog.com/on_login_success?origin=client");
-    private const string LinuxWebKitGtkLibraryName = "libwebkit2gtk";
-    private const string LinuxWebKitGtkAliasFileName = "libwebkit2gtk.so";
-    private static readonly string[] LinuxWebKitGtkLibraryCandidates =
-    [
-        LinuxWebKitGtkLibraryName,
-        LinuxWebKitGtkAliasFileName,
-        "libwebkit2gtk-4.1.so.0",
-        "libwebkit2gtk-4.1.so",
-        "libwebkit2gtk-4.0.so.37",
-        "libwebkit2gtk-4.0.so"
-    ];
 
     private static bool IsGogProvider(string? providerId)
         => string.Equals(providerId, GogProviderId, StringComparison.OrdinalIgnoreCase);
@@ -428,13 +418,6 @@ public partial class MainWindowViewModel
         var message = exception.Message;
         var inAppUnavailable = exception is PlatformNotSupportedException;
 
-        if (inAppUnavailable && message.Contains("AppImage Wayland", StringComparison.OrdinalIgnoreCase))
-        {
-            return T(
-                "Gog.InAppAuthUnavailableWaylandAppImage",
-                "Embedded web authentication is currently not supported in AppImage Wayland sessions. Restart Retromind with --avalonia-platform=x11 and retry.");
-        }
-
         if (inAppUnavailable)
             return T("Gog.InAppAuthUnavailable", "Embedded web authentication is not available on this platform.");
 
@@ -462,43 +445,81 @@ public partial class MainWindowViewModel
         if (!OperatingSystem.IsLinux())
             throw new PlatformNotSupportedException("Embedded GOG authentication is only supported on Linux.");
 
-        if (IsLinuxWaylandAppImageSession())
-        {
-            return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
-        }
-
-        EnsureLinuxWebKitGtkAlias();
-        if (!HasLinuxWebKitGtkRuntime())
-        {
-            return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
-        }
-
         var redirectUri = ResolveRedirectUriFromAuthorizeUri(authorizeUri);
         if (!redirectUri.IsAbsoluteUri || !string.Equals(redirectUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Invalid OAuth redirect URI.");
         }
 
-        var options = new WebAuthenticatorOptions(authorizeUri, redirectUri)
-        {
-            Mode = WebAuthenticatorMode.NativeWebDialog,
-            NonPersistent = true
-        };
+        if (IsGogBrowserLoginForced() || !HasLinuxWpeRuntime())
+            return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
 
-        Uri? callbackUri;
+        GogAuthenticationView dialog;
         try
         {
-            var result = await WebAuthenticationBroker.AuthenticateAsync(owner, options);
-            callbackUri = result.CallbackUri;
+            dialog = new GogAuthenticationView(
+                authorizeUri,
+                redirectUri,
+                T("Gog.EmbeddedLoginTitle", "GOG sign-in"),
+                T("Gog.EmbeddedLoginHint", "Sign in to GOG in the embedded browser."));
         }
-        catch (Exception ex) when (IsMissingLinuxWebKitGtk(ex))
+        catch (Exception ex)
         {
-            Debug.WriteLine($"[GOG] Embedded OAuth unavailable ({ex.GetType().Name}), falling back to system browser callback capture.");
+            Debug.WriteLine($"[GOG] Could not prepare WPE OAuth dialog ({ex.GetType().Name}); falling back to system browser callback capture.");
+            return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
+        }
+
+        bool accepted;
+        try
+        {
+            accepted = await dialog.AuthenticateAsync(owner, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] WPE OAuth dialog failed ({ex.GetType().Name}); falling back to system browser callback capture.");
             return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
         }
 
         ct.ThrowIfCancellationRequested();
-        return callbackUri;
+        if (dialog.InitializationException is { } initializationException)
+        {
+            Debug.WriteLine($"[GOG] WPE OAuth initialization failed ({initializationException.GetType().Name}); falling back to system browser callback capture.");
+            return await CaptureGogCallbackUriViaSystemBrowserAsync(owner, authorizeUri, ct);
+        }
+
+        return accepted ? dialog.CallbackUri : null;
+    }
+
+    private static bool HasLinuxWpeRuntime()
+    {
+        try
+        {
+            var adapter = WebViewAdapterInfo.GetAdapterInfo(WebViewAdapterType.WpeWebKit);
+            if (adapter.IsInstalled &&
+                adapter.SupportedScenarios.HasFlag(WebViewEmbeddingScenario.OffscreenRenderer))
+            {
+                return true;
+            }
+
+            Debug.WriteLine($"[GOG] WPE OAuth unavailable: {adapter.UnavailableReason ?? "unsupported embedding scenario"}.");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] WPE availability check failed: {ex.Message}");
+        }
+
+        return false;
+    }
+
+    internal static bool IsGogBrowserLoginForced()
+    {
+        var value = Environment.GetEnvironmentVariable(GogForceBrowserLoginEnvironmentVariable);
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<Uri?> CaptureGogCallbackUriViaSystemBrowserAsync(
@@ -511,123 +532,9 @@ public partial class MainWindowViewModel
         if (!SystemBrowserLauncher.TryOpen(authorizeUri, out var browserError))
             throw new InvalidOperationException("Could not open system browser for GOG login.", browserError);
 
-        while (true)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            var prompt = string.Format(
-                T(
-                    "Gog.CallbackPromptFormat",
-                    "Complete login in your browser, then paste the final callback URL here.\n\nIf needed, reopen:\n{0}"),
-                authorizeUri);
-
-            var input = await PromptForName(owner, prompt);
-            if (string.IsNullOrWhiteSpace(input))
-                return null;
-
-            var trimmed = input.Trim();
-            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var callbackUri))
-                return callbackUri;
-
-            await ShowInfoDialog(owner, T("Gog.CallbackInvalidUri", "The entered value is not a valid URL."));
-        }
-    }
-
-    private static bool IsLinuxWaylandAppImageSession()
-    {
-        if (!OperatingSystem.IsLinux() || !AppImageToolResolver.IsAppImageRuntime())
-            return false;
-
-        var explicitPlatform = Environment.GetEnvironmentVariable("AVALONIA_PLATFORM");
-        if (string.Equals(explicitPlatform, "wayland", StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (string.Equals(explicitPlatform, "x11", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        var sessionType = Environment.GetEnvironmentVariable("XDG_SESSION_TYPE");
-        if (string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"));
-    }
-
-    private static bool HasLinuxWebKitGtkRuntime()
-    {
-        if (!OperatingSystem.IsLinux())
-            return true;
-
-        foreach (var candidate in LinuxWebKitGtkLibraryCandidates)
-        {
-            if (!NativeLibrary.TryLoad(candidate, out var handle))
-                continue;
-
-            NativeLibrary.Free(handle);
-            return true;
-        }
-
-        return false;
-    }
-
-    private static void EnsureLinuxWebKitGtkAlias()
-    {
-        if (!OperatingSystem.IsLinux())
-            return;
-
-        var aliasPath = Path.Combine(AppContext.BaseDirectory, LinuxWebKitGtkAliasFileName);
-        if (File.Exists(aliasPath))
-            return;
-
-        foreach (var candidatePath in EnumerateLinuxWebKitGtkCandidatePaths())
-        {
-            if (!File.Exists(candidatePath))
-                continue;
-
-            try
-            {
-                File.CreateSymbolicLink(aliasPath, candidatePath);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[GOG] Could not create local WebKitGTK alias: {ex.Message}");
-            }
-
-            return;
-        }
-    }
-
-    private static IEnumerable<string> EnumerateLinuxWebKitGtkCandidatePaths()
-    {
-        var directories = new[]
-        {
-            "/usr/lib",
-            "/usr/lib64",
-            "/usr/lib/x86_64-linux-gnu",
-            "/lib",
-            "/lib64",
-            "/lib/x86_64-linux-gnu"
-        };
-
-        foreach (var directory in directories)
-        {
-            yield return Path.Combine(directory, "libwebkit2gtk-4.1.so.0");
-            yield return Path.Combine(directory, "libwebkit2gtk-4.1.so");
-            yield return Path.Combine(directory, "libwebkit2gtk-4.0.so.37");
-            yield return Path.Combine(directory, "libwebkit2gtk-4.0.so");
-        }
-    }
-
-    private static bool IsMissingLinuxWebKitGtk(Exception ex)
-    {
-        if (!OperatingSystem.IsLinux())
-            return false;
-
-        for (Exception? current = ex; current != null; current = current.InnerException)
-        {
-            if (current.Message.IndexOf("webkit2gtk", StringComparison.OrdinalIgnoreCase) >= 0)
-                return true;
-        }
-
-        return false;
+        var redirectUri = ResolveRedirectUriFromAuthorizeUri(authorizeUri);
+        var dialog = new GogBrowserCallbackView(authorizeUri, redirectUri);
+        return await dialog.CaptureAsync(owner, ct);
     }
 
     private static Uri ResolveRedirectUriFromAuthorizeUri(Uri authorizeUri)

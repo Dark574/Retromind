@@ -568,9 +568,8 @@ X11 explicitly. `--avalonia-platform=auto` intentionally keeps the stable X11 de
 requires an explicit opt-in.
 
 The Wayland backend is still classified as experimental by Avalonia. Retromind also depends on native
-integration for **LibVLC video embedding** and **embedded OAuth/WebView**, so these paths need additional
-real-world testing. In AppImage Wayland sessions, GOG authentication conservatively uses the system-browser
-fallback instead of the embedded WebView.
+integration for **LibVLC video embedding**, so this path needs additional real-world testing. The embedded
+GOG login uses WPE WebKit's offscreen renderer and is independent of the selected Avalonia X11/Wayland backend.
 
 Source: <https://docs.avaloniaui.net/docs/platform-specific-guides/linux#wayland>
 
@@ -627,8 +626,11 @@ Please test it carefully and expect rough edges or breaking behavior between alp
 - Secret store support:
   - preferred: Secret Service (`secret-tool`, GNOME Keyring/KWallet/libsecret backend)
   - fallback: in-memory session storage (non-persistent)
-- For embedded OAuth login dialogs: host `libwebkit2gtk` runtime available.
-  - If embedded OAuth is unavailable, Retromind falls back to system browser login with manual callback URL input.
+- For embedded OAuth login dialogs: host WPE WebKit runtime available (Arch/CachyOS: `sudo pacman -S wpewebkit`).
+  - WebKitGTK is not required for GOG authentication.
+  - If WPE WebKit is unavailable, Retromind falls back to system browser login with manual callback URL input.
+  - After GOG finishes loading its final callback page, copy the URL from the browser address bar and paste it into Retromind.
+  - Set `RETROMIND_GOG_FORCE_BROWSER_LOGIN=1` to force this fallback for testing or troubleshooting.
 
 ### Usage
 

@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-08-20
+Last updated: 2026-09-14
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -28,7 +28,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - Functional OAuth core:
   - callback handling:
     - loopback listener for loopback redirect URIs
-    - embedded OAuth dialog for non-loopback redirect URIs via `WebAuthenticationBroker` (automatic callback capture)
+    - embedded OAuth dialog for non-loopback redirect URIs via WPE WebKit `NativeWebView` (automatic callback capture)
     - fallback: system browser + manual callback URL input when embedded OAuth runtime is unavailable
   - `state` validation and PKCE challenge generation
   - token exchange + refresh against `https://auth.gog.com/token`
@@ -39,7 +39,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - authorize URL host/path validation (`https://auth.gog.com/auth`)
     - redirect URI validation (absolute URI + allowlist policy for non-loopback)
     - callback URI must match expected redirect scheme/host/port/path (+ required static query params)
-    - `WebAuthenticationBroker` with `NonPersistent = true`
+    - isolated per-login WPE data/cache directories that are deleted after the dialog closes
 - Read-only library fetch:
   - owned products from `https://embed.gog.com/account/getFilteredProducts` (paged)
 - Initial UI wiring:
@@ -53,12 +53,11 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - all newly introduced GOG UI texts/messages are backed by `Resources/Strings.resx` and `Resources/Strings.de.resx`
 - UI dependency:
   - `Avalonia.Controls.WebView` is used for embedded OAuth authentication dialogs
-  - Linux runtime prerequisite for embedded OAuth: `libwebkit2gtk` (WebKitGTK)
-  - AppImage build does not bundle WebKitGTK runtime due stability/ABI issues across host environments; WebKitGTK is expected from the host when embedded OAuth is used.
-  - Linux defaults to X11/XWayland; native Wayland is an explicit opt-in, and AppImage Wayland sessions use
-    the system-browser callback flow instead of embedded authentication
-  - local Linux development/debug runs still require system WebKitGTK (e.g. on Arch/CachyOS: `sudo pacman -S webkit2gtk-4.1`)
-  - missing WebKitGTK now fails gracefully with a localized user message (no hard app crash)
+  - Linux runtime prerequisite for embedded OAuth: WPE WebKit with offscreen-renderer support
+  - the WPE renderer works independently of Retromind's Avalonia X11/Wayland backend
+  - local Linux development/debug runs require system WPE WebKit (e.g. on Arch/CachyOS: `sudo pacman -S wpewebkit`)
+  - WebKitGTK is not used by the GOG authentication flow
+  - missing or unusable WPE WebKit falls back to system-browser callback capture instead of crashing the application
 - Performance/UX:
   - owned-games fetch is cached in-memory for a short TTL to avoid repeated full pagination on consecutive imports
   - long-running GOG import/picker preparation shows wait cursor feedback
@@ -164,7 +163,13 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 
 - `ViewModels/MainWindowViewModel.Import.cs`
   - `AddGogMediaAsync` (picker flow for normal nodes, full sync for GOG-declared nodes)
-  - embedded in-app OAuth callback capture (`WebAuthenticationBroker`)
+  - embedded in-app OAuth callback capture with WPE availability check and system-browser fallback
+- `Views/GogAuthenticationView.axaml`
+- `Views/GogAuthenticationView.axaml.cs`
+  - WPE `NativeWebView` login window with automatic callback capture and integrated cancellation
+- `Views/GogBrowserCallbackView.axaml`
+- `Views/GogBrowserCallbackView.axaml.cs`
+  - fixed-size system-browser fallback dialog with callback validation, browser reopen, and integrated cancellation
 - `ViewModels/MainWindowViewModel.Command.cs`
   - localized menu label for `GOG-Medium hinzufügen`
 - `Views/MainWindow.axaml`
@@ -202,7 +207,7 @@ Required behavior for native GOG auth:
 
 - Use OAuth authorization flow only.
 - Do not implement username/password input fields for GOG credentials in Retromind forms.
-- For non-loopback redirect URIs, use embedded OAuth via `WebAuthenticationBroker` with non-persistent session mode.
+- For non-loopback redirect URIs, use embedded OAuth through a WPE `NativeWebView` with isolated per-login data/cache directories that are deleted when the dialog closes.
 - If embedded OAuth runtime is unavailable, fall back to system browser flow with manual callback URL capture.
 - Validate authorize endpoint before opening auth UI (`https://auth.gog.com/auth`).
 - Validate `state` on callback.
@@ -219,6 +224,7 @@ Required behavior for native GOG auth:
   - `RETROMIND_GOG_CLIENT_ID`
   - `RETROMIND_GOG_CLIENT_SECRET`
   - `RETROMIND_GOG_REDIRECT_URI` (accepted values are loopback HTTP, or `https://embed.gog.com/on_login_success...`; loopback uses local listener, non-loopback uses embedded OAuth callback capture)
+  - `RETROMIND_GOG_FORCE_BROWSER_LOGIN=1` (forces the system-browser callback flow for testing or WPE troubleshooting)
 
 ## Planned phases
 

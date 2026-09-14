@@ -1083,12 +1083,6 @@ namespace Retromind.Resources {
             }
         }
         
-        public static string Gog_InAppAuthUnavailableWaylandAppImage {
-            get {
-                return ResourceManager.GetString("Gog.InAppAuthUnavailableWaylandAppImage", resourceCulture);
-            }
-        }
-        
         public static string Gog_InvalidAuthorizeUri {
             get {
                 return ResourceManager.GetString("Gog.InvalidAuthorizeUri", resourceCulture);
@@ -1122,12 +1116,6 @@ namespace Retromind.Resources {
         public static string Gog_LibraryEmpty {
             get {
                 return ResourceManager.GetString("Gog.LibraryEmpty", resourceCulture);
-            }
-        }
-        
-        public static string Gog_CallbackPromptFormat {
-            get {
-                return ResourceManager.GetString("Gog.CallbackPromptFormat", resourceCulture);
             }
         }
         
