@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.RetroAchievements;
 
 namespace Retromind.ViewModels;
 
@@ -596,7 +597,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IRelayCommand RemoveSteamLibraryPathCommand { get; }
     public IRelayCommand AddHeroicEpicPathCommand { get; }
     public IRelayCommand RemoveHeroicEpicPathCommand { get; }
-    public IRelayCommand SaveCommand { get; }
+    public IAsyncRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
     public IAsyncRelayCommand BrowsePathCommand { get; }
     public IAsyncRelayCommand BrowseSteamLibraryPathCommand { get; }
@@ -665,11 +666,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public SettingsViewModel(
         AppSettings settings,
         SettingsService settingsService,
+        RetroAchievementsAccountService retroAchievementsAccountService,
         ObservableCollection<MediaNode>? rootNodes = null)
     {
         _targetSettings = settings ?? throw new ArgumentNullException(nameof(settings));
         _appSettings = CreateWorkingCopy(_targetSettings);
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _retroAchievementsAccountService = retroAchievementsAccountService ??
+            throw new ArgumentNullException(nameof(retroAchievementsAccountService));
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
         _originalIgnoreLeadingArticlesInSort = _targetSettings.IgnoreLeadingArticlesInSort;
 
@@ -723,7 +727,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         AddHeroicEpicPathCommand = new RelayCommand(AddHeroicEpicPath);
         RemoveHeroicEpicPathCommand = new RelayCommand(RemoveHeroicEpicPath, () => SelectedHeroicEpicPath != null);
         
-        SaveCommand = new RelayCommand(Save, CanSave);
+        SaveCommand = new AsyncRelayCommand(SaveAsync, CanSave);
         CancelCommand = new RelayCommand(Cancel);
         BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync, () => SelectedEmulator != null);
         BrowseSteamLibraryPathCommand = new AsyncRelayCommand(BrowseSteamLibraryPathAsync);
@@ -762,6 +766,16 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         BrowseRunnerVersionPathCommand = new AsyncRelayCommand(BrowseRunnerVersionPathAsync);
         RefreshGeReleasesCommand = new AsyncRelayCommand(RefreshGeReleasesAsync, () => !IsGeReleaseBusy);
         DownloadSelectedGeReleaseCommand = new AsyncRelayCommand(DownloadSelectedGeReleaseAsync, CanDownloadSelectedGeRelease);
+        TestRetroAchievementsConnectionCommand = new AsyncRelayCommand(
+            TestRetroAchievementsConnectionAsync,
+            CanTestRetroAchievementsConnection);
+        RemoveRetroAchievementsApiKeyCommand = new RelayCommand(
+            RemoveRetroAchievementsApiKey,
+            CanRemoveRetroAchievementsApiKey);
+
+        var retroAchievementsSettings = _appSettings.RetroAchievements ??= new RetroAchievementsSettings();
+        RetroAchievementsEnabled = retroAchievementsSettings.Enabled;
+        RetroAchievementsUsername = retroAchievementsSettings.Username ?? string.Empty;
 
         foreach (var emulator in Emulators)
             emulator.PropertyChanged += OnAnyEmulatorPropertyChanged;
@@ -937,7 +951,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     partial void OnSelectedSettingsTabIndexChanged(int value)
     {
         // Tab order in SettingsView:
-        // 0 = Emulators, 1 = Metadata, 2 = Wine/Proton versions, 3 = Misc.
+        // 0 = Emulators, 1 = Metadata, 2 = Wine/Proton versions,
+        // 3 = RetroAchievements, 4 = Misc.
         if (value != 2)
             return;
 

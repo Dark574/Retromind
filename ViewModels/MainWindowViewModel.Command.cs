@@ -1381,7 +1381,12 @@ public partial class MainWindowViewModel
     {
         if (CurrentWindow is not { } owner) return;
 
-        var settingsVm = new SettingsViewModel(_currentSettings, _settingsService, RootItems);
+        var settingsVm = new SettingsViewModel(
+            _currentSettings,
+            _settingsService,
+            _retroAchievementsAccountService,
+            RootItems);
+        await settingsVm.InitializeRetroAchievementsAsync();
         settingsVm.RequestRunnerVersionRemovalConfirmation += runner =>
         {
             var message = runner.SourceType == RunnerVersionSourceType.ManagedDownload

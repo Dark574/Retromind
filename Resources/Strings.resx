@@ -903,4 +903,27 @@ The current application settings will be kept.</value></data>
     <data name="MetadataBackup.StartupFailedFormat" xml:space="preserve"><value>The automatic startup backup could not be created. Retromind will continue normally.
 
 {0}</value></data>
+    <data name="Settings_RetroAchievementsTabShort" xml:space="preserve"><value>RA</value></data>
+    <data name="Settings_RetroAchievementsTabTitle" xml:space="preserve"><value>RetroAchievements</value></data>
+    <data name="Settings_RetroAchievementsSectionTitle" xml:space="preserve"><value>RetroAchievements account</value></data>
+    <data name="Settings_RetroAchievementsHint" xml:space="preserve"><value>Connect your RetroAchievements account to show achievement progress for identified games.</value></data>
+    <data name="Settings_RetroAchievementsEnable" xml:space="preserve"><value>Enable RetroAchievements integration</value></data>
+    <data name="Settings_RetroAchievementsUsername" xml:space="preserve"><value>Username</value></data>
+    <data name="Settings_RetroAchievementsApiKey" xml:space="preserve"><value>Web API key</value></data>
+    <data name="Settings_RetroAchievementsApiKeyHint" xml:space="preserve"><value>The key is stored in the system keyring when available and never written to Retromind settings or metadata backups. Without an available keyring, it remains available only for the current session. Leave the field empty to keep the stored key.</value></data>
+    <data name="Settings_RetroAchievementsTestConnection" xml:space="preserve"><value>Test connection</value></data>
+    <data name="Settings_RetroAchievementsRemoveApiKey" xml:space="preserve"><value>Remove stored key</value></data>
+    <data name="Settings_RetroAchievementsStatusChecking" xml:space="preserve"><value>Checking stored account data...</value></data>
+    <data name="Settings_RetroAchievementsStatusStored" xml:space="preserve"><value>A Web API key is stored. You can test the connection or enter a replacement key.</value></data>
+    <data name="Settings_RetroAchievementsStatusNotConfigured" xml:space="preserve"><value>No Web API key is stored yet.</value></data>
+    <data name="Settings_RetroAchievementsStatusSecretReadFailed" xml:space="preserve"><value>The stored Web API key could not be read.</value></data>
+    <data name="Settings_RetroAchievementsStatusConnecting" xml:space="preserve"><value>Connecting to RetroAchievements...</value></data>
+    <data name="Settings_RetroAchievementsStatusConnectedFormat" xml:space="preserve"><value>Connected as {0}. Hardcore points: {1:N0}.</value></data>
+    <data name="Settings_RetroAchievementsStatusConnectedNewKeyFormat" xml:space="preserve"><value>Connected as {0}. Hardcore points: {1:N0}. The new key will be stored when you save the settings.</value></data>
+    <data name="Settings_RetroAchievementsStatusCanceled" xml:space="preserve"><value>The connection test was canceled.</value></data>
+    <data name="Settings_RetroAchievementsStatusFailedFormat" xml:space="preserve"><value>Connection failed: {0}</value></data>
+    <data name="Settings_RetroAchievementsStatusUnauthorized" xml:space="preserve"><value>The Web API key was not accepted (HTTP 401). Make sure you copied the Web API key, not an emulator or Connect API key.</value></data>
+    <data name="Settings_RetroAchievementsStatusUnexpectedFailure" xml:space="preserve"><value>The RetroAchievements connection test failed unexpectedly.</value></data>
+    <data name="Settings_RetroAchievementsStatusRemovePending" xml:space="preserve"><value>The stored Web API key will be removed when you save the settings.</value></data>
+    <data name="Settings_RetroAchievementsStatusSecretWriteFailed" xml:space="preserve"><value>The Web API key could not be stored. The settings were not saved.</value></data>
 </root>

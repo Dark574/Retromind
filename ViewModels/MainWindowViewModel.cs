@@ -22,6 +22,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.RetroAchievements;
 using Retromind.Services.Stores.Abstractions;
 using Retromind.Services.Stores.Gog;
 
@@ -50,6 +51,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly SoundEffectService _soundEffectService;
     private readonly IDocumentService _documentService;
     private readonly LibraryChangeTracker _libraryTracker;
+    private readonly RetroAchievementsAccountService _retroAchievementsAccountService;
 
     // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
     private readonly HttpClient _httpClient;
@@ -334,7 +336,8 @@ public partial class MainWindowViewModel : ViewModelBase
         SoundEffectService soundEffectService,
         HttpClient httpClient,
         AppSettings preloadedSettings,
-        IDocumentService documentService)
+        IDocumentService documentService,
+        RetroAchievementsAccountService retroAchievementsAccountService)
     {
         _audioService = audioService;
         _dataService = dataService;
@@ -352,6 +355,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _httpClient = httpClient;
         _currentSettings = preloadedSettings;
         _documentService = documentService;
+        _retroAchievementsAccountService = retroAchievementsAccountService;
         if (_settingsService.HasLoadFailure)
         {
             SettingsLoadErrorMessage = T(

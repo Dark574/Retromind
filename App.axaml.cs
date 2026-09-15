@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.RetroAchievements;
 using Retromind.Services.Stores.Abstractions;
 using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Auth;
@@ -275,6 +276,9 @@ public partial class App : Application
         services.AddSingleton<GogProvider>();
         services.AddSingleton<IStoreAuthProvider>(provider => provider.GetRequiredService<GogProvider>());
         services.AddSingleton<IStoreLibraryProvider>(provider => provider.GetRequiredService<GogProvider>());
+
+        services.AddSingleton<RetroAchievementsApiClient>();
+        services.AddSingleton<RetroAchievementsAccountService>();
 
         services.AddSingleton<MetadataService>();
         services.AddSingleton<IDocumentService, DocumentService>();

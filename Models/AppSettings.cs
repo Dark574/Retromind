@@ -167,4 +167,10 @@ public class AppSettings
     /// Global scraper import behavior for manual scrape and bulk scrape.
     /// </summary>
     public ScraperImportSettings ScraperImport { get; set; } = new();
+
+    /// <summary>
+    /// Non-secret RetroAchievements integration settings. The Web API key is
+    /// stored separately through the platform secret store.
+    /// </summary>
+    public RetroAchievementsSettings RetroAchievements { get; set; } = new();
 }

@@ -905,4 +905,27 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="MetadataBackup.StartupFailedFormat" xml:space="preserve"><value>Das automatische Start-Backup konnte nicht erstellt werden. Retromind wird normal fortgesetzt.
 
 {0}</value></data>
+    <data name="Settings_RetroAchievementsTabShort" xml:space="preserve"><value>RA</value></data>
+    <data name="Settings_RetroAchievementsTabTitle" xml:space="preserve"><value>RetroAchievements</value></data>
+    <data name="Settings_RetroAchievementsSectionTitle" xml:space="preserve"><value>RetroAchievements-Konto</value></data>
+    <data name="Settings_RetroAchievementsHint" xml:space="preserve"><value>Verbinde dein RetroAchievements-Konto, um den Achievement-Fortschritt erkannter Spiele anzuzeigen.</value></data>
+    <data name="Settings_RetroAchievementsEnable" xml:space="preserve"><value>RetroAchievements-Integration aktivieren</value></data>
+    <data name="Settings_RetroAchievementsUsername" xml:space="preserve"><value>Benutzername</value></data>
+    <data name="Settings_RetroAchievementsApiKey" xml:space="preserve"><value>Web-API-Key</value></data>
+    <data name="Settings_RetroAchievementsApiKeyHint" xml:space="preserve"><value>Der Key wird nach Möglichkeit im System-Schlüsselbund gespeichert und nie in die Retromind-Einstellungen oder Metadaten-Backups geschrieben. Ohne verfügbaren Schlüsselbund bleibt er nur für die laufende Sitzung verfügbar. Lass das Feld leer, um den gespeicherten Key beizubehalten.</value></data>
+    <data name="Settings_RetroAchievementsTestConnection" xml:space="preserve"><value>Verbindung testen</value></data>
+    <data name="Settings_RetroAchievementsRemoveApiKey" xml:space="preserve"><value>Gespeicherten Key entfernen</value></data>
+    <data name="Settings_RetroAchievementsStatusChecking" xml:space="preserve"><value>Gespeicherte Kontodaten werden geprüft...</value></data>
+    <data name="Settings_RetroAchievementsStatusStored" xml:space="preserve"><value>Ein Web-API-Key ist gespeichert. Du kannst die Verbindung testen oder einen Ersatz-Key eingeben.</value></data>
+    <data name="Settings_RetroAchievementsStatusNotConfigured" xml:space="preserve"><value>Noch kein Web-API-Key gespeichert.</value></data>
+    <data name="Settings_RetroAchievementsStatusSecretReadFailed" xml:space="preserve"><value>Der gespeicherte Web-API-Key konnte nicht gelesen werden.</value></data>
+    <data name="Settings_RetroAchievementsStatusConnecting" xml:space="preserve"><value>Verbindung zu RetroAchievements wird hergestellt...</value></data>
+    <data name="Settings_RetroAchievementsStatusConnectedFormat" xml:space="preserve"><value>Verbunden als {0}. Hardcore-Punkte: {1:N0}.</value></data>
+    <data name="Settings_RetroAchievementsStatusConnectedNewKeyFormat" xml:space="preserve"><value>Verbunden als {0}. Hardcore-Punkte: {1:N0}. Der neue Key wird beim Speichern der Einstellungen hinterlegt.</value></data>
+    <data name="Settings_RetroAchievementsStatusCanceled" xml:space="preserve"><value>Der Verbindungstest wurde abgebrochen.</value></data>
+    <data name="Settings_RetroAchievementsStatusFailedFormat" xml:space="preserve"><value>Verbindung fehlgeschlagen: {0}</value></data>
+    <data name="Settings_RetroAchievementsStatusUnauthorized" xml:space="preserve"><value>Der Web-API-Key wurde nicht akzeptiert (HTTP 401). Stelle sicher, dass du den Web-API-Key kopiert hast, nicht einen Emulator- oder Connect-API-Key.</value></data>
+    <data name="Settings_RetroAchievementsStatusUnexpectedFailure" xml:space="preserve"><value>Der RetroAchievements-Verbindungstest ist unerwartet fehlgeschlagen.</value></data>
+    <data name="Settings_RetroAchievementsStatusRemovePending" xml:space="preserve"><value>Der gespeicherte Web-API-Key wird beim Speichern der Einstellungen entfernt.</value></data>
+    <data name="Settings_RetroAchievementsStatusSecretWriteFailed" xml:space="preserve"><value>Der Web-API-Key konnte nicht gespeichert werden. Die Einstellungen wurden nicht übernommen.</value></data>
 </root>

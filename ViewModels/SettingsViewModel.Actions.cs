@@ -19,7 +19,8 @@ public partial class SettingsViewModel
     private bool CanSave()
     {
         // Prevent persisting half-configured scraper entries.
-        return Scrapers.All(s => s.Type != ScraperType.None);
+        return Scrapers.All(s => s.Type != ScraperType.None) &&
+               CanSaveRetroAchievements();
     }
 
     private void RefreshHintProperties()
@@ -215,9 +216,12 @@ public partial class SettingsViewModel
         }
     }
     
-    private void Save()
+    private async Task SaveAsync()
     {
         if (!CanSave())
+            return;
+
+        if (!await SaveRetroAchievementsAsync())
             return;
 
         EnsureRunnerVersionIds();
@@ -316,6 +320,7 @@ public partial class SettingsViewModel
         _targetSettings.SteamLibraryPaths = committed.SteamLibraryPaths;
         _targetSettings.HeroicEpicConfigPaths = committed.HeroicEpicConfigPaths;
         _targetSettings.ScraperImport = committed.ScraperImport;
+        _targetSettings.RetroAchievements = committed.RetroAchievements;
     }
 
     private void EnsureRunnerVersionIds()
