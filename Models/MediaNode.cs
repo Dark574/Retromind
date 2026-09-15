@@ -117,6 +117,12 @@ public partial class MediaNode : ObservableObject
     public string? DefaultEmulatorId { get; set; }
 
     /// <summary>
+    /// Optional provider-neutral game-system identity for this node.
+    /// Null means inherit from the nearest parent node.
+    /// </summary>
+    public string? GameSystemId { get; set; }
+
+    /// <summary>
     /// Optional store provider binding for this node (e.g. "gog").
     /// If set, the node can be synchronized from that store library.
     /// </summary>

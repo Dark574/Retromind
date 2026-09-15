@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services.GameSystems;
 
 namespace Retromind.ViewModels;
 
@@ -28,6 +29,7 @@ public partial class EditMediaViewModel
         _originalItem.Title = newTitle;
         _originalItem.Publisher = NormalizeOptionalText(Publisher);
         _originalItem.Platform = NormalizeOptionalText(Platform);
+        _originalItem.GameSystemId = GameSystemCatalog.NormalizeId(SelectedGameSystem?.Id);
         _originalItem.Source = NormalizeOptionalText(Source);
         _originalItem.Developer = Developer;
         _originalItem.Genre = Genre;

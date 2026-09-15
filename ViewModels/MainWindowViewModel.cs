@@ -1347,6 +1347,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
                 {
                     Id = nodeToLoad.Id,
+                    GameSystemId = nodeToLoad.GameSystemId,
                     Items = new ObservableCollection<MediaItem>(allItems),
                     Assets = nodeToLoad.Assets,
                     LogoFallbackEnabled = nodeToLoad.LogoFallbackEnabled,

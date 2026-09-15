@@ -928,4 +928,12 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="Settings_RetroAchievementsStatusUnexpectedFailure" xml:space="preserve"><value>Der RetroAchievements-Verbindungstest ist unerwartet fehlgeschlagen.</value></data>
     <data name="Settings_RetroAchievementsStatusRemovePending" xml:space="preserve"><value>Der gespeicherte Web-API-Key wird beim Speichern der Einstellungen entfernt.</value></data>
     <data name="Settings_RetroAchievementsStatusSecretWriteFailed" xml:space="preserve"><value>Der Web-API-Key konnte nicht gespeichert werden. Die Einstellungen wurden nicht übernommen.</value></data>
+    <data name="GameSystem_NodeLabel" xml:space="preserve"><value>Spielsystem für die Spieleerkennung</value></data>
+    <data name="GameSystem_ItemLabel" xml:space="preserve"><value>Spielsystem für die Spieleerkennung</value></data>
+    <data name="GameSystem_Hint" xml:space="preserve"><value>Technische Zuordnung für Integrationen wie RetroAchievements und ScreenScraper. Sie ändert weder die Plattform-Metadaten noch den konfigurierten Emulator.</value></data>
+    <data name="GameSystem_InheritFromParent" xml:space="preserve"><value>Vom übergeordneten Ordner erben</value></data>
+    <data name="GameSystem_InheritFromFolder" xml:space="preserve"><value>Vom zugehörigen Ordner erben</value></data>
+    <data name="GameSystem_InheritedFormat" xml:space="preserve"><value>Geerbt: {0} (von {1})</value></data>
+    <data name="GameSystem_InheritedItemFormat" xml:space="preserve"><value>Geerbt: {0}</value></data>
+    <data name="GameSystem_InheritedNone" xml:space="preserve"><value>Es wird kein Spielsystem geerbt.</value></data>
 </root>

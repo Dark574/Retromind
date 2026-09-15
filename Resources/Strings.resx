@@ -926,4 +926,12 @@ The current application settings will be kept.</value></data>
     <data name="Settings_RetroAchievementsStatusUnexpectedFailure" xml:space="preserve"><value>The RetroAchievements connection test failed unexpectedly.</value></data>
     <data name="Settings_RetroAchievementsStatusRemovePending" xml:space="preserve"><value>The stored Web API key will be removed when you save the settings.</value></data>
     <data name="Settings_RetroAchievementsStatusSecretWriteFailed" xml:space="preserve"><value>The Web API key could not be stored. The settings were not saved.</value></data>
+    <data name="GameSystem_NodeLabel" xml:space="preserve"><value>Game system for game identification</value></data>
+    <data name="GameSystem_ItemLabel" xml:space="preserve"><value>Game system for game identification</value></data>
+    <data name="GameSystem_Hint" xml:space="preserve"><value>Technical assignment for integrations such as RetroAchievements and ScreenScraper. It does not change Platform metadata or the configured emulator.</value></data>
+    <data name="GameSystem_InheritFromParent" xml:space="preserve"><value>Inherit from parent folder</value></data>
+    <data name="GameSystem_InheritFromFolder" xml:space="preserve"><value>Inherit from containing folder</value></data>
+    <data name="GameSystem_InheritedFormat" xml:space="preserve"><value>Inherited: {0} (from {1})</value></data>
+    <data name="GameSystem_InheritedItemFormat" xml:space="preserve"><value>Inherited: {0}</value></data>
+    <data name="GameSystem_InheritedNone" xml:space="preserve"><value>No game system is inherited.</value></data>
 </root>

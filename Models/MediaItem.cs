@@ -64,6 +64,13 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private string? _developer;
     [ObservableProperty] private string? _publisher;
     [ObservableProperty] private string? _platform;
+
+    /// <summary>
+    /// Optional provider-neutral game-system override used for game-file identification.
+    /// Null means inherit from the containing node. This is intentionally separate
+    /// from the free-text Platform metadata shown to the user.
+    /// </summary>
+    [ObservableProperty] private string? _gameSystemId;
     [ObservableProperty] private string? _source;
     [ObservableProperty] private string? _genre;
     [ObservableProperty] private string? _series;

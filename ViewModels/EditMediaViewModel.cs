@@ -14,6 +14,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.GameSystems;
 
 namespace Retromind.ViewModels;
 
@@ -549,7 +550,23 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
     // --- UI Lists ---
     public ObservableCollection<EmulatorProfileOption> AvailableEmulators { get; } = new();
+    public ObservableCollection<GameSystemSelectionOption> AvailableGameSystems { get; } = new();
     public List<PlayStatus> StatusOptions { get; } = Enum.GetValues<PlayStatus>().ToList();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGameSystemInherited))]
+    private GameSystemSelectionOption? _selectedGameSystem;
+
+    public bool IsGameSystemInherited => SelectedGameSystem?.Id == null;
+
+    public string GameSystemLabel =>
+        T("GameSystem_ItemLabel", "Game system for game identification");
+
+    public string GameSystemHint => T(
+        "GameSystem_Hint",
+        "Technical assignment for integrations such as RetroAchievements and ScreenScraper. It does not change Platform metadata or the configured emulator.");
+
+    public string InheritedGameSystemInfo { get; private set; } = string.Empty;
 
     public IAsyncRelayCommand<Window?> CopyPreviewCommand { get; }
     public IAsyncRelayCommand<Window?> CopyAssetPrefixCommand { get; }
@@ -679,6 +696,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         });
         
         LoadItemData();
+        InitializeGameSystemSelection();
         InitializeEmulators(settings);
         InitializeRunnerVersions(settings);
         InitializeNativeWrapperUiFromItem();
@@ -787,6 +805,40 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         // Assets do not need to be loaded separately because we bind directly to _originalItem.Assets
         // The FileService should ensure the assets list is up to date before opening this dialog
         // (via something like RefreshItemAssets)
+    }
+
+    private void InitializeGameSystemSelection()
+    {
+        AvailableGameSystems.Clear();
+        foreach (var option in GameSystemSelectionOption.Create(
+                     T("GameSystem_InheritFromFolder", "Inherit from containing folder"),
+                     _originalItem.GameSystemId))
+        {
+            AvailableGameSystems.Add(option);
+        }
+
+        SelectedGameSystem = GameSystemSelectionOption.Find(
+                                 AvailableGameSystems,
+                                 _originalItem.GameSystemId)
+                             ?? AvailableGameSystems.FirstOrDefault();
+
+        var inheritedSystemId = GameSystemResolver.ResolveForNode(_parentNode, _rootNodes);
+        if (inheritedSystemId == null)
+        {
+            InheritedGameSystemInfo = T(
+                "GameSystem_InheritedNone",
+                "No game system is inherited.");
+        }
+        else
+        {
+            var inheritedSystemName =
+                GameSystemCatalog.Find(inheritedSystemId)?.DisplayName ?? inheritedSystemId;
+            InheritedGameSystemInfo = string.Format(
+                T("GameSystem_InheritedItemFormat", "Inherited: {0}"),
+                inheritedSystemName);
+        }
+
+        OnPropertyChanged(nameof(InheritedGameSystemInfo));
     }
 
     private void InitializeCustomFieldsFromItem()

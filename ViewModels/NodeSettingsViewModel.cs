@@ -12,6 +12,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.GameSystems;
 
 namespace Retromind.ViewModels;
 
@@ -53,6 +54,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
     
     public ObservableCollection<EmulatorConfig> AvailableEmulators { get; } = new();
     public ObservableCollection<string> AvailableThemes { get; } = new();
+    public ObservableCollection<GameSystemSelectionOption> AvailableGameSystems { get; } = new();
 
     [ObservableProperty] private string _name = string.Empty;
     [ObservableProperty] private string _description = string.Empty;
@@ -79,6 +81,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     [ObservableProperty] private EmulatorConfig? _selectedEmulator;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGameSystemInherited))]
+    private GameSystemSelectionOption? _selectedGameSystem;
+
     [ObservableProperty] private string? _selectedTheme;
     [ObservableProperty] private bool _isGogStoreNode;
 
@@ -94,6 +100,16 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private string? _inheritedEmulatorSourceName;
 
     public bool IsEmulatorInherited => SelectedEmulator?.Id == InheritEmulatorId;
+    public bool IsGameSystemInherited => SelectedGameSystem?.Id == null;
+
+    public string GameSystemLabel =>
+        T("GameSystem_NodeLabel", "Game system for game identification");
+
+    public string GameSystemHint => T(
+        "GameSystem_Hint",
+        "Technical assignment for integrations such as RetroAchievements and ScreenScraper. It does not change Platform metadata or the configured emulator.");
+
+    public string InheritedGameSystemInfo { get; private set; } = string.Empty;
 
     public string InheritedEmulatorInfo
     {
@@ -332,6 +348,8 @@ public partial class NodeSettingsViewModel : ViewModelBase
         InitializeFromNode();
         InitializeEmulators();
         ResolveInheritedEmulatorInfo();
+        InitializeGameSystems();
+        ResolveInheritedGameSystemInfo();
         ResolveInheritedWrappers();
         ResolveInheritedEnvironmentOverrides();
         LoadAvailableThemes();
@@ -721,6 +739,46 @@ public partial class NodeSettingsViewModel : ViewModelBase
         SelectedEmulator ??= AvailableEmulators.FirstOrDefault();
     }
 
+    private void InitializeGameSystems()
+    {
+        AvailableGameSystems.Clear();
+        foreach (var option in GameSystemSelectionOption.Create(
+                     T("GameSystem_InheritFromParent", "Inherit from parent folder"),
+                     _node.GameSystemId))
+        {
+            AvailableGameSystems.Add(option);
+        }
+
+        SelectedGameSystem = GameSystemSelectionOption.Find(
+                                 AvailableGameSystems,
+                                 _node.GameSystemId)
+                             ?? AvailableGameSystems.FirstOrDefault();
+    }
+
+    private void ResolveInheritedGameSystemInfo()
+    {
+        var chain = PathHelper.GetNodeChain(_node, _rootNodes, matchById: true);
+        for (var i = chain.Count - 2; i >= 0; i--)
+        {
+            var systemId = GameSystemCatalog.NormalizeId(chain[i].GameSystemId);
+            if (systemId == null)
+                continue;
+
+            var systemName = GameSystemCatalog.Find(systemId)?.DisplayName ?? systemId;
+            InheritedGameSystemInfo = string.Format(
+                T("GameSystem_InheritedFormat", "Inherited: {0} (from {1})"),
+                systemName,
+                chain[i].Name);
+            OnPropertyChanged(nameof(InheritedGameSystemInfo));
+            return;
+        }
+
+        InheritedGameSystemInfo = T(
+            "GameSystem_InheritedNone",
+            "No game system is inherited.");
+        OnPropertyChanged(nameof(InheritedGameSystemInfo));
+    }
+
     private void ResolveInheritedEmulatorInfo()
     {
         _inheritedEmulatorName = null;
@@ -882,6 +940,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         _node.Description = Description;
         _node.RandomizeCovers = RandomizeCovers;
         _node.RandomizeMusic = RandomizeMusic;
+        _node.GameSystemId = GameSystemCatalog.NormalizeId(SelectedGameSystem?.Id);
 
         _node.ThemePath = string.IsNullOrWhiteSpace(SelectedTheme) ? null : SelectedTheme;
 

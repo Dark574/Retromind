@@ -24,6 +24,7 @@ public sealed class MediaDataServicePortabilityTests
             var item = new MediaItem
             {
                 Title = "Portable Game",
+                GameSystemId = "nintendo.game-boy-advance",
                 Files =
                 [
                     new MediaFileRef
@@ -48,6 +49,7 @@ public sealed class MediaDataServicePortabilityTests
             var node = new MediaNode
             {
                 Name = "Portable Node",
+                GameSystemId = "nintendo.snes",
                 ThemePath = Path.Combine("Themes", "Default", "theme.axaml")
             };
             node.Items.Add(item);
@@ -76,6 +78,8 @@ public sealed class MediaDataServicePortabilityTests
                 secondRoot.GetPath("Library", relativePrefixPath),
                 Path.GetFullPath(Path.Combine(AppPaths.LibraryRoot, loadedItem.PrefixPath!)));
             Assert.Equal(secondRoot.GetPath(relativeAssetPath), loadedAsset.AbsolutePath);
+            Assert.Equal("nintendo.snes", loadedNode.GameSystemId);
+            Assert.Equal("nintendo.game-boy-advance", loadedItem.GameSystemId);
             Assert.True(GogInstallPathHelper.TryResolveStoredPath(
                 loadedItem.CustomFields[CustomFieldKeyHelper.StoreInstallPath],
                 out var resolvedInstallPath));

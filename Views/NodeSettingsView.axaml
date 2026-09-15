@@ -287,6 +287,28 @@
                     </StackPanel>
                 </StackPanel>
 
+                <!-- PROVIDER-NEUTRAL GAME SYSTEM -->
+                <StackPanel Spacing="5">
+                    <TextBlock Text="{Binding GameSystemLabel}" />
+                    <ComboBox ItemsSource="{Binding AvailableGameSystems}"
+                              SelectedItem="{Binding SelectedGameSystem}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:GameSystemSelectionOption">
+                                <TextBlock Text="{Binding DisplayName}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Text="{Binding InheritedGameSystemInfo}"
+                               IsVisible="{Binding IsGameSystemInherited}"
+                               FontSize="11"
+                               Foreground="#888888" />
+                    <TextBlock Text="{Binding GameSystemHint}"
+                               FontSize="11"
+                               Foreground="#888888"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+
                 <StackPanel Spacing="4">
                     <CheckBox Content="{Binding GogStoreNodeText}"
                               IsChecked="{Binding IsGogStoreNode}"
