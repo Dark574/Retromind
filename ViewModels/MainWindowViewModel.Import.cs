@@ -381,10 +381,21 @@ public partial class MainWindowViewModel
             InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
 
             _libraryTracker.MarkDirty();
-
-            if (IsNodeInCurrentView(targetNode))
-                UpdateContent();
         });
+
+        // A picker import should behave like manually adding media: select the
+        // last added item after the current node view has been rebuilt. A GOG-node
+        // sync can add the entire library and intentionally keeps its selection.
+        if (!isGogNode)
+        {
+            var lastItem = itemsToAdd[^1];
+            _currentSettings.LastSelectedMediaId = lastItem.Id;
+            RememberNodeSelection(targetNode.Id, lastItem.Id);
+            SaveSettingsOnly();
+        }
+
+        if (IsNodeInCurrentView(targetNode))
+            await UpdateContentAsync();
 
         await SaveData();
     }
