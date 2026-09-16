@@ -16,13 +16,16 @@
         <ScrollViewer MaxHeight="500"
                       HorizontalScrollBarVisibility="Disabled"
                       VerticalScrollBarVisibility="Auto">
-            <TextBlock Text="{Binding}"
-                       FontSize="16"
-                       TextWrapping="Wrap"
-                       MaxWidth="520" />
+            <SelectableTextBlock Text="{Binding}"
+                                 FontSize="16"
+                                 TextWrapping="Wrap"
+                                 MaxWidth="520" />
         </ScrollViewer>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button Content="{x:Static p:Strings.Button_Copy}"
+                    Click="OnCopyClick"
+                    Width="90" />
             <Button Content="{x:Static p:Strings.Button_Ok}"
                     Click="OnOkClick"
                     IsDefault="True"
