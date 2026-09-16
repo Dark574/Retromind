@@ -230,6 +230,9 @@ separate statistics database or persisted aggregate state.
   `Cache/RetroAchievements` in `DataRoot`. Successfully saving a change to the portable-HOME setting merges
   the cache into its new location and retains the newer file when both locations contain the same system catalog.
   Stale-cache fallback and a refresh backoff cover temporary outages, and API keys are never written to this cache
+- `RetroAchievementsGameIdentificationService` composes secret lookup, rcheevos hashing, and catalog resolution
+  into one operation; a successfully calculated hash without a catalog entry is represented as a normal no-match
+  result rather than an exception
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)
