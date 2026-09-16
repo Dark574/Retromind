@@ -221,6 +221,9 @@ separate statistics database or persisted aggregate state.
 - `GameFileFingerprintService` calculates CRC32, MD5, and SHA-1 in one cancelable sequential file read for
   integrations such as ScreenScraper; these raw file checksums are intentionally not treated as the
   system-specific hash required by RetroAchievements
+- `RetroAchievementsHashService` maps provider-neutral game-system identifiers to the console IDs from the
+  pinned rcheevos version and generates official system-specific hashes through the bundled
+  `libretromind-rhash.so`; unsupported systems fail explicitly instead of falling back to a raw MD5
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)

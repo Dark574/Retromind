@@ -86,6 +86,25 @@ See `Licenses/Sidplayfp.GPL-2.0.txt`
 
 ---
 
+## rcheevos
+
+**Component:** rcheevos `rhash` game-identification library
+
+**Version:** 12.4.0
+
+**Repository:** https://github.com/RetroAchievements/rcheevos
+
+**License:** MIT
+
+Retromind includes the `rhash` portion of rcheevos to generate the
+system-specific hashes used for RetroAchievements game identification. The
+vendored upstream source is built into `libretromind-rhash.so` and called
+through a small Retromind-owned ABI wrapper.
+
+See: `Licenses/rcheevos.MIT.txt`
+
+---
+
 ## Commodore 64 system theme artwork
 
 The bundled C64 system theme contains the following artwork:

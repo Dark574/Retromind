@@ -1,0 +1,7 @@
+{
+  global:
+    retromind_rhash_generate;
+    retromind_rhash_version;
+  local:
+    *;
+};

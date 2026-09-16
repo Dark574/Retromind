@@ -14,6 +14,8 @@
         <AssemblyVersion>0.1.9.0</AssemblyVersion>
         <FileVersion>0.1.9.0</FileVersion>
         <InformationalVersion>0.1.9-alpha</InformationalVersion>
+
+        <RcheevosNativeLibrary Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(MSBuildProjectDirectory)/obj/$(Configuration)/$(TargetFramework)/native/libretromind-rhash.so</RcheevosNativeLibrary>
     </PropertyGroup>
 
     <ItemGroup>
@@ -32,6 +34,32 @@
     <ItemGroup>
         <Compile Remove="tests/**/*.cs" />
     </ItemGroup>
+
+    <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+        <RcheevosNativeSource Include="$(MSBuildProjectDirectory)/native/rcheevos/**/*.c;$(MSBuildProjectDirectory)/native/rcheevos/**/*.h;$(MSBuildProjectDirectory)/native/rcheevos/**/*.map;$(MSBuildProjectDirectory)/native/rcheevos/build.sh" />
+        <None Include="$(RcheevosNativeLibrary)"
+              Link="libretromind-rhash.so"
+              CopyToOutputDirectory="PreserveNewest"
+              CopyToPublishDirectory="PreserveNewest"
+              Visible="false" />
+    </ItemGroup>
+
+    <Target Name="BuildRcheevosNative"
+            BeforeTargets="PrepareForBuild"
+            Condition="$([MSBuild]::IsOSPlatform('Linux'))"
+            Inputs="@(RcheevosNativeSource)"
+            Outputs="$(RcheevosNativeLibrary)">
+        <Exec Command="&quot;$(MSBuildProjectDirectory)/native/rcheevos/build.sh&quot; &quot;$(RcheevosNativeLibrary)&quot;" />
+    </Target>
+
+    <Target Name="CopyRcheevosNativeToPublish"
+            AfterTargets="Publish"
+            DependsOnTargets="BuildRcheevosNative"
+            Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+        <Copy SourceFiles="$(RcheevosNativeLibrary)"
+              DestinationFolder="$(PublishDir)"
+              SkipUnchangedFiles="true" />
+    </Target>
 
     <ItemGroup>
         <PackageReference Include="Avalonia" Version="12.1.1" />

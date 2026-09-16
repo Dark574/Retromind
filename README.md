@@ -83,6 +83,7 @@ The AppImage is self-contained: a system-wide .NET runtime and LibVLC installati
 ### Source builds
 
 - .NET SDK 10.0
+- C compiler (`cc`, GCC or Clang) for the bundled rcheevos hash library
 - LibVLC runtime
 
 ## Getting started (first run)
