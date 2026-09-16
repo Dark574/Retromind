@@ -11,6 +11,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Added
 - make shortcut creation optional for GOG Windows installation
+- RetroAchievments for supported systems
 
 ### Changed
 
@@ -18,6 +19,8 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - themed busy cursor on native Wayland
 - ignore cue-referenced disc image files
 - select newly imported GOG library item
+- add RetroAchievements CHD hashing support
+- preserve RetroAchievements identities in library snapshots
 
 ---
 
