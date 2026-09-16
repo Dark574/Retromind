@@ -14,6 +14,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.RetroAchievements;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -1381,6 +1382,7 @@ public partial class MainWindowViewModel
     {
         if (CurrentWindow is not { } owner) return;
 
+        var portableHomeWasEnabled = _currentSettings.UsePortableHomeInAppImage;
         var settingsVm = new SettingsViewModel(
             _currentSettings,
             _settingsService,
@@ -1464,7 +1466,13 @@ public partial class MainWindowViewModel
         if (settingsVm.IsSaved)
         {
             _metadataService.ClearProviderCache();
-            await SaveData();
+            var settingsSaved = await SaveData();
+            if (settingsSaved && !_settingsService.HasLoadFailure)
+            {
+                await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
+                    portableHomeWasEnabled,
+                    _currentSettings.UsePortableHomeInAppImage);
+            }
         }
         else if (settingsVm.LibraryModified)
         {

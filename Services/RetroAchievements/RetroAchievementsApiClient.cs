@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;
@@ -15,6 +16,8 @@ public sealed class RetroAchievementsApiClient
 {
     private const string UserProfileEndpoint =
         "https://retroachievements.org/API/API_GetUserProfile.php";
+    private const string GameListEndpoint =
+        "https://retroachievements.org/API/API_GetGameList.php";
 
     private readonly HttpClient _httpClient;
 
@@ -44,19 +47,19 @@ public sealed class RetroAchievementsApiClient
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             throw new RetroAchievementsApiException(
-                "The RetroAchievements request timed out.", ex);
+                "The RetroAchievements request timed out.");
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
             throw new RetroAchievementsApiException(
-                "The RetroAchievements service could not be reached.", ex);
+                "The RetroAchievements service could not be reached.");
         }
 
         using (response)
@@ -104,6 +107,119 @@ public sealed class RetroAchievementsApiClient
             {
                 throw new RetroAchievementsApiException(
                     "RetroAchievements returned an invalid profile response.", ex);
+            }
+        }
+    }
+
+    public async Task<IReadOnlyList<RetroAchievementsGameCatalogEntry>> GetGameCatalogAsync(
+        uint consoleId,
+        string apiKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (consoleId == 0)
+            throw new ArgumentOutOfRangeException(nameof(consoleId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
+
+        var requestUri = new Uri(
+            $"{GameListEndpoint}?i={consoleId.ToString(CultureInfo.InvariantCulture)}&f=1&h=1&y={Uri.EscapeDataString(apiKey.Trim())}");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Accept.ParseAdd("application/json");
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new RetroAchievementsApiException(
+                "The RetroAchievements request timed out.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException)
+        {
+            throw new RetroAchievementsApiException(
+                "The RetroAchievements service could not be reached.");
+        }
+
+        using (response)
+        {
+            var responseBody = await response.Content
+                .ReadAsStringAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var apiError = RedactSecret(TryReadApiError(responseBody), apiKey);
+                var detail = string.IsNullOrWhiteSpace(apiError)
+                    ? $"HTTP {(int)response.StatusCode}"
+                    : apiError;
+                throw new RetroAchievementsApiException(
+                    response.StatusCode,
+                    $"RetroAchievements rejected the game catalog request ({detail}).");
+            }
+
+            try
+            {
+                using var json = JsonDocument.Parse(responseBody);
+                var root = json.RootElement;
+
+                var apiError = RedactSecret(TryReadApiError(root), apiKey);
+                if (!string.IsNullOrWhiteSpace(apiError))
+                    throw new RetroAchievementsApiException(apiError);
+
+                if (root.ValueKind != JsonValueKind.Array)
+                {
+                    throw new RetroAchievementsApiException(
+                        "RetroAchievements returned an invalid game catalog response.");
+                }
+
+                var games = new List<RetroAchievementsGameCatalogEntry>();
+                foreach (var item in root.EnumerateArray())
+                {
+                    var gameId = ReadInt(item, "ID", "id");
+                    var title = ReadOptionalString(item, "Title", "title");
+                    var returnedConsoleId = ReadInt(item, "ConsoleID", "consoleId");
+                    if (gameId <= 0 ||
+                        string.IsNullOrWhiteSpace(title) ||
+                        returnedConsoleId <= 0 ||
+                        (uint)returnedConsoleId != consoleId)
+                    {
+                        continue;
+                    }
+
+                    var hashes = ReadHashes(item);
+                    if (hashes.Count == 0)
+                        continue;
+
+                    games.Add(new RetroAchievementsGameCatalogEntry
+                    {
+                        GameId = gameId,
+                        Title = title.Trim(),
+                        ConsoleId = (uint)returnedConsoleId,
+                        ConsoleName = ReadOptionalString(item, "ConsoleName", "consoleName")?.Trim() ?? string.Empty,
+                        ImageIconPath = ReadOptionalString(item, "ImageIcon", "imageIcon"),
+                        AchievementCount = ReadInt(item, "NumAchievements", "numAchievements"),
+                        Hashes = hashes
+                    });
+                }
+
+                return games;
+            }
+            catch (RetroAchievementsApiException)
+            {
+                throw;
+            }
+            catch (JsonException ex)
+            {
+                throw new RetroAchievementsApiException(
+                    "RetroAchievements returned an invalid game catalog response.", ex);
             }
         }
     }
@@ -197,6 +313,42 @@ public sealed class RetroAchievementsApiClient
         }
 
         return 0;
+    }
+
+    private static List<string> ReadHashes(JsonElement root)
+    {
+        var hashes = new List<string>();
+        if (!TryGetProperty(root, out var values, "Hashes", "hashes") ||
+            values.ValueKind != JsonValueKind.Array)
+        {
+            return hashes;
+        }
+
+        foreach (var value in values.EnumerateArray())
+        {
+            if (value.ValueKind != JsonValueKind.String)
+                continue;
+
+            var hash = value.GetString()?.Trim();
+            if (IsValidHash(hash))
+                hashes.Add(hash!.ToLowerInvariant());
+        }
+
+        return hashes;
+    }
+
+    private static bool IsValidHash(string? value)
+    {
+        if (value is not { Length: 32 })
+            return false;
+
+        foreach (var character in value)
+        {
+            if (!Uri.IsHexDigit(character))
+                return false;
+        }
+
+        return true;
     }
 
     private static bool TryGetProperty(

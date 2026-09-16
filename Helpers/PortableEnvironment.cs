@@ -8,12 +8,29 @@ public static class PortableEnvironment
 {
     private readonly record struct PortableHomeMode(bool Enabled, bool Force);
 
+    internal static string? GetConfiguredPortableCacheRoot()
+    {
+        if (!IsRunningFromAppImage())
+            return null;
+
+        var mode = ReadPortableHomeMode();
+        return GetPortableCacheRoot(mode.Enabled);
+    }
+
+    internal static string? GetPortableCacheRoot(bool enabled)
+    {
+        if (!enabled || !IsRunningFromAppImage())
+            return null;
+
+        return !string.IsNullOrWhiteSpace(AppPaths.DataRoot)
+            ? Path.Combine(AppPaths.DataRoot, "Home", ".cache")
+            : null;
+    }
+
     public static void ApplyPortableXdgPaths()
     {
         // AppImage-specific behavior: only apply if running from an AppImage.
-        var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
-        var appDir = Environment.GetEnvironmentVariable("APPDIR");
-        if (string.IsNullOrWhiteSpace(appImage) && string.IsNullOrWhiteSpace(appDir))
+        if (!IsRunningFromAppImage())
             return;
 
         var mode = ReadPortableHomeMode();
@@ -55,6 +72,13 @@ public static class PortableEnvironment
             SetIfMissing("XDG_STATE_HOME", xdgState);
             SetIfMissing("DOTNET_CLI_HOME", dotnetHome);
         }
+    }
+
+    private static bool IsRunningFromAppImage()
+    {
+        var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
+        var appDir = Environment.GetEnvironmentVariable("APPDIR");
+        return !string.IsNullOrWhiteSpace(appImage) || !string.IsNullOrWhiteSpace(appDir);
     }
 
     private static PortableHomeMode ReadPortableHomeMode()

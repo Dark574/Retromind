@@ -224,6 +224,12 @@ separate statistics database or persisted aggregate state.
 - `RetroAchievementsHashService` maps provider-neutral game-system identifiers to the console IDs from the
   pinned rcheevos version and generates official system-specific hashes through the bundled
   `libretromind-rhash.so`; unsupported systems fail explicitly instead of falling back to a raw MD5
+- `RetroAchievementsGameCatalogService` resolves those hashes against the system game list from the Web API;
+  the large public responses are indexed in memory and cached for seven days. When AppImage portable HOME is
+  enabled, the cache lives below `Home/.cache/retromind/RetroAchievements`; otherwise it remains below
+  `Cache/RetroAchievements` in `DataRoot`. Successfully saving a change to the portable-HOME setting merges
+  the cache into its new location and retains the newer file when both locations contain the same system catalog.
+  Stale-cache fallback and a refresh backoff cover temporary outages, and API keys are never written to this cache
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)
