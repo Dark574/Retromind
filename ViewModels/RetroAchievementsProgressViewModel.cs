@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
@@ -22,6 +24,8 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private bool _isLoading;
     private string _statusText = string.Empty;
     private RetroAchievementsProgressSnapshot? _snapshot;
+    private IReadOnlyList<RetroAchievementsAchievementItemViewModel> _achievementItems =
+        Array.Empty<RetroAchievementsAchievementItemViewModel>();
     private bool _disposed;
 
     public RetroAchievementsProgressViewModel(
@@ -39,6 +43,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
     public string Title => T("RetroAchievements_ProgressTitle", "RetroAchievements progress");
     public string RefreshText => T("RetroAchievements_ProgressRefresh", "Refresh");
+    public string AchievementsTitle => T("RetroAchievements_AchievementsTitle", "Achievements");
 
     public bool IsVisible
     {
@@ -83,10 +88,28 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             OnPropertyChanged(nameof(ProgressValue));
             OnPropertyChanged(nameof(SummaryText));
             OnPropertyChanged(nameof(HardcoreSummaryText));
+
+            AchievementItems = value?.Progress.Achievements
+                .OrderBy(achievement => achievement.DisplayOrder)
+                .ThenBy(achievement => achievement.AchievementId)
+                .Select(achievement => new RetroAchievementsAchievementItemViewModel(achievement))
+                .ToArray()
+                ?? Array.Empty<RetroAchievementsAchievementItemViewModel>();
+        }
+    }
+
+    public IReadOnlyList<RetroAchievementsAchievementItemViewModel> AchievementItems
+    {
+        get => _achievementItems;
+        private set
+        {
+            if (SetProperty(ref _achievementItems, value))
+                OnPropertyChanged(nameof(HasAchievements));
         }
     }
 
     public bool HasProgress => Snapshot != null;
+    public bool HasAchievements => AchievementItems.Count > 0;
     public bool ShowStatus => !string.IsNullOrWhiteSpace(StatusText);
     public double ProgressMaximum => Math.Max(1, Snapshot?.Progress.AchievementCount ?? 1);
     public double ProgressValue => Snapshot?.Progress.AwardedCount ?? 0;

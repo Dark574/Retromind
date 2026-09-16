@@ -958,4 +958,10 @@ The current application settings will be kept.</value></data>
     <data name="RetroAchievements_ProgressHardcoreFormat" xml:space="preserve"><value>Hardcore: {0:N0} of {1:N0} ({2:N1}%)</value></data>
     <data name="RetroAchievements_ProgressCachedFallbackFormat" xml:space="preserve"><value>RetroAchievements is unavailable. Showing cached data from {0:g}.</value></data>
     <data name="RetroAchievements_ProgressLoadFailed" xml:space="preserve"><value>Achievement progress could not be loaded.</value></data>
+    <data name="RetroAchievements_AchievementsTitle" xml:space="preserve"><value>Achievements</value></data>
+    <data name="RetroAchievements_AchievementPointsFormat" xml:space="preserve"><value>{0:N0} points</value></data>
+    <data name="RetroAchievements_AchievementLocked" xml:space="preserve"><value>Locked</value></data>
+    <data name="RetroAchievements_AchievementCasual" xml:space="preserve"><value>Casual</value></data>
+    <data name="RetroAchievements_AchievementHardcore" xml:space="preserve"><value>Hardcore</value></data>
+    <data name="RetroAchievements_AchievementUnlockedAtFormat" xml:space="preserve"><value>{0} · Unlocked {1:g}</value></data>
 </root>

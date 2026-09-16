@@ -241,6 +241,52 @@
                                    Foreground="Gray"
                                    FontSize="12"
                                    TextWrapping="Wrap" />
+
+                        <StackPanel IsVisible="{Binding HasAchievements}"
+                                    Margin="0,5,0,0"
+                                    Spacing="5">
+                            <TextBlock Text="{Binding AchievementsTitle}"
+                                       FontWeight="SemiBold" />
+
+                            <ScrollViewer MaxHeight="360"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding AchievementItems}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:RetroAchievementsAchievementItemViewModel">
+                                            <Border BorderBrush="Gray"
+                                                    BorderThickness="0,1,0,0"
+                                                    Padding="0,7"
+                                                    Opacity="{Binding VisualOpacity}">
+                                                <StackPanel Spacing="3">
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding Title}"
+                                                                   FontWeight="SemiBold"
+                                                                   TextWrapping="Wrap"
+                                                                   Margin="0,0,8,0" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding PointsText}"
+                                                                   Foreground="Gray"
+                                                                   FontSize="12" />
+                                                    </Grid>
+
+                                                    <TextBlock Text="{Binding Description}"
+                                                               IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                               FontSize="12"
+                                                               TextWrapping="Wrap" />
+
+                                                    <TextBlock Text="{Binding StatusText}"
+                                                               Foreground="Gray"
+                                                               FontSize="11"
+                                                               TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
                     </StackPanel>
 
                     <TextBlock Text="{Binding StatusText}"

@@ -248,10 +248,11 @@ separate statistics database or persisted aggregate state.
   gameplay; when a refresh encounters a temporary API failure, the last memory or disk snapshot is returned with
   its original timestamp and an explicit fallback flag
 - `RetroAchievementsProgressViewModel` owns the cancelable selection-driven loading state for the desktop media
-  details. Identified games show achievement and hardcore summaries, expose an explicit refresh action, and label
-  persisted fallback data when the service is temporarily unavailable. After a regular tracked game session,
-  the still-selected game's progress is refreshed automatically; test launches and untracked launcher handoffs do
-  not trigger that refresh
+  details. Identified games show achievement and hardcore summaries plus the ordered achievement definitions with
+  points, description, casual/hardcore state, and unlock time. The view exposes an explicit refresh action and
+  labels persisted fallback data when the service is temporarily unavailable. After a regular tracked game
+  session, the still-selected game's progress is refreshed automatically; test launches and untracked launcher
+  handoffs do not trigger that refresh
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)

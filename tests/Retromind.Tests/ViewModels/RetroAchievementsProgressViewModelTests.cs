@@ -56,6 +56,71 @@ public sealed class RetroAchievementsProgressViewModelTests
     }
 
     [Fact]
+    public async Task SelectItemAsync_OrdersAndFormatsAchievementItems()
+    {
+        var earnedAt = new DateTimeOffset(2026, 9, 16, 8, 30, 0, TimeSpan.Zero);
+        var achievements = new[]
+        {
+            new RetroAchievementsAchievement
+            {
+                AchievementId = 30,
+                Title = "Locked achievement",
+                Description = "Still to do",
+                Points = 3,
+                DisplayOrder = 30
+            },
+            new RetroAchievementsAchievement
+            {
+                AchievementId = 10,
+                Title = "Hardcore achievement",
+                Description = "Completed in hardcore mode",
+                Points = 5,
+                DisplayOrder = 10,
+                EarnedAtUtc = earnedAt,
+                EarnedHardcoreAtUtc = earnedAt
+            },
+            new RetroAchievementsAchievement
+            {
+                AchievementId = 20,
+                Title = "Casual achievement",
+                Description = "Completed in casual mode",
+                Points = 4,
+                DisplayOrder = 20,
+                EarnedAtUtc = earnedAt
+            }
+        };
+        using var viewModel = CreateViewModel((gameId, forceRefresh, cancellationToken) =>
+            Task.FromResult(CreateSnapshot(gameId, achievements: achievements)));
+
+        await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 123));
+
+        Assert.True(viewModel.HasAchievements);
+        Assert.Collection(
+            viewModel.AchievementItems,
+            item =>
+            {
+                Assert.Equal("Hardcore achievement", item.Title);
+                Assert.True(item.IsHardcore);
+                Assert.True(item.IsUnlocked);
+                Assert.Contains("5", item.PointsText, StringComparison.Ordinal);
+                Assert.Contains("2026", item.StatusText, StringComparison.Ordinal);
+            },
+            item =>
+            {
+                Assert.Equal("Casual achievement", item.Title);
+                Assert.True(item.IsCasual);
+                Assert.True(item.IsUnlocked);
+            },
+            item =>
+            {
+                Assert.Equal("Locked achievement", item.Title);
+                Assert.True(item.IsLocked);
+                Assert.False(item.IsUnlocked);
+                Assert.Equal(0.58, item.VisualOpacity);
+            });
+    }
+
+    [Fact]
     public async Task RefreshCommand_ForcesServiceRefresh()
     {
         var forceRefreshValues = new List<bool>();
@@ -123,7 +188,8 @@ public sealed class RetroAchievementsProgressViewModelTests
 
     private static RetroAchievementsProgressSnapshot CreateSnapshot(
         int gameId,
-        bool usedCachedFallback = false)
+        bool usedCachedFallback = false,
+        IReadOnlyList<RetroAchievementsAchievement>? achievements = null)
     {
         return new RetroAchievementsProgressSnapshot(
             new RetroAchievementsGameProgress
@@ -135,7 +201,8 @@ public sealed class RetroAchievementsProgressViewModelTests
                 AwardedCount = 4,
                 AwardedHardcoreCount = 2,
                 CompletionPercent = 40,
-                CompletionHardcorePercent = 20
+                CompletionHardcorePercent = 20,
+                Achievements = achievements ?? Array.Empty<RetroAchievementsAchievement>()
             },
             new DateTimeOffset(2026, 9, 16, 8, 0, 0, TimeSpan.Zero),
             usedCachedFallback);
