@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Retromind.Helpers;
@@ -187,29 +186,6 @@ public partial class MainWindowViewModel
 
     private static IDisposable BeginBusyCursor(Window owner)
         => new BusyCursorScope(owner);
-
-    private sealed class BusyCursorScope : IDisposable
-    {
-        private readonly Window _owner;
-        private readonly Cursor? _previousCursor;
-        private bool _disposed;
-
-        public BusyCursorScope(Window owner)
-        {
-            _owner = owner;
-            _previousCursor = owner.Cursor;
-            _owner.Cursor = new Cursor(StandardCursorType.Wait);
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
-                return;
-
-            _disposed = true;
-            _owner.Cursor = _previousCursor;
-        }
-    }
     
     // --- Import Actions ---
 
