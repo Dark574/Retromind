@@ -18,6 +18,8 @@ public sealed class RetroAchievementsApiClient
         "https://retroachievements.org/API/API_GetUserProfile.php";
     private const string GameListEndpoint =
         "https://retroachievements.org/API/API_GetGameList.php";
+    private const string GameInfoAndUserProgressEndpoint =
+        "https://retroachievements.org/API/API_GetGameInfoAndUserProgress.php";
 
     private readonly HttpClient _httpClient;
 
@@ -224,6 +226,125 @@ public sealed class RetroAchievementsApiClient
         }
     }
 
+    public async Task<RetroAchievementsGameProgress> GetGameInfoAndUserProgressAsync(
+        int gameId,
+        string userIdentifier,
+        string apiKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (gameId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(gameId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(userIdentifier);
+        ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
+
+        var requestUri = new Uri(
+            $"{GameInfoAndUserProgressEndpoint}?g={gameId.ToString(CultureInfo.InvariantCulture)}" +
+            $"&u={Uri.EscapeDataString(userIdentifier.Trim())}&a=1&y={Uri.EscapeDataString(apiKey.Trim())}");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Accept.ParseAdd("application/json");
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new RetroAchievementsApiException(
+                "The RetroAchievements request timed out.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException)
+        {
+            throw new RetroAchievementsApiException(
+                "The RetroAchievements service could not be reached.");
+        }
+
+        using (response)
+        {
+            var responseBody = await response.Content
+                .ReadAsStringAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var apiError = RedactSecret(TryReadApiError(responseBody), apiKey);
+                var detail = string.IsNullOrWhiteSpace(apiError)
+                    ? $"HTTP {(int)response.StatusCode}"
+                    : apiError;
+                throw new RetroAchievementsApiException(
+                    response.StatusCode,
+                    $"RetroAchievements rejected the game progress request ({detail}).");
+            }
+
+            try
+            {
+                using var json = JsonDocument.Parse(responseBody);
+                var root = json.RootElement;
+
+                var apiError = RedactSecret(TryReadApiError(root), apiKey);
+                if (!string.IsNullOrWhiteSpace(apiError))
+                    throw new RetroAchievementsApiException(apiError);
+
+                var returnedGameId = ReadInt(root, "ID", "id");
+                var title = ReadOptionalString(root, "Title", "title");
+                var consoleId = ReadInt(root, "ConsoleID", "consoleId");
+                if (returnedGameId != gameId ||
+                    string.IsNullOrWhiteSpace(title) ||
+                    consoleId <= 0)
+                {
+                    throw new RetroAchievementsApiException(
+                        "RetroAchievements returned an invalid game progress response.");
+                }
+
+                return new RetroAchievementsGameProgress
+                {
+                    GameId = returnedGameId,
+                    Title = title.Trim(),
+                    ConsoleId = (uint)consoleId,
+                    ConsoleName = ReadOptionalString(root, "ConsoleName", "consoleName")?.Trim() ?? string.Empty,
+                    ImageIconPath = ReadOptionalString(root, "ImageIcon", "imageIcon"),
+                    ImageTitlePath = ReadOptionalString(root, "ImageTitle", "imageTitle"),
+                    ImageInGamePath = ReadOptionalString(root, "ImageIngame", "imageIngame"),
+                    ImageBoxArtPath = ReadOptionalString(root, "ImageBoxArt", "imageBoxArt"),
+                    AchievementCount = ReadInt(root, "NumAchievements", "numAchievements"),
+                    AwardedCount = ReadInt(root, "NumAwardedToUser", "numAwardedToUser"),
+                    AwardedHardcoreCount = ReadInt(
+                        root,
+                        "NumAwardedToUserHardcore",
+                        "numAwardedToUserHardcore"),
+                    CompletionPercent = ReadPercent(root, "UserCompletion", "userCompletion"),
+                    CompletionHardcorePercent = ReadPercent(
+                        root,
+                        "UserCompletionHardcore",
+                        "userCompletionHardcore"),
+                    UserTotalPlaytime = ReadInt(root, "UserTotalPlaytime", "userTotalPlaytime"),
+                    HighestAwardKind = ReadOptionalString(root, "HighestAwardKind", "highestAwardKind"),
+                    HighestAwardAtUtc = ReadDateTimeOffset(
+                        root,
+                        "HighestAwardDate",
+                        "highestAwardDate"),
+                    Achievements = ReadAchievements(root)
+                };
+            }
+            catch (RetroAchievementsApiException)
+            {
+                throw;
+            }
+            catch (JsonException ex)
+            {
+                throw new RetroAchievementsApiException(
+                    "RetroAchievements returned an invalid game progress response.", ex);
+            }
+        }
+    }
+
     private static string? TryReadApiError(string responseBody)
     {
         if (string.IsNullOrWhiteSpace(responseBody))
@@ -335,6 +456,79 @@ public sealed class RetroAchievementsApiClient
         }
 
         return hashes;
+    }
+
+    private static IReadOnlyList<RetroAchievementsAchievement> ReadAchievements(JsonElement root)
+    {
+        var achievements = new List<RetroAchievementsAchievement>();
+        if (!TryGetProperty(root, out var values, "Achievements", "achievements") ||
+            values.ValueKind != JsonValueKind.Object)
+        {
+            return achievements;
+        }
+
+        foreach (var property in values.EnumerateObject())
+        {
+            var item = property.Value;
+            var achievementId = ReadInt(item, "ID", "id");
+            var title = ReadOptionalString(item, "Title", "title");
+            if (achievementId <= 0 || string.IsNullOrWhiteSpace(title))
+                continue;
+
+            achievements.Add(new RetroAchievementsAchievement
+            {
+                AchievementId = achievementId,
+                Title = title.Trim(),
+                Description = ReadOptionalString(item, "Description", "description")?.Trim() ?? string.Empty,
+                Points = ReadInt(item, "Points", "points"),
+                TrueRatio = ReadInt(item, "TrueRatio", "trueRatio"),
+                Author = ReadOptionalString(item, "Author", "author")?.Trim() ?? string.Empty,
+                BadgeName = ReadOptionalString(item, "BadgeName", "badgeName")?.Trim() ?? string.Empty,
+                DisplayOrder = ReadInt(item, "DisplayOrder", "displayOrder"),
+                Type = ReadOptionalString(item, "type", "Type")?.Trim(),
+                EarnedAtUtc = ReadDateTimeOffset(item, "DateEarned", "dateEarned"),
+                EarnedHardcoreAtUtc = ReadDateTimeOffset(
+                    item,
+                    "DateEarnedHardcore",
+                    "dateEarnedHardcore")
+            });
+        }
+
+        achievements.Sort(static (left, right) =>
+        {
+            var order = left.DisplayOrder.CompareTo(right.DisplayOrder);
+            return order != 0 ? order : left.AchievementId.CompareTo(right.AchievementId);
+        });
+        return achievements;
+    }
+
+    private static double ReadPercent(JsonElement root, params string[] propertyNames)
+    {
+        var value = ReadOptionalString(root, propertyNames)?.Trim().TrimEnd('%');
+        return double.TryParse(
+            value,
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out var percent)
+            ? percent
+            : 0;
+    }
+
+    private static DateTimeOffset? ReadDateTimeOffset(
+        JsonElement root,
+        params string[] propertyNames)
+    {
+        var value = ReadOptionalString(root, propertyNames);
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return DateTimeOffset.TryParse(
+            value,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+            out var timestamp)
+            ? timestamp
+            : null;
     }
 
     private static bool IsValidHash(string? value)

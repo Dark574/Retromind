@@ -236,6 +236,9 @@ separate statistics database or persisted aggregate state.
 - the media editor can stage this identification without mutating the library; saving persists the game ID,
   console ID, system ID, hash, and provider title on `MediaItem`, while canceling or changing the staged game
   system/launch file discards the staged assignment
+- `RetroAchievementsApiClient` uses the stable account ULID with the official game-info-and-user-progress
+  endpoint to retrieve typed achievement definitions, casual/hardcore unlock timestamps, and summary progress;
+  these user-specific responses are not stored in the long-lived public game-catalog cache
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)

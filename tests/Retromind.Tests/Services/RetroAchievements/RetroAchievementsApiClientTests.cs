@@ -166,6 +166,122 @@ public sealed class RetroAchievementsApiClientTests
         Assert.DoesNotContain(apiKey, exception.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task GetGameInfoAndUserProgressAsync_ParsesAchievementsAndEncodesRequest()
+    {
+        Uri? requestedUri = null;
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            requestedUri = request.RequestUri;
+            return JsonResponse(
+                """
+                {
+                  "ID": 123,
+                  "Title": "Test Game",
+                  "ConsoleID": 4,
+                  "ConsoleName": "Game Boy",
+                  "ImageIcon": "/Images/123.png",
+                  "ImageTitle": "/Images/title.png",
+                  "ImageIngame": "/Images/ingame.png",
+                  "ImageBoxArt": "/Images/box.png",
+                  "NumAchievements": 2,
+                  "Achievements": {
+                    "20": {
+                      "ID": 20,
+                      "Title": "Second",
+                      "Description": "Second achievement",
+                      "Points": 10,
+                      "TrueRatio": 25,
+                      "Author": "Author",
+                      "BadgeName": "000020",
+                      "DisplayOrder": 2,
+                      "type": "win_condition"
+                    },
+                    "10": {
+                      "ID": 10,
+                      "Title": "First",
+                      "Description": "First achievement",
+                      "Points": 5,
+                      "TrueRatio": 10,
+                      "Author": "Author",
+                      "BadgeName": "000010",
+                      "DisplayOrder": 1,
+                      "type": "progression",
+                      "DateEarned": "2026-09-15 12:30:00",
+                      "DateEarnedHardcore": "2026-09-15 12:30:00"
+                    }
+                  },
+                  "NumAwardedToUser": 1,
+                  "NumAwardedToUserHardcore": 1,
+                  "UserCompletion": "50.00%",
+                  "UserCompletionHardcore": "50.00%",
+                  "UserTotalPlaytime": 60,
+                  "HighestAwardKind": "mastered",
+                  "HighestAwardDate": "2026-09-15T12:30:00+00:00"
+                }
+                """);
+        }));
+        var client = new RetroAchievementsApiClient(httpClient);
+
+        var progress = await client.GetGameInfoAndUserProgressAsync(
+            123,
+            "01 TEST/ULID",
+            "key+/=");
+
+        Assert.Equal(123, progress.GameId);
+        Assert.Equal("Test Game", progress.Title);
+        Assert.Equal(4u, progress.ConsoleId);
+        Assert.Equal(2, progress.AchievementCount);
+        Assert.Equal(1, progress.AwardedCount);
+        Assert.Equal(1, progress.AwardedHardcoreCount);
+        Assert.Equal(50, progress.CompletionPercent);
+        Assert.Equal(50, progress.CompletionHardcorePercent);
+        Assert.Equal(60, progress.UserTotalPlaytime);
+        Assert.Equal("mastered", progress.HighestAwardKind);
+        Assert.Equal(
+            new DateTimeOffset(2026, 9, 15, 12, 30, 0, TimeSpan.Zero),
+            progress.HighestAwardAtUtc);
+        Assert.Collection(
+            progress.Achievements,
+            first =>
+            {
+                Assert.Equal(10, first.AchievementId);
+                Assert.Equal("First", first.Title);
+                Assert.True(first.IsEarned);
+                Assert.True(first.IsEarnedHardcore);
+                Assert.Equal(
+                    new DateTimeOffset(2026, 9, 15, 12, 30, 0, TimeSpan.Zero),
+                    first.EarnedAtUtc);
+            },
+            second =>
+            {
+                Assert.Equal(20, second.AchievementId);
+                Assert.Equal("Second", second.Title);
+                Assert.False(second.IsEarned);
+                Assert.False(second.IsEarnedHardcore);
+            });
+        Assert.NotNull(requestedUri);
+        Assert.Contains("g=123", requestedUri.Query, StringComparison.Ordinal);
+        Assert.Contains("u=01%20TEST%2FULID", requestedUri.Query, StringComparison.Ordinal);
+        Assert.Contains("a=1", requestedUri.Query, StringComparison.Ordinal);
+        Assert.Contains("y=key%2B%2F%3D", requestedUri.Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GetGameInfoAndUserProgressAsync_ReportsApiErrorWithoutExposingKey()
+    {
+        const string apiKey = "do-not-expose-this-key";
+        using var httpClient = new HttpClient(new StubHandler(_ =>
+            JsonResponse($$"""{"Success":false,"Error":"Invalid API key {{apiKey}}."}""")));
+        var client = new RetroAchievementsApiClient(httpClient);
+
+        var exception = await Assert.ThrowsAsync<RetroAchievementsApiException>(
+            () => client.GetGameInfoAndUserProgressAsync(123, "01TESTULID", apiKey));
+
+        Assert.Contains("Invalid API key", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(apiKey, exception.ToString(), StringComparison.Ordinal);
+    }
+
     private static HttpResponseMessage JsonResponse(string json)
     {
         return new HttpResponseMessage(HttpStatusCode.OK)
