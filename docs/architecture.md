@@ -223,7 +223,9 @@ separate statistics database or persisted aggregate state.
   system-specific hash required by RetroAchievements
 - `RetroAchievementsHashService` maps provider-neutral game-system identifiers to the console IDs from the
   pinned rcheevos version and generates official system-specific hashes through the bundled
-  `libretromind-rhash.so`; unsupported systems fail explicitly instead of falling back to a raw MD5
+  `libretromind-rhash.so`; compressed CHD disc images are decoded by the statically bundled libchdr adapter,
+  without requiring `chdman` or a system libchdr installation. Unsupported systems fail explicitly instead
+  of falling back to a raw MD5
 - `RetroAchievementsGameCatalogService` resolves those hashes against the system game list from the Web API;
   the large public responses are indexed in memory and cached for seven days. When AppImage portable HOME is
   enabled, the cache lives below `Home/.cache/retromind/RetroAchievements`; otherwise it remains below

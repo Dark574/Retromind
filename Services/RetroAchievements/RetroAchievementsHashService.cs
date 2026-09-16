@@ -72,10 +72,19 @@ public sealed class RetroAchievementsHashService : IRetroAchievementsHashService
         }
 
         var hashBuffer = new byte[33];
-        if (NativeMethods.Generate(consoleId, filePath, hashBuffer) == 0)
+        var errorBuffer = new byte[512];
+        if (NativeMethods.Generate(
+                consoleId,
+                filePath,
+                hashBuffer,
+                errorBuffer,
+                (nuint)errorBuffer.Length) == 0)
         {
+            var detail = ReadNullTerminatedUtf8(errorBuffer);
             throw new RetroAchievementsHashException(
-                "RetroAchievements could not generate a game hash for this file and game system.");
+                string.IsNullOrWhiteSpace(detail)
+                    ? "RetroAchievements could not generate a game hash for this file and game system."
+                    : $"RetroAchievements could not generate a game hash for this file and game system: {detail}");
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -89,6 +98,13 @@ public sealed class RetroAchievementsHashService : IRetroAchievementsHashService
         return new RetroAchievementsGameHash(gameSystemId, consoleId, hash);
     }
 
+    private static string ReadNullTerminatedUtf8(byte[] buffer)
+    {
+        var terminator = Array.IndexOf(buffer, (byte)0);
+        var length = terminator >= 0 ? terminator : buffer.Length;
+        return Encoding.UTF8.GetString(buffer, 0, length);
+    }
+
     private static class NativeMethods
     {
         private const string LibraryName = "retromind-rhash";
@@ -97,7 +113,9 @@ public sealed class RetroAchievementsHashService : IRetroAchievementsHashService
         internal static extern int Generate(
             uint consoleId,
             [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
-            [Out] byte[] hash);
+            [Out] byte[] hash,
+            [Out] byte[] error,
+            nuint errorSize);
 
         [DllImport(LibraryName, EntryPoint = "retromind_rhash_version", CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr GetVersion();

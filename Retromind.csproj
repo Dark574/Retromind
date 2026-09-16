@@ -36,7 +36,7 @@
     </ItemGroup>
 
     <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
-        <RcheevosNativeSource Include="$(MSBuildProjectDirectory)/native/rcheevos/**/*.c;$(MSBuildProjectDirectory)/native/rcheevos/**/*.h;$(MSBuildProjectDirectory)/native/rcheevos/**/*.map;$(MSBuildProjectDirectory)/native/rcheevos/build.sh" />
+        <RcheevosNativeSource Include="$(MSBuildProjectDirectory)/native/rcheevos/**/*.c;$(MSBuildProjectDirectory)/native/rcheevos/**/*.h;$(MSBuildProjectDirectory)/native/rcheevos/**/*.map;$(MSBuildProjectDirectory)/native/rcheevos/build.sh;$(MSBuildProjectDirectory)/native/libchdr/**/*.c;$(MSBuildProjectDirectory)/native/libchdr/**/*.h" />
         <None Include="$(RcheevosNativeLibrary)"
               Link="libretromind-rhash.so"
               CopyToOutputDirectory="PreserveNewest"

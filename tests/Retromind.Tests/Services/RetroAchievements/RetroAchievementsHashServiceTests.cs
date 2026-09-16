@@ -49,6 +49,18 @@ public sealed class RetroAchievementsHashServiceTests
                 temp.GetPath("missing.gb")));
     }
 
+    [Fact]
+    public async Task CalculateAsync_InvalidChd_ReportsNativeReaderError()
+    {
+        using var temp = new TemporaryDirectory();
+        var filePath = temp.CreateFile("broken.chd", "not a CHD file");
+
+        var exception = await Assert.ThrowsAsync<RetroAchievementsHashException>(
+            () => _service.CalculateAsync("sony.playstation", filePath));
+
+        Assert.Contains("Could not open CHD file", exception.Message);
+    }
+
     [Theory]
     [InlineData("nintendo.snes", 3)]
     [InlineData("sony.playstation", 12)]

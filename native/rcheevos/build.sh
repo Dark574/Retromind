@@ -7,6 +7,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+LIBCHDR_DIR="$SCRIPT_DIR/../libchdr"
 OUTPUT_PATH="$1"
 OUTPUT_DIR="$(dirname -- "$OUTPUT_PATH")"
 TEMP_PATH="$OUTPUT_PATH.$$.tmp"
@@ -28,10 +29,14 @@ trap 'rm -f "$TEMP_PATH"' EXIT
   -I"$SCRIPT_DIR/upstream/include" \
   -I"$SCRIPT_DIR/upstream/src" \
   -I"$SCRIPT_DIR/upstream/src/rhash" \
+  -I"$LIBCHDR_DIR/include" \
+  -I"$LIBCHDR_DIR/deps/lzma-25.01/include" \
   -shared \
   -Wl,-soname,libretromind-rhash.so \
   -Wl,--version-script="$SCRIPT_DIR/exports.map" \
   "$SCRIPT_DIR/retromind_rhash.c" \
+  "$SCRIPT_DIR/retromind_chd_reader.c" \
+  "$LIBCHDR_DIR/unity.c" \
   "$SCRIPT_DIR/upstream/src/rc_compat.c" \
   "$SCRIPT_DIR/upstream/src/rhash/aes.c" \
   "$SCRIPT_DIR/upstream/src/rhash/cdreader.c" \
@@ -41,6 +46,7 @@ trap 'rm -f "$TEMP_PATH"' EXIT
   "$SCRIPT_DIR/upstream/src/rhash/hash_rom.c" \
   "$SCRIPT_DIR/upstream/src/rhash/hash_zip.c" \
   "$SCRIPT_DIR/upstream/src/rhash/md5.c" \
+  -lm \
   -o "$TEMP_PATH"
 
 mv "$TEMP_PATH" "$OUTPUT_PATH"

@@ -118,7 +118,7 @@ available as a fallback.
 Requirements:
 
 - .NET SDK 10.0
-- C compiler (`cc`, GCC or Clang) for the bundled rcheevos hash library
+- C compiler (`cc`, GCC or Clang) for the bundled rcheevos/libchdr hash library
 - Linux with an X11/XWayland or Wayland desktop session
 - VLC / LibVLC runtime
 

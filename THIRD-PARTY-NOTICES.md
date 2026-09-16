@@ -105,6 +105,39 @@ See: `Licenses/rcheevos.MIT.txt`
 
 ---
 
+## libchdr and bundled decoder components
+
+**Component:** libchdr CHD reader
+
+**Version:** 0.3.0
+
+**Repository:** https://github.com/rtissera/libchdr
+
+**License:** BSD-3-Clause
+
+Retromind statically includes libchdr in `libretromind-rhash.so` so rcheevos
+can generate official hashes directly from compressed CHD disc images. No
+system libchdr or `chdman` installation is required.
+
+See: `Licenses/libchdr.BSD-3-Clause.txt`
+
+The vendored libchdr unity build also contains these decoder components:
+
+- LZMA SDK 25.01 — public domain; see `Licenses/LZMA-SDK.Public-Domain.txt`
+- miniz 3.1.1 — MIT or public domain; Retromind uses the MIT terms; see
+  `Licenses/miniz.MIT.txt`
+- Zstandard 1.5.7 decompressor — BSD-3-Clause; see
+  `Licenses/Zstandard.BSD-3-Clause.txt`
+- dr_flac 0.13.3 — MIT-0 or public domain; Retromind uses the MIT-0 terms; see
+  `Licenses/dr_flac.MIT-0.txt`
+
+The small CHD-to-rcheevos adapter follows the track/sector handling of
+RetroArch's MIT-licensed CHD integration.
+
+See: `Licenses/RetroArch.MIT.txt`
+
+---
+
 ## Commodore 64 system theme artwork
 
 The bundled C64 system theme contains the following artwork:
