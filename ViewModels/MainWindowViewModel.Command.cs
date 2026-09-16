@@ -1472,6 +1472,7 @@ public partial class MainWindowViewModel
                 await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
                     portableHomeWasEnabled,
                     _currentSettings.UsePortableHomeInAppImage);
+                await RetroAchievementsProgress.SelectItemAsync(GetCurrentSelectedItem());
             }
         }
         else if (settingsVm.LibraryModified)

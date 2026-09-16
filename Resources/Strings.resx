@@ -947,4 +947,11 @@ The current application settings will be kept.</value></data>
     <data name="RetroAchievements_IdentificationMissingSystem" xml:space="preserve"><value>Select or inherit a game system before identifying this game.</value></data>
     <data name="RetroAchievements_IdentificationMissingFile" xml:space="preserve"><value>Select a launch file before identifying this game.</value></data>
     <data name="RetroAchievements_IdentificationNotIdentified" xml:space="preserve"><value>This game has not been identified yet.</value></data>
+    <data name="RetroAchievements_ProgressTitle" xml:space="preserve"><value>RetroAchievements progress</value></data>
+    <data name="RetroAchievements_ProgressRefresh" xml:space="preserve"><value>Refresh</value></data>
+    <data name="RetroAchievements_ProgressLoading" xml:space="preserve"><value>Loading achievement progress...</value></data>
+    <data name="RetroAchievements_ProgressSummaryFormat" xml:space="preserve"><value>{0:N0} of {1:N0} achievements ({2:N1}%)</value></data>
+    <data name="RetroAchievements_ProgressHardcoreFormat" xml:space="preserve"><value>Hardcore: {0:N0} of {1:N0} ({2:N1}%)</value></data>
+    <data name="RetroAchievements_ProgressCachedFallbackFormat" xml:space="preserve"><value>RetroAchievements is unavailable. Showing cached data from {0:g}.</value></data>
+    <data name="RetroAchievements_ProgressLoadFailed" xml:space="preserve"><value>Achievement progress could not be loaded.</value></data>
 </root>

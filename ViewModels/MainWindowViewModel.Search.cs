@@ -278,6 +278,7 @@ public partial class MainWindowViewModel
         OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
         OnPropertyChanged(nameof(ResolvedDisplayNode));
 
+        _ = RetroAchievementsProgress.SelectItemAsync(item);
         var contextNode = item == null ? null : FindParentNode(RootItems, item);
         _ = PlaySelectionMusicAsync(item, contextNode);
     }

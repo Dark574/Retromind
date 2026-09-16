@@ -949,4 +949,11 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="RetroAchievements_IdentificationMissingSystem" xml:space="preserve"><value>Wähle oder erbe ein Spielsystem, bevor du dieses Spiel erkennen lässt.</value></data>
     <data name="RetroAchievements_IdentificationMissingFile" xml:space="preserve"><value>Wähle eine Startdatei, bevor du dieses Spiel erkennen lässt.</value></data>
     <data name="RetroAchievements_IdentificationNotIdentified" xml:space="preserve"><value>Dieses Spiel wurde noch nicht erkannt.</value></data>
+    <data name="RetroAchievements_ProgressTitle" xml:space="preserve"><value>RetroAchievements-Fortschritt</value></data>
+    <data name="RetroAchievements_ProgressRefresh" xml:space="preserve"><value>Aktualisieren</value></data>
+    <data name="RetroAchievements_ProgressLoading" xml:space="preserve"><value>Achievement-Fortschritt wird geladen...</value></data>
+    <data name="RetroAchievements_ProgressSummaryFormat" xml:space="preserve"><value>{0:N0} von {1:N0} Achievements ({2:N1} %)</value></data>
+    <data name="RetroAchievements_ProgressHardcoreFormat" xml:space="preserve"><value>Hardcore: {0:N0} von {1:N0} ({2:N1} %)</value></data>
+    <data name="RetroAchievements_ProgressCachedFallbackFormat" xml:space="preserve"><value>RetroAchievements ist nicht erreichbar. Es werden zwischengespeicherte Daten vom {0:g} angezeigt.</value></data>
+    <data name="RetroAchievements_ProgressLoadFailed" xml:space="preserve"><value>Der Achievement-Fortschritt konnte nicht geladen werden.</value></data>
 </root>

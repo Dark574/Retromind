@@ -110,6 +110,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private int _totalLibraryGameCount;
     
     public IStorageProvider? StorageProvider { get; set; }
+    public RetroAchievementsProgressViewModel RetroAchievementsProgress { get; }
     
     // Command to open per-item manuals/documents with the system viewer.
     public IRelayCommand<MediaAsset?> OpenManualCommand { get; private set; } = null!;
@@ -198,6 +199,13 @@ public partial class MainWindowViewModel : ViewModelBase
             if (!SetProperty(ref _selectedNodeContent, value))
                 return;
 
+            var selectedItem = value switch
+            {
+                MediaAreaViewModel mediaArea => mediaArea.SelectedMediaItem,
+                SearchAreaViewModel searchArea => searchArea.SelectedMediaItem,
+                _ => null
+            };
+            _ = RetroAchievementsProgress.SelectItemAsync(selectedItem);
             OnPropertyChanged(nameof(ShowLibraryLoadingHint));
             OnPropertyChanged(nameof(ShowEmptyLibraryHint));
             UpdateLibraryGameCounters();
@@ -339,7 +347,8 @@ public partial class MainWindowViewModel : ViewModelBase
         AppSettings preloadedSettings,
         IDocumentService documentService,
         RetroAchievementsAccountService retroAchievementsAccountService,
-        IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService)
+        IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService,
+        IRetroAchievementsProgressService retroAchievementsProgressService)
     {
         _audioService = audioService;
         _dataService = dataService;
@@ -359,6 +368,9 @@ public partial class MainWindowViewModel : ViewModelBase
         _documentService = documentService;
         _retroAchievementsAccountService = retroAchievementsAccountService;
         _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService;
+        RetroAchievementsProgress = new RetroAchievementsProgressViewModel(
+            _currentSettings,
+            retroAchievementsProgressService);
         if (_settingsService.HasLoadFailure)
         {
             SettingsLoadErrorMessage = T(
@@ -623,6 +635,15 @@ public partial class MainWindowViewModel : ViewModelBase
                 _currentSearchAreaVm?.RefreshResults();
             else
                 UiThreadHelper.Post(() => _currentSearchAreaVm?.RefreshResults());
+        }
+
+        if (e.PropertyName == nameof(MediaItem.RetroAchievementsGame) &&
+            ReferenceEquals(item, GetCurrentSelectedItem()))
+        {
+            if (UiThreadHelper.CheckAccess())
+                _ = RetroAchievementsProgress.SelectItemAsync(item);
+            else
+                UiThreadHelper.Post(() => _ = RetroAchievementsProgress.SelectItemAsync(item));
         }
     
         var isAssetProperty = e.PropertyName switch
@@ -983,6 +1004,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _parentalRefreshCts?.Dispose();
         _parentalRefreshCts = null;
 
+        RetroAchievementsProgress.Dispose();
+
         _updateContentCts?.Cancel();
         _updateContentCts?.Dispose();
         _updateContentCts = null;
@@ -1179,6 +1202,7 @@ public partial class MainWindowViewModel : ViewModelBase
             OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
             OnPropertyChanged(nameof(ResolvedDisplayNode));
 
+            _ = RetroAchievementsProgress.SelectItemAsync(item);
             _ = PlaySelectionMusicAsync(item, mediaVm.Node);
         }
     }

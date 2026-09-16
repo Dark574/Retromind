@@ -205,6 +205,52 @@
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 
+            <!-- RetroAchievements summary for identified games -->
+            <Border x:DataType="vm:RetroAchievementsProgressViewModel"
+                    DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RetroAchievementsProgress}"
+                    IsVisible="{Binding IsVisible}"
+                    BorderBrush="Gray"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="10">
+                <StackPanel Spacing="7">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding Title}"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Content="{Binding RefreshText}"
+                                Command="{Binding RefreshCommand}"
+                                Padding="8,2" />
+                    </Grid>
+
+                    <ProgressBar IsIndeterminate="True"
+                                 IsVisible="{Binding IsLoading}"
+                                 Height="4" />
+
+                    <StackPanel IsVisible="{Binding HasProgress}"
+                                Spacing="4">
+                        <TextBlock Text="{Binding SummaryText}"
+                                   TextWrapping="Wrap" />
+                        <ProgressBar Minimum="0"
+                                     Maximum="{Binding ProgressMaximum}"
+                                     Value="{Binding ProgressValue}"
+                                     Height="8" />
+                        <TextBlock Text="{Binding HardcoreSummaryText}"
+                                   Foreground="Gray"
+                                   FontSize="12"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding StatusText}"
+                               IsVisible="{Binding ShowStatus}"
+                               Foreground="Gray"
+                               FontSize="12"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
             <!-- Manuals / Documents area -->
             <!-- Shows one icon per attached manual asset (PDF, TXT, etc.) -->
             <ItemsControl ItemsSource="{Binding ManualAssets}">
