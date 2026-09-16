@@ -16,6 +16,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Fixed
 - themed busy cursor on native Wayland
+- ignore cue-referenced disc image files
 
 ---
 

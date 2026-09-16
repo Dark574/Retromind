@@ -583,7 +583,7 @@ public partial class MainWindowViewModel
         if (folders.Count == 0) return;
         var sourcePath = folders[0].Path.LocalPath;
 
-        var defaultExt = "iso,bin,cue,rom,smc,sfc,nes,gb,gba,nds,md,n64,z64,v64,exe,sh";
+        var defaultExt = "iso,bin,cue,img,chd,rom,smc,sfc,nes,gb,gba,nds,md,n64,z64,v64,exe,sh";
         var extensionsStr = await PromptForName(
             owner,
             Strings.Dialog_FileExtensionsPrompt,

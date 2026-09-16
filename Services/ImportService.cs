@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -15,6 +16,10 @@ namespace Retromind.Services;
 /// </summary>
 public class ImportService
 {
+    private static readonly Regex CueFileReferenceRegex = new(
+        "^\\s*FILE\\s+(?:\"(?<quoted>[^\"]+)\"|(?<plain>.+?))\\s+\\S+\\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     /// <summary>
     /// Recursively scans a directory for files matching the specified extensions.
     /// Handles inaccessible directories gracefully and optimizes for large file counts.
@@ -46,14 +51,19 @@ public class ImportService
                     .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                // Step 1: collect import candidates and compute grouping keys + disc metadata
-                var candidates = new List<(string GroupingKey, string CleanTitle, string FullPath, int? Index, string? Label)>(
-                    capacity: Math.Min(files.Count, 4096));
+                var selectedFiles = files
+                    .Where(file => validExtensions.Contains(Path.GetExtension(file)))
+                    .ToList();
+                var referencedCuePayloads = FindReferencedCuePayloads(selectedFiles);
 
-                foreach (var file in files)
+                // Step 1: collect launchable candidates and compute grouping keys + disc metadata.
+                // A CUE file is the launch descriptor; referenced BIN/IMG track files are payload only.
+                var candidates = new List<(string GroupingKey, string CleanTitle, string FullPath, int? Index, string? Label)>(
+                    capacity: Math.Min(selectedFiles.Count, 4096));
+
+                foreach (var file in selectedFiles)
                 {
-                    var ext = Path.GetExtension(file);
-                    if (!validExtensions.Contains(ext))
+                    if (referencedCuePayloads.Contains(file))
                         continue;
 
                     var originalTitle = Path.GetFileNameWithoutExtension(file);
@@ -112,5 +122,43 @@ public class ImportService
 
             return results;
         });
+    }
+
+    private static HashSet<string> FindReferencedCuePayloads(IReadOnlyCollection<string> selectedFiles)
+    {
+        var selectedPaths = selectedFiles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var referencedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var cuePath in selectedFiles.Where(path =>
+                     path.EndsWith(".cue", StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                var cueDirectory = Path.GetDirectoryName(cuePath) ?? string.Empty;
+                foreach (var line in File.ReadLines(cuePath))
+                {
+                    var match = CueFileReferenceRegex.Match(line);
+                    if (!match.Success)
+                        continue;
+
+                    var referencedName = match.Groups["quoted"].Success
+                        ? match.Groups["quoted"].Value
+                        : match.Groups["plain"].Value.Trim();
+                    referencedName = referencedName
+                        .Replace('\\', Path.DirectorySeparatorChar)
+                        .Replace('/', Path.DirectorySeparatorChar);
+
+                    var referencedPath = Path.GetFullPath(Path.Combine(cueDirectory, referencedName));
+                    if (selectedPaths.Contains(referencedPath))
+                        referencedPaths.Add(referencedPath);
+                }
+            }
+            catch
+            {
+                // A malformed or unreadable CUE must not abort the remaining bulk import.
+            }
+        }
+
+        return referencedPaths;
     }
 }
