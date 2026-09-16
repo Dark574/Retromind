@@ -29,6 +29,7 @@ public sealed class LauncherServiceTests
         var result = await service.LaunchAsync(item, recordStatistics: false);
 
         Assert.False(result.IsStarted);
+        Assert.False(result.WasSessionTracked);
         Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
         Assert.Contains(missingExecutable, result.ErrorMessage);
         Assert.Equal(0, item.PlayCount);
@@ -62,10 +63,39 @@ public sealed class LauncherServiceTests
         var result = await service.LaunchAsync(item, recordStatistics: false);
 
         Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.True(result.WasSessionTracked);
         Assert.Equal(23, result.ExitCode);
         Assert.Contains("helpful launcher error", result.ConsoleOutput);
         Assert.Contains("launcher output", result.ConsoleOutput);
         Assert.True(result.ConsoleOutput!.Length <= 4100);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_ReportsTrackedSessionWhenProcessExitWasObserved()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile("successful-launch.sh", "#!/bin/sh\nexit 0\n");
+        var item = new MediaItem("Successful Launch")
+        {
+            MediaType = MediaType.Native,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = scriptPath
+                }
+            ]
+        };
+        var service = new LauncherService(temp.RootPath, new AppSettings());
+
+        var result = await service.LaunchAsync(item, recordStatistics: false);
+
+        Assert.Equal(LaunchOutcome.Started, result.Outcome);
+        Assert.True(result.WasSessionTracked);
     }
 
     [Fact]

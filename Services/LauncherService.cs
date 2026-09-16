@@ -175,7 +175,9 @@ public sealed class LauncherService
             return LaunchResult.ExitedEarly(exitCode.Value, consoleOutput);
         }
 
-        return LaunchResult.Started;
+        return shouldRecordSession
+            ? LaunchResult.TrackedSessionCompleted
+            : LaunchResult.Started;
     }
 
     private static Process? LaunchCommand(

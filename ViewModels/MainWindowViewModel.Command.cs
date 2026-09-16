@@ -1089,6 +1089,15 @@ public partial class MainWindowViewModel
                 _libraryTracker.MarkDirty();
                 await SaveData();
             }
+
+            if (recordStatistics &&
+                launchResult.Outcome == LaunchOutcome.Started &&
+                launchResult.WasSessionTracked &&
+                item.RetroAchievementsGame?.GameId > 0 &&
+                ReferenceEquals(GetCurrentSelectedItem(), item))
+            {
+                _ = RetroAchievementsProgress.SelectItemAsync(item, forceRefresh: true);
+            }
         }
         catch (Exception ex)
         {

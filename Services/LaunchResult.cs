@@ -13,7 +13,16 @@ public sealed record LaunchResult(
 {
     public bool IsStarted => Outcome != LaunchOutcome.StartFailed;
 
+    /// <summary>
+    /// True when Retromind observed the launched game process until it exited.
+    /// A successful handoff alone, such as opening a URL, is not a tracked session.
+    /// </summary>
+    public bool WasSessionTracked { get; init; }
+
     public static LaunchResult Started { get; } = new(LaunchOutcome.Started, null, null, null, null);
+
+    public static LaunchResult TrackedSessionCompleted { get; } =
+        new(LaunchOutcome.Started, null, null, null, null) { WasSessionTracked = true };
 
     public static LaunchResult Failed(string errorMessage) =>
         new(LaunchOutcome.StartFailed, errorMessage, null, null, null);
@@ -22,7 +31,10 @@ public sealed record LaunchResult(
         new(LaunchOutcome.WatchedProcessNotFound, null, processName, null, consoleOutput);
 
     public static LaunchResult ExitedEarly(int exitCode, string? consoleOutput) =>
-        new(LaunchOutcome.ExitedEarly, null, null, exitCode, consoleOutput);
+        new(LaunchOutcome.ExitedEarly, null, null, exitCode, consoleOutput)
+        {
+            WasSessionTracked = true
+        };
 }
 
 public enum LaunchOutcome
