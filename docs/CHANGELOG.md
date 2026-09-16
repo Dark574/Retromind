@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - RetroAchievments for supported systems
 
 ### Changed
+- make information dialogs copyable
 
 ### Fixed
 - themed busy cursor on native Wayland
