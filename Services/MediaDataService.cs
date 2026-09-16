@@ -337,6 +337,8 @@ public class MediaDataService
             Publisher = item.Publisher,
             Platform = item.Platform,
             GameSystemId = item.GameSystemId,
+            RetroAchievementsGame = CloneRetroAchievementsGameIdentity(
+                item.RetroAchievementsGame),
             Source = item.Source,
             Genre = item.Genre,
             Series = item.Series,
@@ -386,6 +388,22 @@ public class MediaDataService
         clone.Assets = assets;
 
         return clone;
+    }
+
+    private static RetroAchievementsGameIdentity? CloneRetroAchievementsGameIdentity(
+        RetroAchievementsGameIdentity? identity)
+    {
+        if (identity == null)
+            return null;
+
+        return new RetroAchievementsGameIdentity
+        {
+            GameId = identity.GameId,
+            ConsoleId = identity.ConsoleId,
+            GameSystemId = identity.GameSystemId,
+            Hash = identity.Hash,
+            Title = identity.Title
+        };
     }
 
     private static MediaAsset CloneAsset(MediaAsset asset)

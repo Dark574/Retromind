@@ -63,7 +63,9 @@ public sealed class MediaDataServicePortabilityTests
             node.Items.Add(item);
 
             var service = new MediaDataService();
-            var json = service.Serialize(new ObservableCollection<MediaNode> { node });
+            var roots = new ObservableCollection<MediaNode> { node };
+            var snapshot = service.CreateSnapshot(roots);
+            var json = service.Serialize(snapshot);
             await service.SaveJsonAsync(json);
         }
 
