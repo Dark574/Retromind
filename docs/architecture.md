@@ -216,6 +216,11 @@ separate statistics database or persisted aggregate state.
 - `ImportService`: recursive local file import with multi-disc grouping/labeling
 - `MultiDiscFileNameHelper`: shared recognition for separated `Disk`, `Disc`, `CD`, `Side`, `Part`, and
   `Scen` filename forms; `LauncherService` can consume generated playlists for grouped media
+- game-system assignments use stable provider-neutral identifiers, are inherited from node to item, and remain
+  separate from free-text platform metadata and emulator configuration
+- `GameFileFingerprintService` calculates CRC32, MD5, and SHA-1 in one cancelable sequential file read for
+  integrations such as ScreenScraper; these raw file checksums are intentionally not treated as the
+  system-specific hash required by RetroAchievements
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)

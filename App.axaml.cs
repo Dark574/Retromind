@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.GameIdentification;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.Stores.Abstractions;
 using Retromind.Services.Stores.Gog;
@@ -279,6 +280,7 @@ public partial class App : Application
 
         services.AddSingleton<RetroAchievementsApiClient>();
         services.AddSingleton<RetroAchievementsAccountService>();
+        services.AddSingleton<IGameFileFingerprintService, GameFileFingerprintService>();
 
         services.AddSingleton<MetadataService>();
         services.AddSingleton<IDocumentService, DocumentService>();
