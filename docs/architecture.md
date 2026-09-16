@@ -233,6 +233,9 @@ separate statistics database or persisted aggregate state.
 - `RetroAchievementsGameIdentificationService` composes secret lookup, rcheevos hashing, and catalog resolution
   into one operation; a successfully calculated hash without a catalog entry is represented as a normal no-match
   result rather than an exception
+- the media editor can stage this identification without mutating the library; saving persists the game ID,
+  console ID, system ID, hash, and provider title on `MediaItem`, while canceling or changing the staged game
+  system/launch file discards the staged assignment
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)

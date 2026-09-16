@@ -30,6 +30,8 @@ public partial class EditMediaViewModel
         _originalItem.Publisher = NormalizeOptionalText(Publisher);
         _originalItem.Platform = NormalizeOptionalText(Platform);
         _originalItem.GameSystemId = GameSystemCatalog.NormalizeId(SelectedGameSystem?.Id);
+        _originalItem.RetroAchievementsGame = CloneRetroAchievementsGameIdentity(
+            _stagedRetroAchievementsGame);
         _originalItem.Source = NormalizeOptionalText(Source);
         _originalItem.Developer = Developer;
         _originalItem.Genre = Genre;

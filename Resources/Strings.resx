@@ -934,4 +934,17 @@ The current application settings will be kept.</value></data>
     <data name="GameSystem_InheritedFormat" xml:space="preserve"><value>Inherited: {0} (from {1})</value></data>
     <data name="GameSystem_InheritedItemFormat" xml:space="preserve"><value>Inherited: {0}</value></data>
     <data name="GameSystem_InheritedNone" xml:space="preserve"><value>No game system is inherited.</value></data>
+    <data name="RetroAchievements_IdentificationTitle" xml:space="preserve"><value>RetroAchievements identification</value></data>
+    <data name="RetroAchievements_Identify" xml:space="preserve"><value>Identify game</value></data>
+    <data name="RetroAchievements_IdentificationRunning" xml:space="preserve"><value>Calculating the game hash and checking RetroAchievements...</value></data>
+    <data name="RetroAchievements_IdentificationNoMatch" xml:space="preserve"><value>No matching RetroAchievements game was found for this file.</value></data>
+    <data name="RetroAchievements_IdentificationSuccessFormat" xml:space="preserve"><value>Identified as {0} (game ID {1}). Save the item to keep this assignment.</value></data>
+    <data name="RetroAchievements_IdentificationExistingFormat" xml:space="preserve"><value>Identified as {0} (game ID {1}).</value></data>
+    <data name="RetroAchievements_IdentificationCanceled" xml:space="preserve"><value>RetroAchievements identification was canceled.</value></data>
+    <data name="RetroAchievements_IdentificationFailedFormat" xml:space="preserve"><value>RetroAchievements identification failed: {0}</value></data>
+    <data name="RetroAchievements_IdentificationUnexpectedFailure" xml:space="preserve"><value>RetroAchievements identification failed unexpectedly.</value></data>
+    <data name="RetroAchievements_IdentificationDisabled" xml:space="preserve"><value>Enable RetroAchievements in the application settings to identify this game.</value></data>
+    <data name="RetroAchievements_IdentificationMissingSystem" xml:space="preserve"><value>Select or inherit a game system before identifying this game.</value></data>
+    <data name="RetroAchievements_IdentificationMissingFile" xml:space="preserve"><value>Select a launch file before identifying this game.</value></data>
+    <data name="RetroAchievements_IdentificationNotIdentified" xml:space="preserve"><value>This game has not been identified yet.</value></data>
 </root>

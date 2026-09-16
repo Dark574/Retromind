@@ -25,6 +25,14 @@ public sealed class MediaDataServicePortabilityTests
             {
                 Title = "Portable Game",
                 GameSystemId = "nintendo.game-boy-advance",
+                RetroAchievementsGame = new RetroAchievementsGameIdentity
+                {
+                    GameId = 123,
+                    ConsoleId = 5,
+                    GameSystemId = "nintendo.game-boy-advance",
+                    Hash = "25f9e794323b453885f5181f1b624d0b",
+                    Title = "Portable Game"
+                },
                 Files =
                 [
                     new MediaFileRef
@@ -80,6 +88,12 @@ public sealed class MediaDataServicePortabilityTests
             Assert.Equal(secondRoot.GetPath(relativeAssetPath), loadedAsset.AbsolutePath);
             Assert.Equal("nintendo.snes", loadedNode.GameSystemId);
             Assert.Equal("nintendo.game-boy-advance", loadedItem.GameSystemId);
+            Assert.NotNull(loadedItem.RetroAchievementsGame);
+            Assert.Equal(123, loadedItem.RetroAchievementsGame.GameId);
+            Assert.Equal(5u, loadedItem.RetroAchievementsGame.ConsoleId);
+            Assert.Equal(
+                "25f9e794323b453885f5181f1b624d0b",
+                loadedItem.RetroAchievementsGame.Hash);
             Assert.True(GogInstallPathHelper.TryResolveStoredPath(
                 loadedItem.CustomFields[CustomFieldKeyHelper.StoreInstallPath],
                 out var resolvedInstallPath));

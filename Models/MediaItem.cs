@@ -71,6 +71,13 @@ public partial class MediaItem : ObservableObject
     /// from the free-text Platform metadata shown to the user.
     /// </summary>
     [ObservableProperty] private string? _gameSystemId;
+
+    /// <summary>
+    /// Optional identity created by hashing the game file and resolving it against
+    /// the RetroAchievements catalog.
+    /// </summary>
+    [ObservableProperty] private RetroAchievementsGameIdentity? _retroAchievementsGame;
+
     [ObservableProperty] private string? _source;
     [ObservableProperty] private string? _genre;
     [ObservableProperty] private string? _series;

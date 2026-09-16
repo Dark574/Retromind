@@ -8,6 +8,7 @@ namespace Retromind.Services.RetroAchievements;
 /// Coordinates the complete RetroAchievements identity lookup for one game file.
 /// </summary>
 public sealed class RetroAchievementsGameIdentificationService
+    : IRetroAchievementsGameIdentificationService
 {
     private readonly IRetroAchievementsHashService _hashService;
     private readonly RetroAchievementsGameCatalogService _catalogService;

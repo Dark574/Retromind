@@ -15,6 +15,7 @@ using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.GameSystems;
+using Retromind.Services.RetroAchievements;
 
 namespace Retromind.ViewModels;
 
@@ -576,6 +577,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         AppSettings settings,
         FileManagementService fileService,
         List<string> nodePath,
+        IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService,
         EmulatorConfig? inheritedEmulator = null,
         ObservableCollection<MediaNode>? rootNodes = null,
         MediaNode? parentNode = null)
@@ -589,6 +591,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
         _parentNode = parentNode;
         _settings = settings;
+        _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService ??
+            throw new ArgumentNullException(nameof(retroAchievementsGameIdentificationService));
         _metadataSuggestionService = new MetadataSuggestionService(_rootNodes, _parentNode);
         _assetsChangedHandler = (_, _) => ScheduleSortAssets();
         _originalItem.Assets.CollectionChanged += _assetsChangedHandler;
@@ -602,6 +606,9 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         // Primary launch file command
         ChangePrimaryFileCommand = new AsyncRelayCommand(ChangePrimaryFileAsync);
         RemoveLaunchFilesCommand = new RelayCommand(RemoveLaunchFiles, () => HasLaunchFiles);
+        IdentifyRetroAchievementsCommand = new AsyncRelayCommand(
+            IdentifyRetroAchievementsAsync,
+            CanIdentifyRetroAchievements);
         
         // Environment overrides commands
         AddEnvironmentVariableCommand = new RelayCommand(AddEnvironmentVariable);
@@ -697,6 +704,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         
         LoadItemData();
         InitializeGameSystemSelection();
+        InitializeRetroAchievementsIdentification();
         InitializeEmulators(settings);
         InitializeRunnerVersions(settings);
         InitializeNativeWrapperUiFromItem();
@@ -1456,6 +1464,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         }
 
         NotifyLaunchFilesChanged();
+        InvalidateRetroAchievementsIdentification();
     }
 
     private void RemoveLaunchFiles()
@@ -1465,6 +1474,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         _editedFiles.Clear();
         NotifyLaunchFilesChanged();
+        InvalidateRetroAchievementsIdentification();
     }
 
     private void NotifyLaunchFilesChanged()

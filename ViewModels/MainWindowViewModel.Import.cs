@@ -1180,7 +1180,15 @@ public partial class MainWindowViewModel
             : new List<string>();
 
         // Inject FileService and NodePath
-        var editVm = new EditMediaViewModel(item, _currentSettings, _fileService, nodePath, inherited, RootItems, parentNode) 
+        var editVm = new EditMediaViewModel(
+            item,
+            _currentSettings,
+            _fileService,
+            nodePath,
+            _retroAchievementsGameIdentificationService,
+            inherited,
+            RootItems,
+            parentNode)
         { 
             StorageProvider = StorageProvider ?? owner.StorageProvider 
         };

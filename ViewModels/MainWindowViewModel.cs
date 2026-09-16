@@ -52,6 +52,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IDocumentService _documentService;
     private readonly LibraryChangeTracker _libraryTracker;
     private readonly RetroAchievementsAccountService _retroAchievementsAccountService;
+    private readonly IRetroAchievementsGameIdentificationService _retroAchievementsGameIdentificationService;
 
     // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
     private readonly HttpClient _httpClient;
@@ -337,7 +338,8 @@ public partial class MainWindowViewModel : ViewModelBase
         HttpClient httpClient,
         AppSettings preloadedSettings,
         IDocumentService documentService,
-        RetroAchievementsAccountService retroAchievementsAccountService)
+        RetroAchievementsAccountService retroAchievementsAccountService,
+        IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService)
     {
         _audioService = audioService;
         _dataService = dataService;
@@ -356,6 +358,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _currentSettings = preloadedSettings;
         _documentService = documentService;
         _retroAchievementsAccountService = retroAchievementsAccountService;
+        _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService;
         if (_settingsService.HasLoadFailure)
         {
             SettingsLoadErrorMessage = T(
