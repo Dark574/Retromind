@@ -946,7 +946,9 @@ public partial class MainWindowViewModel
                 AppendProcessLog(logVm, $"[Windows installer] Using: {installerPath}", installerLogPath);
                 var payloadBaseline = CaptureInstallPayloadSnapshot(request.InstallPath);
                 var prefixPayloadBaseline = CaptureInstallPayloadSnapshot(prefixDrivePath);
-                var profiles = BuildWindowsInstallerArgumentProfiles();
+                var profiles = BuildWindowsInstallerArgumentProfiles(
+                    request.CreateDesktopShortcut,
+                    request.CreateStartMenuShortcuts);
                 InstallerProcessExecutionResult? lastExecution = null;
 
                 for (var attemptIndex = 0; attemptIndex < profiles.Count; attemptIndex++)
@@ -954,6 +956,10 @@ public partial class MainWindowViewModel
                     var profile = profiles[attemptIndex];
                     var startInfo = EmulatorResolverHelper.BuildWineInstallStartInfo(winePath, prefixRoot);
                     startInfo.WorkingDirectory = downloadedPackage.StagingDirectory;
+                    GogWindowsShortcutPolicy.ApplyInstallerEnvironment(
+                        startInfo,
+                        request.CreateDesktopShortcut,
+                        request.CreateStartMenuShortcuts);
                     startInfo.ArgumentList.Add(installerPath);
 
                     if (profile.AdditionalArguments is { Count: > 0 })
@@ -984,7 +990,30 @@ public partial class MainWindowViewModel
                     AppendRunnerEnvironmentSnapshot(logVm, installerLogPath, startInfo);
                     AppendProcessLog(logVm, $"> {FormatProcessCommand(startInfo)}", installerLogPath);
 
-                    var windowsExecution = await ExecuteInstallerProcessWithLogAsync(startInfo, logVm, installerLogPath, ct).ConfigureAwait(false);
+                    InstallerProcessExecutionResult windowsExecution;
+                    try
+                    {
+                        windowsExecution = await ExecuteInstallerProcessWithLogAsync(
+                            startInfo,
+                            logVm,
+                            installerLogPath,
+                            ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        var removedShortcutExports = GogWindowsShortcutPolicy.RemoveUnwantedExports(
+                            prefixRoot,
+                            request.CreateDesktopShortcut,
+                            request.CreateStartMenuShortcuts,
+                            startInfo.Environment);
+                        if (removedShortcutExports > 0)
+                        {
+                            AppendProcessLog(
+                                logVm,
+                                $"[Windows installer] Removed {removedShortcutExports} unwanted Wine shortcut export(s).",
+                                installerLogPath);
+                        }
+                    }
                     if (!windowsExecution.Started)
                         return Fail(windowsExecution.StartErrorMessage ?? "Installer process could not be started.");
 
@@ -1229,19 +1258,45 @@ public partial class MainWindowViewModel
     private static bool IsUmuRunAvailable()
         => !string.IsNullOrWhiteSpace(EnvironmentPathHelper.TryFindExecutableInCurrentPath("umu-run"));
 
-    private static List<WindowsInstallerArgumentProfile> BuildWindowsInstallerArgumentProfiles()
+    private static List<WindowsInstallerArgumentProfile> BuildWindowsInstallerArgumentProfiles(
+        bool createDesktopShortcut,
+        bool createStartMenuShortcuts)
     {
+        var shortcutArguments = BuildWindowsShortcutArguments(
+            createDesktopShortcut,
+            createStartMenuShortcuts);
+
         return
         [
             new WindowsInstallerArgumentProfile(
                 "inno-silent-dir-argument",
                 "/DIR=",
-                ["/SP-", "/SILENT", "/NOGUI", "/SUPPRESSMSGBOXES", "/NORESTART"]),
+                ["/SP-", "/SILENT", "/NOGUI", "/SUPPRESSMSGBOXES", "/NORESTART", .. shortcutArguments]),
             new WindowsInstallerArgumentProfile(
                 "inno-interactive-dir-argument",
                 "/DIR=",
-                ["/SP-"])
+                ["/SP-", .. shortcutArguments])
         ];
+    }
+
+    // GOG's customized Inno Setup creates shortcuts in installer code instead of
+    // exposing the conventional desktopicon task, so /MERGETASKS does not affect it.
+    internal static IReadOnlyList<string> BuildWindowsShortcutArguments(
+        bool createDesktopShortcut,
+        bool createStartMenuShortcuts)
+    {
+        var arguments = new List<string>(3);
+        if (!createDesktopShortcut)
+        {
+            // GOG's Galaxy setup scripts contain this historical typo. Heroic sends
+            // both spellings for compatibility, while offline setup executables vary.
+            arguments.Add("/nodesktopshorctut");
+            arguments.Add("/nodesktopshortcut");
+        }
+        if (!createStartMenuShortcuts)
+            arguments.Add("/nostartmenushortcut");
+
+        return arguments;
     }
 
     private static List<string> BuildWindowsInstallerEntryCandidates(

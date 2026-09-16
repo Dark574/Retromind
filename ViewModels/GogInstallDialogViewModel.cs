@@ -40,6 +40,8 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         GogInstallPlatform Platform,
         RunnerOption? Runner,
         WindowsInstallerPreference WindowsInstallerPreference,
+        bool CreateDesktopShortcut,
+        bool CreateStartMenuShortcuts,
         bool CleanInstall,
         bool DeleteStagingAfterSuccess);
 
@@ -60,6 +62,12 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
 
     [ObservableProperty]
     private WindowsInstallerPreferenceOption? _selectedWindowsInstallerPreference;
+
+    [ObservableProperty]
+    private bool _createDesktopShortcut;
+
+    [ObservableProperty]
+    private bool _createStartMenuShortcuts;
 
     [ObservableProperty]
     private bool _cleanInstall = true;
@@ -93,6 +101,18 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         "Gog.InstallRunnerMissingHint",
         "No Wine/Proton runner configured yet. Configure one in Settings -> Runner.");
     public string WindowsInstallerPreferenceLabel => T("Gog.Install.WindowsInstallerPreferenceLabel", "Windows installer");
+    public string CreateDesktopShortcutLabel => T(
+        "Gog.Install.CreateDesktopShortcutLabel",
+        "Create desktop shortcut");
+    public string CreateDesktopShortcutHint => T(
+        "Gog.Install.CreateDesktopShortcutHint",
+        "Controls the desktop shortcut created by the Windows installer.");
+    public string CreateStartMenuShortcutsLabel => T(
+        "Gog.Install.CreateStartMenuShortcutsLabel",
+        "Create application menu entries");
+    public string CreateStartMenuShortcutsHint => T(
+        "Gog.Install.CreateStartMenuShortcutsHint",
+        "Creates GOG game shortcuts in the desktop environment's application menu.");
     public string CleanInstallLabel => T("Gog.Install.CleanInstallLabel", "Clean install");
     public string CleanInstallHint => T(
         "Gog.Install.CleanInstallHint",
@@ -265,6 +285,8 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
             platform,
             SelectedRunner,
             installerPreference,
+            CreateDesktopShortcut,
+            CreateStartMenuShortcuts,
             CleanInstall,
             DeleteStagingAfterSuccess);
         window?.Close(true);

@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.1.9-alpha] - unreleased
 
 ### Added
+- make shortcut creation optional for GOG Windows installation
 
 ### Changed
 

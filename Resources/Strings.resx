@@ -326,6 +326,10 @@
   <data name="Gog.Install.WindowsInstallerPreference.AutoPrefer64" xml:space="preserve"><value>Auto (prefer 64-bit)</value></data>
   <data name="Gog.Install.WindowsInstallerPreference.Prefer64" xml:space="preserve"><value>64-bit installer</value></data>
   <data name="Gog.Install.WindowsInstallerPreference.Prefer32" xml:space="preserve"><value>32-bit installer</value></data>
+  <data name="Gog.Install.CreateDesktopShortcutLabel" xml:space="preserve"><value>Create desktop shortcut</value></data>
+  <data name="Gog.Install.CreateDesktopShortcutHint" xml:space="preserve"><value>Controls the desktop shortcut created by the Windows installer.</value></data>
+  <data name="Gog.Install.CreateStartMenuShortcutsLabel" xml:space="preserve"><value>Create application menu entries</value></data>
+  <data name="Gog.Install.CreateStartMenuShortcutsHint" xml:space="preserve"><value>Creates GOG game shortcuts in the desktop environment's application menu.</value></data>
   <data name="Gog.Install.CleanInstallLabel" xml:space="preserve"><value>Clean install</value></data>
   <data name="Gog.Install.CleanInstallHint" xml:space="preserve"><value>Delete existing files in the target folder before installation.</value></data>
   <data name="Gog.Install.CleanInstallConfirmFormat" xml:space="preserve"><value>Clean install will permanently delete the existing files in this Retromind-managed directory:

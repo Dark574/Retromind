@@ -62,6 +62,22 @@
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
+
+            <StackPanel Spacing="4" Margin="0,4,0,0">
+                <CheckBox Content="{Binding CreateDesktopShortcutLabel}"
+                          IsChecked="{Binding CreateDesktopShortcut}" />
+                <TextBlock Text="{Binding CreateDesktopShortcutHint}"
+                           Opacity="0.75"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+
+            <StackPanel Spacing="4" Margin="0,4,0,0">
+                <CheckBox Content="{Binding CreateStartMenuShortcutsLabel}"
+                          IsChecked="{Binding CreateStartMenuShortcuts}" />
+                <TextBlock Text="{Binding CreateStartMenuShortcutsHint}"
+                           Opacity="0.75"
+                           TextWrapping="Wrap" />
+            </StackPanel>
         </StackPanel>
 
         <StackPanel Spacing="4">
