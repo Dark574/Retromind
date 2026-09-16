@@ -74,6 +74,14 @@ public sealed class RetroAchievementsGameCatalogService
 
         try
         {
+            if ((File.GetAttributes(sourceDirectory) & FileAttributes.ReparsePoint) != 0)
+                throw new IOException($"Refusing to migrate cache link '{sourceDirectory}'.");
+            if (Directory.Exists(destinationDirectory) &&
+                (File.GetAttributes(destinationDirectory) & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new IOException($"Refusing to migrate into cache link '{destinationDirectory}'.");
+            }
+
             var sourceFiles = GetCacheFileSnapshots(sourceDirectory);
             if (sourceFiles.Count == 0)
                 return;
@@ -82,11 +90,12 @@ public sealed class RetroAchievementsGameCatalogService
             foreach (var sourceFile in sourceFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var destinationPath = Path.Combine(destinationDirectory, Path.GetFileName(sourceFile.Path));
+                var destinationPath = Path.Combine(destinationDirectory, sourceFile.RelativePath);
 
                 if (!ShouldReplaceDestination(sourceFile, destinationPath))
                     continue;
 
+                Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
                 await CopyCacheFileAtomicallyAsync(
                         sourceFile,
                         destinationPath,
@@ -102,6 +111,7 @@ public sealed class RetroAchievementsGameCatalogService
             foreach (var sourceFile in sourceFiles)
                 File.Delete(sourceFile.Path);
 
+            TryDeleteEmptyParentDirectories(sourceFiles, sourceDirectory);
             TryDeleteEmptyDirectory(sourceDirectory);
         }
         catch (OperationCanceledException)
@@ -362,17 +372,37 @@ public sealed class RetroAchievementsGameCatalogService
     private static List<CacheFileSnapshot> GetCacheFileSnapshots(string sourceDirectory)
     {
         var snapshots = new List<CacheFileSnapshot>();
-        foreach (var path in Directory.EnumerateFiles(
-                     sourceDirectory,
-                     "games-*.json",
-                     SearchOption.TopDirectoryOnly))
-        {
-            var attributes = File.GetAttributes(path);
-            if ((attributes & FileAttributes.ReparsePoint) != 0)
-                continue;
+        var pendingDirectories = new Stack<string>();
+        pendingDirectories.Push(sourceDirectory);
 
-            var info = new FileInfo(path);
-            snapshots.Add(new CacheFileSnapshot(path, info.Length, info.LastWriteTimeUtc));
+        while (pendingDirectories.Count > 0)
+        {
+            var directory = pendingDirectories.Pop();
+            foreach (var childDirectory in Directory.EnumerateDirectories(
+                         directory,
+                         "*",
+                         SearchOption.TopDirectoryOnly))
+            {
+                if ((File.GetAttributes(childDirectory) & FileAttributes.ReparsePoint) == 0)
+                    pendingDirectories.Push(childDirectory);
+            }
+
+            foreach (var path in Directory.EnumerateFiles(
+                         directory,
+                         "*.json",
+                         SearchOption.TopDirectoryOnly))
+            {
+                var attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                    continue;
+
+                var info = new FileInfo(path);
+                snapshots.Add(new CacheFileSnapshot(
+                    path,
+                    Path.GetRelativePath(sourceDirectory, path),
+                    info.Length,
+                    info.LastWriteTimeUtc));
+            }
         }
 
         return snapshots;
@@ -454,6 +484,26 @@ public sealed class RetroAchievementsGameCatalogService
         }
     }
 
+    private static void TryDeleteEmptyParentDirectories(
+        IEnumerable<CacheFileSnapshot> sourceFiles,
+        string sourceDirectory)
+    {
+        var directories = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var sourceFile in sourceFiles)
+        {
+            var directory = Path.GetDirectoryName(sourceFile.Path);
+            while (directory != null &&
+                   !string.Equals(directory, sourceDirectory, StringComparison.Ordinal))
+            {
+                directories.Add(directory);
+                directory = Path.GetDirectoryName(directory);
+            }
+        }
+
+        foreach (var directory in directories.OrderByDescending(static path => path.Length))
+            TryDeleteEmptyDirectory(directory);
+    }
+
     private sealed class CacheDocument
     {
         public int SchemaVersion { get; set; }
@@ -468,6 +518,7 @@ public sealed class RetroAchievementsGameCatalogService
 
     private sealed record CacheFileSnapshot(
         string Path,
+        string RelativePath,
         long Length,
         DateTime LastWriteTimeUtc);
 }

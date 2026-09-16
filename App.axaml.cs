@@ -283,6 +283,7 @@ public partial class App : Application
         services.AddSingleton<IRetroAchievementsHashService, RetroAchievementsHashService>();
         services.AddSingleton<RetroAchievementsGameCatalogService>();
         services.AddSingleton<IRetroAchievementsGameIdentificationService, RetroAchievementsGameIdentificationService>();
+        services.AddSingleton<IRetroAchievementsProgressService, RetroAchievementsProgressService>();
         services.AddSingleton<IGameFileFingerprintService, GameFileFingerprintService>();
 
         services.AddSingleton<MetadataService>();

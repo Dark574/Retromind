@@ -238,7 +238,13 @@ separate statistics database or persisted aggregate state.
   system/launch file discards the staged assignment
 - `RetroAchievementsApiClient` uses the stable account ULID with the official game-info-and-user-progress
   endpoint to retrieve typed achievement definitions, casual/hardcore unlock timestamps, and summary progress;
-  these user-specific responses are not stored in the long-lived public game-catalog cache
+  these user-specific responses are kept separate from the long-lived public game-catalog cache
+- `RetroAchievementsProgressService` prefers that stable ULID over the mutable username, coalesces concurrent
+  requests, and caches progress in memory for five minutes. Every successful response is also written atomically
+  below `RetroAchievements/Progress/<SHA-256 user>/game-<id>.json`; neither the API key nor the plain account
+  identifier is persisted there. The cache follows portable-HOME migrations. Callers may force a refresh after
+  gameplay; when a refresh encounters a temporary API failure, the last memory or disk snapshot is returned with
+  its original timestamp and an explicit fallback flag
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)

@@ -130,8 +130,20 @@ public sealed class RetroAchievementsGameCatalogServiceTests
             usePortableHome: true);
         var standardPath = Path.Combine(standardDirectory, "games-4.json");
         var portablePath = Path.Combine(portableDirectory, "games-4.json");
+        var standardProgressPath = Path.Combine(
+            standardDirectory,
+            "Progress",
+            "user-hash",
+            "game-123.json");
+        var portableProgressPath = Path.Combine(
+            portableDirectory,
+            "Progress",
+            "user-hash",
+            "game-123.json");
         Directory.CreateDirectory(standardDirectory);
         await File.WriteAllTextAsync(standardPath, "standard-cache");
+        Directory.CreateDirectory(Path.GetDirectoryName(standardProgressPath)!);
+        await File.WriteAllTextAsync(standardProgressPath, "standard-progress");
 
         await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
             wasPortableHomeEnabled: false,
@@ -139,14 +151,19 @@ public sealed class RetroAchievementsGameCatalogServiceTests
 
         Assert.False(File.Exists(standardPath));
         Assert.Equal("standard-cache", await File.ReadAllTextAsync(portablePath));
+        Assert.False(File.Exists(standardProgressPath));
+        Assert.Equal("standard-progress", await File.ReadAllTextAsync(portableProgressPath));
 
         await File.WriteAllTextAsync(portablePath, "portable-cache");
+        await File.WriteAllTextAsync(portableProgressPath, "portable-progress");
         await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
             wasPortableHomeEnabled: true,
             isPortableHomeEnabled: false);
 
         Assert.False(File.Exists(portablePath));
         Assert.Equal("portable-cache", await File.ReadAllTextAsync(standardPath));
+        Assert.False(File.Exists(portableProgressPath));
+        Assert.Equal("portable-progress", await File.ReadAllTextAsync(standardProgressPath));
     }
 
     [Fact]
