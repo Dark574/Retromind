@@ -88,6 +88,7 @@ public partial class MainWindowViewModel
         "RetroAchievements_SearchAll",
         "Search RetroAchievements (All)...");
     public string StatisticsButtonToolTip => T("Statistics.Title", "Library statistics");
+    public string GogUpdateMenuText => T("Button_Update", "Update");
     public string GogReinstallMenuText => T("Gog.Media.ReinstallMenu", "Reinstall / Switch Version");
     public string GogUninstallMenuText => T("Gog.Uninstall.ContextMenu", "Uninstall");
 
@@ -284,13 +285,7 @@ public partial class MainWindowViewModel
             return Strings.Button_Play;
         }
     }
-    public bool ShowGogUpdateSelectedMediaButton => CanUpdateGogMedia(GetCurrentSelectedItem());
-    public string GogUpdateSelectedMediaButtonText => T("Button_Update", "Update");
-    public bool ShowGogReinstallSelectedMediaButton => CanReinstallGogMedia(GetCurrentSelectedItem());
-    public string GogReinstallSelectedMediaButtonText => T("Button_ReinstallOrSwitchVersion", "Reinstall / Switch Version");
     public string GogUpdateAvailableBadgeTooltip => T("Gog.Update.BadgeTooltip", "GOG update available");
-    public bool ShowGogUninstallSelectedMediaButton => CanUninstallGogMedia(GetCurrentSelectedItem());
-    public string GogUninstallSelectedMediaButtonText => T("Gog.Uninstall.Button", "Uninstall");
 
     private void NotifyPlayAvailabilityChanged()
     {
@@ -301,12 +296,6 @@ public partial class MainWindowViewModel
         UninstallGogCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanPlaySelectedMedia));
         OnPropertyChanged(nameof(PlaySelectedMediaButtonText));
-        OnPropertyChanged(nameof(ShowGogUpdateSelectedMediaButton));
-        OnPropertyChanged(nameof(GogUpdateSelectedMediaButtonText));
-        OnPropertyChanged(nameof(ShowGogReinstallSelectedMediaButton));
-        OnPropertyChanged(nameof(GogReinstallSelectedMediaButtonText));
-        OnPropertyChanged(nameof(ShowGogUninstallSelectedMediaButton));
-        OnPropertyChanged(nameof(GogUninstallSelectedMediaButtonText));
     }
 
     private bool CanPlayMedia(MediaItem? item)
