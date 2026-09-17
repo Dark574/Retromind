@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -18,6 +20,8 @@ namespace Retromind.Services.RetroAchievements;
 public sealed class RetroAchievementsProgressService : IRetroAchievementsProgressService
 {
     private const int CacheSchemaVersion = 1;
+    private const int DefaultMaximumMemoryCacheEntries = 128;
+    private const int SynchronizationGateCount = 64;
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(5);
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -29,9 +33,12 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
     private readonly RetroAchievementsApiClient _apiClient;
     private readonly TimeProvider _timeProvider;
     private readonly Func<string> _cacheDirectoryProvider;
+    private readonly int _maximumMemoryCacheEntries;
     private readonly ConcurrentDictionary<ProgressCacheKey, CacheEntry> _cache = new();
-    private readonly ConcurrentDictionary<ProgressCacheKey, SemaphoreSlim> _gates = new();
+    private readonly object _cacheTrimLock = new();
+    private readonly SemaphoreSlim[] _gates = CreateSynchronizationGates();
     private readonly ConcurrentDictionary<ProgressCacheKey, byte> _invalidated = new();
+    private long _cacheAccessOrder;
 
     public RetroAchievementsProgressService(
         AppSettings settings,
@@ -54,13 +61,15 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
         RetroAchievementsAccountService accountService,
         RetroAchievementsApiClient apiClient,
         TimeProvider timeProvider,
-        string cacheDirectory)
+        string cacheDirectory,
+        int maximumMemoryCacheEntries = DefaultMaximumMemoryCacheEntries)
         : this(
             settings,
             accountService,
             apiClient,
             timeProvider,
-            () => Path.GetFullPath(cacheDirectory))
+            () => Path.GetFullPath(cacheDirectory),
+            maximumMemoryCacheEntries)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
     }
@@ -70,7 +79,8 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
         RetroAchievementsAccountService accountService,
         RetroAchievementsApiClient apiClient,
         TimeProvider timeProvider,
-        Func<string> cacheDirectoryProvider)
+        Func<string> cacheDirectoryProvider,
+        int maximumMemoryCacheEntries = DefaultMaximumMemoryCacheEntries)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _accountService = accountService ?? throw new ArgumentNullException(nameof(accountService));
@@ -78,6 +88,10 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _cacheDirectoryProvider = cacheDirectoryProvider ??
                                   throw new ArgumentNullException(nameof(cacheDirectoryProvider));
+        if (maximumMemoryCacheEntries <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maximumMemoryCacheEntries));
+
+        _maximumMemoryCacheEntries = maximumMemoryCacheEntries;
     }
 
     public async Task<RetroAchievementsProgressSnapshot> GetProgressAsync(
@@ -110,7 +124,7 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
         if (!forceRefresh && TryGetFresh(cacheKey, now, out var cached))
             return CreateSnapshot(cached!, usedCachedFallback: false);
 
-        var gate = _gates.GetOrAdd(cacheKey, static _ => new SemaphoreSlim(1, 1));
+        var gate = GetSynchronizationGate(cacheKey);
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -119,13 +133,13 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
             if (!forceRefresh && TryGetFresh(cacheKey, now, out cached))
                 return CreateSnapshot(cached!, usedCachedFallback: false);
 
-            _cache.TryGetValue(cacheKey, out var fallback);
+            TryGetMemoryCache(cacheKey, out var fallback);
             if (fallback == null)
             {
                 fallback = await TryLoadCacheAsync(cacheKey, cacheDirectory, cancellationToken)
                     .ConfigureAwait(false);
                 if (fallback != null)
-                    _cache[cacheKey] = fallback;
+                    StoreMemoryCache(cacheKey, fallback);
             }
 
             if (!forceRefresh && fallback != null && IsFresh(fallback, now))
@@ -150,7 +164,7 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
                         cancellationToken)
                     .ConfigureAwait(false);
                 var refreshed = new CacheEntry(progress, _timeProvider.GetUtcNow());
-                _cache[cacheKey] = refreshed;
+                StoreMemoryCache(cacheKey, refreshed);
                 _invalidated.TryRemove(cacheKey, out _);
                 await TrySaveCacheAsync(cacheKey, refreshed, cacheDirectory, cancellationToken)
                     .ConfigureAwait(false);
@@ -297,11 +311,59 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
         DateTimeOffset now,
         out CacheEntry? entry)
     {
-        if (_cache.TryGetValue(key, out entry) && IsFresh(entry, now))
+        if (TryGetMemoryCache(key, out entry) && entry != null && IsFresh(entry, now))
             return true;
 
         entry = null;
         return false;
+    }
+
+    internal int MemoryCacheEntryCount => _cache.Count;
+
+    private bool TryGetMemoryCache(ProgressCacheKey key, out CacheEntry? entry)
+    {
+        if (!_cache.TryGetValue(key, out entry))
+            return false;
+
+        entry.Touch(Interlocked.Increment(ref _cacheAccessOrder));
+        return true;
+    }
+
+    private void StoreMemoryCache(ProgressCacheKey key, CacheEntry entry)
+    {
+        entry.Touch(Interlocked.Increment(ref _cacheAccessOrder));
+        lock (_cacheTrimLock)
+        {
+            _cache[key] = entry;
+            TrimMemoryCache(key);
+        }
+    }
+
+    private void TrimMemoryCache(ProgressCacheKey retainedKey)
+    {
+        var excessCount = _cache.Count - _maximumMemoryCacheEntries;
+        if (excessCount <= 0)
+            return;
+
+        var oldestEntries = _cache
+            .Where(pair => pair.Key != retainedKey)
+            .OrderBy(pair => pair.Value.LastAccessOrder)
+            .Take(excessCount)
+            .ToArray();
+        foreach (var entry in oldestEntries)
+            _cache.TryRemove(entry);
+    }
+
+    private SemaphoreSlim GetSynchronizationGate(ProgressCacheKey key) =>
+        _gates[(int)((uint)key.GetHashCode() % (uint)_gates.Length)];
+
+    private static SemaphoreSlim[] CreateSynchronizationGates()
+    {
+        var gates = new SemaphoreSlim[SynchronizationGateCount];
+        for (var index = 0; index < gates.Length; index++)
+            gates[index] = new SemaphoreSlim(1, 1);
+
+        return gates;
     }
 
     private static bool IsFresh(CacheEntry entry, DateTimeOffset now) =>
@@ -359,7 +421,17 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
 
     private sealed record ProgressCacheKey(string UserIdentifierHash, int GameId);
 
-    private sealed record CacheEntry(
-        RetroAchievementsGameProgress Progress,
-        DateTimeOffset FetchedAtUtc);
+    private sealed class CacheEntry(
+        RetroAchievementsGameProgress progress,
+        DateTimeOffset fetchedAtUtc)
+    {
+        private long _lastAccessOrder;
+
+        public RetroAchievementsGameProgress Progress { get; } = progress;
+        public DateTimeOffset FetchedAtUtc { get; } = fetchedAtUtc;
+        public long LastAccessOrder => Volatile.Read(ref _lastAccessOrder);
+
+        public void Touch(long accessOrder) =>
+            Interlocked.Exchange(ref _lastAccessOrder, accessOrder);
+    }
 }

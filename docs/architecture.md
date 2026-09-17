@@ -247,7 +247,8 @@ separate statistics database or persisted aggregate state.
   endpoint to retrieve typed achievement definitions, casual/hardcore unlock timestamps, and summary progress;
   these user-specific responses are kept separate from the long-lived public game-catalog cache
 - `RetroAchievementsProgressService` prefers that stable ULID over the mutable username, coalesces concurrent
-  requests, and caches progress in memory for five minutes. Every successful response is also written atomically
+  requests through a fixed set of synchronization gates, and keeps up to 128 recently used progress snapshots in
+  memory with a five-minute freshness window. Every successful response is also written atomically
   below `RetroAchievements/Progress/<SHA-256 user>/game-<id>.json`; neither the API key nor the plain account
   identifier is persisted there. The cache follows portable-HOME migrations. Callers may force a refresh after
   gameplay; when a refresh encounters a temporary API failure, the last memory or disk snapshot is returned with
@@ -263,8 +264,8 @@ separate statistics database or persisted aggregate state.
   again when the selected game changes
 - `RetroAchievementsBadgeService` downloads the official unlocked and locked achievement PNGs on demand, validates
   their size and PNG signature, and publishes them atomically below `RetroAchievements/Badges`. Concurrent requests
-  for the same badge share one download, failures do not affect progress data, and the persistent badge cache follows
-  the existing portable-HOME cache migration
+  share a bounded set of synchronization gates, failures do not affect progress data, and the persistent badge cache
+  follows the existing portable-HOME cache migration
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)

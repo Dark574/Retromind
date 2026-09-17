@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -16,13 +15,13 @@ namespace Retromind.Services.RetroAchievements;
 public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeService
 {
     private const int MaximumBadgeBytes = 1024 * 1024;
+    private const int DownloadGateCount = 64;
     private static readonly Uri BadgeBaseUri = new("https://i.retroachievements.org/Badge/");
     private static readonly byte[] PngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
 
     private readonly HttpClient _httpClient;
     private readonly Func<string> _cacheDirectoryProvider;
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _downloadGates =
-        new(StringComparer.Ordinal);
+    private readonly SemaphoreSlim[] _downloadGates = CreateDownloadGates();
 
     public RetroAchievementsBadgeService(
         HttpClient httpClient,
@@ -69,7 +68,7 @@ public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeServi
             if (await IsValidPngAsync(cachePath, cancellationToken).ConfigureAwait(false))
                 return cachePath;
 
-            var gate = _downloadGates.GetOrAdd(fileStem, static _ => new SemaphoreSlim(1, 1));
+            var gate = GetDownloadGate(fileStem);
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -241,6 +240,19 @@ public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeServi
         }
 
         return normalized;
+    }
+
+    private SemaphoreSlim GetDownloadGate(string fileStem) =>
+        _downloadGates[
+            (int)((uint)StringComparer.Ordinal.GetHashCode(fileStem) % (uint)_downloadGates.Length)];
+
+    private static SemaphoreSlim[] CreateDownloadGates()
+    {
+        var gates = new SemaphoreSlim[DownloadGateCount];
+        for (var index = 0; index < gates.Length; index++)
+            gates[index] = new SemaphoreSlim(1, 1);
+
+        return gates;
     }
 
     private static void TryDeleteFile(string path)

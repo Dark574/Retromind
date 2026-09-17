@@ -186,11 +186,36 @@ public sealed class RetroAchievementsProgressServiceTests
         Assert.Equal(2, refreshed.Progress.AwardedCount);
     }
 
+    [Fact]
+    public async Task GetProgressAsync_TrimsMemoryCacheToConfiguredLimit()
+    {
+        using var temp = new TemporaryDirectory();
+        var requestCount = 0;
+        var time = new MutableTimeProvider(
+            new DateTimeOffset(2026, 9, 16, 8, 0, 0, TimeSpan.Zero));
+        var service = await CreateServiceAsync(
+            _ => ProgressResponse(
+                awardedCount: 1,
+                gameId: 101 + requestCount++),
+            time,
+            temp.GetPath("progress-cache"),
+            maximumMemoryCacheEntries: 2);
+
+        _ = await service.GetProgressAsync(101);
+        _ = await service.GetProgressAsync(102);
+        _ = await service.GetProgressAsync(101);
+        _ = await service.GetProgressAsync(103);
+
+        Assert.Equal(3, requestCount);
+        Assert.Equal(2, service.MemoryCacheEntryCount);
+    }
+
     private static async Task<RetroAchievementsProgressService> CreateServiceAsync(
         Func<HttpRequestMessage, HttpResponseMessage> responseFactory,
         TimeProvider timeProvider,
         string cacheDirectory,
-        bool enabled = true)
+        bool enabled = true,
+        int maximumMemoryCacheEntries = 128)
     {
         var settings = new AppSettings
         {
@@ -213,17 +238,18 @@ public sealed class RetroAchievementsProgressServiceTests
             accountService,
             apiClient,
             timeProvider,
-            cacheDirectory);
+            cacheDirectory,
+            maximumMemoryCacheEntries);
     }
 
-    private static HttpResponseMessage ProgressResponse(int awardedCount)
+    private static HttpResponseMessage ProgressResponse(int awardedCount, int gameId = 123)
     {
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
                 $$"""
                 {
-                  "ID": 123,
+                  "ID": {{gameId}},
                   "Title": "Test Game",
                   "ConsoleID": 4,
                   "NumAchievements": 10,
