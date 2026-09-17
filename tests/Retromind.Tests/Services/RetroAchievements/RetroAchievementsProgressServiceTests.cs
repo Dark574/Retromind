@@ -166,7 +166,7 @@ public sealed class RetroAchievementsProgressServiceTests
     }
 
     [Fact]
-    public async Task Invalidate_ForcesRefreshInsteadOfReusingFreshPersistedCache()
+    public async Task GetProgressAsync_ForceRefreshBypassesFreshMemoryAndPersistedCache()
     {
         using var temp = new TemporaryDirectory();
         var cacheDirectory = temp.GetPath("progress-cache");
@@ -179,8 +179,7 @@ public sealed class RetroAchievementsProgressServiceTests
             cacheDirectory);
         _ = await service.GetProgressAsync(123);
 
-        service.Invalidate(123);
-        var refreshed = await service.GetProgressAsync(123);
+        var refreshed = await service.GetProgressAsync(123, forceRefresh: true);
 
         Assert.Equal(2, requestCount);
         Assert.Equal(2, refreshed.Progress.AwardedCount);

@@ -382,14 +382,6 @@ public sealed class RetroAchievementsProgressViewModelTests
         {
             return getProgress(gameId, forceRefresh, cancellationToken);
         }
-
-        public void Invalidate(int gameId)
-        {
-        }
-
-        public void ClearMemoryCache()
-        {
-        }
     }
 
     private sealed class StubBadgeService(

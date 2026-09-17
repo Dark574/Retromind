@@ -37,7 +37,6 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
     private readonly ConcurrentDictionary<ProgressCacheKey, CacheEntry> _cache = new();
     private readonly object _cacheTrimLock = new();
     private readonly SemaphoreSlim[] _gates = CreateSynchronizationGates();
-    private readonly ConcurrentDictionary<ProgressCacheKey, byte> _invalidated = new();
     private long _cacheAccessOrder;
 
     public RetroAchievementsProgressService(
@@ -119,7 +118,6 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
             HashUserIdentifier(userIdentifier),
             gameId);
         var cacheDirectory = _cacheDirectoryProvider();
-        forceRefresh |= _invalidated.ContainsKey(cacheKey);
         var now = _timeProvider.GetUtcNow();
         if (!forceRefresh && TryGetFresh(cacheKey, now, out var cached))
             return CreateSnapshot(cached!, usedCachedFallback: false);
@@ -128,7 +126,6 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            forceRefresh |= _invalidated.ContainsKey(cacheKey);
             now = _timeProvider.GetUtcNow();
             if (!forceRefresh && TryGetFresh(cacheKey, now, out cached))
                 return CreateSnapshot(cached!, usedCachedFallback: false);
@@ -165,7 +162,6 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
                     .ConfigureAwait(false);
                 var refreshed = new CacheEntry(progress, _timeProvider.GetUtcNow());
                 StoreMemoryCache(cacheKey, refreshed);
-                _invalidated.TryRemove(cacheKey, out _);
                 await TrySaveCacheAsync(cacheKey, refreshed, cacheDirectory, cancellationToken)
                     .ConfigureAwait(false);
                 return CreateSnapshot(refreshed, usedCachedFallback: false);
@@ -179,29 +175,6 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
         {
             gate.Release();
         }
-    }
-
-    public void Invalidate(int gameId)
-    {
-        if (gameId <= 0)
-            return;
-
-        var retroAchievements = _settings.RetroAchievements;
-        var userIdentifier = FirstNonEmpty(
-            retroAchievements?.UserUlid,
-            retroAchievements?.Username);
-        if (userIdentifier == null)
-            return;
-
-        var key = new ProgressCacheKey(HashUserIdentifier(userIdentifier), gameId);
-        _cache.TryRemove(key, out _);
-        _invalidated[key] = 0;
-    }
-
-    public void ClearMemoryCache()
-    {
-        _cache.Clear();
-        _invalidated.Clear();
     }
 
     private async Task<CacheEntry?> TryLoadCacheAsync(

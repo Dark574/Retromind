@@ -9,8 +9,4 @@ public interface IRetroAchievementsProgressService
         int gameId,
         bool forceRefresh = false,
         CancellationToken cancellationToken = default);
-
-    void Invalidate(int gameId);
-
-    void ClearMemoryCache();
 }
