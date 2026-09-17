@@ -52,6 +52,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IDocumentService _documentService;
     private readonly LibraryChangeTracker _libraryTracker;
     private readonly RetroAchievementsAccountService _retroAchievementsAccountService;
+    private readonly RetroAchievementsCachePathProvider _retroAchievementsCachePathProvider;
     private readonly IRetroAchievementsGameIdentificationService _retroAchievementsGameIdentificationService;
     private readonly RetroAchievementsBulkIdentificationService _retroAchievementsBulkIdentificationService;
 
@@ -348,6 +349,7 @@ public partial class MainWindowViewModel : ViewModelBase
         AppSettings preloadedSettings,
         IDocumentService documentService,
         RetroAchievementsAccountService retroAchievementsAccountService,
+        RetroAchievementsCachePathProvider retroAchievementsCachePathProvider,
         IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService,
         RetroAchievementsBulkIdentificationService retroAchievementsBulkIdentificationService,
         IRetroAchievementsProgressService retroAchievementsProgressService,
@@ -370,6 +372,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _currentSettings = preloadedSettings;
         _documentService = documentService;
         _retroAchievementsAccountService = retroAchievementsAccountService;
+        _retroAchievementsCachePathProvider = retroAchievementsCachePathProvider;
         _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService;
         _retroAchievementsBulkIdentificationService = retroAchievementsBulkIdentificationService;
         RetroAchievementsProgress = new RetroAchievementsProgressViewModel(

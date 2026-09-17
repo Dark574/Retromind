@@ -26,26 +26,22 @@ public sealed class RetroAchievementsGameCatalogService
     };
 
     private readonly RetroAchievementsApiClient _apiClient;
-    private readonly string _cacheDirectory;
+    private readonly Func<string> _cacheDirectoryProvider;
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<uint, SemaphoreSlim> _consoleGates = new();
     private readonly ConcurrentDictionary<uint, CatalogState> _memoryCache = new();
     private readonly ConcurrentDictionary<uint, DateTimeOffset> _refreshRetryAfter = new();
 
-    public RetroAchievementsGameCatalogService(RetroAchievementsApiClient apiClient)
+    public RetroAchievementsGameCatalogService(
+        RetroAchievementsApiClient apiClient,
+        RetroAchievementsCachePathProvider cachePathProvider)
         : this(
             apiClient,
-            GetDefaultCacheDirectory(),
+            cachePathProvider == null
+                ? throw new ArgumentNullException(nameof(cachePathProvider))
+                : cachePathProvider.GetCacheDirectory,
             TimeProvider.System)
     {
-    }
-
-    private static string GetDefaultCacheDirectory()
-    {
-        var portableCacheRoot = PortableEnvironment.GetConfiguredPortableCacheRoot();
-        return portableCacheRoot != null
-            ? Path.Combine(portableCacheRoot, "retromind", "RetroAchievements")
-            : Path.Combine(AppPaths.DataRoot, "Cache", "RetroAchievements");
     }
 
     internal static string GetCacheDirectory(bool usePortableHome)
@@ -130,10 +126,22 @@ public sealed class RetroAchievementsGameCatalogService
         RetroAchievementsApiClient apiClient,
         string cacheDirectory,
         TimeProvider timeProvider)
+        : this(
+            apiClient,
+            () => Path.GetFullPath(cacheDirectory),
+            timeProvider)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
+    }
+
+    private RetroAchievementsGameCatalogService(
+        RetroAchievementsApiClient apiClient,
+        Func<string> cacheDirectoryProvider,
+        TimeProvider timeProvider)
     {
         _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
-        ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
-        _cacheDirectory = Path.GetFullPath(cacheDirectory);
+        _cacheDirectoryProvider = cacheDirectoryProvider ??
+                                  throw new ArgumentNullException(nameof(cacheDirectoryProvider));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
@@ -149,6 +157,7 @@ public sealed class RetroAchievementsGameCatalogService
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
 
         var normalizedHash = NormalizeHash(hash);
+        var cacheDirectory = _cacheDirectoryProvider();
         var gate = _consoleGates.GetOrAdd(consoleId, static _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -161,7 +170,7 @@ public sealed class RetroAchievementsGameCatalogService
                 return FindMatch(memoryCache, normalizedHash);
             }
 
-            var diskCache = await TryLoadCacheAsync(consoleId, cancellationToken)
+            var diskCache = await TryLoadCacheAsync(consoleId, cacheDirectory, cancellationToken)
                 .ConfigureAwait(false);
             if (diskCache != null && IsFresh(diskCache.Document, now))
             {
@@ -185,7 +194,8 @@ public sealed class RetroAchievementsGameCatalogService
                 var refreshed = CreateState(refreshedDocument, consoleId);
                 _memoryCache[consoleId] = refreshed;
                 _refreshRetryAfter.TryRemove(consoleId, out _);
-                await TrySaveCacheAsync(refreshedDocument, cancellationToken).ConfigureAwait(false);
+                await TrySaveCacheAsync(refreshedDocument, cacheDirectory, cancellationToken)
+                    .ConfigureAwait(false);
                 return FindMatch(refreshed, normalizedHash);
             }
             catch (RetroAchievementsApiException) when (diskCache != null)
@@ -205,9 +215,10 @@ public sealed class RetroAchievementsGameCatalogService
 
     private async Task<CatalogState?> TryLoadCacheAsync(
         uint consoleId,
+        string cacheDirectory,
         CancellationToken cancellationToken)
     {
-        var cachePath = GetCachePath(consoleId);
+        var cachePath = GetCachePath(cacheDirectory, consoleId);
         if (!File.Exists(cachePath))
             return null;
 
@@ -244,14 +255,15 @@ public sealed class RetroAchievementsGameCatalogService
 
     private async Task TrySaveCacheAsync(
         CacheDocument cache,
+        string cacheDirectory,
         CancellationToken cancellationToken)
     {
-        var cachePath = GetCachePath(cache.ConsoleId);
+        var cachePath = GetCachePath(cacheDirectory, cache.ConsoleId);
         var tempPath = cachePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
 
         try
         {
-            Directory.CreateDirectory(_cacheDirectory);
+            Directory.CreateDirectory(cacheDirectory);
             await using (var stream = new FileStream(
                              tempPath,
                              FileMode.Create,
@@ -280,8 +292,8 @@ public sealed class RetroAchievementsGameCatalogService
         }
     }
 
-    private string GetCachePath(uint consoleId) =>
-        Path.Combine(_cacheDirectory, $"games-{consoleId}.json");
+    private static string GetCachePath(string cacheDirectory, uint consoleId) =>
+        Path.Combine(cacheDirectory, $"games-{consoleId}.json");
 
     private static bool IsFresh(CacheDocument cache, DateTimeOffset now) =>
         cache.FetchedAtUtc <= now && now - cache.FetchedAtUtc < CacheLifetime;

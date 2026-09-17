@@ -8,15 +8,6 @@ public static class PortableEnvironment
 {
     private readonly record struct PortableHomeMode(bool Enabled, bool Force);
 
-    internal static string? GetConfiguredPortableCacheRoot()
-    {
-        if (!IsRunningFromAppImage())
-            return null;
-
-        var mode = ReadPortableHomeMode();
-        return GetPortableCacheRoot(mode.Enabled);
-    }
-
     internal static string? GetPortableCacheRoot(bool enabled)
     {
         if (!enabled || !IsRunningFromAppImage())

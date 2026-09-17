@@ -126,6 +126,32 @@ public sealed class RetroAchievementsBadgeServiceTests
         Assert.Null(await download);
     }
 
+    [Fact]
+    public async Task GetBadgePathAsync_FollowsChangedSharedCacheRoot()
+    {
+        using var temp = new TemporaryDirectory();
+        var firstRoot = temp.GetPath("first-cache");
+        var secondRoot = temp.GetPath("second-cache");
+        var cachePaths = new RetroAchievementsCachePathProvider(firstRoot);
+        var requestCount = 0;
+        var httpClient = new HttpClient(new StubHandler((request, cancellationToken) =>
+        {
+            requestCount++;
+            return Task.FromResult(PngResponse());
+        }));
+        var service = new RetroAchievementsBadgeService(httpClient, cachePaths);
+
+        var firstPath = await service.GetBadgePathAsync("250336", isUnlocked: true);
+        cachePaths.SetCacheDirectory(secondRoot);
+        var secondPath = await service.GetBadgePathAsync("250336", isUnlocked: true);
+
+        Assert.Equal(Path.Combine(firstRoot, "Badges", "250336.png"), firstPath);
+        Assert.Equal(Path.Combine(secondRoot, "Badges", "250336.png"), secondPath);
+        Assert.Equal(2, requestCount);
+        Assert.True(File.Exists(firstPath));
+        Assert.True(File.Exists(secondPath));
+    }
+
     private static RetroAchievementsBadgeService CreateService(
         Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> responseFactory,
         string cacheDirectory)

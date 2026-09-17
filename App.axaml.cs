@@ -280,6 +280,7 @@ public partial class App : Application
 
         services.AddSingleton<RetroAchievementsApiClient>();
         services.AddSingleton<RetroAchievementsAccountService>();
+        services.AddSingleton<RetroAchievementsCachePathProvider>();
         services.AddSingleton<IRetroAchievementsHashService, RetroAchievementsHashService>();
         services.AddSingleton<RetroAchievementsGameCatalogService>();
         services.AddSingleton<IRetroAchievementsGameIdentificationService, RetroAchievementsGameIdentificationService>();

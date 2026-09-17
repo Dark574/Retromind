@@ -28,7 +28,7 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
     private readonly RetroAchievementsAccountService _accountService;
     private readonly RetroAchievementsApiClient _apiClient;
     private readonly TimeProvider _timeProvider;
-    private readonly string _cacheDirectory;
+    private readonly Func<string> _cacheDirectoryProvider;
     private readonly ConcurrentDictionary<ProgressCacheKey, CacheEntry> _cache = new();
     private readonly ConcurrentDictionary<ProgressCacheKey, SemaphoreSlim> _gates = new();
     private readonly ConcurrentDictionary<ProgressCacheKey, byte> _invalidated = new();
@@ -36,16 +36,16 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
     public RetroAchievementsProgressService(
         AppSettings settings,
         RetroAchievementsAccountService accountService,
-        RetroAchievementsApiClient apiClient)
+        RetroAchievementsApiClient apiClient,
+        RetroAchievementsCachePathProvider cachePathProvider)
         : this(
             settings,
             accountService,
             apiClient,
             TimeProvider.System,
-            Path.Combine(
-                RetroAchievementsGameCatalogService.GetCacheDirectory(
-                    settings?.UsePortableHomeInAppImage ?? false),
-                "Progress"))
+            cachePathProvider == null
+                ? throw new ArgumentNullException(nameof(cachePathProvider))
+                : cachePathProvider.GetProgressCacheDirectory)
     {
     }
 
@@ -55,13 +55,29 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
         RetroAchievementsApiClient apiClient,
         TimeProvider timeProvider,
         string cacheDirectory)
+        : this(
+            settings,
+            accountService,
+            apiClient,
+            timeProvider,
+            () => Path.GetFullPath(cacheDirectory))
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
+    }
+
+    private RetroAchievementsProgressService(
+        AppSettings settings,
+        RetroAchievementsAccountService accountService,
+        RetroAchievementsApiClient apiClient,
+        TimeProvider timeProvider,
+        Func<string> cacheDirectoryProvider)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _accountService = accountService ?? throw new ArgumentNullException(nameof(accountService));
         _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-        ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
-        _cacheDirectory = Path.GetFullPath(cacheDirectory);
+        _cacheDirectoryProvider = cacheDirectoryProvider ??
+                                  throw new ArgumentNullException(nameof(cacheDirectoryProvider));
     }
 
     public async Task<RetroAchievementsProgressSnapshot> GetProgressAsync(
@@ -88,6 +104,7 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
         var cacheKey = new ProgressCacheKey(
             HashUserIdentifier(userIdentifier),
             gameId);
+        var cacheDirectory = _cacheDirectoryProvider();
         forceRefresh |= _invalidated.ContainsKey(cacheKey);
         var now = _timeProvider.GetUtcNow();
         if (!forceRefresh && TryGetFresh(cacheKey, now, out var cached))
@@ -105,7 +122,7 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
             _cache.TryGetValue(cacheKey, out var fallback);
             if (fallback == null)
             {
-                fallback = await TryLoadCacheAsync(cacheKey, cancellationToken)
+                fallback = await TryLoadCacheAsync(cacheKey, cacheDirectory, cancellationToken)
                     .ConfigureAwait(false);
                 if (fallback != null)
                     _cache[cacheKey] = fallback;
@@ -135,7 +152,7 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
                 var refreshed = new CacheEntry(progress, _timeProvider.GetUtcNow());
                 _cache[cacheKey] = refreshed;
                 _invalidated.TryRemove(cacheKey, out _);
-                await TrySaveCacheAsync(cacheKey, refreshed, cancellationToken)
+                await TrySaveCacheAsync(cacheKey, refreshed, cacheDirectory, cancellationToken)
                     .ConfigureAwait(false);
                 return CreateSnapshot(refreshed, usedCachedFallback: false);
             }
@@ -175,9 +192,10 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
 
     private async Task<CacheEntry?> TryLoadCacheAsync(
         ProgressCacheKey key,
+        string cacheDirectory,
         CancellationToken cancellationToken)
     {
-        var cachePath = GetCachePath(key);
+        var cachePath = GetCachePath(cacheDirectory, key);
         if (!File.Exists(cachePath))
             return null;
 
@@ -223,10 +241,11 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
     private async Task TrySaveCacheAsync(
         ProgressCacheKey key,
         CacheEntry entry,
+        string cacheDirectory,
         CancellationToken cancellationToken)
     {
-        var cachePath = GetCachePath(key);
-        var cacheDirectory = Path.GetDirectoryName(cachePath)!;
+        var cachePath = GetCachePath(cacheDirectory, key);
+        var targetDirectory = Path.GetDirectoryName(cachePath)!;
         var tempPath = cachePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         var document = new CacheDocument
         {
@@ -238,7 +257,7 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
 
         try
         {
-            Directory.CreateDirectory(cacheDirectory);
+            Directory.CreateDirectory(targetDirectory);
             await using (var stream = new FileStream(
                              tempPath,
                              FileMode.CreateNew,
@@ -267,9 +286,9 @@ public sealed class RetroAchievementsProgressService : IRetroAchievementsProgres
         }
     }
 
-    private string GetCachePath(ProgressCacheKey key) =>
+    private static string GetCachePath(string cacheDirectory, ProgressCacheKey key) =>
         Path.Combine(
-            _cacheDirectory,
+            cacheDirectory,
             key.UserIdentifierHash,
             $"game-{key.GameId}.json");
 

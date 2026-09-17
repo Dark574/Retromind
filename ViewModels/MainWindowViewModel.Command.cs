@@ -1488,10 +1488,15 @@ public partial class MainWindowViewModel
             var settingsSaved = await SaveData();
             if (settingsSaved && !_settingsService.HasLoadFailure)
             {
+                var portableHomeIsEnabled = _currentSettings.UsePortableHomeInAppImage;
                 await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
                     portableHomeWasEnabled,
-                    _currentSettings.UsePortableHomeInAppImage);
-                await RetroAchievementsProgress.SelectItemAsync(GetCurrentSelectedItem());
+                    portableHomeIsEnabled);
+                var cacheLocationChanged =
+                    _retroAchievementsCachePathProvider.UsePortableHome(portableHomeIsEnabled);
+                await RetroAchievementsProgress.SelectItemAsync(
+                    GetCurrentSelectedItem(),
+                    forceRefresh: cacheLocationChanged);
             }
         }
         else if (settingsVm.LibraryModified)

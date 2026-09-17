@@ -5,7 +5,6 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Retromind.Models;
 
 namespace Retromind.Services.RetroAchievements;
 
@@ -21,25 +20,34 @@ public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeServi
     private static readonly byte[] PngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
 
     private readonly HttpClient _httpClient;
-    private readonly string _cacheDirectory;
+    private readonly Func<string> _cacheDirectoryProvider;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _downloadGates =
         new(StringComparer.Ordinal);
 
-    public RetroAchievementsBadgeService(HttpClient httpClient, AppSettings settings)
+    public RetroAchievementsBadgeService(
+        HttpClient httpClient,
+        RetroAchievementsCachePathProvider cachePathProvider)
         : this(
             httpClient,
-            Path.Combine(
-                RetroAchievementsGameCatalogService.GetCacheDirectory(
-                    settings?.UsePortableHomeInAppImage ?? false),
-                "Badges"))
+            cachePathProvider == null
+                ? throw new ArgumentNullException(nameof(cachePathProvider))
+                : cachePathProvider.GetBadgeCacheDirectory)
     {
     }
 
     internal RetroAchievementsBadgeService(HttpClient httpClient, string cacheDirectory)
+        : this(httpClient, () => Path.GetFullPath(cacheDirectory))
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
+    }
+
+    private RetroAchievementsBadgeService(
+        HttpClient httpClient,
+        Func<string> cacheDirectoryProvider)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
-        _cacheDirectory = Path.GetFullPath(cacheDirectory);
+        _cacheDirectoryProvider = cacheDirectoryProvider ??
+                                  throw new ArgumentNullException(nameof(cacheDirectoryProvider));
     }
 
     public async Task<string?> GetBadgePathAsync(
@@ -56,7 +64,8 @@ public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeServi
             var fileStem = isUnlocked
                 ? normalizedBadgeName
                 : normalizedBadgeName + "_lock";
-            var cachePath = Path.Combine(_cacheDirectory, fileStem + ".png");
+            var cacheDirectory = _cacheDirectoryProvider();
+            var cachePath = Path.Combine(cacheDirectory, fileStem + ".png");
             if (await IsValidPngAsync(cachePath, cancellationToken).ConfigureAwait(false))
                 return cachePath;
 
@@ -71,6 +80,7 @@ public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeServi
                 return await TryDownloadBadgeAsync(
                         fileStem,
                         cachePath,
+                        cacheDirectory,
                         cancellationToken)
                     .ConfigureAwait(false)
                     ? cachePath
@@ -92,6 +102,7 @@ public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeServi
     private async Task<bool> TryDownloadBadgeAsync(
         string fileStem,
         string cachePath,
+        string cacheDirectory,
         CancellationToken cancellationToken)
     {
         var tempPath = cachePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -116,7 +127,7 @@ public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeServi
                 return false;
             }
 
-            Directory.CreateDirectory(_cacheDirectory);
+            Directory.CreateDirectory(cacheDirectory);
             await using (var source = await response.Content
                              .ReadAsStreamAsync(cancellationToken)
                              .ConfigureAwait(false))
