@@ -67,6 +67,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaNode?> ImportRomsCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ImportSteamCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ImportEpicCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> IdentifyNodeWithRetroAchievementsCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand<MediaItem?> ScrapeMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ScrapeNodeCommand { get; private set; } = null!;
@@ -83,6 +84,9 @@ public partial class MainWindowViewModel
     public string TestPlayMediaMenuText => T("Ctx.Media.TestLaunch", "Test launch (without tracking)");
     public string MoveMediaMenuText => T("Ctx.Media.Move", "Move to category...");
     public string BulkEditSelectedMediaText => T("BulkEdit.Selection.Edit", "Edit selected...");
+    public string RetroAchievementsSearchAllText => T(
+        "RetroAchievements_SearchAll",
+        "Search RetroAchievements (All)...");
     public string StatisticsButtonToolTip => T("Statistics.Title", "Library statistics");
     public string GogReinstallMenuText => T("Gog.Media.ReinstallMenu", "Reinstall / Switch Version");
     public string GogUninstallMenuText => T("Gog.Uninstall.ContextMenu", "Uninstall");
@@ -127,6 +131,9 @@ public partial class MainWindowViewModel
         ImportRomsCommand = new AsyncRelayCommand<MediaNode?>(ImportRomsAsync, CanOperateOnNode);
         ImportSteamCommand = new AsyncRelayCommand<MediaNode?>(ImportSteamAsync, CanOperateOnNode);
         ImportEpicCommand = new AsyncRelayCommand<MediaNode?>(ImportEpicAsync, CanOperateOnNode);
+        IdentifyNodeWithRetroAchievementsCommand = new AsyncRelayCommand<MediaNode?>(
+            IdentifyNodeWithRetroAchievementsAsync,
+            CanIdentifyNodeWithRetroAchievements);
         
         ScrapeMediaCommand = new AsyncRelayCommand<MediaItem?>(ScrapeMediaAsync);
         ScrapeNodeCommand = new AsyncRelayCommand<MediaNode?>(ScrapeNodeAsync, CanOperateOnNode);
@@ -711,6 +718,7 @@ public partial class MainWindowViewModel
         ImportSteamCommand.NotifyCanExecuteChanged();
         ImportEpicCommand.NotifyCanExecuteChanged();
         ScrapeNodeCommand.NotifyCanExecuteChanged();
+        IdentifyNodeWithRetroAchievementsCommand.NotifyCanExecuteChanged();
     }
     
     private async Task AddCategoryAsync(MediaNode? parentNode)
@@ -808,6 +816,7 @@ public partial class MainWindowViewModel
         {
             _libraryTracker.MarkDirty();
             await SaveData();
+            NotifyNodeCommandsCanExecuteChanged();
             
             if (wasSelected)
             {
@@ -1475,6 +1484,7 @@ public partial class MainWindowViewModel
         if (settingsVm.IsSaved)
         {
             _metadataService.ClearProviderCache();
+            NotifyNodeCommandsCanExecuteChanged();
             var settingsSaved = await SaveData();
             if (settingsSaved && !_settingsService.HasLoadFailure)
             {

@@ -966,4 +966,19 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="RetroAchievements_AchievementCasual" xml:space="preserve"><value>Casual</value></data>
     <data name="RetroAchievements_AchievementHardcore" xml:space="preserve"><value>Hardcore</value></data>
     <data name="RetroAchievements_AchievementUnlockedAtFormat" xml:space="preserve"><value>{0} · Freigeschaltet am {1:g}</value></data>
+    <data name="RetroAchievements_SearchAll" xml:space="preserve"><value>RetroAchievements suchen (alle)...</value></data>
+    <data name="RetroAchievements_AccountRequired" xml:space="preserve"><value>Richte vor der Erkennung in den Einstellungen ein RetroAchievements-Konto mit Web-API-Schlüssel ein.</value></data>
+    <data name="RetroAchievements_BulkTitle" xml:space="preserve"><value>RetroAchievements-Massenerkennung</value></data>
+    <data name="RetroAchievements_BulkStartingFormat" xml:space="preserve"><value>{0:N0} Spiele werden geprüft...</value></data>
+    <data name="RetroAchievements_BulkProgressFormat" xml:space="preserve"><value>[{0:N0}/{1:N0}] {2}: {3}</value></data>
+    <data name="RetroAchievements_BulkIdentifiedFormat" xml:space="preserve"><value>Als {0} erkannt.</value></data>
+    <data name="RetroAchievements_BulkNoMatch" xml:space="preserve"><value>Kein passendes Spiel gefunden.</value></data>
+    <data name="RetroAchievements_BulkSkippedExisting" xml:space="preserve"><value>Übersprungen: bereits erkannt.</value></data>
+    <data name="RetroAchievements_BulkSkippedSystem" xml:space="preserve"><value>Übersprungen: kein Spielsystem zugewiesen.</value></data>
+    <data name="RetroAchievements_BulkSkippedFile" xml:space="preserve"><value>Übersprungen: keine Startdatei zugewiesen.</value></data>
+    <data name="RetroAchievements_BulkFailedFormat" xml:space="preserve"><value>Fehlgeschlagen: {0}</value></data>
+    <data name="RetroAchievements_BulkSummaryFormat" xml:space="preserve"><value>Abgeschlossen: {0:N0} erkannt, {1:N0} ohne Treffer, {2:N0} übersprungen, {3:N0} fehlgeschlagen.</value></data>
+    <data name="RetroAchievements_BulkCancelled" xml:space="preserve"><value>Die Erkennung wurde abgebrochen. Bereits ermittelte Treffer wurden übernommen.</value></data>
+    <data name="RetroAchievements_BulkSaveFailed" xml:space="preserve"><value>Die erkannten Spiele wurden im Arbeitsspeicher geändert, die Bibliothek konnte jedoch nicht gespeichert werden.</value></data>
+    <data name="RetroAchievements_BulkUnexpectedFailureFormat" xml:space="preserve"><value>Die Erkennung ist unerwartet fehlgeschlagen: {0}</value></data>
 </root>

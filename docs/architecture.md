@@ -238,6 +238,10 @@ separate statistics database or persisted aggregate state.
 - the media editor can stage this identification without mutating the library; saving persists the game ID,
   console ID, system ID, hash, and provider title on `MediaItem`, while canceling or changing the staged game
   system/launch file discards the staged assignment
+- a node action can run the same identification pipeline sequentially across that node and its descendants, while
+  local-folder ROM imports invoke it automatically for their new items when the target node has an effective game
+  system. Already identified or incomplete items are skipped, individual failures do not stop a batch, and
+  cancellation retains completed matches
 - `RetroAchievementsApiClient` uses the stable account ULID with the official game-info-and-user-progress
   endpoint to retrieve typed achievement definitions, casual/hardcore unlock timestamps, and summary progress;
   these user-specific responses are kept separate from the long-lived public game-catalog cache

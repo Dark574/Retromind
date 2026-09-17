@@ -260,6 +260,10 @@
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeNodeCommand}"
                                                              CommandParameter="{Binding .}"
                                                              FontWeight="Bold" />
+                                                   <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RetroAchievementsSearchAllText}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IdentifyNodeWithRetroAchievementsCommand}"
+                                                             CommandParameter="{Binding .}"
+                                                             FontWeight="Bold" />
                                                    <Separator/>
                                                    <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"

@@ -156,6 +156,28 @@ public sealed class RetroAchievementsProgressViewModelTests
         Assert.Equal(456, viewModel.Snapshot?.Progress.GameId);
     }
 
+    [Fact]
+    public async Task SelectItemAsync_DoesNotRestartInFlightRequestForSameGame()
+    {
+        var result = new TaskCompletionSource<RetroAchievementsProgressSnapshot>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestCount = 0;
+        using var viewModel = CreateViewModel((gameId, forceRefresh, cancellationToken) =>
+        {
+            requestCount++;
+            return result.Task;
+        });
+        var item = CreateIdentifiedItem(gameId: 123);
+
+        var firstLoad = viewModel.SelectItemAsync(item);
+        await viewModel.SelectItemAsync(item);
+        result.SetResult(CreateSnapshot(gameId: 123));
+        await firstLoad;
+
+        Assert.Equal(1, requestCount);
+        Assert.Equal(123, viewModel.Snapshot?.Progress.GameId);
+    }
+
     private static RetroAchievementsProgressViewModel CreateViewModel(
         Func<int, bool, CancellationToken, Task<RetroAchievementsProgressSnapshot>> getProgress)
     {

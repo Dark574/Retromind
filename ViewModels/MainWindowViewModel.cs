@@ -53,6 +53,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly LibraryChangeTracker _libraryTracker;
     private readonly RetroAchievementsAccountService _retroAchievementsAccountService;
     private readonly IRetroAchievementsGameIdentificationService _retroAchievementsGameIdentificationService;
+    private readonly RetroAchievementsBulkIdentificationService _retroAchievementsBulkIdentificationService;
 
     // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
     private readonly HttpClient _httpClient;
@@ -348,6 +349,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IDocumentService documentService,
         RetroAchievementsAccountService retroAchievementsAccountService,
         IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService,
+        RetroAchievementsBulkIdentificationService retroAchievementsBulkIdentificationService,
         IRetroAchievementsProgressService retroAchievementsProgressService)
     {
         _audioService = audioService;
@@ -368,6 +370,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _documentService = documentService;
         _retroAchievementsAccountService = retroAchievementsAccountService;
         _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService;
+        _retroAchievementsBulkIdentificationService = retroAchievementsBulkIdentificationService;
         RetroAchievementsProgress = new RetroAchievementsProgressViewModel(
             _currentSettings,
             retroAchievementsProgressService);

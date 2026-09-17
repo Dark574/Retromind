@@ -964,4 +964,19 @@ The current application settings will be kept.</value></data>
     <data name="RetroAchievements_AchievementCasual" xml:space="preserve"><value>Casual</value></data>
     <data name="RetroAchievements_AchievementHardcore" xml:space="preserve"><value>Hardcore</value></data>
     <data name="RetroAchievements_AchievementUnlockedAtFormat" xml:space="preserve"><value>{0} · Unlocked {1:g}</value></data>
+    <data name="RetroAchievements_SearchAll" xml:space="preserve"><value>Search RetroAchievements (All)...</value></data>
+    <data name="RetroAchievements_AccountRequired" xml:space="preserve"><value>Configure a RetroAchievements account and Web API key in the settings before starting identification.</value></data>
+    <data name="RetroAchievements_BulkTitle" xml:space="preserve"><value>RetroAchievements mass identification</value></data>
+    <data name="RetroAchievements_BulkStartingFormat" xml:space="preserve"><value>Checking {0:N0} games...</value></data>
+    <data name="RetroAchievements_BulkProgressFormat" xml:space="preserve"><value>[{0:N0}/{1:N0}] {2}: {3}</value></data>
+    <data name="RetroAchievements_BulkIdentifiedFormat" xml:space="preserve"><value>Identified as {0}.</value></data>
+    <data name="RetroAchievements_BulkNoMatch" xml:space="preserve"><value>No matching game found.</value></data>
+    <data name="RetroAchievements_BulkSkippedExisting" xml:space="preserve"><value>Skipped: already identified.</value></data>
+    <data name="RetroAchievements_BulkSkippedSystem" xml:space="preserve"><value>Skipped: no game system assigned.</value></data>
+    <data name="RetroAchievements_BulkSkippedFile" xml:space="preserve"><value>Skipped: no launch file assigned.</value></data>
+    <data name="RetroAchievements_BulkFailedFormat" xml:space="preserve"><value>Failed: {0}</value></data>
+    <data name="RetroAchievements_BulkSummaryFormat" xml:space="preserve"><value>Finished: {0:N0} identified, {1:N0} without a match, {2:N0} skipped, {3:N0} failed.</value></data>
+    <data name="RetroAchievements_BulkCancelled" xml:space="preserve"><value>Identification was canceled. Completed matches were retained.</value></data>
+    <data name="RetroAchievements_BulkSaveFailed" xml:space="preserve"><value>The identified games were changed in memory, but the library could not be saved.</value></data>
+    <data name="RetroAchievements_BulkUnexpectedFailureFormat" xml:space="preserve"><value>Identification failed unexpectedly: {0}</value></data>
 </root>

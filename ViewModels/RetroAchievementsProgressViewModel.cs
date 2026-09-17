@@ -20,6 +20,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private readonly IRetroAchievementsProgressService _progressService;
     private CancellationTokenSource? _loadCts;
     private MediaItem? _selectedItem;
+    private int _selectedGameId;
     private bool _isVisible;
     private bool _isLoading;
     private string _statusText = string.Empty;
@@ -158,10 +159,19 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        var gameId = item?.RetroAchievementsGame?.GameId ?? 0;
+        if (!forceRefresh &&
+            ReferenceEquals(_selectedItem, item) &&
+            _selectedGameId == gameId &&
+            (IsLoading || Snapshot?.Progress.GameId == gameId))
+        {
+            return;
+        }
+
         _selectedItem = item;
+        _selectedGameId = gameId;
         CancelCurrentLoad();
 
-        var gameId = item?.RetroAchievementsGame?.GameId ?? 0;
         IsVisible = _settings.RetroAchievements?.Enabled == true && gameId > 0;
         if (!forceRefresh)
             Snapshot = null;
@@ -251,6 +261,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     {
         return ReferenceEquals(_loadCts, requestCts) &&
                ReferenceEquals(_selectedItem, item) &&
+               _selectedGameId == gameId &&
                item?.RetroAchievementsGame?.GameId == gameId;
     }
 

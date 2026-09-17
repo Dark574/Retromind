@@ -639,6 +639,11 @@ public partial class MainWindowViewModel
 
         ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
 
+        // A configured game system makes imported ROMs immediately eligible for
+        // RetroAchievements identification. Cancellation only stops identification;
+        // the selected files are still imported normally.
+        await IdentifyImportedRomsWithRetroAchievementsAsync(owner, targetNode, itemsToAdd);
+
         // 2) Scan assets off the UI thread (filesystem only)
         var scanned = await Task.Run(() =>
         {
