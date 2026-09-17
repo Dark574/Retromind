@@ -581,7 +581,10 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService,
         EmulatorConfig? inheritedEmulator = null,
         ObservableCollection<MediaNode>? rootNodes = null,
-        MediaNode? parentNode = null)
+        MediaNode? parentNode = null,
+        Func<Window, Task<bool>>? gogInstallOrReinstall = null,
+        Func<Window, Task<bool>>? gogUpdate = null,
+        Func<Window, Task<bool>>? gogUninstall = null)
     {
         _originalItem = item;
         _editedFiles = CloneFiles(item.Files);
@@ -594,6 +597,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         _settings = settings;
         _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService ??
             throw new ArgumentNullException(nameof(retroAchievementsGameIdentificationService));
+        InitializeGogManagement(gogInstallOrReinstall, gogUpdate, gogUninstall);
         _metadataSuggestionService = new MetadataSuggestionService(_rootNodes, _parentNode);
         _assetsChangedHandler = (_, _) => ScheduleSortAssets();
         _originalItem.Assets.CollectionChanged += _assetsChangedHandler;

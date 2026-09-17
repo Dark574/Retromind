@@ -239,6 +239,10 @@ separate statistics database or persisted aggregate state.
 - the media editor can stage this identification without mutating the library; saving persists the game ID,
   console ID, system ID, hash, and provider title on `MediaItem`, while canceling or changing the staged game
   system/launch file discards the staged assignment
+- GOG-linked items expose install/reinstall, update, and uninstall actions in a dedicated media-editor section.
+  These store operations reuse the MainWindow workflows and persist immediately; after success, the editor reloads
+  only the affected launch configuration so staged metadata remains intact and cannot overwrite store-generated
+  launch settings on a later save
 - a node action can run the same identification pipeline sequentially across that node and its descendants, while
   local-folder ROM imports invoke it automatically for their new items when the target node has an effective game
   system. Already identified or incomplete items are skipped, individual failures do not stop a batch, and

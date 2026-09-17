@@ -1162,16 +1162,46 @@ public partial class MainWindowViewModel
         }
     }
 
+    private async Task<bool> RunGogInstallFromEditorAsync(
+        MediaItem item,
+        Window owner,
+        bool requireAvailableUpdate)
+    {
+        if (IsLaunchInProgress ||
+            GogMediaItemStateHelper.TryGetGameId(item) == null ||
+            (requireAvailableUpdate && !GogMediaItemStateHelper.HasUpdateAvailable(item)))
+        {
+            return false;
+        }
+
+        IsLaunchInProgress = true;
+        try
+        {
+            return await InstallGogItemAsync(item, owner);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Error] GOG install from media editor failed: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            IsLaunchInProgress = false;
+        }
+    }
+
     private async Task UninstallGogMediaAsync(MediaItem? item)
     {
-        if (!CanUninstallGogMedia(item) || item == null)
+        if (item == null || CurrentWindow is not { } owner)
             return;
 
-        if (IsLaunchInProgress)
-            return;
+        _ = await RunGogUninstallAsync(item, owner);
+    }
 
-        if (CurrentWindow is not { } owner)
-            return;
+    private async Task<bool> RunGogUninstallAsync(MediaItem item, Window owner)
+    {
+        if (!CanUninstallGogMedia(item))
+            return false;
 
         var confirmMessage = string.Format(
             Strings.Gog_Uninstall_ConfirmMessage,
@@ -1179,7 +1209,7 @@ public partial class MainWindowViewModel
 
         var confirmed = await ShowConfirmDialog(owner, confirmMessage);
         if (!confirmed)
-            return;
+            return false;
 
         IsLaunchInProgress = true;
         try
@@ -1192,12 +1222,14 @@ public partial class MainWindowViewModel
             NotifyPlayAvailabilityChanged();
 
             await ShowInfoDialog(owner, Strings.Gog_Uninstall_Success);
+            return true;
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[Error] UninstallGogMedia failed: {ex.Message}");
             await ShowInfoDialog(owner,
                 string.Format(Strings.Gog_Uninstall_FailedWithMessage, ex.Message));
+            return false;
         }
         finally
         {

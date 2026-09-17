@@ -31,18 +31,19 @@ public partial class MainWindowViewModel
     private bool ShouldOfferInstallForItem(MediaItem? item)
         => GogMediaItemStateHelper.ShouldOfferInstall(item);
 
-    private async Task InstallGogItemAsync(MediaItem item)
+    private async Task<bool> InstallGogItemAsync(MediaItem item, Window? ownerOverride = null)
     {
-        if (CurrentWindow is not { } owner)
-            return;
+        var owner = ownerOverride ?? CurrentWindow;
+        if (owner == null)
+            return false;
 
         var storeGameId = GogMediaItemStateHelper.TryGetGameId(item);
         if (string.IsNullOrWhiteSpace(storeGameId))
-            return;
+            return false;
 
         var signedIn = await EnsureGogSignInForInstallAsync(owner);
         if (!signedIn)
-            return;
+            return false;
 
         IReadOnlyList<GogInstallPlatform> availablePlatforms;
         try
@@ -58,7 +59,7 @@ public partial class MainWindowViewModel
             Debug.WriteLine($"[GOG] Installer platform query auth issue: {ex.Message}");
             var reloginSucceeded = await EnsureGogSignInForInstallAsync(owner, forceInteractiveSignIn: true);
             if (!reloginSucceeded)
-                return;
+                return false;
 
             try
             {
@@ -76,7 +77,7 @@ public partial class MainWindowViewModel
                     string.Format(
                         T("Gog.Install.ResolveFailedFormat", "GOG installer metadata could not be loaded: {0}"),
                         BuildShortErrorDetail(retryEx)));
-                return;
+                return false;
             }
         }
         catch (Exception ex)
@@ -87,7 +88,7 @@ public partial class MainWindowViewModel
                 string.Format(
                     T("Gog.Install.ResolveFailedFormat", "GOG installer metadata could not be loaded: {0}"),
                     BuildShortErrorDetail(ex)));
-            return;
+            return false;
         }
 
         if (availablePlatforms.Count == 0)
@@ -95,7 +96,7 @@ public partial class MainWindowViewModel
             await ShowInfoDialog(
                 owner,
                 T("Gog.Install.NoInstallerAvailable", "No installable package is available for this GOG title."));
-            return;
+            return false;
         }
 
         var defaultInstallPath = ResolveDefaultGogInstallPath(item, storeGameId);
@@ -115,11 +116,11 @@ public partial class MainWindowViewModel
         var dialog = new GogInstallDialogView { DataContext = dialogVm };
         var accepted = await dialog.ShowDialog<bool>(owner);
         if (!accepted || dialogVm.Result == null)
-            return;
+            return false;
 
         var installRequest = dialogVm.Result;
         if (!await ValidateGogInstallRuntimeRequirementsAsync(owner, installRequest))
-            return;
+            return false;
 
         GogInstallerPackage? installerPackage;
         try
@@ -137,7 +138,7 @@ public partial class MainWindowViewModel
             Debug.WriteLine($"[GOG] Installer resolve auth issue: {ex.Message}");
             var reloginSucceeded = await EnsureGogSignInForInstallAsync(owner, forceInteractiveSignIn: true);
             if (!reloginSucceeded)
-                return;
+                return false;
 
             try
             {
@@ -157,7 +158,7 @@ public partial class MainWindowViewModel
                     string.Format(
                         T("Gog.Install.ResolveFailedFormat", "GOG installer metadata could not be loaded: {0}"),
                         BuildShortErrorDetail(retryEx)));
-                return;
+                return false;
             }
         }
         catch (Exception ex)
@@ -168,7 +169,7 @@ public partial class MainWindowViewModel
                 string.Format(
                     T("Gog.Install.ResolveFailedFormat", "GOG installer metadata could not be loaded: {0}"),
                     BuildShortErrorDetail(ex)));
-            return;
+            return false;
         }
 
         if (installerPackage == null)
@@ -181,13 +182,13 @@ public partial class MainWindowViewModel
                 string.Format(
                     T("Gog.Install.NoInstallerForPlatformFormat", "No installer found for platform: {0}."),
                     platformName));
-            return;
+            return false;
         }
 
         var selectedInstallerPackage = SelectInstallerPackageForRequest(installerPackage, installRequest);
 
         if (!await PrepareGogInstallDirectoryAsync(owner, item, installRequest))
-            return;
+            return false;
 
         var platformFolder = installRequest.Platform == GogInstallPlatform.Windows ? "windows" : "linux";
         var stagingRoot = Path.Combine(
@@ -272,7 +273,7 @@ public partial class MainWindowViewModel
                     T(
                         "Gog.Install.StagingPreserved",
                         "Staging files preserved for resume on next attempt."));
-                return;
+                return false;
             }
             catch (Exception ex)
             {
@@ -282,7 +283,7 @@ public partial class MainWindowViewModel
                     string.Format(
                         T("Gog.Install.DownloadFailedFormat", "GOG installer download failed: {0}"),
                         BuildShortErrorDetail(ex)));
-                return;
+                return false;
             }
 
             AppendProcessLog(progressLogVm, "[Install] Starting installer execution...");
@@ -301,7 +302,7 @@ public partial class MainWindowViewModel
                         T("Gog.Install.RunFailedFormat", "Installer execution failed: {0}"),
                         runResult.ErrorMessage);
                 AppendProcessLog(progressLogVm, message);
-                return;
+                return false;
             }
 
             AppendProcessLog(progressLogVm, "[Detect] Resolving launch executable...");
@@ -322,7 +323,7 @@ public partial class MainWindowViewModel
                         T(
                             "Gog.Install.DetectExecutableFailed",
                             "Installation finished, but Retromind could not detect a launch executable automatically. Configure launch settings manually."));
-                    return;
+                    return false;
                 }
             }
 
@@ -334,7 +335,7 @@ public partial class MainWindowViewModel
                     T(
                         "Gog.Install.ApplyLaunchFailed",
                         "Installation finished, but launch configuration could not be applied."));
-                return;
+                return false;
             }
 
             item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = GogInstallPathHelper.ToStoredPath(
@@ -387,6 +388,8 @@ public partial class MainWindowViewModel
             progressLogVm.MarkFinished();
             UiThreadHelper.Post(() => progressLogVm.IsRunning = false);
         }
+
+        return true;
     }
 
     private async Task<bool> PrepareGogInstallDirectoryAsync(

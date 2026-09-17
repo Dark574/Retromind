@@ -235,6 +235,10 @@
     <data name="EditMedia.Tab_General" xml:space="preserve"><value>Allgemein</value></data>
     <data name="EditMedia.Tab_LaunchOptions" xml:space="preserve"><value>Startoptionen</value></data>
     <data name="EditMedia.Tab_MediaAssets" xml:space="preserve"><value>Medien</value></data>
+    <data name="EditMedia.GogManagementHint" xml:space="preserve"><value>Store-Aktionen werden sofort ausgeführt. Erfolgreich geänderte Starteinstellungen werden anschließend in diesem Editor neu geladen.</value></data>
+    <data name="EditMedia.GogStatusInstalled" xml:space="preserve"><value>Installiert</value></data>
+    <data name="EditMedia.GogStatusNotInstalled" xml:space="preserve"><value>Nicht installiert</value></data>
+    <data name="EditMedia.GogStatusUpdateAvailable" xml:space="preserve"><value>Installiert – Update verfügbar</value></data>
     <data name="EditMedia.Tab_Prefix" xml:space="preserve"><value>Prefix (Wine/Proton/UMU)</value></data>
     <data name="EditMedia.AssetsPrefixLabel" xml:space="preserve"><value>Asset-Präfix:</value></data>
     <data name="EditMedia.AssetsPrefixHint" xml:space="preserve"><value>Dieses Präfix verwenden, wenn du Dateien manuell im Library-Ordner hinzufügst.</value></data>

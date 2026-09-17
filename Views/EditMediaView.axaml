@@ -8,8 +8,8 @@
         x:Class="Retromind.Views.EditMediaView"
         x:DataType="vm:EditMediaViewModel"
         Title="{x:Static p:Strings.Dialog_EditMedia}"
-        Width="800" Height="850"
-        MinWidth="700" MinHeight="600"
+        Width="800" Height="780"
+        MinWidth="700" MinHeight="500"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         CanResize="True"
@@ -23,15 +23,71 @@
         <helpers:FileExtensionToGlyphConverter x:Key="FileExtensionToGlyphConverter" />
     </Window.Resources>
 
+    <Window.Styles>
+        <!-- Keep all editor section frames visually consistent. -->
+        <Style Selector="Expander">
+            <Setter Property="BorderBrush" Value="Gray" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+    </Window.Styles>
+
     <!-- Main grid filling the window -->
     <Grid RowDefinitions="*, Auto" Margin="10">
 
         <TabControl Grid.Row="0"
-                    HorizontalContentAlignment="Stretch">
+                    HorizontalContentAlignment="Stretch"
+                    IsEnabled="{Binding !IsGogOperationRunning}">
             <!-- TAB 1: Allgemein -->
             <TabItem Header="{x:Static p:Strings.EditMedia_Tab_General}" FontSize="16">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="10,10,20,50">
+                        <Border IsVisible="{Binding IsGogManagementVisible}"
+                                BorderBrush="Gray"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="12"
+                                Margin="0,0,0,15">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding GogManagementTitle}"
+                                               FontWeight="Bold"
+                                               FontSize="16" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding GogManagementStatusText}"
+                                               Opacity="0.7"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+
+                                <TextBlock Text="{Binding GogManagementHint}"
+                                           FontSize="11"
+                                           Opacity="0.7"
+                                           TextWrapping="Wrap" />
+
+                                <WrapPanel Orientation="Horizontal">
+                                    <Button Content="{Binding GogInstallOrReinstallText}"
+                                            Command="{Binding GogInstallOrReinstallCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            Margin="0,0,8,0" />
+                                    <Button Content="{Binding GogUpdateText}"
+                                            Command="{Binding GogUpdateCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            IsVisible="{Binding ShowGogUpdateAction}"
+                                            Margin="0,0,8,0" />
+                                    <Button Content="{Binding GogUninstallText}"
+                                            Command="{Binding GogUninstallCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            IsVisible="{Binding ShowGogUninstallAction}"
+                                            Foreground="Red" />
+                                </WrapPanel>
+
+                                <ProgressBar IsVisible="{Binding IsGogOperationRunning}"
+                                             IsIndeterminate="True"
+                                             Height="3" />
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Text="{x:Static p:Strings.Launch_Config}" FontWeight="Bold" FontSize="16" />
 
                         <!-- Emulator profile selection -->
@@ -612,13 +668,21 @@
                         </Grid>
 
                         <!-- Description -->
-                        <StackPanel>
-                            <TextBlock Text="{x:Static p:Strings.Common_Summary}" FontWeight="Bold" Margin="0,0,0,5" />
+                        <Expander IsExpanded="False"
+                                  HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Stretch">
+                            <Expander.Header>
+                                <TextBlock Text="{x:Static p:Strings.Common_Summary}"
+                                           FontWeight="Bold" />
+                            </Expander.Header>
                             <TextBox Text="{Binding Description}"
                                      AcceptsReturn="True"
                                      TextWrapping="Wrap"
-                                     Height="100" />
-                        </StackPanel>
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     Height="220"
+                                     HorizontalAlignment="Stretch"
+                                     Margin="0,8,0,0" />
+                        </Expander>
 
                         <!-- Custom fields -->
                         <StackPanel>
@@ -836,6 +900,7 @@
                     CommandParameter="{Binding $parent[Window]}"
                     Width="100"
                     HorizontalContentAlignment="Center"
+                    IsEnabled="{Binding !IsGogOperationRunning}"
                     IsCancel="True" />
             <Button Content="{x:Static p:Strings.Button_Save}"
                     Command="{Binding SaveAndCloseCommand}"
@@ -843,6 +908,7 @@
                     Classes="accent"
                     Width="100"
                     HorizontalContentAlignment="Center"
+                    IsEnabled="{Binding !IsGogOperationRunning}"
                     IsDefault="True" />
         </StackPanel>
     </Grid>

@@ -1180,7 +1180,12 @@ public partial class MainWindowViewModel
             _retroAchievementsGameIdentificationService,
             inherited,
             RootItems,
-            parentNode)
+            parentNode,
+            gogInstallOrReinstall: dialogOwner =>
+                RunGogInstallFromEditorAsync(item, dialogOwner, requireAvailableUpdate: false),
+            gogUpdate: dialogOwner =>
+                RunGogInstallFromEditorAsync(item, dialogOwner, requireAvailableUpdate: true),
+            gogUninstall: dialogOwner => RunGogUninstallAsync(item, dialogOwner))
         { 
             StorageProvider = StorageProvider ?? owner.StorageProvider 
         };

@@ -47,6 +47,9 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - normal node: opens scalable picker (search + filter + multi-select)
     - node declared as GOG node: syncs full owned library into that node (adds only missing titles)
     - newly created GOG entries now reuse existing metadata/assets from already linked items with the same `Store.GameId`
+  - GOG-linked items expose their applicable install/reinstall, update, and uninstall actions in the media editor;
+    store changes are applied immediately, while staged metadata remains untouched and changed launch settings are
+    reloaded after a successful action
   - GOG-node declaration is done in Node Settings (not via separate create action)
     - node flag: `StoreProviderId = gog`
 - Localization:
