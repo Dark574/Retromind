@@ -33,7 +33,8 @@ public partial class MainWindowViewModel
             return;
         }
 
-        if (!await EnsureRetroAchievementsAccountAvailableAsync(owner))
+        var apiKey = await GetRetroAchievementsApiKeyOrShowErrorAsync(owner);
+        if (apiKey == null)
             return;
 
         if (SelectedNode != null &&
@@ -48,6 +49,7 @@ public partial class MainWindowViewModel
         await RunRetroAchievementsBulkIdentificationAsync(
             owner,
             candidates,
+            apiKey,
             saveResultsImmediately: true);
     }
 
@@ -64,7 +66,8 @@ public partial class MainWindowViewModel
             return;
         }
 
-        if (!await EnsureRetroAchievementsAccountAvailableAsync(owner))
+        var apiKey = await GetRetroAchievementsApiKeyOrShowErrorAsync(owner);
+        if (apiKey == null)
             return;
 
         var candidates = new List<RetroAchievementsBulkIdentificationCandidate>(importedItems.Count);
@@ -76,6 +79,7 @@ public partial class MainWindowViewModel
         await RunRetroAchievementsBulkIdentificationAsync(
             owner,
             candidates,
+            apiKey,
             saveResultsImmediately: false);
     }
 
@@ -86,7 +90,7 @@ public partial class MainWindowViewModel
                !string.IsNullOrWhiteSpace(settings?.Username);
     }
 
-    private async Task<bool> EnsureRetroAchievementsAccountAvailableAsync(Window owner)
+    private async Task<string?> GetRetroAchievementsApiKeyOrShowErrorAsync(Window owner)
     {
         if (HasConfiguredRetroAchievementsIdentity())
         {
@@ -94,7 +98,7 @@ public partial class MainWindowViewModel
             {
                 var apiKey = await _retroAchievementsAccountService.GetApiKeyAsync();
                 if (!string.IsNullOrWhiteSpace(apiKey))
-                    return true;
+                    return apiKey;
             }
             catch (Exception ex)
             {
@@ -108,7 +112,7 @@ public partial class MainWindowViewModel
             T(
                 "RetroAchievements_AccountRequired",
                 "Configure a RetroAchievements account and Web API key in the settings before starting identification."));
-        return false;
+        return null;
     }
 
     private void CollectRetroAchievementsCandidates(
@@ -133,6 +137,7 @@ public partial class MainWindowViewModel
     private async Task<RetroAchievementsBulkIdentificationResult?> RunRetroAchievementsBulkIdentificationAsync(
         Window owner,
         IReadOnlyList<RetroAchievementsBulkIdentificationCandidate> candidates,
+        string apiKey,
         bool saveResultsImmediately)
     {
         var logViewModel = new ProcessLogViewModel(
@@ -151,6 +156,7 @@ public partial class MainWindowViewModel
         {
             var result = await _retroAchievementsBulkIdentificationService.IdentifyAsync(
                 candidates,
+                apiKey,
                 progress,
                 logViewModel.Token);
 

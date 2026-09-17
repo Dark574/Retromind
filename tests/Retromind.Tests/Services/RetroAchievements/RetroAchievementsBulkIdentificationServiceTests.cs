@@ -40,7 +40,7 @@ public sealed class RetroAchievementsBulkIdentificationServiceTests
                 new MediaItem("Failure"), "ps1", "/games/failure.chd")
         };
 
-        var result = await service.IdentifyAsync(candidates);
+        var result = await service.IdentifyAsync(candidates, "batch-key");
 
         Assert.False(result.IsCancelled);
         Assert.Equal(1, result.IdentifiedCount);
@@ -49,6 +49,7 @@ public sealed class RetroAchievementsBulkIdentificationServiceTests
         Assert.Equal(1, result.FailedCount);
         Assert.Equal(6, result.Items.Count);
         Assert.Equal(3, calls.Count);
+        Assert.All(singleService.ApiKeys, apiKey => Assert.Equal("batch-key", apiKey));
 
         var match = Assert.Single(result.Items, item =>
             item.Outcome == RetroAchievementsBulkIdentificationOutcome.Identified);
@@ -75,6 +76,7 @@ public sealed class RetroAchievementsBulkIdentificationServiceTests
                 new RetroAchievementsBulkIdentificationCandidate(firstItem, "ps1", "/games/first.chd"),
                 new RetroAchievementsBulkIdentificationCandidate(secondItem, "ps1", "/games/second.chd")
             ],
+            "batch-key",
             cancellationToken: cancellation.Token);
 
         Assert.True(result.IsCancelled);
@@ -104,10 +106,22 @@ public sealed class RetroAchievementsBulkIdentificationServiceTests
         Func<string, string, CancellationToken, Task<RetroAchievementsIdentificationResult>> identify)
         : IRetroAchievementsGameIdentificationService
     {
+        public List<string> ApiKeys { get; } = new();
+
         public Task<RetroAchievementsIdentificationResult> IdentifyAsync(
             string gameSystemId,
             string filePath,
             CancellationToken cancellationToken = default) =>
-            identify(gameSystemId, filePath, cancellationToken);
+            throw new InvalidOperationException("Bulk identification must provide its prepared API key.");
+
+        public Task<RetroAchievementsIdentificationResult> IdentifyAsync(
+            string gameSystemId,
+            string filePath,
+            string apiKey,
+            CancellationToken cancellationToken = default)
+        {
+            ApiKeys.Add(apiKey);
+            return identify(gameSystemId, filePath, cancellationToken);
+        }
     }
 }

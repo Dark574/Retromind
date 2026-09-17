@@ -143,5 +143,12 @@ public sealed class EditMediaViewModelRetroAchievementsTests
             LastFilePath = filePath;
             return Task.FromResult(result ?? throw new InvalidOperationException("Unexpected call."));
         }
+
+        public Task<RetroAchievementsIdentificationResult> IdentifyAsync(
+            string gameSystemId,
+            string filePath,
+            string apiKey,
+            CancellationToken cancellationToken = default) =>
+            IdentifyAsync(gameSystemId, filePath, cancellationToken);
     }
 }

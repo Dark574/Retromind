@@ -41,6 +41,20 @@ public sealed class RetroAchievementsGameIdentificationService
                 "No RetroAchievements API key is configured.");
         }
 
+        return await IdentifyAsync(gameSystemId, filePath, apiKey, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<RetroAchievementsIdentificationResult> IdentifyAsync(
+        string gameSystemId,
+        string filePath,
+        string apiKey,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameSystemId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
+
         var gameHash = await _hashService
             .CalculateAsync(gameSystemId, filePath, cancellationToken)
             .ConfigureAwait(false);

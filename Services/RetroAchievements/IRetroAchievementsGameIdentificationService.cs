@@ -9,4 +9,10 @@ public interface IRetroAchievementsGameIdentificationService
         string gameSystemId,
         string filePath,
         CancellationToken cancellationToken = default);
+
+    Task<RetroAchievementsIdentificationResult> IdentifyAsync(
+        string gameSystemId,
+        string filePath,
+        string apiKey,
+        CancellationToken cancellationToken = default);
 }

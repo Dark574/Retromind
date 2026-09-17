@@ -242,7 +242,7 @@ separate statistics database or persisted aggregate state.
 - a node action can run the same identification pipeline sequentially across that node and its descendants, while
   local-folder ROM imports invoke it automatically for their new items when the target node has an effective game
   system. Already identified or incomplete items are skipped, individual failures do not stop a batch, and
-  cancellation retains completed matches
+  cancellation retains completed matches. A batch reads the Web API key once and reuses it for every candidate
 - `RetroAchievementsApiClient` uses the stable account ULID with the official game-info-and-user-progress
   endpoint to retrieve typed achievement definitions, casual/hardcore unlock timestamps, and summary progress;
   these user-specific responses are kept separate from the long-lived public game-catalog cache

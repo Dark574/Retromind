@@ -67,10 +67,12 @@ public sealed class RetroAchievementsBulkIdentificationService
 
     public async Task<RetroAchievementsBulkIdentificationResult> IdentifyAsync(
         IReadOnlyList<RetroAchievementsBulkIdentificationCandidate> candidates,
+        string apiKey,
         IProgress<RetroAchievementsBulkIdentificationProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(candidates);
+        ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
 
         var results = new List<RetroAchievementsBulkIdentificationItemResult>(candidates.Count);
         foreach (var candidate in candidates)
@@ -78,7 +80,8 @@ public sealed class RetroAchievementsBulkIdentificationService
             if (cancellationToken.IsCancellationRequested)
                 return new RetroAchievementsBulkIdentificationResult(results, candidates.Count, IsCancelled: true);
 
-            var result = await IdentifyCandidateAsync(candidate, cancellationToken).ConfigureAwait(false);
+            var result = await IdentifyCandidateAsync(candidate, apiKey, cancellationToken)
+                .ConfigureAwait(false);
             if (result == null)
                 return new RetroAchievementsBulkIdentificationResult(results, candidates.Count, IsCancelled: true);
 
@@ -94,6 +97,7 @@ public sealed class RetroAchievementsBulkIdentificationService
 
     private async Task<RetroAchievementsBulkIdentificationItemResult?> IdentifyCandidateAsync(
         RetroAchievementsBulkIdentificationCandidate candidate,
+        string apiKey,
         CancellationToken cancellationToken)
     {
         if (candidate.Item.RetroAchievementsGame?.GameId > 0)
@@ -120,7 +124,7 @@ public sealed class RetroAchievementsBulkIdentificationService
         try
         {
             var result = await _identificationService
-                .IdentifyAsync(candidate.GameSystemId, candidate.FilePath, cancellationToken)
+                .IdentifyAsync(candidate.GameSystemId, candidate.FilePath, apiKey, cancellationToken)
                 .ConfigureAwait(false);
             if (result.Game == null)
             {

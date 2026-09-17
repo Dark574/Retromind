@@ -54,6 +54,33 @@ public sealed class RetroAchievementsGameIdentificationServiceTests
     }
 
     [Fact]
+    public async Task IdentifyAsync_WithPreparedApiKey_DoesNotReadSecretStore()
+    {
+        using var temp = new TemporaryDirectory();
+        var hashService = new RecordingHashService(
+            new RetroAchievementsGameHash("nintendo.game-boy", 4, KnownHash));
+        using var httpClient = new HttpClient(new StubHandler(
+            _ => CatalogResponse(KnownHash)));
+        var apiClient = new RetroAchievementsApiClient(httpClient);
+        var secretStore = new RecordingSecretStore();
+        var service = new RetroAchievementsGameIdentificationService(
+            hashService,
+            new RetroAchievementsGameCatalogService(
+                apiClient,
+                temp.GetPath("cache"),
+                TimeProvider.System),
+            new RetroAchievementsAccountService(apiClient, secretStore));
+
+        var result = await service.IdentifyAsync(
+            "nintendo.game-boy",
+            "/games/test.gb",
+            "prepared-key");
+
+        Assert.True(result.IsMatch);
+        Assert.Equal(0, secretStore.GetCallCount);
+    }
+
+    [Fact]
     public async Task IdentifyAsync_MissingApiKeyFailsBeforeHashing()
     {
         using var temp = new TemporaryDirectory();
@@ -151,5 +178,32 @@ public sealed class RetroAchievementsGameIdentificationServiceTests
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(responseFactory(request));
         }
+    }
+
+    private sealed class RecordingSecretStore : ISecretStore
+    {
+        public int GetCallCount { get; private set; }
+
+        public Task<bool> IsAvailableAsync(CancellationToken ct = default) =>
+            Task.FromResult(true);
+
+        public Task SetAsync(
+            SecretKey key,
+            string secret,
+            CancellationToken ct = default) =>
+            Task.CompletedTask;
+
+        public Task<string?> GetAsync(
+            SecretKey key,
+            CancellationToken ct = default)
+        {
+            GetCallCount++;
+            return Task.FromResult<string?>(null);
+        }
+
+        public Task DeleteAsync(
+            SecretKey key,
+            CancellationToken ct = default) =>
+            Task.CompletedTask;
     }
 }
