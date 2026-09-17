@@ -13,6 +13,7 @@
         WindowStartupLocation="CenterOwner"
         SizeToContent="WidthAndHeight"
         CanResize="False"
+        CanMaximize="False"
         ShowInTaskbar="False">
 
     <StackPanel Margin="20" Spacing="10" MinWidth="520">

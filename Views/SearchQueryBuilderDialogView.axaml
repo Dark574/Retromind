@@ -8,6 +8,7 @@
         Width="620"
         Height="420"
         CanResize="False"
+        CanMaximize="False"
         WindowStartupLocation="CenterOwner">
 
     <Window.KeyBindings>

@@ -6,6 +6,7 @@
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
+        CanMaximize="False"
         ShowInTaskbar="False">
 
     <Grid Margin="20"

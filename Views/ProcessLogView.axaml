@@ -9,8 +9,12 @@
         x:DataType="vm:ProcessLogViewModel"
         Title="{Binding Title}"
         WindowStartupLocation="CenterOwner"
+        Width="700"
+        Height="500"
         MinWidth="650"
-        MinHeight="400">
+        MinHeight="400"
+        CanResize="False"
+        CanMaximize="False">
 
     <Grid RowDefinitions="*, Auto" Margin="10">
         <TextBox x:Name="LogBox"

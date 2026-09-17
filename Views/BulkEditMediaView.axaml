@@ -10,7 +10,7 @@
         MinWidth="620"
         MinHeight="480"
         WindowStartupLocation="CenterOwner"
-        CanResize="True"
+        CanResize="False"
         CanMaximize="False">
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="20">

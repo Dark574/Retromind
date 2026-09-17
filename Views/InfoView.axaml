@@ -10,7 +10,8 @@
         Title="{x:Static p:Strings.Dialog_TitleConfirm}"
         WindowStartupLocation="CenterOwner"
         SizeToContent="WidthAndHeight"
-        CanResize="False">
+        CanResize="False"
+        CanMaximize="False">
 
     <StackPanel Margin="20" Spacing="20">
         <ScrollViewer MaxHeight="500"

@@ -6,7 +6,9 @@
         x:DataType="vm:SearchScopeDialogViewModel"
         Title="{x:Static p:Strings.Search_ScopesDialogTitle}"
         Width="840" Height="600"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        CanMaximize="False">
 
     <Grid RowDefinitions="Auto, *, Auto" Margin="20">
         <!-- Header -->

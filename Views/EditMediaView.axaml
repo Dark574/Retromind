@@ -12,7 +12,7 @@
         MinWidth="700" MinHeight="500"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        CanResize="True"
+        CanResize="False"
         CanMaximize="False">
 
     <Window.Resources>
