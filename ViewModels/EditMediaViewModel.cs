@@ -209,6 +209,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
     public string RunnerVersionLabel => T("EditMedia_RunnerVersionLabel", "Wine/Proton version");
     public string RunnerVersionHint => T("EditMedia_RunnerVersionHint", "Optional per-item override. Takes precedence over emulator default.");
+    public string LaunchOptionsTabTitle => T("EditMedia.Tab_LaunchOptions", "Launch options");
     public bool HasInheritedRunnerVersionInfo => !string.IsNullOrWhiteSpace(InheritedRunnerVersionInfo);
     public string InheritedRunnerVersionInfo => _inheritedRunnerVersionInfo;
 

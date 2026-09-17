@@ -32,8 +32,6 @@
             <TabItem Header="{x:Static p:Strings.EditMedia_Tab_General}" FontSize="16">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="10,10,20,50">
-                        <!-- Separator -->
-                        <Separator Opacity="0.5" Margin="0,10" />
                         <TextBlock Text="{x:Static p:Strings.Launch_Config}" FontWeight="Bold" FontSize="16" />
 
                         <!-- Emulator profile selection -->
@@ -124,6 +122,15 @@
                             </StackPanel>
                         </Border>
 
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 2: LAUNCH OPTIONS -->
+            <TabItem Header="{Binding LaunchOptionsTabTitle}" FontSize="16">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10,10,20,50">
+
                         <!-- Working directory override -->
                         <StackPanel Margin="0,10,0,0">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
@@ -148,6 +155,35 @@
                                 <Run Text=" " />
                                 <Run Text="{Binding EffectiveWorkingDirectory}" />
                             </TextBlock>
+                        </StackPanel>
+
+                        <!-- Process monitoring -->
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,5">
+                                <TextBlock Text="{x:Static p:Strings.Process_Monitor}" VerticalAlignment="Center"/>
+
+                                <!-- Small help badge with tooltip for playtime tracking hint -->
+                                <Border Background="LightGray" CornerRadius="10" Width="18" Height="18" Margin="8,0,0,0"
+                                        ToolTip.Tip="{x:Static p:Strings.Hint_TimePlayed}"
+                                        Cursor="Help">
+                                    <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               FontSize="12" FontWeight="Bold" Foreground="Gray"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBox Text="{Binding OverrideWatchProcess}" PlaceholderText="{x:Static p:Strings.Media_WatermarkOverrideWatchProcess}" />
+                        </StackPanel>
+
+                        <!-- Arguments: always visible -->
+                        <StackPanel Margin="0,15,0,0">
+                            <TextBlock Text="{x:Static p:Strings.Launch_Arguments}" Margin="0,0,0,5" />
+
+                            <TextBox IsVisible="{Binding IsNativeMode}"
+                                     Text="{Binding LauncherArgs, Mode=TwoWay}"
+                                     PlaceholderText="{x:Static p:Strings.Launch_ArgumentsHintShort}" />
+
+                            <TextBox IsVisible="{Binding !IsNativeMode}"
+                                     Text="{Binding LauncherArgs, Mode=TwoWay}"
+                                     PlaceholderText="{x:Static p:Strings.Launch_ArgumentsHintLong}" />
                         </StackPanel>
 
                         <!-- XDG folders (native) -->
@@ -242,35 +278,6 @@
                             </StackPanel>
                         </Expander>
                         
-                        <!-- Process monitoring -->
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,10,0,5">
-                                <TextBlock Text="{x:Static p:Strings.Process_Monitor}" VerticalAlignment="Center"/>
-            
-                                <!-- Small help badge with tooltip for playtime tracking hint -->
-                                <Border Background="LightGray" CornerRadius="10" Width="18" Height="18" Margin="8,0,0,0"
-                                        ToolTip.Tip="{x:Static p:Strings.Hint_TimePlayed}" 
-                                        Cursor="Help">
-                                    <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center" 
-                                               FontSize="12" FontWeight="Bold" Foreground="Gray"/>
-                                </Border>
-                            </StackPanel>
-                            <TextBox Text="{Binding OverrideWatchProcess}" PlaceholderText="{x:Static p:Strings.Media_WatermarkOverrideWatchProcess}" />
-                        </StackPanel>
-
-                        <!-- Arguments: always visible -->
-                        <StackPanel Margin="0,15,0,0">
-                            <TextBlock Text="{x:Static p:Strings.Launch_Arguments}" Margin="0,0,0,5" />
-
-                            <TextBox IsVisible="{Binding IsNativeMode}"
-                                     Text="{Binding LauncherArgs, Mode=TwoWay}"
-                                     PlaceholderText="{x:Static p:Strings.Launch_ArgumentsHintShort}" />
-
-                            <TextBox IsVisible="{Binding !IsNativeMode}"
-                                     Text="{Binding LauncherArgs, Mode=TwoWay}"
-                                     PlaceholderText="{x:Static p:Strings.Launch_ArgumentsHintLong}" />
-                        </StackPanel>
-
                         <!-- Prefix (Wine/Proton/UMU) -->
                         <Expander Header="{x:Static p:Strings.EditMedia_Tab_Prefix}" IsExpanded="False" Margin="0,10,0,0" HorizontalAlignment="Stretch">
                             <StackPanel Spacing="10">
@@ -492,7 +499,7 @@
                 </ScrollViewer>
             </TabItem>
             
-            <!-- TAB 2: METADATA -->
+            <!-- TAB 3: METADATA -->
             <TabItem Header="{x:Static p:Strings.Settings_TabMetadata}" FontSize="16">
                 <!-- Removed extra padding from ScrollViewer for a tighter layout -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -649,7 +656,7 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- TAB 3: MEDIA -->
+            <!-- TAB 4: MEDIA -->
             <TabItem Header="{x:Static p:Strings.EditMedia_Tab_MediaAssets}" FontSize="16">
                 <Grid RowDefinitions="Auto, *, Auto" Margin="0,10,0,0">
                     

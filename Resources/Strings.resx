@@ -232,7 +232,8 @@
 
     <!-- EDITMEDIA -->
     <data name="EditMedia.Tab_General" xml:space="preserve"><value>General</value></data>
-    <data name="EditMedia.Tab_MediaAssets" xml:space="preserve"><value>Media (Assets)</value></data>
+    <data name="EditMedia.Tab_LaunchOptions" xml:space="preserve"><value>Launch options</value></data>
+    <data name="EditMedia.Tab_MediaAssets" xml:space="preserve"><value>Media</value></data>
     <data name="EditMedia.Tab_Prefix" xml:space="preserve"><value>Prefix (Wine/Proton/UMU)</value></data>
     <data name="EditMedia.AssetsPrefixLabel" xml:space="preserve"><value>Asset prefix:</value></data>
     <data name="EditMedia.AssetsPrefixHint" xml:space="preserve"><value>Use this prefix when adding files manually in the Library folder.</value></data>

@@ -15,6 +15,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Changed
 - make information dialogs copyable
+- reorganize media editor launch settings
 
 ### Fixed
 - themed busy cursor on native Wayland
