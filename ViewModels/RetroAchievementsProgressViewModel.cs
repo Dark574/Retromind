@@ -18,7 +18,9 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 {
     private readonly AppSettings _settings;
     private readonly IRetroAchievementsProgressService _progressService;
+    private readonly IRetroAchievementsBadgeService _badgeService;
     private CancellationTokenSource? _loadCts;
+    private CancellationTokenSource? _badgeLoadCts;
     private MediaItem? _selectedItem;
     private int _selectedGameId;
     private bool _isVisible;
@@ -31,10 +33,12 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
     public RetroAchievementsProgressViewModel(
         AppSettings settings,
-        IRetroAchievementsProgressService progressService)
+        IRetroAchievementsProgressService progressService,
+        IRetroAchievementsBadgeService badgeService)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _progressService = progressService ?? throw new ArgumentNullException(nameof(progressService));
+        _badgeService = badgeService ?? throw new ArgumentNullException(nameof(badgeService));
         RefreshCommand = new AsyncRelayCommand(
             () => SelectItemAsync(_selectedItem, forceRefresh: true),
             CanRefresh);
@@ -196,6 +200,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                 return;
 
             Snapshot = snapshot;
+            StartBadgeLoading(AchievementItems, requestCts, item, gameId);
             StatusText = snapshot.UsedCachedFallback
                 ? string.Format(
                     CultureInfo.CurrentCulture,
@@ -271,5 +276,96 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         _loadCts = null;
         previous?.Cancel();
         previous?.Dispose();
+
+        var previousBadgeLoad = _badgeLoadCts;
+        _badgeLoadCts = null;
+        previousBadgeLoad?.Cancel();
+    }
+
+    private void StartBadgeLoading(
+        IReadOnlyList<RetroAchievementsAchievementItemViewModel> achievements,
+        CancellationTokenSource progressRequest,
+        MediaItem? item,
+        int gameId)
+    {
+        if (achievements.Count == 0 ||
+            !IsCurrentRequest(progressRequest, item, gameId))
+        {
+            return;
+        }
+
+        var badgeLoadCts = new CancellationTokenSource();
+        _badgeLoadCts = badgeLoadCts;
+        _ = LoadBadgesAsync(achievements, badgeLoadCts, item, gameId);
+    }
+
+    private async Task LoadBadgesAsync(
+        IReadOnlyList<RetroAchievementsAchievementItemViewModel> achievements,
+        CancellationTokenSource requestCts,
+        MediaItem? item,
+        int gameId)
+    {
+        using var concurrencyGate = new SemaphoreSlim(4, 4);
+        try
+        {
+            var loads = achievements.Select(achievement =>
+                LoadBadgeAsync(
+                    achievement,
+                    concurrencyGate,
+                    requestCts,
+                    item,
+                    gameId));
+            await Task.WhenAll(loads);
+        }
+        catch (OperationCanceledException) when (requestCts.IsCancellationRequested)
+        {
+            // The selected game changed or the view model is being disposed.
+        }
+        finally
+        {
+            if (ReferenceEquals(_badgeLoadCts, requestCts))
+                _badgeLoadCts = null;
+
+            requestCts.Dispose();
+        }
+    }
+
+    private async Task LoadBadgeAsync(
+        RetroAchievementsAchievementItemViewModel achievement,
+        SemaphoreSlim concurrencyGate,
+        CancellationTokenSource requestCts,
+        MediaItem? item,
+        int gameId)
+    {
+        var lockTaken = false;
+        try
+        {
+            await concurrencyGate.WaitAsync(requestCts.Token);
+            lockTaken = true;
+            var badgePath = await _badgeService.GetBadgePathAsync(
+                achievement.BadgeName,
+                achievement.IsUnlocked,
+                requestCts.Token);
+            if (ReferenceEquals(_badgeLoadCts, requestCts) &&
+                ReferenceEquals(_selectedItem, item) &&
+                _selectedGameId == gameId)
+            {
+                achievement.SetBadgePath(badgePath);
+            }
+        }
+        catch (OperationCanceledException) when (requestCts.IsCancellationRequested)
+        {
+            // Badge images are optional and selection changes cancel them routinely.
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"[RetroAchievements] Could not load badge '{achievement.BadgeName}': {ex.Message}");
+        }
+        finally
+        {
+            if (lockTaken)
+                concurrencyGate.Release();
+        }
     }
 }

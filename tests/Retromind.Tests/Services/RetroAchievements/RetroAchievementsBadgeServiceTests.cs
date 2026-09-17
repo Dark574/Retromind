@@ -105,7 +105,7 @@ public sealed class RetroAchievementsBadgeServiceTests
     }
 
     [Fact]
-    public async Task GetBadgePathAsync_PropagatesCallerCancellation()
+    public async Task GetBadgePathAsync_ReturnsNullWhenCallerCancels()
     {
         using var temp = new TemporaryDirectory();
         var service = CreateService(
@@ -123,7 +123,7 @@ public sealed class RetroAchievementsBadgeServiceTests
             cancellation.Token);
         cancellation.Cancel();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => download);
+        Assert.Null(await download);
     }
 
     private static RetroAchievementsBadgeService CreateService(

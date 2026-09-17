@@ -47,36 +47,45 @@ public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeServi
         bool isUnlocked,
         CancellationToken cancellationToken = default)
     {
-        var normalizedBadgeName = NormalizeBadgeName(badgeName);
-        if (normalizedBadgeName == null)
-            return null;
-
-        var fileStem = isUnlocked
-            ? normalizedBadgeName
-            : normalizedBadgeName + "_lock";
-        var cachePath = Path.Combine(_cacheDirectory, fileStem + ".png");
-        if (await IsValidPngAsync(cachePath, cancellationToken).ConfigureAwait(false))
-            return cachePath;
-
-        var gate = _downloadGates.GetOrAdd(fileStem, static _ => new SemaphoreSlim(1, 1));
-        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            var normalizedBadgeName = NormalizeBadgeName(badgeName);
+            if (normalizedBadgeName == null)
+                return null;
+
+            var fileStem = isUnlocked
+                ? normalizedBadgeName
+                : normalizedBadgeName + "_lock";
+            var cachePath = Path.Combine(_cacheDirectory, fileStem + ".png");
             if (await IsValidPngAsync(cachePath, cancellationToken).ConfigureAwait(false))
                 return cachePath;
 
-            TryDeleteFile(cachePath);
-            return await TryDownloadBadgeAsync(
-                    fileStem,
-                    cachePath,
-                    cancellationToken)
-                .ConfigureAwait(false)
-                ? cachePath
-                : null;
+            var gate = _downloadGates.GetOrAdd(fileStem, static _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (await IsValidPngAsync(cachePath, cancellationToken).ConfigureAwait(false))
+                    return cachePath;
+
+                TryDeleteFile(cachePath);
+                return await TryDownloadBadgeAsync(
+                        fileStem,
+                        cachePath,
+                        cancellationToken)
+                    .ConfigureAwait(false)
+                    ? cachePath
+                    : null;
+            }
+            finally
+            {
+                gate.Release();
+            }
         }
-        finally
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            gate.Release();
+            // Badge images are optional presentation data. A selection change should
+            // stop their work quietly instead of surfacing a cancellation exception.
+            return null;
         }
     }
 
@@ -153,7 +162,7 @@ public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeServi
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            throw;
+            return false;
         }
         catch (Exception ex) when (ex is HttpRequestException or
                                    OperationCanceledException or
@@ -196,10 +205,6 @@ public sealed class RetroAchievementsBadgeService : IRetroAchievementsBadgeServi
                 .ConfigureAwait(false);
             return bytesRead == PngSignature.Length &&
                    signature.AsSpan().SequenceEqual(PngSignature);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

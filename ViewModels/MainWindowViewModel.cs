@@ -350,7 +350,8 @@ public partial class MainWindowViewModel : ViewModelBase
         RetroAchievementsAccountService retroAchievementsAccountService,
         IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService,
         RetroAchievementsBulkIdentificationService retroAchievementsBulkIdentificationService,
-        IRetroAchievementsProgressService retroAchievementsProgressService)
+        IRetroAchievementsProgressService retroAchievementsProgressService,
+        IRetroAchievementsBadgeService retroAchievementsBadgeService)
     {
         _audioService = audioService;
         _dataService = dataService;
@@ -373,7 +374,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _retroAchievementsBulkIdentificationService = retroAchievementsBulkIdentificationService;
         RetroAchievementsProgress = new RetroAchievementsProgressViewModel(
             _currentSettings,
-            retroAchievementsProgressService);
+            retroAchievementsProgressService,
+            retroAchievementsBadgeService);
         if (_settingsService.HasLoadFailure)
         {
             SettingsLoadErrorMessage = T(

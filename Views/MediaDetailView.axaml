@@ -254,33 +254,52 @@
                                 <ItemsControl ItemsSource="{Binding AchievementItems}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:RetroAchievementsAchievementItemViewModel">
-                                            <Border BorderBrush="Gray"
-                                                    BorderThickness="0,1,0,0"
-                                                    Padding="0,7"
+                                            <Border Background="#10000000"
+                                                    BorderBrush="Gray"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="8"
+                                                    Margin="0,0,0,6"
                                                     Opacity="{Binding VisualOpacity}">
-                                                <StackPanel Spacing="3">
-                                                    <Grid ColumnDefinitions="*,Auto">
-                                                        <TextBlock Grid.Column="0"
-                                                                   Text="{Binding Title}"
-                                                                   FontWeight="SemiBold"
-                                                                   TextWrapping="Wrap"
-                                                                   Margin="0,0,8,0" />
-                                                        <TextBlock Grid.Column="1"
-                                                                   Text="{Binding PointsText}"
+                                                <Grid ColumnDefinitions="64,*"
+                                                      ColumnSpacing="10">
+                                                    <Border Grid.Column="0"
+                                                            Width="64"
+                                                            Height="64"
+                                                            CornerRadius="4"
+                                                            ClipToBounds="True"
+                                                            VerticalAlignment="Top">
+                                                        <Image helpers:AsyncImageHelper.Url="{Binding BadgePath}"
+                                                               helpers:AsyncImageHelper.DecodeWidth="64"
+                                                               IsVisible="{Binding BadgePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                               Stretch="Uniform" />
+                                                    </Border>
+
+                                                    <StackPanel Grid.Column="1"
+                                                                Spacing="3">
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="{Binding Title}"
+                                                                       FontWeight="SemiBold"
+                                                                       TextWrapping="Wrap"
+                                                                       Margin="0,0,8,0" />
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding PointsText}"
+                                                                       Foreground="Gray"
+                                                                       FontSize="12" />
+                                                        </Grid>
+
+                                                        <TextBlock Text="{Binding Description}"
+                                                                   IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                   FontSize="12"
+                                                                   TextWrapping="Wrap" />
+
+                                                        <TextBlock Text="{Binding StatusText}"
                                                                    Foreground="Gray"
-                                                                   FontSize="12" />
-                                                    </Grid>
-
-                                                    <TextBlock Text="{Binding Description}"
-                                                               IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                               FontSize="12"
-                                                               TextWrapping="Wrap" />
-
-                                                    <TextBlock Text="{Binding StatusText}"
-                                                               Foreground="Gray"
-                                                               FontSize="11"
-                                                               TextWrapping="Wrap" />
-                                                </StackPanel>
+                                                                   FontSize="11"
+                                                                   TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                </Grid>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

@@ -9,11 +9,14 @@ namespace Retromind.ViewModels;
 /// </summary>
 public sealed class RetroAchievementsAchievementItemViewModel : ViewModelBase
 {
+    private string? _badgePath;
+
     public RetroAchievementsAchievementItemViewModel(RetroAchievementsAchievement achievement)
     {
         ArgumentNullException.ThrowIfNull(achievement);
 
         AchievementId = achievement.AchievementId;
+        BadgeName = achievement.BadgeName;
         Title = achievement.Title;
         Description = achievement.Description;
         DisplayOrder = achievement.DisplayOrder;
@@ -47,6 +50,7 @@ public sealed class RetroAchievementsAchievementItemViewModel : ViewModelBase
     }
 
     public int AchievementId { get; }
+    public string BadgeName { get; }
     public string Title { get; }
     public string Description { get; }
     public int DisplayOrder { get; }
@@ -58,4 +62,12 @@ public sealed class RetroAchievementsAchievementItemViewModel : ViewModelBase
     public bool IsHardcore { get; }
     public bool IsLocked { get; }
     public double VisualOpacity => IsUnlocked ? 1.0 : 0.58;
+
+    public string? BadgePath
+    {
+        get => _badgePath;
+        private set => SetProperty(ref _badgePath, value);
+    }
+
+    internal void SetBadgePath(string? path) => BadgePath = path;
 }

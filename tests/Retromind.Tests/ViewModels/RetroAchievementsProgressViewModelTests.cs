@@ -121,6 +121,108 @@ public sealed class RetroAchievementsProgressViewModelTests
     }
 
     [Fact]
+    public async Task SelectItemAsync_LoadsUnlockedAndLockedBadgeVariants()
+    {
+        var requests = new List<(string? BadgeName, bool IsUnlocked)>();
+        var achievements = new[]
+        {
+            new RetroAchievementsAchievement
+            {
+                AchievementId = 10,
+                Title = "Unlocked achievement",
+                BadgeName = "10010",
+                EarnedAtUtc = DateTimeOffset.UtcNow
+            },
+            new RetroAchievementsAchievement
+            {
+                AchievementId = 20,
+                Title = "Locked achievement",
+                BadgeName = "10020"
+            }
+        };
+        using var viewModel = CreateViewModel(
+            (gameId, forceRefresh, cancellationToken) =>
+                Task.FromResult(CreateSnapshot(gameId, achievements: achievements)),
+            (badgeName, isUnlocked, cancellationToken) =>
+            {
+                requests.Add((badgeName, isUnlocked));
+                return Task.FromResult<string?>($"/cache/{badgeName}.png");
+            });
+
+        await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 123));
+        await WaitUntilAsync(() => viewModel.AchievementItems.All(item => item.BadgePath != null));
+
+        Assert.Equal(
+            [("10010", true), ("10020", false)],
+            requests.Select(request => (request.BadgeName, request.IsUnlocked)).ToArray());
+        Assert.Equal("/cache/10010.png", viewModel.AchievementItems[0].BadgePath);
+        Assert.Equal("/cache/10020.png", viewModel.AchievementItems[1].BadgePath);
+    }
+
+    [Fact]
+    public async Task SelectItemAsync_BadgeFailureDoesNotDiscardAchievementData()
+    {
+        var achievement = new RetroAchievementsAchievement
+        {
+            AchievementId = 10,
+            Title = "Still visible",
+            BadgeName = "10010"
+        };
+        using var viewModel = CreateViewModel(
+            (gameId, forceRefresh, cancellationToken) =>
+                Task.FromResult(CreateSnapshot(gameId, achievements: [achievement])),
+            (badgeName, isUnlocked, cancellationToken) =>
+                throw new HttpRequestException("offline"));
+
+        await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 123));
+        await Task.Yield();
+
+        var item = Assert.Single(viewModel.AchievementItems);
+        Assert.Equal("Still visible", item.Title);
+        Assert.Null(item.BadgePath);
+        Assert.True(viewModel.HasProgress);
+    }
+
+    [Fact]
+    public async Task SelectItemAsync_DoesNotApplyBadgesFromPreviousGame()
+    {
+        var firstBadgeStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        using var viewModel = CreateViewModel(
+            (gameId, forceRefresh, cancellationToken) =>
+                Task.FromResult(CreateSnapshot(
+                    gameId,
+                    achievements:
+                    [
+                        new RetroAchievementsAchievement
+                        {
+                            AchievementId = gameId,
+                            Title = $"Game {gameId}",
+                            BadgeName = gameId.ToString()
+                        }
+                    ])),
+            async (badgeName, isUnlocked, cancellationToken) =>
+            {
+                if (badgeName == "123")
+                {
+                    firstBadgeStarted.SetResult(true);
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+
+                return $"/cache/{badgeName}.png";
+            });
+
+        await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 123));
+        await firstBadgeStarted.Task;
+        await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 456));
+        await WaitUntilAsync(() => viewModel.AchievementItems.Single().BadgePath != null);
+
+        var item = Assert.Single(viewModel.AchievementItems);
+        Assert.Equal("Game 456", item.Title);
+        Assert.Equal("/cache/456.png", item.BadgePath);
+    }
+
+    [Fact]
     public async Task RefreshCommand_ForcesServiceRefresh()
     {
         var forceRefreshValues = new List<bool>();
@@ -179,7 +281,8 @@ public sealed class RetroAchievementsProgressViewModelTests
     }
 
     private static RetroAchievementsProgressViewModel CreateViewModel(
-        Func<int, bool, CancellationToken, Task<RetroAchievementsProgressSnapshot>> getProgress)
+        Func<int, bool, CancellationToken, Task<RetroAchievementsProgressSnapshot>> getProgress,
+        Func<string?, bool, CancellationToken, Task<string?>>? getBadge = null)
     {
         var settings = new AppSettings
         {
@@ -191,7 +294,16 @@ public sealed class RetroAchievementsProgressViewModelTests
         };
         return new RetroAchievementsProgressViewModel(
             settings,
-            new StubProgressService(getProgress));
+            new StubProgressService(getProgress),
+            new StubBadgeService(getBadge ?? ((badgeName, isUnlocked, cancellationToken) =>
+                Task.FromResult<string?>(null))));
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        while (!condition())
+            await Task.Delay(10, timeout.Token);
     }
 
     private static MediaItem CreateIdentifiedItem(int gameId) =>
@@ -249,5 +361,16 @@ public sealed class RetroAchievementsProgressViewModelTests
         public void ClearMemoryCache()
         {
         }
+    }
+
+    private sealed class StubBadgeService(
+        Func<string?, bool, CancellationToken, Task<string?>> getBadge)
+        : IRetroAchievementsBadgeService
+    {
+        public Task<string?> GetBadgePathAsync(
+            string? badgeName,
+            bool isUnlocked,
+            CancellationToken cancellationToken = default) =>
+            getBadge(badgeName, isUnlocked, cancellationToken);
     }
 }
