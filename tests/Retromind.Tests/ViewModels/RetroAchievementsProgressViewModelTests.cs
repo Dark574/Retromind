@@ -223,6 +223,35 @@ public sealed class RetroAchievementsProgressViewModelTests
     }
 
     [Fact]
+    public async Task AchievementList_CollapsesForNewGameAndStaysExpandedOnRefresh()
+    {
+        var achievement = new RetroAchievementsAchievement
+        {
+            AchievementId = 10,
+            Title = "Achievement"
+        };
+        using var viewModel = CreateViewModel((gameId, forceRefresh, cancellationToken) =>
+            Task.FromResult(CreateSnapshot(gameId, achievements: [achievement])));
+        var firstItem = CreateIdentifiedItem(gameId: 123);
+
+        await viewModel.SelectItemAsync(firstItem);
+
+        Assert.False(viewModel.IsAchievementsExpanded);
+        Assert.Contains("1", viewModel.AchievementsHeaderText, StringComparison.Ordinal);
+        Assert.Equal("▸", viewModel.AchievementsToggleGlyph);
+
+        viewModel.ToggleAchievementsCommand.Execute(null);
+        Assert.True(viewModel.IsAchievementsExpanded);
+        Assert.Equal("▾", viewModel.AchievementsToggleGlyph);
+
+        await viewModel.SelectItemAsync(firstItem, forceRefresh: true);
+        Assert.True(viewModel.IsAchievementsExpanded);
+
+        await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 456));
+        Assert.False(viewModel.IsAchievementsExpanded);
+    }
+
+    [Fact]
     public async Task RefreshCommand_ForcesServiceRefresh()
     {
         var forceRefreshValues = new List<bool>();

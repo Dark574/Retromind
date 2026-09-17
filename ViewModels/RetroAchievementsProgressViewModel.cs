@@ -25,6 +25,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private int _selectedGameId;
     private bool _isVisible;
     private bool _isLoading;
+    private bool _isAchievementsExpanded;
     private string _statusText = string.Empty;
     private RetroAchievementsProgressSnapshot? _snapshot;
     private IReadOnlyList<RetroAchievementsAchievementItemViewModel> _achievementItems =
@@ -42,13 +43,21 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         RefreshCommand = new AsyncRelayCommand(
             () => SelectItemAsync(_selectedItem, forceRefresh: true),
             CanRefresh);
+        ToggleAchievementsCommand = new RelayCommand(ToggleAchievements);
     }
 
     public IAsyncRelayCommand RefreshCommand { get; }
+    public IRelayCommand ToggleAchievementsCommand { get; }
 
     public string Title => T("RetroAchievements_ProgressTitle", "RetroAchievements progress");
     public string RefreshText => T("RetroAchievements_ProgressRefresh", "Refresh");
     public string AchievementsTitle => T("RetroAchievements_AchievementsTitle", "Achievements");
+    public string AchievementsHeaderText => string.Format(
+        CultureInfo.CurrentCulture,
+        "{0} ({1:N0})",
+        AchievementsTitle,
+        AchievementItems.Count);
+    public string AchievementsToggleGlyph => IsAchievementsExpanded ? "▾" : "▸";
 
     public bool IsVisible
     {
@@ -77,6 +86,18 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         {
             if (SetProperty(ref _statusText, value))
                 OnPropertyChanged(nameof(ShowStatus));
+        }
+    }
+
+    public bool IsAchievementsExpanded
+    {
+        get => _isAchievementsExpanded;
+        private set
+        {
+            if (!SetProperty(ref _isAchievementsExpanded, value))
+                return;
+
+            OnPropertyChanged(nameof(AchievementsToggleGlyph));
         }
     }
 
@@ -109,7 +130,10 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         private set
         {
             if (SetProperty(ref _achievementItems, value))
+            {
                 OnPropertyChanged(nameof(HasAchievements));
+                OnPropertyChanged(nameof(AchievementsHeaderText));
+            }
         }
     }
 
@@ -171,6 +195,11 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         {
             return;
         }
+
+        var selectedGameChanged = !ReferenceEquals(_selectedItem, item) ||
+                                  _selectedGameId != gameId;
+        if (selectedGameChanged)
+            IsAchievementsExpanded = false;
 
         _selectedItem = item;
         _selectedGameId = gameId;
@@ -258,6 +287,12 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
     private bool CanRefresh() =>
         IsVisible && !IsLoading && (_selectedItem?.RetroAchievementsGame?.GameId ?? 0) > 0;
+
+    private void ToggleAchievements()
+    {
+        if (HasAchievements)
+            IsAchievementsExpanded = !IsAchievementsExpanded;
+    }
 
     private bool IsCurrentRequest(
         CancellationTokenSource requestCts,
