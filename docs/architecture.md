@@ -257,6 +257,10 @@ separate statistics database or persisted aggregate state.
   labels persisted fallback data when the service is temporarily unavailable. After a regular tracked game
   session, the still-selected game's progress is refreshed automatically; test launches and untracked launcher
   handoffs do not trigger that refresh
+- `RetroAchievementsBadgeService` downloads the official unlocked and locked achievement PNGs on demand, validates
+  their size and PNG signature, and publishes them atomically below `RetroAchievements/Badges`. Concurrent requests
+  for the same badge share one download, failures do not affect progress data, and the persistent badge cache follows
+  the existing portable-HOME cache migration
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)

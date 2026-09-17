@@ -140,10 +140,14 @@ public sealed class RetroAchievementsGameCatalogServiceTests
             "Progress",
             "user-hash",
             "game-123.json");
+        var standardBadgePath = Path.Combine(standardDirectory, "Badges", "250336.png");
+        var portableBadgePath = Path.Combine(portableDirectory, "Badges", "250336.png");
         Directory.CreateDirectory(standardDirectory);
         await File.WriteAllTextAsync(standardPath, "standard-cache");
         Directory.CreateDirectory(Path.GetDirectoryName(standardProgressPath)!);
         await File.WriteAllTextAsync(standardProgressPath, "standard-progress");
+        Directory.CreateDirectory(Path.GetDirectoryName(standardBadgePath)!);
+        await File.WriteAllBytesAsync(standardBadgePath, [1, 2, 3]);
 
         await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
             wasPortableHomeEnabled: false,
@@ -153,9 +157,12 @@ public sealed class RetroAchievementsGameCatalogServiceTests
         Assert.Equal("standard-cache", await File.ReadAllTextAsync(portablePath));
         Assert.False(File.Exists(standardProgressPath));
         Assert.Equal("standard-progress", await File.ReadAllTextAsync(portableProgressPath));
+        Assert.False(File.Exists(standardBadgePath));
+        Assert.Equal([1, 2, 3], await File.ReadAllBytesAsync(portableBadgePath));
 
         await File.WriteAllTextAsync(portablePath, "portable-cache");
         await File.WriteAllTextAsync(portableProgressPath, "portable-progress");
+        await File.WriteAllBytesAsync(portableBadgePath, [4, 5, 6]);
         await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
             wasPortableHomeEnabled: true,
             isPortableHomeEnabled: false);
@@ -164,6 +171,8 @@ public sealed class RetroAchievementsGameCatalogServiceTests
         Assert.Equal("portable-cache", await File.ReadAllTextAsync(standardPath));
         Assert.False(File.Exists(portableProgressPath));
         Assert.Equal("portable-progress", await File.ReadAllTextAsync(standardProgressPath));
+        Assert.False(File.Exists(portableBadgePath));
+        Assert.Equal([4, 5, 6], await File.ReadAllBytesAsync(standardBadgePath));
     }
 
     [Fact]

@@ -285,6 +285,7 @@ public partial class App : Application
         services.AddSingleton<IRetroAchievementsGameIdentificationService, RetroAchievementsGameIdentificationService>();
         services.AddSingleton<RetroAchievementsBulkIdentificationService>();
         services.AddSingleton<IRetroAchievementsProgressService, RetroAchievementsProgressService>();
+        services.AddSingleton<IRetroAchievementsBadgeService, RetroAchievementsBadgeService>();
         services.AddSingleton<IGameFileFingerprintService, GameFileFingerprintService>();
 
         services.AddSingleton<MetadataService>();

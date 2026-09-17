@@ -389,9 +389,16 @@ public sealed class RetroAchievementsGameCatalogService
 
             foreach (var path in Directory.EnumerateFiles(
                          directory,
-                         "*.json",
+                         "*",
                          SearchOption.TopDirectoryOnly))
             {
+                var extension = Path.GetExtension(path);
+                if (!string.Equals(extension, ".json", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var attributes = File.GetAttributes(path);
                 if ((attributes & FileAttributes.ReparsePoint) != 0)
                     continue;
