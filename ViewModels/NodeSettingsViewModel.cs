@@ -105,6 +105,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
     public string GameSystemLabel =>
         T("GameSystem_NodeLabel", "Game system for game identification");
 
+    public string IntegrationsTabTitle =>
+        T("NodeSettings_Integrations", "Integrations");
+
+    public string LaunchOptionsTabTitle =>
+        T("EditMedia.Tab_LaunchOptions", "Launch options");
+
     public string GameSystemHint => T(
         "GameSystem_Hint",
         "Technical assignment for integrations such as RetroAchievements and ScreenScraper. It does not change Platform metadata or the configured emulator.");

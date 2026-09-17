@@ -607,6 +607,7 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
 
     <!-- NODESETTINGS -->
     <data name="NodeSettings_Title" xml:space="preserve"><value>Kategorie Einstellungen</value></data>
+    <data name="NodeSettings_Integrations" xml:space="preserve"><value>Integrationen</value></data>
     <data name="NodeSettings_DescriptionForBigMode" xml:space="preserve"><value>Beschreibung (für BigMode)</value></data>
     <data name="NodeSettings_DefaultEmulatorForFolder" xml:space="preserve"><value>Standard Emulator (für diesen Ordner)</value></data>
     <data name="NodeSettings_GogStoreNode" xml:space="preserve"><value>Diesen Node als GOG-Node deklarieren</value></data>
