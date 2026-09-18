@@ -12,10 +12,13 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Added
 - make shortcut creation optional for GOG Windows installation
 - RetroAchievments for supported systems
+- added store badges on Game Covers
 
 ### Changed
 - make information dialogs copyable
-- reorganize media editor launch settings
+- reorganized media editor launch settings
+- reorganized settings editor launch settings
+- removed global wrappers
 
 ### Fixed
 - themed busy cursor on native Wayland
