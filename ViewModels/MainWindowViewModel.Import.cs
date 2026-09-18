@@ -720,7 +720,8 @@ public partial class MainWindowViewModel
 
         // Determine adds off-thread-safe (pure checks)
         var itemsToAdd = items
-            .Where(item => !targetNode.Items.Any(x => x.Title == item.Title))
+            .Where(item => !targetNode.Items.Any(existing =>
+                StoreGameIdentityHelper.IsSameGame(existing, item)))
             .ToList();
 
         if (itemsToAdd.Count == 0) return;
@@ -780,7 +781,8 @@ public partial class MainWindowViewModel
         StoreHeroicEpicConfigPaths(discoveredHeroicConfigs);
 
         var itemsToAdd = items
-            .Where(item => !targetNode.Items.Any(x => x.Title == item.Title))
+            .Where(item => !targetNode.Items.Any(existing =>
+                StoreGameIdentityHelper.IsSameGame(existing, item)))
             .ToList();
 
         if (itemsToAdd.Count == 0) return;
