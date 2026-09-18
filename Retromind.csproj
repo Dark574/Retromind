@@ -82,10 +82,6 @@
             <Generator>PublicResXFileCodeGenerator</Generator>
             <LastGenOutput>Strings.Designer.cs</LastGenOutput>
         </EmbeddedResource>
-        <EmbeddedResource Update="Resources\Strings.de.resx">
-            <Generator>ResXFileCodeGenerator</Generator>
-            <LastGenOutput>Strings_de.Designer.cs</LastGenOutput>
-        </EmbeddedResource>
     </ItemGroup>
 
     <ItemGroup>
@@ -93,11 +89,6 @@
             <DesignTime>True</DesignTime>
             <AutoGen>True</AutoGen>
             <DependentUpon>Strings.resx</DependentUpon>
-        </Compile>
-        <Compile Update="Resources\Strings.de.Designer.cs">
-            <DesignTime>True</DesignTime>
-            <AutoGen>True</AutoGen>
-            <DependentUpon>Strings.de.resx</DependentUpon>
         </Compile>
     </ItemGroup>
 

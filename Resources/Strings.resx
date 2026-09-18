@@ -39,7 +39,6 @@
     <data name="Button.Ok" xml:space="preserve"><value>OK</value></data>
     <data name="Button.Install" xml:space="preserve"><value>Install</value></data>
     <data name="Button.Play" xml:space="preserve"><value>▶ START</value></data>
-    <data name="Button.Random" xml:space="preserve"><value>Random</value></data>
     <data name="Button.Save" xml:space="preserve"><value>Save</value></data>
     <data name="Button.Apply" xml:space="preserve"><value>Apply</value></data>
     <data name="Button.TakeOver" xml:space="preserve"><value>Take Over</value></data>
@@ -60,7 +59,6 @@
     <data name="Button.ControlPanel" xml:space="preserve"><value>Control panel</value></data>
     <data name="Button_Update" xml:space="preserve"><value>Update</value></data>
     <data name="Button_ReinstallOrSwitchVersion" xml:space="preserve"><value>Reinstall / Switch Version</value></data>
-    <data name="Button_CheckGogUpdates" xml:space="preserve"><value>Check GOG Updates</value></data>
     <data name="Button.Copy" xml:space="preserve"><value>Copy</value></data>
     <data name="Button.Change" xml:space="preserve"><value>Change...</value></data>
     <data name="Button.Generate" xml:space="preserve"><value>Generate</value></data>
@@ -97,8 +95,6 @@
     <data name="BulkEdit.Validation.MetadataValueRequired" xml:space="preserve"><value>Enter a value for {0} or choose Clear.</value></data>
     
     <!-- COMMON -->
-    <data name="Common.Active" xml:space="preserve"><value>Active</value></data>
-    <data name="Common.Area" xml:space="preserve"><value>Areas:</value></data>
     <data name="Common.Description" xml:space="preserve"><value>Description:</value></data>
     <data name="Common.Developer" xml:space="preserve"><value>Developer</value></data>
     <data name="Common.Publisher" xml:space="preserve"><value>Publisher</value></data>
@@ -115,7 +111,6 @@
     <data name="Common.Key" xml:space="preserve"><value>Key</value></data>
     <data name="Common.Value" xml:space="preserve"><value>Value</value></data>
     <data name="Common.Name" xml:space="preserve"><value>Name:</value></data>
-    <data name="Common.Options" xml:space="preserve"><value>Options:</value></data>
     <data name="Common.PreviewShort" xml:space="preserve"><value>Preview</value></data>
     <data name="Common.Rating" xml:space="preserve"><value>Rating:</value></data>
     <data name="Common.ReleaseDate" xml:space="preserve"><value>Release Date</value></data>
@@ -126,14 +121,8 @@
     <data name="Common.SourceItem" xml:space="preserve"><value>Item</value></data>
     <data name="Common.SourceNodeFormat" xml:space="preserve"><value>Node: {0}</value></data>
     <data name="Common.SourceEmulatorFormat" xml:space="preserve"><value>Emulator: {0}</value></data>
-    <data name="Common.Year" xml:space="preserve"><value>Year (e.g. 1998)</value></data>
-    <data name="Common.CoverURL" xml:space="preserve"><value>Cover URL:</value></data>
-    <data name="Common.TitleEx" xml:space="preserve"><value>Title:</value></data>
     <data name="Common.UserName" xml:space="preserve"><value>User name</value></data>
     <data name="Common.Password" xml:space="preserve"><value>Password</value></data>
-    <data name="Common_NoVideo" xml:space="preserve"><value>No video</value></data>
-    <data name="Common_SelectFile" xml:space="preserve"><value>Select file</value></data>
-    <data name="Common_Delete" xml:space="preserve"><value>Delete</value></data>
 
     <!-- PARENTAL -->
     <data name="Parental.Lock.Setup" xml:space="preserve"><value>Setup Lock</value></data>
@@ -142,8 +131,6 @@
     <data name="Parental.Lock.Tooltip.Setup" xml:space="preserve"><value>Set up parental lock password</value></data>
     <data name="Parental.Lock.Tooltip.Unlock" xml:space="preserve"><value>Unlock protected media</value></data>
     <data name="Parental.Lock.Tooltip.Lock" xml:space="preserve"><value>Lock protected media</value></data>
-    <data name="Parental.ChangePassword.Short" xml:space="preserve"><value>Change PW</value></data>
-    <data name="Parental.ChangePassword.Tooltip" xml:space="preserve"><value>Change parental lock password</value></data>
     <data name="Parental.ProtectButton" xml:space="preserve"><value>Protect</value></data>
     <data name="Parental.ProtectButton.Tooltip" xml:space="preserve"><value>Toggle parental protection for this item</value></data>
     <data name="Parental.Dialog.Title" xml:space="preserve"><value>Parental Lock</value></data>
@@ -165,7 +152,6 @@
     <data name="Ctx.Media.AddManual" xml:space="preserve"><value>Add manual</value></data>
     <data name="Ctx.Media.Move" xml:space="preserve"><value>Move to category...</value></data>
     <data name="Ctx.Media.TestLaunch" xml:space="preserve"><value>Test launch (without tracking)</value></data>
-    <data name="Ctx.ChangeCover" xml:space="preserve"><value>Change Cover...</value></data>
   
     <!-- DIALOG -->
     <data name="Dialog.ChooseASource" xml:space="preserve"><value>Choose a source</value></data>
@@ -204,31 +190,22 @@
     <data name="Dialog.Select.Logo" xml:space="preserve"><value>Select Logo</value></data>
     <data name="Dialog.Select.Music" xml:space="preserve"><value>Select Music</value></data>
     <data name="Dialog.Select.Wallpaper" xml:space="preserve"><value>Select Wallpaper</value></data>
-    <data name="Dialog.Select.Screenshot" xml:space="preserve"><value>Select Screenshot</value></data>
     <data name="Dialog.SelectWorkingDirectory" xml:space="preserve"><value>Select working directory</value></data>
     <data name="Dialog.SelectXdgCacheFolder" xml:space="preserve"><value>Select XDG cache folder</value></data>
     <data name="Dialog.SelectXdgConfigFolder" xml:space="preserve"><value>Select XDG config folder</value></data>
     <data name="Dialog.SelectXdgDataFolder" xml:space="preserve"><value>Select XDG data folder</value></data>
     <data name="Dialog.SelectXdgStateFolder" xml:space="preserve"><value>Select XDG state folder</value></data>
     <data name="Dialog.SelectXdgBaseFolder" xml:space="preserve"><value>Select XDG base folder</value></data>
-    <data name="Dialog.TitleSearch" xml:space="preserve"><value>Search title or query...</value></data>
-    <data name="Dialog_ImportAssetTitle" xml:space="preserve"><value>Import {0}</value></data>
     <data name="Dialog_FileExtensionsPrompt" xml:space="preserve"><value>File extensions (comma separated):</value></data>
     <data name="Dialog_NoSteamGamesFound" xml:space="preserve"><value>No Steam games found.</value></data>
     <data name="Dialog_NoSteamGamesFound_SelectPath" xml:space="preserve"><value>No Steam games found. Select your Steam library folder manually? (Choose the folder that contains 'steamapps' or the 'steamapps' folder itself.)</value></data>
     <data name="Dialog_SelectSteamLibraryFolder" xml:space="preserve"><value>Select Steam library folder (contains steamapps)</value></data>
     <data name="Dialog_ConfirmImportSteamFormat" xml:space="preserve"><value>Found {0} Steam games. Import to '{1}'?</value></data>
-    <data name="Dialog_NoGogInstallationsFound" xml:space="preserve"><value>No Heroic/GOG installations found.</value></data>
-    <data name="Dialog_NoGogInstallationsFound_SelectPath" xml:space="preserve"><value>No Heroic/GOG installations found. Select the Heroic config folder manually? (Choose the folder that contains 'gog_store/installed.json' or the 'gog_store' folder.)</value></data>
     <data name="Dialog_NoEpicInstallationsFound" xml:space="preserve"><value>No Heroic/Epic installations found.</value></data>
     <data name="Dialog_NoEpicInstallationsFound_SelectPath" xml:space="preserve"><value>No Heroic/Epic installations found. Select the Heroic config folder manually? (Choose the folder that contains 'epic_store/installed.json' or the 'epic_store' folder.)</value></data>
     <data name="Dialog_SelectHeroicEpicFolder" xml:space="preserve"><value>Select Heroic config folder (contains epic_store/installed.json)</value></data>
-    <data name="Dialog_ConfirmImportGogFormat" xml:space="preserve"><value>Found {0} GOG games. Import?</value></data>
     <data name="Dialog_ConfirmImportEpicFormat" xml:space="preserve"><value>Found {0} Epic games. Import?</value></data>
     <data name="Dialog_ConfirmCombineMultiDiscFormat" xml:space="preserve"><value>You selected {0} files. Combine them into one multi-disc item?</value></data>
-    <data name="Dialog.Scraper.AssetConflictFormat" xml:space="preserve"><value>Item already has {0}. Add another one?</value></data>
-    <data name="Dialog.Scraper.CustomFieldConflictFormat" xml:space="preserve"><value>Update custom field '{0}'? Current: '{1}' | New: '{2}'</value></data>
-    <data name="Dialog.Scraper.FieldConflictFormat" xml:space="preserve"><value>Update {0}? Current: '{1}' | New: '{2}'</value></data>
 
     <!-- EDITMEDIA -->
     <data name="EditMedia.Tab_General" xml:space="preserve"><value>General</value></data>
@@ -268,7 +245,6 @@
     <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>
     
     <!-- HINT -->
-    <data name="Hint.IgdbCredentials" xml:space="preserve"><value>(Optional: Leave blank for default access)</value></data>
     <data name="Hint.Required" xml:space="preserve"><value>(Necessary)</value></data>
     <data name="Hint.TimePlayed" xml:space="preserve"><value>Name of the actual game process (without .exe). So that the time is measured correctly.</value></data>
     <data name="Hint.WorkingDirectory" xml:space="preserve"><value>Optional. If empty, the launch file folder is used. Affects relative paths.</value></data>
@@ -277,7 +253,6 @@
   
     <!-- IMPORT -->
     <data name="Import.Folder" xml:space="preserve"><value>Import (folder)...</value></data>
-    <data name="Import.Gog" xml:space="preserve"><value>GOG (via Heroic)</value></data>
     <data name="Import.Epic" xml:space="preserve"><value>Epic (via Heroic)</value></data>
     <data name="Import.Roms" xml:space="preserve"><value>Local Folder (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Steam library</value></data>
@@ -354,12 +329,6 @@ Continue?</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Delete staging data after successful installation</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Removes downloaded installer files after a successful install.</value></data>
   <data name="Gog.Update.BadgeTooltip" xml:space="preserve"><value>GOG update available</value></data>
-  <data name="Gog.Update.Available" xml:space="preserve"><value>A GOG update is available for this title.</value></data>
-  <data name="Gog.Update.UpToDate" xml:space="preserve"><value>No newer GOG installer was found.</value></data>
-  <data name="Gog.Update.NoBaseline" xml:space="preserve"><value>No local version baseline is available yet for this title. Reinstall once via Retromind to enable reliable update comparison.</value></data>
-  <data name="Gog.Update.AuthRequired" xml:space="preserve"><value>GOG update check requires an active sign-in session.</value></data>
-  <data name="Gog.Update.NotApplicable" xml:space="preserve"><value>Update checks are only available for installed GOG titles.</value></data>
-  <data name="Gog.Update.Failed" xml:space="preserve"><value>GOG update check failed. See logs for details.</value></data>
   <data name="Gog.Install.PlatformLinux" xml:space="preserve"><value>Linux</value></data>
     <data name="Gog.Install.PlatformWindows" xml:space="preserve"><value>Windows</value></data>
     <data name="Gog.Install.ValidationPathRequired" xml:space="preserve"><value>Install path is required.</value></data>
@@ -375,7 +344,6 @@ Continue?</value></data>
     <data name="Gog.Install.NoInstallerForPlatformFormat" xml:space="preserve"><value>No installer found for platform: {0}.</value></data>
     <data name="Gog.Install.DownloadFailed" xml:space="preserve"><value>GOG installer download failed.</value></data>
     <data name="Gog.Install.DownloadFailedFormat" xml:space="preserve"><value>GOG installer download failed: {0}</value></data>
-    <data name="Gog.Install.DownloadLogTitleFormat" xml:space="preserve"><value>GOG download - {0}</value></data>
     <data name="Gog.Install.ProgressLogTitleFormat" xml:space="preserve"><value>GOG install - {0}</value></data>
     <data name="Gog.Install.RunFailed" xml:space="preserve"><value>Installer execution failed.</value></data>
     <data name="Gog.Install.RunFailedFormat" xml:space="preserve"><value>Installer execution failed: {0}</value></data>
@@ -384,11 +352,8 @@ Continue?</value></data>
     <data name="Gog.Install.Success" xml:space="preserve"><value>Installation completed.</value></data>
     <data name="Gog.Install.PickInstallPathTitle" xml:space="preserve"><value>Select install folder</value></data>
     <data name="Gog.Install.PickExecutableTitle" xml:space="preserve"><value>Select launch executable</value></data>
-    <data name="Gog.Install.ProcessLogTitleFormat" xml:space="preserve"><value>GOG installer - {0}</value></data>
     <!-- GOG Uninstall -->
-    <data name="Gog.Uninstall.Button" xml:space="preserve"><value>Uninstall</value></data>
     <data name="Gog.Uninstall.ContextMenu" xml:space="preserve"><value>Uninstall</value></data>
-    <data name="Gog.Uninstall.ConfirmTitle" xml:space="preserve"><value>Uninstall GOG game</value></data>
     <data name="Gog.Uninstall.ConfirmMessage" xml:space="preserve"><value>Uninstall "{0}"?
 
 This will delete:
@@ -397,7 +362,6 @@ This will delete:
 
 This action cannot be undone.</value></data>
     <data name="Gog.Uninstall.Success" xml:space="preserve"><value>Game uninstalled successfully.</value></data>
-    <data name="Gog.Uninstall.Failed" xml:space="preserve"><value>Uninstallation failed. See logs for details.</value></data>
     <data name="Gog.Uninstall.FailedWithMessage" xml:space="preserve"><value>Uninstallation failed: {0}</value></data>
 
     <!-- STATISTICS -->
@@ -430,7 +394,6 @@ This action cannot be undone.</value></data>
     <data name="Statistics.DistributionValueFormat" xml:space="preserve"><value>{0:N0} ({1:N1}%)</value></data>
 
     <!-- SETTINGS -->
-    <data name="Settings.TabMisc" xml:space="preserve"><value>Misc</value></data>
     <data name="Settings_TabGeneral" xml:space="preserve"><value>General</value></data>
     <data name="Settings_TabEmulators" xml:space="preserve"><value>Emulators</value></data>
     <data name="Settings_TabMetadataAndScrapers" xml:space="preserve"><value>Metadata &amp; scrapers</value></data>
@@ -449,8 +412,6 @@ This action cannot be undone.</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Choose which data is copied from scraper results. Not every provider supplies every field.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Default for existing metadata</value></data>
-    <data name="Settings_ScraperBulkAssetConflictPrompt" xml:space="preserve"><value>In manual and bulk scrape, append new artwork when artwork already exists</value></data>
-    <data name="Settings_ScraperBulkAssetConflictHint" xml:space="preserve"><value>Missing artwork is always imported.</value></data>
     <data name="Settings_ScraperMetadataFields" xml:space="preserve"><value>Metadata to copy</value></data>
     <data name="Settings_ScraperAssetFields" xml:space="preserve"><value>Artwork to add</value></data>
     <data name="Settings_ScraperProvidersTab" xml:space="preserve"><value>Providers</value></data>
@@ -471,8 +432,6 @@ This action cannot be undone.</value></data>
     <data name="Settings_SectionRunnerVersions" xml:space="preserve"><value>Wine/Proton versions</value></data>
     <data name="Settings_RunnerVersionNameLabel" xml:space="preserve"><value>Name</value></data>
     <data name="Settings_RunnerVersionPathLabel" xml:space="preserve"><value>Path</value></data>
-    <data name="Settings_RunnerVersionKindLabel" xml:space="preserve"><value>Type</value></data>
-    <data name="Settings_RunnerVersionSourceLabel" xml:space="preserve"><value>Source</value></data>
     <data name="Settings_RunnerVersionBrowseTitle" xml:space="preserve"><value>Select Wine/Proton directory</value></data>
     <data name="Settings_RunnerVersionDefaultPathHint" xml:space="preserve"><value>Managed downloads are stored under Emulators/ProtonVersions in the portable root.</value></data>
     <data name="Settings_RunnerVersionUsageLabel" xml:space="preserve"><value>Games using this version</value></data>
@@ -509,9 +468,7 @@ This action cannot be undone.</value></data>
     <data name="Settings_SteamLibraryPathsHint" xml:space="preserve"><value>Optional. Add the Steam library root (e.g. /home/user/.local/share/Steam) or the 'steamapps' folder.</value></data>
     <data name="Settings_SteamLibraryPathWatermark" xml:space="preserve"><value>e.g. /home/user/.local/share/Steam</value></data>
     <data name="Settings_SectionHeroicEpic" xml:space="preserve"><value>Heroic / Epic paths</value></data>
-    <data name="Settings_HeroicGogPathsHint" xml:space="preserve"><value>Optional. Add the Heroic config folder (e.g. /home/user/.config/heroic) or the 'gog_store' folder.</value></data>
     <data name="Settings_HeroicEpicPathsHint" xml:space="preserve"><value>Optional. Add the Heroic config folder (e.g. /home/user/.config/heroic) or the 'epic_store' folder.</value></data>
-    <data name="Settings_HeroicGogPathWatermark" xml:space="preserve"><value>e.g. /home/user/.config/heroic</value></data>
     <data name="Settings_HeroicEpicPathWatermark" xml:space="preserve"><value>e.g. /home/user/.config/heroic</value></data>
     <data name="Settings_NativeWrapperTitle" xml:space="preserve"><value>Native Wrapper (Linux)</value></data>
     <data name="Settings_AddWrapper" xml:space="preserve"><value>+ Add wrapper</value></data>
@@ -562,16 +519,10 @@ This action cannot be undone.</value></data>
   
     <!-- MEDIA -->
     <data name="Media.AddMusic" xml:space="preserve"><value>Music</value></data>
-    <data name="Media.EmulatorSelection" xml:space="preserve"><value>This applies to all games in this folder and subfolders that do not have their own emulator.</value></data>
     <data name="Media.LastPlayed" xml:space="preserve"><value>Last Played:</value></data>
     <data name="Media.Library" xml:space="preserve"><value>Library</value></data>
-    <data name="Media.MusicFiles" xml:space="preserve"><value>Music Files:</value></data>
     <data name="Media.PlayCount" xml:space="preserve"><value>Played:</value></data>
-    <data name="Media.RandomCover" xml:space="preserve"><value>Random images (■ = Inherited)</value></data>
-    <data name="Media.RandomMusic" xml:space="preserve"><value>Random music (■ = Inherited)</value></data>
-    <data name="Media.SetMusicActive" xml:space="preserve"><value>Set as music</value></data>
     <data name="Media.Settings" xml:space="preserve"><value>Settings / Rename...</value></data>
-    <data name="Media.StandardEmulator" xml:space="preserve"><value>Default emulator (for this folder):</value></data>
     <data name="Media.RemoveLaunchFiles" xml:space="preserve"><value>Remove all launch files</value></data>
     <data name="Media.FavoriteToggleHint" xml:space="preserve"><value>Mark or unmark this item as a favorite.</value></data>
     <data name="Media.WatermarkOverrideWatchProcess" xml:space="preserve"><value>e.g. hl2_linux, retroarch, stardewvalley</value></data>
@@ -594,7 +545,6 @@ This action cannot be undone.</value></data>
     <data name="ScrapeDialog.ArtworkSelectionHint" xml:space="preserve"><value>Selected artwork is added as another variant. Existing artwork is never replaced.</value></data>
     <data name="ScrapeDialog.SelectAll" xml:space="preserve"><value>Select all</value></data>
     <data name="ScrapeDialog.ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
-    <data name="ScrapeDialog.Add" xml:space="preserve"><value>Add</value></data>
     <data name="ScrapeDialog.ArtworkExistingStatus" xml:space="preserve"><value>Existing artwork is retained; this image will be added.</value></data>
     <data name="ScrapeDialog.ArtworkMissingStatus" xml:space="preserve"><value>No artwork of this type exists yet.</value></data>
     <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping area</value></data>
@@ -642,13 +592,6 @@ This action cannot be undone.</value></data>
     <data name="NodeSettings_ModeOverride" xml:space="preserve"><value>Override</value></data>
     <data name="NodeSettings_SystemThemeTitle" xml:space="preserve"><value>System theme (system selection)</value></data>
     <data name="NodeSettings_PresentationAndAssets" xml:space="preserve"><value>Presentation &amp; assets</value></data>
-    <data name="NodeSettings_CoverBoxart" xml:space="preserve"><value>Cover / boxart</value></data>
-    <data name="NodeSettings_CoverBoxartHint" xml:space="preserve"><value>For list view</value></data>
-    <data name="NodeSettings_LogoClearart" xml:space="preserve"><value>Logo / clearart</value></data>
-    <data name="NodeSettings_LogoClearartHint" xml:space="preserve"><value>For the BigMode header</value></data>
-    <data name="NodeSettings_Background" xml:space="preserve"><value>Background</value></data>
-    <data name="NodeSettings_BackgroundHint" xml:space="preserve"><value>For BigMode wallpaper</value></data>
-    <data name="NodeSettings_VideoSnap" xml:space="preserve"><value>Video snap</value></data>
     <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Show random images in this folder</value></data>
     <data name="NodeSettings_RandomizeCoversHint" xml:space="preserve"><value>Inherit (blue box) · Off (empty box) · On (checkmark)</value></data>
     <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Play random music from this folder</value></data>
@@ -674,9 +617,6 @@ This action cannot be undone.</value></data>
   
     <!-- PROCESS -->
     <data name="Process.Monitor" xml:space="preserve"><value>Process monitoring (Optional)</value></data>
-  
-    <!-- RANDOM -->
-    <data name="RandomMatch.Start" xml:space="preserve"><value>Start random matches</value></data>
   
     <!-- SEARCH -->
     <data name="Search.Global" xml:space="preserve"><value>Open global search</value></data>
@@ -741,20 +681,12 @@ zelda AND platform:switch</value></data>
     <data name="Search.FilterField.Year" xml:space="preserve"><value>Year</value></data>
     <data name="Search.FilterField.ReleaseDate" xml:space="preserve"><value>Release Date</value></data>
     <data name="Search.FilterField.Tag" xml:space="preserve"><value>Tag</value></data>
-    <data name="Search.FilterField.CustomField" xml:space="preserve"><value>Custom Fields</value></data>
     <data name="Search.FilterField.CustomNamedPrefix" xml:space="preserve"><value>Custom Field</value></data>
-    <data name="Search.FilterField.CustomKey" xml:space="preserve"><value>Custom Key</value></data>
-    <data name="Search.FilterField.CustomValue" xml:space="preserve"><value>Custom Value</value></data>
     <data name="Search.FilterField.Id" xml:space="preserve"><value>ID</value></data>
     <data name="Search.FilterField.Favorite" xml:space="preserve"><value>Favorite</value></data>
     <data name="Search.FilterField.Played" xml:space="preserve"><value>Played</value></data>
-    <data name="Search.Field.Year" xml:space="preserve"><value>Year</value></data>
-    <data name="Search.Field.Tag" xml:space="preserve"><value>Tag</value></data>
-    <data name="Search.Field.Id" xml:space="preserve"><value>ID</value></data>
-    <data name="Search.Field.Favorite" xml:space="preserve"><value>Favorite</value></data>
   
     <!-- SETTINGS -->
-    <data name="Settings.AddProfile" xml:space="preserve"><value>Add Profile</value></data>
     <data name="Settings.ConfirmConvertLaunchPaths" xml:space="preserve"><value>Convert existing launch paths to portable (relative) paths?</value></data>
     <data name="Settings.ConvertExistingLaunchPaths" xml:space="preserve"><value>Convert existing launch paths</value></data>
     <data name="Settings.DefaultArguments" xml:space="preserve"><value>Default Arguments</value></data>
@@ -767,7 +699,6 @@ zelda AND platform:switch</value></data>
     <data name="Settings.PortableLaunchPaths" xml:space="preserve"><value>Store launch file paths relative to Retromind data folder (portable)</value></data>
     <data name="Settings.ProfileName" xml:space="preserve"><value>Profile Name</value></data>
     <data name="Settings.SectionEmulators" xml:space="preserve"><value>Emulator Profiles</value></data>
-    <data name="Settings.TabEmulators" xml:space="preserve"><value>Launcher / Emulators</value></data>
     <data name="Settings.TabMetadata" xml:space="preserve"><value>Meta Data</value></data>
     <data name="Settings.Title" xml:space="preserve"><value>Settings</value></data>
     <data name="Settings_Advanced" xml:space="preserve"><value>Advanced</value></data>
@@ -806,8 +737,6 @@ zelda AND platform:switch</value></data>
   
     <!-- TIP -->
     <data name="Tip.RandomGame" xml:space="preserve"><value>Start a random game from the current view</value></data>
-    <data name="Tip.RandomImage" xml:space="preserve"><value>When the folder is displayed, random images are selected from the media folder.</value></data>
-    <data name="Tip.RandomMusic" xml:space="preserve"><value>When the folder is displayed, random music is selected from the media folder.</value></data>
   
     <!-- TYPE -->
     <data name="Type.Command" xml:space="preserve"><value>External Launcher</value></data>
