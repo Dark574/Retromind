@@ -39,6 +39,7 @@ See `docs/CHANGELOG.md` for version history.
 - **Smart local imports** with multi-disc recognition and optional playlist launching
 - **Store integration** for Steam and Heroic imports plus experimental native GOG library, installation, update and uninstall support
 - **Managed compatibility runners**, including direct GE-Proton downloads and reusable emulator profiles
+- **RetroAchievements integration** with ROM/disc identification, achievement badges, cached progress and separate Casual/Hardcore summaries
 
 ## Screenshots
 
@@ -548,6 +549,71 @@ You need to create your own API keys on the respective provider pages:
 
 Each user is responsible for their own API keys and must comply with the
 respective provider terms of service.
+
+## RetroAchievements
+
+Retromind can identify compatible game files through RetroAchievements and show the configured user's
+achievement progress, badges, points, unlock times, and separate Casual/Hardcore summaries in the desktop
+detail panel.
+
+Retromind does not unlock achievements itself. Achievement unlocking is handled by a compatible emulator
+with RetroAchievements enabled. Configure the same RetroAchievements account in the emulator if you want
+the progress shown by Retromind to reflect your gameplay.
+
+### 1. Create and connect an account
+
+1. Create an account at <https://retroachievements.org/>.
+2. While signed in, open the account control panel and copy the **Web API key** from its **Keys** section:
+   <https://retroachievements.org/controlpanel.php>
+3. In Retromind, open **Settings -> Integrations -> RetroAchievements**.
+4. Enable the integration and enter your username and Web API key.
+5. Select **Test connection**, then save the settings.
+
+Use the Web API key, not an emulator password, Connect API token, or another API credential. The official
+[RetroAchievements API guide](https://api-docs.retroachievements.org/getting-started.html) also explains where
+to find this key and recommends treating it like a password.
+
+When a system keyring is available, Retromind stores the key there. It is never written to
+`app_settings.json`, the library, metadata backups, or the RetroAchievements cache. Without an available
+keyring, the key remains available only for the current Retromind session.
+
+### 2. Assign the game system
+
+RetroAchievements identification needs the technical game system in addition to the ROM/disc file:
+
+1. Right-click the category containing the games and open **Settings**.
+2. Under **Integrations**, select the correct **Game system** and save.
+
+The assignment is inherited by child categories and games unless they override it. It is independent of the
+free-text platform metadata and the selected emulator. Only systems supported by Retromind's bundled
+RetroAchievements hashing library are eligible; the mass-identification menu is disabled for unsupported
+system assignments.
+
+### 3. Identify games
+
+There are three supported workflows:
+
+- **Single game:** Open **Edit media -> General**, select or inherit the game system, then choose
+  **Identify game** in the RetroAchievements section. Save the media entry to retain the match.
+- **Existing category:** Right-click the category and choose **Search RetroAchievements (All)...**. The scan
+  includes descendant categories, skips games already identified, and retains completed matches if canceled.
+- **ROM folder import:** When importing through **Import -> Local folder (ROMs)**, identification runs
+  automatically if the integration is configured and the target category has a supported game system.
+
+Identification uses the game file's system-specific RetroAchievements hash rather than its filename. A
+compatible dump is therefore required; a correct title alone is not sufficient. Disc images in CHD format
+are supported through the bundled decoder.
+
+### 4. View and refresh progress
+
+Select an identified game to see its progress in the right-hand detail panel. The achievement list can be
+expanded to show badges, descriptions, points, unlock state, and unlock time. Retromind refreshes the selected
+game after a normally tracked play session; **Refresh** can also be used manually.
+
+Successful progress responses and badge images are cached locally. If RetroAchievements is temporarily
+unavailable, Retromind can display the latest cached progress and marks it as cached data. The cache is stored
+under `Cache/RetroAchievements` in the portable data root, or under
+`Home/.cache/retromind/RetroAchievements` when portable AppImage HOME is enabled.
 
 ## Wayland / X11 note (VLC video embedding)
 Retromind uses X11/XWayland by default. Avalonia 12.1's native Wayland backend is available as an
