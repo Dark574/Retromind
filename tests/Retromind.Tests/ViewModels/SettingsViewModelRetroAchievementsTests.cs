@@ -76,6 +76,37 @@ public sealed class SettingsViewModelRetroAchievementsTests
 
         Assert.Equal(0, secretStore.DeleteCalls);
         Assert.Equal("stored-key", secretStore.StoredValue);
+        Assert.True(targetSettings.RetroAchievements.Enabled);
+    }
+
+    [Fact]
+    public async Task RemoveThenSave_DisablesIntegrationAndDeletesStoredKey()
+    {
+        var targetSettings = new AppSettings
+        {
+            RetroAchievements = new RetroAchievementsSettings
+            {
+                Enabled = true,
+                Username = "TestUser",
+                UserUlid = "01TESTULID"
+            }
+        };
+        var secretStore = new RecordingSecretStore { StoredValue = "stored-key" };
+        using var httpClient = CreateProfileClient();
+        using var viewModel = CreateViewModel(targetSettings, secretStore, httpClient);
+        await viewModel.InitializeRetroAchievementsAsync();
+
+        viewModel.RemoveRetroAchievementsApiKeyCommand.Execute(null);
+
+        Assert.False(viewModel.RetroAchievementsEnabled);
+        Assert.True(viewModel.SaveCommand.CanExecute(null));
+
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, secretStore.DeleteCalls);
+        Assert.Null(secretStore.StoredValue);
+        Assert.False(targetSettings.RetroAchievements.Enabled);
+        Assert.Equal("TestUser", targetSettings.RetroAchievements.Username);
     }
 
     private static SettingsViewModel CreateViewModel(

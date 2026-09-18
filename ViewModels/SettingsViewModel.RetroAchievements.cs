@@ -194,11 +194,12 @@ public partial class SettingsViewModel
         _removeRetroAchievementsApiKeyOnSave = true;
         RetroAchievementsApiKey = string.Empty;
         HasStoredRetroAchievementsApiKey = false;
+        RetroAchievementsEnabled = false;
         _verifiedRetroAchievementsUsername = null;
         _verifiedRetroAchievementsUserUlid = null;
         RetroAchievementsStatusText = T(
             "Settings_RetroAchievementsStatusRemovePending",
-            "The stored Web API key will be removed when you save the settings.");
+            "RetroAchievements was disabled. The stored Web API key will be removed when you save the settings.");
     }
 
     private bool CanSaveRetroAchievements()

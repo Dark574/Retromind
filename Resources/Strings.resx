@@ -935,7 +935,7 @@ The current application settings will be kept.</value></data>
     <data name="Settings_RetroAchievementsStatusFailedFormat" xml:space="preserve"><value>Connection failed: {0}</value></data>
     <data name="Settings_RetroAchievementsStatusUnauthorized" xml:space="preserve"><value>The Web API key was not accepted (HTTP 401). Make sure you copied the Web API key, not an emulator or Connect API key.</value></data>
     <data name="Settings_RetroAchievementsStatusUnexpectedFailure" xml:space="preserve"><value>The RetroAchievements connection test failed unexpectedly.</value></data>
-    <data name="Settings_RetroAchievementsStatusRemovePending" xml:space="preserve"><value>The stored Web API key will be removed when you save the settings.</value></data>
+    <data name="Settings_RetroAchievementsStatusRemovePending" xml:space="preserve"><value>RetroAchievements was disabled. The stored Web API key will be removed when you save the settings.</value></data>
     <data name="Settings_RetroAchievementsStatusSecretWriteFailed" xml:space="preserve"><value>The Web API key could not be stored. The settings were not saved.</value></data>
     <data name="GameSystem_NodeLabel" xml:space="preserve"><value>Game system for game identification</value></data>
     <data name="GameSystem_ItemLabel" xml:space="preserve"><value>Game system for game identification</value></data>

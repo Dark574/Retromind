@@ -937,7 +937,7 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="Settings_RetroAchievementsStatusFailedFormat" xml:space="preserve"><value>Verbindung fehlgeschlagen: {0}</value></data>
     <data name="Settings_RetroAchievementsStatusUnauthorized" xml:space="preserve"><value>Der Web-API-Key wurde nicht akzeptiert (HTTP 401). Stelle sicher, dass du den Web-API-Key kopiert hast, nicht einen Emulator- oder Connect-API-Key.</value></data>
     <data name="Settings_RetroAchievementsStatusUnexpectedFailure" xml:space="preserve"><value>Der RetroAchievements-Verbindungstest ist unerwartet fehlgeschlagen.</value></data>
-    <data name="Settings_RetroAchievementsStatusRemovePending" xml:space="preserve"><value>Der gespeicherte Web-API-Key wird beim Speichern der Einstellungen entfernt.</value></data>
+    <data name="Settings_RetroAchievementsStatusRemovePending" xml:space="preserve"><value>RetroAchievements wurde deaktiviert. Der gespeicherte Web-API-Key wird beim Speichern der Einstellungen entfernt.</value></data>
     <data name="Settings_RetroAchievementsStatusSecretWriteFailed" xml:space="preserve"><value>Der Web-API-Key konnte nicht gespeichert werden. Die Einstellungen wurden nicht übernommen.</value></data>
     <data name="GameSystem_NodeLabel" xml:space="preserve"><value>Spielsystem für die Spieleerkennung</value></data>
     <data name="GameSystem_ItemLabel" xml:space="preserve"><value>Spielsystem für die Spieleerkennung</value></data>
