@@ -444,6 +444,9 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_IgnoreLeadingArticlesInSort" xml:space="preserve"><value>Führende Artikel bei der Titelsortierung ignorieren</value></data>
     <data name="Settings_IgnoreLeadingArticlesInSort_Hint" xml:space="preserve"><value>Gilt nur für Titel. Sort Title wird immer unverändert verwendet.</value></data>
     <data name="Settings_SectionMusic" xml:space="preserve"><value>Musik</value></data>
+    <data name="Settings_SectionAppearance" xml:space="preserve"><value>Darstellung</value></data>
+    <data name="Settings_ShowStoreBadges" xml:space="preserve"><value>Store-Marken auf Spielecovern anzeigen</value></data>
+    <data name="Settings_ShowStoreBadges_Hint" xml:space="preserve"><value>Zeigt GOG-, Steam- und Epic-Marken auf erkannten Store-Spielen an.</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper-Import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Lege fest, welche Daten aus Scraper-Treffern übernommen werden. Nicht jeder Anbieter liefert alle aufgeführten Inhalte.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Voreinstellung für vorhandene Metadaten</value></data>

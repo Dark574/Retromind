@@ -67,6 +67,17 @@
 
                         <Border Classes="section">
                             <StackPanel Spacing="8">
+                                <TextBlock Text="{Binding AppearanceSectionTitle}"
+                                           FontWeight="Bold"
+                                           FontSize="16" />
+                                <CheckBox Content="{Binding ShowStoreBadgesText}"
+                                          IsChecked="{Binding ShowStoreBadges}"
+                                          ToolTip.Tip="{Binding ShowStoreBadgesHint}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="section">
+                            <StackPanel Spacing="8">
                                 <TextBlock Text="{Binding ParentalSectionTitle}"
                                            FontWeight="Bold"
                                            FontSize="16" />

@@ -78,6 +78,11 @@ public class AppSettings
     public bool IgnoreLeadingArticlesInSort { get; set; } = false;
 
     /// <summary>
+    /// Shows a small store/provider label on imported GOG, Steam, and Epic game covers.
+    /// </summary>
+    public bool ShowStoreBadges { get; set; } = true;
+
+    /// <summary>
     /// Master switch for event-driven metadata backups. Manual backups remain available.
     /// </summary>
     public bool EnableAutomaticMetadataBackups { get; set; } = true;

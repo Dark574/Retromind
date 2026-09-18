@@ -108,6 +108,27 @@ public static class ObjectConverters
         });
 
     /// <summary>
+    /// Returns true when store badges are enabled and the media item can be
+    /// associated with one of the supported stores.
+    /// Bindings order: current media item, global show-store-badges setting.
+    /// </summary>
+    public static readonly IMultiValueConverter StoreBadgeVisible =
+        new FuncMultiValueConverter<object?, bool>(values =>
+        {
+            var entries = values?.Select(UnwrapValue).ToArray() ?? Array.Empty<object?>();
+            return entries.Length >= 2 &&
+                   entries[0] is MediaItem item &&
+                   entries[1] is true &&
+                   StoreProviderBadgeHelper.GetProviderId(item) != null;
+        });
+
+    public static readonly IValueConverter StoreBadgeText =
+        new FuncValueConverter<MediaItem?, string?>(StoreProviderBadgeHelper.GetBadgeText);
+
+    public static readonly IValueConverter StoreBadgeToolTip =
+        new FuncValueConverter<MediaItem?, string?>(StoreProviderBadgeHelper.GetToolTip);
+
+    /// <summary>
     /// Returns true only for installed GOG-linked media items.
     /// Used to show/hide the "Reinstall / Switch Version" context-menu entry.
     /// </summary>

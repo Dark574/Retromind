@@ -224,6 +224,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool ShowLibraryLoadError =>
         !IsLibraryLoading && !string.IsNullOrWhiteSpace(LibraryLoadErrorMessage);
     public bool ShowSettingsLoadError => !string.IsNullOrWhiteSpace(SettingsLoadErrorMessage);
+    public bool ShowStoreBadges => _currentSettings.ShowStoreBadges;
 
     // Empty-library hint should only be shown for truly empty libraries,
     // not while startup loading is still building the first content.

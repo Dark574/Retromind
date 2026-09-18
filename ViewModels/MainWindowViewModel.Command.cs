@@ -1473,6 +1473,7 @@ public partial class MainWindowViewModel
 
         if (settingsVm.IsSaved)
         {
+            OnPropertyChanged(nameof(ShowStoreBadges));
             _metadataService.ClearProviderCache();
             NotifyNodeCommandsCanExecuteChanged();
             var settingsSaved = await SaveData();

@@ -213,6 +213,19 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public bool ShowStoreBadges
+    {
+        get => _appSettings.ShowStoreBadges;
+        set
+        {
+            if (_appSettings.ShowStoreBadges == value)
+                return;
+
+            _appSettings.ShowStoreBadges = value;
+            OnPropertyChanged();
+        }
+    }
+
     private ScraperImportSettings ScraperImportSettings
     {
         get
@@ -386,6 +399,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     public string ScraperImportSectionTitle => T("Settings_SectionScraperImport", "Scraper import");
     public string SortingSectionTitle => T("Settings_SectionSorting", "Sorting");
+    public string AppearanceSectionTitle => T("Settings_SectionAppearance", "Appearance");
+    public string ShowStoreBadgesText => T("Settings_ShowStoreBadges", "Show store labels on game covers");
+    public string ShowStoreBadgesHint => T(
+        "Settings_ShowStoreBadges_Hint",
+        "Shows GOG, Steam, and Epic labels on recognized store games.");
     public string IgnoreLeadingArticlesInSortText =>
         T("Settings_IgnoreLeadingArticlesInSort", "Ignore leading articles in title sorting");
     public string IgnoreLeadingArticlesInSortHint =>

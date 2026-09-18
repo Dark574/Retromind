@@ -295,6 +295,7 @@ public partial class SettingsViewModel
         _targetSettings.ForcePortableHomeInAppImage = committed.ForcePortableHomeInAppImage;
         _targetSettings.EnableSelectionMusicPreview = committed.EnableSelectionMusicPreview;
         _targetSettings.IgnoreLeadingArticlesInSort = committed.IgnoreLeadingArticlesInSort;
+        _targetSettings.ShowStoreBadges = committed.ShowStoreBadges;
         _targetSettings.EnableAutomaticMetadataBackups = committed.EnableAutomaticMetadataBackups;
         _targetSettings.BackupBeforeBulkEdit = committed.BackupBeforeBulkEdit;
         _targetSettings.BackupBeforeBulkScrape = committed.BackupBeforeBulkScrape;

@@ -314,7 +314,12 @@ public class StoreImportService
                 LauncherArgs = $"steam://rungameid/{appId}",
                 MediaType = MediaType.Command,
                 Description = "Imported from Steam",
-                Developer = "Valve / Steam"
+                Developer = "Valve / Steam",
+                CustomFields = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [CustomFieldKeyHelper.StoreProviderId] = StoreProviderBadgeHelper.SteamProviderId,
+                    [CustomFieldKeyHelper.StoreGameId] = appId
+                }
             }, appId);
         }
         catch (Exception ex)
@@ -510,7 +515,12 @@ public class StoreImportService
             LauncherArgs = $"{uriPrefix}{id}",
             MediaType = MediaType.Command,
             Description = $"Imported from Heroic ({storeLabel}) - Platform: {platform}",
-            Developer = developer
+            Developer = developer,
+            CustomFields = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [CustomFieldKeyHelper.StoreProviderId] = StoreProviderBadgeHelper.EpicProviderId,
+                [CustomFieldKeyHelper.StoreGameId] = id
+            }
         };
     }
 }

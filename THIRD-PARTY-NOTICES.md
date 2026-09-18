@@ -193,6 +193,14 @@ Please consult the `Licenses/` directory and package metadata for the complete, 
 
 ---
 
+## Store names
+
+Retromind may display the names GOG, Steam, Epic Games, and Heroic solely to identify the source of an imported game.
+These names and associated trademarks belong to their respective owners. Retromind is not affiliated with or
+endorsed by those owners. No third-party store logos or artwork are bundled for these labels.
+
+---
+
 ## Build Tooling (Not distributed as part of the app)
 
 The following tools may be used during development or for packaging, but are **not** distributed as part of the Retromind binaries:
