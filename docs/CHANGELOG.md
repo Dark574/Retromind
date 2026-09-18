@@ -13,6 +13,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - make shortcut creation optional for GOG Windows installation
 - RetroAchievments for supported systems
 - added store badges on Game Covers
+- new Nintendo Game Boy Advance system theme
 
 ### Changed
 - make information dialogs copyable

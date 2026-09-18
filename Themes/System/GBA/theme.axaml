@@ -1,0 +1,176 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="Transparent"
+
+             ext:ThemeProperties.Name="Nintendo Game Boy Advance"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.AccentColor="#A9D84E"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
+             ext:ThemeProperties.VideoStretchMode="UniformToFill"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
+             ext:ThemeProperties.SecondaryVideoEnabled="False">
+
+    <UserControl.Resources>
+        <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
+    </UserControl.Resources>
+
+    <Border Background="#100C1D"
+            CornerRadius="8"
+            ClipToBounds="True">
+        <Grid>
+            <Rectangle>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#34265B" Offset="0" />
+                        <GradientStop Color="#18122A" Offset="0.52" />
+                        <GradientStop Color="#090811" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <Border Height="4"
+                    VerticalAlignment="Top"
+                    Opacity="0.94">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Color="#A9D84E" Offset="0" />
+                        <GradientStop Color="#A9D84E" Offset="0.68" />
+                        <GradientStop Color="#8C75DF" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Restrained pixel accents recall handheld graphics without using
+                 platform lettering, logos, characters, or game artwork. -->
+            <Canvas HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Width="280"
+                    Height="180"
+                    Margin="0,42,54,0"
+                    Opacity="0.16">
+                <Border Canvas.Left="0" Canvas.Top="48" Width="32" Height="32" Background="#A9D84E" />
+                <Border Canvas.Left="32" Canvas.Top="16" Width="32" Height="32" Background="#8C75DF" />
+                <Border Canvas.Left="64" Canvas.Top="48" Width="32" Height="32" Background="#A9D84E" />
+                <Border Canvas.Left="160" Canvas.Top="80" Width="32" Height="32" Background="#8C75DF" />
+                <Border Canvas.Left="192" Canvas.Top="48" Width="32" Height="32" Background="#A9D84E" />
+                <Border Canvas.Left="224" Canvas.Top="80" Width="32" Height="32" Background="#8C75DF" />
+            </Canvas>
+
+            <Grid ColumnDefinitions="0.82*,1.48*"
+                  Margin="44,34,38,30">
+
+                <Grid Grid.Column="0"
+                      RowDefinitions="Auto,Auto,*"
+                      Margin="0,12,36,10">
+                    <Grid Grid.Row="0" Height="112">
+                        <Image helpers:AsyncImageHelper.Url="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               MaxWidth="370"
+                               IsVisible="{Binding ElementName=ThemeRoot,
+                                                   Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+                                                   Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Name}"
+                                   FontSize="44"
+                                   FontWeight="Bold"
+                                   Foreground="#F5F1FF"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding ElementName=ThemeRoot,
+                                                       Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+                                                       Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,14,0,20">
+                        <Border Height="3"
+                                Background="#A9D84E"
+                                HorizontalAlignment="Left"
+                                Width="124" />
+                        <Border Height="3"
+                                Background="#8C75DF"
+                                HorizontalAlignment="Left"
+                                Margin="124,0,0,0"
+                                Width="42" />
+                    </Grid>
+
+                    <Border Grid.Row="2"
+                            BorderBrush="#66A9D84E"
+                            BorderThickness="1,0,0,0"
+                            Padding="18,2,4,4"
+                            ClipToBounds="True">
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Description}"
+                                   FontSize="18"
+                                   LineHeight="27"
+                                   Foreground="#DDD7EC"
+                                   TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+
+                <!-- The shared preview is aligned behind the transparent screen
+                     aperture in the handheld frame. -->
+                <Viewbox Grid.Column="1"
+                         Stretch="Uniform"
+                         StretchDirection="Both"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         MaxWidth="930"
+                         MaxHeight="760">
+                    <Canvas Width="1536" Height="1180">
+                        <Border x:Name="SystemPrimaryVideoSlot"
+                                Canvas.Left="407"
+                                Canvas.Top="251"
+                                Width="722"
+                                Height="480"
+                                Background="#020203"
+                                ClipToBounds="True" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/gba-inspired-handheld-frame.png}"
+                               Canvas.Left="0"
+                               Canvas.Top="0"
+                               Width="1536"
+                               Height="1024"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <Border Canvas.Left="510"
+                                Canvas.Top="1000"
+                                Width="516"
+                                Height="96"
+                                CornerRadius="48"
+                                Background="#44100C1D"
+                                BorderBrush="#667D68C6"
+                                BorderThickness="2">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="14"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
+                                           FontSize="24"
+                                           FontWeight="SemiBold"
+                                           Foreground="#C9C1DD"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Items.Count}"
+                                           FontSize="34"
+                                           FontWeight="Bold"
+                                           Foreground="#A9D84E"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Canvas>
+                </Viewbox>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>
