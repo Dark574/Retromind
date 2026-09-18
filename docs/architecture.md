@@ -291,7 +291,8 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 - supports `Native`, `Emulator`, and `Command` media types
 - media items may intentionally have no launch file and act as catalog placeholders; the editor can add,
   replace, or clear launch files later
-- launch plan layering: item launcher -> emulator config -> wrapper chain
+- launch plan layering: item launcher -> emulator config -> node/item wrapper chain; there is no
+  application-global wrapper layer
 - explicit test launches use the same launch plan while suppressing play count, last-played, and playtime updates
 - supports multi-file launch decisions (including playlist mode)
 - supports merged environment overrides (node/emulator/item)

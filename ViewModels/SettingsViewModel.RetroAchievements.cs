@@ -44,9 +44,6 @@ public partial class SettingsViewModel
     [ObservableProperty]
     private string _retroAchievementsStatusText = string.Empty;
 
-    public string SettingsTabRetroAchievementsShort =>
-        T("Settings_RetroAchievementsTabShort", "RA");
-
     public string RetroAchievementsTabTitle =>
         T("Settings_RetroAchievementsTabTitle", "RetroAchievements");
 

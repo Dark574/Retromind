@@ -247,8 +247,6 @@
     <data name="EditMedia.InheritedWrappersInfoFormat" xml:space="preserve"><value>Inherited wrappers ({0}): {1}</value></data>
     <data name="EditMedia.InheritedWrappersSourceNodeFormat" xml:space="preserve"><value>Node: {0}</value></data>
     <data name="EditMedia.InheritedWrappersSourceEmulatorFormat" xml:space="preserve"><value>Emulator: {0}</value></data>
-    <data name="EditMedia.InheritedWrappersSourceGlobal" xml:space="preserve"><value>Global defaults</value></data>
-    <data name="EditMedia.InheritedWrappersSourceGlobalViaEmulatorFormat" xml:space="preserve"><value>Global defaults (via {0})</value></data>
     <data name="EditMedia.EnvInheritedHint" xml:space="preserve"><value>Inherited values are prefilled; Source indicates origin.</value></data>
     <data name="EditMedia.LaunchFile" xml:space="preserve"><value>Launch file</value></data>
     <data name="EditMedia.NoLaunchFileSelected" xml:space="preserve"><value>No launch file selected</value></data>
@@ -433,15 +431,18 @@ This action cannot be undone.</value></data>
 
     <!-- SETTINGS -->
     <data name="Settings.TabMisc" xml:space="preserve"><value>Misc</value></data>
+    <data name="Settings_TabGeneral" xml:space="preserve"><value>General</value></data>
+    <data name="Settings_TabEmulators" xml:space="preserve"><value>Emulators</value></data>
+    <data name="Settings_TabMetadataAndScrapers" xml:space="preserve"><value>Metadata &amp; scrapers</value></data>
+    <data name="Settings_TabLaunchCompatibility" xml:space="preserve"><value>Launch &amp; compatibility</value></data>
+    <data name="Settings_TabIntegrations" xml:space="preserve"><value>Integrations</value></data>
+    <data name="Settings_TabBackups" xml:space="preserve"><value>Backups</value></data>
+    <data name="Settings_IntegrationLibraries" xml:space="preserve"><value>Game libraries</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Launch paths</value></data>
     <data name="Settings_SectionSorting" xml:space="preserve"><value>Sorting</value></data>
     <data name="Settings_IgnoreLeadingArticlesInSort" xml:space="preserve"><value>Ignore leading articles in title sorting</value></data>
     <data name="Settings_IgnoreLeadingArticlesInSort_Hint" xml:space="preserve"><value>Applies to Title only. Sort Title is always used as entered.</value></data>
     <data name="Settings_SectionMusic" xml:space="preserve"><value>Music</value></data>
-    <data name="Settings_TabEmulatorsShort" xml:space="preserve"><value>Emu</value></data>
-    <data name="Settings_TabMetadataShort" xml:space="preserve"><value>Meta</value></data>
-    <data name="Settings_TabRunnerShort" xml:space="preserve"><value>Runner</value></data>
-    <data name="Settings_TabMiscShort" xml:space="preserve"><value>Misc</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Choose which data is copied from scraper results. Not every provider supplies every field.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Default for existing metadata</value></data>
@@ -464,7 +465,6 @@ This action cannot be undone.</value></data>
     <data name="Settings_ScraperArtworkModeAppendHint" xml:space="preserve"><value>New images are added as variants. Existing images remain unchanged.</value></data>
     <data name="Settings_SectionParental" xml:space="preserve"><value>Parental control</value></data>
     <data name="Settings_ChangeParentalPassword" xml:space="preserve"><value>Change parental password</value></data>
-    <data name="Settings_TabRunnerVersions" xml:space="preserve"><value>Wine/Proton versions</value></data>
     <data name="Settings_SectionRunnerVersions" xml:space="preserve"><value>Wine/Proton versions</value></data>
     <data name="Settings_RunnerVersionNameLabel" xml:space="preserve"><value>Name</value></data>
     <data name="Settings_RunnerVersionPathLabel" xml:space="preserve"><value>Path</value></data>
@@ -761,7 +761,6 @@ zelda AND platform:switch</value></data>
     <data name="Settings.PortableHome" xml:space="preserve"><value>Use portable HOME/XDG for AppImage</value></data>
     <data name="Settings.PortableHome.Hint" xml:space="preserve"><value>Redirects HOME/XDG for the Retromind AppImage process to a local Home/ folder (requires restart). External launches use host HOME/XDG by default; use emulator/item overrides for portable child processes.</value></data>
     <data name="Settings.PortableHome.WarningForceConfirm" xml:space="preserve"><value>Enable portable HOME/XDG in forced mode? This applies to the Retromind AppImage process and can change integration behavior. External launches still default to host HOME/XDG unless overridden per emulator/item. A restart is required.</value></data>
-    <data name="Settings.UseGlobalWrapperDefaults" xml:space="preserve"><value>Use global defaults</value></data>
     <data name="Settings.PortableLaunchPaths" xml:space="preserve"><value>Store launch file paths relative to Retromind data folder (portable)</value></data>
     <data name="Settings.ProfileName" xml:space="preserve"><value>Profile Name</value></data>
     <data name="Settings.SectionEmulators" xml:space="preserve"><value>Emulator Profiles</value></data>
@@ -860,7 +859,7 @@ The program may not have started correctly.</value>
     </data>
     <data name="Launch.ConsoleOutputHeader" xml:space="preserve"><value>Console output:</value></data>
     <data name="MetadataBackup.SettingsSection" xml:space="preserve"><value>Metadata backups</value></data>
-    <data name="MetadataBackup.SettingsHint" xml:space="preserve"><value>Manual backups are always available. Choose which events should create automatic backups.</value></data>
+    <data name="MetadataBackup.SettingsHint" xml:space="preserve"><value>Choose which events should create automatic backups.</value></data>
     <data name="MetadataBackup.EnableAutomatic" xml:space="preserve"><value>Create automatic metadata backups</value></data>
     <data name="MetadataBackup.Trigger.BeforeBulkEdit" xml:space="preserve"><value>Before applying a bulk edit</value></data>
     <data name="MetadataBackup.Trigger.BeforeBulkScrape" xml:space="preserve"><value>Before starting a bulk scrape</value></data>
@@ -913,7 +912,6 @@ The current application settings will be kept.</value></data>
     <data name="MetadataBackup.StartupFailedFormat" xml:space="preserve"><value>The automatic startup backup could not be created. Retromind will continue normally.
 
 {0}</value></data>
-    <data name="Settings_RetroAchievementsTabShort" xml:space="preserve"><value>RA</value></data>
     <data name="Settings_RetroAchievementsTabTitle" xml:space="preserve"><value>RetroAchievements</value></data>
     <data name="Settings_RetroAchievementsSectionTitle" xml:space="preserve"><value>RetroAchievements account</value></data>
     <data name="Settings_RetroAchievementsHint" xml:space="preserve"><value>Connect your RetroAchievements account to show achievement progress for identified games.</value></data>

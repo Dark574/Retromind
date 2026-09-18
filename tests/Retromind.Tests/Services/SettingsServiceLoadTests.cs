@@ -41,6 +41,48 @@ public sealed class SettingsServiceLoadTests
     }
 
     [Fact]
+    public async Task LoadAsync_AcceptsLegacyGlobalWrappersAndDropsThemOnNextSave()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+        var service = new SettingsService();
+        var settingsPath = temp.GetPath("app_settings.json");
+        File.WriteAllText(
+            settingsPath,
+            """
+            {
+              "DefaultNativeWrappers": [
+                { "Path": "legacy-global-wrapper", "Args": "{file}" }
+              ],
+              "Emulators": [
+                {
+                  "Id": "legacy-emulator",
+                  "Name": "Legacy emulator",
+                  "Path": "/usr/bin/example",
+                  "NativeWrapperMode": 2,
+                  "NativeWrappersOverride": [
+                    { "Path": "emulator-wrapper", "Args": "{file}" }
+                  ]
+                }
+              ]
+            }
+            """);
+
+        var settings = await service.LoadAsync();
+
+        var emulator = Assert.Single(settings.Emulators);
+        var wrapper = Assert.Single(emulator.NativeWrappersOverride!);
+        Assert.Equal("emulator-wrapper", wrapper.Path);
+
+        await service.SaveAsync(settings);
+        var savedJson = await File.ReadAllTextAsync(settingsPath);
+
+        Assert.DoesNotContain("DefaultNativeWrappers", savedJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("NativeWrapperMode", savedJson, StringComparison.Ordinal);
+        Assert.Contains("emulator-wrapper", savedJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task LoadAsync_UsesBackupAndRestoresPrimaryWhenPrimaryIsCorrupt()
     {
         using var temp = new TemporaryDirectory();

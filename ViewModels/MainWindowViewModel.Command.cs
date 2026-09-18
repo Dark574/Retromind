@@ -932,45 +932,14 @@ public partial class MainWindowViewModel
                 }
             }
 
-            // C) Native wrapper resolution (global -> node -> item)
+            // Native wrapper resolution (emulator -> node -> item)
             IReadOnlyList<LaunchWrapper>? effectiveWrappers = null;
 
             if (item.MediaType == MediaType.Native || item.MediaType == MediaType.Emulator)
             {
-                List<LaunchWrapper>? wrappers = null;
-
-                // 1) Emulator level (if available)
-                if (emulator != null)
-                {
-                    switch (emulator.NativeWrapperMode)
-                    {
-                        case EmulatorConfig.WrapperMode.Inherit:
-                            // Inherit from global defaults (may be null)
-                            wrappers = _currentSettings.DefaultNativeWrappers != null
-                                ? new List<LaunchWrapper>(_currentSettings.DefaultNativeWrappers)
-                                : new List<LaunchWrapper>();
-                            break;
-
-                        case EmulatorConfig.WrapperMode.None:
-                            // Explicitly no wrappers for this emulator (unless item overrides later)
-                            wrappers = new List<LaunchWrapper>();
-                            break;
-
-                        case EmulatorConfig.WrapperMode.Override:
-                            // Use emulator-level override list (may be empty to mean "none")
-                            wrappers = emulator.NativeWrappersOverride != null
-                                ? new List<LaunchWrapper>(emulator.NativeWrappersOverride)
-                                : new List<LaunchWrapper>();
-                            break;
-                    }
-                }
-                else
-                {
-                    // No emulator: only global defaults as a basis
-                    wrappers = _currentSettings.DefaultNativeWrappers != null
-                        ? new List<LaunchWrapper>(_currentSettings.DefaultNativeWrappers)
-                        : new List<LaunchWrapper>();
-                }
+                var wrappers = emulator?.NativeWrappersOverride != null
+                    ? new List<LaunchWrapper>(emulator.NativeWrappersOverride)
+                    : new List<LaunchWrapper>();
 
                 // 2) Node level (nearest node in chain; tri-state over null/empty/non-empty)
                 List<LaunchWrapper>? nodeWrappers = null;
@@ -988,7 +957,7 @@ public partial class MainWindowViewModel
 
                     nodeOverrideFound = true;
 
-                    // Empty list => explicitly "no node wrappers" (but keep emulator/global)
+                    // Empty list => explicitly "no node wrappers" (but keep emulator wrappers)
                     // Non-empty => Override
                     nodeWrappers = node.NativeWrappersOverride.Count == 0
                         ? new List<LaunchWrapper>()

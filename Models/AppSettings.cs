@@ -57,14 +57,6 @@ public class AppSettings
     /// </summary>
     public List<string> HeroicEpicConfigPaths { get; set; } = new();
     
-    // --- Native wrapper defaults (C: global -> node -> item) ---
-
-    /// <summary>
-    /// Global default wrapper chain for native launches (Linux)
-    /// If empty, native apps launch directly
-    /// </summary>
-    public List<LaunchWrapper> DefaultNativeWrappers { get; set; } = new();
-    
     /// <summary>
     /// Preferred LibVLC/FFmpeg hardware decoding mode for BigMode preview videos
     /// Valid values are implementation-defined (e.g. "none", "auto", "vaapi")

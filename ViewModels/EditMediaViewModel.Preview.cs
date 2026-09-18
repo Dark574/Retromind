@@ -30,7 +30,7 @@ public partial class EditMediaViewModel
                 ? $"\"{launchPath}\""
                 : string.Empty;
 
-            // Resolve effective wrapper chain once (global/emulator/node/item logic)
+            // Resolve the effective emulator/node/item wrapper chain once.
             var wrappers = ResolveEffectiveNativeWrappersForPreview();
 
             // Helper to prepend per-item environment overrides to a final command line
@@ -312,7 +312,7 @@ public partial class EditMediaViewModel
         }
 
         // 2) Emulator-level base
-        List<LaunchWrapper>? wrappers = null;
+        List<LaunchWrapper> wrappers = new();
 
         EmulatorConfig? effectiveEmulator = null;
         if (MediaType == MediaType.Emulator)
@@ -320,33 +320,8 @@ public partial class EditMediaViewModel
             effectiveEmulator = ResolveSelectedEmulatorConfig();
         }
 
-        if (effectiveEmulator != null)
-        {
-            switch (effectiveEmulator.NativeWrapperMode)
-            {
-                case EmulatorConfig.WrapperMode.Inherit:
-                    // Inherit from global defaults (may be null).
-                    wrappers = _settings.DefaultNativeWrappers;
-                    break;
-
-                case EmulatorConfig.WrapperMode.None:
-                    // Explicitly no wrappers for this emulator (unless item overrides, which it doesn't in Inherit mode).
-                    wrappers = new List<LaunchWrapper>();
-                    break;
-
-                case EmulatorConfig.WrapperMode.Override:
-                    // Use emulator-level override list (may be empty to mean "none").
-                    wrappers = effectiveEmulator.NativeWrappersOverride != null
-                        ? new List<LaunchWrapper>(effectiveEmulator.NativeWrappersOverride)
-                        : new List<LaunchWrapper>();
-                    break;
-            }
-        }
-        else
-        {
-            // No emulator: start with global defaults only.
-            wrappers = _settings.DefaultNativeWrappers;
-        }
+        if (effectiveEmulator?.NativeWrappersOverride != null)
+            wrappers = new List<LaunchWrapper>(effectiveEmulator.NativeWrappersOverride);
 
         // 3) Node-level inheritance (nearest override wins, tri-state via null/empty/non-empty).
         if (_parentNode != null && _rootNodes.Count > 0)
@@ -374,7 +349,7 @@ public partial class EditMediaViewModel
 
             if (nodeOverrideFound && nodeWrappers != null && nodeWrappers.Count > 0)
             {
-                var baseWrappers = wrappers ?? new List<LaunchWrapper>();
+                var baseWrappers = wrappers;
                 var merged = new List<LaunchWrapper>(nodeWrappers.Count + baseWrappers.Count);
                 merged.AddRange(nodeWrappers);
                 merged.AddRange(baseWrappers);
@@ -383,9 +358,7 @@ public partial class EditMediaViewModel
         }
 
         // 4) Final normalization: return a concrete list (never null).
-        return wrappers != null
-            ? wrappers.ToList()
-            : new List<LaunchWrapper>();
+        return wrappers.ToList();
     }
 
     private void RefreshInheritedWrappers()
@@ -414,49 +387,15 @@ public partial class EditMediaViewModel
         if (MediaType == MediaType.Emulator)
             effectiveEmulator = ResolveSelectedEmulatorConfig();
 
-        if (effectiveEmulator != null)
+        if (effectiveEmulator?.NativeWrappersOverride is { Count: > 0 })
         {
             var emulatorName = string.IsNullOrWhiteSpace(effectiveEmulator.Name)
                 ? effectiveEmulator.Id
                 : effectiveEmulator.Name;
 
-            switch (effectiveEmulator.NativeWrapperMode)
-            {
-                case EmulatorConfig.WrapperMode.Inherit:
-                    baseWrappers = _settings.DefaultNativeWrappers != null
-                        ? new List<LaunchWrapper>(_settings.DefaultNativeWrappers)
-                        : new List<LaunchWrapper>();
-                    if (baseWrappers.Count > 0)
-                    {
-                        baseSource = string.Format(Strings.EditMedia_InheritedWrappersSourceGlobalViaEmulatorFormat, emulatorName);
-                        sources.Add(baseSource);
-                    }
-                    break;
-                case EmulatorConfig.WrapperMode.None:
-                    baseWrappers = new List<LaunchWrapper>();
-                    break;
-                case EmulatorConfig.WrapperMode.Override:
-                    baseWrappers = effectiveEmulator.NativeWrappersOverride != null
-                        ? new List<LaunchWrapper>(effectiveEmulator.NativeWrappersOverride)
-                        : new List<LaunchWrapper>();
-                    if (baseWrappers.Count > 0)
-                    {
-                        baseSource = string.Format(Strings.EditMedia_InheritedWrappersSourceEmulatorFormat, emulatorName);
-                        sources.Add(baseSource);
-                    }
-                    break;
-            }
-        }
-        else
-        {
-            baseWrappers = _settings.DefaultNativeWrappers != null
-                ? new List<LaunchWrapper>(_settings.DefaultNativeWrappers)
-                : new List<LaunchWrapper>();
-            if (baseWrappers.Count > 0)
-            {
-                baseSource = Strings.EditMedia_InheritedWrappersSourceGlobal;
-                sources.Add(baseSource);
-            }
+            baseWrappers = new List<LaunchWrapper>(effectiveEmulator.NativeWrappersOverride);
+            baseSource = string.Format(Strings.EditMedia_InheritedWrappersSourceEmulatorFormat, emulatorName);
+            sources.Add(baseSource);
         }
 
         var resolved = new List<(LaunchWrapper Wrapper, string Source)>();

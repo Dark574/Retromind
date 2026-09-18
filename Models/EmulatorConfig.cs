@@ -18,19 +18,6 @@ public partial class EmulatorConfig : ObservableObject
     }
 
     /// <summary>
-    /// Wrapper inheritance mode at emulator level
-    /// Inherit: no explicit wrappers here, let Node/Item decide
-    /// None:    explicitly disable all wrappers for this emulator (unless overridden by item)
-    /// Override: use the list in <see cref="NativeWrappersOverride"/> as the base chain
-    /// </summary>
-    public enum WrapperMode
-    {
-        Inherit,
-        None,
-        Override
-    }
-
-    /// <summary>
     /// XDG environment handling mode for emulator launches.
     /// Inherit: keep process environment as-is.
     /// Host: remove XDG_* overrides so host defaults are used.
@@ -93,13 +80,6 @@ public partial class EmulatorConfig : ObservableObject
     private string? _defaultRunnerVersionId;
     
     /// <summary>
-    /// Emulator-level wrapper mode. See <see cref="WrapperMode"/> for semantics
-    /// Default is Inherit, which means "no explicit wrappers here, defer to Node/Item"
-    /// </summary>
-    [ObservableProperty]
-    private WrapperMode _nativeWrapperMode = WrapperMode.Inherit;
-
-    /// <summary>
     /// Controls how XDG_* variables are handled when this emulator profile launches.
     /// Default is Host for compatibility with external launchers/runtimes.
     /// </summary>
@@ -116,7 +96,7 @@ public partial class EmulatorConfig : ObservableObject
     [ObservableProperty] private string? _xdgStatePath;
 
     /// <summary>
-    /// Optional emulator-level wrapper chain. Only used when <see cref="NativeWrapperMode"/> is Override
+    /// Optional emulator-level wrapper chain used as the base for node and item settings.
     /// For example: gamemoderun, mangohud, env FOO=bar
     /// </summary>
     public List<LaunchWrapper>? NativeWrappersOverride { get; set; }

@@ -425,11 +425,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     public string ParentalSectionTitle => T("Settings_SectionParental", "Parental control");
     public string ChangeParentalPasswordText => T("Settings_ChangeParentalPassword", "Change parental password");
-    public string SettingsTabEmulatorsShort => T("Settings_TabEmulatorsShort", "Emu");
-    public string SettingsTabMetadataShort => T("Settings_TabMetadataShort", "Meta");
-    public string SettingsTabRunnerShort => T("Settings_TabRunnerShort", "Runner");
-    public string SettingsTabMiscShort => T("Settings_TabMiscShort", "Misc");
-    public string RunnerVersionsTabTitle => T("Settings_TabRunnerVersions", "Wine/Proton versions");
+    public string SettingsTabGeneralTitle => T("Settings_TabGeneral", "General");
+    public string SettingsTabEmulatorsTitle => T("Settings_TabEmulators", "Emulators");
+    public string SettingsTabMetadataTitle => T("Settings_TabMetadataAndScrapers", "Metadata & scrapers");
+    public string SettingsTabLaunchCompatibilityTitle => T("Settings_TabLaunchCompatibility", "Launch & compatibility");
+    public string SettingsTabIntegrationsTitle => T("Settings_TabIntegrations", "Integrations");
+    public string SettingsTabBackupsTitle => T("Settings_TabBackups", "Backups");
+    public string SettingsIntegrationLibrariesTitle => T("Settings_IntegrationLibraries", "Game libraries");
     public string RunnerVersionsSectionTitle => T("Settings_SectionRunnerVersions", "Wine/Proton versions");
     public string RunnerVersionNameLabel => T("Settings_RunnerVersionNameLabel", "Name");
     public string RunnerVersionPathLabel => T("Settings_RunnerVersionPathLabel", "Path");
@@ -568,12 +570,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         public string DisplayName => string.IsNullOrWhiteSpace(AssetName) ? TagName : $"{TagName} ({AssetName})";
     }
     
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsEmulatorWrapperListEnabled))]
-    private bool _useGlobalWrapperDefaults;
-
-    public bool IsEmulatorWrapperListEnabled => !UseGlobalWrapperDefaults;
-
     public bool IsEmulatorXdgCustomSelected => SelectedEmulator?.XdgMode == EmulatorConfig.XdgOverrideMode.Custom;
 
     /// <summary>
@@ -823,8 +819,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         EmulatorNativeWrappers.Clear();
         EmulatorEnvironmentOverrides.Clear();
 
-        UseGlobalWrapperDefaults = newValue?.NativeWrapperMode == EmulatorConfig.WrapperMode.Inherit;
-
         if (newValue?.NativeWrappersOverride != null)
         {
             foreach (var w in newValue.NativeWrappersOverride)
@@ -951,9 +945,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     partial void OnSelectedSettingsTabIndexChanged(int value)
     {
         // Tab order in SettingsView:
-        // 0 = Emulators, 1 = Metadata, 2 = Wine/Proton versions,
-        // 3 = RetroAchievements, 4 = Misc.
-        if (value != 2)
+        // 0 = General, 1 = Emulators, 2 = Metadata,
+        // 3 = Launch/compatibility, 4 = Integrations, 5 = Backups.
+        if (value != 3)
             return;
 
         if (_hasAutoLoadedGeReleases || IsGeReleaseBusy || GeProtonReleases.Count > 0)

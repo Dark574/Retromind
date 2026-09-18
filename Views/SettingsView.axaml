@@ -6,31 +6,85 @@
         x:Class="Retromind.Views.SettingsView"
         x:DataType="vm:SettingsViewModel"
         Title="{x:Static p:Strings.Settings_Title}"
-        Width="750" Height="550"
-        MinWidth="650" MinHeight="450"
+        Width="1000" Height="700"
         WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
         CanResize="False"
         CanMaximize="False">
 
-    <Grid RowDefinitions="*, Auto" Margin="20">
+    <Window.Styles>
+        <Style Selector="Border.section">
+            <Setter Property="BorderBrush" Value="Gray" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+        <Style Selector="Expander">
+            <Setter Property="BorderBrush" Value="Gray" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*, Auto" Margin="10">
         
         <!-- Main Content with Tabs -->
         <TabControl Grid.Row="0"
-                    SelectedIndex="{Binding SelectedSettingsTabIndex, Mode=TwoWay}">
+                    SelectedIndex="{Binding SelectedSettingsTabIndex, Mode=TwoWay}"
+                    HorizontalContentAlignment="Stretch">
             <TabControl.Styles>
                 <Style Selector="TabControl > TabItem">
-                    <Setter Property="FontSize" Value="18" />
+                    <Setter Property="FontSize" Value="16" />
                     <Setter Property="Padding" Value="10,6" />
                 </Style>
             </TabControl.Styles>
+
+            <!-- TAB 1: GENERAL -->
+            <TabItem Header="{Binding SettingsTabGeneralTitle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="16" Margin="10,10,20,20">
+                        <Border Classes="section">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{Binding SortingSectionTitle}"
+                                           FontWeight="Bold"
+                                           FontSize="16" />
+                                <CheckBox Content="{Binding IgnoreLeadingArticlesInSortText}"
+                                          IsChecked="{Binding IgnoreLeadingArticlesInSort}"
+                                          ToolTip.Tip="{Binding IgnoreLeadingArticlesInSortHint}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="section">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{x:Static p:Strings.Settings_SectionMusic}"
+                                           FontWeight="Bold"
+                                           FontSize="16" />
+                                <CheckBox Content="{x:Static p:Strings.Settings_PlayRandomMusic}"
+                                          IsChecked="{Binding EnableSelectionMusicPreview}"
+                                          ToolTip.Tip="{x:Static p:Strings.Settings_PlayRandomMusic_Hint}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="section">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{Binding ParentalSectionTitle}"
+                                           FontWeight="Bold"
+                                           FontSize="16" />
+                                <Button Content="{Binding ChangeParentalPasswordText}"
+                                        Command="{Binding ChangeParentalPasswordCommand}"
+                                        HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
             
-            <!-- TAB 1: EMULATORS -->
+            <!-- TAB 2: EMULATORS -->
             <TabItem>
                 <TabItem.Header>
-                    <TextBlock Text="{Binding SettingsTabEmulatorsShort}"
-                               ToolTip.Tip="{x:Static p:Strings.Settings_TabEmulators}" />
+                    <TextBlock Text="{Binding SettingsTabEmulatorsTitle}" />
                 </TabItem.Header>
-                <Grid ColumnDefinitions="200, 20, *">
+                <Grid ColumnDefinitions="240,20,*" Margin="10,10,20,20">
                     <!-- LEFT: List of emulators -->
                     <Grid Grid.Column="0" RowDefinitions="*, Auto">
                         <ListBox Grid.Row="0"
@@ -51,7 +105,7 @@
 
                     <!-- RIGHT: Emulator Details -->
                     <ScrollViewer Grid.Column="2">
-                        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="15"
+                        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="15"
                                 IsVisible="{Binding SelectedEmulator, Converter={x:Static ObjectConverters.IsNotNull}}">
                             <StackPanel Spacing="15" DataContext="{Binding SelectedEmulator}">
                                 <TextBlock Text="{x:Static p:Strings.Settings_SectionEmulators}" FontWeight="Bold" FontSize="16" Margin="0,0,0,10" />
@@ -164,10 +218,7 @@
                                             DataContext="{Binding $parent[Window].((vm:SettingsViewModel)DataContext)}">
                                     <TextBlock Text="{x:Static p:Strings.Settings_NativeWrapperTitle}" FontWeight="Bold" />
 
-                                    <CheckBox Content="{x:Static p:Strings.Settings_UseGlobalWrapperDefaults}"
-                                              IsChecked="{Binding UseGlobalWrapperDefaults}" />
-
-                                    <StackPanel IsEnabled="{Binding IsEmulatorWrapperListEnabled}">
+                                    <StackPanel>
                                         <Button Content="{x:Static p:Strings.Settings_AddWrapper}"
                                                 Command="{Binding AddEmulatorWrapperCommand}"
                                                 HorizontalAlignment="Left" />
@@ -247,15 +298,15 @@
                 </Grid>
             </TabItem>
             
-            <!-- TAB 2: METADATA (SCRAPER) -->
+            <!-- TAB 3: METADATA (SCRAPER) -->
             <TabItem>
                 <TabItem.Header>
-                    <TextBlock Text="{Binding SettingsTabMetadataShort}"
-                               ToolTip.Tip="{x:Static p:Strings.Settings_TabMetadata}" />
+                    <TextBlock Text="{Binding SettingsTabMetadataTitle}" />
                 </TabItem.Header>
-                <TabControl>
+                <TabControl Margin="0,4,0,0"
+                            HorizontalContentAlignment="Stretch">
                     <TabItem Header="{Binding ScraperProvidersTabText}">
-                <Grid ColumnDefinitions="200, 20, *" Margin="0,8,0,0">
+                <Grid ColumnDefinitions="240,20,*" Margin="10,10,20,20">
                     <!-- LEFT: List of scrapers -->
                     <Grid Grid.Column="0" RowDefinitions="*, Auto">
                         <ListBox Grid.Row="0"
@@ -276,7 +327,7 @@
                     
                     <!-- RIGHT: Scraper Details -->
                     <ScrollViewer Grid.Column="2"> 
-                        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="15"
+                        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="15"
                                 IsVisible="{Binding SelectedScraper, Converter={x:Static ObjectConverters.IsNotNull}}">
     
                             <StackPanel Spacing="15" DataContext="{Binding SelectedScraper}">
@@ -373,7 +424,7 @@
                     </TabItem>
 
                     <TabItem Header="{Binding ScraperImportTabText}">
-                        <ScrollViewer Margin="0,8,8,0">
+                        <ScrollViewer Margin="10,10,20,20">
                             <StackPanel Spacing="12">
                                 <TextBlock Text="{Binding ScraperImportSectionTitle}"
                                            FontWeight="Bold"
@@ -478,14 +529,32 @@
                 </TabControl>
             </TabItem>
 
-            <!-- TAB 3: RUNNER VERSIONS -->
+            <!-- TAB 4: LAUNCH AND COMPATIBILITY -->
             <TabItem>
                 <TabItem.Header>
-                    <TextBlock Text="{Binding SettingsTabRunnerShort}"
-                               ToolTip.Tip="{Binding RunnerVersionsTabTitle}" />
+                    <TextBlock Text="{Binding SettingsTabLaunchCompatibilityTitle}" />
                 </TabItem.Header>
-                <Grid ColumnDefinitions="260, 20, *">
-                    <Grid Grid.Column="0" RowDefinitions="Auto, *, Auto, Auto" RowSpacing="8">
+                <Grid RowDefinitions="Auto,*" Margin="10,10,20,20" RowSpacing="16">
+                    <Border Grid.Row="0" Classes="section">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{x:Static p:Strings.Settings_SectionLaunchPaths}"
+                                       FontWeight="Bold"
+                                       FontSize="16" />
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <CheckBox IsChecked="{Binding PreferPortableLaunchPaths}"
+                                          Content="{x:Static p:Strings.Settings_PortableLaunchPaths}" />
+                                <Button Content="{x:Static p:Strings.Settings_ConvertExistingLaunchPaths}"
+                                        Command="{Binding ConvertExistingToPortableCommand}" />
+                            </StackPanel>
+                            <CheckBox Content="{x:Static p:Strings.Settings_PortableHome}"
+                                      IsChecked="{Binding UsePortableHomeInAppImage, Mode=OneWay}"
+                                      Click="OnPortableHomeClick"
+                                      ToolTip.Tip="{x:Static p:Strings.Settings_PortableHome_Hint}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Row="1" ColumnDefinitions="280,20,*">
+                    <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8">
                         <TextBlock Grid.Row="0"
                                    Text="{Binding RunnerVersionsSectionTitle}"
                                    FontWeight="Bold"
@@ -590,176 +659,154 @@
                             </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
+                    </Grid>
                 </Grid>
             </TabItem>
 
-            <!-- TAB 4: RETROACHIEVEMENTS -->
-            <TabItem>
-                <TabItem.Header>
-                    <TextBlock Text="{Binding SettingsTabRetroAchievementsShort}"
-                               ToolTip.Tip="{Binding RetroAchievementsTabTitle}" />
-                </TabItem.Header>
-                <ScrollViewer>
-                    <StackPanel Spacing="15" Margin="0,0,10,0" MaxWidth="620"
-                                HorizontalAlignment="Left">
-                        <TextBlock Text="{Binding RetroAchievementsSectionTitle}"
-                                   FontWeight="Bold"
-                                   FontSize="16" />
-                        <TextBlock Text="{Binding RetroAchievementsHint}"
-                                   Opacity="0.65"
-                                   TextWrapping="Wrap" />
+            <!-- TAB 5: INTEGRATIONS -->
+            <TabItem Header="{Binding SettingsTabIntegrationsTitle}">
+                <TabControl Margin="0,4,0,0">
+                    <TabItem Header="{Binding RetroAchievementsTabTitle}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="10,10,20,20">
+                                <Border Classes="section">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Text="{Binding RetroAchievementsSectionTitle}"
+                                                   FontWeight="Bold"
+                                                   FontSize="16" />
+                                        <TextBlock Text="{Binding RetroAchievementsHint}"
+                                                   Opacity="0.65"
+                                                   TextWrapping="Wrap" />
+                                        <CheckBox Content="{Binding RetroAchievementsEnableText}"
+                                                  IsChecked="{Binding RetroAchievementsEnabled}" />
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="{Binding RetroAchievementsUsernameLabel}" FontWeight="Bold" />
+                                            <TextBox Text="{Binding RetroAchievementsUsername}"
+                                                     IsEnabled="{Binding !IsRetroAchievementsBusy}" />
+                                        </StackPanel>
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="{Binding RetroAchievementsApiKeyLabel}" FontWeight="Bold" />
+                                            <TextBox Text="{Binding RetroAchievementsApiKey}"
+                                                     PasswordChar="*"
+                                                     IsEnabled="{Binding !IsRetroAchievementsBusy}" />
+                                            <TextBlock Text="{Binding RetroAchievementsApiKeyHint}"
+                                                       Opacity="0.6"
+                                                       FontSize="11"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button Content="{Binding RetroAchievementsTestConnectionText}"
+                                                    Command="{Binding TestRetroAchievementsConnectionCommand}" />
+                                            <Button Content="{Binding RetroAchievementsRemoveApiKeyText}"
+                                                    Command="{Binding RemoveRetroAchievementsApiKeyCommand}" />
+                                        </StackPanel>
+                                        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="10">
+                                            <TextBlock Text="{Binding RetroAchievementsStatusText}" TextWrapping="Wrap" />
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
 
-                        <CheckBox Content="{Binding RetroAchievementsEnableText}"
-                                  IsChecked="{Binding RetroAchievementsEnabled}" />
+                    <TabItem Header="{Binding SettingsIntegrationLibrariesTitle}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="16" Margin="10,10,20,20">
+                                <Border Classes="section">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{x:Static p:Strings.Settings_SectionSteamLibrary}"
+                                                   FontWeight="Bold"
+                                                   FontSize="16" />
+                                        <TextBlock Text="{x:Static p:Strings.Settings_SteamLibraryPathsHint}"
+                                                   Opacity="0.6"
+                                                   TextWrapping="Wrap" />
+                                        <ListBox ItemsSource="{Binding SteamLibraryPaths}"
+                                                 SelectedItem="{Binding SelectedSteamLibraryPath}"
+                                                 MinHeight="100" />
+                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                                            <TextBox Grid.Column="0"
+                                                     Text="{Binding SteamLibraryPathInput}"
+                                                     PlaceholderText="{x:Static p:Strings.Settings_SteamLibraryPathWatermark}" />
+                                            <Button Grid.Column="1"
+                                                    Content="{x:Static p:Strings.Button_Browse}"
+                                                    Command="{Binding BrowseSteamLibraryPathCommand}" />
+                                            <Button Grid.Column="2"
+                                                    Content="{x:Static p:Strings.Button_Add}"
+                                                    Command="{Binding AddSteamLibraryPathCommand}" />
+                                            <Button Grid.Column="3"
+                                                    Content="{x:Static p:Strings.Button_Remove}"
+                                                    Command="{Binding RemoveSteamLibraryPathCommand}" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
 
-                        <StackPanel Spacing="5">
-                            <TextBlock Text="{Binding RetroAchievementsUsernameLabel}"
-                                       FontWeight="Bold" />
-                            <TextBox Text="{Binding RetroAchievementsUsername}"
-                                     IsEnabled="{Binding !IsRetroAchievementsBusy}" />
-                        </StackPanel>
-
-                        <StackPanel Spacing="5">
-                            <TextBlock Text="{Binding RetroAchievementsApiKeyLabel}"
-                                       FontWeight="Bold" />
-                            <TextBox Text="{Binding RetroAchievementsApiKey}"
-                                     PasswordChar="*"
-                                     IsEnabled="{Binding !IsRetroAchievementsBusy}" />
-                            <TextBlock Text="{Binding RetroAchievementsApiKeyHint}"
-                                       Opacity="0.6"
-                                       FontSize="11"
-                                       TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="{Binding RetroAchievementsTestConnectionText}"
-                                    Command="{Binding TestRetroAchievementsConnectionCommand}" />
-                            <Button Content="{Binding RetroAchievementsRemoveApiKeyText}"
-                                    Command="{Binding RemoveRetroAchievementsApiKeyCommand}" />
-                        </StackPanel>
-
-                        <Border BorderBrush="Gray"
-                                BorderThickness="1"
-                                CornerRadius="4"
-                                Padding="10">
-                            <TextBlock Text="{Binding RetroAchievementsStatusText}"
-                                       TextWrapping="Wrap" />
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
+                                <Border Classes="section">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{x:Static p:Strings.Settings_SectionHeroicEpic}"
+                                                   FontWeight="Bold"
+                                                   FontSize="16" />
+                                        <TextBlock Text="{x:Static p:Strings.Settings_HeroicEpicPathsHint}"
+                                                   Opacity="0.6"
+                                                   TextWrapping="Wrap" />
+                                        <ListBox ItemsSource="{Binding HeroicEpicConfigPaths}"
+                                                 SelectedItem="{Binding SelectedHeroicEpicPath}"
+                                                 MinHeight="100" />
+                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                                            <TextBox Grid.Column="0"
+                                                     Text="{Binding HeroicEpicPathInput}"
+                                                     PlaceholderText="{x:Static p:Strings.Settings_HeroicEpicPathWatermark}" />
+                                            <Button Grid.Column="1"
+                                                    Content="{x:Static p:Strings.Button_Browse}"
+                                                    Command="{Binding BrowseHeroicEpicPathCommand}" />
+                                            <Button Grid.Column="2"
+                                                    Content="{x:Static p:Strings.Button_Add}"
+                                                    Command="{Binding AddHeroicEpicPathCommand}" />
+                                            <Button Grid.Column="3"
+                                                    Content="{x:Static p:Strings.Button_Remove}"
+                                                    Command="{Binding RemoveHeroicEpicPathCommand}" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
             </TabItem>
 
-            <!-- TAB 5: MISC -->
-            <TabItem>
-                <TabItem.Header>
-                    <TextBlock Text="{Binding SettingsTabMiscShort}"
-                               ToolTip.Tip="{x:Static p:Strings.Settings_TabMisc}" />
-                </TabItem.Header>
-                <ScrollViewer>
-                    <StackPanel Spacing="15" Margin="0,0,10,0">
-                        <TextBlock Text="{x:Static p:Strings.Settings_SectionLaunchPaths}" FontWeight="Bold" FontSize="16" />
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <CheckBox IsChecked="{Binding PreferPortableLaunchPaths}"
-                                      Content="{x:Static p:Strings.Settings_PortableLaunchPaths}" />
-                            <Button Content="{x:Static p:Strings.Settings_ConvertExistingLaunchPaths}"
-                                    Command="{Binding ConvertExistingToPortableCommand}" />
-                        </StackPanel>
-                        <CheckBox Content="{x:Static p:Strings.Settings_PortableHome}"
-                                  IsChecked="{Binding UsePortableHomeInAppImage, Mode=OneWay}"
-                                  Click="OnPortableHomeClick"
-                                  ToolTip.Tip="{x:Static p:Strings.Settings_PortableHome_Hint}" />
-
-                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
-
-                        <TextBlock Text="{Binding MetadataBackupSectionTitle}" FontWeight="Bold" FontSize="16" />
-                        <TextBlock Text="{Binding MetadataBackupSectionHint}"
-                                   Opacity="0.6" TextWrapping="Wrap" />
-                        <CheckBox Content="{Binding EnableAutomaticMetadataBackupsText}"
-                                  IsChecked="{Binding EnableAutomaticMetadataBackups}" />
-                        <StackPanel Margin="22,0,0,0"
-                                    Spacing="5"
-                                    IsEnabled="{Binding EnableAutomaticMetadataBackups}">
-                            <CheckBox Content="{Binding BackupBeforeBulkEditText}"
-                                      IsChecked="{Binding BackupBeforeBulkEdit}" />
-                            <CheckBox Content="{Binding BackupBeforeBulkScrapeText}"
-                                      IsChecked="{Binding BackupBeforeBulkScrape}" />
-                            <CheckBox Content="{Binding BackupOnStartupText}"
-                                      IsChecked="{Binding BackupOnStartup}" />
-                            <CheckBox Content="{Binding BackupBeforeRestoreText}"
-                                      IsChecked="{Binding BackupBeforeRestore}" />
-                        </StackPanel>
-                        <TextBlock Text="{Binding MetadataBackupRetentionHint}"
-                                   Opacity="0.6" TextWrapping="Wrap" />
-                        <Button Content="{Binding ManageMetadataBackupsText}"
-                                Command="{Binding OpenMetadataBackupsCommand}"
-                                HorizontalAlignment="Left" />
-
-                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
-
-                        <TextBlock Text="{Binding SortingSectionTitle}" FontWeight="Bold" FontSize="16" />
-                        <CheckBox Content="{Binding IgnoreLeadingArticlesInSortText}"
-                                  IsChecked="{Binding IgnoreLeadingArticlesInSort}"
-                                  ToolTip.Tip="{Binding IgnoreLeadingArticlesInSortHint}" />
-
-                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
-
-                        <TextBlock Text="{x:Static p:Strings.Settings_SectionMusic}" FontWeight="Bold" FontSize="16" />
-                        <CheckBox Content="{x:Static p:Strings.Settings_PlayRandomMusic}"
-                                  IsChecked="{Binding EnableSelectionMusicPreview}"
-                                  ToolTip.Tip="{x:Static p:Strings.Settings_PlayRandomMusic_Hint}" />
-
-                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
-
-                        <TextBlock Text="{Binding ParentalSectionTitle}" FontWeight="Bold" FontSize="16" />
-                        <Button Content="{Binding ChangeParentalPasswordText}"
-                                Command="{Binding ChangeParentalPasswordCommand}"
-                                HorizontalAlignment="Left" />
-
-                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
-
-                        <TextBlock Text="{x:Static p:Strings.Settings_SectionSteamLibrary}" FontWeight="Bold" FontSize="16" />
-                        <TextBlock Text="{x:Static p:Strings.Settings_SteamLibraryPathsHint}"
-                                   Opacity="0.6" TextWrapping="Wrap" />
-                        <ListBox ItemsSource="{Binding SteamLibraryPaths}"
-                                 SelectedItem="{Binding SelectedSteamLibraryPath}"
-                                 MinHeight="80" />
-                        <Grid ColumnDefinitions="*, Auto, Auto, Auto" ColumnSpacing="8">
-                            <TextBox Grid.Column="0"
-                                     Text="{Binding SteamLibraryPathInput}"
-                                     PlaceholderText="{x:Static p:Strings.Settings_SteamLibraryPathWatermark}" />
-                            <Button Grid.Column="1"
-                                    Content="{x:Static p:Strings.Button_Browse}"
-                                    Command="{Binding BrowseSteamLibraryPathCommand}" />
-                            <Button Grid.Column="2"
-                                    Content="{x:Static p:Strings.Button_Add}"
-                                    Command="{Binding AddSteamLibraryPathCommand}" />
-                            <Button Grid.Column="3"
-                                    Content="{x:Static p:Strings.Button_Remove}"
-                                    Command="{Binding RemoveSteamLibraryPathCommand}" />
-                        </Grid>
-
-                        <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5"/>
-
-                        <TextBlock Text="{x:Static p:Strings.Settings_SectionHeroicEpic}" FontWeight="Bold" FontSize="16" />
-                        <TextBlock Text="{x:Static p:Strings.Settings_HeroicEpicPathsHint}"
-                                   Opacity="0.6" TextWrapping="Wrap" />
-                        <ListBox ItemsSource="{Binding HeroicEpicConfigPaths}"
-                                 SelectedItem="{Binding SelectedHeroicEpicPath}"
-                                 MinHeight="80" />
-                        <Grid ColumnDefinitions="*, Auto, Auto, Auto" ColumnSpacing="8">
-                            <TextBox Grid.Column="0"
-                                     Text="{Binding HeroicEpicPathInput}"
-                                     PlaceholderText="{x:Static p:Strings.Settings_HeroicEpicPathWatermark}" />
-                            <Button Grid.Column="1"
-                                    Content="{x:Static p:Strings.Button_Browse}"
-                                    Command="{Binding BrowseHeroicEpicPathCommand}" />
-                            <Button Grid.Column="2"
-                                    Content="{x:Static p:Strings.Button_Add}"
-                                    Command="{Binding AddHeroicEpicPathCommand}" />
-                            <Button Grid.Column="3"
-                                    Content="{x:Static p:Strings.Button_Remove}"
-                                    Command="{Binding RemoveHeroicEpicPathCommand}" />
-                        </Grid>
+            <!-- TAB 6: BACKUPS -->
+            <TabItem Header="{Binding SettingsTabBackupsTitle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10,10,20,20">
+                        <Border Classes="section">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="{Binding MetadataBackupSectionTitle}"
+                                           FontWeight="Bold"
+                                           FontSize="16" />
+                                <TextBlock Text="{Binding MetadataBackupSectionHint}"
+                                           Opacity="0.6"
+                                           TextWrapping="Wrap" />
+                                <CheckBox Content="{Binding EnableAutomaticMetadataBackupsText}"
+                                          IsChecked="{Binding EnableAutomaticMetadataBackups}" />
+                                <StackPanel Margin="22,0,0,0"
+                                            Spacing="5"
+                                            IsEnabled="{Binding EnableAutomaticMetadataBackups}">
+                                    <CheckBox Content="{Binding BackupBeforeBulkEditText}"
+                                              IsChecked="{Binding BackupBeforeBulkEdit}" />
+                                    <CheckBox Content="{Binding BackupBeforeBulkScrapeText}"
+                                              IsChecked="{Binding BackupBeforeBulkScrape}" />
+                                    <CheckBox Content="{Binding BackupOnStartupText}"
+                                              IsChecked="{Binding BackupOnStartup}" />
+                                    <CheckBox Content="{Binding BackupBeforeRestoreText}"
+                                              IsChecked="{Binding BackupBeforeRestore}" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding MetadataBackupRetentionHint}"
+                                           Opacity="0.6"
+                                           TextWrapping="Wrap" />
+                                <Button Content="{Binding ManageMetadataBackupsText}"
+                                        Command="{Binding OpenMetadataBackupsCommand}"
+                                        HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -767,7 +814,7 @@
         </TabControl>
 
         <!-- Footer Buttons -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,10,0,0">
             <Button Content="{x:Static p:Strings.Button_Cancel}" Command="{Binding CancelCommand}"
                     IsCancel="True" />
             <Button Content="{x:Static p:Strings.Button_Save}" Command="{Binding SaveCommand}" Classes="accent"

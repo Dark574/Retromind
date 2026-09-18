@@ -229,26 +229,15 @@ public partial class SettingsViewModel
         // Persist emulator wrapper & env configuration from UI into the selected emulator model
         if (SelectedEmulator != null)
         {
-            if (UseGlobalWrapperDefaults)
-            {
-                SelectedEmulator.NativeWrapperMode = EmulatorConfig.WrapperMode.Inherit;
-                SelectedEmulator.NativeWrappersOverride = null;
-            }
-            else
-            {
-                var wrappers = EmulatorNativeWrappers
-                    .Select(x => x.ToModel())
-                    .Where(x => !string.IsNullOrWhiteSpace(x.Path))
-                    .ToList();
+            var wrappers = EmulatorNativeWrappers
+                .Select(x => x.ToModel())
+                .Where(x => !string.IsNullOrWhiteSpace(x.Path))
+                .ToList();
 
-                if (PreferPortableLaunchPaths)
-                    PortablePathHelper.ConvertWrapperPathsToPortable(wrappers);
+            if (PreferPortableLaunchPaths)
+                PortablePathHelper.ConvertWrapperPathsToPortable(wrappers);
 
-                SelectedEmulator.NativeWrappersOverride = wrappers;
-                SelectedEmulator.NativeWrapperMode = wrappers.Count == 0
-                    ? EmulatorConfig.WrapperMode.None
-                    : EmulatorConfig.WrapperMode.Override;
-            }
+            SelectedEmulator.NativeWrappersOverride = wrappers;
             
             // Sync environment overrides back into the model dictionary
             SelectedEmulator.EnvironmentOverrides.Clear();
@@ -270,8 +259,6 @@ public partial class SettingsViewModel
 
                 ConvertEmulatorPathsToPortable(emulator);
             }
-
-            PortablePathHelper.ConvertWrapperPathsToPortable(_appSettings.DefaultNativeWrappers);
 
             foreach (var runner in RunnerVersions)
             {
@@ -313,7 +300,6 @@ public partial class SettingsViewModel
         _targetSettings.BackupBeforeBulkScrape = committed.BackupBeforeBulkScrape;
         _targetSettings.BackupOnStartup = committed.BackupOnStartup;
         _targetSettings.BackupBeforeRestore = committed.BackupBeforeRestore;
-        _targetSettings.DefaultNativeWrappers = committed.DefaultNativeWrappers;
         _targetSettings.Emulators = committed.Emulators;
         _targetSettings.Scrapers = committed.Scrapers;
         _targetSettings.RunnerVersions = committed.RunnerVersions;

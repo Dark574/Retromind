@@ -11,7 +11,7 @@ public partial class SettingsViewModel
 
     public string MetadataBackupSectionHint => T(
         "MetadataBackup.SettingsHint",
-        "Manual backups are always available. Choose which events should create automatic backups.");
+        "Choose which events should create automatic backups.");
 
     public string EnableAutomaticMetadataBackupsText => T(
         "MetadataBackup.EnableAutomatic",
