@@ -37,6 +37,14 @@ public sealed record GogInstallerPackage(
         string.IsNullOrWhiteSpace(Version) ? InstallerName : $"{InstallerName} ({Version})";
 }
 
+public sealed record GogDlcCatalogItem(
+    string ProductId,
+    string Title,
+    IReadOnlyList<GogInstallPlatform> AvailableInstallerPlatforms)
+{
+    public bool HasInstaller => AvailableInstallerPlatforms.Count > 0;
+}
+
 public sealed record GogDownloadedInstallerPackage(
     string StagingDirectory,
     string EntryFilePath,
@@ -217,6 +225,44 @@ public sealed class GogInstallService
 
         using var productJson = JsonDocument.Parse(productBody);
         return ExtractAvailableInstallerPlatforms(productJson.RootElement);
+    }
+
+    public async Task<IReadOnlyList<GogDlcCatalogItem>> GetOwnedDlcCatalogAsync(
+        string gameId,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(gameId))
+            throw new ArgumentException("Game ID is required.", nameof(gameId));
+
+        var accessToken = await _authService.GetValidAccessTokenAsync(ct).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(accessToken))
+            throw new InvalidOperationException("GOG authentication is required.");
+
+        var productUri = new Uri(
+            ApiBaseUri,
+            $"products/{Uri.EscapeDataString(gameId)}?expand=downloads,expanded_dlcs");
+        using var productRequest = CreateAuthorizedRequest(productUri, accessToken);
+        using var productResponse = await _httpClient.SendAsync(productRequest, ct).ConfigureAwait(false);
+        var productBody = await productResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!productResponse.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"GOG product request failed ({(int)productResponse.StatusCode} {productResponse.ReasonPhrase}): {ExtractErrorDetail(productBody)}");
+        }
+
+        var ownedProductsUri = new Uri(EmbedBaseUri, "user/data/games");
+        using var ownedProductsRequest = CreateAuthorizedRequest(ownedProductsUri, accessToken);
+        using var ownedProductsResponse = await _httpClient.SendAsync(ownedProductsRequest, ct).ConfigureAwait(false);
+        var ownedProductsBody = await ownedProductsResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!ownedProductsResponse.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"GOG owned-products request failed ({(int)ownedProductsResponse.StatusCode} {ownedProductsResponse.ReasonPhrase}): {ExtractErrorDetail(ownedProductsBody)}");
+        }
+
+        using var productJson = JsonDocument.Parse(productBody);
+        using var ownedProductsJson = JsonDocument.Parse(ownedProductsBody);
+        return ParseOwnedDlcCatalog(productJson.RootElement, ownedProductsJson.RootElement);
     }
 
     public async Task UninstallGogGameAsync(
@@ -754,6 +800,53 @@ public sealed class GogInstallService
         return availablePlatforms
             .OrderBy(static p => p == GogInstallPlatform.Linux ? 0 : 1)
             .ToArray();
+    }
+
+    internal static IReadOnlyList<GogDlcCatalogItem> ParseOwnedDlcCatalog(
+        JsonElement productRoot,
+        JsonElement ownedProductsRoot)
+    {
+        var ownedProductIds = ExtractOwnedProductIds(ownedProductsRoot);
+        if (ownedProductIds.Count == 0 ||
+            !productRoot.TryGetProperty("expanded_dlcs", out var dlcs) ||
+            dlcs.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<GogDlcCatalogItem>();
+        }
+
+        var catalog = new List<GogDlcCatalogItem>();
+        foreach (var dlc in dlcs.EnumerateArray())
+        {
+            var productId = GetString(dlc, "id");
+            if (string.IsNullOrWhiteSpace(productId) || !ownedProductIds.Contains(productId))
+                continue;
+
+            var title = GetString(dlc, "title");
+            if (string.IsNullOrWhiteSpace(title))
+                title = $"GOG DLC {productId}";
+
+            catalog.Add(new GogDlcCatalogItem(
+                productId,
+                title,
+                ExtractAvailableInstallerPlatforms(dlc)));
+        }
+
+        return catalog;
+    }
+
+    private static HashSet<string> ExtractOwnedProductIds(JsonElement ownedProductsRoot)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        if (!ownedProductsRoot.TryGetProperty("owned", out var owned) || owned.ValueKind != JsonValueKind.Array)
+            return result;
+
+        foreach (var productIdElement in owned.EnumerateArray())
+        {
+            if (TryGetString(productIdElement, out var productId))
+                result.Add(productId);
+        }
+
+        return result;
     }
 
     private static bool HasInstallerFiles(JsonElement installer)
