@@ -23,6 +23,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private CancellationTokenSource? _badgeLoadCts;
     private MediaItem? _selectedItem;
     private int _selectedGameId;
+    private string? _selectedUserIdentifier;
     private bool _isVisible;
     private bool _isLoading;
     private bool _isAchievementsExpanded;
@@ -188,9 +189,19 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var gameId = item?.RetroAchievementsGame?.GameId ?? 0;
+        var retroAchievementsSettings = _settings.RetroAchievements;
+        var isVisible = retroAchievementsSettings?.Enabled == true && gameId > 0;
+        var userIdentifier = FirstNonEmpty(
+            retroAchievementsSettings?.UserUlid,
+            retroAchievementsSettings?.Username);
         if (!forceRefresh &&
             ReferenceEquals(_selectedItem, item) &&
             _selectedGameId == gameId &&
+            IsVisible == isVisible &&
+            string.Equals(
+                _selectedUserIdentifier,
+                userIdentifier,
+                StringComparison.OrdinalIgnoreCase) &&
             (IsLoading || Snapshot?.Progress.GameId == gameId))
         {
             return;
@@ -203,10 +214,11 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
         _selectedItem = item;
         _selectedGameId = gameId;
+        _selectedUserIdentifier = userIdentifier;
         CancelCurrentLoad();
 
-        IsVisible = _settings.RetroAchievements?.Enabled == true && gameId > 0;
-        if (!forceRefresh)
+        IsVisible = isVisible;
+        if (!forceRefresh || !IsVisible)
             Snapshot = null;
 
         StatusText = string.Empty;
@@ -287,6 +299,17 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
     private bool CanRefresh() =>
         IsVisible && !IsLoading && (_selectedItem?.RetroAchievementsGame?.GameId ?? 0) > 0;
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                return value.Trim();
+        }
+
+        return null;
+    }
 
     private void ToggleAchievements()
     {

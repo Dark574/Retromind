@@ -309,11 +309,68 @@ public sealed class RetroAchievementsProgressViewModelTests
         Assert.Equal(123, viewModel.Snapshot?.Progress.GameId);
     }
 
+    [Fact]
+    public async Task SelectItemAsync_HidesExistingProgressWhenIntegrationIsDisabled()
+    {
+        var settings = CreateSettings();
+        var requestCount = 0;
+        using var viewModel = CreateViewModel(
+            (gameId, forceRefresh, cancellationToken) =>
+            {
+                requestCount++;
+                return Task.FromResult(CreateSnapshot(gameId));
+            },
+            settings: settings);
+        var item = CreateIdentifiedItem(gameId: 123);
+
+        await viewModel.SelectItemAsync(item);
+        settings.RetroAchievements!.Enabled = false;
+        await viewModel.SelectItemAsync(item);
+
+        Assert.False(viewModel.IsVisible);
+        Assert.False(viewModel.IsLoading);
+        Assert.Null(viewModel.Snapshot);
+        Assert.Equal(1, requestCount);
+    }
+
+    [Fact]
+    public async Task SelectItemAsync_ReloadsExistingSelectionWhenAccountChanges()
+    {
+        var settings = CreateSettings();
+        var requestCount = 0;
+        using var viewModel = CreateViewModel(
+            (gameId, forceRefresh, cancellationToken) =>
+            {
+                requestCount++;
+                return Task.FromResult(CreateSnapshot(gameId));
+            },
+            settings: settings);
+        var item = CreateIdentifiedItem(gameId: 123);
+
+        await viewModel.SelectItemAsync(item);
+        settings.RetroAchievements!.Username = "OtherUser";
+        await viewModel.SelectItemAsync(item);
+
+        Assert.True(viewModel.IsVisible);
+        Assert.Equal(2, requestCount);
+        Assert.Equal(123, viewModel.Snapshot?.Progress.GameId);
+    }
+
     private static RetroAchievementsProgressViewModel CreateViewModel(
         Func<int, bool, CancellationToken, Task<RetroAchievementsProgressSnapshot>> getProgress,
-        Func<string?, bool, CancellationToken, Task<string?>>? getBadge = null)
+        Func<string?, bool, CancellationToken, Task<string?>>? getBadge = null,
+        AppSettings? settings = null)
     {
-        var settings = new AppSettings
+        settings ??= CreateSettings();
+        return new RetroAchievementsProgressViewModel(
+            settings,
+            new StubProgressService(getProgress),
+            new StubBadgeService(getBadge ?? ((badgeName, isUnlocked, cancellationToken) =>
+                Task.FromResult<string?>(null))));
+    }
+
+    private static AppSettings CreateSettings() =>
+        new()
         {
             RetroAchievements = new RetroAchievementsSettings
             {
@@ -321,12 +378,6 @@ public sealed class RetroAchievementsProgressViewModelTests
                 Username = "TestUser"
             }
         };
-        return new RetroAchievementsProgressViewModel(
-            settings,
-            new StubProgressService(getProgress),
-            new StubBadgeService(getBadge ?? ((badgeName, isUnlocked, cancellationToken) =>
-                Task.FromResult<string?>(null))));
-    }
 
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
