@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-09-14
+Last updated: 2026-09-18
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -106,8 +106,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - automatic full-library sweep over due installed GOG titles every 24h
   - Secret Service authentication checks are serialized and executable availability probing never opens the wallet
   - update availability flag persisted in custom fields (`Store.UpdateAvailable`, `Store.LastUpdateCheckUtc`, `Store.LastUpdateCheckStatus`)
-  - search-card badge is shown when update is available
-  - primary Start action now surfaces `Update` and runs the existing installer flow for update installs
+  - a cover indicator is shown in the media grid and global search when an update is available
+  - update actions in the item context menu and media editor run the existing installer flow
 - Uninstall wiring:
   - dedicated uninstall action for installed GOG items
   - physical deletion runs before metadata cleanup (metadata is only cleared after successful deletion phase)
@@ -300,15 +300,16 @@ Update execution reuses the existing install pipeline:
 4. rerun launch mapping detection
 5. persist new install fingerprint
 
-Operationally this remains a reinstall-over-existing-target flow, surfaced as `Update` in the main action button.
+Operationally this remains a reinstall-over-existing-target flow, surfaced through the dedicated update actions
+in the item context menu and media editor.
 
 ### 5) UX/API shape
 
 - Provider capability flags for updates are not added yet.
 - Main action button states:
   - `Install` (not installed)
-  - `Play` (installed, no update)
-  - `Update` (installed, update available)
+  - `Play` (installed, regardless of update state)
+- A detected update enables the dedicated update actions and the cover indicator.
 - Automatic checks run on item selection and via background full sweep (24h interval).
 
 ### 6) Edge cases to handle

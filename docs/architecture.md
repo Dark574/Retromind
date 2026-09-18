@@ -63,8 +63,8 @@ Main window is a layered shell:
 
 ## Persistence model
 Persisted app/library data is portable under `AppPaths.DataRoot` (AppImage directory or app base directory).
-Exception: secrets for native store auth (e.g. GOG refresh token) are stored via host secret store (`ISecretStore`),
-not in `DataRoot`.
+Secrets that use the shared host credential abstraction (currently the GOG refresh token and the
+RetroAchievements Web API key) are stored through `ISecretStore`, not in `DataRoot`.
 
 ### Library (`retromind_tree.json`)
 - service: `MediaDataService`
@@ -91,6 +91,18 @@ not in `DataRoot`.
   window discards it
 - title sorting remains a live preview while the dialog is open and is restored if the dialog closes
   without saving
+
+### Secret storage and cache boundaries
+- `ISecretStore` is shared by store authentication and account integrations. On Linux the composite
+  implementation prefers the host Secret Service and falls back to session-only memory when persistent
+  storage is unavailable
+- the GOG refresh token and RetroAchievements Web API key are excluded from `app_settings.json`,
+  `retromind_tree.json`, metadata backups, and integration caches
+- scraper credentials follow a separate legacy contract: they are serialized only in encrypted settings
+  fields through `SecurityHelper`; they do not use `ISecretStore`
+- integration caches contain replaceable non-secret data. RetroAchievements catalog, progress, and badge
+  caches may follow portable-HOME migrations, while the corresponding API key always remains in the host
+  secret store or session memory
 
 ### Versioned metadata backups (`Backups/`)
 - service: `MetadataBackupService`; UI: `MetadataBackupViewModel` / `MetadataBackupView`
@@ -271,7 +283,12 @@ separate statistics database or persisted aggregate state.
   share a bounded set of synchronization gates, failures do not affect progress data, and the persistent badge cache
   follows the existing portable-HOME cache migration
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
-  (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode
+  (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode. New imports persist
+  the provider-neutral identity fields `Store.ProviderId` and `Store.GameId` on the `MediaItem`
+- `StoreProviderBadgeHelper` resolves GOG, Steam, and Epic cover labels from that structured identity. For
+  Steam/Heroic items created before the fields existed, it falls back to their command and launch URI without
+  mutating library data. `AppSettings.ShowStoreBadges` controls presentation only; moving an item between
+  ordinary nodes retains its store identity
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
@@ -328,6 +345,8 @@ Parental behavior is not isolated to one screen:
 - `MediaNode` and `MediaItem` both support asset collections and active-asset overrides
 - node-level fallback toggles control whether node artwork participates in item display resolution
 - `MediaItem.MediaType` models launch strategy (`Native`, `Emulator`, `Command`), not content taxonomy
+- internal `Store.*` custom fields carry provider identity and installation state but are excluded from the
+  user-facing custom-field list
 
 ## Automated tests
 
@@ -335,18 +354,18 @@ Parental behavior is not isolated to one screen:
 `tests/**/*.cs` from its own default compile items, and selected internal contracts are exposed to the test
 assembly through `InternalsVisibleTo` rather than widening the production API.
 
-The suite targets both `GogInstallDirectorySafety`, because it guards recursive deletion, and the portable
-path contract. Tests use unique `/tmp/retromind-tests-<guid>` roots, validate the exact target before cleanup,
-and avoid following symbolic links. Covered cases include dangerous system/application roots, ownership
-markers and symbolic links as well as Linux case sensitivity, path containment, prefix conversion,
-idempotent migration, preservation of external paths, a persisted-library move from one DataRoot to another,
-GOG uninstall resolution after such a move, and deterministic search-query behavior such as the shared
-played/not-played semantics used by library-statistics filters.
+The suite is risk-focused rather than UI-complete. It covers persistence recovery and restore behavior,
+portable-path and prefix contracts, launch planning, import and multi-disc rules, metadata matching, search,
+statistics, GOG authentication/install safety, and the RetroAchievements account, hashing, catalog, progress,
+badge, cache-migration, and bulk-identification services. Destructive filesystem tests use unique
+`/tmp/retromind-tests-<guid>` roots, validate the exact target before cleanup, and avoid following symbolic
+links. This includes dangerous system/application roots, ownership markers, symbolic links, Linux case
+sensitivity, path containment, and persisted-library relocation.
 
 Future coverage should stay risk-based and favor deterministic logic with low maintenance cost. The next
-useful candidates are persistence fallback/write-failure behavior, multi-disc filename recognition, and
-scraper matching decisions. UI tests should be added only where behavior cannot be tested below the Avalonia
-view layer.
+useful candidates should follow newly introduced high-risk boundaries rather than duplicate behavior already
+covered below the view layer. UI tests should be added only where behavior cannot be verified through models,
+helpers, services, or view models.
 
 ## Extending the app safely
 When adding features, preserve these invariants:
