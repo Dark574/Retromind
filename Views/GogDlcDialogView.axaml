@@ -79,27 +79,38 @@
                     </ListBox.ItemsPanel>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:GogDlcCatalogEntry">
-                            <Grid ColumnDefinitions="Auto,*,240" Margin="5,4">
-                                <CheckBox Grid.Column="0"
-                                          Margin="0,0,9,0"
-                                          VerticalAlignment="Center"
-                                          IsEnabled="{Binding IsSelectionEnabled}"
-                                          IsChecked="{Binding IsSelected, Mode=TwoWay}" />
-                                <StackPanel Grid.Column="1" Spacing="1">
-                                    <TextBlock Text="{Binding Title}"
-                                               FontWeight="SemiBold"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding ProductId}"
-                                               FontSize="11"
-                                               Opacity="0.7" />
-                                </StackPanel>
-                                <TextBlock Grid.Column="2"
-                                           Margin="12,0,0,0"
-                                           VerticalAlignment="Center"
-                                           Text="{Binding StatusText}"
-                                           TextTrimming="CharacterEllipsis"
-                                           Opacity="0.8" />
-                            </Grid>
+                            <Border CornerRadius="4"
+                                    ClipToBounds="True">
+                                <Grid>
+                                    <Border Background="#187BA3FF"
+                                            BorderBrush="#7BA3FF"
+                                            BorderThickness="3,0,0,0"
+                                            IsHitTestVisible="False"
+                                            IsVisible="{Binding IsInstalled}" />
+
+                                    <Grid ColumnDefinitions="Auto,*,240" Margin="8,4,5,4">
+                                        <CheckBox Grid.Column="0"
+                                                  Margin="0,0,9,0"
+                                                  VerticalAlignment="Center"
+                                                  IsEnabled="{Binding IsSelectionEnabled}"
+                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                                        <StackPanel Grid.Column="1" Spacing="1">
+                                            <TextBlock Text="{Binding Title}"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding ProductId}"
+                                                       FontSize="11"
+                                                       Opacity="0.7" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2"
+                                                   Margin="12,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   Text="{Binding StatusText}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Opacity="0.8" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
