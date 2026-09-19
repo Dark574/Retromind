@@ -393,8 +393,34 @@
                                                    VerticalAlignment="Center"
                                                    TextWrapping="Wrap"
                                                    TextAlignment="Center"
-                                                   Margin="5"
+                                                   Margin="8,28,8,8"
                                                    IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+
+                                        <!-- Store badge fallback when there is no cover to overlay. -->
+                                        <Grid IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                              IsHitTestVisible="False">
+                                            <Border Background="#D9111827"
+                                                    BorderBrush="White"
+                                                    BorderThickness="1"
+                                                    CornerRadius="3"
+                                                    Padding="5,2"
+                                                    Margin="8"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Top"
+                                                    ToolTip.Tip="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreBadgeToolTip}}">
+                                                <Border.IsVisible>
+                                                    <MultiBinding Converter="{x:Static helpers:ObjectConverters.StoreBadgeVisible}">
+                                                        <Binding />
+                                                        <Binding Path="DataContext.ShowStoreBadges"
+                                                                 RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                    </MultiBinding>
+                                                </Border.IsVisible>
+                                                <TextBlock Text="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreBadgeText}}"
+                                                           Foreground="White"
+                                                           FontSize="10"
+                                                           FontWeight="Bold" />
+                                            </Border>
+                                        </Grid>
 
                                         <!-- Async image loading for smoother scrolling with large result sets -->
                                         <Grid HorizontalAlignment="Center"
