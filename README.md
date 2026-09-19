@@ -615,6 +615,9 @@ unavailable, Retromind can display the latest cached progress and marks it as ca
 under `Cache/RetroAchievements` in the portable data root, or under
 `Home/.cache/retromind/RetroAchievements` when portable AppImage HOME is enabled.
 
+Thanks to the RetroAchievements team and community for providing the achievement database, Web API, artwork,
+and rcheevos library that make Retromind's RetroAchievements integration possible.
+
 ## Wayland / X11 note (VLC video embedding)
 Retromind uses X11/XWayland by default. Avalonia 12.1's native Wayland backend is available as an
 **experimental opt-in**:
