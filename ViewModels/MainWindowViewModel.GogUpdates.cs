@@ -48,6 +48,7 @@ public partial class MainWindowViewModel
         GogInstallPlatform Platform,
         string? InstalledVersion,
         string? InstalledSignature,
+        IReadOnlyList<GogDlcInstallationState> InstalledDlcs,
         DateTimeOffset? LastCheckedUtc);
 
     private void StartGogUpdateBackgroundLoop()
@@ -222,6 +223,8 @@ public partial class MainWindowViewModel
                 return GogUpdateResult.Failed;
             }
 
+            await RefreshGogDlcUpdateAvailabilityAsync(item, snapshot, ct).ConfigureAwait(false);
+
             var remoteVersion = NormalizeGogVersion(remotePackage.Version);
             var remoteSignature = BuildInstallerSignature(remotePackage);
             var hasBaseline = !string.IsNullOrWhiteSpace(snapshot.InstalledVersion) ||
@@ -317,7 +320,51 @@ public partial class MainWindowViewModel
             platform.Value,
             installedVersion,
             installedSignature,
+            item.GogDlcInstallations?
+                .Select(static state => new GogDlcInstallationState
+                {
+                    ProductId = state.ProductId,
+                    Title = state.Title,
+                    Platform = state.Platform,
+                    InstalledVersion = state.InstalledVersion,
+                    InstalledInstallerSignature = state.InstalledInstallerSignature
+                })
+                .ToArray() ?? Array.Empty<GogDlcInstallationState>(),
             lastCheckedUtc);
+    }
+
+    private async Task RefreshGogDlcUpdateAvailabilityAsync(
+        MediaItem item,
+        GogInstalledSnapshot snapshot,
+        CancellationToken ct)
+    {
+        if (snapshot.InstalledDlcs.Count == 0)
+        {
+            await UiThreadHelper.InvokeAsync(() => SetGogDlcUpdateAvailability(item, false)).ConfigureAwait(false);
+            return;
+        }
+
+        try
+        {
+            var catalog = await _gogInstallService
+                .GetOwnedDlcCatalogAsync(snapshot.StoreGameId, ct)
+                .ConfigureAwait(false);
+            var hasUpdate = GogDlcUpdateComparer.HasUpdate(
+                snapshot.InstalledDlcs,
+                catalog,
+                snapshot.Platform);
+            await UiThreadHelper.InvokeAsync(() => SetGogDlcUpdateAvailability(item, hasUpdate)).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Keep the last known DLC update state when GOG cannot provide the
+            // catalog. A transient network failure must not hide an update badge.
+            Debug.WriteLine($"[GOG] DLC update check failed for '{item.Title}': {ex.Message}");
+        }
     }
 
     private async Task<bool> EnsureGogAuthForUpdateChecksAsync(bool forceRefresh, CancellationToken ct)
@@ -423,6 +470,20 @@ public partial class MainWindowViewModel
 
         if (changed)
             _libraryTracker.MarkDirtyAndSaveSoon();
+    }
+
+    private void SetGogDlcUpdateAvailability(MediaItem item, bool updateAvailable)
+    {
+        var fields = new Dictionary<string, string>(item.CustomFields, StringComparer.Ordinal);
+        var changed = updateAvailable
+            ? SetField(fields, CustomFieldKeyHelper.StoreDlcUpdateAvailable, "true")
+            : fields.Remove(CustomFieldKeyHelper.StoreDlcUpdateAvailable);
+        if (!changed)
+            return;
+
+        item.CustomFields = fields;
+        NotifyPlayAvailabilityChanged();
+        _libraryTracker.MarkDirtyAndSaveSoon();
     }
 
     private static bool SetField(IDictionary<string, string> fields, string key, string value)

@@ -19,8 +19,9 @@ public sealed class GogDlcCatalogTests
                     "installers": [
                       {
                         "os": "windows",
+                        "version": "1.2.3",
                         "files": [
-                          { "downlink": "https://api.gog.com/products/1001/downlink/installer/1" }
+                          { "downlink": "https://api.gog.com/products/1001/downlink/installer/1", "size": 1234 }
                         ]
                       }
                     ]
@@ -68,6 +69,10 @@ public sealed class GogDlcCatalogTests
                 Assert.Equal("Owned Windows DLC", dlc.Title);
                 Assert.Equal([GogInstallPlatform.Windows], dlc.AvailableInstallerPlatforms);
                 Assert.True(dlc.HasInstaller);
+                var metadata = Assert.Single(dlc.InstallerMetadata!);
+                Assert.Equal(GogInstallPlatform.Windows, metadata.Platform);
+                Assert.Equal("1.2.3", metadata.Version);
+                Assert.StartsWith(GogDlcUpdateComparer.CatalogSignaturePrefix, metadata.Signature);
             },
             dlc =>
             {

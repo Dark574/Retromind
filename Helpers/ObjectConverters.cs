@@ -95,7 +95,7 @@ public static class ObjectConverters
         });
 
     /// <summary>
-    /// Returns true when Store.UpdateAvailable is set to true in the item's custom fields.
+    /// Returns true when a main-game or DLC update is available for the GOG item.
     /// </summary>
     public static readonly IValueConverter GogUpdateBadgeVisible =
         new FuncValueConverter<Dictionary<string, string>?, bool>(customFields =>
@@ -103,8 +103,13 @@ public static class ObjectConverters
             if (customFields == null)
                 return false;
 
-            return customFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) &&
-                   GogMediaItemStateHelper.IsTruthyCustomField(raw);
+            var hasMainGameUpdate =
+                customFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var mainUpdate) &&
+                GogMediaItemStateHelper.IsTruthyCustomField(mainUpdate);
+            var hasDlcUpdate =
+                customFields.TryGetValue(CustomFieldKeyHelper.StoreDlcUpdateAvailable, out var dlcUpdate) &&
+                GogMediaItemStateHelper.IsTruthyCustomField(dlcUpdate);
+            return hasMainGameUpdate || hasDlcUpdate;
         });
 
     /// <summary>

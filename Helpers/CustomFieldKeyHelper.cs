@@ -15,6 +15,7 @@ public static class CustomFieldKeyHelper
     public const string StoreInstalledVersion = InternalStorePrefix + "InstalledVersion";
     public const string StoreInstalledInstallerSignature = InternalStorePrefix + "InstalledInstallerSignature";
     public const string StoreUpdateAvailable = InternalStorePrefix + "UpdateAvailable";
+    public const string StoreDlcUpdateAvailable = InternalStorePrefix + "DlcUpdateAvailable";
     public const string StoreUpdateLastCheckedUtc = InternalStorePrefix + "LastUpdateCheckUtc";
     public const string StoreUpdateLastStatus = InternalStorePrefix + "LastUpdateCheckStatus";
 

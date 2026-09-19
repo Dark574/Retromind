@@ -26,11 +26,43 @@ public sealed class GogDlcDialogViewModelTests
             isInstalled: false);
         entry.IsSelected = true;
 
-        entry.IsInstalled = true;
+        entry.MarkInstalledAsCurrent();
 
         Assert.False(entry.IsSelected);
         Assert.False(entry.IsSelectionEnabled);
-        Assert.Equal("Installed", entry.StatusText);
+        Assert.Equal("Up to date", entry.StatusText);
+    }
+
+    [Fact]
+    public void CatalogEntry_ShowsAvailableUpdateForChangedInstalledVersion()
+    {
+        var installedState = new Retromind.Models.GogDlcInstallationState
+        {
+            ProductId = "123",
+            InstalledVersion = "1.0",
+            InstalledInstallerSignature = "legacy-signature"
+        };
+        var catalogItem = new GogDlcCatalogItem(
+            "123",
+            "Test DLC",
+            [GogInstallPlatform.Windows],
+            [new GogDlcInstallerMetadata(GogInstallPlatform.Windows, "1.1", "catalog-v1:remote")]);
+
+        var entry = new GogDlcCatalogEntry(
+            catalogItem,
+            "Linux",
+            "Windows",
+            "No installer",
+            "Up to date",
+            "Update available",
+            "Installed · update status unknown",
+            GogInstallPlatform.Windows,
+            isInstalled: true,
+            installedState: installedState);
+
+        Assert.True(entry.HasUpdateAvailable);
+        Assert.Equal("Update available", entry.StatusText);
+        Assert.False(entry.IsSelectionEnabled);
     }
 
     private static GogDlcCatalogEntry CreateEntry(
@@ -43,8 +75,11 @@ public sealed class GogDlcDialogViewModelTests
             "Linux",
             "Windows",
             "No installer",
-            "Installed",
+            "Up to date",
+            "Update available",
+            "Installed · update status unknown",
             installedPlatform,
-            isInstalled);
+            isInstalled,
+            installedState: null);
     }
 }

@@ -267,8 +267,9 @@
     <data name="Gog.Dlc.Refresh" xml:space="preserve"><value>Refresh</value></data>
     <data name="Gog.Dlc.Loading" xml:space="preserve"><value>Loading DLCs from GOG...</value></data>
     <data name="Gog.Dlc.EmptyState" xml:space="preserve"><value>No DLCs match the current filter.</value></data>
-    <data name="Gog.Dlc.SummaryFormat" xml:space="preserve"><value>{0:N0} owned · {1:N0} with supported offline installer · {2:N0} currently without Linux/Windows installer</value></data>
+    <data name="Gog.Dlc.SummaryFormat" xml:space="preserve"><value>{0:N0} owned · {1:N0} installed · {2:N0} updates · {3:N0} currently without Linux/Windows installer</value></data>
     <data name="Gog.Dlc.FilterAll" xml:space="preserve"><value>All DLCs</value></data>
+    <data name="Gog.Dlc.FilterUpdates" xml:space="preserve"><value>Updates</value></data>
     <data name="Gog.Dlc.FilterLinux" xml:space="preserve"><value>Linux installer</value></data>
     <data name="Gog.Dlc.FilterWindows" xml:space="preserve"><value>Windows installer</value></data>
     <data name="Gog.Dlc.FilterWithoutInstaller" xml:space="preserve"><value>Currently no Linux/Windows installer</value></data>
@@ -277,7 +278,9 @@
     <data name="Gog.Dlc.SelectAllFiltered" xml:space="preserve"><value>Select all installable</value></data>
     <data name="Gog.Dlc.ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
     <data name="Gog.Dlc.InstallSelection" xml:space="preserve"><value>Install selection</value></data>
-    <data name="Gog.Dlc.Installed" xml:space="preserve"><value>Installed</value></data>
+    <data name="Gog.Dlc.UpToDate" xml:space="preserve"><value>Up to date</value></data>
+    <data name="Gog.Dlc.UpdateAvailable" xml:space="preserve"><value>Update available</value></data>
+    <data name="Gog.Dlc.UpdateUnknown" xml:space="preserve"><value>Installed · update status unknown</value></data>
     <data name="Gog.Dlc.MainGameRequired" xml:space="preserve"><value>Install the main game before installing DLCs.</value></data>
     <data name="Gog.Dlc.SelectionFormat" xml:space="preserve"><value>Selected: {0:N0}</value></data>
     <data name="Gog.Dlc.InstallFailedFormat" xml:space="preserve"><value>DLC installation failed: {0}</value></data>

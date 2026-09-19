@@ -371,7 +371,12 @@ public partial class MainWindowViewModel
             
             UpdateInstalledGogFingerprint(item, selectedInstallerPackage);
             if (installRequest.CleanInstall)
+            {
                 item.GogDlcInstallations = null;
+                item.CustomFields = item.CustomFields
+                    .Where(static field => field.Key != CustomFieldKeyHelper.StoreDlcUpdateAvailable)
+                    .ToDictionary(static field => field.Key, static field => field.Value, StringComparer.Ordinal);
+            }
 
             _libraryTracker.MarkDirty();
             NotifyPlayAvailabilityChanged();

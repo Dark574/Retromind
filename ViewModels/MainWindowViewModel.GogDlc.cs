@@ -31,7 +31,8 @@ public partial class MainWindowViewModel
             gameId,
             installedPlatform,
             item.GogDlcInstallations,
-            (entries, ct) => InstallGogDlcsAsync(item, entries, dialog, ct));
+            (entries, ct) => InstallGogDlcsAsync(item, entries, dialog, ct),
+            hasUpdate => SetGogDlcUpdateAvailability(item, hasUpdate));
         dialog.DataContext = viewModel;
         await dialog.ShowDialog(owner);
     }
@@ -274,7 +275,9 @@ public partial class MainWindowViewModel
             Title = entry.Title,
             Platform = platform == GogInstallPlatform.Windows ? "windows" : "linux",
             InstalledVersion = NormalizeGogVersion(package.Version),
-            InstalledInstallerSignature = BuildInstallerSignature(package)
+            InstalledInstallerSignature = !string.IsNullOrWhiteSpace(entry.CurrentInstallerMetadata?.Signature)
+                ? entry.CurrentInstallerMetadata.Signature
+                : BuildInstallerSignature(package)
         });
         item.GogDlcInstallations = states;
     }

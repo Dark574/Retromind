@@ -268,8 +268,9 @@
     <data name="Gog.Dlc.Refresh" xml:space="preserve"><value>Aktualisieren</value></data>
     <data name="Gog.Dlc.Loading" xml:space="preserve"><value>DLCs werden von GOG geladen...</value></data>
     <data name="Gog.Dlc.EmptyState" xml:space="preserve"><value>Keine DLCs entsprechen dem aktuellen Filter.</value></data>
-    <data name="Gog.Dlc.SummaryFormat" xml:space="preserve"><value>{0:N0} im Konto · {1:N0} mit unterstütztem Offline-Installer · {2:N0} aktuell ohne Linux-/Windows-Installer</value></data>
+    <data name="Gog.Dlc.SummaryFormat" xml:space="preserve"><value>{0:N0} im Konto · {1:N0} installiert · {2:N0} Updates · {3:N0} aktuell ohne Linux-/Windows-Installer</value></data>
     <data name="Gog.Dlc.FilterAll" xml:space="preserve"><value>Alle DLCs</value></data>
+    <data name="Gog.Dlc.FilterUpdates" xml:space="preserve"><value>Updates</value></data>
     <data name="Gog.Dlc.FilterLinux" xml:space="preserve"><value>Linux-Installer</value></data>
     <data name="Gog.Dlc.FilterWindows" xml:space="preserve"><value>Windows-Installer</value></data>
     <data name="Gog.Dlc.FilterWithoutInstaller" xml:space="preserve"><value>Aktuell kein Linux-/Windows-Installer</value></data>
@@ -278,7 +279,9 @@
     <data name="Gog.Dlc.SelectAllFiltered" xml:space="preserve"><value>Alle installierbaren auswählen</value></data>
     <data name="Gog.Dlc.ClearSelection" xml:space="preserve"><value>Auswahl aufheben</value></data>
     <data name="Gog.Dlc.InstallSelection" xml:space="preserve"><value>Auswahl installieren</value></data>
-    <data name="Gog.Dlc.Installed" xml:space="preserve"><value>Installiert</value></data>
+    <data name="Gog.Dlc.UpToDate" xml:space="preserve"><value>Aktuell</value></data>
+    <data name="Gog.Dlc.UpdateAvailable" xml:space="preserve"><value>Update verfügbar</value></data>
+    <data name="Gog.Dlc.UpdateUnknown" xml:space="preserve"><value>Installiert · Update-Status unbekannt</value></data>
     <data name="Gog.Dlc.MainGameRequired" xml:space="preserve"><value>Installiere zuerst das Hauptspiel, bevor du DLCs installierst.</value></data>
     <data name="Gog.Dlc.SelectionFormat" xml:space="preserve"><value>Ausgewählt: {0:N0}</value></data>
     <data name="Gog.Dlc.InstallFailedFormat" xml:space="preserve"><value>DLC-Installation fehlgeschlagen: {0}</value></data>

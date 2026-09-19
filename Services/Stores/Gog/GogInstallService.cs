@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -40,10 +41,19 @@ public sealed record GogInstallerPackage(
 public sealed record GogDlcCatalogItem(
     string ProductId,
     string Title,
-    IReadOnlyList<GogInstallPlatform> AvailableInstallerPlatforms)
+    IReadOnlyList<GogInstallPlatform> AvailableInstallerPlatforms,
+    IReadOnlyList<GogDlcInstallerMetadata>? InstallerMetadata = null)
 {
     public bool HasInstaller => AvailableInstallerPlatforms.Count > 0;
+
+    public GogDlcInstallerMetadata? GetInstallerMetadata(GogInstallPlatform platform) =>
+        InstallerMetadata?.FirstOrDefault(metadata => metadata.Platform == platform);
 }
+
+public sealed record GogDlcInstallerMetadata(
+    GogInstallPlatform Platform,
+    string Version,
+    string Signature);
 
 public sealed record GogDownloadedInstallerPackage(
     string StagingDirectory,
@@ -374,6 +384,7 @@ public sealed class GogInstallService
             CustomFieldKeyHelper.StoreInstallRunnerVersionId,
             CustomFieldKeyHelper.StoreInstallWindowsInstallerPreference,
             CustomFieldKeyHelper.StoreUpdateAvailable,
+            CustomFieldKeyHelper.StoreDlcUpdateAvailable,
             CustomFieldKeyHelper.StoreInstalledVersion,
             CustomFieldKeyHelper.StoreInstalledInstallerSignature,
             CustomFieldKeyHelper.StoreUpdateLastStatus,
@@ -826,13 +837,54 @@ public sealed class GogInstallService
             if (string.IsNullOrWhiteSpace(title))
                 title = $"GOG DLC {productId}";
 
+            var installerMetadata = ExtractDlcInstallerMetadata(dlc);
             catalog.Add(new GogDlcCatalogItem(
                 productId,
                 title,
-                ExtractAvailableInstallerPlatforms(dlc)));
+                installerMetadata.Select(static metadata => metadata.Platform).ToArray(),
+                installerMetadata));
         }
 
         return catalog;
+    }
+
+    private static IReadOnlyList<GogDlcInstallerMetadata> ExtractDlcInstallerMetadata(JsonElement productRoot)
+    {
+        var result = new List<GogDlcInstallerMetadata>(2);
+        foreach (var platform in new[] { GogInstallPlatform.Linux, GogInstallPlatform.Windows })
+        {
+            if (!TrySelectInstaller(productRoot, platform, out var installer))
+                continue;
+
+            result.Add(new GogDlcInstallerMetadata(
+                platform,
+                GetString(installer, "version")?.Trim() ?? string.Empty,
+                BuildDlcCatalogInstallerSignature(installer)));
+        }
+
+        return result;
+    }
+
+    private static string BuildDlcCatalogInstallerSignature(JsonElement installer)
+    {
+        if (!installer.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Array)
+            return string.Empty;
+
+        var parts = new List<string>();
+        foreach (var file in files.EnumerateArray())
+        {
+            var downlink = GetString(file, "downlink")?.Trim() ?? string.Empty;
+            var size = GetLong(file, "size")?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+            if (downlink.Length > 0)
+                parts.Add($"{downlink}|{size}");
+        }
+
+        if (parts.Count == 0)
+            return string.Empty;
+
+        var payload = string.Join('\n', parts.OrderBy(static part => part, StringComparer.OrdinalIgnoreCase));
+        return GogDlcUpdateComparer.CatalogSignaturePrefix +
+               Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
     }
 
     private static HashSet<string> ExtractOwnedProductIds(JsonElement ownedProductsRoot)
