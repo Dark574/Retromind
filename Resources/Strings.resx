@@ -215,6 +215,9 @@
     <data name="EditMedia.GogStatusInstalled" xml:space="preserve"><value>Installed</value></data>
     <data name="EditMedia.GogStatusNotInstalled" xml:space="preserve"><value>Not installed</value></data>
     <data name="EditMedia.GogStatusUpdateAvailable" xml:space="preserve"><value>Installed – update available</value></data>
+    <data name="EditMedia.GogDlcTitle" xml:space="preserve"><value>DLCs</value></data>
+    <data name="EditMedia.GogDlcHint" xml:space="preserve"><value>Show owned DLCs and their available offline installers.</value></data>
+    <data name="EditMedia.GogManageDlcs" xml:space="preserve"><value>Manage DLCs...</value></data>
     <data name="EditMedia.Tab_Prefix" xml:space="preserve"><value>Prefix (Wine/Proton/UMU)</value></data>
     <data name="EditMedia.AssetsPrefixLabel" xml:space="preserve"><value>Asset prefix:</value></data>
     <data name="EditMedia.AssetsPrefixHint" xml:space="preserve"><value>Use this prefix when adding files manually in the Library folder.</value></data>
@@ -258,6 +261,19 @@
     <data name="Import.Steam" xml:space="preserve"><value>Steam library</value></data>
 
     <!-- GOG -->
+    <data name="Gog.Dlc.DialogTitle" xml:space="preserve"><value>Manage GOG DLCs</value></data>
+    <data name="Gog.Dlc.Header" xml:space="preserve"><value>Owned DLCs</value></data>
+    <data name="Gog.Dlc.SearchPlaceholder" xml:space="preserve"><value>Search by title or GOG ID...</value></data>
+    <data name="Gog.Dlc.Refresh" xml:space="preserve"><value>Refresh</value></data>
+    <data name="Gog.Dlc.Loading" xml:space="preserve"><value>Loading DLCs from GOG...</value></data>
+    <data name="Gog.Dlc.EmptyState" xml:space="preserve"><value>No DLCs match the current filter.</value></data>
+    <data name="Gog.Dlc.SummaryFormat" xml:space="preserve"><value>{0:N0} owned · {1:N0} with supported offline installer · {2:N0} currently without Linux/Windows installer</value></data>
+    <data name="Gog.Dlc.FilterAll" xml:space="preserve"><value>All DLCs</value></data>
+    <data name="Gog.Dlc.FilterLinux" xml:space="preserve"><value>Linux installer</value></data>
+    <data name="Gog.Dlc.FilterWindows" xml:space="preserve"><value>Windows installer</value></data>
+    <data name="Gog.Dlc.FilterWithoutInstaller" xml:space="preserve"><value>Currently no Linux/Windows installer</value></data>
+    <data name="Gog.Dlc.NoSeparateInstaller" xml:space="preserve"><value>Currently no Linux/Windows offline installer</value></data>
+    <data name="Gog.Dlc.LoadFailedFormat" xml:space="preserve"><value>DLCs could not be loaded: {0}</value></data>
     <data name="Gog.Media.AddMenu" xml:space="preserve"><value>Add GOG media</value></data>
     <data name="Gog.AuthCheckFailed" xml:space="preserve"><value>GOG sign-in state could not be verified.</value></data>
     <data name="Gog.SignInRequiredPrompt" xml:space="preserve"><value>GOG sign-in is required. Open secure sign-in now?</value></data>
