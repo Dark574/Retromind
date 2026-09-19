@@ -9,6 +9,23 @@ namespace Retromind.Tests.Services;
 public sealed class MediaDataServiceLoadTests
 {
     [Fact]
+    public void Serialize_ItemWithoutGogDlcState_OmitsDlcProperty()
+    {
+        var roots = new ObservableCollection<MediaNode>
+        {
+            new()
+            {
+                Name = "Node",
+                Items = new ObservableCollection<MediaItem> { new("Game") }
+            }
+        };
+
+        var json = new MediaDataService().Serialize(roots);
+
+        Assert.DoesNotContain("GogDlcInstallations", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task LoadAsync_ReturnsEmptyLibraryWhenNoPersistedFilesExist()
     {
         using var temp = new TemporaryDirectory();

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -368,7 +369,8 @@ public class MediaDataService
             TotalPlayTime = item.TotalPlayTime,
             NativeWrappersOverride = CloneWrappers(item.NativeWrappersOverride),
             EnvironmentOverrides = CloneEnvironmentOverrides(item.EnvironmentOverrides),
-            CustomFields = CloneEnvironmentOverrides(item.CustomFields)
+            CustomFields = CloneEnvironmentOverrides(item.CustomFields),
+            GogDlcInstallations = CloneGogDlcInstallations(item.GogDlcInstallations)
         };
 
         var tags = new ObservableCollection<string>();
@@ -388,6 +390,24 @@ public class MediaDataService
         clone.Assets = assets;
 
         return clone;
+    }
+
+    private static List<GogDlcInstallationState>? CloneGogDlcInstallations(
+        List<GogDlcInstallationState>? installations)
+    {
+        if (installations == null || installations.Count == 0)
+            return null;
+
+        return installations
+            .Select(static installation => new GogDlcInstallationState
+            {
+                ProductId = installation.ProductId,
+                Title = installation.Title,
+                Platform = installation.Platform,
+                InstalledVersion = installation.InstalledVersion,
+                InstalledInstallerSignature = installation.InstalledInstallerSignature
+            })
+            .ToList();
     }
 
     private static RetroAchievementsGameIdentity? CloneRetroAchievementsGameIdentity(

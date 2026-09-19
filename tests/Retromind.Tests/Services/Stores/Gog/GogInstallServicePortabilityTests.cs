@@ -41,6 +41,23 @@ public sealed class GogInstallServicePortabilityTests
         Assert.Null(item.LauncherPath);
         Assert.Null(item.LauncherArgs);
         Assert.Null(item.RunnerVersionId);
+        Assert.Null(item.GogDlcInstallations);
+    }
+
+    [Fact]
+    public async Task Uninstall_UnownedDirectory_PreservesDlcInstallationState()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("unowned-install");
+        var sentinelPath = temp.CreateFile("unowned-install/game.bin", "keep");
+        var item = CreateInstalledItem(installPath);
+        var service = CreateInstallService();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UninstallGogGameAsync(item));
+
+        Assert.True(File.Exists(sentinelPath));
+        Assert.Single(item.GogDlcInstallations!);
     }
 
     private static MediaItem CreateInstalledItem(string storedInstallPath)
@@ -48,7 +65,16 @@ public sealed class GogInstallServicePortabilityTests
         var item = new MediaItem
         {
             Id = "portable-item",
-            Title = "Portable Game"
+            Title = "Portable Game",
+            GogDlcInstallations =
+            [
+                new GogDlcInstallationState
+                {
+                    ProductId = "dlc-id",
+                    Title = "Portable Expansion",
+                    Platform = "windows"
+                }
+            ]
         };
         item.CustomFields["Store.ProviderId"] = "gog";
         item.CustomFields["Store.GameId"] = "portable-game-id";

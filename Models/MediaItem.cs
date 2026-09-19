@@ -118,6 +118,14 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty]
     private Dictionary<string, string> _customFields = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// DLCs installed for this GOG item through Retromind. Only successful
+    /// installations are persisted; the remote DLC catalog is loaded on demand.
+    /// </summary>
+    [ObservableProperty]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    private List<GogDlcInstallationState>? _gogDlcInstallations;
+
     private ObservableCollection<MediaAsset> _assets = new();
 
     public ObservableCollection<MediaAsset> Assets

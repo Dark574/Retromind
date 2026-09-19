@@ -385,6 +385,7 @@ public sealed class GogInstallService
         item.CustomFields = item.CustomFields
             .Where(kv => !fieldsToRemove.Contains(kv.Key))
             .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+        item.GogDlcInstallations = null;
 
         // Only clear PrefixPath metadata if we actually deleted the prefix safely.
         // If prefix was skipped for safety, preserve the metadata so the user can clean up manually.

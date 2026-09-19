@@ -33,6 +33,17 @@ public sealed class MediaDataServicePortabilityTests
                     Hash = "25f9e794323b453885f5181f1b624d0b",
                     Title = "Portable Game"
                 },
+                GogDlcInstallations =
+                [
+                    new GogDlcInstallationState
+                    {
+                        ProductId = "1234567890",
+                        Title = "Portable Expansion",
+                        Platform = "windows",
+                        InstalledVersion = "1.2.3",
+                        InstalledInstallerSignature = "signature"
+                    }
+                ],
                 Files =
                 [
                     new MediaFileRef
@@ -65,6 +76,7 @@ public sealed class MediaDataServicePortabilityTests
             var service = new MediaDataService();
             var roots = new ObservableCollection<MediaNode> { node };
             var snapshot = service.CreateSnapshot(roots);
+            item.GogDlcInstallations![0].Title = "Changed after snapshot";
             var json = service.Serialize(snapshot);
             await service.SaveJsonAsync(json);
         }
@@ -96,6 +108,12 @@ public sealed class MediaDataServicePortabilityTests
             Assert.Equal(
                 "25f9e794323b453885f5181f1b624d0b",
                 loadedItem.RetroAchievementsGame.Hash);
+            var installedDlc = Assert.Single(loadedItem.GogDlcInstallations!);
+            Assert.Equal("1234567890", installedDlc.ProductId);
+            Assert.Equal("Portable Expansion", installedDlc.Title);
+            Assert.Equal("windows", installedDlc.Platform);
+            Assert.Equal("1.2.3", installedDlc.InstalledVersion);
+            Assert.Equal("signature", installedDlc.InstalledInstallerSignature);
             Assert.True(GogInstallPathHelper.TryResolveStoredPath(
                 loadedItem.CustomFields[CustomFieldKeyHelper.StoreInstallPath],
                 out var resolvedInstallPath));
