@@ -274,6 +274,22 @@
     <data name="Gog.Dlc.FilterWithoutInstaller" xml:space="preserve"><value>Currently no Linux/Windows installer</value></data>
     <data name="Gog.Dlc.NoSeparateInstaller" xml:space="preserve"><value>Currently no Linux/Windows offline installer</value></data>
     <data name="Gog.Dlc.LoadFailedFormat" xml:space="preserve"><value>DLCs could not be loaded: {0}</value></data>
+    <data name="Gog.Dlc.SelectAllFiltered" xml:space="preserve"><value>Select all installable</value></data>
+    <data name="Gog.Dlc.ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
+    <data name="Gog.Dlc.InstallSelection" xml:space="preserve"><value>Install selection</value></data>
+    <data name="Gog.Dlc.Installed" xml:space="preserve"><value>Installed</value></data>
+    <data name="Gog.Dlc.MainGameRequired" xml:space="preserve"><value>Install the main game before installing DLCs.</value></data>
+    <data name="Gog.Dlc.SelectionFormat" xml:space="preserve"><value>Selected: {0:N0}</value></data>
+    <data name="Gog.Dlc.InstallFailedFormat" xml:space="preserve"><value>DLC installation failed: {0}</value></data>
+    <data name="Gog.Dlc.SystemWineRequired" xml:space="preserve"><value>Installing Windows DLCs requires system Wine.</value></data>
+    <data name="Gog.Dlc.SignInRequired" xml:space="preserve"><value>DLC installation requires a GOG sign-in.</value></data>
+    <data name="Gog.Dlc.ProgressTitleFormat" xml:space="preserve"><value>GOG DLC installation - {0}</value></data>
+    <data name="Gog.Dlc.ResolveFailedFormat" xml:space="preserve"><value>The installer for '{0}' could not be loaded: {1}</value></data>
+    <data name="Gog.Dlc.NoInstallerForPlatformFormat" xml:space="preserve"><value>No installer for the installed platform is currently available for '{0}'.</value></data>
+    <data name="Gog.Dlc.DownloadFailedFormat" xml:space="preserve"><value>The installer for '{0}' could not be downloaded: {1}</value></data>
+    <data name="Gog.Dlc.RunFailedFormat" xml:space="preserve"><value>The installer for '{0}' failed: {1}</value></data>
+    <data name="Gog.Dlc.InstalledFormat" xml:space="preserve"><value>Installed: {0}</value></data>
+    <data name="Gog.Dlc.InstallSuccessFormat" xml:space="preserve"><value>Successfully installed {0:N0} DLC(s).</value></data>
     <data name="Gog.Media.AddMenu" xml:space="preserve"><value>Add GOG media</value></data>
     <data name="Gog.AuthCheckFailed" xml:space="preserve"><value>GOG sign-in state could not be verified.</value></data>
     <data name="Gog.SignInRequiredPrompt" xml:space="preserve"><value>GOG sign-in is required. Open secure sign-in now?</value></data>

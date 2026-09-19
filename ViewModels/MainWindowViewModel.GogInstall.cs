@@ -370,6 +370,8 @@ public partial class MainWindowViewModel
             }
             
             UpdateInstalledGogFingerprint(item, selectedInstallerPackage);
+            if (installRequest.CleanInstall)
+                item.GogDlcInstallations = null;
 
             _libraryTracker.MarkDirty();
             NotifyPlayAvailabilityChanged();
@@ -787,7 +789,8 @@ public partial class MainWindowViewModel
         GogInstallDialogViewModel.GogInstallDialogResult request,
         GogDownloadedInstallerPackage downloadedPackage,
         ProcessLogViewModel logVm,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool useTemporaryLinuxDestination = true)
     {
         InstallerRunResult Fail(string? errorMessage) => new(false, errorMessage);
         InstallerRunResult Success() => new(true, null);
@@ -840,7 +843,9 @@ public partial class MainWindowViewModel
 
                 AppendProcessLog(logVm, $"Install path: {request.InstallPath}", installerLogPath);
                 AppendProcessLog(logVm, $"Staging path: {downloadedPackage.StagingDirectory}", installerLogPath);
-                var effectiveInstallPath = ResolveSafeLinuxInstallerDestinationPath(request.InstallPath, storeGameId);
+                var effectiveInstallPath = useTemporaryLinuxDestination
+                    ? ResolveSafeLinuxInstallerDestinationPath(request.InstallPath, storeGameId)
+                    : request.InstallPath;
                 var usesTemporaryInstallPath = !PathsEqual(effectiveInstallPath, request.InstallPath);
                 if (usesTemporaryInstallPath)
                 {

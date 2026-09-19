@@ -275,6 +275,22 @@
     <data name="Gog.Dlc.FilterWithoutInstaller" xml:space="preserve"><value>Aktuell kein Linux-/Windows-Installer</value></data>
     <data name="Gog.Dlc.NoSeparateInstaller" xml:space="preserve"><value>Aktuell kein Linux-/Windows-Offline-Installer</value></data>
     <data name="Gog.Dlc.LoadFailedFormat" xml:space="preserve"><value>DLCs konnten nicht geladen werden: {0}</value></data>
+    <data name="Gog.Dlc.SelectAllFiltered" xml:space="preserve"><value>Alle installierbaren auswählen</value></data>
+    <data name="Gog.Dlc.ClearSelection" xml:space="preserve"><value>Auswahl aufheben</value></data>
+    <data name="Gog.Dlc.InstallSelection" xml:space="preserve"><value>Auswahl installieren</value></data>
+    <data name="Gog.Dlc.Installed" xml:space="preserve"><value>Installiert</value></data>
+    <data name="Gog.Dlc.MainGameRequired" xml:space="preserve"><value>Installiere zuerst das Hauptspiel, bevor du DLCs installierst.</value></data>
+    <data name="Gog.Dlc.SelectionFormat" xml:space="preserve"><value>Ausgewählt: {0:N0}</value></data>
+    <data name="Gog.Dlc.InstallFailedFormat" xml:space="preserve"><value>DLC-Installation fehlgeschlagen: {0}</value></data>
+    <data name="Gog.Dlc.SystemWineRequired" xml:space="preserve"><value>Für die Installation von Windows-DLCs wird System-Wine benötigt.</value></data>
+    <data name="Gog.Dlc.SignInRequired" xml:space="preserve"><value>Für die DLC-Installation ist eine GOG-Anmeldung erforderlich.</value></data>
+    <data name="Gog.Dlc.ProgressTitleFormat" xml:space="preserve"><value>GOG-DLC-Installation – {0}</value></data>
+    <data name="Gog.Dlc.ResolveFailedFormat" xml:space="preserve"><value>Der Installer für „{0}“ konnte nicht geladen werden: {1}</value></data>
+    <data name="Gog.Dlc.NoInstallerForPlatformFormat" xml:space="preserve"><value>Für „{0}“ ist aktuell kein Installer für die installierte Plattform verfügbar.</value></data>
+    <data name="Gog.Dlc.DownloadFailedFormat" xml:space="preserve"><value>Der Installer für „{0}“ konnte nicht heruntergeladen werden: {1}</value></data>
+    <data name="Gog.Dlc.RunFailedFormat" xml:space="preserve"><value>Der Installer für „{0}“ ist fehlgeschlagen: {1}</value></data>
+    <data name="Gog.Dlc.InstalledFormat" xml:space="preserve"><value>Installiert: {0}</value></data>
+    <data name="Gog.Dlc.InstallSuccessFormat" xml:space="preserve"><value>{0:N0} DLC(s) erfolgreich installiert.</value></data>
     <data name="Gog.Media.AddMenu" xml:space="preserve"><value>GOG-Medium hinzufügen</value></data>
     <data name="Gog.AuthCheckFailed" xml:space="preserve"><value>GOG-Anmeldestatus konnte nicht geprüft werden.</value></data>
     <data name="Gog.SignInRequiredPrompt" xml:space="preserve"><value>Für GOG-Medien ist eine Anmeldung erforderlich. Jetzt sichere Anmeldung öffnen?</value></data>
