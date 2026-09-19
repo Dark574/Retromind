@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - RetroAchievments for supported systems
 - added store badges on Game Covers
 - new Nintendo Game Boy Advance system theme
+- install and update GOG DLCs
 
 ### Changed
 - make information dialogs copyable

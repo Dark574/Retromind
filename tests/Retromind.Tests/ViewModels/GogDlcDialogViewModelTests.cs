@@ -34,7 +34,7 @@ public sealed class GogDlcDialogViewModelTests
     }
 
     [Fact]
-    public void CatalogEntry_ShowsAvailableUpdateForChangedInstalledVersion()
+    public void CatalogEntry_AvailableUpdateCanBeSelected()
     {
         var installedState = new Retromind.Models.GogDlcInstallationState
         {
@@ -62,7 +62,15 @@ public sealed class GogDlcDialogViewModelTests
 
         Assert.True(entry.HasUpdateAvailable);
         Assert.Equal("Update available", entry.StatusText);
+        Assert.True(entry.IsSelectionEnabled);
+
+        entry.IsSelected = true;
+        entry.MarkInstalledAsCurrent();
+
+        Assert.False(entry.HasUpdateAvailable);
         Assert.False(entry.IsSelectionEnabled);
+        Assert.False(entry.IsSelected);
+        Assert.Equal("Up to date", entry.StatusText);
     }
 
     private static GogDlcCatalogEntry CreateEntry(

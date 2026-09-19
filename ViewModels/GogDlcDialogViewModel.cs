@@ -36,7 +36,7 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
     private readonly GogInstallPlatform? _installedPlatform;
     private readonly Func<IReadOnlyList<GogDlcCatalogEntry>, CancellationToken, Task<GogDlcInstallBatchResult>>? _installAsync;
     private readonly Action<bool>? _updateAvailabilityChanged;
-    private readonly IReadOnlyDictionary<string, GogDlcInstallationState> _installedDlcs;
+    private readonly Dictionary<string, GogDlcInstallationState> _installedDlcs;
     private readonly HashSet<string> _installedProductIds;
     private readonly CancellationTokenSource _lifetimeCts = new();
     private IReadOnlyList<GogDlcCatalogEntry> _allEntries = Array.Empty<GogDlcCatalogEntry>();
@@ -76,9 +76,9 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
     public string SearchPlaceholderText => T("Gog.Dlc.SearchPlaceholder", "Search by title or GOG ID...");
     public string RefreshText => T("Gog.Dlc.Refresh", "Refresh");
     public string CloseText => Strings.Button_Close;
-    public string SelectAllFilteredText => T("Gog.Dlc.SelectAllFiltered", "Select all installable");
+    public string SelectAllFilteredText => T("Gog.Dlc.SelectAllFiltered", "Select all available");
     public string ClearSelectionText => T("Gog.Dlc.ClearSelection", "Clear selection");
-    public string InstallSelectionText => T("Gog.Dlc.InstallSelection", "Install selection");
+    public string InstallSelectionText => T("Gog.Dlc.InstallSelection", "Install / update selection");
     public string LoadingText => T("Gog.Dlc.Loading", "Loading DLCs from GOG...");
     public string EmptyStateText => T("Gog.Dlc.EmptyState", "No DLCs match the current filter.");
     public string UpToDateText => T("Gog.Dlc.UpToDate", "Up to date");
@@ -252,17 +252,20 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
         {
             var result = await _installAsync(selected, _lifetimeCts.Token);
             foreach (var productId in result.InstalledProductIds)
-                _installedProductIds.Add(productId);
-
-            foreach (var entry in _allEntries)
             {
-                if (!_installedProductIds.Contains(entry.ProductId))
+                _installedProductIds.Add(productId);
+                var entry = _allEntries.FirstOrDefault(candidate =>
+                    string.Equals(candidate.ProductId, productId, StringComparison.Ordinal));
+                if (entry == null)
                     continue;
 
                 entry.MarkInstalledAsCurrent();
+                RememberInstalledState(entry);
             }
 
             StatusMessage = result.Message;
+            ApplyFilter();
+            _updateAvailabilityChanged?.Invoke(_allEntries.Any(static entry => entry.HasUpdateAvailable));
         }
         catch (OperationCanceledException) when (_lifetimeCts.IsCancellationRequested)
         {
@@ -273,7 +276,7 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
             Debug.WriteLine($"[GOG] DLC installation failed: {ex.Message}");
             StatusMessage = string.Format(
                 CultureInfo.CurrentCulture,
-                T("Gog.Dlc.InstallFailedFormat", "DLC installation failed: {0}"),
+                T("Gog.Dlc.InstallFailedFormat", "DLC installation / update failed: {0}"),
                 ex.Message);
         }
         finally
@@ -296,6 +299,19 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
     {
         foreach (var entry in _allEntries)
             entry.IsSelected = false;
+    }
+
+    private void RememberInstalledState(GogDlcCatalogEntry entry)
+    {
+        var metadata = entry.CurrentInstallerMetadata;
+        _installedDlcs[entry.ProductId] = new GogDlcInstallationState
+        {
+            ProductId = entry.ProductId,
+            Title = entry.Title,
+            Platform = _installedPlatform == GogInstallPlatform.Windows ? "windows" : "linux",
+            InstalledVersion = metadata?.Version,
+            InstalledInstallerSignature = metadata?.Signature
+        };
     }
 
     private void OnEntrySelectionChanged(GogDlcCatalogEntry entry)
@@ -364,7 +380,8 @@ public sealed partial class GogDlcCatalogEntry : ObservableObject
     public bool HasInstaller => HasLinuxInstaller || HasWindowsInstaller;
     public string InstallerPlatformsText { get; }
     public bool IsInstallableForCurrentPlatform { get; }
-    public bool IsSelectionEnabled => IsInstallableForCurrentPlatform && !IsInstalled;
+    public bool IsSelectionEnabled =>
+        IsInstallableForCurrentPlatform && (!IsInstalled || HasUpdateAvailable);
     public GogDlcInstallerMetadata? CurrentInstallerMetadata { get; }
     public GogDlcUpdateState UpdateState { get; private set; }
     public bool HasUpdateAvailable => UpdateState == GogDlcUpdateState.UpdateAvailable;
@@ -450,6 +467,7 @@ public sealed partial class GogDlcCatalogEntry : ObservableObject
         IsInstalled = true;
         IsSelected = false;
         OnPropertyChanged(nameof(HasUpdateAvailable));
+        OnPropertyChanged(nameof(IsSelectionEnabled));
         OnPropertyChanged(nameof(StatusText));
     }
 

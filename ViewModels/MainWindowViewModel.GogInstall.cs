@@ -795,7 +795,8 @@ public partial class MainWindowViewModel
         GogDownloadedInstallerPackage downloadedPackage,
         ProcessLogViewModel logVm,
         CancellationToken ct = default,
-        bool useTemporaryLinuxDestination = true)
+        bool useTemporaryLinuxDestination = true,
+        bool requireLinuxPayloadChange = false)
     {
         InstallerRunResult Fail(string? errorMessage) => new(false, errorMessage);
         InstallerRunResult Success() => new(true, null);
@@ -826,6 +827,9 @@ public partial class MainWindowViewModel
 
             if (request.Platform == GogInstallPlatform.Linux)
             {
+                var linuxPayloadBaseline = requireLinuxPayloadChange
+                    ? CaptureInstallPayloadSnapshot(request.InstallPath)
+                    : default;
                 var installerPath = downloadedPackage.EntryFilePath;
                 if (!File.Exists(installerPath))
                     return Fail("Linux installer entry file was not found.");
@@ -851,7 +855,30 @@ public partial class MainWindowViewModel
                 var effectiveInstallPath = useTemporaryLinuxDestination
                     ? ResolveSafeLinuxInstallerDestinationPath(request.InstallPath, storeGameId)
                     : request.InstallPath;
-                var usesTemporaryInstallPath = !PathsEqual(effectiveInstallPath, request.InstallPath);
+                string? existingInstallAlias = null;
+                if (!useTemporaryLinuxDestination &&
+                    OperatingSystem.IsLinux() &&
+                    HasShellSensitivePathCharacters(request.InstallPath))
+                {
+                    try
+                    {
+                        existingInstallAlias = CreateSafeLinuxInstallerDestinationAlias(
+                            request.InstallPath,
+                            storeGameId);
+                        effectiveInstallPath = existingInstallAlias;
+                        AppendProcessLog(
+                            logVm,
+                            $"Installer destination (safe alias): {effectiveInstallPath}",
+                            installerLogPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        return Fail($"Could not create a safe Linux installer destination alias: {ex.Message}");
+                    }
+                }
+
+                var usesTemporaryInstallPath = useTemporaryLinuxDestination &&
+                    !PathsEqual(effectiveInstallPath, request.InstallPath);
                 if (usesTemporaryInstallPath)
                 {
                     Directory.CreateDirectory(effectiveInstallPath);
@@ -918,6 +945,7 @@ public partial class MainWindowViewModel
                 finally
                 {
                     CleanupLinuxInstallerCompatibilityEnvironment(linuxCompatibilityEnvironment);
+                    TryDeleteLinuxInstallerDestinationAlias(existingInstallAlias);
                 }
 
                 if (usesTemporaryInstallPath)
@@ -925,9 +953,39 @@ public partial class MainWindowViewModel
                     AppendProcessLog(logVm, $"Promoting install from temporary path to requested path: {request.InstallPath}", installerLogPath);
                     MoveDirectoryContentsOverwrite(effectiveInstallPath, request.InstallPath);
                     TryDeleteDirectoryIfEmpty(effectiveInstallPath);
+
+                    try
+                    {
+                        var repairedFiles = GogLinuxInstallRelocationRepair.RepairMovedInstallation(
+                            request.InstallPath,
+                            effectiveInstallPath);
+                        if (repairedFiles > 0)
+                        {
+                            AppendProcessLog(
+                                logVm,
+                                $"Repaired {repairedFiles} relocated MojoSetup metadata file(s).",
+                                installerLogPath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[GOG] Failed to repair relocated Linux installer metadata: {ex.Message}");
+                        AppendProcessLog(
+                            logVm,
+                            $"Warning: relocated MojoSetup metadata could not be repaired: {ex.Message}",
+                            installerLogPath);
+                    }
                 }
 
                 EnsureLinuxInstalledExecutablePermissionsBestEffort(request.InstallPath);
+
+                if (requireLinuxPayloadChange &&
+                    !HasInstallPayloadChanged(request.InstallPath, linuxPayloadBaseline))
+                {
+                    return Fail(
+                        "Linux installer exited without changing game files. " +
+                        "The installation may have been declined or cancelled.");
+                }
 
                 return Success();
             }
@@ -1449,10 +1507,16 @@ public partial class MainWindowViewModel
         return $@"Z:\{windowsSlashes.TrimStart('\\')}";
     }
 
-    private readonly struct InstallPayloadSnapshot(int fileCount, DateTimeOffset latestWriteUtc)
+    private readonly struct InstallPayloadSnapshot(
+        int fileCount,
+        long totalSize,
+        DateTimeOffset latestWriteUtc,
+        ulong metadataFingerprint)
     {
         public int FileCount { get; } = fileCount;
+        public long TotalSize { get; } = totalSize;
         public DateTimeOffset LatestWriteUtc { get; } = latestWriteUtc;
+        public ulong MetadataFingerprint { get; } = metadataFingerprint;
     }
 
     private static async Task<bool> WaitForWindowsInstallPayloadChangeAsync(
@@ -1476,37 +1540,81 @@ public partial class MainWindowViewModel
     private static bool HasInstallPayloadChanged(string installPath, InstallPayloadSnapshot baseline)
     {
         var current = CaptureInstallPayloadSnapshot(installPath);
-        if (current.FileCount > baseline.FileCount)
-            return true;
-
-        return current.LatestWriteUtc > baseline.LatestWriteUtc;
+        return current.FileCount != baseline.FileCount ||
+               current.TotalSize != baseline.TotalSize ||
+               current.LatestWriteUtc != baseline.LatestWriteUtc ||
+               current.MetadataFingerprint != baseline.MetadataFingerprint;
     }
 
     private static InstallPayloadSnapshot CaptureInstallPayloadSnapshot(string installPath)
     {
         if (string.IsNullOrWhiteSpace(installPath) || !Directory.Exists(installPath))
-            return new InstallPayloadSnapshot(0, DateTimeOffset.MinValue);
+            return default;
 
         try
         {
             var fileCount = 0;
+            long totalSize = 0;
             var latestWriteUtc = DateTimeOffset.MinValue;
+            ulong metadataFingerprint = 0;
             foreach (var file in Directory.EnumerateFiles(installPath, "*", SearchOption.AllDirectories))
             {
-                if (IsInsideInstallerStaging(file))
+                var relativePath = Path.GetRelativePath(installPath, file);
+                if (IsInsideInstallerStaging(file) ||
+                    relativePath.StartsWith($".mojosetup{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+                {
                     continue;
+                }
 
+                var fileInfo = new FileInfo(file);
                 fileCount++;
-                var writeUtc = File.GetLastWriteTimeUtc(file);
+                totalSize += fileInfo.Length;
+                var writeUtc = fileInfo.LastWriteTimeUtc;
                 if (writeUtc > latestWriteUtc.UtcDateTime)
                     latestWriteUtc = new DateTimeOffset(writeUtc, TimeSpan.Zero);
+
+                metadataFingerprint ^= BuildInstallFileMetadataFingerprint(
+                    relativePath,
+                    fileInfo.Length,
+                    writeUtc.Ticks);
             }
 
-            return new InstallPayloadSnapshot(fileCount, latestWriteUtc);
+            return new InstallPayloadSnapshot(fileCount, totalSize, latestWriteUtc, metadataFingerprint);
         }
         catch
         {
-            return new InstallPayloadSnapshot(0, DateTimeOffset.MinValue);
+            return default;
+        }
+    }
+
+    private static ulong BuildInstallFileMetadataFingerprint(
+        string relativePath,
+        long length,
+        long lastWriteTicks)
+    {
+        const ulong offsetBasis = 14695981039346656037UL;
+        const ulong prime = 1099511628211UL;
+        unchecked
+        {
+            var hash = offsetBasis;
+
+            foreach (var ch in relativePath)
+            {
+                hash ^= (byte)ch;
+                hash *= prime;
+                hash ^= (byte)(ch >> 8);
+                hash *= prime;
+            }
+
+            for (var shift = 0; shift < 64; shift += 8)
+            {
+                hash ^= (byte)(length >> shift);
+                hash *= prime;
+                hash ^= (byte)(lastWriteTicks >> shift);
+                hash *= prime;
+            }
+
+            return hash;
         }
     }
 
@@ -1526,6 +1634,38 @@ public partial class MainWindowViewModel
         return Path.Combine(
             safeRoot,
             $"install-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}");
+    }
+
+    private static string CreateSafeLinuxInstallerDestinationAlias(
+        string requestedInstallPath,
+        string storeGameId)
+    {
+        var safeId = string.IsNullOrWhiteSpace(storeGameId)
+            ? "gog"
+            : new string(storeGameId.Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_').ToArray());
+        if (string.IsNullOrWhiteSpace(safeId))
+            safeId = "gog";
+
+        var aliasRoot = Path.Combine(Path.GetTempPath(), "retromind-gog-install-targets");
+        Directory.CreateDirectory(aliasRoot);
+        var aliasPath = Path.Combine(aliasRoot, $"{safeId}-{Guid.NewGuid():N}");
+        Directory.CreateSymbolicLink(aliasPath, Path.GetFullPath(requestedInstallPath));
+        return aliasPath;
+    }
+
+    private static void TryDeleteLinuxInstallerDestinationAlias(string? aliasPath)
+    {
+        if (string.IsNullOrWhiteSpace(aliasPath))
+            return;
+
+        try
+        {
+            File.Delete(aliasPath);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] Failed to delete Linux installer destination alias '{aliasPath}': {ex.Message}");
+        }
     }
 
     private static bool HasShellSensitivePathCharacters(string path)

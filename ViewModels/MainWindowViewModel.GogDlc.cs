@@ -60,13 +60,13 @@ public partial class MainWindowViewModel
             string.IsNullOrWhiteSpace(EmulatorResolverHelper.ResolveSystemWine()))
         {
             return CreateGogDlcInstallError(
-                T("Gog.Dlc.SystemWineRequired", "Installing Windows DLCs requires system Wine."));
+                T("Gog.Dlc.SystemWineRequired", "Installing or updating Windows DLCs requires system Wine."));
         }
 
         if (!await EnsureGogSignInForInstallAsync(owner))
         {
             return CreateGogDlcInstallError(
-                T("Gog.Dlc.SignInRequired", "DLC installation requires a GOG sign-in."));
+                T("Gog.Dlc.SignInRequired", "DLC installation or update requires a GOG sign-in."));
         }
 
         var request = new GogInstallDialogViewModel.GogInstallDialogResult(
@@ -90,6 +90,8 @@ public partial class MainWindowViewModel
         progressLogVm.EnableCancel();
 
         var installedProductIds = new HashSet<string>(StringComparer.Ordinal);
+        var installedCount = 0;
+        var updatedCount = 0;
         string? failureMessage = null;
 
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
@@ -99,13 +101,43 @@ public partial class MainWindowViewModel
 
         try
         {
+            if (platform == GogInstallPlatform.Linux)
+            {
+                try
+                {
+                    var repairedFiles = GogLinuxInstallRelocationRepair.RepairFromManifest(installPath);
+                    if (repairedFiles > 0)
+                    {
+                        AppendProcessLog(
+                            progressLogVm,
+                            string.Format(
+                                CultureInfo.CurrentCulture,
+                                T("Gog.Dlc.LinuxMetadataRepairedFormat", "Repaired {0:N0} relocated Linux installer metadata file(s)."),
+                                repairedFiles));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[GOG] Failed to repair Linux installer metadata before DLC installation: {ex.Message}");
+                    failureMessage = string.Format(
+                        CultureInfo.CurrentCulture,
+                        T("Gog.Dlc.LinuxMetadataRepairFailedFormat", "The Linux installation metadata could not be repaired: {0}"),
+                        BuildShortErrorDetail(ex));
+                    AppendProcessLog(progressLogVm, failureMessage);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(failureMessage))
+                return new GogDlcInstallBatchResult(installedProductIds, failureMessage);
+
             for (var index = 0; index < entries.Count; index++)
             {
                 ct.ThrowIfCancellationRequested();
                 var entry = entries[index];
+                var isUpdate = entry.IsInstalled;
                 AppendProcessLog(
                     progressLogVm,
-                    $"[DLC {index + 1}/{entries.Count}] {entry.Title} ({entry.ProductId})");
+                    $"[DLC {index + 1}/{entries.Count}] {(isUpdate ? "Update" : "Install")} {entry.Title} ({entry.ProductId})");
 
                 GogInstallerPackage? installerPackage;
                 try
@@ -202,7 +234,8 @@ public partial class MainWindowViewModel
                     downloadedPackage,
                     progressLogVm,
                     ct,
-                    useTemporaryLinuxDestination: false);
+                    useTemporaryLinuxDestination: false,
+                    requireLinuxPayloadChange: platform == GogInstallPlatform.Linux);
                 if (!runResult.Success)
                 {
                     failureMessage = string.Format(
@@ -218,6 +251,10 @@ public partial class MainWindowViewModel
                 _libraryTracker.MarkDirty();
                 await SaveData();
                 installedProductIds.Add(entry.ProductId);
+                if (isUpdate)
+                    updatedCount++;
+                else
+                    installedCount++;
 
                 if (request.DeleteStagingAfterSuccess)
                     TryDeleteGogStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
@@ -226,7 +263,9 @@ public partial class MainWindowViewModel
                     progressLogVm,
                     string.Format(
                         CultureInfo.CurrentCulture,
-                        T("Gog.Dlc.InstalledFormat", "Installed: {0}"),
+                        isUpdate
+                            ? T("Gog.Dlc.UpdatedFormat", "Updated: {0}")
+                            : T("Gog.Dlc.InstalledFormat", "Installed: {0}"),
                         entry.Title));
             }
         }
@@ -244,10 +283,21 @@ public partial class MainWindowViewModel
         if (!string.IsNullOrWhiteSpace(failureMessage))
             return new GogDlcInstallBatchResult(installedProductIds, failureMessage);
 
-        var successMessage = string.Format(
-            CultureInfo.CurrentCulture,
-            T("Gog.Dlc.InstallSuccessFormat", "Successfully installed {0:N0} DLC(s)."),
-            installedProductIds.Count);
+        var successMessage = installedCount > 0 && updatedCount > 0
+            ? string.Format(
+                CultureInfo.CurrentCulture,
+                T("Gog.Dlc.MixedSuccessFormat", "Successfully installed {0:N0} and updated {1:N0} DLC(s)."),
+                installedCount,
+                updatedCount)
+            : updatedCount > 0
+                ? string.Format(
+                    CultureInfo.CurrentCulture,
+                    T("Gog.Dlc.UpdateSuccessFormat", "Successfully updated {0:N0} DLC(s)."),
+                    updatedCount)
+                : string.Format(
+                    CultureInfo.CurrentCulture,
+                    T("Gog.Dlc.InstallSuccessFormat", "Successfully installed {0:N0} DLC(s)."),
+                    installedCount);
         return new GogDlcInstallBatchResult(installedProductIds, successMessage);
     }
 
