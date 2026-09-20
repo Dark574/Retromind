@@ -223,6 +223,9 @@ separate statistics database or persisted aggregate state.
   category scope stays in `MediaAreaViewModel`, while library-wide results use `SearchAreaViewModel`
 - “In progress” and “Never started” combine the normal `Incomplete` status with `played:true` or
   `played:false`, using the same `MediaPlayStateHelper` definition as the displayed counts
+- the media editor exposes launch count, total play time, and last-played time in a collapsed statistics
+  section. Changes remain staged until the editor is saved; resetting all three values removes the same play
+  evidence used by statistics and `played:` searches
 
 ## Import and metadata flow
 - `ImportService`: recursive local file import with multi-disc grouping/labeling

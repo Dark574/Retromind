@@ -206,6 +206,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     public IRelayCommand AddCustomFieldCommand { get; }
     public IRelayCommand<CustomFieldRow?> RemoveCustomFieldCommand { get; }
     public IRelayCommand<string?> AcceptMetadataSuggestionCommand { get; }
+    public IRelayCommand ClearLastPlayedCommand { get; }
+    public IRelayCommand ResetPlayStatisticsCommand { get; }
 
     public string RunnerVersionLabel => T("EditMedia_RunnerVersionLabel", "Wine/Proton version");
     public string RunnerVersionHint => T("EditMedia_RunnerVersionHint", "Optional per-item override. Takes precedence over emulator default.");
@@ -624,6 +626,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         AcceptMetadataSuggestionCommand = new RelayCommand<string?>(
             fieldKey => TryAcceptMetadataSuggestion(fieldKey ?? string.Empty),
             fieldKey => CanAcceptMetadataSuggestion(fieldKey ?? string.Empty));
+        ClearLastPlayedCommand = new RelayCommand(ClearLastPlayed, () => HasLastPlayedDate);
+        ResetPlayStatisticsCommand = new RelayCommand(ResetPlayStatistics);
 
         // General commands.
         BrowseLauncherCommand = new AsyncRelayCommand(BrowseLauncherAsync);
@@ -797,6 +801,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         ReleaseDate = _originalItem.ReleaseDate.HasValue ? new DateTimeOffset(_originalItem.ReleaseDate.Value) : null;
         Status = _originalItem.Status;
         Description = _originalItem.Description;
+        LoadPlayStatistics();
         MediaType = _originalItem.MediaType;
         InitializeCustomFieldsFromItem();
         

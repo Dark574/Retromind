@@ -689,6 +689,101 @@
                             </StackPanel>
                         </Grid>
 
+                        <!-- Play statistics are normally maintained by the launcher, but may need correction after imports. -->
+                        <Expander Header="{Binding PlayStatisticsTitle}"
+                                  IsExpanded="False"
+                                  HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Stretch">
+                            <StackPanel Spacing="10" Margin="0,8,0,0">
+                                <TextBlock Text="{Binding PlayStatisticsHint}"
+                                           FontSize="11"
+                                           Opacity="0.7"
+                                           TextWrapping="Wrap" />
+
+                                <Grid ColumnDefinitions="*,15,*">
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding PlayedStatusLabel}"
+                                                   FontWeight="Bold"
+                                                   Margin="0,0,0,5" />
+                                        <TextBlock Text="{Binding PlayedStatusText}"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="{Binding PlayCountLabel}"
+                                                   FontWeight="Bold"
+                                                   Margin="0,0,0,5" />
+                                        <NumericUpDown Value="{Binding PlayCount}"
+                                                       Minimum="0"
+                                                       Maximum="2147483647"
+                                                       Increment="1"
+                                                       FormatString="0"
+                                                       HorizontalAlignment="Stretch" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid ColumnDefinitions="*,10,*,10,*">
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding PlayTimeHoursLabel}"
+                                                   FontWeight="Bold"
+                                                   Margin="0,0,0,5" />
+                                        <NumericUpDown Value="{Binding PlayTimeHours}"
+                                                       Minimum="0"
+                                                       Maximum="256204778"
+                                                       Increment="1"
+                                                       FormatString="0"
+                                                       HorizontalAlignment="Stretch" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="{Binding PlayTimeMinutesLabel}"
+                                                   FontWeight="Bold"
+                                                   Margin="0,0,0,5" />
+                                        <NumericUpDown Value="{Binding PlayTimeMinutes}"
+                                                       Minimum="0"
+                                                       Maximum="59"
+                                                       Increment="1"
+                                                       FormatString="0"
+                                                       HorizontalAlignment="Stretch" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="{Binding PlayTimeSecondsLabel}"
+                                                   FontWeight="Bold"
+                                                   Margin="0,0,0,5" />
+                                        <NumericUpDown Value="{Binding PlayTimeSeconds}"
+                                                       Minimum="0"
+                                                       Maximum="59"
+                                                       Increment="1"
+                                                       FormatString="0"
+                                                       HorizontalAlignment="Stretch" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <StackPanel>
+                                    <TextBlock Text="{Binding LastPlayedLabel}"
+                                               FontWeight="Bold"
+                                               Margin="0,0,0,5" />
+                                    <Grid ColumnDefinitions="*,10,*,10,Auto">
+                                        <DatePicker Grid.Column="0"
+                                                    SelectedDate="{Binding LastPlayedDate}"
+                                                    HorizontalAlignment="Stretch" />
+                                        <TimePicker Grid.Column="2"
+                                                    SelectedTime="{Binding LastPlayedTime}"
+                                                    ClockIdentifier="24HourClock"
+                                                    UseSeconds="False"
+                                                    IsEnabled="{Binding HasLastPlayedDate}"
+                                                    HorizontalAlignment="Stretch" />
+                                        <Button Grid.Column="4"
+                                                Content="{Binding ClearLastPlayedText}"
+                                                Command="{Binding ClearLastPlayedCommand}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <Button Content="{Binding ResetPlayStatisticsText}"
+                                        Command="{Binding ResetPlayStatisticsCommand}"
+                                        HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Expander>
+
                         <!-- Description -->
                         <Expander IsExpanded="False"
                                   HorizontalAlignment="Stretch"

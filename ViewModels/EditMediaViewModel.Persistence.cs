@@ -44,6 +44,7 @@ public partial class EditMediaViewModel
         _originalItem.Status = Status;
         _originalItem.Description = Description;
         _originalItem.CustomFields = BuildCustomFieldsDictionary();
+        SavePlayStatistics();
 
         // Prefix: store null when not used.
         // In portable mode, absolute paths inside LibraryRoot are normalized to library-relative.

@@ -790,6 +790,18 @@ zelda AND platform:switch</value></data>
     <data name="Media.PlayTime" xml:space="preserve">
         <value>Spieldauer:</value>
     </data>
+    <data name="EditMedia.PlayStatisticsTitle" xml:space="preserve"><value>Spielstatistik</value></data>
+    <data name="EditMedia.PlayStatisticsHint" xml:space="preserve"><value>Diese Werte werden normalerweise automatisch aktualisiert. Importierte oder fehlerhafte Statistiken können hier korrigiert werden.</value></data>
+    <data name="EditMedia.PlayedStatus" xml:space="preserve"><value>Gespielt</value></data>
+    <data name="EditMedia.PlayedYes" xml:space="preserve"><value>Ja</value></data>
+    <data name="EditMedia.PlayedNo" xml:space="preserve"><value>Nein</value></data>
+    <data name="EditMedia.PlayCount" xml:space="preserve"><value>Spielstarts</value></data>
+    <data name="EditMedia.PlayTimeHours" xml:space="preserve"><value>Stunden</value></data>
+    <data name="EditMedia.PlayTimeMinutes" xml:space="preserve"><value>Minuten</value></data>
+    <data name="EditMedia.PlayTimeSeconds" xml:space="preserve"><value>Sekunden</value></data>
+    <data name="EditMedia.LastPlayed" xml:space="preserve"><value>Zuletzt gespielt</value></data>
+    <data name="EditMedia.ClearLastPlayed" xml:space="preserve"><value>Leeren</value></data>
+    <data name="EditMedia.ResetPlayStatistics" xml:space="preserve"><value>Statistik zurücksetzen</value></data>
     <data name="Main.BigPictureMode" xml:space="preserve"><value>Big-Picture-Modus</value></data>
     <data name="Common.LibraryGameCountSummary" xml:space="preserve">
         <value>{0} angezeigt | {1} gesamt</value>

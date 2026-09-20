@@ -788,6 +788,18 @@ zelda AND platform:switch</value></data>
     <data name="Media.PlayTime" xml:space="preserve">
         <value>Time played:</value>
     </data>
+    <data name="EditMedia.PlayStatisticsTitle" xml:space="preserve"><value>Play statistics</value></data>
+    <data name="EditMedia.PlayStatisticsHint" xml:space="preserve"><value>These values are normally updated automatically. You can correct imported or inaccurate statistics here.</value></data>
+    <data name="EditMedia.PlayedStatus" xml:space="preserve"><value>Played</value></data>
+    <data name="EditMedia.PlayedYes" xml:space="preserve"><value>Yes</value></data>
+    <data name="EditMedia.PlayedNo" xml:space="preserve"><value>No</value></data>
+    <data name="EditMedia.PlayCount" xml:space="preserve"><value>Launch count</value></data>
+    <data name="EditMedia.PlayTimeHours" xml:space="preserve"><value>Hours</value></data>
+    <data name="EditMedia.PlayTimeMinutes" xml:space="preserve"><value>Minutes</value></data>
+    <data name="EditMedia.PlayTimeSeconds" xml:space="preserve"><value>Seconds</value></data>
+    <data name="EditMedia.LastPlayed" xml:space="preserve"><value>Last played</value></data>
+    <data name="EditMedia.ClearLastPlayed" xml:space="preserve"><value>Clear</value></data>
+    <data name="EditMedia.ResetPlayStatistics" xml:space="preserve"><value>Reset statistics</value></data>
     <data name="Main.BigPictureMode" xml:space="preserve"><value>Big Picture Mode</value></data>
     <data name="Common.LibraryGameCountSummary" xml:space="preserve">
         <value>{0} shown | {1} total</value>

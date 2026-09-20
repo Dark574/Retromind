@@ -15,6 +15,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - added store badges on Game Covers
 - new Nintendo Game Boy Advance system theme
 - install and update GOG DLCs
+- playtime params are editable
 
 ### Changed
 - make information dialogs copyable
