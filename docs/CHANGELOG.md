@@ -10,7 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.1.9-alpha] - unreleased
 
 ### Added
-- make shortcut creation optional for GOG Windows installation
+- make shortcut creation optional for GOG Wine/Proton installation
 - RetroAchievments for supported systems
 - added store badges on Game Covers
 - new Nintendo Game Boy Advance system theme
