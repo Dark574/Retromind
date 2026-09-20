@@ -18,15 +18,19 @@ Project homepage (GitHub Pages):
 ## Status
 IMPORTANT:
 
-Retromind is early alpha. Data formats (retromind_tree.json, app_settings.json) can change between releases without a migration path. Therefore, use this version more for testing than for a large, long-term library.
+Retromind is still in early alpha, but regular updates are intended to preserve
+existing libraries and settings. In most cases, updating is as simple as replacing
+the AppImage. Data formats (`retromind_tree.json`, `app_settings.json`) may still
+evolve, and exceptional releases can require a migration or manual adjustment.
+Such changes will be documented in the release notes and `docs/CHANGELOG.md`.
 
 Retromind is primarily developed and tested on CachyOS. The AppImage is built
 on Debian 12 and requires glibc 2.36 or newer. Other Linux distributions are
 expected to work, but have not all been tested yet. Reports and contributions
 from users of other distributions are welcome.
 
-Work in progress. Expect breaking changes while features and data formats evolve.
-See `docs/CHANGELOG.md` for version history.
+Retromind remains a work in progress. Keeping a current backup is recommended,
+especially before installing a new release.
 
 ## Key features
 

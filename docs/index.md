@@ -13,11 +13,14 @@ controller-friendly BigMode and is distributed as a portable **AppImage**.
 
 ## Status
 
-Retromind is currently in early alpha. Features and data formats may change between releases, so feedback
-and bug reports are especially welcome.
+Retromind is still in early alpha, but regular updates are intended to preserve existing libraries and
+settings. In most cases, updating is as simple as replacing the AppImage. Features and data formats may
+still evolve, and exceptional releases can require a migration or manual adjustment. Such changes will be
+documented in the release notes and [changelog](CHANGELOG.md). Keeping a current backup is recommended.
 
 Retromind is primarily developed and tested on CachyOS. The AppImage is built on Debian 12 and requires
 glibc 2.36 or newer. Other Linux distributions are expected to work, but have not all been tested yet.
+Feedback and bug reports are especially welcome.
 
 ---
 
@@ -32,6 +35,7 @@ glibc 2.36 or newer. Other Linux distributions are expected to work, but have no
 - **Smart local imports** with multi-disc recognition and optional playlist launching
 - **Store integration** for Steam and Heroic imports plus experimental native GOG library, installation, update and uninstall support
 - **Managed compatibility runners**, including direct GE-Proton downloads and reusable emulator profiles
+- **RetroAchievements integration** with ROM/disc identification, achievement badges, cached progress and separate Casual/Hardcore summaries
 
 Retromind is open source under the GPL-3.0-only license and developed in public on GitHub.
 
