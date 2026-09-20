@@ -37,7 +37,9 @@ public static class SearchQueryBuilderHelper
         new SearchQueryFieldOption("tag", GetFilterFieldLabel("Search.FilterField.Tag", "Tag")),
         new SearchQueryFieldOption("id", GetFilterFieldLabel("Search.FilterField.Id", "ID")),
         new SearchQueryFieldOption("favorite", GetFilterFieldLabel("Search.FilterField.Favorite", "Favorite")),
-        new SearchQueryFieldOption("played", GetFilterFieldLabel("Search.FilterField.Played", "Played"))
+        new SearchQueryFieldOption("played", GetFilterFieldLabel("Search.FilterField.Played", "Played")),
+        new SearchQueryFieldOption("store", GetFilterFieldLabel("Search.FilterField.Store", "Store")),
+        new SearchQueryFieldOption("gogupdate", GetFilterFieldLabel("Search.FilterField.GogUpdate", "GOG update available"))
     };
 
     public static SearchQueryBuilderData BuildData(IEnumerable<MediaItem> items)
@@ -62,7 +64,9 @@ public static class SearchQueryBuilderHelper
             ["tag"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             ["id"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             ["favorite"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            ["played"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            ["played"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            ["store"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            ["gogupdate"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         };
         var customFieldKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -112,6 +116,11 @@ public static class SearchQueryBuilderHelper
         buckets["favorite"].Add("false");
         buckets["played"].Add("true");
         buckets["played"].Add("false");
+        buckets["store"].Add(StoreProviderBadgeHelper.GogProviderId);
+        buckets["store"].Add(StoreProviderBadgeHelper.SteamProviderId);
+        buckets["store"].Add(StoreProviderBadgeHelper.EpicProviderId);
+        buckets["gogupdate"].Add("true");
+        buckets["gogupdate"].Add("false");
 
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var pair in buckets)

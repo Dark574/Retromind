@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Retromind.Models;
 
@@ -38,6 +39,23 @@ internal static class GogMediaItemStateHelper
         IsInstalled(item) &&
         item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) &&
         IsTruthyCustomField(raw);
+
+    public static bool HasAnyUpdateAvailable(MediaItem? item) =>
+        TryGetGameId(item) != null && HasAnyUpdateAvailable(item!.CustomFields);
+
+    public static bool HasAnyUpdateAvailable(IReadOnlyDictionary<string, string>? customFields)
+    {
+        if (customFields == null)
+            return false;
+
+        var hasMainGameUpdate =
+            customFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var mainUpdate) &&
+            IsTruthyCustomField(mainUpdate);
+        var hasDlcUpdate =
+            customFields.TryGetValue(CustomFieldKeyHelper.StoreDlcUpdateAvailable, out var dlcUpdate) &&
+            IsTruthyCustomField(dlcUpdate);
+        return hasMainGameUpdate || hasDlcUpdate;
+    }
 
     public static bool IsTruthyCustomField(string? raw)
     {

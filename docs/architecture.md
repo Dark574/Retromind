@@ -207,6 +207,9 @@ Global search uses a dedicated `SearchAreaViewModel`:
 - saved search terms persist their associated favorites-only state as part of the saved filter behavior
 - structured query matching includes `played:true` and `played:false` (alias: `started`); play evidence is
   defined centrally by `MediaPlayStateHelper` as a launch count, recorded play time, or last-played timestamp
+- store-aware query fields expose normalized GOG, Steam, and Epic identities through `store:`, while
+  `gogupdate:` matches GOG items with either a main-game or DLC update without exposing internal `Store.*`
+  custom fields in the filter builder
 
 ## Library statistics
 `LibraryStatisticsViewModel` calculates statistics on demand from the existing media tree; there is no

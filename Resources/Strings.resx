@@ -725,6 +725,8 @@ zelda AND platform:switch</value></data>
     <data name="Search.FilterField.Id" xml:space="preserve"><value>ID</value></data>
     <data name="Search.FilterField.Favorite" xml:space="preserve"><value>Favorite</value></data>
     <data name="Search.FilterField.Played" xml:space="preserve"><value>Played</value></data>
+    <data name="Search.FilterField.Store" xml:space="preserve"><value>Store</value></data>
+    <data name="Search.FilterField.GogUpdate" xml:space="preserve"><value>GOG update available</value></data>
   
     <!-- SETTINGS -->
     <data name="Settings.ConfirmConvertLaunchPaths" xml:space="preserve"><value>Convert existing launch paths to portable (relative) paths?</value></data>

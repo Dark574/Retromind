@@ -662,7 +662,7 @@ Source: <https://docs.avaloniaui.net/docs/platform-specific-guides/linux#wayland
 Supported keys (aliases included):
 - `title`, `sorttitle`, `description`/`notes`, `developer`, `publisher`, `platform`, `source`
 - `genre`, `series`, `releasetype`, `playmode`, `players`/`maxplayers`
-- `status`/`state`, `year`, `date`/`released`, `tag`/`tags`, `id`, `favorite`, `played`/`started`
+- `status`/`state`, `year`, `date`/`released`, `tag`/`tags`, `id`, `favorite`, `played`/`started`, `store`, `gogupdate`
 - `played:true` matches an item when it has a launch count, recorded play time, or a last-played timestamp;
   `played:false` matches items without any of that play evidence.
 - Custom fields:
@@ -681,6 +681,7 @@ Examples:
 - `year:>=1995 AND year:<2000`
 - `missing:genre OR missing:developer`
 - `has:genre AND NOT genre:unknown`
+- `store:gog AND gogupdate:true`
 - `(genre:platformer OR genre:metroidvania) AND NOT missing:rating`
 - `cf.rating:5`
 - `zelda AND platform:switch`

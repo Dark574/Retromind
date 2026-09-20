@@ -100,16 +100,7 @@ public static class ObjectConverters
     public static readonly IValueConverter GogUpdateBadgeVisible =
         new FuncValueConverter<Dictionary<string, string>?, bool>(customFields =>
         {
-            if (customFields == null)
-                return false;
-
-            var hasMainGameUpdate =
-                customFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var mainUpdate) &&
-                GogMediaItemStateHelper.IsTruthyCustomField(mainUpdate);
-            var hasDlcUpdate =
-                customFields.TryGetValue(CustomFieldKeyHelper.StoreDlcUpdateAvailable, out var dlcUpdate) &&
-                GogMediaItemStateHelper.IsTruthyCustomField(dlcUpdate);
-            return hasMainGameUpdate || hasDlcUpdate;
+            return GogMediaItemStateHelper.HasAnyUpdateAvailable(customFields);
         });
 
     /// <summary>

@@ -55,4 +55,75 @@ public sealed class SearchQueryMatcherTests
         Assert.False(neverStartedQuery.Matches(incompletePlayed));
         Assert.False(neverStartedQuery.Matches(completed));
     }
+
+    [Theory]
+    [InlineData("gog", "store:gog", true)]
+    [InlineData("steam", "store:steam", true)]
+    [InlineData("epic", "store:epic", true)]
+    [InlineData("epic", "store:heroic", true)]
+    [InlineData("steam", "store:gog", false)]
+    public void StoreFilterUsesNormalizedStoreIdentity(string providerId, string query, bool expected)
+    {
+        var item = CreateStoreItem(providerId);
+
+        Assert.Equal(expected, SearchQueryMatcher.Create(query).Matches(item));
+    }
+
+    [Fact]
+    public void StoreFilterRecognizesLegacySteamLaunches()
+    {
+        var item = new MediaItem
+        {
+            Files = [new MediaFileRef { Path = "steam", Kind = MediaFileKind.Absolute }],
+            LauncherArgs = "steam://rungameid/123"
+        };
+
+        Assert.True(SearchQueryMatcher.Create("store:steam").Matches(item));
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void GogUpdateFilterIncludesMainGameAndDlcUpdates(bool mainGameUpdate, bool dlcUpdate)
+    {
+        var item = CreateStoreItem("gog");
+        item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] = mainGameUpdate.ToString();
+        item.CustomFields[CustomFieldKeyHelper.StoreDlcUpdateAvailable] = dlcUpdate.ToString();
+
+        Assert.True(SearchQueryMatcher.Create("gogupdate:true").Matches(item));
+        Assert.False(SearchQueryMatcher.Create("gogupdate:false").Matches(item));
+    }
+
+    [Fact]
+    public void GogUpdateFalseMatchesOnlyGogItemsWithoutUpdates()
+    {
+        var gogItem = CreateStoreItem("gog");
+        var steamItem = CreateStoreItem("steam");
+
+        Assert.True(SearchQueryMatcher.Create("gogupdate:false").Matches(gogItem));
+        Assert.False(SearchQueryMatcher.Create("gogupdate:false").Matches(steamItem));
+    }
+
+    [Fact]
+    public void FilterBuilderOffersStoreAndGogUpdateFields()
+    {
+        var data = SearchQueryBuilderHelper.BuildData([]);
+
+        Assert.Contains(data.Fields, field => field.Key == "store");
+        Assert.Contains(data.Fields, field => field.Key == "gogupdate");
+        Assert.Equal(["epic", "gog", "steam"], data.SuggestionsByField["store"]);
+        Assert.Equal(["false", "true"], data.SuggestionsByField["gogupdate"]);
+    }
+
+    private static MediaItem CreateStoreItem(string providerId)
+    {
+        return new MediaItem
+        {
+            CustomFields = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [CustomFieldKeyHelper.StoreProviderId] = providerId,
+                [CustomFieldKeyHelper.StoreGameId] = "123"
+            }
+        };
+    }
 }

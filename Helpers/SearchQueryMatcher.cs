@@ -90,6 +90,8 @@ public sealed class SearchQueryMatcher
         Id,
         Favorite,
         Played,
+        Store,
+        GogUpdate,
         Rating
     }
 
@@ -485,6 +487,14 @@ public sealed class SearchQueryMatcher
             case "started":
                 field = QueryField.Played;
                 return true;
+            case "store":
+            case "provider":
+                field = QueryField.Store;
+                return true;
+            case "gogupdate":
+            case "gog-update":
+                field = QueryField.GogUpdate;
+                return true;
             case "rating":
             case "score":
                 field = QueryField.Rating;
@@ -558,6 +568,10 @@ public sealed class SearchQueryMatcher
                 return MatchesFavorite(item.IsFavorite, value);
             case QueryField.Played:
                 return MatchesPlayed(item, value);
+            case QueryField.Store:
+                return MatchesStore(item, value);
+            case QueryField.GogUpdate:
+                return MatchesGogUpdate(item, value);
             case QueryField.Rating:
                 return MatchesRating(item.Rating, value);
             default:
@@ -614,6 +628,13 @@ public sealed class SearchQueryMatcher
                 return false;
             case QueryField.Played:
                 return !MediaPlayStateHelper.HasPlayEvidence(item);
+            case QueryField.Store:
+                return StoreProviderBadgeHelper.GetProviderId(item) == null;
+            case QueryField.GogUpdate:
+                return !string.Equals(
+                    StoreProviderBadgeHelper.GetProviderId(item),
+                    StoreProviderBadgeHelper.GogProviderId,
+                    StringComparison.OrdinalIgnoreCase);
             case QueryField.Rating:
                 return item.Rating <= 0d;
             default:
@@ -710,6 +731,39 @@ public sealed class SearchQueryMatcher
             return hasPlayEvidence;
         if (normalized is "0" or "false" or "no" or "n")
             return !hasPlayEvidence;
+
+        return false;
+    }
+
+    private static bool MatchesStore(MediaItem item, string rawValue)
+    {
+        var providerId = StoreProviderBadgeHelper.GetProviderId(item);
+        if (providerId == null)
+            return false;
+
+        var expectedProvider = rawValue.Trim();
+        if (string.Equals(expectedProvider, "heroic", StringComparison.OrdinalIgnoreCase))
+            expectedProvider = StoreProviderBadgeHelper.EpicProviderId;
+
+        return ContainsIgnoreCase(providerId, expectedProvider);
+    }
+
+    private static bool MatchesGogUpdate(MediaItem item, string rawValue)
+    {
+        if (!string.Equals(
+                StoreProviderBadgeHelper.GetProviderId(item),
+                StoreProviderBadgeHelper.GogProviderId,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var hasUpdate = GogMediaItemStateHelper.HasAnyUpdateAvailable(item);
+        var normalized = rawValue.Trim().ToLowerInvariant();
+        if (normalized is "1" or "true" or "yes" or "y")
+            return hasUpdate;
+        if (normalized is "0" or "false" or "no" or "n")
+            return !hasUpdate;
 
         return false;
     }
