@@ -34,7 +34,9 @@ public class LibraryChangeTracker
     private ObservableCollection<MediaNode>? _trackedRoots;
     
     // Debounced save
-    private CancellationTokenSource? _saveCts;
+    private readonly object _saveTimerLock = new();
+    private Timer? _saveTimer;
+    private DateTime _saveDueAtUtc;
     private readonly TimeSpan _saveDebounce = TimeSpan.FromMilliseconds(800);
     private readonly LibrarySaveSequencer _saveSequencer = new();
     
@@ -46,6 +48,9 @@ public class LibraryChangeTracker
     public event Action? LibraryDirtyStateChanged;
     public event Action<Exception>? SaveFailed;
     public event Action? SaveSucceeded;
+
+    internal bool IsDirty => _isLibraryDirty;
+    internal int DirtyVersion => _libraryDirtyVersion;
     
     public LibraryChangeTracker(
         MediaDataService dataService,
@@ -73,12 +78,12 @@ public class LibraryChangeTracker
     
     public void ResetState()
     {
+        StopDebouncedSave();
+
         if (_trackedRoots != null)
-        {
             _trackedRoots.CollectionChanged -= OnRootItemsChanged;
-            foreach (var node in _trackedRoots)
-                UntrackNodeRecursive(node);
-        }
+
+        UntrackAllNodesAndItems();
         
         _trackedRoots = null;
         _trackedItems.Clear();
@@ -90,9 +95,6 @@ public class LibraryChangeTracker
     public void StopTracking()
     {
         ResetState();
-        _saveCts?.Cancel();
-        _saveCts?.Dispose();
-        _saveCts = null;
     }
     
     public void MarkDirty()
@@ -102,7 +104,12 @@ public class LibraryChangeTracker
             UiThreadHelper.Post(MarkDirty, Avalonia.Threading.DispatcherPriority.Background);
             return;
         }
-        
+
+        MarkDirtyCore();
+    }
+
+    private void MarkDirtyCore()
+    {
         _isLibraryDirty = true;
         _libraryDirtyVersion++;
         LibraryDirtyStateChanged?.Invoke();
@@ -138,28 +145,59 @@ public class LibraryChangeTracker
     
     private void DebouncedSave()
     {
-        _saveCts?.Cancel();
-        _saveCts?.Dispose();
-        _saveCts = new CancellationTokenSource();
-        
-        var token = _saveCts.Token;
-        var myVersion = _libraryDirtyVersion;
-        
-        _ = Task.Run(async () =>
+        lock (_saveTimerLock)
         {
-            try
+            _saveDueAtUtc = DateTime.UtcNow + _saveDebounce;
+            _saveTimer ??= new Timer(
+                static state => ((LibraryChangeTracker)state!).OnSaveTimerElapsed(),
+                this,
+                Timeout.InfiniteTimeSpan,
+                Timeout.InfiniteTimeSpan);
+            _saveTimer.Change(_saveDebounce, Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    private void OnSaveTimerElapsed()
+    {
+        int version;
+        lock (_saveTimerLock)
+        {
+            if (_saveTimer == null || !_isLibraryDirty)
+                return;
+
+            var remaining = _saveDueAtUtc - DateTime.UtcNow;
+            if (remaining > TimeSpan.Zero)
             {
-                await Task.Delay(_saveDebounce, token).ConfigureAwait(false);
-                token.ThrowIfCancellationRequested();
-                
-                await SaveIfDirtyAsync(force: false, expectedVersion: myVersion).ConfigureAwait(false);
+                _saveTimer.Change(remaining, Timeout.InfiniteTimeSpan);
+                return;
             }
-            catch (OperationCanceledException) { }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[LibraryTracker] Debounced save failed: {ex.Message}");
-            }
-        }, token);
+
+            version = _libraryDirtyVersion;
+        }
+
+        _ = ObserveDebouncedSaveAsync(version);
+    }
+
+    private async Task ObserveDebouncedSaveAsync(int expectedVersion)
+    {
+        try
+        {
+            await SaveIfDirtyAsync(force: false, expectedVersion: expectedVersion).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[LibraryTracker] Debounced save failed: {ex.Message}");
+        }
+    }
+
+    private void StopDebouncedSave()
+    {
+        lock (_saveTimerLock)
+        {
+            _saveDueAtUtc = DateTime.MaxValue;
+            _saveTimer?.Dispose();
+            _saveTimer = null;
+        }
     }
     
     public Task SaveIfDirtyAsync(bool force, int? expectedVersion = null)
@@ -255,79 +293,126 @@ public class LibraryChangeTracker
         
         item.PropertyChanged -= OnItemPropertyChanged;
     }
+
+    private void RebuildTrackedTree()
+    {
+        UntrackAllNodesAndItems();
+
+        if (_trackedRoots == null)
+            return;
+
+        foreach (var node in _trackedRoots)
+            TrackNodeRecursive(node);
+    }
+
+    private void UntrackAllNodesAndItems()
+    {
+        foreach (var item in _trackedItems)
+            item.PropertyChanged -= OnItemPropertyChanged;
+
+        foreach (var node in _trackedNodes)
+        {
+            node.Items.CollectionChanged -= OnNodeItemsChanged;
+            node.Children.CollectionChanged -= OnNodeChildrenChanged;
+        }
+
+        _trackedItems.Clear();
+        _trackedNodes.Clear();
+    }
     
     // --- Event handlers ---
     
     private void OnRootItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.OldItems != null)
+        if (e.Action == NotifyCollectionChangedAction.Reset)
         {
-            foreach (var oldItem in e.OldItems)
-            {
-                if (oldItem is MediaNode node)
-                    UntrackNodeRecursive(node);
-            }
+            RebuildTrackedTree();
         }
-        
-        if (e.NewItems != null)
+        else
         {
-            foreach (var newItem in e.NewItems)
+            if (e.OldItems != null)
             {
-                if (newItem is MediaNode node)
-                    TrackNodeRecursive(node);
+                foreach (var oldItem in e.OldItems)
+                {
+                    if (oldItem is MediaNode node)
+                        UntrackNodeRecursive(node);
+                }
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (var newItem in e.NewItems)
+                {
+                    if (newItem is MediaNode node)
+                        TrackNodeRecursive(node);
+                }
             }
         }
         
         _onStructureChanged?.Invoke();
-        LibraryDirtyStateChanged?.Invoke();
+        MarkDirtyCore();
     }
     
     private void OnNodeItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.OldItems != null)
+        if (e.Action == NotifyCollectionChangedAction.Reset)
         {
-            foreach (var oldItem in e.OldItems)
-            {
-                if (oldItem is MediaItem item)
-                    UntrackItem(item);
-            }
+            RebuildTrackedTree();
         }
-        
-        if (e.NewItems != null)
+        else
         {
-            foreach (var newItem in e.NewItems)
+            if (e.OldItems != null)
             {
-                if (newItem is MediaItem item)
-                    TrackItem(item);
+                foreach (var oldItem in e.OldItems)
+                {
+                    if (oldItem is MediaItem item)
+                        UntrackItem(item);
+                }
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (var newItem in e.NewItems)
+                {
+                    if (newItem is MediaItem item)
+                        TrackItem(item);
+                }
             }
         }
         
         _onStructureChanged?.Invoke();
-        LibraryDirtyStateChanged?.Invoke();
+        MarkDirtyCore();
     }
     
     private void OnNodeChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.OldItems != null)
+        if (e.Action == NotifyCollectionChangedAction.Reset)
         {
-            foreach (var oldItem in e.OldItems)
-            {
-                if (oldItem is MediaNode node)
-                    UntrackNodeRecursive(node);
-            }
+            RebuildTrackedTree();
         }
-        
-        if (e.NewItems != null)
+        else
         {
-            foreach (var newItem in e.NewItems)
+            if (e.OldItems != null)
             {
-                if (newItem is MediaNode node)
-                    TrackNodeRecursive(node);
+                foreach (var oldItem in e.OldItems)
+                {
+                    if (oldItem is MediaNode node)
+                        UntrackNodeRecursive(node);
+                }
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (var newItem in e.NewItems)
+                {
+                    if (newItem is MediaNode node)
+                        TrackNodeRecursive(node);
+                }
             }
         }
         
         _onStructureChanged?.Invoke();
-        LibraryDirtyStateChanged?.Invoke();
+        MarkDirtyCore();
     }
     
     private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)

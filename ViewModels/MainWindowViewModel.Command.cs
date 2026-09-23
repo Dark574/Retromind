@@ -739,7 +739,6 @@ public partial class MainWindowViewModel
                 }
                 
                 RefreshTreeVisibility();
-                _libraryTracker.MarkDirty();
                 await SaveData();
             }
         }
@@ -767,7 +766,6 @@ public partial class MainWindowViewModel
                 RemoveNodeRecursive(RootItems, nodeToDelete);
             }
             
-            _libraryTracker.MarkDirty();
             await SaveData();
         }
         catch (Exception ex)
@@ -1305,8 +1303,6 @@ public partial class MainWindowViewModel
             if (parentNode != null)
             {
                 parentNode.Items.Remove(item);
-                
-                _libraryTracker.MarkDirty();
                 await SaveData();
                 
                 RefreshContentAfterMediaCollectionChange();
@@ -1887,7 +1883,6 @@ public partial class MainWindowViewModel
 
         if (mergeTarget == null)
             SelectedNode = sourceNode;
-        _libraryTracker.MarkDirty();
         if (parentChanged)
             await SaveData().ConfigureAwait(false);
         return true;

@@ -32,6 +32,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - add RetroAchievements CHD hashing support
 - preserve RetroAchievements identities in library snapshots
 - symlink safety checks for GOG game uninstallation
+- track structural changes as dirty
 
 ---
 

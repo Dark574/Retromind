@@ -163,7 +163,6 @@ public partial class MainWindowViewModel
             _currentSettings.LastSelectedMediaId = null;
 
         _audioService.StopMusic();
-        _libraryTracker.MarkDirty();
         await SaveData();
         RefreshContentAfterMediaCollectionChange();
         return true;

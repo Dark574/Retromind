@@ -379,8 +379,6 @@ public partial class MainWindowViewModel
         await UiThreadHelper.InvokeAsync(() =>
         {
             InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
-
-            _libraryTracker.MarkDirty();
         });
 
         // A picker import should behave like manually adding media: select the
@@ -671,8 +669,6 @@ public partial class MainWindowViewModel
                     item.Assets.Add(asset);
             }
 
-            _libraryTracker.MarkDirty();
-
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
         });
@@ -733,8 +729,6 @@ public partial class MainWindowViewModel
         {
             InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
 
-            _libraryTracker.MarkDirty();
-
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
         });
@@ -793,8 +787,6 @@ public partial class MainWindowViewModel
         await UiThreadHelper.InvokeAsync(() =>
         {
             InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
-
-            _libraryTracker.MarkDirty();
 
             if (IsNodeInCurrentView(targetNode))
                 UpdateContent();
@@ -1089,7 +1081,6 @@ public partial class MainWindowViewModel
                     item.Assets.Add(asset);
             }
 
-            _libraryTracker.MarkDirty();
         });
 
         // 4) Remember the last created item as the "selectable" ID
@@ -1148,7 +1139,6 @@ public partial class MainWindowViewModel
         await UiThreadHelper.InvokeAsync(() =>
         {
             InsertMediaItemsOptimized(targetNode.Items, [item]);
-            _libraryTracker.MarkDirty();
         });
 
         _currentSettings.LastSelectedMediaId = item.Id;
