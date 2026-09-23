@@ -115,6 +115,69 @@ public sealed class SearchQueryMatcherTests
         Assert.Equal(["false", "true"], data.SuggestionsByField["gogupdate"]);
     }
 
+    [Theory]
+    [InlineData(AssetType.Cover, "cover")]
+    [InlineData(AssetType.Wallpaper, "wallpaper")]
+    [InlineData(AssetType.Logo, "logo")]
+    [InlineData(AssetType.Video, "video")]
+    [InlineData(AssetType.Marquee, "marquee")]
+    [InlineData(AssetType.Music, "music")]
+    [InlineData(AssetType.Banner, "banner")]
+    [InlineData(AssetType.Bezel, "bezel")]
+    [InlineData(AssetType.ControlPanel, "controlpanel")]
+    [InlineData(AssetType.Manual, "manual")]
+    [InlineData(AssetType.Screenshot, "screenshot")]
+    public void AssetPresenceFiltersMatchStoredMedia(AssetType assetType, string field)
+    {
+        var item = new MediaItem();
+        item.Assets.Add(new MediaAsset
+        {
+            Type = assetType,
+            RelativePath = $"Library/Games/Test/{field}/asset.bin"
+        });
+
+        Assert.True(SearchQueryMatcher.Create($"has:{field}").Matches(item));
+        Assert.False(SearchQueryMatcher.Create($"missing:{field}").Matches(item));
+    }
+
+    [Fact]
+    public void AssetPresenceRequiresANonEmptyStoredPath()
+    {
+        var item = new MediaItem();
+        item.Assets.Add(new MediaAsset { Type = AssetType.Logo, RelativePath = "  " });
+
+        Assert.False(SearchQueryMatcher.Create("has:logo").Matches(item));
+        Assert.True(SearchQueryMatcher.Create("missing:logo").Matches(item));
+    }
+
+    [Fact]
+    public void AssetFiltersSupportAliasesAndBooleanComposition()
+    {
+        var item = new MediaItem();
+        item.Assets.Add(new MediaAsset
+        {
+            Type = AssetType.Music,
+            RelativePath = "Library/Games/Test/music/theme.opus"
+        });
+
+        Assert.True(SearchQueryMatcher.Create("has:audio AND missing:documents").Matches(item));
+        Assert.True(SearchQueryMatcher.Create("music:theme.opus").Matches(item));
+    }
+
+    [Fact]
+    public void FilterBuilderOffersAllMediaAssetFields()
+    {
+        var data = SearchQueryBuilderHelper.BuildData([]);
+        var expectedFields = new[]
+        {
+            "cover", "wallpaper", "logo", "video", "marquee", "music",
+            "banner", "bezel", "controlpanel", "manual", "screenshot"
+        };
+
+        foreach (var field in expectedFields)
+            Assert.Contains(data.Fields, option => option.Key == field);
+    }
+
     private static MediaItem CreateStoreItem(string providerId)
     {
         return new MediaItem

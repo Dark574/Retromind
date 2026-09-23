@@ -656,7 +656,7 @@ Source: <https://docs.avaloniaui.net/docs/platform-specific-guides/linux#wayland
 - Available in both search fields: global search and local node search.
 - Plain text terms search title by default.
 - Field terms: `key:value` or `key=value`.
-- Metadata completeness terms: `has:<field>` and `missing:<field>`.
+- Metadata and media completeness terms: `has:<field>` and `missing:<field>`.
 - Year comparisons: `year:>=YYYY`, `year:>YYYY`, `year:<=YYYY`, `year:<YYYY` (or exact `year:YYYY` / `year=YYYY`).
 - Logical operators: `AND`, `OR`, `NOT`, and parentheses `(` `)`.
 - Space between terms is treated as `AND`.
@@ -667,6 +667,7 @@ Supported keys (aliases included):
 - `title`, `sorttitle`, `description`/`notes`, `developer`, `publisher`, `platform`, `source`
 - `genre`, `series`, `releasetype`, `playmode`, `players`/`maxplayers`
 - `status`/`state`, `year`, `date`/`released`, `tag`/`tags`, `id`, `favorite`, `played`/`started`, `store`, `gogupdate`
+- Media fields: `cover`, `wallpaper`, `logo`, `video`, `marquee`, `music`, `banner`, `bezel`, `controlpanel`, `manual`, `screenshot`
 - `played:true` matches an item when it has a launch count, recorded play time, or a last-played timestamp;
   `played:false` matches items without any of that play evidence.
 - Custom fields:
@@ -684,6 +685,7 @@ Examples:
 - `status:incomplete AND played:false`
 - `year:>=1995 AND year:<2000`
 - `missing:genre OR missing:developer`
+- `missing:logo OR missing:music`
 - `has:genre AND NOT genre:unknown`
 - `store:gog AND gogupdate:true`
 - `(genre:platformer OR genre:metroidvania) AND NOT missing:rating`

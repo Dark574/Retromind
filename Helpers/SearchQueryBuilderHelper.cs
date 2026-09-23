@@ -39,7 +39,18 @@ public static class SearchQueryBuilderHelper
         new SearchQueryFieldOption("favorite", GetFilterFieldLabel("Search.FilterField.Favorite", "Favorite")),
         new SearchQueryFieldOption("played", GetFilterFieldLabel("Search.FilterField.Played", "Played")),
         new SearchQueryFieldOption("store", GetFilterFieldLabel("Search.FilterField.Store", "Store")),
-        new SearchQueryFieldOption("gogupdate", GetFilterFieldLabel("Search.FilterField.GogUpdate", "GOG update available"))
+        new SearchQueryFieldOption("gogupdate", GetFilterFieldLabel("Search.FilterField.GogUpdate", "GOG update available")),
+        new SearchQueryFieldOption("cover", GetFilterFieldLabel("Search.FilterField.Cover", "Cover")),
+        new SearchQueryFieldOption("wallpaper", GetFilterFieldLabel("Search.FilterField.Wallpaper", "Wallpaper")),
+        new SearchQueryFieldOption("logo", GetFilterFieldLabel("Search.FilterField.Logo", "Logo")),
+        new SearchQueryFieldOption("video", GetFilterFieldLabel("Search.FilterField.Video", "Video")),
+        new SearchQueryFieldOption("marquee", GetFilterFieldLabel("Search.FilterField.Marquee", "Marquee")),
+        new SearchQueryFieldOption("music", GetFilterFieldLabel("Search.FilterField.Music", "Music")),
+        new SearchQueryFieldOption("banner", GetFilterFieldLabel("Search.FilterField.Banner", "Banner")),
+        new SearchQueryFieldOption("bezel", GetFilterFieldLabel("Search.FilterField.Bezel", "Bezel")),
+        new SearchQueryFieldOption("controlpanel", GetFilterFieldLabel("Search.FilterField.ControlPanel", "Control panel")),
+        new SearchQueryFieldOption("manual", GetFilterFieldLabel("Search.FilterField.Manual", "Manual / document")),
+        new SearchQueryFieldOption("screenshot", GetFilterFieldLabel("Search.FilterField.Screenshot", "Screenshot"))
     };
 
     public static SearchQueryBuilderData BuildData(IEnumerable<MediaItem> items)

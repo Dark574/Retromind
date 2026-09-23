@@ -92,7 +92,8 @@ public sealed class SearchQueryMatcher
         Played,
         Store,
         GogUpdate,
-        Rating
+        Rating,
+        Asset
     }
 
     private sealed record QueryToken(QueryTokenType Type, string? Text = null, bool Quoted = false);
@@ -395,6 +396,13 @@ public sealed class SearchQueryMatcher
             return !string.IsNullOrWhiteSpace(customKey);
         }
 
+        if (TryParseAssetType(key, out var assetType))
+        {
+            field = QueryField.Asset;
+            customKey = assetType.ToString();
+            return true;
+        }
+
         switch (key.ToLowerInvariant())
         {
             case "title":
@@ -574,6 +582,11 @@ public sealed class SearchQueryMatcher
                 return MatchesGogUpdate(item, value);
             case QueryField.Rating:
                 return MatchesRating(item.Rating, value);
+            case QueryField.Asset:
+                return TryGetAssetType(term.CustomKey, out var assetType) &&
+                       item.Assets.Any(asset =>
+                           asset.Type == assetType &&
+                           ContainsIgnoreCase(asset.RelativePath, value));
             default:
                 return false;
         }
@@ -637,10 +650,75 @@ public sealed class SearchQueryMatcher
                     StringComparison.OrdinalIgnoreCase);
             case QueryField.Rating:
                 return item.Rating <= 0d;
+            case QueryField.Asset:
+                return !TryGetAssetType(customKey, out var assetType) ||
+                       !item.Assets.Any(asset =>
+                           asset.Type == assetType &&
+                           !string.IsNullOrWhiteSpace(asset.RelativePath));
             default:
                 return false;
         }
     }
+
+    private static bool TryParseAssetType(string key, out AssetType assetType)
+    {
+        switch (key.ToLowerInvariant())
+        {
+            case "cover":
+            case "covers":
+                assetType = AssetType.Cover;
+                return true;
+            case "wallpaper":
+            case "background":
+            case "backgroundimage":
+                assetType = AssetType.Wallpaper;
+                return true;
+            case "logo":
+            case "logos":
+                assetType = AssetType.Logo;
+                return true;
+            case "video":
+            case "videos":
+                assetType = AssetType.Video;
+                return true;
+            case "marquee":
+            case "marquees":
+                assetType = AssetType.Marquee;
+                return true;
+            case "music":
+            case "audio":
+                assetType = AssetType.Music;
+                return true;
+            case "banner":
+            case "banners":
+                assetType = AssetType.Banner;
+                return true;
+            case "bezel":
+            case "bezels":
+                assetType = AssetType.Bezel;
+                return true;
+            case "controlpanel":
+            case "control-panel":
+                assetType = AssetType.ControlPanel;
+                return true;
+            case "manual":
+            case "manuals":
+            case "document":
+            case "documents":
+                assetType = AssetType.Manual;
+                return true;
+            case "screenshot":
+            case "screenshots":
+                assetType = AssetType.Screenshot;
+                return true;
+            default:
+                assetType = AssetType.Unknown;
+                return false;
+        }
+    }
+
+    private static bool TryGetAssetType(string? value, out AssetType assetType) =>
+        Enum.TryParse(value, ignoreCase: true, out assetType) && assetType != AssetType.Unknown;
 
     private static bool IsCustomNamedValueMissing(Dictionary<string, string> customFields, string? customKey)
     {

@@ -710,6 +710,7 @@ genre:platformer AND platform:snes
 year:>=1995 AND year:&lt;2000
 status:incomplete AND played:true
 missing:genre OR missing:developer
+missing:logo OR missing:music
 has:genre AND NOT genre:unknown
 (genre:platformer OR genre:metroidvania) AND NOT missing:rating
 zelda AND platform:switch</value></data>
@@ -735,6 +736,26 @@ zelda AND platform:switch</value></data>
     <data name="Search.FilterField.Played" xml:space="preserve"><value>Played</value></data>
     <data name="Search.FilterField.Store" xml:space="preserve"><value>Store</value></data>
     <data name="Search.FilterField.GogUpdate" xml:space="preserve"><value>GOG update available</value></data>
+    <data name="Search.FilterField.Cover" xml:space="preserve"><value>Cover</value></data>
+    <data name="Search.FilterField.Wallpaper" xml:space="preserve"><value>Wallpaper</value></data>
+    <data name="Search.FilterField.Logo" xml:space="preserve"><value>Logo</value></data>
+    <data name="Search.FilterField.Video" xml:space="preserve"><value>Video</value></data>
+    <data name="Search.FilterField.Marquee" xml:space="preserve"><value>Marquee</value></data>
+    <data name="Search.FilterField.Music" xml:space="preserve"><value>Music</value></data>
+    <data name="Search.FilterField.Banner" xml:space="preserve"><value>Banner</value></data>
+    <data name="Search.FilterField.Bezel" xml:space="preserve"><value>Bezel</value></data>
+    <data name="Search.FilterField.ControlPanel" xml:space="preserve"><value>Control panel</value></data>
+    <data name="Search.FilterField.Manual" xml:space="preserve"><value>Manual / document</value></data>
+    <data name="Search.FilterField.Screenshot" xml:space="preserve"><value>Screenshot</value></data>
+    <data name="Search.FilterBuilderJoin" xml:space="preserve"><value>Join</value></data>
+    <data name="Search.FilterBuilderMode" xml:space="preserve"><value>Match</value></data>
+    <data name="Search.FilterBuilderNot" xml:space="preserve"><value>Negate (NOT)</value></data>
+    <data name="Search.FilterBuilderGroup" xml:space="preserve"><value>Wrap in parentheses</value></data>
+    <data name="Search.FilterBuilderModeContains" xml:space="preserve"><value>Contains</value></data>
+    <data name="Search.FilterBuilderModeHas" xml:space="preserve"><value>Is present</value></data>
+    <data name="Search.FilterBuilderModeMissing" xml:space="preserve"><value>Is missing</value></data>
+    <data name="Search.FilterBuilderJoinAnd" xml:space="preserve"><value>AND</value></data>
+    <data name="Search.FilterBuilderJoinOr" xml:space="preserve"><value>OR</value></data>
   
     <!-- SETTINGS -->
     <data name="Settings.ConfirmConvertLaunchPaths" xml:space="preserve"><value>Convert existing launch paths to portable (relative) paths?</value></data>

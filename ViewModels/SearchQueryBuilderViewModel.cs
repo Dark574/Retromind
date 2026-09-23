@@ -94,7 +94,7 @@ public partial class SearchQueryBuilderViewModel : ViewModelBase
         ClearLabel = T("Search.FilterBuilderClear", "Clear term");
 
         MatchModeOptions.Add(new SearchMatchModeOption("contains", T("Search.FilterBuilderModeContains", "Contains")));
-        MatchModeOptions.Add(new SearchMatchModeOption("has", T("Search.FilterBuilderModeHas", "Has value")));
+        MatchModeOptions.Add(new SearchMatchModeOption("has", T("Search.FilterBuilderModeHas", "Is present")));
         MatchModeOptions.Add(new SearchMatchModeOption("missing", T("Search.FilterBuilderModeMissing", "Is missing")));
 
         JoinOperatorOptions.Add(new SearchJoinOperatorOption("AND", T("Search.FilterBuilderJoinAnd", "AND")));

@@ -17,6 +17,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - install and update GOG DLCs
 - playtime params are editable
 - available GOG updates can now be checked manually
+- search/filter for missing media items
 
 ### Changed
 - make information dialogs copyable
