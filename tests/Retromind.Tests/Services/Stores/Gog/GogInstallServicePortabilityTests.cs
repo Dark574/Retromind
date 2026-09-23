@@ -61,6 +61,95 @@ public sealed class GogInstallServicePortabilityTests
         Assert.Single(item.GogDlcInstallations!);
     }
 
+    [Fact]
+    public async Task Uninstall_AbsoluteOwnedDirectoryWithoutSymlinks_RemainsSupported()
+    {
+        using var externalRoot = new TemporaryDirectory();
+        var installPath = externalRoot.CreateDirectory("absolute-install");
+        var item = CreateInstalledItem(installPath);
+        GogInstallDirectorySafety.WriteMarker(installPath, item);
+        externalRoot.CreateFile("absolute-install/game.bin", "installed game");
+
+        await CreateInstallService().UninstallGogGameAsync(item);
+
+        Assert.False(Directory.Exists(installPath));
+        Assert.False(item.CustomFields.ContainsKey(CustomFieldKeyHelper.StoreInstallPath));
+    }
+
+    [Fact]
+    public async Task Uninstall_AncestorDirectorySymlink_RefusesAndPreservesExternalInstall()
+    {
+        using var portableRoot = new TemporaryDirectory();
+        using var externalRoot = new TemporaryDirectory();
+        var libraryRoot = portableRoot.CreateDirectory("Library");
+        var externalInstall = externalRoot.CreateDirectory("game");
+        var externalSentinel = externalRoot.CreateFile("game/must-remain.txt", "external data");
+        var linkPath = Path.Combine(libraryRoot, "external-link");
+        Directory.CreateSymbolicLink(linkPath, externalRoot.RootPath);
+        var item = CreateInstalledItem(Path.Combine("Library", "external-link", "game"));
+        GogInstallDirectorySafety.WriteMarker(externalInstall, item);
+
+        using (UseDataRoot(portableRoot.RootPath))
+        {
+            var service = CreateInstallService();
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => service.UninstallGogGameAsync(item));
+        }
+
+        Assert.True(File.Exists(externalSentinel));
+        Assert.True(Directory.Exists(externalInstall));
+        Assert.True(item.CustomFields.ContainsKey(CustomFieldKeyHelper.StoreInstallPath));
+    }
+
+    [Fact]
+    public async Task Uninstall_NestedDirectorySymlink_DeletesOnlyLinkAndPreservesExternalTarget()
+    {
+        using var portableRoot = new TemporaryDirectory();
+        using var externalRoot = new TemporaryDirectory();
+        var installPath = portableRoot.CreateDirectory("Library", "Games", "GOG", "Linked Game");
+        var externalSentinel = externalRoot.CreateFile("must-remain.txt", "external data");
+        var nestedLink = Path.Combine(installPath, "external-link");
+        Directory.CreateSymbolicLink(nestedLink, externalRoot.RootPath);
+        var item = CreateInstalledItem(Path.Combine("Library", "Games", "GOG", "Linked Game"));
+        GogInstallDirectorySafety.WriteMarker(installPath, item);
+
+        using (UseDataRoot(portableRoot.RootPath))
+        {
+            await CreateInstallService().UninstallGogGameAsync(item);
+        }
+
+        Assert.False(Directory.Exists(installPath));
+        Assert.True(File.Exists(externalSentinel));
+        Assert.False(item.CustomFields.ContainsKey(CustomFieldKeyHelper.StoreInstallPath));
+    }
+
+    [Fact]
+    public async Task Uninstall_PrefixAncestorSymlink_SkipsPrefixAndPreservesMetadata()
+    {
+        using var portableRoot = new TemporaryDirectory();
+        using var externalRoot = new TemporaryDirectory();
+        var libraryRoot = portableRoot.CreateDirectory("Library");
+        var installPath = portableRoot.CreateDirectory("Library", "Games", "GOG", "Prefix Game");
+        var externalPrefix = externalRoot.CreateDirectory("prefix");
+        var externalSentinel = externalRoot.CreateFile("prefix/must-remain.txt", "external prefix data");
+        var linkPath = Path.Combine(libraryRoot, "prefix-link");
+        Directory.CreateSymbolicLink(linkPath, externalRoot.RootPath);
+        var item = CreateInstalledItem(Path.Combine("Library", "Games", "GOG", "Prefix Game"));
+        item.PrefixPath = Path.Combine("prefix-link", "prefix");
+        GogInstallDirectorySafety.WriteMarker(installPath, item);
+
+        using (UseDataRoot(portableRoot.RootPath))
+        {
+            await CreateInstallService().UninstallGogGameAsync(item);
+        }
+
+        Assert.False(Directory.Exists(installPath));
+        Assert.True(Directory.Exists(externalPrefix));
+        Assert.True(File.Exists(externalSentinel));
+        Assert.Equal(Path.Combine("prefix-link", "prefix"), item.PrefixPath);
+    }
+
     private static MediaItem CreateInstalledItem(string storedInstallPath)
     {
         var item = new MediaItem

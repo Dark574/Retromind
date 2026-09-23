@@ -196,6 +196,17 @@ public sealed class GogInstallService
         if (string.Equals(fullPath, libraryRoot, StringComparison.Ordinal))
             return false;
 
+        try
+        {
+            if (GogInstallDirectorySafety.ContainsSymbolicLinkInPath(fullPath))
+                return false;
+        }
+        catch
+        {
+            // If the complete path cannot be inspected, it is not safe to delete.
+            return false;
+        }
+
         // If the folder no longer exists, no physical deletion can happen.
         // Allow metadata cleanup to proceed.
         if (!Directory.Exists(fullPath))
@@ -323,9 +334,21 @@ public sealed class GogInstallService
             // Never allow deleting LibraryRoot itself (e.g., if PrefixPath is "." or empty-normalized).
             var isSafePrefix = resolvedPrefix.StartsWith(libraryRootWithSep, StringComparison.Ordinal);
 
+            if (isSafePrefix)
+            {
+                try
+                {
+                    isSafePrefix = !GogInstallDirectorySafety.ContainsSymbolicLinkInPath(resolvedPrefix);
+                }
+                catch
+                {
+                    isSafePrefix = false;
+                }
+            }
+
             if (!isSafePrefix)
             {
-                Debug.WriteLine($"[Warning] Prefix path '{prefixPath}' resolves outside LibraryRoot ('{resolvedPrefix}'). Skipping prefix deletion for safety.");
+                Debug.WriteLine($"[Warning] Prefix path '{prefixPath}' is outside LibraryRoot or contains a symbolic link ('{resolvedPrefix}'). Skipping prefix deletion for safety.");
                 prefixPath = null; // Abort prefix deletion
                 prefixSkippedForSafety = true;
             }
@@ -432,7 +455,7 @@ public sealed class GogInstallService
                 // Run the synchronous deletion on a background thread to avoid blocking UI
                 await Task.Run(() =>
                 {
-                    Directory.Delete(path, recursive: true);
+                    GogInstallDirectorySafety.DeleteDirectoryTreeWithoutFollowingLinks(path, ct);
                 }, ct);
                 return; // Success
             }

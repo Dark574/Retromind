@@ -198,6 +198,25 @@ public sealed class GogInstallDirectorySafetyTests
     }
 
     [Fact]
+    public void Assess_SymbolicLinkInAncestorPath_ReturnsSymbolicLink()
+    {
+        using var pathTemp = new TemporaryDirectory();
+        using var targetTemp = new TemporaryDirectory();
+        var targetPath = targetTemp.CreateDirectory("real-parent", "install");
+        var linkPath = pathTemp.GetPath("linked-parent");
+        Directory.CreateSymbolicLink(linkPath, targetTemp.GetPath("real-parent"));
+
+        var assessment = GogInstallDirectorySafety.Assess(
+            Path.Combine(linkPath, "install"),
+            CreateGogItem(),
+            rejectSymbolicLinks: false);
+
+        Assert.True(Directory.Exists(targetPath));
+        Assert.Equal(GogInstallDirectoryStatus.SymbolicLink, assessment.Status);
+        Assert.False(assessment.IsAllowed);
+    }
+
+    [Fact]
     public void Assess_NestedSymbolicLink_ReturnsSymbolicLinkAndDoesNotTouchExternalTarget()
     {
         using var installTemp = new TemporaryDirectory();

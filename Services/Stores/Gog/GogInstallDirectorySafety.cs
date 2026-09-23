@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using Retromind.Helpers;
 using Retromind.Models;
 
@@ -60,6 +61,19 @@ internal static class GogInstallDirectorySafety
         if (IsDangerousPath(fullPath))
             return new GogInstallDirectoryAssessment(GogInstallDirectoryStatus.DangerousPath, fullPath);
 
+        try
+        {
+            // Path.GetFullPath is only a lexical normalization. Check every existing
+            // component as well so an ancestor link cannot redirect the operation.
+            if (ContainsSymbolicLinkInPath(fullPath))
+                return new GogInstallDirectoryAssessment(GogInstallDirectoryStatus.SymbolicLink, fullPath);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] Could not inspect install path '{fullPath}': {ex.Message}");
+            return new GogInstallDirectoryAssessment(GogInstallDirectoryStatus.UnreadableDirectory, fullPath);
+        }
+
         if (File.Exists(fullPath))
             return new GogInstallDirectoryAssessment(GogInstallDirectoryStatus.InvalidPath, fullPath);
 
@@ -68,8 +82,7 @@ internal static class GogInstallDirectorySafety
 
         try
         {
-            if (IsSymbolicLink(fullPath) ||
-                (rejectSymbolicLinks && ContainsSymbolicLink(fullPath)))
+            if (rejectSymbolicLinks && ContainsSymbolicLink(fullPath))
             {
                 return new GogInstallDirectoryAssessment(GogInstallDirectoryStatus.SymbolicLink, fullPath);
             }
@@ -179,6 +192,114 @@ internal static class GogInstallDirectorySafety
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Checks the target and every existing ancestor component for symbolic links.
+    /// This closes the gap left by lexical path normalization, which does not resolve links.
+    /// </summary>
+    public static bool ContainsSymbolicLinkInPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        var root = Path.GetPathRoot(fullPath);
+        if (string.IsNullOrWhiteSpace(root))
+            return false;
+
+        var relativePath = Path.GetRelativePath(root, fullPath);
+        if (relativePath == ".")
+            return IsSymbolicLink(fullPath);
+
+        var currentPath = root;
+        foreach (var component in relativePath.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            currentPath = Path.Combine(currentPath, component);
+
+            try
+            {
+                if (IsSymbolicLink(currentPath))
+                    return true;
+            }
+            catch (FileNotFoundException)
+            {
+                // Once a component is missing, no deeper component can exist.
+                return false;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Deletes a directory tree without following symbolic links contained in it.
+    /// The root and its ancestor path must not contain symbolic links.
+    /// </summary>
+    public static void DeleteDirectoryTreeWithoutFollowingLinks(
+        string directoryPath,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+            return;
+
+        var fullPath = Path.GetFullPath(directoryPath);
+        if (ContainsSymbolicLinkInPath(fullPath))
+        {
+            throw new IOException(
+                $"Refusing to delete directory '{fullPath}' because its path contains a symbolic link.");
+        }
+
+        if (!Directory.Exists(fullPath))
+            return;
+
+        DeleteDirectoryEntryWithoutFollowingLinks(fullPath, isDeletionRoot: true, ct);
+    }
+
+    private static void DeleteDirectoryEntryWithoutFollowingLinks(
+        string path,
+        bool isDeletionRoot,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var attributes = File.GetAttributes(path);
+        var isSymbolicLink = (attributes & FileAttributes.ReparsePoint) != 0;
+        var isDirectory = (attributes & FileAttributes.Directory) != 0;
+
+        if (isSymbolicLink)
+        {
+            if (isDeletionRoot)
+                throw new IOException($"Refusing to delete symbolic-link root '{path}'.");
+
+            DeleteLink(path, isDirectory);
+            return;
+        }
+
+        if (!isDirectory)
+        {
+            File.Delete(path);
+            return;
+        }
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries(path))
+            DeleteDirectoryEntryWithoutFollowingLinks(entry, isDeletionRoot: false, ct);
+
+        Directory.Delete(path, recursive: false);
+    }
+
+    private static void DeleteLink(string path, bool isDirectory)
+    {
+        if (isDirectory)
+            Directory.Delete(path, recursive: false);
+        else
+            File.Delete(path);
     }
 
     private static bool ContainsSymbolicLink(string rootPath)
