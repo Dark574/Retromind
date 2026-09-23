@@ -70,6 +70,11 @@
                                             Command="{Binding GogInstallOrReinstallCommand}"
                                             CommandParameter="{Binding $parent[Window]}"
                                             Margin="0,0,8,0" />
+                                    <Button Content="{Binding GogCheckUpdatesText}"
+                                            Command="{Binding GogCheckUpdatesCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            IsVisible="{Binding ShowGogCheckUpdatesAction}"
+                                            Margin="0,0,8,0" />
                                     <Button Content="{Binding GogUpdateText}"
                                             Command="{Binding GogUpdateCommand}"
                                             CommandParameter="{Binding $parent[Window]}"

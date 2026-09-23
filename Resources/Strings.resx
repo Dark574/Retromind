@@ -215,6 +215,14 @@
     <data name="EditMedia.GogStatusInstalled" xml:space="preserve"><value>Installed</value></data>
     <data name="EditMedia.GogStatusNotInstalled" xml:space="preserve"><value>Not installed</value></data>
     <data name="EditMedia.GogStatusUpdateAvailable" xml:space="preserve"><value>Installed – update available</value></data>
+    <data name="Gog.Update.CheckNow" xml:space="preserve"><value>Check for GOG updates</value></data>
+    <data name="Gog.Update.CheckAvailable" xml:space="preserve"><value>A GOG update is available.</value></data>
+    <data name="Gog.Update.CheckUpToDate" xml:space="preserve"><value>No update is currently available for the installed platform.</value></data>
+    <data name="Gog.Update.CheckNoBaseline" xml:space="preserve"><value>The update status could not be determined because the installed version is unknown.</value></data>
+    <data name="Gog.Update.CheckNoAuth" xml:space="preserve"><value>Sign in to GOG before checking for updates.</value></data>
+    <data name="Gog.Update.CheckInFlight" xml:space="preserve"><value>An update check is already running for this game.</value></data>
+    <data name="Gog.Update.CheckNotApplicable" xml:space="preserve"><value>This game is not currently installed through GOG.</value></data>
+    <data name="Gog.Update.CheckFailed" xml:space="preserve"><value>The GOG update check failed.</value></data>
     <data name="EditMedia.GogDlcTitle" xml:space="preserve"><value>DLCs</value></data>
     <data name="EditMedia.GogDlcHint" xml:space="preserve"><value>Show owned DLCs and their available offline installers.</value></data>
     <data name="EditMedia.GogManageDlcs" xml:space="preserve"><value>Manage DLCs...</value></data>

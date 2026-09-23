@@ -126,9 +126,9 @@ public static class ObjectConverters
 
     /// <summary>
     /// Returns true only for installed GOG-linked media items.
-    /// Used to show/hide the "Reinstall / Switch Version" context-menu entry.
+    /// Used to show/hide context-menu actions that require an existing installation.
     /// </summary>
-    public static readonly IValueConverter GogReinstallMenuVisible =
+    public static readonly IValueConverter GogInstalledMenuVisible =
         new FuncValueConverter<MediaItem?, bool>(item =>
         {
             return GogMediaItemStateHelper.IsInstalled(item);

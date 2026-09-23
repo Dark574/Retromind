@@ -585,6 +585,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         ObservableCollection<MediaNode>? rootNodes = null,
         MediaNode? parentNode = null,
         Func<Window, Task<bool>>? gogInstallOrReinstall = null,
+        Func<Window, Task>? gogCheckUpdates = null,
         Func<Window, Task<bool>>? gogUpdate = null,
         Func<Window, Task<bool>>? gogUninstall = null,
         Func<Window, Task>? gogManageDlcs = null)
@@ -600,7 +601,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         _settings = settings;
         _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService ??
             throw new ArgumentNullException(nameof(retroAchievementsGameIdentificationService));
-        InitializeGogManagement(gogInstallOrReinstall, gogUpdate, gogUninstall, gogManageDlcs);
+        InitializeGogManagement(gogInstallOrReinstall, gogCheckUpdates, gogUpdate, gogUninstall, gogManageDlcs);
         _metadataSuggestionService = new MetadataSuggestionService(_rootNodes, _parentNode);
         _assetsChangedHandler = (_, _) => ScheduleSortAssets();
         _originalItem.Assets.CollectionChanged += _assetsChangedHandler;

@@ -11,12 +11,14 @@ namespace Retromind.ViewModels;
 public partial class EditMediaViewModel
 {
     private Func<Window, Task<bool>>? _gogInstallOrReinstall;
+    private Func<Window, Task>? _gogCheckUpdates;
     private Func<Window, Task<bool>>? _gogUpdate;
     private Func<Window, Task<bool>>? _gogUninstall;
     private Func<Window, Task>? _gogManageDlcs;
     private bool _isGogOperationRunning;
 
     public IAsyncRelayCommand<Window?> GogInstallOrReinstallCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<Window?> GogCheckUpdatesCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> GogUpdateCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> GogUninstallCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> GogManageDlcsCommand { get; private set; } = null!;
@@ -26,6 +28,9 @@ public partial class EditMediaViewModel
 
     public bool ShowGogUpdateAction =>
         GogMediaItemStateHelper.HasUpdateAvailable(_originalItem);
+
+    public bool ShowGogCheckUpdatesAction =>
+        GogMediaItemStateHelper.IsInstalled(_originalItem);
 
     public bool ShowGogUninstallAction =>
         GogMediaItemStateHelper.CanUninstall(_originalItem);
@@ -39,6 +44,7 @@ public partial class EditMediaViewModel
                 return;
 
             GogInstallOrReinstallCommand.NotifyCanExecuteChanged();
+            GogCheckUpdatesCommand.NotifyCanExecuteChanged();
             GogUpdateCommand.NotifyCanExecuteChanged();
             GogUninstallCommand.NotifyCanExecuteChanged();
             GogManageDlcsCommand.NotifyCanExecuteChanged();
@@ -56,6 +62,7 @@ public partial class EditMediaViewModel
         : Strings.Button_Install;
 
     public string GogUpdateText => Strings.Button_Update;
+    public string GogCheckUpdatesText => T("Gog.Update.CheckNow", "Check for GOG updates");
     public string GogUninstallText => Strings.Gog_Uninstall_ContextMenu;
     public string GogDlcTitle => T("EditMedia.GogDlcTitle", "DLCs");
     public string GogDlcHint => T(
@@ -82,11 +89,13 @@ public partial class EditMediaViewModel
 
     private void InitializeGogManagement(
         Func<Window, Task<bool>>? installOrReinstall,
+        Func<Window, Task>? checkUpdates,
         Func<Window, Task<bool>>? update,
         Func<Window, Task<bool>>? uninstall,
         Func<Window, Task>? manageDlcs)
     {
         _gogInstallOrReinstall = installOrReinstall;
+        _gogCheckUpdates = checkUpdates;
         _gogUpdate = update;
         _gogUninstall = uninstall;
         _gogManageDlcs = manageDlcs;
@@ -94,6 +103,9 @@ public partial class EditMediaViewModel
         GogInstallOrReinstallCommand = new AsyncRelayCommand<Window?>(
             owner => RunGogActionAsync(owner, _gogInstallOrReinstall),
             owner => CanRunGogAction(owner, _gogInstallOrReinstall));
+        GogCheckUpdatesCommand = new AsyncRelayCommand<Window?>(
+            RunGogUpdateCheckAsync,
+            owner => CanRunGogUpdateCheck(owner));
         GogUpdateCommand = new AsyncRelayCommand<Window?>(
             owner => RunGogActionAsync(owner, _gogUpdate),
             owner => ShowGogUpdateAction && CanRunGogAction(owner, _gogUpdate));
@@ -118,6 +130,33 @@ public partial class EditMediaViewModel
         _gogManageDlcs != null &&
         IsGogManagementVisible &&
         !IsGogOperationRunning;
+
+    private bool CanRunGogUpdateCheck(Window? owner) =>
+        owner != null &&
+        _gogCheckUpdates != null &&
+        ShowGogCheckUpdatesAction &&
+        !IsGogOperationRunning;
+
+    private async Task RunGogUpdateCheckAsync(Window? owner)
+    {
+        if (!CanRunGogUpdateCheck(owner) || owner == null || _gogCheckUpdates == null)
+            return;
+
+        IsGogOperationRunning = true;
+        try
+        {
+            await _gogCheckUpdates(owner);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] Manual update check failed: {ex.Message}");
+        }
+        finally
+        {
+            IsGogOperationRunning = false;
+            RefreshGogManagementState();
+        }
+    }
 
     private async Task RunGogDlcDialogAsync(Window? owner)
     {
@@ -166,11 +205,13 @@ public partial class EditMediaViewModel
     private void RefreshGogManagementState()
     {
         OnPropertyChanged(nameof(IsGogManagementVisible));
+        OnPropertyChanged(nameof(ShowGogCheckUpdatesAction));
         OnPropertyChanged(nameof(ShowGogUpdateAction));
         OnPropertyChanged(nameof(ShowGogUninstallAction));
         OnPropertyChanged(nameof(GogInstallOrReinstallText));
         OnPropertyChanged(nameof(GogManagementStatusText));
         GogInstallOrReinstallCommand.NotifyCanExecuteChanged();
+        GogCheckUpdatesCommand.NotifyCanExecuteChanged();
         GogUpdateCommand.NotifyCanExecuteChanged();
         GogUninstallCommand.NotifyCanExecuteChanged();
         GogManageDlcsCommand.NotifyCanExecuteChanged();

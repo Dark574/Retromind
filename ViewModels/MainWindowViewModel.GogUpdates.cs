@@ -157,6 +157,52 @@ public partial class MainWindowViewModel
     private static bool ShouldOfferGogUpdateForItem(MediaItem? item) =>
         GogMediaItemStateHelper.HasUpdateAvailable(item);
 
+    private async Task CheckGogUpdatesNowAsync(MediaItem? item)
+    {
+        if (item == null || CurrentWindow is not { } owner)
+            return;
+
+        await CheckGogUpdatesNowAsync(item, owner);
+    }
+
+    private async Task CheckGogUpdatesNowAsync(MediaItem item, Avalonia.Controls.Window owner)
+    {
+        if (!CanCheckGogUpdatesForItem(item))
+            return;
+
+        var result = await CheckGogUpdatesForItemCoreAsync(
+                item,
+                force: true,
+                CancellationToken.None)
+            .ConfigureAwait(false);
+
+        var hasAnyUpdate = await UiThreadHelper
+            .InvokeAsync(() => GogMediaItemStateHelper.HasAnyUpdateAvailable(item))
+            .ConfigureAwait(false);
+
+        var message = result switch
+        {
+            GogUpdateResult.UpdateAvailable =>
+                T("Gog.Update.CheckAvailable", "A GOG update is available."),
+            GogUpdateResult.UpToDate when hasAnyUpdate =>
+                T("Gog.Update.CheckAvailable", "A GOG update is available."),
+            GogUpdateResult.UpToDate =>
+                T("Gog.Update.CheckUpToDate", "No update is currently available for the installed platform."),
+            GogUpdateResult.NoBaseline =>
+                T("Gog.Update.CheckNoBaseline", "The update status could not be determined because the installed version is unknown."),
+            GogUpdateResult.NoAuth =>
+                T("Gog.Update.CheckNoAuth", "Sign in to GOG before checking for updates."),
+            GogUpdateResult.InFlight =>
+                T("Gog.Update.CheckInFlight", "An update check is already running for this game."),
+            GogUpdateResult.NotApplicable =>
+                T("Gog.Update.CheckNotApplicable", "This game is not currently installed through GOG."),
+            _ =>
+                T("Gog.Update.CheckFailed", "The GOG update check failed.")
+        };
+
+        await ShowInfoDialog(owner, message).ConfigureAwait(false);
+    }
+
     private async Task<GogUpdateResult> CheckGogUpdatesForItemCoreAsync(
         MediaItem item,
         bool force,

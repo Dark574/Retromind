@@ -365,7 +365,11 @@
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaCommand}"
                                                       CommandParameter="{Binding .}" />
-                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogReinstallMenuVisible}}" />
+                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogCheckUpdatesMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CheckGogUpdatesCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUpdateMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UpdateGogCommand}"
                                                       CommandParameter="{Binding .}"
@@ -373,12 +377,12 @@
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogReinstallMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ReinstallGogCommand}"
                                                       CommandParameter="{Binding .}"
-                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogReinstallMenuVisible}}" />
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUninstallMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UninstallGogCommand}"
                                                       CommandParameter="{Binding .}"
                                                       IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}" />
-                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogReinstallMenuVisible}}" />
+                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
                                             <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
                                                       CommandParameter="{Binding .}"

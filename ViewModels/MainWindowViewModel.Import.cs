@@ -1185,6 +1185,7 @@ public partial class MainWindowViewModel
             parentNode,
             gogInstallOrReinstall: dialogOwner =>
                 RunGogInstallFromEditorAsync(item, dialogOwner, requireAvailableUpdate: false),
+            gogCheckUpdates: dialogOwner => CheckGogUpdatesNowAsync(item, dialogOwner),
             gogUpdate: dialogOwner =>
                 RunGogInstallFromEditorAsync(item, dialogOwner, requireAvailableUpdate: true),
             gogUninstall: dialogOwner => RunGogUninstallAsync(item, dialogOwner),

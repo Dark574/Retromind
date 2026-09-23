@@ -55,6 +55,7 @@ public partial class MainWindowViewModel
     
     // PlayCommand is special, it fires and forgets mostly, but async is better for UI responsiveness
     public IAsyncRelayCommand<MediaItem?> PlayCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> CheckGogUpdatesCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> ReinstallGogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> UpdateGogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> UninstallGogCommand { get; private set; } = null!;
@@ -88,6 +89,7 @@ public partial class MainWindowViewModel
         "RetroAchievements_SearchAll",
         "Search RetroAchievements (All)...");
     public string StatisticsButtonToolTip => T("Statistics.Title", "Library statistics");
+    public string GogCheckUpdatesMenuText => T("Gog.Update.CheckNow", "Check for GOG updates");
     public string GogUpdateMenuText => T("Button_Update", "Update");
     public string GogReinstallMenuText => T("Gog.Media.ReinstallMenu", "Reinstall / Switch Version");
     public string GogUninstallMenuText => T("Gog.Uninstall.ContextMenu", "Uninstall");
@@ -118,6 +120,7 @@ public partial class MainWindowViewModel
         ToggleParentalLockCommand = new AsyncRelayCommand(ToggleParentalLockAsync);
         ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
         PlayCommand = new AsyncRelayCommand<MediaItem?>(item => PlayMediaAsync(item), CanPlayMedia);
+        CheckGogUpdatesCommand = new AsyncRelayCommand<MediaItem?>(CheckGogUpdatesNowAsync, CanCheckGogUpdatesForItem);
         ReinstallGogCommand = new AsyncRelayCommand<MediaItem?>(ReinstallGogMediaAsync, CanReinstallGogMedia);
         UpdateGogCommand = new AsyncRelayCommand<MediaItem?>(UpdateGogMediaAsync, CanUpdateGogMedia);
         UninstallGogCommand = new AsyncRelayCommand<MediaItem?>(UninstallGogMediaAsync, CanUninstallGogMedia);
@@ -291,6 +294,7 @@ public partial class MainWindowViewModel
     {
         PlayCommand.NotifyCanExecuteChanged();
         TestPlayMediaCommand.NotifyCanExecuteChanged();
+        CheckGogUpdatesCommand.NotifyCanExecuteChanged();
         ReinstallGogCommand.NotifyCanExecuteChanged();
         UpdateGogCommand.NotifyCanExecuteChanged();
         UninstallGogCommand.NotifyCanExecuteChanged();
