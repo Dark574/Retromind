@@ -43,7 +43,7 @@ especially before installing a new release.
 - **Smart local imports** with multi-disc recognition and optional playlist launching
 - **Store integration** for Steam and Heroic imports plus experimental native GOG library, installation, update and uninstall support
 - **Managed compatibility runners**, including direct GE-Proton downloads and reusable emulator profiles
-- **RetroAchievements integration** with ROM/disc identification, achievement badges, cached progress and separate Casual/Hardcore summaries
+- **Experimental RetroAchievements integration** with ROM/disc identification, achievement badges, cached progress and separate Casual/Hardcore summaries
 
 ## Screenshots
 
@@ -554,7 +554,11 @@ You need to create your own API keys on the respective provider pages:
 Each user is responsible for their own API keys and must comply with the
 respective provider terms of service.
 
-## RetroAchievements
+## RetroAchievements (Experimental)
+
+The RetroAchievements integration is currently **experimental** and has not yet been broadly tested across
+the many supported systems, game-file formats, and emulator configurations. Existing functionality should
+be usable, but identification or progress display may still expose compatibility gaps. Test reports are welcome.
 
 Retromind can identify compatible game files through RetroAchievements and show the configured user's
 achievement progress, badges, points, unlock times, and separate Casual/Hardcore summaries in the desktop

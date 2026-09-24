@@ -12,7 +12,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Added
 - make shortcut creation optional for GOG Wine/Proton installation
 - configurable BigMode theme for the virtual library root
-- RetroAchievments for supported systems
+- experimental RetroAchievements integration for supported systems
 - RetroAchievements progress summaries in BigMode themes
 - controller-friendly RetroAchievements detail browser in BigMode
 - added store badges on Game Covers

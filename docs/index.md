@@ -35,9 +35,12 @@ Feedback and bug reports are especially welcome.
 - **Smart local imports** with multi-disc recognition and optional playlist launching
 - **Store integration** for Steam and Heroic imports plus experimental native GOG library, installation, update and uninstall support
 - **Managed compatibility runners**, including direct GE-Proton downloads and reusable emulator profiles
-- **RetroAchievements integration** with ROM/disc identification, achievement badges, cached progress and separate Casual/Hardcore summaries
+- **Experimental RetroAchievements integration** with ROM/disc identification, achievement badges, cached progress and separate Casual/Hardcore summaries
 
 Retromind is open source under the GPL-3.0-only license and developed in public on GitHub.
+
+RetroAchievements support has not yet been broadly tested across the many supported systems, game-file
+formats, and emulator configurations. Compatibility reports are welcome while the integration remains experimental.
 
 ### Portability
 

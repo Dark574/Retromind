@@ -352,6 +352,7 @@
                                    FontSize="17"
                                    LineHeight="25"
                                    TextWrapping="Wrap"
+                                   HorizontalAlignment="Left"
                                    MaxWidth="680" />
                     </ScrollViewer>
                 </Border>
@@ -374,6 +375,7 @@
                                    FontSize="17"
                                    LineHeight="25"
                                    TextWrapping="Wrap"
+                                   HorizontalAlignment="Left"
                                    MaxWidth="680" />
                     </ScrollViewer>
                 </Border>
