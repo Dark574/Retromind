@@ -378,46 +378,97 @@
                     </ScrollViewer>
                 </Border>
 
-                <Grid Grid.Row="4"
-                      ColumnDefinitions="Auto,26,Auto,26,Auto"
-                      Margin="0,22,0,0"
-                      IsVisible="{Binding IsGameListActive}">
-                    <StackPanel Grid.Column="0" Spacing="3">
-                        <TextBlock Text="{x:Static resources:Strings.Common_Developer}"
-                                   Foreground="{Binding ElementName=ThemeRoot,
-                                                        Path=(ext:ThemeProperties.DynamicAccentColor),
-                                                        Converter={StaticResource AccentBrushConverter}}"
-                                   FontSize="11"
-                                   FontWeight="Bold" />
-                        <TextBlock Text="{Binding SelectedDeveloper}"
-                                   Foreground="White"
-                                   FontSize="14"
-                                   TextTrimming="CharacterEllipsis"
-                                   MaxWidth="190" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="2" Spacing="3">
-                        <TextBlock Text="{x:Static resources:Strings.Media_PlayCount}"
-                                   Foreground="{Binding ElementName=ThemeRoot,
-                                                        Path=(ext:ThemeProperties.DynamicAccentColor),
-                                                        Converter={StaticResource AccentBrushConverter}}"
-                                   FontSize="11"
-                                   FontWeight="Bold" />
-                        <TextBlock Text="{Binding SelectedItem.PlayCount}"
-                                   Foreground="White"
-                                   FontSize="14" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="4" Spacing="3">
-                        <TextBlock Text="{x:Static resources:Strings.Media_PlayTime}"
-                                   Foreground="{Binding ElementName=ThemeRoot,
-                                                        Path=(ext:ThemeProperties.DynamicAccentColor),
-                                                        Converter={StaticResource AccentBrushConverter}}"
-                                   FontSize="11"
-                                   FontWeight="Bold" />
-                        <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
-                                   Foreground="White"
-                                   FontSize="14" />
-                    </StackPanel>
-                </Grid>
+                <StackPanel Grid.Row="4"
+                            Spacing="15"
+                            Margin="0,18,0,0"
+                            IsVisible="{Binding IsGameListActive}">
+                    <Border Background="#520F1728"
+                            BorderBrush="{Binding ElementName=ThemeRoot,
+                                                  Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                  Converter={StaticResource AccentSoftBrushConverter}}"
+                            BorderThickness="1"
+                            CornerRadius="9"
+                            Padding="12,9"
+                            MaxWidth="560"
+                            HorizontalAlignment="Left"
+                            IsVisible="{Binding RetroAchievementsProgress.IsVisible}">
+                        <StackPanel Spacing="5">
+                            <Grid ColumnDefinitions="Auto,18,*">
+                                <TextBlock Grid.Column="0"
+                                           Text="RETROACHIEVEMENTS"
+                                           Foreground="{Binding ElementName=ThemeRoot,
+                                                                Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                                Converter={StaticResource AccentBrushConverter}}"
+                                           FontSize="11"
+                                           FontWeight="Bold" />
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding RetroAchievementsProgress.SummaryText}"
+                                           Foreground="White"
+                                           FontSize="12"
+                                           HorizontalAlignment="Right"
+                                           IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+                            </Grid>
+                            <ProgressBar Minimum="0"
+                                         Maximum="{Binding RetroAchievementsProgress.ProgressMaximum}"
+                                         Value="{Binding RetroAchievementsProgress.ProgressValue}"
+                                         Height="5"
+                                         Foreground="{Binding ElementName=ThemeRoot,
+                                                              Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                              Converter={StaticResource AccentBrushConverter}}"
+                                         IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+                            <ProgressBar IsIndeterminate="True"
+                                         Height="4"
+                                         IsVisible="{Binding RetroAchievementsProgress.IsLoading}" />
+                            <TextBlock Text="{Binding RetroAchievementsProgress.HardcoreSummaryText}"
+                                       Foreground="#B8C5D8"
+                                       FontSize="11"
+                                       IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+                            <TextBlock Text="{Binding RetroAchievementsProgress.StatusText}"
+                                       Foreground="#B8C5D8"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding RetroAchievementsProgress.ShowStatus}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Grid ColumnDefinitions="Auto,26,Auto,26,Auto">
+                        <StackPanel Grid.Column="0" Spacing="3">
+                            <TextBlock Text="{x:Static resources:Strings.Common_Developer}"
+                                       Foreground="{Binding ElementName=ThemeRoot,
+                                                            Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                            Converter={StaticResource AccentBrushConverter}}"
+                                       FontSize="11"
+                                       FontWeight="Bold" />
+                            <TextBlock Text="{Binding SelectedDeveloper}"
+                                       Foreground="White"
+                                       FontSize="14"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxWidth="190" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="3">
+                            <TextBlock Text="{x:Static resources:Strings.Media_PlayCount}"
+                                       Foreground="{Binding ElementName=ThemeRoot,
+                                                            Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                            Converter={StaticResource AccentBrushConverter}}"
+                                       FontSize="11"
+                                       FontWeight="Bold" />
+                            <TextBlock Text="{Binding SelectedItem.PlayCount}"
+                                       Foreground="White"
+                                       FontSize="14" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="4" Spacing="3">
+                            <TextBlock Text="{x:Static resources:Strings.Media_PlayTime}"
+                                       Foreground="{Binding ElementName=ThemeRoot,
+                                                            Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                            Converter={StaticResource AccentBrushConverter}}"
+                                       FontSize="11"
+                                       FontWeight="Bold" />
+                            <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
+                                       Foreground="White"
+                                       FontSize="14" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
             </Grid>
 
             <!-- Video/screenshot stage -->

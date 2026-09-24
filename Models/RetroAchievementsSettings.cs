@@ -8,6 +8,8 @@ public sealed class RetroAchievementsSettings
 {
     public bool Enabled { get; set; }
 
+    public bool ShowInBigMode { get; set; } = true;
+
     public string? Username { get; set; }
 
     /// <summary>

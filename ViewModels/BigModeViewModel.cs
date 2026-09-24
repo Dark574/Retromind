@@ -14,6 +14,7 @@ using Retromind.Helpers.Video;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.RetroAchievements;
 
 namespace Retromind.ViewModels;
 
@@ -393,6 +394,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         Theme theme,
         SoundEffectService soundEffectService,
         GamepadService gamepadService,
+        IRetroAchievementsProgressService retroAchievementsProgressService,
+        IRetroAchievementsBadgeService retroAchievementsBadgeService,
         bool parentalFilterActive = false)
     {
         _rootNodes = rootNodes ?? throw new ArgumentNullException(nameof(rootNodes));
@@ -401,6 +404,10 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         _soundEffectService = soundEffectService ?? throw new ArgumentNullException(nameof(soundEffectService));
         _gamepadService = gamepadService ?? throw new ArgumentNullException(nameof(gamepadService));
         _parentalFilterActive = parentalFilterActive;
+        RetroAchievementsProgress = new RetroAchievementsProgressViewModel(
+            _settings,
+            retroAchievementsProgressService,
+            retroAchievementsBadgeService);
 
         // Start at root categories.
         CurrentCategories = BuildVisibleCategories(_rootNodes);

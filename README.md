@@ -558,7 +558,8 @@ respective provider terms of service.
 
 Retromind can identify compatible game files through RetroAchievements and show the configured user's
 achievement progress, badges, points, unlock times, and separate Casual/Hardcore summaries in the desktop
-detail panel.
+detail panel. BigMode themes can additionally provide a compact progress summary; this can be disabled
+independently in the RetroAchievements settings.
 
 Retromind does not unlock achievements itself. Achievement unlocking is handled by a compatible emulator
 with RetroAchievements enabled. Configure the same RetroAchievements account in the emulator if you want
@@ -611,8 +612,9 @@ are supported through the bundled decoder.
 ### 4. View and refresh progress
 
 Select an identified game to see its progress in the right-hand detail panel. The achievement list can be
-expanded to show badges, descriptions, points, unlock state, and unlock time. Retromind refreshes the selected
-game after a normally tracked play session; **Refresh** can also be used manually.
+expanded to show badges, descriptions, points, unlock state, and unlock time. Supported BigMode themes such as
+Prism show a compact Casual/Hardcore summary after the selection has settled. Retromind refreshes the selected
+game after a normally tracked play session; **Refresh** can also be used manually in the desktop view.
 
 Successful progress responses and badge images are cached locally. If RetroAchievements is temporarily
 unavailable, Retromind can display the latest cached progress and marks it as cached data. The cache is stored

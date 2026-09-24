@@ -55,6 +55,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly RetroAchievementsCachePathProvider _retroAchievementsCachePathProvider;
     private readonly IRetroAchievementsGameIdentificationService _retroAchievementsGameIdentificationService;
     private readonly RetroAchievementsBulkIdentificationService _retroAchievementsBulkIdentificationService;
+    private readonly IRetroAchievementsProgressService _retroAchievementsProgressService;
+    private readonly IRetroAchievementsBadgeService _retroAchievementsBadgeService;
 
     // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
     private readonly HttpClient _httpClient;
@@ -132,6 +134,7 @@ public partial class MainWindowViewModel : ViewModelBase
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private int _pendingBigModeEntry;
+    private BigModeViewModel? _activeBigModeViewModel;
 
     // Per-node selection memory for quick return after switching nodes.
     private readonly Dictionary<string, string> _lastSelectedMediaByNodeId = new(StringComparer.Ordinal);
@@ -376,10 +379,12 @@ public partial class MainWindowViewModel : ViewModelBase
         _retroAchievementsCachePathProvider = retroAchievementsCachePathProvider;
         _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService;
         _retroAchievementsBulkIdentificationService = retroAchievementsBulkIdentificationService;
+        _retroAchievementsProgressService = retroAchievementsProgressService;
+        _retroAchievementsBadgeService = retroAchievementsBadgeService;
         RetroAchievementsProgress = new RetroAchievementsProgressViewModel(
             _currentSettings,
-            retroAchievementsProgressService,
-            retroAchievementsBadgeService);
+            _retroAchievementsProgressService,
+            _retroAchievementsBadgeService);
         if (_settingsService.HasLoadFailure)
         {
             SettingsLoadErrorMessage = T(

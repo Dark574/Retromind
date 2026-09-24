@@ -19,6 +19,9 @@ public partial class SettingsViewModel
     private bool _retroAchievementsEnabled;
 
     [ObservableProperty]
+    private bool _retroAchievementsShowInBigMode = true;
+
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(TestRetroAchievementsConnectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     private string _retroAchievementsUsername = string.Empty;
@@ -57,6 +60,10 @@ public partial class SettingsViewModel
     public string RetroAchievementsEnableText => T(
         "Settings_RetroAchievementsEnable",
         "Enable RetroAchievements integration");
+
+    public string RetroAchievementsShowInBigModeText => T(
+        "Settings_RetroAchievementsShowInBigMode",
+        "Show RetroAchievements progress in BigMode");
 
     public string RetroAchievementsUsernameLabel =>
         T("Settings_RetroAchievementsUsername", "Username");
@@ -250,6 +257,7 @@ public partial class SettingsViewModel
             : RetroAchievementsUsername.Trim();
 
         settings.Enabled = RetroAchievementsEnabled;
+        settings.ShowInBigMode = RetroAchievementsShowInBigMode;
         settings.Username = username;
 
         if (!string.IsNullOrWhiteSpace(_verifiedRetroAchievementsUsername) &&

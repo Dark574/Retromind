@@ -17,6 +17,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - new Nintendo Game Boy Advance and Sega Mega Drive system themes
 - new cinematic Prism BigMode theme
 - dynamic artwork-derived accent colors for opt-in BigMode themes
+- RetroAchievements progress summaries in BigMode themes
 - install and update GOG DLCs
 - playtime params are editable
 - available GOG updates can now be checked manually

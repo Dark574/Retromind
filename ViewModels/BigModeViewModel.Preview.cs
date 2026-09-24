@@ -325,6 +325,8 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveMarqueePath));
         RequestActiveBezelRefresh();
         OnPropertyChanged(nameof(ActiveControlPanelPath));
+
+        ScheduleRetroAchievementsProgress(value);
         
         TriggerPreviewPlaybackWithDebounce();
     }
@@ -368,6 +370,8 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveMarqueePath));
         RequestActiveBezelRefresh();
         OnPropertyChanged(nameof(ActiveControlPanelPath));
+
+        ScheduleRetroAchievementsProgress(value ? SelectedItem : null);
         
         TriggerPreviewPlaybackWithDebounce();
     }

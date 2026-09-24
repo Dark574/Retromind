@@ -512,7 +512,49 @@ feature is enabled, preserving compatibility with existing custom glow
 bindings. Themes may also bind `GradientStop.Color` directly to either dynamic
 color property.
 
-### 6.6 Tuning: animations
+### 6.6 RetroAchievements progress
+
+BigMode exposes a selection-specific `RetroAchievementsProgress` view model.
+It is populated only when the integration and its BigMode display option are
+enabled, the selected item has a persisted RetroAchievements identity, and the
+selection has remained stable for 450 ms. Changing the selection clears the
+previous state immediately. Attract Mode does not issue progress requests.
+
+Useful summary bindings are:
+
+- `RetroAchievementsProgress.IsVisible`
+- `RetroAchievementsProgress.IsLoading`
+- `RetroAchievementsProgress.HasProgress`
+- `RetroAchievementsProgress.ProgressValue`
+- `RetroAchievementsProgress.ProgressMaximum`
+- `RetroAchievementsProgress.SummaryText`
+- `RetroAchievementsProgress.HardcoreSummaryText`
+- `RetroAchievementsProgress.ShowStatus`
+- `RetroAchievementsProgress.StatusText`
+
+Themes should hide their complete summary container through `IsVisible` and
+use `HasProgress` for controls that require a loaded snapshot. The host refreshes
+the selected game's progress after a normally tracked play session. Failed
+starts, untracked launcher handoffs, and test launches do not trigger a refresh.
+
+Example:
+
+```xml
+<StackPanel IsVisible="{Binding RetroAchievementsProgress.IsVisible}">
+    <ProgressBar Minimum="0"
+                 Maximum="{Binding RetroAchievementsProgress.ProgressMaximum}"
+                 Value="{Binding RetroAchievementsProgress.ProgressValue}"
+                 IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+    <TextBlock Text="{Binding RetroAchievementsProgress.SummaryText}" />
+    <TextBlock Text="{Binding RetroAchievementsProgress.HardcoreSummaryText}" />
+</StackPanel>
+```
+
+Achievement badge paths remain lazy. A compact theme summary does not download
+badges merely because the user scrolls over a game; the detailed achievement
+view requests them only when it is opened.
+
+### 6.7 Tuning: animations
 
 - `ThemeProperties.FadeDurationMs` (int, default: `200`)
 - `ThemeProperties.MoveDurationMs` (int, default: `160`)
@@ -520,7 +562,7 @@ color property.
 “Snappy” UI: ~120–180ms  
 “Cinematic” UI: ~220–320ms
 
-### 6.7 Tuning: layout
+### 6.8 Tuning: layout
 
 - `ThemeProperties.PanelPadding` (Thickness, default: `20`)
 - `ThemeProperties.HeaderSpacing` (double, default: `10`)
@@ -531,7 +573,7 @@ color property.
 
 Not every theme must use every value; many are intended as shared knobs.
 
-### 6.8 Tuning: typography (TV-friendly defaults)
+### 6.9 Tuning: typography (TV-friendly defaults)
 
 - `ThemeProperties.TitleFontSize` (double, default: `34`)
 - `ThemeProperties.BodyFontSize` (double, default: `18`)
@@ -560,7 +602,7 @@ Example:
 </UserControl>
 ```
 
-### 6.9 Attract Mode (auto-random selection on idle)
+### 6.10 Attract Mode (auto-random selection on idle)
 
 Some BigMode themes (especially arcade-style layouts) may want to automatically
 scroll/select random games after a period of user inactivity — similar to an
@@ -629,7 +671,7 @@ In this example:
 
 ---
 
-### 6.10 Host selection effects for lists (zoom/opacity/glow)
+### 6.11 Host selection effects for lists (zoom/opacity/glow)
 
 By default, the BigMode host applies generic selection effects to all `ListBox`
 instances in the theme:

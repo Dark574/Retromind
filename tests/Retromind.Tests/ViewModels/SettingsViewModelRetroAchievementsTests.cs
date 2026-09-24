@@ -41,6 +41,7 @@ public sealed class SettingsViewModelRetroAchievementsTests
         using var viewModel = CreateViewModel(targetSettings, secretStore, httpClient);
         await viewModel.InitializeRetroAchievementsAsync();
         viewModel.RetroAchievementsEnabled = true;
+        viewModel.RetroAchievementsShowInBigMode = false;
         viewModel.RetroAchievementsUsername = "TestUser";
         viewModel.RetroAchievementsApiKey = "pending-key";
 
@@ -50,6 +51,7 @@ public sealed class SettingsViewModelRetroAchievementsTests
         Assert.Equal(1, secretStore.SetCalls);
         Assert.Equal("pending-key", secretStore.StoredValue);
         Assert.True(targetSettings.RetroAchievements.Enabled);
+        Assert.False(targetSettings.RetroAchievements.ShowInBigMode);
         Assert.Equal("TestUser", targetSettings.RetroAchievements.Username);
         Assert.Equal("01TESTULID", targetSettings.RetroAchievements.UserUlid);
     }

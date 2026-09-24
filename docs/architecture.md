@@ -289,6 +289,10 @@ separate statistics database or persisted aggregate state.
   expanded, use bounded concurrency, and are cancelled when the selected game changes; unavailable images leave
   the remaining achievement card intact. The detailed achievement-card list is collapsed by default, retains its
   state across refreshes of the same game, and collapses again when the selected game changes
+- BigMode owns a separate `RetroAchievementsProgressViewModel` so its selection cannot overwrite desktop detail
+  state. Identified selections are debounced before loading, stale progress is cleared immediately, and Attract
+  Mode never starts progress requests. Themes consume the summary through `BigModeViewModel.RetroAchievementsProgress`;
+  a tracked game session refreshes the active BigMode instance instead of duplicating the desktop refresh
 - `RetroAchievementsBadgeService` downloads the official unlocked and locked achievement PNGs on demand, validates
   their size and PNG signature, and publishes them atomically below `RetroAchievements/Badges`. Concurrent requests
   share a bounded set of synchronization gates, failures do not affect progress data, and the persistent badge cache

@@ -707,6 +707,10 @@
                                                    TextWrapping="Wrap" />
                                         <CheckBox Content="{Binding RetroAchievementsEnableText}"
                                                   IsChecked="{Binding RetroAchievementsEnabled}" />
+                                        <CheckBox Content="{Binding RetroAchievementsShowInBigModeText}"
+                                                  IsChecked="{Binding RetroAchievementsShowInBigMode}"
+                                                  IsEnabled="{Binding RetroAchievementsEnabled}"
+                                                  Margin="20,0,0,0" />
                                         <StackPanel Spacing="5">
                                             <TextBlock Text="{Binding RetroAchievementsUsernameLabel}" FontWeight="Bold" />
                                             <TextBox Text="{Binding RetroAchievementsUsername}"

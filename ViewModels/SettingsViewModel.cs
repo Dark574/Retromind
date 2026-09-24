@@ -801,6 +801,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         var retroAchievementsSettings = _appSettings.RetroAchievements ??= new RetroAchievementsSettings();
         RetroAchievementsEnabled = retroAchievementsSettings.Enabled;
+        RetroAchievementsShowInBigMode = retroAchievementsSettings.ShowInBigMode;
         RetroAchievementsUsername = retroAchievementsSettings.Username ?? string.Empty;
 
         foreach (var emulator in Emulators)

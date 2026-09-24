@@ -933,6 +933,7 @@ The current application settings will be kept.</value></data>
     <data name="Settings_RetroAchievementsSectionTitle" xml:space="preserve"><value>RetroAchievements account</value></data>
     <data name="Settings_RetroAchievementsHint" xml:space="preserve"><value>Connect your RetroAchievements account to show achievement progress for identified games.</value></data>
     <data name="Settings_RetroAchievementsEnable" xml:space="preserve"><value>Enable RetroAchievements integration</value></data>
+    <data name="Settings_RetroAchievementsShowInBigMode" xml:space="preserve"><value>Show RetroAchievements progress in BigMode</value></data>
     <data name="Settings_RetroAchievementsUsername" xml:space="preserve"><value>Username</value></data>
     <data name="Settings_RetroAchievementsApiKey" xml:space="preserve"><value>Web API key</value></data>
     <data name="Settings_RetroAchievementsApiKeyHint" xml:space="preserve"><value>The key is stored in the system keyring when available and never written to Retromind settings or metadata backups. Without an available keyring, it remains available only for the current session. Leave the field empty to keep the stored key.</value></data>

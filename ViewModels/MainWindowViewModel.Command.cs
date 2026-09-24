@@ -424,7 +424,10 @@ public partial class MainWindowViewModel
             initialTheme,
             _soundEffectService,
             _gamepadService,
+            _retroAchievementsProgressService,
+            _retroAchievementsBadgeService,
             IsParentalFilterActive);
+        _activeBigModeViewModel = bigVm;
 
         // Connect launch requests from BigMode to the central Play logic
         bigVm.RequestPlay += async item => await PlayMediaAsync(item);
@@ -492,6 +495,9 @@ public partial class MainWindowViewModel
             {
                 try
                 {
+                    if (ReferenceEquals(_activeBigModeViewModel, bigVm))
+                        _activeBigModeViewModel = null;
+
                     if (themeChangedHandler != null)
                         bigVm.PropertyChanged -= themeChangedHandler;
 
@@ -1078,10 +1084,17 @@ public partial class MainWindowViewModel
             if (recordStatistics &&
                 launchResult.Outcome == LaunchOutcome.Started &&
                 launchResult.WasSessionTracked &&
-                item.RetroAchievementsGame?.GameId > 0 &&
-                ReferenceEquals(GetCurrentSelectedItem(), item))
+                item.RetroAchievementsGame?.GameId > 0)
             {
-                _ = RetroAchievementsProgress.SelectItemAsync(item, forceRefresh: true);
+                var activeBigMode = _activeBigModeViewModel;
+                if (activeBigMode != null && ReferenceEquals(activeBigMode.SelectedItem, item))
+                {
+                    activeBigMode.RefreshRetroAchievementsAfterTrackedSession(item);
+                }
+                else if (ReferenceEquals(GetCurrentSelectedItem(), item))
+                {
+                    _ = RetroAchievementsProgress.SelectItemAsync(item, forceRefresh: true);
+                }
             }
         }
         catch (Exception ex)
