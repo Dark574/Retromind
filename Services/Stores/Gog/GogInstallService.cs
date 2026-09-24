@@ -558,22 +558,7 @@ public sealed class GogInstallService
         if (!root.TryGetProperty("playTasks", out var playTasks) || playTasks.ValueKind != JsonValueKind.Array)
             return Array.Empty<GogPlayTaskInfo>();
 
-        var result = new List<GogPlayTaskInfo>();
-        foreach (var task in playTasks.EnumerateArray())
-        {
-            var path = GetString(task, "path");
-            if (string.IsNullOrWhiteSpace(path))
-                continue;
-
-            var arguments = ParseTaskArguments(task);
-            var workingDir = GetString(task, "workingDir");
-            var isPrimary = task.TryGetProperty("isPrimary", out var isPrimaryElement) &&
-                            isPrimaryElement.ValueKind == JsonValueKind.True;
-
-            result.Add(new GogPlayTaskInfo(path, arguments, workingDir, isPrimary));
-        }
-
-        return result;
+        return GogPlayTaskParser.Parse(playTasks);
     }
 
     private async Task<string?> ResolveDownlinkAsync(string downlinkEndpoint, string accessToken, CancellationToken ct)
@@ -970,48 +955,6 @@ public sealed class GogInstallService
         }
 
         return files[0];
-    }
-
-    private static string? ParseTaskArguments(JsonElement task)
-    {
-        if (!task.TryGetProperty("arguments", out var args))
-            return null;
-
-        if (args.ValueKind == JsonValueKind.String)
-            return args.GetString();
-
-        if (args.ValueKind != JsonValueKind.Array)
-            return null;
-
-        var builder = new StringBuilder();
-        foreach (var value in args.EnumerateArray())
-        {
-            if (value.ValueKind != JsonValueKind.String)
-                continue;
-
-            var arg = value.GetString();
-            if (string.IsNullOrWhiteSpace(arg))
-                continue;
-
-            if (builder.Length > 0)
-                builder.Append(' ');
-
-            builder.Append(QuoteArgumentIfNeeded(arg));
-        }
-
-        return builder.Length == 0 ? null : builder.ToString();
-    }
-
-    private static string QuoteArgumentIfNeeded(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return value;
-
-        if (value.IndexOfAny(new[] { ' ', '\t', '"' }) < 0)
-            return value;
-
-        var escaped = value.Replace("\"", "\\\"", StringComparison.Ordinal);
-        return $"\"{escaped}\"";
     }
 
     private static string ResolveFileName(string downloadUrl, string fallback)

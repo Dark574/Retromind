@@ -2245,7 +2245,7 @@ public partial class MainWindowViewModel
         foreach (var argument in startInfo.ArgumentList)
         {
             builder.Append(' ');
-            builder.Append(QuoteArgumentIfNeeded(argument));
+            builder.Append(GogPlayTaskParser.QuoteArgumentIfNeeded(argument));
         }
 
         return builder.ToString();
@@ -2842,10 +2842,11 @@ public partial class MainWindowViewModel
             if (!root.TryGetProperty("playTasks", out var playTasks) || playTasks.ValueKind != JsonValueKind.Array)
                 return null;
 
-            if (!TryGetPrimaryPlayTask(playTasks, out var task))
+            var task = GogPlayTaskParser.SelectPrimary(GogPlayTaskParser.Parse(playTasks));
+            if (task == null)
                 return null;
 
-            var relativeExecutable = GetJsonString(task, "path");
+            var relativeExecutable = task.Path;
             if (string.IsNullOrWhiteSpace(relativeExecutable))
                 return null;
 
@@ -2862,10 +2863,13 @@ public partial class MainWindowViewModel
             }
 
             var executablePath = ResolveExecutablePath(installRoot, relativeExecutable, platform);
-            var launchArgs = ParseTaskArguments(task);
-            var workingDirectory = ResolveWorkingDirectory(installRoot, GetJsonString(task, "workingDir"));
+            var workingDirectory = ResolveWorkingDirectory(installRoot, task.WorkingDirectory);
 
-            return (rootGameId, new DetectedGogLaunchInfo(executablePath, launchArgs, workingDirectory, installRoot));
+            return (rootGameId, new DetectedGogLaunchInfo(
+                executablePath,
+                task.Arguments,
+                workingDirectory,
+                installRoot));
         }
         catch
         {
@@ -3029,70 +3033,6 @@ public partial class MainWindowViewModel
         return char.IsLetter(path[0]) &&
                path[1] == ':' &&
                (path[2] == '\\' || path[2] == '/');
-    }
-
-    private static bool TryGetPrimaryPlayTask(JsonElement playTasks, out JsonElement task)
-    {
-        task = default;
-
-        foreach (var candidate in playTasks.EnumerateArray())
-        {
-            if (candidate.TryGetProperty("isPrimary", out var isPrimary) && isPrimary.ValueKind == JsonValueKind.True)
-            {
-                task = candidate;
-                return true;
-            }
-        }
-
-        foreach (var candidate in playTasks.EnumerateArray())
-        {
-            task = candidate;
-            return true;
-        }
-
-        return false;
-    }
-
-    private static string? ParseTaskArguments(JsonElement task)
-    {
-        if (!task.TryGetProperty("arguments", out var args))
-            return null;
-
-        if (args.ValueKind == JsonValueKind.String)
-            return args.GetString();
-
-        if (args.ValueKind != JsonValueKind.Array)
-            return null;
-
-        var parts = new List<string>();
-        foreach (var value in args.EnumerateArray())
-        {
-            if (value.ValueKind != JsonValueKind.String)
-                continue;
-
-            var arg = value.GetString();
-            if (string.IsNullOrWhiteSpace(arg))
-                continue;
-
-            parts.Add(QuoteArgumentIfNeeded(arg));
-        }
-
-        if (parts.Count == 0)
-            return null;
-
-        return string.Join(' ', parts);
-    }
-
-    private static string QuoteArgumentIfNeeded(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return value;
-
-        if (value.IndexOfAny(new[] { ' ', '\t', '"' }) < 0)
-            return value;
-
-        var escaped = value.Replace("\"", "\\\"", StringComparison.Ordinal);
-        return $"\"{escaped}\"";
     }
 
     private static string? GetJsonString(JsonElement element, string propertyName)
