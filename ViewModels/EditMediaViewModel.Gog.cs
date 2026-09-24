@@ -135,6 +135,7 @@ public partial class EditMediaViewModel
         owner != null &&
         _gogCheckUpdates != null &&
         ShowGogCheckUpdatesAction &&
+        !GogMediaItemStateHelper.HasAnyUpdateAvailable(_originalItem) &&
         !IsGogOperationRunning;
 
     private async Task RunGogUpdateCheckAsync(Window? owner)

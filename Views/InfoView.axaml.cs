@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
@@ -7,6 +8,15 @@ namespace Retromind.Views;
 
 public partial class InfoView : Window
 {
+    public static readonly StyledProperty<bool> ShowCopyButtonProperty =
+        AvaloniaProperty.Register<InfoView, bool>(nameof(ShowCopyButton), true);
+
+    public bool ShowCopyButton
+    {
+        get => GetValue(ShowCopyButtonProperty);
+        set => SetValue(ShowCopyButtonProperty, value);
+    }
+
     public InfoView()
     {
         InitializeComponent();

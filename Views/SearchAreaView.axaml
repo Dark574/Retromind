@@ -369,7 +369,7 @@
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogCheckUpdatesMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CheckGogUpdatesCommand}"
                                                       CommandParameter="{Binding .}"
-                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUpdateCheckMenuVisible}}" />
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUpdateMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UpdateGogCommand}"
                                                       CommandParameter="{Binding .}"

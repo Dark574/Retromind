@@ -135,6 +135,17 @@ public static class ObjectConverters
         });
 
     /// <summary>
+    /// Returns true for installed GOG items whose update state does not already
+    /// contain an available main-game or DLC update.
+    /// </summary>
+    public static readonly IValueConverter GogUpdateCheckMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+        {
+            return GogMediaItemStateHelper.IsInstalled(item) &&
+                   !GogMediaItemStateHelper.HasAnyUpdateAvailable(item);
+        });
+
+    /// <summary>
     /// Returns true only for installed GOG-linked media items.
     /// Used to show/hide the "Uninstall" context-menu entry.
     /// </summary>

@@ -151,7 +151,8 @@ public partial class MainWindowViewModel
         if (item == null || IsLaunchInProgress)
             return false;
 
-        return GogMediaItemStateHelper.IsInstalled(item);
+        return GogMediaItemStateHelper.IsInstalled(item) &&
+               !GogMediaItemStateHelper.HasAnyUpdateAvailable(item);
     }
 
     private static bool ShouldOfferGogUpdateForItem(MediaItem? item) =>
@@ -200,7 +201,7 @@ public partial class MainWindowViewModel
                 T("Gog.Update.CheckFailed", "The GOG update check failed.")
         };
 
-        await ShowInfoDialog(owner, message).ConfigureAwait(false);
+        await ShowInfoDialog(owner, message, showCopyButton: false).ConfigureAwait(false);
     }
 
     private async Task<GogUpdateResult> CheckGogUpdatesForItemCoreAsync(

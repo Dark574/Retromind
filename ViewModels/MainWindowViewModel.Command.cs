@@ -1323,11 +1323,15 @@ public partial class MainWindowViewModel
         return result;
     }
 
-    private async Task ShowInfoDialog(Window owner, string message)
+    private async Task ShowInfoDialog(Window owner, string message, bool showCopyButton = true)
     {
         await UiThreadHelper.InvokeAsync(async () =>
         {
-            var dialog = new InfoView { DataContext = message };
+            var dialog = new InfoView
+            {
+                DataContext = message,
+                ShowCopyButton = showCopyButton
+            };
             await dialog.ShowDialog<bool>(owner);
         });
     }
