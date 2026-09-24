@@ -133,6 +133,10 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public ObservableCollection<RunnerVersionSelectionOption> SelectedEmulatorRunnerVersionOptions { get; } = new();
     public ObservableCollection<RunnerVersionSelectionOption> RunnerReplacementOptions { get; } = new();
     public ObservableCollection<GeProtonReleaseOption> GeProtonReleases { get; } = new();
+    public ObservableCollection<string> AvailableRootBigModeThemes { get; } = new();
+
+    [ObservableProperty]
+    private string? _selectedRootBigModeTheme;
 
     /// <summary>
     /// Controls whether newly selected launch file paths are stored as portable
@@ -404,6 +408,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string ShowStoreBadgesHint => T(
         "Settings_ShowStoreBadges_Hint",
         "Shows GOG, Steam, and Epic labels on recognized store games.");
+    public string RootBigModeThemeText => T(
+        "Settings_RootBigModeTheme",
+        "BigMode theme for the main level");
+    public string RootBigModeThemeHint => T(
+        "Settings_RootBigModeTheme_Hint",
+        "Controls the top-level category view only. Main categories keep their own themes.");
     public string IgnoreLeadingArticlesInSortText =>
         T("Settings_IgnoreLeadingArticlesInSort", "Ignore leading articles in title sorting");
     public string IgnoreLeadingArticlesInSortHint =>
@@ -692,6 +702,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _originalIgnoreLeadingArticlesInSort = _targetSettings.IgnoreLeadingArticlesInSort;
 
         MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(_appSettings.IgnoreLeadingArticlesInSort);
+        LoadAvailableRootBigModeThemes();
+        SelectedRootBigModeTheme = ResolveRootBigModeThemeSelection(_appSettings.RootBigModeThemePath);
 
         // Load existing emulators
         foreach (var emu in _appSettings.Emulators) 
@@ -952,6 +964,30 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         return clone;
+    }
+
+    private void LoadAvailableRootBigModeThemes()
+    {
+        AvailableRootBigModeThemes.Clear();
+        foreach (var themePath in ThemeDiscovery.GetAvailableThemePaths())
+            AvailableRootBigModeThemes.Add(themePath);
+    }
+
+    private string? ResolveRootBigModeThemeSelection(string? configuredPath)
+    {
+        var selected = AvailableRootBigModeThemes.FirstOrDefault(path =>
+            string.Equals(path, configuredPath, StringComparison.OrdinalIgnoreCase));
+        if (selected != null)
+            return selected;
+
+        return AvailableRootBigModeThemes.FirstOrDefault(path =>
+            string.Equals(path, "Default/theme.axaml", StringComparison.OrdinalIgnoreCase));
+    }
+
+    partial void OnSelectedRootBigModeThemeChanged(string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+            _appSettings.RootBigModeThemePath = value;
     }
 
     partial void OnIsGeReleaseBusyChanged(bool value)

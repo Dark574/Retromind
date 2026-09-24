@@ -457,6 +457,8 @@ This action cannot be undone.</value></data>
     <data name="Settings_SectionAppearance" xml:space="preserve"><value>Appearance</value></data>
     <data name="Settings_ShowStoreBadges" xml:space="preserve"><value>Show store labels on game covers</value></data>
     <data name="Settings_ShowStoreBadges_Hint" xml:space="preserve"><value>Shows GOG, Steam, and Epic labels on recognized store games.</value></data>
+    <data name="Settings_RootBigModeTheme" xml:space="preserve"><value>BigMode theme for the main level</value></data>
+    <data name="Settings_RootBigModeTheme_Hint" xml:space="preserve"><value>Controls the top-level category view only. Main categories keep their own themes.</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Choose which data is copied from scraper results. Not every provider supplies every field.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Default for existing metadata</value></data>

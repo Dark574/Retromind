@@ -11,10 +11,10 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Added
 - make shortcut creation optional for GOG Wine/Proton installation
+- configurable BigMode theme for the virtual library root
 - RetroAchievments for supported systems
 - added store badges on Game Covers
 - new Nintendo Game Boy Advance and Sega Mega Drive system themes
-- new Sega Mega Drive system theme
 - install and update GOG DLCs
 - playtime params are editable
 - available GOG updates can now be checked manually

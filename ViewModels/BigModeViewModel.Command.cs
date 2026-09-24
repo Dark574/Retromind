@@ -412,8 +412,8 @@ public partial class BigModeViewModel
                 ? leafNode
                 : CurrentCategories.FirstOrDefault();
 
-            // Theme context = current folder (peek) or selected root.
-            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : SelectedCategory;
+            // Root presentation is configured separately from top-level nodes.
+            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
 
             TriggerPreviewPlaybackWithDebounce();
 
@@ -442,7 +442,7 @@ public partial class BigModeViewModel
 
             SelectedCategory = CurrentCategories.FirstOrDefault();
 
-            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : SelectedCategory;
+            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
 
             TriggerPreviewPlaybackWithDebounce();
             return;

@@ -884,31 +884,8 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private void LoadAvailableThemes()
     {
         AvailableThemes.Clear();
-
-        try
-        {
-            var themesRoot = AppPaths.ThemesRoot;
-            if (!Directory.Exists(themesRoot))
-                return;
-
-            // Example layout: Themes/Wheel/theme.axaml, Themes/Default/theme.axaml
-            var themePaths = Directory.EnumerateDirectories(themesRoot)
-                .Select(dir => new
-                {
-                    Name = Path.GetFileName(dir),
-                    ThemeFile = Path.Combine(dir, "theme.axaml")
-                })
-                .Where(x => File.Exists(x.ThemeFile))
-                .Select(x => $"{x.Name}/theme.axaml")
-                .OrderBy(path => path, StringComparer.CurrentCultureIgnoreCase);
-
-            foreach (var themePath in themePaths)
-                AvailableThemes.Add(themePath);
-        }
-        catch
-        {
-            // Best-effort: if scanning fails (permissions, IO errors), keep the list empty.
-        }
+        foreach (var themePath in ThemeDiscovery.GetAvailableThemePaths())
+            AvailableThemes.Add(themePath);
     }
 
     private static string? ResolvePreviewPath(string? path)

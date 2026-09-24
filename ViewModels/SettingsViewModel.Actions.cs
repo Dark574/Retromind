@@ -296,6 +296,7 @@ public partial class SettingsViewModel
         _targetSettings.EnableSelectionMusicPreview = committed.EnableSelectionMusicPreview;
         _targetSettings.IgnoreLeadingArticlesInSort = committed.IgnoreLeadingArticlesInSort;
         _targetSettings.ShowStoreBadges = committed.ShowStoreBadges;
+        _targetSettings.RootBigModeThemePath = committed.RootBigModeThemePath;
         _targetSettings.EnableAutomaticMetadataBackups = committed.EnableAutomaticMetadataBackups;
         _targetSettings.BackupBeforeBulkEdit = committed.BackupBeforeBulkEdit;
         _targetSettings.BackupBeforeBulkScrape = committed.BackupBeforeBulkScrape;

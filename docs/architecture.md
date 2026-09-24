@@ -190,6 +190,8 @@ BigMode is an overlay workflow with clear host/VM split:
 
 ### ViewModel (`BigModeViewModel`)
 - navigation state (categories/items), selection memory, and robust restore from persisted settings
+- the virtual library root uses `AppSettings.RootBigModeThemePath`; its selected top-level node remains
+  preview content only, so the root theme is never inherited into that node
 - node-aware artwork resolution and fallback overrides (logo/marquee etc.)
 - dual preview surfaces with crossfade and defensive playback sequencing; presentation state avoids stale
   frames and unnecessary restarts when multiple items share the same node fallback video

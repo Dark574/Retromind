@@ -3,6 +3,7 @@
         xmlns:vm="clr-namespace:Retromind.ViewModels"
         xmlns:p="clr-namespace:Retromind.Resources"
         xmlns:models="clr-namespace:Retromind.Models"
+        xmlns:helpers="clr-namespace:Retromind.Helpers"
         x:Class="Retromind.Views.SettingsView"
         x:DataType="vm:SettingsViewModel"
         Title="{x:Static p:Strings.Settings_Title}"
@@ -73,6 +74,22 @@
                                 <CheckBox Content="{Binding ShowStoreBadgesText}"
                                           IsChecked="{Binding ShowStoreBadges}"
                                           ToolTip.Tip="{Binding ShowStoreBadgesHint}" />
+                                <StackPanel Spacing="4" Margin="0,6,0,0">
+                                    <TextBlock Text="{Binding RootBigModeThemeText}"
+                                               FontWeight="SemiBold" />
+                                    <ComboBox ItemsSource="{Binding AvailableRootBigModeThemes}"
+                                              SelectedItem="{Binding SelectedRootBigModeTheme}"
+                                              HorizontalAlignment="Stretch">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Converter={x:Static helpers:StringConverters.ThemePathToFolderName}}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock Text="{Binding RootBigModeThemeHint}"
+                                               Opacity="0.65"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 

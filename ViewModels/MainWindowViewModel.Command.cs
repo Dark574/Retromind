@@ -413,7 +413,9 @@ public partial class MainWindowViewModel
             }
         }
         
-        var initialThemePath = GetEffectiveThemePath(SelectedNode);
+        // BigMode starts on its virtual root. That level has its own presentation
+        // setting and must not borrow the selected top-level node's theme.
+        var initialThemePath = GetEffectiveThemePath(null);
         var initialTheme = ThemeLoader.LoadTheme(initialThemePath);
 
         var bigVm = new BigModeViewModel(
@@ -825,9 +827,10 @@ public partial class MainWindowViewModel
     private const string ThemeFileName = "theme.axaml";
 
     /// <summary>
-    /// Resolves the effective theme file path for a given node:
-    /// searches upwards (node -> parents) for the first ThemePath assignment,
-    /// otherwise returns the default theme.
+    /// Resolves the effective theme file path for a navigation context. A null
+    /// context represents the virtual library root and uses its dedicated setting.
+    /// Node contexts search upwards (node -> parents) for the first ThemePath
+    /// assignment, otherwise returning the default theme.
     /// 
     /// Special case: the System Host theme ("System/theme.axaml") is only applied
     /// to the node on which it is explicitly set and is not inherited by child
@@ -837,6 +840,19 @@ public partial class MainWindowViewModel
     /// </summary>
     private string GetEffectiveThemePath(MediaNode? startNode)
     {
+        if (startNode == null)
+        {
+            var rootThemePath = _currentSettings.RootBigModeThemePath;
+            if (!string.IsNullOrWhiteSpace(rootThemePath))
+            {
+                var rootThemeFullPath = Path.GetFullPath(Path.Combine(AppPaths.ThemesRoot, rootThemePath));
+                if (File.Exists(rootThemeFullPath))
+                    return rootThemeFullPath;
+
+                Debug.WriteLine($"[Theme] Assigned root theme file not found: '{rootThemeFullPath}'.");
+            }
+        }
+
         if (startNode != null)
         {
             // Find the chain from root to the node and search bottom-up for an assigned theme.

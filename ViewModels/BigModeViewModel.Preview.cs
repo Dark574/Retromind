@@ -339,10 +339,6 @@ public partial class BigModeViewModel
             SelectedCategoryIndex = CurrentCategories.IndexOf(value);
         }
 
-        // Root menu: keep theme context synced with the selected root node.
-        if (!IsGameListActive && _navigationPath.Count == 0)
-            ThemeContextNode = value;
-
         // Stop preview only when the target video actually changes.
         var targetVideoPath = ResolvePreviewVideoPath();
         StopVideoIfPreviewPathChanged(targetVideoPath);

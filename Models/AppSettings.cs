@@ -83,6 +83,12 @@ public class AppSettings
     public bool ShowStoreBadges { get; set; } = true;
 
     /// <summary>
+    /// BigMode theme used for the virtual library root. Unlike node themes,
+    /// this setting is not inherited by top-level nodes.
+    /// </summary>
+    public string RootBigModeThemePath { get; set; } = "Default/theme.axaml";
+
+    /// <summary>
     /// Master switch for event-driven metadata backups. Manual backups remain available.
     /// </summary>
     public bool EnableAutomaticMetadataBackups { get; set; } = true;

@@ -458,6 +458,8 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_SectionAppearance" xml:space="preserve"><value>Darstellung</value></data>
     <data name="Settings_ShowStoreBadges" xml:space="preserve"><value>Store-Marken auf Spielecovern anzeigen</value></data>
     <data name="Settings_ShowStoreBadges_Hint" xml:space="preserve"><value>Zeigt GOG-, Steam- und Epic-Marken auf erkannten Store-Spielen an.</value></data>
+    <data name="Settings_RootBigModeTheme" xml:space="preserve"><value>BigMode-Theme der Hauptebene</value></data>
+    <data name="Settings_RootBigModeTheme_Hint" xml:space="preserve"><value>Gilt nur für die oberste Kategorieansicht. Die Hauptkategorien behalten ihre eigenen Themes.</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper-Import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Lege fest, welche Daten aus Scraper-Treffern übernommen werden. Nicht jeder Anbieter liefert alle aufgeführten Inhalte.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Voreinstellung für vorhandene Metadaten</value></data>
