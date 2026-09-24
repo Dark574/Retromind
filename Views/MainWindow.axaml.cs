@@ -427,13 +427,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_draggedNode == null)
-        {
-            e.DragEffects = DragDropEffects.None;
-            ClearDropIndicator();
-            return;
-        }
-
         var sourceNode = _draggedNode;
         if (sourceNode == null || ReferenceEquals(sourceNode, targetNode))
         {
@@ -482,9 +475,6 @@ public partial class MainWindow : Window
             e.Handled = true;
             return;
         }
-
-        if (_draggedNode == null)
-            return;
 
         var sourceNode = _draggedNode;
         if (sourceNode == null || ReferenceEquals(sourceNode, targetNode))

@@ -260,7 +260,7 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
                         ?? boxartBase?["medium"]?.ToString()
                         ?? string.Empty;
 
-        return preferred?.TrimEnd('/') ?? string.Empty;
+        return preferred.TrimEnd('/');
     }
 
     private static string? SelectBoxartUrl(JsonArray array, string baseUrl, Func<JsonNode, bool> predicate)
