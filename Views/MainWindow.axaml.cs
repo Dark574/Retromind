@@ -10,6 +10,7 @@ using Avalonia.VisualTree;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
+using Retromind.Services;
 using Retromind.Views;
 using Retromind.ViewModels;
 
@@ -696,30 +697,55 @@ public partial class MainWindow : Window
             switch (e.Key)
             {
                 case Key.Up:
-                    bigVm.NotifyKeyboardScrollStart();
-                    bigVm.SelectPreviousCommand.Execute(null);
+                    if (bigVm.IsAchievementsOverlayOpen)
+                        bigVm.NavigateAchievementsOverlay(GamepadService.GamepadDirection.Up);
+                    else
+                    {
+                        bigVm.NotifyKeyboardScrollStart();
+                        bigVm.SelectPreviousCommand.Execute(null);
+                    }
                     e.Handled = true;
                     break;
                 case Key.Down:
-                    bigVm.NotifyKeyboardScrollStart();
-                    bigVm.SelectNextCommand.Execute(null);
+                    if (bigVm.IsAchievementsOverlayOpen)
+                        bigVm.NavigateAchievementsOverlay(GamepadService.GamepadDirection.Down);
+                    else
+                    {
+                        bigVm.NotifyKeyboardScrollStart();
+                        bigVm.SelectNextCommand.Execute(null);
+                    }
+                    e.Handled = true;
+                    break;
+                case Key.Left when bigVm.IsAchievementsOverlayOpen:
+                    bigVm.NavigateAchievementsOverlay(GamepadService.GamepadDirection.Left);
+                    e.Handled = true;
+                    break;
+                case Key.Right when bigVm.IsAchievementsOverlayOpen:
+                    bigVm.NavigateAchievementsOverlay(GamepadService.GamepadDirection.Right);
                     e.Handled = true;
                     break;
                 case Key.Enter:
-                    bigVm.PlayCurrentCommand.Execute(null);
+                    if (!bigVm.IsAchievementsOverlayOpen)
+                        bigVm.PlayCurrentCommand.Execute(null);
                     e.Handled = true;
                     break;
                 case Key.Space:
-                    bigVm.PlayCurrentCommand.Execute(null);
+                    if (!bigVm.IsAchievementsOverlayOpen)
+                        bigVm.PlayCurrentCommand.Execute(null);
+                    e.Handled = true;
+                    break;
+                case Key.I when e.KeyModifiers == KeyModifiers.None:
+                    bigVm.ToggleAchievementsOverlay();
                     e.Handled = true;
                     break;
                 case Key.Escape:
-                    // ESC: always exit BigMode completely.
-                    bigVm.HardExitBigModeCommand.Execute(null);
+                    if (!bigVm.CloseAchievementsOverlay())
+                        bigVm.HardExitBigModeCommand.Execute(null);
                     e.Handled = true;
                     break;
                 case Key.Back:
-                    bigVm.ExitBigModeCommand.Execute(null);
+                    if (!bigVm.CloseAchievementsOverlay())
+                        bigVm.ExitBigModeCommand.Execute(null);
                     e.Handled = true;
                     break;
             }
@@ -750,8 +776,14 @@ public partial class MainWindow : Window
         {
             case Key.Up:
             case Key.Down:
-                bigVm.NotifyKeyboardScrollEnd();
+                if (!bigVm.IsAchievementsOverlayOpen)
+                    bigVm.NotifyKeyboardScrollEnd();
                 e.Handled = true;
+                break;
+            case Key.Left:
+            case Key.Right:
+                if (bigVm.IsAchievementsOverlayOpen)
+                    e.Handled = true;
                 break;
         }
     }

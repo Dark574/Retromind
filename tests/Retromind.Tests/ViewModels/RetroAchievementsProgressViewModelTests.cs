@@ -170,6 +170,41 @@ public sealed class RetroAchievementsProgressViewModelTests
     }
 
     [Fact]
+    public async Task ExplicitBadgeLoadSupportsBigModeWithoutExpandingDesktopList()
+    {
+        var badgeRequested = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseBadge = new TaskCompletionSource<string?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var achievement = new RetroAchievementsAchievement
+        {
+            AchievementId = 10,
+            Title = "Achievement",
+            BadgeName = "10010"
+        };
+        using var viewModel = CreateViewModel(
+            (gameId, forceRefresh, cancellationToken) =>
+                Task.FromResult(CreateSnapshot(gameId, achievements: [achievement])),
+            async (badgeName, isUnlocked, cancellationToken) =>
+            {
+                badgeRequested.SetResult(true);
+                return await releaseBadge.Task.WaitAsync(cancellationToken);
+            });
+
+        await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 123));
+        viewModel.EnsureAchievementBadgesLoaded();
+        await badgeRequested.Task;
+
+        Assert.True(viewModel.IsBadgeLoading);
+        Assert.False(viewModel.IsAchievementsExpanded);
+
+        releaseBadge.SetResult("/cache/10010.png");
+        await WaitUntilAsync(() => !viewModel.IsBadgeLoading);
+
+        Assert.Equal("/cache/10010.png", viewModel.AchievementItems.Single().BadgePath);
+    }
+
+    [Fact]
     public async Task SelectItemAsync_BadgeFailureDoesNotDiscardAchievementData()
     {
         var achievement = new RetroAchievementsAchievement

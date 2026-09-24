@@ -29,7 +29,8 @@ public partial class BigModeViewModel
                 if (_gamepadRepeatDirection == direction && _gamepadRepeatTimer?.IsEnabled == true)
                     return;
 
-                SuspendPreviewForScroll();
+                if (!IsAchievementsOverlayOpen)
+                    SuspendPreviewForScroll();
                 NavigateForDirection(direction, playSound: true);
                 StartGamepadRepeat(direction);
                 return;
@@ -42,6 +43,10 @@ public partial class BigModeViewModel
         => DispatchGamepadAction(() =>
         {
             ResetAttractIdleTimer();
+
+            if (IsAchievementsOverlayOpen)
+                return;
+
             PlaySound(_theme.Sounds.Confirm);
             _ = PlayCurrent();
         });
@@ -50,8 +55,22 @@ public partial class BigModeViewModel
         => DispatchGamepadAction(() =>
         {
             ResetAttractIdleTimer();
+
+            if (CloseAchievementsOverlay())
+            {
+                PlaySound(_theme.Sounds.Cancel);
+                return;
+            }
+
             PlaySound(_theme.Sounds.Cancel);
             ExitBigMode();
+        });
+
+    private void OnGamepadDetails()
+        => DispatchGamepadAction(() =>
+        {
+            ResetAttractIdleTimer();
+            ToggleAchievementsOverlay();
         });
 
     /// <summary>
@@ -124,7 +143,8 @@ public partial class BigModeViewModel
             return;
 
         StopGamepadRepeatTimer();
-        ResumePreviewAfterScroll();
+        if (!IsAchievementsOverlayOpen)
+            ResumePreviewAfterScroll();
     }
 
     private void StopGamepadRepeatTimer()
@@ -200,6 +220,12 @@ public partial class BigModeViewModel
 
         if (playSound)
             PlaySound(_theme.Sounds.Navigate);
+
+        if (IsAchievementsOverlayOpen)
+        {
+            NavigateAchievementsOverlay(direction);
+            return;
+        }
 
         switch (direction)
         {

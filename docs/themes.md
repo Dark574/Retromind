@@ -537,6 +537,14 @@ use `HasProgress` for controls that require a loaded snapshot. The host refreshe
 the selected game's progress after a normally tracked play session. Failed
 starts, untracked launcher handoffs, and test launches do not trigger a refresh.
 
+The full achievement browser is owned by `BigModeHostView`, not by the active
+theme. As soon as the selected game exposes achievements, the host displays the
+shared `X / Square` hint and opens the browser through that button (`I` on the
+keyboard). Themes should therefore provide only an optional compact summary and
+must not duplicate the detailed badge grid. While the browser is open, the host
+routes directional input to the badge grid and reserves `X / Square`, `B / Circle`,
+and `Esc` for closing it.
+
 Example:
 
 ```xml
@@ -551,8 +559,11 @@ Example:
 ```
 
 Achievement badge paths remain lazy. A compact theme summary does not download
-badges merely because the user scrolls over a game; the detailed achievement
-view requests them only when it is opened.
+badges merely because the user scrolls over a game; the host-owned detailed
+achievement browser requests them only when it is opened. Its relevant host
+state is exposed as `CanOpenAchievementsOverlay`, `IsAchievementsOverlayOpen`,
+and `SelectedAchievement`, but themes normally do not need to bind these
+properties themselves.
 
 ### 6.7 Tuning: animations
 

@@ -352,6 +352,7 @@ public partial class BigModeViewModel
         _gamepadService.OnDirectionStateChanged -= OnGamepadDirectionStateChanged;
         _gamepadService.OnSelect -= OnGamepadSelect;
         _gamepadService.OnBack -= OnGamepadBack;
+        _gamepadService.OnDetails -= OnGamepadDetails;
         DisposeRetroAchievementsProgress();
 
         _videoSurfaceA.FrameReady -= OnMainVideoFrameReadyA;

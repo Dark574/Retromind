@@ -1,11 +1,217 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
+             xmlns:helpers="using:Retromind.Helpers"
              x:Class="Retromind.Views.BigModeHostView"
              x:DataType="vm:BigModeViewModel">
 
+    <UserControl.Styles>
+        <Style Selector="ListBox.ra-achievement-grid">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox.ra-achievement-grid ListBoxItem">
+            <Setter Property="Width" Value="126" />
+            <Setter Property="Height" Value="150" />
+            <Setter Property="Margin" Value="5" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="Background" Value="#44161C28" />
+            <Setter Property="BorderBrush" Value="#35FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.ra-achievement-grid ListBoxItem:selected">
+            <Setter Property="Background" Value="#60305E91" />
+            <Setter Property="BorderBrush" Value="#7BA3FF" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid>
         <!-- The theme is being loaded/replaced here -->
-        <ContentPresenter x:Name="ThemePresenter"/>
+        <ContentPresenter x:Name="ThemePresenter" />
+
+        <!-- Host-owned hint: every theme gets the same controller entry point. -->
+        <Border HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Margin="0,0,34,28"
+                Padding="12,7"
+                Background="#C0181D27"
+                BorderBrush="#447BA3FF"
+                BorderThickness="1"
+                CornerRadius="8"
+                IsHitTestVisible="False"
+                IsVisible="{Binding CanOpenAchievementsOverlay}">
+            <TextBlock Text="{Binding AchievementsOverlayHintText}"
+                       Foreground="#E4ECF8"
+                       FontSize="12"
+                       FontWeight="SemiBold" />
+        </Border>
+
+        <!-- Theme-independent RetroAchievements detail overlay. -->
+        <Grid Background="#E6070910"
+              IsVisible="{Binding IsAchievementsOverlayOpen}">
+            <Border Margin="72,58"
+                    MaxWidth="1540"
+                    MaxHeight="900"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center"
+                    Background="#F20F141E"
+                    BorderBrush="#667BA3FF"
+                    BorderThickness="1"
+                    CornerRadius="18"
+                    Padding="28">
+                <Grid RowDefinitions="Auto,*,Auto"
+                      RowSpacing="20">
+                    <Grid Grid.Row="0"
+                          ColumnDefinitions="*,Auto"
+                          ColumnSpacing="24">
+                        <StackPanel Grid.Column="0" Spacing="7">
+                            <TextBlock Text="{Binding AchievementsOverlayTitle}"
+                                       Foreground="White"
+                                       FontSize="30"
+                                       FontWeight="Bold" />
+                            <TextBlock Text="{Binding SelectedItem.Title}"
+                                       Foreground="#BFCBE0"
+                                       FontSize="17"
+                                       TextTrimming="CharacterEllipsis" />
+                            <ProgressBar Minimum="0"
+                                         Maximum="{Binding RetroAchievementsProgress.ProgressMaximum}"
+                                         Value="{Binding RetroAchievementsProgress.ProgressValue}"
+                                         Width="560"
+                                         Height="7"
+                                         HorizontalAlignment="Left"
+                                         Foreground="#7BA3FF" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Spacing="5">
+                            <TextBlock Text="{Binding RetroAchievementsProgress.SummaryText}"
+                                       Foreground="White"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Right" />
+                            <TextBlock Text="{Binding RetroAchievementsProgress.HardcoreSummaryText}"
+                                       Foreground="#AFC2DD"
+                                       FontSize="13"
+                                       HorizontalAlignment="Right" />
+                            <ProgressBar IsIndeterminate="True"
+                                         Width="170"
+                                         Height="4"
+                                         HorizontalAlignment="Right"
+                                         IsVisible="{Binding RetroAchievementsProgress.IsBadgeLoading}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="1"
+                          ColumnDefinitions="850,*"
+                          ColumnSpacing="26"
+                          MinHeight="470">
+                        <ListBox Grid.Column="0"
+                                 Classes="ra-achievement-grid"
+                                 ItemsSource="{Binding RetroAchievementsProgress.AchievementItems}"
+                                 SelectedItem="{Binding SelectedAchievement, Mode=TwoWay}"
+                                 helpers:ListBoxBehaviors.CenterSelectedItem="True"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"
+                                               ItemWidth="136"
+                                               ItemHeight="160" />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RetroAchievementsAchievementItemViewModel">
+                                    <StackPanel Spacing="7"
+                                                Opacity="{Binding VisualOpacity}">
+                                        <Border Width="86"
+                                                Height="86"
+                                                HorizontalAlignment="Center"
+                                                Background="#8010141D"
+                                                CornerRadius="7"
+                                                ClipToBounds="True">
+                                            <Image helpers:AsyncImageHelper.Url="{Binding BadgePath}"
+                                                   helpers:AsyncImageHelper.DecodeWidth="172"
+                                                   Stretch="Uniform" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Title}"
+                                                   Foreground="White"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   TextAlignment="Center"
+                                                   TextWrapping="Wrap"
+                                                   MaxLines="2"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <Border Grid.Column="1"
+                                Background="#8A171D28"
+                                BorderBrush="#32FFFFFF"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="24"
+                                IsVisible="{Binding SelectedAchievement, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Spacing="16">
+                                    <Border Width="180"
+                                            Height="180"
+                                            HorizontalAlignment="Left"
+                                            Background="#8010141D"
+                                            CornerRadius="10"
+                                            ClipToBounds="True">
+                                        <Image helpers:AsyncImageHelper.Url="{Binding SelectedAchievement.BadgePath}"
+                                               helpers:AsyncImageHelper.DecodeWidth="360"
+                                               Stretch="Uniform" />
+                                    </Border>
+                                    <TextBlock Text="{Binding SelectedAchievement.Title}"
+                                               Foreground="White"
+                                               FontSize="25"
+                                               FontWeight="Bold"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding SelectedAchievement.PointsText}"
+                                               Foreground="#7BA3FF"
+                                               FontSize="14"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding SelectedAchievement.Description}"
+                                               Foreground="#D6DFED"
+                                               FontSize="16"
+                                               LineHeight="23"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding SelectedAchievement.StatusText}"
+                                               Foreground="#AFC2DD"
+                                               FontSize="13"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+
+                    <Grid Grid.Row="2"
+                          ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding RetroAchievementsProgress.StatusText}"
+                                   Foreground="#AFC2DD"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding RetroAchievementsProgress.ShowStatus}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding AchievementsOverlayControlsText}"
+                                   Foreground="#BFCBE0"
+                                   FontSize="12"
+                                   HorizontalAlignment="Right" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

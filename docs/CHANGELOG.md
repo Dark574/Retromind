@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - configurable BigMode theme for the virtual library root
 - RetroAchievments for supported systems
 - RetroAchievements progress summaries in BigMode themes
+- controller-friendly RetroAchievements detail browser in BigMode
 - added store badges on Game Covers
 - new Nintendo Game Boy Advance and Sega Mega Drive system themes
 - new cinematic Prism BigMode theme

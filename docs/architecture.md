@@ -291,8 +291,11 @@ separate statistics database or persisted aggregate state.
   state across refreshes of the same game, and collapses again when the selected game changes
 - BigMode owns a separate `RetroAchievementsProgressViewModel` so its selection cannot overwrite desktop detail
   state. Identified selections are debounced before loading, stale progress is cleared immediately, and Attract
-  Mode never starts progress requests. Themes consume the summary through `BigModeViewModel.RetroAchievementsProgress`;
-  a tracked game session refreshes the active BigMode instance instead of duplicating the desktop refresh
+  Mode never starts progress requests. Themes consume the compact summary through
+  `BigModeViewModel.RetroAchievementsProgress`; the host view owns the theme-independent achievement browser and
+  routes controller/keyboard input to it while it is open. Badge images stay lazy until either that browser or the
+  desktop achievement list is opened. A tracked game session refreshes the active BigMode instance instead of
+  duplicating the desktop refresh
 - `RetroAchievementsBadgeService` downloads the official unlocked and locked achievement PNGs on demand, validates
   their size and PNG signature, and publishes them atomically below `RetroAchievements/Badges`. Concurrent requests
   share a bounded set of synchronization gates, failures do not affect progress data, and the persistent badge cache

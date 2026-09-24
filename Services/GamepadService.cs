@@ -24,6 +24,7 @@ public sealed class GamepadService : IDisposable
     // Events (raised on the SDL polling thread; subscribers should marshal to UI thread if needed).
     public event Action? OnSelect;   // A / Cross
     public event Action? OnBack;     // B / Circle
+    public event Action? OnDetails;  // X / Square
     public event Action? OnGuide;    // Guide / Home
     public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
 
@@ -296,6 +297,10 @@ public sealed class GamepadService : IDisposable
 
                 if (DateTime.UtcNow - _lastStartPressedUtc <= GuideComboWindow)
                     OnGuide?.Invoke();
+                break;
+
+            case GameControllerButton.X:
+                OnDetails?.Invoke();
                 break;
 
             case GameControllerButton.Start:

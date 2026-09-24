@@ -613,8 +613,11 @@ are supported through the bundled decoder.
 
 Select an identified game to see its progress in the right-hand detail panel. The achievement list can be
 expanded to show badges, descriptions, points, unlock state, and unlock time. The Default and Prism BigMode themes
-show a compact Casual/Hardcore summary after the selection has settled. Retromind refreshes the selected
-game after a normally tracked play session; **Refresh** can also be used manually in the desktop view.
+show a compact Casual/Hardcore summary after the selection has settled. In BigMode, press **X / Square** on a
+controller or **I** on the keyboard to open the detailed achievement browser. Navigate badges with the D-pad or
+arrow keys and close it with **X / Square**, **B / Circle**, or **Esc**. Badge images are downloaded lazily when
+the detailed view is opened. Retromind refreshes the selected game after a normally tracked play session;
+**Refresh** can also be used manually in the desktop view.
 
 Successful progress responses and badge images are cached locally. If RetroAchievements is temporarily
 unavailable, Retromind can display the latest cached progress and marks it as cached data. The cache is stored

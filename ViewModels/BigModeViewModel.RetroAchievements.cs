@@ -1,6 +1,10 @@
 using System;
+using System.ComponentModel;
+using System.Linq;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Models;
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
@@ -12,10 +16,38 @@ public partial class BigModeViewModel
     private DispatcherTimer? _retroAchievementsSelectionTimer;
     private MediaItem? _pendingRetroAchievementsItem;
 
+    [ObservableProperty]
+    private bool _isAchievementsOverlayOpen;
+
+    [ObservableProperty]
+    private RetroAchievementsAchievementItemViewModel? _selectedAchievement;
+
     /// <summary>
     /// Selection-driven RetroAchievements state exposed to BigMode themes.
     /// </summary>
     public RetroAchievementsProgressViewModel RetroAchievementsProgress { get; }
+
+    public bool CanOpenAchievementsOverlay =>
+        !IsInAttractMode &&
+        RetroAchievementsProgress.IsVisible &&
+        RetroAchievementsProgress.HasAchievements;
+
+    public string AchievementsOverlayTitle => T(
+        "BigMode_AchievementsOverlayTitle",
+        "RetroAchievements");
+
+    public string AchievementsOverlayHintText => T(
+        "BigMode_AchievementsOverlayHint",
+        "X / Square · Achievements    I · Keyboard");
+
+    public string AchievementsOverlayControlsText => T(
+        "BigMode_AchievementsOverlayControls",
+        "D-pad · Select achievement    X / Square, B / Circle or Esc · Close");
+
+    private void InitializeRetroAchievementsOverlay()
+    {
+        RetroAchievementsProgress.PropertyChanged += OnRetroAchievementsProgressPropertyChanged;
+    }
 
     private void ScheduleRetroAchievementsProgress(MediaItem? item)
     {
@@ -63,11 +95,117 @@ public partial class BigModeViewModel
 
     partial void OnIsInAttractModeChanged(bool value)
     {
+        OnPropertyChanged(nameof(CanOpenAchievementsOverlay));
+
         if (!value)
             return;
 
+        CloseAchievementsOverlay();
         CancelPendingRetroAchievementsSelection();
         _ = RetroAchievementsProgress.SelectItemAsync(null);
+    }
+
+    public void ToggleAchievementsOverlay()
+    {
+        if (IsAchievementsOverlayOpen)
+        {
+            CloseAchievementsOverlay();
+            return;
+        }
+
+        OpenAchievementsOverlay();
+    }
+
+    public void OpenAchievementsOverlay()
+    {
+        if (!CanOpenAchievementsOverlay)
+            return;
+
+        ResetAttractIdleTimer();
+        StopGamepadRepeatTimer();
+        CancelPreviewDebounce();
+        StopVideo();
+
+        SelectedAchievement = RetroAchievementsProgress.AchievementItems.FirstOrDefault();
+        IsAchievementsOverlayOpen = true;
+        RetroAchievementsProgress.EnsureAchievementBadgesLoaded();
+    }
+
+    public bool CloseAchievementsOverlay()
+    {
+        if (!IsAchievementsOverlayOpen)
+            return false;
+
+        IsAchievementsOverlayOpen = false;
+        SelectedAchievement = null;
+        StopGamepadRepeatTimer();
+        if (!IsInAttractMode)
+            TriggerPreviewPlaybackWithDebounce();
+        return true;
+    }
+
+    public void NavigateAchievementsOverlay(GamepadService.GamepadDirection direction)
+    {
+        if (!IsAchievementsOverlayOpen)
+            return;
+
+        var achievements = RetroAchievementsProgress.AchievementItems;
+        if (achievements.Count == 0)
+            return;
+
+        const int columns = 6;
+        var currentIndex = -1;
+        if (SelectedAchievement != null)
+        {
+            for (var index = 0; index < achievements.Count; index++)
+            {
+                if (!ReferenceEquals(achievements[index], SelectedAchievement))
+                    continue;
+
+                currentIndex = index;
+                break;
+            }
+        }
+        if (currentIndex < 0)
+            currentIndex = 0;
+
+        var nextIndex = direction switch
+        {
+            GamepadService.GamepadDirection.Left =>
+                (currentIndex - 1 + achievements.Count) % achievements.Count,
+            GamepadService.GamepadDirection.Right =>
+                (currentIndex + 1) % achievements.Count,
+            GamepadService.GamepadDirection.Up => Math.Max(0, currentIndex - columns),
+            GamepadService.GamepadDirection.Down => Math.Min(achievements.Count - 1, currentIndex + columns),
+            _ => currentIndex
+        };
+
+        SelectedAchievement = achievements[nextIndex];
+    }
+
+    private void OnRetroAchievementsProgressPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not (nameof(RetroAchievementsProgressViewModel.IsVisible) or
+            nameof(RetroAchievementsProgressViewModel.HasAchievements) or
+            nameof(RetroAchievementsProgressViewModel.AchievementItems)))
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(CanOpenAchievementsOverlay));
+
+        if (!CanOpenAchievementsOverlay)
+        {
+            CloseAchievementsOverlay();
+            return;
+        }
+
+        if (IsAchievementsOverlayOpen &&
+            (SelectedAchievement == null ||
+             !RetroAchievementsProgress.AchievementItems.Contains(SelectedAchievement)))
+        {
+            SelectedAchievement = RetroAchievementsProgress.AchievementItems.FirstOrDefault();
+        }
     }
 
     public void RefreshRetroAchievementsAfterTrackedSession(MediaItem item)
@@ -95,6 +233,10 @@ public partial class BigModeViewModel
 
     private void DisposeRetroAchievementsProgress()
     {
+        IsAchievementsOverlayOpen = false;
+        SelectedAchievement = null;
+        RetroAchievementsProgress.PropertyChanged -= OnRetroAchievementsProgressPropertyChanged;
+
         if (_retroAchievementsSelectionTimer != null)
         {
             _retroAchievementsSelectionTimer.Stop();

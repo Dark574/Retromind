@@ -408,6 +408,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             _settings,
             retroAchievementsProgressService,
             retroAchievementsBadgeService);
+        InitializeRetroAchievementsOverlay();
 
         // Start at root categories.
         CurrentCategories = BuildVisibleCategories(_rootNodes);
@@ -500,6 +501,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         _gamepadService.OnDirectionStateChanged += OnGamepadDirectionStateChanged;
         _gamepadService.OnSelect += OnGamepadSelect;
         _gamepadService.OnBack += OnGamepadBack;
+        _gamepadService.OnDetails += OnGamepadDetails;
 
         if (CurrentCategories.Count > 0)
         {

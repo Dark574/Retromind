@@ -936,6 +936,9 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="Settings_RetroAchievementsHint" xml:space="preserve"><value>Verbinde dein RetroAchievements-Konto, um den Achievement-Fortschritt erkannter Spiele anzuzeigen.</value></data>
     <data name="Settings_RetroAchievementsEnable" xml:space="preserve"><value>RetroAchievements-Integration aktivieren</value></data>
     <data name="Settings_RetroAchievementsShowInBigMode" xml:space="preserve"><value>RetroAchievements-Fortschritt im BigMode anzeigen</value></data>
+    <data name="BigMode_AchievementsOverlayTitle" xml:space="preserve"><value>RetroAchievements</value></data>
+    <data name="BigMode_AchievementsOverlayHint" xml:space="preserve"><value>X / Quadrat · Achievements    I · Tastatur</value></data>
+    <data name="BigMode_AchievementsOverlayControls" xml:space="preserve"><value>Steuerkreuz · Achievement wählen    X / Quadrat, B / Kreis oder Esc · Schließen</value></data>
     <data name="Settings_RetroAchievementsUsername" xml:space="preserve"><value>Benutzername</value></data>
     <data name="Settings_RetroAchievementsApiKey" xml:space="preserve"><value>Web-API-Key</value></data>
     <data name="Settings_RetroAchievementsApiKeyHint" xml:space="preserve"><value>Der Key wird nach Möglichkeit im System-Schlüsselbund gespeichert und nie in die Retromind-Einstellungen oder Metadaten-Backups geschrieben. Ohne verfügbaren Schlüsselbund bleibt er nur für die laufende Sitzung verfügbar. Lass das Feld leer, um den gespeicherten Key beizubehalten.</value></data>

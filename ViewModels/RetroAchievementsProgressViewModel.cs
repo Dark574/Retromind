@@ -26,6 +26,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private string? _selectedUserIdentifier;
     private bool _isVisible;
     private bool _isLoading;
+    private bool _isBadgeLoading;
     private bool _isAchievementsExpanded;
     private string _statusText = string.Empty;
     private RetroAchievementsProgressSnapshot? _snapshot;
@@ -78,6 +79,12 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             if (SetProperty(ref _isLoading, value))
                 RefreshCommand.NotifyCanExecuteChanged();
         }
+    }
+
+    public bool IsBadgeLoading
+    {
+        get => _isBadgeLoading;
+        private set => SetProperty(ref _isBadgeLoading, value);
     }
 
     public string StatusText
@@ -319,6 +326,14 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
         IsAchievementsExpanded = !IsAchievementsExpanded;
         if (IsAchievementsExpanded)
+            EnsureAchievementBadgesLoaded();
+    }
+
+    public void EnsureAchievementBadgesLoaded()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (HasAchievements)
             StartBadgeLoading(AchievementItems, _selectedItem, _selectedGameId);
     }
 
@@ -342,6 +357,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
         var previousBadgeLoad = _badgeLoadCts;
         _badgeLoadCts = null;
+        IsBadgeLoading = false;
         previousBadgeLoad?.Cancel();
     }
 
@@ -367,6 +383,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
         var badgeLoadCts = new CancellationTokenSource();
         _badgeLoadCts = badgeLoadCts;
+        IsBadgeLoading = true;
         _ = LoadBadgesAsync(missingBadges, badgeLoadCts, item, gameId);
     }
 
@@ -395,7 +412,10 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         finally
         {
             if (ReferenceEquals(_badgeLoadCts, requestCts))
+            {
                 _badgeLoadCts = null;
+                IsBadgeLoading = false;
+            }
 
             requestCts.Dispose();
         }
