@@ -70,6 +70,21 @@ public static class ListBoxBehaviors
         => element.GetValue(CenterSelectedItemHorizontallyProperty);
 
     /// <summary>
+    /// Duration of the final horizontal centering movement. A value of zero keeps
+    /// the immediate behavior used by existing themes.
+    /// </summary>
+    public static readonly AttachedProperty<int> HorizontalCenterAnimationDurationMsProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, int>(
+            "HorizontalCenterAnimationDurationMs",
+            typeof(ListBoxBehaviors));
+
+    public static void SetHorizontalCenterAnimationDurationMs(AvaloniaObject element, int value)
+        => element.SetValue(HorizontalCenterAnimationDurationMsProperty, value);
+
+    public static int GetHorizontalCenterAnimationDurationMs(AvaloniaObject element)
+        => element.GetValue(HorizontalCenterAnimationDurationMsProperty);
+
+    /// <summary>
     /// When set to true on a ListBox, centers the currently selected item
     /// exactly once on the first SelectionChanged event that has a valid selection.
     /// This is intended for "restore last selection on load" scenarios where we
@@ -127,6 +142,24 @@ public static class ListBoxBehaviors
 
     private static bool IsCurrentVerticalCenterRequest(AvaloniaObject element, int requestId)
         => element.GetValue(VerticalCenterRequestIdProperty) == requestId;
+
+    // Selection can change faster than the item containers are realized. Keep only
+    // the retry chain for the newest horizontal selection alive so rapid carousel
+    // navigation cannot accumulate work on the UI thread.
+    private static readonly AttachedProperty<int> HorizontalCenterRequestIdProperty =
+        AvaloniaProperty.RegisterAttached<ListBox, int>(
+            "HorizontalCenterRequestId",
+            typeof(ListBoxBehaviors));
+
+    private static int BeginHorizontalCenterRequest(AvaloniaObject element)
+    {
+        var next = element.GetValue(HorizontalCenterRequestIdProperty) + 1;
+        element.SetValue(HorizontalCenterRequestIdProperty, next);
+        return next;
+    }
+
+    private static bool IsCurrentHorizontalCenterRequest(AvaloniaObject element, int requestId)
+        => element.GetValue(HorizontalCenterRequestIdProperty) == requestId;
 
     private static readonly AttachedProperty<IDisposable?> CenterSelectedItemHorizontalSubscriptionProperty =
         AvaloniaProperty.RegisterAttached<ListBox, IDisposable?>(
@@ -381,10 +414,14 @@ public static class ListBoxBehaviors
 
     private static void QueueCenterCurrentSelectionHorizontal(ListBox listBox)
     {
+        var requestId = BeginHorizontalCenterRequest(listBox);
+
         if (listBox.SelectedItem != null)
             listBox.ScrollIntoView(listBox.SelectedItem);
 
-        Dispatcher.UIThread.Post(() => CenterCurrentSelectionHorizontal(listBox, remainingAttempts: 60), DispatcherPriority.Render);
+        Dispatcher.UIThread.Post(
+            () => CenterCurrentSelectionHorizontal(listBox, remainingAttempts: 60, requestId),
+            DispatcherPriority.Render);
     }
 
     /// <summary>
@@ -486,8 +523,11 @@ public static class ListBoxBehaviors
         return true;
     }
 
-    private static void CenterCurrentSelectionHorizontal(ListBox listBox, int remainingAttempts)
+    private static void CenterCurrentSelectionHorizontal(ListBox listBox, int remainingAttempts, int requestId)
     {
+        if (!IsCurrentHorizontalCenterRequest(listBox, requestId))
+            return;
+
         if (listBox.SelectedItem == null)
             return;
 
@@ -496,7 +536,7 @@ public static class ListBoxBehaviors
             if (remainingAttempts > 0)
             {
                 Dispatcher.UIThread.Post(
-                    () => CenterCurrentSelectionHorizontal(listBox, remainingAttempts - 1),
+                    () => CenterCurrentSelectionHorizontal(listBox, remainingAttempts - 1, requestId),
                     DispatcherPriority.Render);
             }
             return;
@@ -512,7 +552,7 @@ public static class ListBoxBehaviors
             if (remainingAttempts > 0)
             {
                 Dispatcher.UIThread.Post(
-                    () => CenterCurrentSelectionHorizontal(listBox, remainingAttempts - 1),
+                    () => CenterCurrentSelectionHorizontal(listBox, remainingAttempts - 1, requestId),
                     DispatcherPriority.Render);
             }
             return;
@@ -532,7 +572,7 @@ public static class ListBoxBehaviors
             if (remainingAttempts > 0)
             {
                 Dispatcher.UIThread.Post(
-                    () => CenterCurrentSelectionHorizontal(listBox, remainingAttempts - 1),
+                    () => CenterCurrentSelectionHorizontal(listBox, remainingAttempts - 1, requestId),
                     DispatcherPriority.Render);
             }
             return;
@@ -545,6 +585,57 @@ public static class ListBoxBehaviors
         var clampedOffsetX = Math.Max(0, Math.Min(desiredOffsetX, maxOffsetX));
 
         var newOffset = new Vector(clampedOffsetX, currentOffset.Y);
-        scrollViewer.Offset = newOffset;
+        var durationMs = Math.Clamp(GetHorizontalCenterAnimationDurationMs(listBox), 0, 1000);
+        if (durationMs == 0 || Math.Abs(newOffset.X - currentOffset.X) < 0.5)
+        {
+            scrollViewer.Offset = newOffset;
+            return;
+        }
+
+        AnimateHorizontalOffset(
+            listBox,
+            scrollViewer,
+            currentOffset,
+            newOffset,
+            requestId,
+            durationMs,
+            startedAt: DateTime.UtcNow);
+    }
+
+    private static void AnimateHorizontalOffset(
+        ListBox listBox,
+        ScrollViewer scrollViewer,
+        Vector from,
+        Vector to,
+        int requestId,
+        int durationMs,
+        DateTime startedAt)
+    {
+        if (!IsCurrentHorizontalCenterRequest(listBox, requestId))
+            return;
+
+        var progress = Math.Clamp(
+            (DateTime.UtcNow - startedAt).TotalMilliseconds / durationMs,
+            0,
+            1);
+        var eased = 1 - Math.Pow(1 - progress, 3);
+
+        scrollViewer.Offset = new Vector(
+            from.X + ((to.X - from.X) * eased),
+            to.Y);
+
+        if (progress >= 1)
+            return;
+
+        DispatcherTimer.RunOnce(
+            () => AnimateHorizontalOffset(
+                listBox,
+                scrollViewer,
+                from,
+                to,
+                requestId,
+                durationMs,
+                startedAt),
+            TimeSpan.FromMilliseconds(16));
     }
 }

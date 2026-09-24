@@ -42,7 +42,10 @@ public class AsyncImageHelper : AvaloniaObject
     private static readonly LinkedList<string> LruList = new();
     private static readonly object CacheLock = new();
 
-    private readonly record struct CacheAddResult(Bitmap Bitmap, bool IsCached);
+    private readonly record struct CacheAddResult(
+        Bitmap Bitmap,
+        bool IsCached,
+        CacheLease? AssignmentLease);
 
     private sealed class CacheLease : IDisposable
     {
@@ -169,14 +172,23 @@ public class AsyncImageHelper : AvaloniaObject
         if (!disableCache)
         {
             cacheKey = decodeWidth.HasValue ? $"{url}_{decodeWidth}" : url;
-            var cachedBitmap = GetFromCache(cacheKey);
+            var cachedLease = TryAcquireFromCache(cacheKey);
 
-            if (cachedBitmap != null)
+            if (cachedLease != null)
             {
                 UiThreadHelper.Post(() =>
                 {
-                    if (image.GetValue(CurrentLoadCtsProperty) != cts) return;
-                    AssignImageSource(image, cachedBitmap, cacheKey, disableCache: false);
+                    try
+                    {
+                        if (image.GetValue(CurrentLoadCtsProperty) != cts)
+                            return;
+
+                        AssignImageSource(image, cachedLease.Bitmap, cacheKey, disableCache: false);
+                    }
+                    finally
+                    {
+                        cachedLease.Dispose();
+                    }
                 });
                 return;
             }
@@ -222,27 +234,36 @@ public class AsyncImageHelper : AvaloniaObject
 
             var bitmapToAssign = loadedBitmap;
             var isCached = false;
+            CacheLease? assignmentLease = null;
             if (!disableCache && cacheKey != null)
             {
                 var cacheResult = AddToCache(cacheKey, loadedBitmap);
                 bitmapToAssign = cacheResult.Bitmap;
                 isCached = cacheResult.IsCached;
+                assignmentLease = cacheResult.AssignmentLease;
             }
 
             UiThreadHelper.Post(() =>
             {
-                if (image.GetValue(CurrentLoadCtsProperty) != cts)
+                try
                 {
-                    if (!isCached)
-                        bitmapToAssign.Dispose();
-                    return;
-                }
+                    if (image.GetValue(CurrentLoadCtsProperty) != cts)
+                    {
+                        if (!isCached)
+                            bitmapToAssign.Dispose();
+                        return;
+                    }
 
-                AssignImageSource(
-                    image,
-                    bitmapToAssign,
-                    isCached ? cacheKey : null,
-                    disableCache: !isCached);
+                    AssignImageSource(
+                        image,
+                        bitmapToAssign,
+                        isCached ? cacheKey : null,
+                        disableCache: !isCached);
+                }
+                finally
+                {
+                    assignmentLease?.Dispose();
+                }
             });
         }
         catch (OperationCanceledException)
@@ -317,7 +338,7 @@ public class AsyncImageHelper : AvaloniaObject
         }
     }
     
-    private static Bitmap? GetFromCache(string key)
+    private static CacheLease? TryAcquireFromCache(string key)
     {
         lock (CacheLock)
         {
@@ -328,7 +349,8 @@ public class AsyncImageHelper : AvaloniaObject
 
                 LruList.Remove(entry.Node);
                 LruList.AddLast(entry.Node); // Move to MRU position
-                return entry.Bitmap;
+                IncrementCacheRef(key);
+                return new CacheLease(key, entry.Bitmap);
             }
         }
         return null;
@@ -368,25 +390,33 @@ public class AsyncImageHelper : AvaloniaObject
             if (Cache.TryGetValue(key, out var existing))
             {
                 if (InvalidatedKeys.Contains(key))
-                    return new CacheAddResult(bitmap, IsCached: false);
+                    return new CacheAddResult(bitmap, IsCached: false, AssignmentLease: null);
 
                 LruList.Remove(existing.Node);
                 LruList.AddLast(existing.Node);
                 bitmap.Dispose();
-                return new CacheAddResult(existing.Bitmap, IsCached: true);
+                IncrementCacheRef(key);
+                return new CacheAddResult(
+                    existing.Bitmap,
+                    IsCached: true,
+                    new CacheLease(key, existing.Bitmap));
             }
 
             while (Cache.Count >= MaxCacheSize)
             {
                 if (!TryEvictOne())
-                    return new CacheAddResult(bitmap, IsCached: false);
+                    return new CacheAddResult(bitmap, IsCached: false, AssignmentLease: null);
             }
 
             InvalidatedKeys.Remove(key);
 
             var node = LruList.AddLast(key);
             Cache[key] = (bitmap, node);
-            return new CacheAddResult(bitmap, IsCached: true);
+            IncrementCacheRef(key);
+            return new CacheAddResult(
+                bitmap,
+                IsCached: true,
+                new CacheLease(key, bitmap));
         }
     }
 

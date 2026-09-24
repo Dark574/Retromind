@@ -266,11 +266,11 @@ public partial class BigModeHostView : UserControl
             {
                 lb.InvalidateVisual();
 
-                for (int i = 0; i < lb.ItemCount; i++)
-                {
-                    if (lb.ContainerFromIndex(i) is ListBoxItem item)
-                        item.InvalidateVisual();
-                }
+                // With a virtualized list only the realized containers can leave
+                // composition artifacts. Iterating every library index on each
+                // selection made large carousels needlessly expensive.
+                foreach (var item in lb.GetVisualDescendants().OfType<ListBoxItem>())
+                    item.InvalidateVisual();
             }
 
             if (VisualRoot is Visual visualRoot)

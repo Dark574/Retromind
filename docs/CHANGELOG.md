@@ -15,6 +15,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - RetroAchievments for supported systems
 - added store badges on Game Covers
 - new Nintendo Game Boy Advance and Sega Mega Drive system themes
+- new cinematic Prism BigMode theme
 - install and update GOG DLCs
 - playtime params are editable
 - available GOG updates can now be checked manually

@@ -27,7 +27,7 @@ public sealed class CrossfadeVideoSurfaceControl : Grid
     public static readonly StyledProperty<int> FadeDurationMsProperty =
         AvaloniaProperty.Register<CrossfadeVideoSurfaceControl, int>(
             nameof(FadeDurationMs),
-            defaultValue: 0);
+            defaultValue: -1);
 
     public static readonly StyledProperty<Stretch> StretchProperty =
         AvaloniaProperty.Register<CrossfadeVideoSurfaceControl, Stretch>(
@@ -177,7 +177,7 @@ public sealed class CrossfadeVideoSurfaceControl : Grid
     private TimeSpan ResolveFadeDuration()
     {
         var ms = FadeDurationMs;
-        if (ms <= 0)
+        if (ms < 0)
         {
             var ancestor = this.GetVisualParent();
             UserControl? themeRoot = null;
@@ -195,7 +195,7 @@ public sealed class CrossfadeVideoSurfaceControl : Grid
                 ms = ThemeProperties.GetVideoFadeDurationMs(themeRoot);
         }
 
-        if (ms <= 0)
+        if (ms < 0)
             ms = 250;
 
         return TimeSpan.FromMilliseconds(Math.Clamp(ms, 0, 10000));

@@ -1,0 +1,655 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:helpers="clr-namespace:Retromind.Helpers"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="#070912"
+
+             ext:ThemeProperties.Name="Prism"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.AccentColor="#62E6FF"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoStretchMode="UniformToFill"
+             ext:ThemeProperties.VideoFadeDurationMs="0"
+             ext:ThemeProperties.SelectedScale="1.10"
+             ext:ThemeProperties.UnselectedOpacity="0.58"
+             ext:ThemeProperties.SelectedGlowOpacity="0.55"
+             ext:ThemeProperties.SelectedGlowRadius="34"
+             ext:ThemeProperties.FadeDurationMs="220"
+             ext:ThemeProperties.MoveDurationMs="260"
+             ext:ThemeProperties.CircularWindowSize="11"
+             ext:ThemeProperties.PrimaryVisualElementName="HeroSurface"
+             ext:ThemeProperties.PrimaryVisualEnterMode="None"
+             ext:ThemeProperties.SecondaryVisualElementName="IdentityPanel"
+             ext:ThemeProperties.SecondaryVisualEnterMode="None"
+             ext:ThemeProperties.BackgroundVisualElementName="BackgroundVisual"
+             ext:ThemeProperties.BackgroundVisualEnterMode="None"
+             ext:ThemeProperties.AttractModeEnabled="True"
+             ext:ThemeProperties.AttractModeIdleSeconds="75">
+
+    <UserControl.Resources>
+        <x:Double x:Key="CoverWidth">154</x:Double>
+        <x:Double x:Key="CoverHeight">224</x:Double>
+        <CornerRadius x:Key="CoverRadius">12</CornerRadius>
+
+        <helpers:BoolToScaleConverter x:Key="CardScaleConverter"
+                                      NormalScale="1.0"
+                                      SelectedScale="1.10" />
+        <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
+
+        <SolidColorBrush x:Key="AccentBrush" Color="#62E6FF" />
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#3362E6FF" />
+        <SolidColorBrush x:Key="AccentFaintBrush" Color="#1762E6FF" />
+        <SolidColorBrush x:Key="PanelBrush" Color="#A80A0D18" />
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#3DFFFFFF" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#B8C5D8" />
+
+        <LinearGradientBrush x:Key="BackgroundWash" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#EE070912" Offset="0" />
+            <GradientStop Color="#9A0B1220" Offset="0.47" />
+            <GradientStop Color="#D8070912" Offset="1" />
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="BottomFade" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#00070912" Offset="0" />
+            <GradientStop Color="#E8070912" Offset="0.32" />
+            <GradientStop Color="#FF070912" Offset="1" />
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="PrismLine" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#62E6FF" Offset="0" />
+            <GradientStop Color="#9B7BFF" Offset="0.52" />
+            <GradientStop Color="#FF6FB5" Offset="1" />
+        </LinearGradientBrush>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="ListBox.prism-carousel ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="9,16" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="ClipToBounds" Value="False" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="ListBox.prism-carousel ListBoxItem:selected">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+
+        <Style Selector="ListBox.prism-carousel ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <Style Selector="Border.prism-chip">
+            <Setter Property="Background" Value="#660F1728" />
+            <Setter Property="BorderBrush" Value="#55FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="10,5" />
+        </Style>
+
+        <Style Selector="TextBlock.prism-chip-text">
+            <Setter Property="Foreground" Value="#E6F1FF" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="*,Auto">
+        <!-- Full-screen media backdrop. A screenshot sits below the wallpaper and
+             therefore acts as a natural fallback when no wallpaper is available. -->
+        <Grid x:Name="BackgroundVisual" Grid.RowSpan="2">
+            <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryScreenshotPath}"
+                                DecodeWidth="1920"
+                                DisableCache="True"
+                                LoadDelayMs="160"
+                                Stretch="UniformToFill"
+                                Opacity="0.42"
+                                IsVisible="{Binding IsGameListActive}" />
+
+            <ext:CrossfadeImage Url="{Binding ActiveWallpaperPath}"
+                                DecodeWidth="1920"
+                                DisableCache="True"
+                                LoadDelayMs="160"
+                                Stretch="UniformToFill"
+                                Opacity="0.58"
+                                IsVisible="{Binding IsGameListActive}" />
+
+            <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
+                                DecodeWidth="1920"
+                                DisableCache="True"
+                                LoadDelayMs="160"
+                                Stretch="UniformToFill"
+                                Opacity="0.58"
+                                IsVisible="{Binding IsCategorySelectionActive}" />
+
+            <Rectangle Fill="{StaticResource BackgroundWash}" />
+
+            <!-- Deliberately subtle decorative light fields; these keep the theme
+                 visually complete even when an item has no artwork at all. -->
+            <Ellipse Width="720"
+                     Height="720"
+                     Fill="#1462E6FF"
+                     HorizontalAlignment="Right"
+                     VerticalAlignment="Top"
+                     Margin="0,-340,-280,0" />
+            <Ellipse Width="540"
+                     Height="540"
+                     Fill="#129B7BFF"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Bottom"
+                     Margin="-260,0,0,-300" />
+        </Grid>
+
+        <!-- Top brand rail -->
+        <Grid Grid.Row="0"
+              ColumnDefinitions="Auto,*,Auto"
+              Margin="54,30,54,0"
+              VerticalAlignment="Top">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                <Border Width="8" Height="8" CornerRadius="4" Background="{StaticResource AccentBrush}"
+                        VerticalAlignment="Center" />
+                <TextBlock Text="RETROMIND"
+                           Foreground="White"
+                           FontSize="14"
+                           FontWeight="Bold" />
+            </StackPanel>
+
+            <Border Grid.Column="1"
+                    Height="1"
+                    Margin="24,0"
+                    Background="#32FFFFFF"
+                    VerticalAlignment="Center" />
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding CategoryTitle}"
+                           Foreground="{StaticResource MutedTextBrush}"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis"
+                           MaxWidth="440" />
+                <TextBlock Text="•" Foreground="{StaticResource AccentBrush}" FontSize="14" />
+                <StackPanel Orientation="Horizontal"
+                            Spacing="8"
+                            IsVisible="{Binding IsGameListActive}">
+                    <TextBlock Text="{Binding CurrentGameNumber}"
+                               Foreground="White"
+                               FontSize="14"
+                               FontWeight="Bold" />
+                    <TextBlock Text="/" Foreground="#80FFFFFF" FontSize="14" />
+                    <TextBlock Text="{Binding TotalGames}"
+                               Foreground="{StaticResource MutedTextBrush}"
+                               FontSize="14" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal"
+                            Spacing="6"
+                            IsVisible="{Binding IsCategorySelectionActive}">
+                    <TextBlock Text="{Binding SelectedCategory.Items.Count}"
+                               Foreground="White"
+                               FontSize="14"
+                               FontWeight="Bold" />
+                    <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
+                               Foreground="{StaticResource MutedTextBrush}"
+                               FontSize="14" />
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- Cinematic hero area -->
+        <Grid Grid.Row="0"
+              ColumnDefinitions="0.92*,1.08*"
+              ColumnSpacing="54"
+              Margin="64,84,64,24">
+
+            <!-- Identity and metadata -->
+            <Grid x:Name="IdentityPanel"
+                  Grid.Column="0"
+                  RowDefinitions="Auto,Auto,Auto,*,Auto"
+                  VerticalAlignment="Stretch">
+                <Border Grid.Row="0"
+                        Width="94"
+                        Height="5"
+                        CornerRadius="3"
+                        Background="{StaticResource PrismLine}"
+                        HorizontalAlignment="Left"
+                        Margin="0,0,0,22" />
+
+                <Grid Grid.Row="1" MinHeight="154">
+                    <StackPanel IsVisible="{Binding IsGameListActive}"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center">
+                        <ext:CrossfadeImage Url="{Binding ActiveLogoPath}"
+                                            DecodeWidth="720"
+                                            DisableCache="True"
+                                            LoadDelayMs="160"
+                                            FadeDurationMs="180"
+                                            MaxWidth="680"
+                                            MaxHeight="150"
+                                            Stretch="Uniform"
+                                            HorizontalAlignment="Left"
+                                            IsVisible="{Binding ActiveLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                        <TextBlock Text="{Binding SelectedItem.Title}"
+                                   Foreground="White"
+                                   FontSize="48"
+                                   FontWeight="Bold"
+                                   LineHeight="52"
+                                   TextWrapping="Wrap"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="680"
+                                   IsVisible="{Binding ActiveLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                    </StackPanel>
+
+                    <StackPanel IsVisible="{Binding IsCategorySelectionActive}"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center">
+                        <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+                                            DecodeWidth="720"
+                                            DisableCache="True"
+                                            LoadDelayMs="160"
+                                            FadeDurationMs="180"
+                                            MaxWidth="680"
+                                            MaxHeight="150"
+                                            Stretch="Uniform"
+                                            HorizontalAlignment="Left"
+                                            IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                        <TextBlock Text="{Binding SelectedCategory.Name}"
+                                   Foreground="White"
+                                   FontSize="48"
+                                   FontWeight="Bold"
+                                   LineHeight="52"
+                                   TextWrapping="Wrap"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="680"
+                                   IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Compact information chips -->
+                <StackPanel Grid.Row="2"
+                            Orientation="Horizontal"
+                            Spacing="9"
+                            Margin="0,20,0,18"
+                            IsVisible="{Binding IsGameListActive}">
+                    <Border Classes="prism-chip"
+                            IsVisible="{Binding SelectedYear, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
+                        <TextBlock Classes="prism-chip-text" Text="{Binding SelectedYear}" />
+                    </Border>
+                    <Border Classes="prism-chip"
+                            IsVisible="{Binding SelectedItem.Genre, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Classes="prism-chip-text"
+                                   Text="{Binding SelectedItem.Genre}"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="190" />
+                    </Border>
+                    <Border Classes="prism-chip"
+                            IsVisible="{Binding SelectedItem.MaxPlayers, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Classes="prism-chip-text"
+                                   Text="{Binding SelectedItem.MaxPlayers}"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="140" />
+                    </Border>
+                    <Border Classes="prism-chip">
+                        <TextBlock Classes="prism-chip-text" Text="{Binding SelectedItem.Status}" />
+                    </Border>
+                    <Border Classes="prism-chip"
+                            Background="#5262E6FF"
+                            BorderBrush="{StaticResource AccentBrush}"
+                            IsVisible="{Binding SelectedItem.IsFavorite}">
+                        <TextBlock Text="★" Foreground="White" FontSize="14" />
+                    </Border>
+                </StackPanel>
+
+                <!-- Descriptions stay intentionally short in the resting view and
+                     begin scrolling only after the user has paused on an item. -->
+                <Border Grid.Row="3"
+                        MaxHeight="250"
+                        ClipToBounds="True"
+                        IsVisible="{Binding IsGameListActive}">
+                    <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  IsHitTestVisible="False"
+                                  Background="Transparent"
+                                  helpers:ScrollViewerBehaviors.AutoVerticalScroll="True"
+                                  helpers:ScrollViewerBehaviors.AutoVerticalScrollSpeed="3.8"
+                                  helpers:ScrollViewerBehaviors.AutoVerticalScrollStartDelayMs="6500"
+                                  helpers:ScrollViewerBehaviors.AutoVerticalScrollEndPauseMs="1500"
+                                  helpers:ScrollViewerBehaviors.AutoVerticalScrollRestartToken="{Binding SelectedItem.Description}">
+                        <TextBlock Text="{Binding SelectedItem.Description}"
+                                   Foreground="#D4DFEE"
+                                   FontSize="17"
+                                   LineHeight="25"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="680" />
+                    </ScrollViewer>
+                </Border>
+
+                <Border Grid.Row="3"
+                        MaxHeight="250"
+                        ClipToBounds="True"
+                        IsVisible="{Binding IsCategorySelectionActive}">
+                    <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  IsHitTestVisible="False"
+                                  Background="Transparent"
+                                  helpers:ScrollViewerBehaviors.AutoVerticalScroll="True"
+                                  helpers:ScrollViewerBehaviors.AutoVerticalScrollSpeed="3.8"
+                                  helpers:ScrollViewerBehaviors.AutoVerticalScrollStartDelayMs="6500"
+                                  helpers:ScrollViewerBehaviors.AutoVerticalScrollEndPauseMs="1500"
+                                  helpers:ScrollViewerBehaviors.AutoVerticalScrollRestartToken="{Binding SelectedCategory.Description}">
+                        <TextBlock Text="{Binding SelectedCategory.Description}"
+                                   Foreground="#D4DFEE"
+                                   FontSize="17"
+                                   LineHeight="25"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="680" />
+                    </ScrollViewer>
+                </Border>
+
+                <Grid Grid.Row="4"
+                      ColumnDefinitions="Auto,26,Auto,26,Auto"
+                      Margin="0,22,0,0"
+                      IsVisible="{Binding IsGameListActive}">
+                    <StackPanel Grid.Column="0" Spacing="3">
+                        <TextBlock Text="{x:Static resources:Strings.Common_Developer}"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   FontSize="11"
+                                   FontWeight="Bold" />
+                        <TextBlock Text="{Binding SelectedDeveloper}"
+                                   Foreground="White"
+                                   FontSize="14"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="190" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="3">
+                        <TextBlock Text="{x:Static resources:Strings.Media_PlayCount}"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   FontSize="11"
+                                   FontWeight="Bold" />
+                        <TextBlock Text="{Binding SelectedItem.PlayCount}"
+                                   Foreground="White"
+                                   FontSize="14" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="4" Spacing="3">
+                        <TextBlock Text="{x:Static resources:Strings.Media_PlayTime}"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   FontSize="11"
+                                   FontWeight="Bold" />
+                        <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
+                                   Foreground="White"
+                                   FontSize="14" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- Video/screenshot stage -->
+            <Grid x:Name="HeroSurface"
+                  Grid.Column="1"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  MaxWidth="920"
+                  MaxHeight="560">
+                <Border Background="{StaticResource PanelBrush}"
+                        BorderBrush="{StaticResource PanelBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="20"
+                        Padding="8">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000"
+                                          BlurRadius="42"
+                                          OffsetX="0"
+                                          OffsetY="18"
+                                          Opacity="0.72" />
+                    </Border.Effect>
+
+                    <Grid MinHeight="320">
+                        <Border Background="#D0080B14"
+                                CornerRadius="14"
+                                ClipToBounds="True">
+                            <Grid>
+                                <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryCoverPath}"
+                                                    DecodeWidth="520"
+                                                    DisableCache="True"
+                                                    LoadDelayMs="160"
+                                                    Stretch="Uniform"
+                                                    Margin="90,40"
+                                                    Opacity="0.78"
+                                                    IsVisible="{Binding IsGameListActive}" />
+
+                                <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryCoverAbsolutePath}"
+                                                    DecodeWidth="520"
+                                                    DisableCache="True"
+                                                    LoadDelayMs="160"
+                                                    Stretch="Uniform"
+                                                    Margin="90,40"
+                                                    Opacity="0.78"
+                                                    IsVisible="{Binding IsCategorySelectionActive}" />
+
+                                <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryScreenshotPath}"
+                                                    DecodeWidth="1280"
+                                                    DisableCache="True"
+                                                    LoadDelayMs="160"
+                                                    Stretch="UniformToFill"
+                                                    IsVisible="{Binding IsGameListActive}" />
+
+                                <Rectangle Fill="#22000000" />
+
+                                <StackPanel HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Spacing="10"
+                                            IsVisible="{Binding !MainVideoHasContent}">
+                                    <Border Width="56"
+                                            Height="56"
+                                            CornerRadius="28"
+                                            BorderBrush="{StaticResource AccentBrush}"
+                                            BorderThickness="2"
+                                            Background="#500A0D18">
+                                        <TextBlock Text="▶"
+                                                   Foreground="White"
+                                                   FontSize="22"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Margin="4,0,0,0" />
+                                    </Border>
+                                    <TextBlock Text="{x:Static resources:ThemeStrings.NoPreviewVideo}"
+                                               Foreground="#B8C5D8"
+                                               FontSize="13" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border x:Name="VideoSlot"
+                                Background="#080B14"
+                                CornerRadius="14"
+                                ClipToBounds="True"
+                                IsVisible="{Binding IsVideoVisible}" />
+                    </Grid>
+                </Border>
+
+                <Border Height="4"
+                        Margin="44,0"
+                        CornerRadius="2"
+                        Background="{StaticResource PrismLine}"
+                        VerticalAlignment="Bottom"
+                        Opacity="0.9" />
+            </Grid>
+        </Grid>
+
+        <!-- Bottom carousel -->
+        <Grid Grid.Row="1"
+              Height="300"
+              ClipToBounds="False">
+            <Rectangle Fill="{StaticResource BottomFade}" />
+
+            <ListBox Classes="prism-carousel"
+                     ItemsSource="{Binding CircularItems}"
+                     SelectedItem="{Binding SelectedItem, Mode=OneWay}"
+                     IsVisible="{Binding IsGameListActive}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="0,8,0,14"
+                     ClipToBounds="False"
+                     ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     ext:ThemeProperties.UseHostSelectionEffects="False">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Center" />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                RenderTransformOrigin="50%,50%">
+                            <Border.RenderTransform>
+                                <ScaleTransform ScaleX="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardScaleConverter}}"
+                                                ScaleY="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardScaleConverter}}" />
+                            </Border.RenderTransform>
+
+                            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                <Border x:Name="PrismCoverFrame"
+                                        Width="{StaticResource CoverWidth}"
+                                        Height="{StaticResource CoverHeight}"
+                                        CornerRadius="{StaticResource CoverRadius}"
+                                        BorderBrush="#55FFFFFF"
+                                        BorderThickness="1"
+                                        Background="#E90C101C">
+                                    <Border.BoxShadow>
+                                        <MultiBinding Converter="{x:Static helpers:ObjectConverters.SelectedCoverGlow}">
+                                            <Binding RelativeSource="{RelativeSource AncestorType=ListBoxItem}" Path="IsSelected" />
+                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowOpacity)" />
+                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowRadius)" />
+                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.AccentColor)" />
+                                        </MultiBinding>
+                                    </Border.BoxShadow>
+                                    <Border CornerRadius="{StaticResource CoverRadius}" ClipToBounds="True">
+                                        <Grid>
+                                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
+                                                   helpers:AsyncImageHelper.DecodeWidth="360"
+                                                   Stretch="UniformToFill"
+                                                   IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                                            <Rectangle Fill="{StaticResource AccentFaintBrush}"
+                                                       IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                                            <TextBlock Text="{Binding Title}"
+                                                       Foreground="White"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       TextAlignment="Center"
+                                                       TextWrapping="Wrap"
+                                                       Margin="12"
+                                                       VerticalAlignment="Center"
+                                                       IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                                        </Grid>
+                                    </Border>
+                                </Border>
+
+                                <TextBlock Text="{Binding Title}"
+                                           Foreground="White"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           TextAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           Width="{StaticResource CoverWidth}"
+                                           IsVisible="{Binding $parent[ListBoxItem].IsSelected}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <ListBox Classes="prism-carousel"
+                     ItemsSource="{Binding CurrentCategories}"
+                     SelectedItem="{Binding SelectedCategory}"
+                     SelectedIndex="{Binding SelectedCategoryIndex, Mode=OneWayToSource}"
+                     IsVisible="{Binding IsCategorySelectionActive}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="0,8,0,14"
+                     ClipToBounds="False"
+                     ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     helpers:ListBoxBehaviors.CenterSelectedItemHorizontally="True"
+                     helpers:ListBoxBehaviors.HorizontalCenterAnimationDurationMs="110"
+                     ext:ThemeProperties.UseHostSelectionEffects="False">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                RenderTransformOrigin="50%,50%">
+                            <Border.RenderTransform>
+                                <ScaleTransform ScaleX="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardScaleConverter}}"
+                                                ScaleY="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardScaleConverter}}" />
+                            </Border.RenderTransform>
+
+                            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                <Border Width="{StaticResource CoverWidth}"
+                                        Height="{StaticResource CoverHeight}"
+                                        CornerRadius="{StaticResource CoverRadius}"
+                                        BorderBrush="#55FFFFFF"
+                                        BorderThickness="1"
+                                        Background="#E90C101C">
+                                    <Border.BoxShadow>
+                                        <MultiBinding Converter="{x:Static helpers:ObjectConverters.SelectedCoverGlow}">
+                                            <Binding RelativeSource="{RelativeSource AncestorType=ListBoxItem}" Path="IsSelected" />
+                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowOpacity)" />
+                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowRadius)" />
+                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.AccentColor)" />
+                                        </MultiBinding>
+                                    </Border.BoxShadow>
+                                    <Border CornerRadius="{StaticResource CoverRadius}" ClipToBounds="True">
+                                        <Grid>
+                                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverAbsolutePath}"
+                                                   helpers:AsyncImageHelper.DecodeWidth="360"
+                                                   Stretch="UniformToFill"
+                                                   IsVisible="{Binding PrimaryCoverAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoAbsolutePath}"
+                                                   helpers:AsyncImageHelper.DecodeWidth="320"
+                                                   Stretch="Uniform"
+                                                   Margin="16"
+                                                   IsVisible="{Binding PrimaryCoverAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                                            <TextBlock Text="{Binding Name}"
+                                                       Foreground="White"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       TextAlignment="Center"
+                                                       TextWrapping="Wrap"
+                                                       Margin="12"
+                                                       VerticalAlignment="Center"
+                                                       IsVisible="{Binding PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                                        </Grid>
+                                    </Border>
+                                </Border>
+
+                                <TextBlock Text="{Binding Name}"
+                                           Foreground="White"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           TextAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           Width="{StaticResource CoverWidth}"
+                                           IsVisible="{Binding $parent[ListBoxItem].IsSelected}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+    </Grid>
+</UserControl>

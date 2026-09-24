@@ -381,6 +381,11 @@ public partial class BigModeViewModel
         if (string.Equals(_currentPreviewVideoPath, targetVideoPath, StringComparison.OrdinalIgnoreCase))
             return;
 
+        // The frame currently presented belongs to the previous selection. Themes
+        // that gate their video slot with IsVideoVisible can now show the new
+        // screenshot until the first frame of the new preview is ready.
+        IsVideoVisible = false;
+
         if (string.IsNullOrEmpty(targetVideoPath))
             StopVideo();
     }
@@ -1253,13 +1258,6 @@ public partial class BigModeViewModel
         _previewPausedForScroll = false;
         _pausedPreviewVideoPath = null;
         _pausedPreviewIndex = -1;
-    }
-
-    private void KeepVideoOverlayVisibleForUpcomingPlayback()
-    {
-        Interlocked.Increment(ref _overlayFadeGeneration);
-        IsVideoOverlayVisible = true;
-        IsVideoVisible = true;
     }
 
     private void ClearPendingPreviewStart(int generation)

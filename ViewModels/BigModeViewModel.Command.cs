@@ -177,9 +177,6 @@ public partial class BigModeViewModel
             return;
 
         _suspendPreviewDuringScroll = false;
-        var targetVideoPath = ResolvePreviewVideoPath();
-        if (!string.IsNullOrEmpty(targetVideoPath))
-            KeepVideoOverlayVisibleForUpcomingPlayback();
 
         if (TryResumePausedPreviewForCurrentSelection())
             return;

@@ -30,6 +30,9 @@ public class CrossfadeImage : Grid
     public static readonly StyledProperty<int> FadeDelayMsProperty =
         AvaloniaProperty.Register<CrossfadeImage, int>(nameof(FadeDelayMs), 0);
 
+    public static readonly StyledProperty<int> LoadDelayMsProperty =
+        AvaloniaProperty.Register<CrossfadeImage, int>(nameof(LoadDelayMs), 0);
+
     public static readonly StyledProperty<bool> FadeOutOnClearProperty =
         AvaloniaProperty.Register<CrossfadeImage, bool>(nameof(FadeOutOnClear));
 
@@ -60,6 +63,9 @@ public class CrossfadeImage : Grid
             c.UpdateTransitions());
 
         FadeDelayMsProperty.Changed.AddClassHandler<CrossfadeImage>((c, _) =>
+            c.StartCrossfadeToUrl(c.Url, forceReload: true));
+
+        LoadDelayMsProperty.Changed.AddClassHandler<CrossfadeImage>((c, _) =>
             c.StartCrossfadeToUrl(c.Url, forceReload: true));
     }
 
@@ -111,6 +117,16 @@ public class CrossfadeImage : Grid
     {
         get => GetValue(FadeDelayMsProperty);
         set => SetValue(FadeDelayMsProperty, value);
+    }
+
+    /// <summary>
+    /// Delays image loading until a rapidly changing URL has settled. This avoids
+    /// decoding full-size artwork for transient carousel selections.
+    /// </summary>
+    public int LoadDelayMs
+    {
+        get => GetValue(LoadDelayMsProperty);
+        set => SetValue(LoadDelayMsProperty, value);
     }
 
     public bool FadeOutOnClear
@@ -178,19 +194,61 @@ public class CrossfadeImage : Grid
             return;
 
         _currentUrl = url;
+        var generation = ++_loadGeneration;
 
         if (string.IsNullOrWhiteSpace(url))
         {
-            BeginClearImages();
+            BeginClearImages(generation);
             return;
         }
+
+        var loadDelayMs = Math.Clamp(LoadDelayMs, 0, 10_000);
+        if (loadDelayMs > 0)
+        {
+            _ = StartCrossfadeAfterDelayAsync(url, forceReload, generation, loadDelayMs);
+            return;
+        }
+
+        StartCrossfadeToUrlCore(url, forceReload, generation);
+    }
+
+    private async Task StartCrossfadeAfterDelayAsync(
+        string url,
+        bool forceReload,
+        int generation,
+        int loadDelayMs)
+    {
+        try
+        {
+            await Task.Delay(loadDelayMs).ConfigureAwait(false);
+        }
+        catch
+        {
+            return;
+        }
+
+        UiThreadHelper.Post(() =>
+        {
+            if (generation != _loadGeneration ||
+                !string.Equals(_currentUrl, url, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            StartCrossfadeToUrlCore(url, forceReload, generation);
+        });
+    }
+
+    private void StartCrossfadeToUrlCore(string url, bool forceReload, int generation)
+    {
+        if (generation != _loadGeneration)
+            return;
 
         EnsureImagesVisible();
 
         var target = GetInactiveImage(out var targetIndex);
         var old = GetActiveImage();
 
-        var generation = ++_loadGeneration;
         if (targetIndex == 0)
             _imageAGeneration = generation;
         else
@@ -216,10 +274,8 @@ public class CrossfadeImage : Grid
         ScheduleFallbackFadeOut(old, generation, targetIndex, ResolveFallbackHoldDelay());
     }
 
-    private void BeginClearImages()
+    private void BeginClearImages(int generation)
     {
-        var generation = ++_loadGeneration;
-
         if (!FadeOutOnClear)
         {
             ClearImagesImmediately();
