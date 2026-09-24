@@ -283,6 +283,7 @@ public partial class BigModeViewModel
         CancelPreviewDebounce();
         OnPropertyChanged(nameof(ActiveLogoPath));
         OnPropertyChanged(nameof(ActiveWallpaperPath));
+        OnPropertyChanged(nameof(DynamicAccentArtworkPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));
         RequestActiveBezelRefresh();
@@ -319,6 +320,7 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveLogoPath));
         OnPropertyChanged(nameof(HasDisplayLogo));
         OnPropertyChanged(nameof(ActiveWallpaperPath));
+        OnPropertyChanged(nameof(DynamicAccentArtworkPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));
         RequestActiveBezelRefresh();
@@ -343,6 +345,7 @@ public partial class BigModeViewModel
         var targetVideoPath = ResolvePreviewVideoPath();
         StopVideoIfPreviewPathChanged(targetVideoPath);
 
+        OnPropertyChanged(nameof(DynamicAccentArtworkPath));
         TriggerPreviewPlaybackWithDebounce();
     }
     
@@ -360,6 +363,7 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveLogoPath));
         OnPropertyChanged(nameof(HasDisplayLogo));
         OnPropertyChanged(nameof(ActiveWallpaperPath));
+        OnPropertyChanged(nameof(DynamicAccentArtworkPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));
         RequestActiveBezelRefresh();

@@ -14,8 +14,10 @@ horizontal cover carousel, compact metadata, and resilient artwork fallbacks.
 Prism does not ship third-party artwork. Wallpapers, screenshots, covers,
 logos, and videos are loaded from the selected Retromind item or node.
 
-## First prototype
+## Dynamic accents
 
-Version 0.1 intentionally uses a fixed cyan/violet accent palette. Dynamic
-accent colors derived from the selected artwork can be added after the layout,
-spacing, and navigation behavior have been validated with real libraries.
+Prism derives a primary and secondary accent color from the selected artwork
+and transitions between palettes as the selection changes. Artwork analysis is
+debounced and cached so rapid carousel navigation does not decode every
+intermediate image. Cyan and violet remain the fallback palette when no useful
+artwork color can be extracted.

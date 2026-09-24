@@ -142,6 +142,7 @@ public partial class BigModeHostView : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         StopMouseCursorAutoHide();
+        CancelDynamicAccentUpdates();
         base.OnDetachedFromVisualTree(e);
 
         if (_vmNotifications != null)
@@ -239,6 +240,7 @@ public partial class BigModeHostView : UserControl
         {
             AnimateVisualSlots(currentThemeRoot);
             RequestSelectionArtifactRepaint(currentThemeRoot);
+            RequestDynamicAccentUpdate(currentThemeRoot);
         }
 
         // For SystemHost, also animate/repaint the right-hand system layout.
@@ -292,6 +294,7 @@ public partial class BigModeHostView : UserControl
         themeRoot.UseLayoutRounding = true;
 
         _themePresenter.Content = themeRoot;
+        InitializeDynamicAccent(themeRoot);
 
         // Reset previous SystemHost-specific content when switching away
         if (!_isSystemHostTheme && _systemLayoutHost != null)

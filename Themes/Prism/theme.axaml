@@ -10,11 +10,15 @@
 
              ext:ThemeProperties.Name="Prism"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.Version="0.2.0"
              ext:ThemeProperties.AccentColor="#62E6FF"
+             ext:ThemeProperties.DynamicAccentEnabled="True"
+             ext:ThemeProperties.DynamicAccentTransitionMs="400"
+             ext:ThemeProperties.DynamicAccentColor="#62E6FF"
+             ext:ThemeProperties.DynamicSecondaryAccentColor="#9B7BFF"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
-             ext:ThemeProperties.VideoStretchMode="UniformToFill"
+             ext:ThemeProperties.VideoStretchMode="Uniform"
              ext:ThemeProperties.VideoFadeDurationMs="0"
              ext:ThemeProperties.SelectedScale="1.10"
              ext:ThemeProperties.UnselectedOpacity="0.58"
@@ -41,10 +45,10 @@
                                       NormalScale="1.0"
                                       SelectedScale="1.10" />
         <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
+        <helpers:ColorToBrushConverter x:Key="AccentBrushConverter" />
+        <helpers:ColorToBrushConverter x:Key="AccentSoftBrushConverter" Opacity="0.32" />
+        <helpers:ColorToBrushConverter x:Key="AccentFaintBrushConverter" Opacity="0.09" />
 
-        <SolidColorBrush x:Key="AccentBrush" Color="#62E6FF" />
-        <SolidColorBrush x:Key="AccentSoftBrush" Color="#3362E6FF" />
-        <SolidColorBrush x:Key="AccentFaintBrush" Color="#1762E6FF" />
         <SolidColorBrush x:Key="PanelBrush" Color="#A80A0D18" />
         <SolidColorBrush x:Key="PanelBorderBrush" Color="#3DFFFFFF" />
         <SolidColorBrush x:Key="MutedTextBrush" Color="#B8C5D8" />
@@ -61,11 +65,6 @@
             <GradientStop Color="#FF070912" Offset="1" />
         </LinearGradientBrush>
 
-        <LinearGradientBrush x:Key="PrismLine" StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="#62E6FF" Offset="0" />
-            <GradientStop Color="#9B7BFF" Offset="0.52" />
-            <GradientStop Color="#FF6FB5" Offset="1" />
-        </LinearGradientBrush>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -138,13 +137,17 @@
                  visually complete even when an item has no artwork at all. -->
             <Ellipse Width="720"
                      Height="720"
-                     Fill="#1462E6FF"
+                     Fill="{Binding ElementName=ThemeRoot,
+                                    Path=(ext:ThemeProperties.DynamicAccentColor),
+                                    Converter={StaticResource AccentFaintBrushConverter}}"
                      HorizontalAlignment="Right"
                      VerticalAlignment="Top"
                      Margin="0,-340,-280,0" />
             <Ellipse Width="540"
                      Height="540"
-                     Fill="#129B7BFF"
+                     Fill="{Binding ElementName=ThemeRoot,
+                                    Path=(ext:ThemeProperties.DynamicSecondaryAccentColor),
+                                    Converter={StaticResource AccentFaintBrushConverter}}"
                      HorizontalAlignment="Left"
                      VerticalAlignment="Bottom"
                      Margin="-260,0,0,-300" />
@@ -156,7 +159,10 @@
               Margin="54,30,54,0"
               VerticalAlignment="Top">
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
-                <Border Width="8" Height="8" CornerRadius="4" Background="{StaticResource AccentBrush}"
+                <Border Width="8" Height="8" CornerRadius="4"
+                        Background="{Binding ElementName=ThemeRoot,
+                                             Path=(ext:ThemeProperties.DynamicAccentColor),
+                                             Converter={StaticResource AccentBrushConverter}}"
                         VerticalAlignment="Center" />
                 <TextBlock Text="RETROMIND"
                            Foreground="White"
@@ -177,7 +183,11 @@
                            FontWeight="SemiBold"
                            TextTrimming="CharacterEllipsis"
                            MaxWidth="440" />
-                <TextBlock Text="•" Foreground="{StaticResource AccentBrush}" FontSize="14" />
+                <TextBlock Text="•"
+                           Foreground="{Binding ElementName=ThemeRoot,
+                                                Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                Converter={StaticResource AccentBrushConverter}}"
+                           FontSize="14" />
                 <StackPanel Orientation="Horizontal"
                             Spacing="8"
                             IsVisible="{Binding IsGameListActive}">
@@ -219,9 +229,19 @@
                         Width="94"
                         Height="5"
                         CornerRadius="3"
-                        Background="{StaticResource PrismLine}"
                         HorizontalAlignment="Left"
-                        Margin="0,0,0,22" />
+                        Margin="0,0,0,22">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.DynamicAccentColor)}"
+                                          Offset="0" />
+                            <GradientStop Color="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.DynamicSecondaryAccentColor)}"
+                                          Offset="0.58" />
+                            <GradientStop Color="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.DynamicAccentColor)}"
+                                          Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
 
                 <Grid Grid.Row="1" MinHeight="154">
                     <StackPanel IsVisible="{Binding IsGameListActive}"
@@ -301,8 +321,12 @@
                         <TextBlock Classes="prism-chip-text" Text="{Binding SelectedItem.Status}" />
                     </Border>
                     <Border Classes="prism-chip"
-                            Background="#5262E6FF"
-                            BorderBrush="{StaticResource AccentBrush}"
+                            Background="{Binding ElementName=ThemeRoot,
+                                                 Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                 Converter={StaticResource AccentSoftBrushConverter}}"
+                            BorderBrush="{Binding ElementName=ThemeRoot,
+                                                  Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                  Converter={StaticResource AccentBrushConverter}}"
                             IsVisible="{Binding SelectedItem.IsFavorite}">
                         <TextBlock Text="★" Foreground="White" FontSize="14" />
                     </Border>
@@ -360,7 +384,9 @@
                       IsVisible="{Binding IsGameListActive}">
                     <StackPanel Grid.Column="0" Spacing="3">
                         <TextBlock Text="{x:Static resources:Strings.Common_Developer}"
-                                   Foreground="{StaticResource AccentBrush}"
+                                   Foreground="{Binding ElementName=ThemeRoot,
+                                                        Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                        Converter={StaticResource AccentBrushConverter}}"
                                    FontSize="11"
                                    FontWeight="Bold" />
                         <TextBlock Text="{Binding SelectedDeveloper}"
@@ -371,7 +397,9 @@
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="3">
                         <TextBlock Text="{x:Static resources:Strings.Media_PlayCount}"
-                                   Foreground="{StaticResource AccentBrush}"
+                                   Foreground="{Binding ElementName=ThemeRoot,
+                                                        Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                        Converter={StaticResource AccentBrushConverter}}"
                                    FontSize="11"
                                    FontWeight="Bold" />
                         <TextBlock Text="{Binding SelectedItem.PlayCount}"
@@ -380,7 +408,9 @@
                     </StackPanel>
                     <StackPanel Grid.Column="4" Spacing="3">
                         <TextBlock Text="{x:Static resources:Strings.Media_PlayTime}"
-                                   Foreground="{StaticResource AccentBrush}"
+                                   Foreground="{Binding ElementName=ThemeRoot,
+                                                        Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                        Converter={StaticResource AccentBrushConverter}}"
                                    FontSize="11"
                                    FontWeight="Bold" />
                         <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
@@ -449,7 +479,9 @@
                                     <Border Width="56"
                                             Height="56"
                                             CornerRadius="28"
-                                            BorderBrush="{StaticResource AccentBrush}"
+                                            BorderBrush="{Binding ElementName=ThemeRoot,
+                                                                  Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                                  Converter={StaticResource AccentBrushConverter}}"
                                             BorderThickness="2"
                                             Background="#500A0D18">
                                         <TextBlock Text="▶"
@@ -477,9 +509,19 @@
                 <Border Height="4"
                         Margin="44,0"
                         CornerRadius="2"
-                        Background="{StaticResource PrismLine}"
                         VerticalAlignment="Bottom"
-                        Opacity="0.9" />
+                        Opacity="0.9">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.DynamicAccentColor)}"
+                                          Offset="0" />
+                            <GradientStop Color="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.DynamicSecondaryAccentColor)}"
+                                          Offset="0.58" />
+                            <GradientStop Color="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.DynamicAccentColor)}"
+                                          Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
             </Grid>
         </Grid>
 
@@ -530,7 +572,7 @@
                                             <Binding RelativeSource="{RelativeSource AncestorType=ListBoxItem}" Path="IsSelected" />
                                             <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowOpacity)" />
                                             <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowRadius)" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.AccentColor)" />
+                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.DynamicAccentColor)" />
                                         </MultiBinding>
                                     </Border.BoxShadow>
                                     <Border CornerRadius="{StaticResource CoverRadius}" ClipToBounds="True">
@@ -539,7 +581,9 @@
                                                    helpers:AsyncImageHelper.DecodeWidth="360"
                                                    Stretch="UniformToFill"
                                                    IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
-                                            <Rectangle Fill="{StaticResource AccentFaintBrush}"
+                                            <Rectangle Fill="{Binding ElementName=ThemeRoot,
+                                                                      Path=(ext:ThemeProperties.DynamicAccentColor),
+                                                                      Converter={StaticResource AccentFaintBrushConverter}}"
                                                        IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
                                             <TextBlock Text="{Binding Title}"
                                                        Foreground="White"
@@ -610,7 +654,7 @@
                                             <Binding RelativeSource="{RelativeSource AncestorType=ListBoxItem}" Path="IsSelected" />
                                             <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowOpacity)" />
                                             <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowRadius)" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.AccentColor)" />
+                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.DynamicAccentColor)" />
                                         </MultiBinding>
                                     </Border.BoxShadow>
                                     <Border CornerRadius="{StaticResource CoverRadius}" ClipToBounds="True">

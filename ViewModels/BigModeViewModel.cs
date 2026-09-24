@@ -223,6 +223,40 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         ResolveArtworkForSelection(AssetType.Logo);
 
     /// <summary>
+    /// Artwork used by the opt-in dynamic theme-accent pipeline. Item artwork is
+    /// preferred over inherited node artwork so colors can change per game.
+    /// </summary>
+    public string? DynamicAccentArtworkPath
+    {
+        get
+        {
+            if (IsGameListActive)
+            {
+                return FirstNonBlank(
+                    SelectedItem?.PrimaryWallpaperPath,
+                    SelectedItem?.PrimaryScreenshotPath,
+                    SelectedItem?.PrimaryCoverPath,
+                    ActiveWallpaperPath);
+            }
+
+            return FirstNonBlank(
+                SelectedCategory?.PrimaryWallpaperAbsolutePath,
+                SelectedCategory?.PrimaryCoverAbsolutePath);
+        }
+    }
+
+    private static string? FirstNonBlank(params string?[] candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            if (!string.IsNullOrWhiteSpace(candidate))
+                return candidate;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Resolved logo path for category selection view.
     /// Node-level logo is only used when logo fallback is enabled on the node.
     /// </summary>

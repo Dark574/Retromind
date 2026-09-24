@@ -448,7 +448,71 @@ Notes:
 - If you need mouse selection in that list, you can use `Mode=TwoWay`
   but controller-driven navigation should keep the selection in the view model.
 
-### 6.5 Tuning: animations
+### 6.5 Dynamic artwork accents
+
+Dynamic accents are opt-in. When enabled, the BigMode host extracts a vivid
+primary and secondary color from the active artwork and updates the colors on
+the theme root. Existing themes remain unchanged.
+
+- `ThemeProperties.DynamicAccentEnabled` (bool, default: `false`)
+  Enables artwork analysis for this theme.
+- `ThemeProperties.DynamicAccentTransitionMs` (int, default: `400`)
+  Duration of the transition from the current palette to the new palette.
+  Values are clamped to `0–5000` ms.
+- `ThemeProperties.DynamicAccentColor` (Color, default: `#62E6FF`)
+  Initial/fallback primary color and host-updated output color.
+- `ThemeProperties.DynamicSecondaryAccentColor` (Color, default: `#9B7BFF`)
+  Initial/fallback secondary color and host-updated output color.
+
+The artwork source is exposed to themes as `DynamicAccentArtworkPath`. For
+games, Retromind resolves item wallpaper → screenshot → cover → inherited
+wallpaper. For categories it resolves wallpaper → cover. Only local existing
+artwork is analyzed; missing, neutral, or unsuitable artwork retains the
+configured fallback colors.
+
+Analysis starts after a short navigation debounce and palettes are cached by
+file path, size, and modification time. This prevents held-direction navigation
+and Attract Mode from decoding every intermediate image.
+
+Example:
+
+```xml
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="clr-namespace:Retromind.Helpers;assembly=Retromind"
+             x:Name="ThemeRoot"
+             ext:ThemeProperties.AccentColor="#62E6FF"
+             ext:ThemeProperties.DynamicAccentEnabled="True"
+             ext:ThemeProperties.DynamicAccentTransitionMs="400"
+             ext:ThemeProperties.DynamicAccentColor="#62E6FF"
+             ext:ThemeProperties.DynamicSecondaryAccentColor="#9B7BFF">
+    <UserControl.Resources>
+        <helpers:ColorToBrushConverter x:Key="AccentBrushConverter" />
+        <helpers:ColorToBrushConverter x:Key="FaintAccentBrushConverter"
+                                       Opacity="0.10" />
+    </UserControl.Resources>
+
+    <Grid>
+        <Border Background="{Binding ElementName=ThemeRoot,
+                                     Path=(ext:ThemeProperties.DynamicAccentColor),
+                                     Converter={StaticResource AccentBrushConverter}}" />
+
+        <Ellipse Fill="{Binding ElementName=ThemeRoot,
+                                Path=(ext:ThemeProperties.DynamicSecondaryAccentColor),
+                                Converter={StaticResource FaintAccentBrushConverter}}" />
+    </Grid>
+</UserControl>
+```
+
+`ColorToBrushConverter.Opacity` accepts a value from `0` to `1` and is useful
+for producing full, soft, and faint brushes from the same dynamic color.
+`ThemeProperties.AccentColor` follows the dynamic primary color while the
+feature is enabled, preserving compatibility with existing custom glow
+bindings. Themes may also bind `GradientStop.Color` directly to either dynamic
+color property.
+
+### 6.6 Tuning: animations
 
 - `ThemeProperties.FadeDurationMs` (int, default: `200`)
 - `ThemeProperties.MoveDurationMs` (int, default: `160`)
@@ -456,7 +520,7 @@ Notes:
 “Snappy” UI: ~120–180ms  
 “Cinematic” UI: ~220–320ms
 
-### 6.6 Tuning: layout
+### 6.7 Tuning: layout
 
 - `ThemeProperties.PanelPadding` (Thickness, default: `20`)
 - `ThemeProperties.HeaderSpacing` (double, default: `10`)
@@ -467,7 +531,7 @@ Notes:
 
 Not every theme must use every value; many are intended as shared knobs.
 
-### 6.7 Tuning: typography (TV-friendly defaults)
+### 6.8 Tuning: typography (TV-friendly defaults)
 
 - `ThemeProperties.TitleFontSize` (double, default: `34`)
 - `ThemeProperties.BodyFontSize` (double, default: `18`)
@@ -496,7 +560,7 @@ Example:
 </UserControl>
 ```
 
-### 6.8 Attract Mode (auto-random selection on idle)
+### 6.9 Attract Mode (auto-random selection on idle)
 
 Some BigMode themes (especially arcade-style layouts) may want to automatically
 scroll/select random games after a period of user inactivity — similar to an
@@ -565,7 +629,7 @@ In this example:
 
 ---
 
-### 6.9 Host selection effects for lists (zoom/opacity/glow)
+### 6.10 Host selection effects for lists (zoom/opacity/glow)
 
 By default, the BigMode host applies generic selection effects to all `ListBox`
 instances in the theme:
@@ -587,7 +651,7 @@ Via the attached property
 a theme can control **per ListBox** whether the host is allowed to apply its
 standard selection effects.
 
-#### 6.9.1 Default behavior (host effects enabled)
+#### 6.10.1 Default behavior (host effects enabled)
 
 If you don't set anything, the behavior is:
 ```xml
@@ -610,7 +674,7 @@ The host reads the global tuning values from the theme root:
 
 and automatically applies them to all `ListBoxItem`s.
 
-#### 6.9.2 Explicitly disabling host effects (custom zoom logic)
+#### 6.10.2 Explicitly disabling host effects (custom zoom logic)
 
 If a particular `ListBox` implements its **own** selection animation
 (e.g. via `LayoutTransformControl` + converter bound to `IsSelected`), you can
@@ -632,7 +696,7 @@ In this case:
 - it does not change `Opacity`, `RenderTransform`, or `Effect` on the items,
 - all selection visuals are fully controlled by the theme.
 
-#### 6.9.3 Example: Arcade logo list with custom zoom
+#### 6.10.3 Example: Arcade logo list with custom zoom
 
 The Arcade theme uses a vertical logo rail where the zoom is implemented purely
 in XAML. To keep the host from adding its own selection visuals on top, the

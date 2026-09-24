@@ -157,6 +157,7 @@ Themes are external runtime XAML loaded through `ThemeLoader`:
 - parses theme XAML at runtime and applies theme base path per view instance
 - caches XAML text with LRU to reduce repeated file IO/parse overhead
 - exposes theme metadata, visual tuning, selection effects, typography, video options, attract-mode options, etc. via `ThemeProperties` attached properties
+- optionally derives a cached two-color accent palette from the active artwork; analysis is debounced during navigation and only themes that opt in through `DynamicAccentEnabled` receive host-updated colors
 - user-visible runtime-theme text is exposed through localized `ThemeStrings` resource properties
 
 ### Portable theme sync/update at startup
