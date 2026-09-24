@@ -7,7 +7,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
-## [0.1.9-alpha] - unreleased
+## [0.1.9-alpha] - 2026-09-24
 
 ### Added
 - make shortcut creation optional for GOG Wine/Proton installation
@@ -375,7 +375,8 @@ also a lot of small fixes and changes
 
 ---
 
-[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.1.5-alpha...HEAD
+[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.1.8-alpha...HEAD
+[0.1.8-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.8-alpha
 [0.1.7-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.7-alpha
 [0.1.6-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.6-alpha
 [0.1.5-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.5-alpha
