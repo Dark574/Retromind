@@ -10,10 +10,10 @@
         <NoWarn>$(NoWarn);NU1900</NoWarn>
 
         <!-- App / NuGet / Assembly version -->
-        <Version>0.1.9</Version>
-        <AssemblyVersion>0.1.9.0</AssemblyVersion>
-        <FileVersion>0.1.9.0</FileVersion>
-        <InformationalVersion>0.1.9-alpha</InformationalVersion>
+        <Version>0.2.0</Version>
+        <AssemblyVersion>0.2.0.0</AssemblyVersion>
+        <FileVersion>0.2.0.0</FileVersion>
+        <InformationalVersion>0.2.0-alpha</InformationalVersion>
 
         <RcheevosNativeLibrary Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(MSBuildProjectDirectory)/obj/$(Configuration)/$(TargetFramework)/native/libretromind-rhash.so</RcheevosNativeLibrary>
     </PropertyGroup>
