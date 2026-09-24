@@ -689,7 +689,7 @@ Examples:
 - `missing:genre OR missing:developer`
 - `missing:logo OR missing:music`
 - `has:genre AND NOT genre:unknown`
-- `store:gog AND gogupdate:true`
+- `store:gog AND gogupdate:true` (or the shorthand `has:gogupdate`)
 - `(genre:platformer OR genre:metroidvania) AND NOT missing:rating`
 - `cf.rating:5`
 - `zelda AND platform:switch`

@@ -211,8 +211,8 @@ Global search uses a dedicated `SearchAreaViewModel`:
 - structured query matching includes `played:true` and `played:false` (alias: `started`); play evidence is
   defined centrally by `MediaPlayStateHelper` as a launch count, recorded play time, or last-played timestamp
 - store-aware query fields expose normalized GOG, Steam, and Epic identities through `store:`, while
-  `gogupdate:` matches GOG items with either a main-game or DLC update without exposing internal `Store.*`
-  custom fields in the filter builder
+  `gogupdate:true` and its `has:gogupdate` shorthand match GOG items with either a main-game or DLC update
+  without exposing internal `Store.*` custom fields in the filter builder
 - media completeness queries use the existing `has:` / `missing:` syntax for every supported item asset type;
   presence is based on stored asset references and deliberately avoids filesystem access during filtering
 

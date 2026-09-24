@@ -644,10 +644,7 @@ public sealed class SearchQueryMatcher
             case QueryField.Store:
                 return StoreProviderBadgeHelper.GetProviderId(item) == null;
             case QueryField.GogUpdate:
-                return !string.Equals(
-                    StoreProviderBadgeHelper.GetProviderId(item),
-                    StoreProviderBadgeHelper.GogProviderId,
-                    StringComparison.OrdinalIgnoreCase);
+                return !GogMediaItemStateHelper.HasAnyUpdateAvailable(item);
             case QueryField.Rating:
                 return item.Rating <= 0d;
             case QueryField.Asset:

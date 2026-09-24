@@ -104,6 +104,32 @@ public sealed class SearchQueryMatcherTests
         Assert.False(SearchQueryMatcher.Create("gogupdate:false").Matches(steamItem));
     }
 
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    public void HasGogUpdateMatchesOnlyItemsWithTheVisibleUpdateBadge(
+        bool mainGameUpdate,
+        bool dlcUpdate,
+        bool expected)
+    {
+        var item = CreateStoreItem("gog");
+        item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] = mainGameUpdate.ToString();
+        item.CustomFields[CustomFieldKeyHelper.StoreDlcUpdateAvailable] = dlcUpdate.ToString();
+
+        Assert.Equal(expected, SearchQueryMatcher.Create("has:gogupdate").Matches(item));
+        Assert.Equal(!expected, SearchQueryMatcher.Create("missing:gogupdate").Matches(item));
+    }
+
+    [Fact]
+    public void HasGogUpdateDoesNotMatchOtherStores()
+    {
+        var item = CreateStoreItem("steam");
+        item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] = "true";
+
+        Assert.False(SearchQueryMatcher.Create("has:gogupdate").Matches(item));
+    }
+
     [Fact]
     public void FilterBuilderOffersStoreAndGogUpdateFields()
     {
