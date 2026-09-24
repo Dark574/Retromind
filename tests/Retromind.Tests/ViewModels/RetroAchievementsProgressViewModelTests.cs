@@ -121,7 +121,7 @@ public sealed class RetroAchievementsProgressViewModelTests
     }
 
     [Fact]
-    public async Task SelectItemAsync_LoadsUnlockedAndLockedBadgeVariants()
+    public async Task ExpandingAchievementList_LoadsUnlockedAndLockedBadgeVariants()
     {
         var requests = new List<(string? BadgeName, bool IsUnlocked)>();
         var achievements = new[]
@@ -150,6 +150,11 @@ public sealed class RetroAchievementsProgressViewModelTests
             });
 
         await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 123));
+
+        Assert.Empty(requests);
+        Assert.All(viewModel.AchievementItems, item => Assert.Null(item.BadgePath));
+
+        viewModel.ToggleAchievementsCommand.Execute(null);
         await WaitUntilAsync(() => viewModel.AchievementItems.All(item => item.BadgePath != null));
 
         Assert.Equal(
@@ -157,6 +162,11 @@ public sealed class RetroAchievementsProgressViewModelTests
             requests.Select(request => (request.BadgeName, request.IsUnlocked)).ToArray());
         Assert.Equal("/cache/10010.png", viewModel.AchievementItems[0].BadgePath);
         Assert.Equal("/cache/10020.png", viewModel.AchievementItems[1].BadgePath);
+
+        viewModel.ToggleAchievementsCommand.Execute(null);
+        viewModel.ToggleAchievementsCommand.Execute(null);
+
+        Assert.Equal(2, requests.Count);
     }
 
     [Fact]
@@ -175,6 +185,7 @@ public sealed class RetroAchievementsProgressViewModelTests
                 throw new HttpRequestException("offline"));
 
         await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 123));
+        viewModel.ToggleAchievementsCommand.Execute(null);
         await Task.Yield();
 
         var item = Assert.Single(viewModel.AchievementItems);
@@ -213,8 +224,14 @@ public sealed class RetroAchievementsProgressViewModelTests
             });
 
         await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 123));
+        viewModel.ToggleAchievementsCommand.Execute(null);
         await firstBadgeStarted.Task;
         await viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 456));
+
+        Assert.False(viewModel.IsAchievementsExpanded);
+        Assert.Null(viewModel.AchievementItems.Single().BadgePath);
+
+        viewModel.ToggleAchievementsCommand.Execute(null);
         await WaitUntilAsync(() => viewModel.AchievementItems.Single().BadgePath != null);
 
         var item = Assert.Single(viewModel.AchievementItems);

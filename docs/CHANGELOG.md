@@ -27,6 +27,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - reorganized media editor launch settings
 - reorganized settings editor launch settings
 - removed global wrappers
+- load RetroAchievements badge images only when the achievement list is expanded
 
 ### Fixed
 - themed busy cursor on native Wayland

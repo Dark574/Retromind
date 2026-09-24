@@ -241,7 +241,8 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                 return;
 
             Snapshot = snapshot;
-            StartBadgeLoading(AchievementItems, requestCts, item, gameId);
+            if (IsAchievementsExpanded)
+                StartBadgeLoading(AchievementItems, item, gameId);
             StatusText = snapshot.UsedCachedFallback
                 ? string.Format(
                     CultureInfo.CurrentCulture,
@@ -313,8 +314,12 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
     private void ToggleAchievements()
     {
-        if (HasAchievements)
-            IsAchievementsExpanded = !IsAchievementsExpanded;
+        if (!HasAchievements)
+            return;
+
+        IsAchievementsExpanded = !IsAchievementsExpanded;
+        if (IsAchievementsExpanded)
+            StartBadgeLoading(AchievementItems, _selectedItem, _selectedGameId);
     }
 
     private bool IsCurrentRequest(
@@ -342,19 +347,27 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
     private void StartBadgeLoading(
         IReadOnlyList<RetroAchievementsAchievementItemViewModel> achievements,
-        CancellationTokenSource progressRequest,
         MediaItem? item,
         int gameId)
     {
         if (achievements.Count == 0 ||
-            !IsCurrentRequest(progressRequest, item, gameId))
+            _badgeLoadCts != null ||
+            !ReferenceEquals(_selectedItem, item) ||
+            _selectedGameId != gameId ||
+            item?.RetroAchievementsGame?.GameId != gameId)
         {
             return;
         }
 
+        var missingBadges = achievements
+            .Where(achievement => string.IsNullOrWhiteSpace(achievement.BadgePath))
+            .ToArray();
+        if (missingBadges.Length == 0)
+            return;
+
         var badgeLoadCts = new CancellationTokenSource();
         _badgeLoadCts = badgeLoadCts;
-        _ = LoadBadgesAsync(achievements, badgeLoadCts, item, gameId);
+        _ = LoadBadgesAsync(missingBadges, badgeLoadCts, item, gameId);
     }
 
     private async Task LoadBadgesAsync(

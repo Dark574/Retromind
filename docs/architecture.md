@@ -285,10 +285,10 @@ separate statistics database or persisted aggregate state.
   points, description, casual/hardcore state, and unlock time. The view exposes an explicit refresh action and
   labels persisted fallback data when the service is temporarily unavailable. After a regular tracked game
   session, the still-selected game's progress is refreshed automatically; test launches and untracked launcher
-  handoffs do not trigger that refresh. Badge paths are loaded separately with bounded concurrency and cancelled
-  when the selected game changes; unavailable images leave the remaining achievement card intact. The detailed
-  achievement-card list is collapsed by default, retains its state across refreshes of the same game, and collapses
-  again when the selected game changes
+  handoffs do not trigger that refresh. Badge paths are loaded lazily when the detailed achievement list is first
+  expanded, use bounded concurrency, and are cancelled when the selected game changes; unavailable images leave
+  the remaining achievement card intact. The detailed achievement-card list is collapsed by default, retains its
+  state across refreshes of the same game, and collapses again when the selected game changes
 - `RetroAchievementsBadgeService` downloads the official unlocked and locked achievement PNGs on demand, validates
   their size and PNG signature, and publishes them atomically below `RetroAchievements/Badges`. Concurrent requests
   share a bounded set of synchronization gates, failures do not affect progress data, and the persistent badge cache
