@@ -43,6 +43,26 @@ public class AsyncImageHelper : AvaloniaObject
     private static readonly object CacheLock = new();
 
     private readonly record struct CacheAddResult(Bitmap Bitmap, bool IsCached);
+
+    private sealed class CacheLease : IDisposable
+    {
+        private string? _key;
+
+        public CacheLease(string key, Bitmap bitmap)
+        {
+            _key = key;
+            Bitmap = bitmap;
+        }
+
+        public Bitmap Bitmap { get; }
+
+        public void Dispose()
+        {
+            var key = Interlocked.Exchange(ref _key, null);
+            if (key != null)
+                DecrementCacheRef(key);
+        }
+    }
     
     // Transparent 1x1 fallback to avoid null Image.Source crashes during measure.
     private static readonly IImage PlaceholderImage = CreatePlaceholderImage();
@@ -314,7 +334,7 @@ public class AsyncImageHelper : AvaloniaObject
         return null;
     }
 
-    private static Bitmap? GetAnyFromCacheByUrl(string url)
+    private static CacheLease? TryAcquireAnyFromCacheByUrl(string url)
     {
         lock (CacheLock)
         {
@@ -327,7 +347,13 @@ public class AsyncImageHelper : AvaloniaObject
                     if (InvalidatedKeys.Contains(key))
                         continue;
 
-                    return Cache.TryGetValue(key, out var entry) ? entry.Bitmap : null;
+                    if (!Cache.TryGetValue(key, out var entry))
+                        continue;
+
+                    LruList.Remove(entry.Node);
+                    LruList.AddLast(entry.Node);
+                    IncrementCacheRef(key);
+                    return new CacheLease(key, entry.Bitmap);
                 }
             }
 
@@ -525,14 +551,14 @@ public class AsyncImageHelper : AvaloniaObject
     /// </summary>
     public static async Task<bool> SaveCachedImageAsync(string url, string destinationPath)
     {
-        var bitmap = GetAnyFromCacheByUrl(url);
-        if (bitmap == null) return false;
+        using var lease = TryAcquireAnyFromCacheByUrl(url);
+        if (lease == null) return false;
 
         return await Task.Run(() =>
         {
             try
             {
-                bitmap.Save(destinationPath, new PngBitmapEncoderOptions());
+                lease.Bitmap.Save(destinationPath, new PngBitmapEncoderOptions());
                 return true;
             }
             catch (Exception ex)
