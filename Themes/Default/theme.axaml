@@ -10,7 +10,7 @@
              
              ext:ThemeProperties.Name="Default"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.2.0"
+             ext:ThemeProperties.Version="0.3.0"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
              ext:ThemeProperties.VideoFadeDurationMs="600"
@@ -272,12 +272,56 @@
                                           HorizontalScrollBarVisibility="Disabled"
                                           HorizontalAlignment="Stretch"
                                           HorizontalContentAlignment="Stretch">
-                                <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto"
                                       ColumnDefinitions="*,*"
                                       ColumnSpacing="16"
                                       RowSpacing="10">
+                                    <!-- Compact RetroAchievements summary -->
+                                    <Border Grid.Row="0"
+                                            Grid.ColumnSpan="2"
+                                            Background="#6620232A"
+                                            BorderBrush="#557BA3FF"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="10,8"
+                                            IsVisible="{Binding RetroAchievementsProgress.IsVisible}">
+                                        <StackPanel Spacing="5">
+                                            <Grid ColumnDefinitions="Auto,16,*">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="RETROACHIEVEMENTS"
+                                                           Foreground="#7BA3FF"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding RetroAchievementsProgress.SummaryText}"
+                                                           Foreground="White"
+                                                           FontSize="12"
+                                                           HorizontalAlignment="Right"
+                                                           IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+                                            </Grid>
+                                            <ProgressBar Minimum="0"
+                                                         Maximum="{Binding RetroAchievementsProgress.ProgressMaximum}"
+                                                         Value="{Binding RetroAchievementsProgress.ProgressValue}"
+                                                         Height="5"
+                                                         Foreground="#7BA3FF"
+                                                         IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+                                            <ProgressBar IsIndeterminate="True"
+                                                         Height="4"
+                                                         IsVisible="{Binding RetroAchievementsProgress.IsLoading}" />
+                                            <TextBlock Text="{Binding RetroAchievementsProgress.HardcoreSummaryText}"
+                                                       Foreground="#C8D2E5"
+                                                       FontSize="11"
+                                                       IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+                                            <TextBlock Text="{Binding RetroAchievementsProgress.StatusText}"
+                                                       Foreground="#C8D2E5"
+                                                       FontSize="11"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding RetroAchievementsProgress.ShowStatus}" />
+                                        </StackPanel>
+                                    </Border>
+
                                     <!-- Node / item description -->
-                                    <StackPanel Grid.Row="0"
+                                    <StackPanel Grid.Row="1"
                                                 Grid.ColumnSpan="2"
                                                 Spacing="6">
                                         <TextBlock Text="{x:Static resources:Strings.Common_Description}"
@@ -299,7 +343,7 @@
                                     </StackPanel>
 
                                     <!-- Release date -->
-                                    <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                                    <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
                                         <TextBlock Text="{x:Static resources:Strings.Common_ReleaseDate}"
                                                    Foreground="#7BA3FF"
                                                    FontWeight="SemiBold"
@@ -309,7 +353,7 @@
                                     </StackPanel>
 
                                     <!-- Developer -->
-                                    <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+                                    <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
                                         <TextBlock Text="{x:Static resources:Strings.Common_Developer}"
                                                    Foreground="#7BA3FF"
                                                    FontWeight="SemiBold"
@@ -320,7 +364,7 @@
                                     </StackPanel>
 
                                     <!-- Played count -->
-                                    <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
+                                    <StackPanel Grid.Row="3" Grid.Column="0" Spacing="4">
                                         <TextBlock Text="{x:Static resources:Strings.Media_PlayCount}"
                                                    Foreground="#7BA3FF"
                                                    FontWeight="SemiBold"
@@ -330,7 +374,7 @@
                                     </StackPanel>
 
                                     <!-- Last played -->
-                                    <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
+                                    <StackPanel Grid.Row="3" Grid.Column="1" Spacing="4">
                                         <TextBlock Text="{x:Static resources:Strings.Media_LastPlayed}"
                                                    Foreground="#7BA3FF"
                                                    FontWeight="SemiBold"
@@ -340,7 +384,7 @@
                                     </StackPanel>
 
                                     <!-- Play time -->
-                                    <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
+                                    <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
                                         <TextBlock Text="{x:Static resources:Strings.Media_PlayTime}"
                                                    Foreground="#7BA3FF"
                                                    FontWeight="SemiBold"

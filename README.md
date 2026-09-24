@@ -612,8 +612,8 @@ are supported through the bundled decoder.
 ### 4. View and refresh progress
 
 Select an identified game to see its progress in the right-hand detail panel. The achievement list can be
-expanded to show badges, descriptions, points, unlock state, and unlock time. Supported BigMode themes such as
-Prism show a compact Casual/Hardcore summary after the selection has settled. Retromind refreshes the selected
+expanded to show badges, descriptions, points, unlock state, and unlock time. The Default and Prism BigMode themes
+show a compact Casual/Hardcore summary after the selection has settled. Retromind refreshes the selected
 game after a normally tracked play session; **Refresh** can also be used manually in the desktop view.
 
 Successful progress responses and badge images are cached locally. If RetroAchievements is temporarily
