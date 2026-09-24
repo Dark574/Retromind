@@ -292,54 +292,8 @@ public partial class EditMediaViewModel
 
     private Dictionary<string, string> BuildEffectiveEnvironmentOverrides()
     {
-        var env = new Dictionary<string, string>(StringComparer.Ordinal);
-
         var emulator = ResolveSelectedEmulatorConfig();
-        if (emulator?.EnvironmentOverrides is { Count: > 0 })
-        {
-            foreach (var kv in emulator.EnvironmentOverrides)
-            {
-                if (string.IsNullOrWhiteSpace(kv.Key))
-                    continue;
-
-                env[kv.Key.Trim()] = kv.Value ?? string.Empty;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(emulator?.DefaultRunnerVersionId))
-        {
-            RunnerVersionEnvironmentHelper.ApplyRunnerToEnvironment(
-                env,
-                _settings,
-                emulator,
-                emulator.DefaultRunnerVersionId);
-        }
-
-        if (_parentNode != null && _rootNodes.Count > 0)
-        {
-            var chain = PathHelper.GetNodeChain(_parentNode, _rootNodes);
-            chain.Reverse(); // Leaf (parent) first
-
-            foreach (var node in chain)
-            {
-                if (node.EnvironmentOverrides == null)
-                    continue;
-
-                if (node.EnvironmentOverrides.Count > 0)
-                {
-                    foreach (var kv in node.EnvironmentOverrides)
-                    {
-                        if (string.IsNullOrWhiteSpace(kv.Key))
-                            continue;
-
-                        env[kv.Key.Trim()] = kv.Value ?? string.Empty;
-                    }
-                }
-
-                break;
-            }
-        }
-
+        var itemOverrides = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var row in EnvironmentOverrides)
         {
             if (row.IsInherited)
@@ -348,17 +302,16 @@ public partial class EditMediaViewModel
             if (string.IsNullOrWhiteSpace(row.Key))
                 continue;
 
-            env[row.Key.Trim()] = row.Value ?? string.Empty;
+            itemOverrides[row.Key] = row.Value ?? string.Empty;
         }
 
-        if (!string.IsNullOrWhiteSpace(SelectedRunnerVersion?.Id))
-        {
-            RunnerVersionEnvironmentHelper.ApplyRunnerToEnvironment(
-                env,
-                _settings,
-                emulator,
-                SelectedRunnerVersion.Id);
-        }
+        var env = LaunchInheritanceResolver.ResolveEnvironmentOverrides(
+            _settings,
+            emulator,
+            _parentNode,
+            _rootNodes,
+            itemOverrides,
+            SelectedRunnerVersion?.Id);
 
         ApplyEmulatorXdgOverridesForPreview(env, emulator);
         ApplyXdgOverridesForPreview(env);

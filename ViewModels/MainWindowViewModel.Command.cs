@@ -968,50 +968,12 @@ public partial class MainWindowViewModel
 
             if (item.MediaType == MediaType.Native || item.MediaType == MediaType.Emulator)
             {
-                var wrappers = emulator?.NativeWrappersOverride != null
-                    ? new List<LaunchWrapper>(emulator.NativeWrappersOverride)
-                    : new List<LaunchWrapper>();
-
-                // 2) Node level (nearest node in chain; tri-state over null/empty/non-empty)
-                List<LaunchWrapper>? nodeWrappers = null;
-                bool nodeOverrideFound = false;
-                var chain = PathHelper.GetNodeChain(trueParent, RootItems, matchById: true);
-                chain.Reverse(); // Leaf (trueParent) zuerst
-
-                foreach (var node in chain)
-                {
-                    if (node.NativeWrappersOverride == null)
-                    {
-                        // Inherit -> Do nothing, the next level decides
-                        continue;
-                    }
-
-                    nodeOverrideFound = true;
-
-                    // Empty list => explicitly "no node wrappers" (but keep emulator wrappers)
-                    // Non-empty => Override
-                    nodeWrappers = node.NativeWrappersOverride.Count == 0
-                        ? new List<LaunchWrapper>()
-                        : new List<LaunchWrapper>(node.NativeWrappersOverride);
-                    break;
-                }
-
-                if (nodeOverrideFound && nodeWrappers != null && nodeWrappers.Count > 0)
-                {
-                    var baseWrappers = wrappers ?? new List<LaunchWrapper>();
-                    var merged = new List<LaunchWrapper>(nodeWrappers.Count + baseWrappers.Count);
-                    merged.AddRange(nodeWrappers);
-                    merged.AddRange(baseWrappers);
-                    wrappers = merged;
-                }
-
-                // 3) Item level (always wins, tri-state over zero/empty/non-empty)
-                if (item.NativeWrappersOverride != null)
-                {
-                    wrappers = item.NativeWrappersOverride;
-                }
-
-                effectiveWrappers = wrappers;
+                effectiveWrappers = LaunchInheritanceResolver.ResolveNativeWrappers(
+                    emulator,
+                    trueParent,
+                    RootItems,
+                    item.NativeWrappersOverride,
+                    matchNodesById: true);
             }
 
             if (effectiveWrappers is { Count: > 0 })
@@ -1249,72 +1211,14 @@ public partial class MainWindowViewModel
         EmulatorConfig? emulator,
         MediaNode parentNode)
     {
-        var env = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        if (emulator?.EnvironmentOverrides is { Count: > 0 })
-        {
-            foreach (var kv in emulator.EnvironmentOverrides)
-            {
-                if (string.IsNullOrWhiteSpace(kv.Key))
-                    continue;
-
-                env[kv.Key.Trim()] = kv.Value ?? string.Empty;
-            }
-        }
-
-        // Emulator-level runner default (legacy env vars can still override later).
-        if (!string.IsNullOrWhiteSpace(emulator?.DefaultRunnerVersionId))
-        {
-            RunnerVersionEnvironmentHelper.ApplyRunnerToEnvironment(
-                env,
-                _currentSettings,
-                emulator,
-                emulator.DefaultRunnerVersionId);
-        }
-
-        // Node-level inheritance (nearest override wins, tri-state via null/empty/non-empty).
-        var chain = PathHelper.GetNodeChain(parentNode, RootItems, matchById: true);
-        chain.Reverse(); // Leaf (parent) first
-
-        foreach (var node in chain)
-        {
-            if (node.EnvironmentOverrides == null)
-                continue;
-
-            if (node.EnvironmentOverrides.Count > 0)
-            {
-                foreach (var kv in node.EnvironmentOverrides)
-                {
-                    if (string.IsNullOrWhiteSpace(kv.Key))
-                        continue;
-
-                    env[kv.Key.Trim()] = kv.Value ?? string.Empty;
-                }
-            }
-
-            break;
-        }
-
-        if (item.EnvironmentOverrides is { Count: > 0 })
-        {
-            foreach (var kv in item.EnvironmentOverrides)
-            {
-                if (string.IsNullOrWhiteSpace(kv.Key))
-                    continue;
-
-                env[kv.Key.Trim()] = kv.Value ?? string.Empty;
-            }
-        }
-
-        // Per-item runner selection wins over inherited environment.
-        if (!string.IsNullOrWhiteSpace(item.RunnerVersionId))
-        {
-            RunnerVersionEnvironmentHelper.ApplyRunnerToEnvironment(
-                env,
-                _currentSettings,
-                emulator,
-                item.RunnerVersionId);
-        }
+        var env = LaunchInheritanceResolver.ResolveEnvironmentOverrides(
+            _currentSettings,
+            emulator,
+            parentNode,
+            RootItems,
+            item.EnvironmentOverrides,
+            item.RunnerVersionId,
+            matchNodesById: true);
 
         return env.Count > 0 ? env : null;
     }

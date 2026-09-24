@@ -293,30 +293,19 @@ public partial class EditMediaViewModel
             }
         }
 
-        if (_parentNode != null && _rootNodes.Count > 0)
+        var nodeOverride = LaunchInheritanceResolver.FindNearestEnvironmentOverrideNode(
+            _parentNode,
+            _rootNodes);
+        if (nodeOverride?.EnvironmentOverrides is { Count: > 0 } nodeEnvironment)
         {
-            var chain = PathHelper.GetNodeChain(_parentNode, _rootNodes);
-            chain.Reverse(); // Leaf (parent) first
-
-            foreach (var node in chain)
+            foreach (var kv in nodeEnvironment)
             {
-                if (node.EnvironmentOverrides == null)
+                if (string.IsNullOrWhiteSpace(kv.Key))
                     continue;
 
-                if (node.EnvironmentOverrides.Count > 0)
-                {
-                    foreach (var kv in node.EnvironmentOverrides)
-                    {
-                        if (string.IsNullOrWhiteSpace(kv.Key))
-                            continue;
-
-                        var key = kv.Key.Trim();
-                        env[key] = kv.Value ?? string.Empty;
-                        sources[key] = string.Format(Strings.Common_SourceNodeFormat, node.Name);
-                    }
-                }
-
-                break;
+                var key = kv.Key.Trim();
+                env[key] = kv.Value ?? string.Empty;
+                sources[key] = string.Format(Strings.Common_SourceNodeFormat, nodeOverride.Name);
             }
         }
 

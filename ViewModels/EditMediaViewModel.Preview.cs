@@ -290,75 +290,26 @@ public partial class EditMediaViewModel
 
     private List<LaunchWrapper> ResolveEffectiveNativeWrappersForPreview()
     {
-        // 1) Item-level tri-state (based on current UI state in the dialog)
-        //    This reflects unsaved overrides directly from the edit UI.
-        switch (NativeWrapperMode)
+        // Translate the unsaved editor state back to the model's tri-state contract.
+        IReadOnlyList<LaunchWrapper>? itemOverride = NativeWrapperMode switch
         {
-            case WrapperMode.None:
-                // Explicit "no wrappers" for this item.
-                return new List<LaunchWrapper>();
+            WrapperMode.None => [],
+            WrapperMode.Override => NativeWrappers
+                .Select(x => x.ToModel())
+                .Where(x => !string.IsNullOrWhiteSpace(x.Path))
+                .ToList(),
+            _ => null
+        };
 
-            case WrapperMode.Override:
-                // Use the item-level override list from the UI (ignoring node/emulator).
-                return NativeWrappers
-                    .Select(x => x.ToModel())
-                    .Where(x => !string.IsNullOrWhiteSpace(x.Path))
-                    .ToList();
+        var effectiveEmulator = MediaType == MediaType.Emulator
+            ? ResolveSelectedEmulatorConfig()
+            : null;
 
-            case WrapperMode.Inherit:
-            default:
-                // Fall through to emulator/node chain resolution.
-                break;
-        }
-
-        // 2) Emulator-level base
-        List<LaunchWrapper> wrappers = new();
-
-        EmulatorConfig? effectiveEmulator = null;
-        if (MediaType == MediaType.Emulator)
-        {
-            effectiveEmulator = ResolveSelectedEmulatorConfig();
-        }
-
-        if (effectiveEmulator?.NativeWrappersOverride != null)
-            wrappers = new List<LaunchWrapper>(effectiveEmulator.NativeWrappersOverride);
-
-        // 3) Node-level inheritance (nearest override wins, tri-state via null/empty/non-empty).
-        if (_parentNode != null && _rootNodes.Count > 0)
-        {
-            var chain = PathHelper.GetNodeChain(_parentNode, _rootNodes);
-            chain.Reverse(); // Leaf (parent) first
-
-            List<LaunchWrapper>? nodeWrappers = null;
-            bool nodeOverrideFound = false;
-
-            foreach (var node in chain)
-            {
-                if (node.NativeWrappersOverride == null)
-                {
-                    // Inherit -> nothing to do here, continue upwards.
-                    continue;
-                }
-
-                nodeOverrideFound = true;
-                nodeWrappers = node.NativeWrappersOverride.Count == 0
-                    ? new List<LaunchWrapper>()
-                    : new List<LaunchWrapper>(node.NativeWrappersOverride);
-                break;
-            }
-
-            if (nodeOverrideFound && nodeWrappers != null && nodeWrappers.Count > 0)
-            {
-                var baseWrappers = wrappers;
-                var merged = new List<LaunchWrapper>(nodeWrappers.Count + baseWrappers.Count);
-                merged.AddRange(nodeWrappers);
-                merged.AddRange(baseWrappers);
-                wrappers = merged;
-            }
-        }
-
-        // 4) Final normalization: return a concrete list (never null).
-        return wrappers.ToList();
+        return LaunchInheritanceResolver.ResolveNativeWrappers(
+            effectiveEmulator,
+            _parentNode,
+            _rootNodes,
+            itemOverride);
     }
 
     private void RefreshInheritedWrappers()
@@ -400,37 +351,19 @@ public partial class EditMediaViewModel
 
         var resolved = new List<(LaunchWrapper Wrapper, string Source)>();
 
-        if (_parentNode != null && _rootNodes.Count > 0)
+        var nodeOverride = LaunchInheritanceResolver.FindNearestNativeWrapperOverrideNode(
+            _parentNode,
+            _rootNodes);
+        if (nodeOverride?.NativeWrappersOverride is { Count: > 0 } nodeWrappers)
         {
-            var chain = PathHelper.GetNodeChain(_parentNode, _rootNodes);
-            chain.Reverse(); // Leaf (parent) first
+            var nodeSource = string.Format(
+                Strings.EditMedia_InheritedWrappersSourceNodeFormat,
+                nodeOverride.Name);
+            foreach (var wrapper in nodeWrappers)
+                resolved.Add((wrapper, nodeSource));
 
-            List<LaunchWrapper>? nodeWrappers = null;
-            bool nodeOverrideFound = false;
-            string? nodeSourceName = null;
-
-            foreach (var node in chain)
-            {
-                if (node.NativeWrappersOverride == null)
-                    continue;
-
-                nodeOverrideFound = true;
-                nodeSourceName = node.Name;
-                nodeWrappers = node.NativeWrappersOverride.Count == 0
-                    ? new List<LaunchWrapper>()
-                    : new List<LaunchWrapper>(node.NativeWrappersOverride);
-                break;
-            }
-
-            if (nodeOverrideFound && nodeWrappers != null && nodeWrappers.Count > 0)
-            {
-                var nodeSource = string.Format(Strings.EditMedia_InheritedWrappersSourceNodeFormat, nodeSourceName);
-                foreach (var wrapper in nodeWrappers)
-                    resolved.Add((wrapper, nodeSource));
-
-                if (!string.IsNullOrWhiteSpace(nodeSourceName))
-                    sources.Insert(0, nodeSource);
-            }
+            if (!string.IsNullOrWhiteSpace(nodeOverride.Name))
+                sources.Insert(0, nodeSource);
         }
 
         if (baseWrappers.Count > 0)
