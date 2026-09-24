@@ -94,6 +94,15 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
     public bool IsWindowsPlatformSelected => SelectedPlatform?.Platform == GogInstallPlatform.Windows;
     public bool HasRunnerOptions => RunnerOptions.Count > 0;
     public bool ShowMissingRunnerHint => IsWindowsPlatformSelected && !HasRunnerOptions;
+    public bool ShowCleanInstallOption => !IsUpdate;
+    public bool IsUpdate { get; }
+    public bool ShowInstalledDlcReinstallNotice => InstalledDlcReinstallCount > 0;
+    public int InstalledDlcReinstallCount { get; }
+    public string InstalledDlcReinstallNoticeText => string.Format(
+        T(
+            "Gog.Install.InstalledDlcReinstallNoticeFormat",
+            "All {0:N0} DLC(s) currently registered as installed will also be reinstalled afterwards."),
+        InstalledDlcReinstallCount);
     public string InstallPathLabel => T("Gog.InstallPathLabel", "Install path");
     public string PlatformLabel => T("Gog.InstallPlatformLabel", "Version");
     public string RunnerLabel => T("Gog.InstallRunnerLabel", "Wine/Proton runner");
@@ -133,8 +142,13 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         IEnumerable<GogInstallPlatform>? availablePlatforms = null,
         GogInstallPlatform? preferredPlatform = null,
         string? preferredRunnerVersionId = null,
-        WindowsInstallerPreference? preferredWindowsInstallerPreference = null)
+        WindowsInstallerPreference? preferredWindowsInstallerPreference = null,
+        bool isUpdate = false,
+        int installedDlcReinstallCount = 0)
     {
+        IsUpdate = isUpdate;
+        InstalledDlcReinstallCount = Math.Max(0, installedDlcReinstallCount);
+        CleanInstall = !isUpdate;
         Title = T("Gog.Install.DialogTitle", "Install GOG game");
         Message = string.Format(
             T("Gog.Install.DialogMessageFormat", "Install \"{0}\""),
@@ -287,7 +301,7 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
             installerPreference,
             CreateDesktopShortcut,
             CreateStartMenuShortcuts,
-            CleanInstall,
+            !IsUpdate && CleanInstall,
             DeleteStagingAfterSuccess);
         window?.Close(true);
     }

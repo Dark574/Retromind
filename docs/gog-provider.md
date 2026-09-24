@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-09-18
+Last updated: 2026-09-24
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -108,6 +108,15 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - update availability flag persisted in custom fields (`Store.UpdateAvailable`, `Store.LastUpdateCheckUtc`, `Store.LastUpdateCheckStatus`)
   - a cover indicator is shown in the media grid and global search when an update is available
   - update actions in the item context menu and media editor run the existing installer flow
+  - after a successful main-game update, every DLC previously installed through Retromind is reapplied with
+    its current offline installer for the installed platform; uninstalled owned DLCs are not added
+  - update actions always install in place and do not expose the destructive `Clean install` option;
+    first installs and explicit reinstalls retain that option and its existing default
+  - explicit reinstalls also reapply every previously installed DLC; clean reinstalls first require the existing
+    ownership/path-safety confirmation and delete the contents of the managed game folder, including mods and unmanaged files,
+    while preserving a separate Wine/Proton prefix
+  - DLC failures do not stop later DLCs, remain visibly pending through the update indicator, and are reported
+    in the shared installation log
 - Uninstall wiring:
   - dedicated uninstall action for installed GOG items
   - physical deletion runs before metadata cleanup (metadata is only cleared after successful deletion phase)
@@ -299,9 +308,20 @@ Update execution reuses the existing install pipeline:
 3. execute installer with same silent flags / runner policy
 4. rerun launch mapping detection
 5. persist new install fingerprint
+6. resolve the current owned-DLC catalog and reapply every DLC that was installed before the main-game update
+   using the current platform package
+7. persist each successful DLC fingerprint independently; unavailable, failed, or cancelled DLC updates keep
+   the aggregate GOG update indicator active
 
 Operationally this remains a reinstall-over-existing-target flow, surfaced through the dedicated update actions
-in the item context menu and media editor.
+in the item context menu and media editor. Reapplying installed DLCs is intentional because GOG republishes its
+offline DLC installers alongside main-game updates; merely leaving the older DLC payload in place can create a
+mixed-version installation.
+
+The separate **Reinstall** action uses the same current main-game and DLC packages but may additionally perform a
+clean installation. This destructive option is never available through **Update**. Before cleaning, Retromind
+shows the exact managed game directory and requires confirmation; the folder contents are removed, but a separate
+Wine/Proton prefix and its Winetricks changes are preserved.
 
 ### 5) UX/API shape
 

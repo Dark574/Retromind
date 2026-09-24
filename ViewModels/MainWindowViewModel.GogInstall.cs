@@ -22,6 +22,13 @@ public partial class MainWindowViewModel
 {
     private static readonly object InstallerLogFileWriteLock = new();
 
+    private enum GogInstallOperation
+    {
+        Install,
+        Reinstall,
+        Update
+    }
+
     private sealed record DetectedGogLaunchInfo(
         string ExecutablePath,
         string? LaunchArguments,
@@ -31,11 +38,20 @@ public partial class MainWindowViewModel
     private bool ShouldOfferInstallForItem(MediaItem? item)
         => GogMediaItemStateHelper.ShouldOfferInstall(item);
 
-    private async Task<bool> InstallGogItemAsync(MediaItem item, Window? ownerOverride = null)
+    private async Task<bool> InstallGogItemAsync(
+        MediaItem item,
+        Window? ownerOverride = null,
+        GogInstallOperation operation = GogInstallOperation.Install)
     {
         var owner = ownerOverride ?? CurrentWindow;
         if (owner == null)
             return false;
+
+        var installedDlcsToReapply = operation != GogInstallOperation.Install
+            ? item.GogDlcInstallations?
+                .Where(static state => !string.IsNullOrWhiteSpace(state.ProductId))
+                .ToArray() ?? []
+            : [];
 
         var storeGameId = GogMediaItemStateHelper.TryGetGameId(item);
         if (string.IsNullOrWhiteSpace(storeGameId))
@@ -110,7 +126,9 @@ public partial class MainWindowViewModel
             availablePlatforms,
             preferredPlatform,
             preferredRunnerId,
-            preferredWindowsInstallerPreference);
+            preferredWindowsInstallerPreference,
+            isUpdate: operation == GogInstallOperation.Update,
+            installedDlcReinstallCount: installedDlcsToReapply.Length);
         dialogVm.RequestBrowseInstallPath += async () => await BrowseFolderForGogInstallAsync(owner);
 
         var dialog = new GogInstallDialogView { DataContext = dialogVm };
@@ -389,6 +407,15 @@ public partial class MainWindowViewModel
             }
 
             AppendProcessLog(progressLogVm, T("Gog.Install.Success", "Installation completed."));
+
+            if (installedDlcsToReapply.Length > 0)
+            {
+                await ReapplyInstalledGogDlcsAsync(
+                    item,
+                    installedDlcsToReapply,
+                    owner,
+                    progressLogVm);
+            }
         }
         finally
         {
@@ -451,7 +478,7 @@ public partial class MainWindowViewModel
                 string.Format(
                     T(
                         "Gog.Install.CleanInstallConfirmFormat",
-                        "Clean install will permanently delete the existing files in this Retromind-managed directory:\n{0}\n\nContinue?"),
+                        "Clean install will permanently delete the contents of this Retromind-managed game directory, including mods and other files stored there. The separate Wine/Proton prefix is preserved:\n{0}\n\nContinue?"),
                     assessment.FullPath));
             if (!confirmed)
                 return false;

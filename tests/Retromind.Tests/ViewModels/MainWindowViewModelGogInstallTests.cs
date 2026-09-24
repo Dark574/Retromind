@@ -36,4 +36,48 @@ public sealed class MainWindowViewModelGogInstallTests
 
         Assert.Equal(expected, arguments);
     }
+
+    [Fact]
+    public void InstallDialog_UpdateIsAlwaysInPlaceAndShowsDlcCount()
+    {
+        var viewModel = new GogInstallDialogViewModel(
+            "Test Game",
+            "/tmp/test-game",
+            availableRunnerConfigs: null,
+            isUpdate: true,
+            installedDlcReinstallCount: 31);
+
+        Assert.True(viewModel.ShowInstalledDlcReinstallNotice);
+        Assert.Contains("31", viewModel.InstalledDlcReinstallNoticeText, StringComparison.Ordinal);
+        Assert.True(viewModel.IsUpdate);
+        Assert.False(viewModel.ShowCleanInstallOption);
+        Assert.False(viewModel.CleanInstall);
+
+        viewModel.CleanInstall = true;
+        viewModel.ConfirmCommand.Execute(null);
+
+        Assert.NotNull(viewModel.Result);
+        Assert.False(viewModel.Result!.CleanInstall);
+    }
+
+    [Fact]
+    public void InstallDialog_ReinstallRetainsCleanInstallChoiceAndShowsDlcCount()
+    {
+        var viewModel = new GogInstallDialogViewModel(
+            "Test Game",
+            "/tmp/test-game",
+            availableRunnerConfigs: null,
+            isUpdate: false,
+            installedDlcReinstallCount: 31);
+
+        Assert.False(viewModel.IsUpdate);
+        Assert.True(viewModel.ShowCleanInstallOption);
+        Assert.True(viewModel.CleanInstall);
+        Assert.True(viewModel.ShowInstalledDlcReinstallNotice);
+
+        viewModel.ConfirmCommand.Execute(null);
+
+        Assert.NotNull(viewModel.Result);
+        Assert.True(viewModel.Result!.CleanInstall);
+    }
 }

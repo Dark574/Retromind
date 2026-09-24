@@ -750,7 +750,15 @@ Please test it carefully and expect rough edges or breaking behavior between alp
 - If an update is detected, Retromind shows:
   - an update badge in the media details
   - an **Update** action button (same panel as install/reinstall actions)
-- Running **Update** reuses the existing installer flow (download + install) and then refreshes the stored install fingerprint metadata.
+- Running **Update** installs the current main-game package in place. It never deletes the existing game folder
+  and does not offer the destructive **Clean install** option.
+- After an update, Retromind automatically reinstalls every DLC previously installed through Retromind with its
+  current package for the selected platform. Owned but uninstalled DLCs are not added. Failed or unavailable DLCs
+  do not stop the remaining DLCs and keep the GOG update indicator active.
+- Use **Reinstall** when you deliberately want a clean installation. Its optional **Clean install** mode deletes
+  the contents of the Retromind-managed game folder, including mods and other files stored there, after an explicit confirmation.
+  A separate Wine/Proton prefix and its Winetricks changes are preserved. Previously installed DLCs are then
+  reinstalled automatically as well.
 - Important baseline note:
   - reliable version/signature comparison requires an install fingerprint from Retromind.
   - If a title was installed outside Retromind or before this metadata existed, run one reinstall via Retromind to establish the baseline.

@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 
 ### Fixed
+- keep installed GOG DLCs synchronized when updating or reinstalling their main game
 
 ---
 

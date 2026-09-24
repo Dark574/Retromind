@@ -19,6 +19,11 @@
     <StackPanel Margin="20" Spacing="10" MinWidth="520">
         <TextBlock Text="{Binding Message}" FontWeight="Bold" />
 
+        <TextBlock Text="{Binding InstalledDlcReinstallNoticeText}"
+                   IsVisible="{Binding ShowInstalledDlcReinstallNotice}"
+                   FontWeight="SemiBold"
+                   TextWrapping="Wrap" />
+
         <TextBlock Text="{Binding InstallPathLabel}" />
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <TextBox Grid.Column="0"
@@ -81,7 +86,7 @@
             </StackPanel>
         </StackPanel>
 
-        <StackPanel Spacing="4">
+        <StackPanel Spacing="4" IsVisible="{Binding ShowCleanInstallOption}">
             <CheckBox Content="{Binding CleanInstallLabel}"
                       IsChecked="{Binding CleanInstall}" />
             <TextBlock Text="{Binding CleanInstallHint}"

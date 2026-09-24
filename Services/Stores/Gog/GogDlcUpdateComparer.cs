@@ -12,6 +12,14 @@ public enum GogDlcUpdateState
     UpdateAvailable
 }
 
+public sealed record GogDlcReapplyTarget(
+    GogDlcInstallationState Installed,
+    GogDlcCatalogItem CatalogItem);
+
+public sealed record GogDlcReapplyPlan(
+    IReadOnlyList<GogDlcReapplyTarget> Targets,
+    IReadOnlyList<GogDlcInstallationState> Unavailable);
+
 public static class GogDlcUpdateComparer
 {
     public const string CatalogSignaturePrefix = "catalog-v1:";
@@ -64,6 +72,48 @@ public static class GogDlcUpdateComparer
         return installedDlcs.Any(installed =>
             catalogById.TryGetValue(installed.ProductId, out var remote) &&
             Evaluate(installed, remote.GetInstallerMetadata(platform)) == GogDlcUpdateState.UpdateAvailable);
+    }
+
+    /// <summary>
+    /// Builds the set of already installed DLCs that must be reapplied after a
+    /// GOG offline installation of the main game. Unowned DLCs are never
+    /// added; installed DLCs without a current installer for the selected
+    /// platform are reported separately.
+    /// </summary>
+    public static GogDlcReapplyPlan CreateReapplyPlan(
+        IEnumerable<GogDlcInstallationState>? installedDlcs,
+        IEnumerable<GogDlcCatalogItem> catalog,
+        GogInstallPlatform platform)
+    {
+        if (installedDlcs == null)
+            return new GogDlcReapplyPlan([], []);
+
+        var catalogById = catalog
+            .Where(static item => !string.IsNullOrWhiteSpace(item.ProductId))
+            .GroupBy(static item => item.ProductId.Trim(), StringComparer.Ordinal)
+            .ToDictionary(static group => group.Key, static group => group.Last(), StringComparer.Ordinal);
+        var targets = new List<GogDlcReapplyTarget>();
+        var unavailable = new List<GogDlcInstallationState>();
+        var seenProductIds = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var installed in installedDlcs)
+        {
+            var productId = installed.ProductId?.Trim();
+            if (string.IsNullOrWhiteSpace(productId) || !seenProductIds.Add(productId))
+                continue;
+
+            if (catalogById.TryGetValue(productId, out var remote) &&
+                remote.AvailableInstallerPlatforms.Contains(platform))
+            {
+                targets.Add(new GogDlcReapplyTarget(installed, remote));
+            }
+            else
+            {
+                unavailable.Add(installed);
+            }
+        }
+
+        return new GogDlcReapplyPlan(targets, unavailable);
     }
 
     private static string Normalize(string? value) => value?.Trim() ?? string.Empty;

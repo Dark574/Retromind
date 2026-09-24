@@ -1096,7 +1096,7 @@ public partial class MainWindowViewModel
         IsLaunchInProgress = true;
         try
         {
-            await InstallGogItemAsync(item);
+            await InstallGogItemAsync(item, operation: GogInstallOperation.Reinstall);
         }
         catch (Exception ex)
         {
@@ -1119,7 +1119,7 @@ public partial class MainWindowViewModel
         IsLaunchInProgress = true;
         try
         {
-            await InstallGogItemAsync(item);
+            await InstallGogItemAsync(item, operation: GogInstallOperation.Update);
         }
         catch (Exception ex)
         {
@@ -1146,7 +1146,15 @@ public partial class MainWindowViewModel
         IsLaunchInProgress = true;
         try
         {
-            return await InstallGogItemAsync(item, owner);
+            var operation = requireAvailableUpdate
+                ? GogInstallOperation.Update
+                : GogMediaItemStateHelper.IsInstalled(item)
+                    ? GogInstallOperation.Reinstall
+                    : GogInstallOperation.Install;
+            return await InstallGogItemAsync(
+                item,
+                owner,
+                operation);
         }
         catch (Exception ex)
         {

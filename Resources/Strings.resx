@@ -306,6 +306,15 @@
     <data name="Gog.Dlc.InstallSuccessFormat" xml:space="preserve"><value>Successfully installed {0:N0} DLC(s).</value></data>
     <data name="Gog.Dlc.UpdateSuccessFormat" xml:space="preserve"><value>Successfully updated {0:N0} DLC(s).</value></data>
     <data name="Gog.Dlc.MixedSuccessFormat" xml:space="preserve"><value>Successfully installed {0:N0} and updated {1:N0} DLC(s).</value></data>
+    <data name="Gog.Dlc.PartialSuccessFormat" xml:space="preserve"><value>{0:N0} DLC(s) completed; {1:N0} failed. See the installation log for details.</value></data>
+    <data name="Gog.Dlc.ReapplyMissingInstallState" xml:space="preserve"><value>[DLC] The main game installation completed, but its installed DLCs could not be reapplied because the installation state is incomplete.</value></data>
+    <data name="Gog.Dlc.ReapplyPreparingFormat" xml:space="preserve"><value>[DLC] Preparing to reapply {0:N0} installed DLC(s)...</value></data>
+    <data name="Gog.Dlc.ReapplyCancelled" xml:space="preserve"><value>[DLC] Automatic DLC reinstallation was cancelled.</value></data>
+    <data name="Gog.Dlc.ReapplyCatalogFailedFormat" xml:space="preserve"><value>[DLC] The main game installation completed, but the installed DLCs could not be prepared for reinstallation: {0}</value></data>
+    <data name="Gog.Dlc.ReapplyUnavailableFormat" xml:space="preserve"><value>[DLC] No current installer is available for installed DLC '{0}'.</value></data>
+    <data name="Gog.Dlc.ReapplySuccessFormat" xml:space="preserve"><value>[DLC] All {0:N0} installed DLC(s) were reinstalled successfully.</value></data>
+    <data name="Gog.Dlc.ReapplyPartialFormat" xml:space="preserve"><value>[DLC] {0:N0} of {1:N0} installed DLC(s) were reinstalled. The GOG update indicator remains active.</value></data>
+    <data name="Gog.Install.InstalledDlcReinstallNoticeFormat" xml:space="preserve"><value>All {0:N0} DLC(s) currently registered as installed will also be reinstalled afterwards.</value></data>
     <data name="Gog.Media.AddMenu" xml:space="preserve"><value>Add GOG media</value></data>
     <data name="Gog.AuthCheckFailed" xml:space="preserve"><value>GOG sign-in state could not be verified.</value></data>
     <data name="Gog.SignInRequiredPrompt" xml:space="preserve"><value>GOG sign-in is required. Open secure sign-in now?</value></data>
@@ -357,8 +366,8 @@
   <data name="Gog.Install.CreateStartMenuShortcutsLabel" xml:space="preserve"><value>Create application menu entries</value></data>
   <data name="Gog.Install.CreateStartMenuShortcutsHint" xml:space="preserve"><value>Creates GOG game shortcuts in the desktop environment's application menu.</value></data>
   <data name="Gog.Install.CleanInstallLabel" xml:space="preserve"><value>Clean install</value></data>
-  <data name="Gog.Install.CleanInstallHint" xml:space="preserve"><value>Delete existing files in the target folder before installation.</value></data>
-  <data name="Gog.Install.CleanInstallConfirmFormat" xml:space="preserve"><value>Clean install will permanently delete the existing files in this Retromind-managed directory:
+  <data name="Gog.Install.CleanInstallHint" xml:space="preserve"><value>Deletes the contents of the game folder before installation. Mods and other files stored there will be lost; the separate Wine/Proton prefix is preserved.</value></data>
+  <data name="Gog.Install.CleanInstallConfirmFormat" xml:space="preserve"><value>Clean install will permanently delete the contents of the game folder, including mods and other files stored there. The separate Wine/Proton prefix is preserved:
 {0}
 
 Continue?</value></data>

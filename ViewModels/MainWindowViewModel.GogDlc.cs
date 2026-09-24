@@ -41,7 +41,8 @@ public partial class MainWindowViewModel
         MediaItem item,
         IReadOnlyList<GogDlcCatalogEntry> entries,
         Window owner,
-        CancellationToken dialogCancellationToken)
+        CancellationToken dialogCancellationToken,
+        ProcessLogViewModel? existingProgressLog = null)
     {
         if (entries.Count == 0)
             return new GogDlcInstallBatchResult(new HashSet<string>(), string.Empty);
@@ -80,19 +81,25 @@ public partial class MainWindowViewModel
             CleanInstall: false,
             DeleteStagingAfterSuccess: true);
 
-        var progressTitle = string.Format(
-            CultureInfo.CurrentCulture,
-            T("Gog.Dlc.ProgressTitleFormat", "GOG DLC installation - {0}"),
-            string.IsNullOrWhiteSpace(item.Title) ? "GOG" : item.Title);
-        var progressLogVm = new ProcessLogViewModel(progressTitle, newestFirst: true);
-        var progressLogView = new ProcessLogView { DataContext = progressLogVm };
-        await UiThreadHelper.InvokeAsync(() => progressLogView.Show(owner));
-        progressLogVm.EnableCancel();
+        var ownsProgressLog = existingProgressLog == null;
+        var progressLogVm = existingProgressLog;
+        if (progressLogVm == null)
+        {
+            var progressTitle = string.Format(
+                CultureInfo.CurrentCulture,
+                T("Gog.Dlc.ProgressTitleFormat", "GOG DLC installation - {0}"),
+                string.IsNullOrWhiteSpace(item.Title) ? "GOG" : item.Title);
+            progressLogVm = new ProcessLogViewModel(progressTitle, newestFirst: true);
+            var progressLogView = new ProcessLogView { DataContext = progressLogVm };
+            await UiThreadHelper.InvokeAsync(() => progressLogView.Show(owner));
+            progressLogVm.EnableCancel();
+        }
 
         var installedProductIds = new HashSet<string>(StringComparer.Ordinal);
         var installedCount = 0;
         var updatedCount = 0;
-        string? failureMessage = null;
+        var failureMessages = new List<string>();
+        var wasCancelled = false;
 
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             dialogCancellationToken,
@@ -119,16 +126,14 @@ public partial class MainWindowViewModel
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"[GOG] Failed to repair Linux installer metadata before DLC installation: {ex.Message}");
-                    failureMessage = string.Format(
+                    var failureMessage = string.Format(
                         CultureInfo.CurrentCulture,
                         T("Gog.Dlc.LinuxMetadataRepairFailedFormat", "The Linux installation metadata could not be repaired: {0}"),
                         BuildShortErrorDetail(ex));
                     AppendProcessLog(progressLogVm, failureMessage);
+                    return new GogDlcInstallBatchResult(installedProductIds, failureMessage);
                 }
             }
-
-            if (!string.IsNullOrWhiteSpace(failureMessage))
-                return new GogDlcInstallBatchResult(installedProductIds, failureMessage);
 
             for (var index = 0; index < entries.Count; index++)
             {
@@ -150,23 +155,25 @@ public partial class MainWindowViewModel
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     Debug.WriteLine($"[GOG] Failed to resolve DLC installer '{entry.ProductId}': {ex.Message}");
-                    failureMessage = string.Format(
+                    var failureMessage = string.Format(
                         CultureInfo.CurrentCulture,
                         T("Gog.Dlc.ResolveFailedFormat", "The installer for '{0}' could not be loaded: {1}"),
                         entry.Title,
                         BuildShortErrorDetail(ex));
+                    failureMessages.Add(failureMessage);
                     AppendProcessLog(progressLogVm, failureMessage);
-                    break;
+                    continue;
                 }
 
                 if (installerPackage == null)
                 {
-                    failureMessage = string.Format(
+                    var failureMessage = string.Format(
                         CultureInfo.CurrentCulture,
                         T("Gog.Dlc.NoInstallerForPlatformFormat", "No installer for the installed platform is currently available for '{0}'."),
                         entry.Title);
+                    failureMessages.Add(failureMessage);
                     AppendProcessLog(progressLogVm, failureMessage);
-                    break;
+                    continue;
                 }
 
                 var platformFolder = platform == GogInstallPlatform.Windows ? "windows" : "linux";
@@ -218,13 +225,14 @@ public partial class MainWindowViewModel
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     Debug.WriteLine($"[GOG] Failed to download DLC installer '{entry.ProductId}': {ex.Message}");
-                    failureMessage = string.Format(
+                    var failureMessage = string.Format(
                         CultureInfo.CurrentCulture,
                         T("Gog.Dlc.DownloadFailedFormat", "The installer for '{0}' could not be downloaded: {1}"),
                         entry.Title,
                         BuildShortErrorDetail(ex));
+                    failureMessages.Add(failureMessage);
                     AppendProcessLog(progressLogVm, failureMessage);
-                    break;
+                    continue;
                 }
 
                 var runResult = await RunInstallerAsync(
@@ -238,13 +246,14 @@ public partial class MainWindowViewModel
                     requireLinuxPayloadChange: platform == GogInstallPlatform.Linux);
                 if (!runResult.Success)
                 {
-                    failureMessage = string.Format(
+                    var failureMessage = string.Format(
                         CultureInfo.CurrentCulture,
                         T("Gog.Dlc.RunFailedFormat", "The installer for '{0}' failed: {1}"),
                         entry.Title,
                         runResult.ErrorMessage ?? T("Gog.Install.RunFailed", "Installer execution failed."));
+                    failureMessages.Add(failureMessage);
                     AppendProcessLog(progressLogVm, failureMessage);
-                    break;
+                    continue;
                 }
 
                 UpdateInstalledGogDlcState(item, entry, platform.Value, installerPackage);
@@ -272,16 +281,34 @@ public partial class MainWindowViewModel
         catch (OperationCanceledException)
         {
             progressLogVm.MarkCancelled(T("Gog.Install.Cancelled", "Installation cancelled by user."));
-            failureMessage = T("Gog.Install.Cancelled", "Installation cancelled by user.");
+            wasCancelled = true;
         }
         finally
         {
-            progressLogVm.MarkFinished();
-            UiThreadHelper.Post(() => progressLogVm.IsRunning = false);
+            if (ownsProgressLog)
+            {
+                progressLogVm.MarkFinished();
+                UiThreadHelper.Post(() => progressLogVm.IsRunning = false);
+            }
         }
 
-        if (!string.IsNullOrWhiteSpace(failureMessage))
-            return new GogDlcInstallBatchResult(installedProductIds, failureMessage);
+        if (wasCancelled)
+            return new GogDlcInstallBatchResult(
+                installedProductIds,
+                T("Gog.Install.Cancelled", "Installation cancelled by user."));
+
+        if (failureMessages.Count > 0)
+        {
+            var partialMessage = string.Format(
+                CultureInfo.CurrentCulture,
+                T(
+                    "Gog.Dlc.PartialSuccessFormat",
+                    "{0:N0} DLC(s) completed; {1:N0} failed. See the installation log for details."),
+                installedCount + updatedCount,
+                failureMessages.Count);
+            AppendProcessLog(progressLogVm, partialMessage);
+            return new GogDlcInstallBatchResult(installedProductIds, partialMessage);
+        }
 
         var successMessage = installedCount > 0 && updatedCount > 0
             ? string.Format(
@@ -298,7 +325,133 @@ public partial class MainWindowViewModel
                     CultureInfo.CurrentCulture,
                     T("Gog.Dlc.InstallSuccessFormat", "Successfully installed {0:N0} DLC(s)."),
                     installedCount);
+        AppendProcessLog(progressLogVm, successMessage);
         return new GogDlcInstallBatchResult(installedProductIds, successMessage);
+    }
+
+    private async Task ReapplyInstalledGogDlcsAsync(
+        MediaItem item,
+        IReadOnlyList<GogDlcInstallationState> previouslyInstalledDlcs,
+        Window owner,
+        ProcessLogViewModel progressLogVm)
+    {
+        var gameId = GogMediaItemStateHelper.TryGetGameId(item);
+        var platform = GetPreferredInstalledGogPlatform(item);
+        if (string.IsNullOrWhiteSpace(gameId) || !platform.HasValue)
+        {
+            SetGogDlcUpdateAvailability(item, true);
+            AppendProcessLog(
+                progressLogVm,
+                T(
+                    "Gog.Dlc.ReapplyMissingInstallState",
+                    "[DLC] The main game installation completed, but its installed DLCs could not be reapplied because the installation state is incomplete."));
+            return;
+        }
+
+        AppendProcessLog(
+            progressLogVm,
+            string.Format(
+                CultureInfo.CurrentCulture,
+                T(
+                    "Gog.Dlc.ReapplyPreparingFormat",
+                    "[DLC] Preparing to reapply {0:N0} installed DLC(s)..."),
+                previouslyInstalledDlcs.Count));
+
+        IReadOnlyList<GogDlcCatalogItem> catalog;
+        try
+        {
+            catalog = await _gogInstallService.GetOwnedDlcCatalogAsync(gameId, progressLogVm.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            SetGogDlcUpdateAvailability(item, true);
+            AppendProcessLog(
+                progressLogVm,
+                T("Gog.Dlc.ReapplyCancelled", "[DLC] Automatic DLC reinstallation was cancelled."));
+            return;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] Failed to prepare automatic DLC updates for '{item.Title}': {ex.Message}");
+            SetGogDlcUpdateAvailability(item, true);
+            AppendProcessLog(
+                progressLogVm,
+                string.Format(
+                    CultureInfo.CurrentCulture,
+                    T(
+                        "Gog.Dlc.ReapplyCatalogFailedFormat",
+                        "[DLC] The main game installation completed, but the installed DLCs could not be prepared for reinstallation: {0}"),
+                    BuildShortErrorDetail(ex)));
+            return;
+        }
+
+        var plan = GogDlcUpdateComparer.CreateReapplyPlan(
+            previouslyInstalledDlcs,
+            catalog,
+            platform.Value);
+        foreach (var unavailable in plan.Unavailable)
+        {
+            AppendProcessLog(
+                progressLogVm,
+                string.Format(
+                    CultureInfo.CurrentCulture,
+                    T(
+                        "Gog.Dlc.ReapplyUnavailableFormat",
+                        "[DLC] No current installer is available for installed DLC '{0}'."),
+                    string.IsNullOrWhiteSpace(unavailable.Title) ? unavailable.ProductId : unavailable.Title));
+        }
+
+        var linuxText = T("Gog.Install.PlatformLinux", "Linux");
+        var windowsText = T("Gog.Install.PlatformWindows", "Windows");
+        var noInstallerText = T("Gog.Dlc.NoSeparateInstaller", "Currently no Linux/Windows offline installer");
+        var upToDateText = T("Gog.Dlc.UpToDate", "Up to date");
+        var updateAvailableText = T("Gog.Dlc.UpdateAvailable", "Update available");
+        var updateUnknownText = T("Gog.Dlc.UpdateUnknown", "Installed · update status unknown");
+        var entries = plan.Targets
+            .Select(target => new GogDlcCatalogEntry(
+                target.CatalogItem,
+                linuxText,
+                windowsText,
+                noInstallerText,
+                upToDateText,
+                updateAvailableText,
+                updateUnknownText,
+                platform.Value,
+                isInstalled: true,
+                installedState: target.Installed))
+            .ToArray();
+
+        var result = entries.Length > 0
+            ? await InstallGogDlcsAsync(
+                item,
+                entries,
+                owner,
+                progressLogVm.Token,
+                progressLogVm)
+            : new GogDlcInstallBatchResult(new HashSet<string>(), string.Empty);
+
+        var updatedCount = plan.Targets.Count(target =>
+            result.InstalledProductIds.Contains(target.CatalogItem.ProductId));
+        var allDlcsUpdated = updatedCount == plan.Targets.Count && plan.Unavailable.Count == 0;
+        SetGogDlcUpdateAvailability(item, !allDlcsUpdated);
+        await SaveData();
+
+        AppendProcessLog(
+            progressLogVm,
+            allDlcsUpdated
+                ? string.Format(
+                    CultureInfo.CurrentCulture,
+                    T(
+                        "Gog.Dlc.ReapplySuccessFormat",
+                        "[DLC] All {0:N0} installed DLC(s) were updated successfully."),
+                    updatedCount)
+                : string.Format(
+                    CultureInfo.CurrentCulture,
+                    T(
+                        "Gog.Dlc.ReapplyPartialFormat",
+                        "[DLC] {0:N0} of {1:N0} installed DLC(s) were updated. The GOG update indicator remains active."),
+                    updatedCount,
+                    plan.Targets.Count + plan.Unavailable.Count));
     }
 
     private static bool TryResolveInstalledGogPath(MediaItem item, out string installPath)
