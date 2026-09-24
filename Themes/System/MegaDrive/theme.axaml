@@ -1,0 +1,213 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="Transparent"
+
+             ext:ThemeProperties.Name="Sega Mega Drive"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.AccentColor="#D8333D"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
+             ext:ThemeProperties.VideoStretchMode="UniformToFill"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
+             ext:ThemeProperties.SecondaryVideoEnabled="False">
+
+    <UserControl.Resources>
+        <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
+    </UserControl.Resources>
+
+    <Border Background="#0A0A0D"
+            CornerRadius="8"
+            ClipToBounds="True">
+        <Grid>
+            <Rectangle>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#292A30" Offset="0" />
+                        <GradientStop Color="#151519" Offset="0.48" />
+                        <GradientStop Color="#070709" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <Border Height="4"
+                    VerticalAlignment="Top"
+                    Opacity="0.96">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Color="#D8333D" Offset="0" />
+                        <GradientStop Color="#D8333D" Offset="0.72" />
+                        <GradientStop Color="#8B1D28" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Restrained diagonal bands reference the black-and-red 16-bit
+                 industrial design without using product lettering or logos. -->
+            <Canvas HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Width="360"
+                    Height="210"
+                    Margin="0,38,46,0"
+                    Opacity="0.15">
+                <Border Canvas.Left="36" Canvas.Top="12"
+                        Width="10" Height="210"
+                        Background="#D8333D"
+                        RenderTransformOrigin="50%,50%">
+                    <Border.RenderTransform>
+                        <RotateTransform Angle="38" />
+                    </Border.RenderTransform>
+                </Border>
+                <Border Canvas.Left="106" Canvas.Top="12"
+                        Width="4" Height="210"
+                        Background="#D7D7DA"
+                        RenderTransformOrigin="50%,50%">
+                    <Border.RenderTransform>
+                        <RotateTransform Angle="38" />
+                    </Border.RenderTransform>
+                </Border>
+                <Border Canvas.Left="176" Canvas.Top="12"
+                        Width="10" Height="210"
+                        Background="#D8333D"
+                        RenderTransformOrigin="50%,50%">
+                    <Border.RenderTransform>
+                        <RotateTransform Angle="38" />
+                    </Border.RenderTransform>
+                </Border>
+                <Border Canvas.Left="246" Canvas.Top="12"
+                        Width="4" Height="210"
+                        Background="#D7D7DA"
+                        RenderTransformOrigin="50%,50%">
+                    <Border.RenderTransform>
+                        <RotateTransform Angle="38" />
+                    </Border.RenderTransform>
+                </Border>
+            </Canvas>
+
+            <Grid ColumnDefinitions="0.82*,1.48*"
+                  Margin="44,34,38,30">
+
+                <Grid Grid.Column="0"
+                      RowDefinitions="Auto,Auto,*"
+                      Margin="0,12,36,10">
+                    <Grid Grid.Row="0" Height="112">
+                        <Image helpers:AsyncImageHelper.Url="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               MaxWidth="370"
+                               IsVisible="{Binding ElementName=ThemeRoot,
+                                                   Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+                                                   Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Name}"
+                                   FontSize="44"
+                                   FontWeight="Bold"
+                                   Foreground="#F4F2F2"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding ElementName=ThemeRoot,
+                                                       Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+                                                       Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,14,0,20">
+                        <Border Height="3"
+                                Background="#D8333D"
+                                HorizontalAlignment="Left"
+                                Width="124" />
+                        <Border Height="3"
+                                Background="#8D8E94"
+                                HorizontalAlignment="Left"
+                                Margin="124,0,0,0"
+                                Width="42" />
+                    </Grid>
+
+                    <Border Grid.Row="2"
+                            BorderBrush="#66D8333D"
+                            BorderThickness="1,0,0,0"
+                            Padding="18,2,4,4"
+                            ClipToBounds="True">
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Description}"
+                                   FontSize="18"
+                                   LineHeight="27"
+                                   Foreground="#D7D4D5"
+                                   TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+
+                <!-- The shared preview sits behind the transparent CRT opening.
+                     Brand-neutral console hardware and controllers overlap below. -->
+                <Viewbox Grid.Column="1"
+                         Stretch="Uniform"
+                         StretchDirection="Both"
+                         ClipToBounds="False"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         MaxWidth="930"
+                         MaxHeight="830">
+                    <Canvas Width="1536" Height="1510">
+                        <Border x:Name="SystemPrimaryVideoSlot"
+                                Canvas.Left="285"
+                                Canvas.Top="154"
+                                Width="967"
+                                Height="678"
+                                Background="#010102"
+                                ClipToBounds="True" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/mega-drive-inspired-crt-frame.png}"
+                               Canvas.Left="0"
+                               Canvas.Top="0"
+                               Width="1536"
+                               Height="1024"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/mega-drive-inspired-console-controllers.png}"
+                               Canvas.Left="218"
+                               Canvas.Top="795"
+                               Width="1100"
+                               Height="733"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <Border Canvas.Left="766"
+                                Canvas.Top="986"
+                                Width="280"
+                                Height="62"
+                                CornerRadius="31"
+                                Background="#C8101115"
+                                BorderBrush="#668D8E94"
+                                BorderThickness="1">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="10"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
+                                           FontSize="17"
+                                           FontWeight="SemiBold"
+                                           Foreground="#C9C6C7"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Items.Count}"
+                                           FontSize="25"
+                                           FontWeight="Bold"
+                                           Foreground="#D8333D"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Canvas>
+                </Viewbox>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>
