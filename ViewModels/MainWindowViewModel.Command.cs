@@ -226,7 +226,9 @@ public partial class MainWindowViewModel
                 SelectedNode = request.ScopeNode;
         });
 
-        await UpdateContentAsync();
+        // The branch above always starts exactly one refresh: either explicitly
+        // for the current node or through the SelectedNode setter.
+        await AwaitCurrentContentUpdateAsync();
     }
 
     private async Task NavigateToStatisticsItemAsync(MediaItem item)
@@ -258,7 +260,9 @@ public partial class MainWindowViewModel
                 SelectedNode = targetNode;
         });
 
-        await UpdateContentAsync();
+        // The branch above always starts exactly one refresh: either explicitly
+        // for the current node or through the SelectedNode setter.
+        await AwaitCurrentContentUpdateAsync();
         await UiThreadHelper.InvokeAsync(() =>
         {
             if (SelectedNodeContent is not MediaAreaViewModel mediaViewModel)
@@ -610,14 +614,17 @@ public partial class MainWindowViewModel
             await UiThreadHelper.InvokeAsync(() =>
             {
                 ExpandPathToNode(RootItems, node);
-                SelectedNode = node;
-
                 if (!string.IsNullOrWhiteSpace(desiredItemId))
                     RememberNodeSelection(node.Id, desiredItemId);
+
+                if (ReferenceEquals(SelectedNode, node))
+                    UpdateContent();
+                else
+                    SelectedNode = node;
             });
 
             // 3) Wait until the grid (SelectedNodeContent) is actually there.
-            await UpdateContentAsync();
+            await AwaitCurrentContentUpdateAsync();
 
             // 4) Select item in the grid if we have a concrete item id.
             // Do not rely on LastBigModeWasItemView alone; some themes can end up desyncing it.
