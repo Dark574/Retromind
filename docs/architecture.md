@@ -194,10 +194,12 @@ BigMode is an overlay workflow with clear host/VM split:
 - the virtual library root uses `AppSettings.RootBigModeThemePath`; its selected top-level node remains
   preview content only, so the root theme is never inherited into that node
 - node-aware artwork resolution and fallback overrides (logo/marquee etc.)
+- wallpaper-aware screenshot fallback for themes that must avoid decoding two full-screen backgrounds for one selection
 - dual preview surfaces with crossfade and defensive playback sequencing; presentation state avoids stale
   frames and unnecessary restarts when multiple items share the same node fallback video
 - secondary background video channel support
 - attract mode (theme-driven idle navigation)
+- circular carousel windows retain overlapping item containers during one-step navigation instead of rebuilding every card
 - mirrors final BigMode selection back into core app settings on exit
 
 ## Search architecture

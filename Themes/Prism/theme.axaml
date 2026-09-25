@@ -10,7 +10,7 @@
 
              ext:ThemeProperties.Name="Prism"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.2.0"
+             ext:ThemeProperties.Version="0.3.0"
              ext:ThemeProperties.AccentColor="#62E6FF"
              ext:ThemeProperties.DynamicAccentEnabled="True"
              ext:ThemeProperties.DynamicAccentTransitionMs="400"
@@ -107,10 +107,11 @@
         <!-- Full-screen media backdrop. A screenshot sits below the wallpaper and
              therefore acts as a natural fallback when no wallpaper is available. -->
         <Grid x:Name="BackgroundVisual" Grid.RowSpan="2">
-            <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryScreenshotPath}"
+            <ext:CrossfadeImage Url="{Binding ActiveScreenshotFallbackPath}"
                                 DecodeWidth="1920"
                                 DisableCache="True"
-                                LoadDelayMs="160"
+                                LoadDelayMs="220"
+                                FadeDurationMs="700"
                                 Stretch="UniformToFill"
                                 Opacity="0.42"
                                 IsVisible="{Binding IsGameListActive}" />
@@ -118,7 +119,8 @@
             <ext:CrossfadeImage Url="{Binding ActiveWallpaperPath}"
                                 DecodeWidth="1920"
                                 DisableCache="True"
-                                LoadDelayMs="160"
+                                LoadDelayMs="220"
+                                FadeDurationMs="700"
                                 Stretch="UniformToFill"
                                 Opacity="0.58"
                                 IsVisible="{Binding IsGameListActive}" />
@@ -126,7 +128,8 @@
             <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
                                 DecodeWidth="1920"
                                 DisableCache="True"
-                                LoadDelayMs="160"
+                                LoadDelayMs="220"
+                                FadeDurationMs="700"
                                 Stretch="UniformToFill"
                                 Opacity="0.58"
                                 IsVisible="{Binding IsCategorySelectionActive}" />

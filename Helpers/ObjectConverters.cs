@@ -68,11 +68,11 @@ public static class ObjectConverters
         {
             var entries = values?.Select(UnwrapValue).ToArray() ?? Array.Empty<object?>();
             if (entries.Length == 0 || entries[0] is not bool isSelected || !isSelected)
-                return BoxShadows.Parse("0 0 0 0 #00000000");
+                return null;
 
             var strength = Math.Clamp(ToDouble(entries, 1, 0.35), 0.0, 1.0);
             if (strength <= 0.0001)
-                return BoxShadows.Parse("0 0 0 0 #00000000");
+                return null;
 
             var radius = Math.Clamp(ToDouble(entries, 2, 26.0), 0.0, 120.0);
             var accent = ToColor(entries, 3, Color.Parse("#4BA3FF"));

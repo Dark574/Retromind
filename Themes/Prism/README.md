@@ -14,6 +14,11 @@ horizontal cover carousel, compact metadata, and resilient artwork fallbacks.
 Prism does not ship third-party artwork. Wallpapers, screenshots, covers,
 logos, and videos are loaded from the selected Retromind item or node.
 
+The background crossfades independently from the shorter foreground
+transitions. A screenshot is decoded only when no wallpaper is available, so
+rapid navigation does not load two full-screen images for the same selection.
+The circular carousel also retains overlapping cards while moving one step.
+
 ## Dynamic accents
 
 Prism derives a primary and secondary accent color from the selected artwork

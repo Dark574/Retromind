@@ -93,7 +93,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     private const int DefaultCircularWindowSize = 9;
     private int _circularWindowSize = DefaultCircularWindowSize;
-    private readonly ObservableCollection<MediaItem> _circularItems = new();
+    private readonly RangeObservableCollection<MediaItem> _circularItems = new();
 
     public ObservableCollection<MediaItem> CircularItems => _circularItems;
 
@@ -280,6 +280,16 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     public string? ActiveWallpaperPath =>
         ResolveArtworkForSelection(AssetType.Wallpaper);
+
+    /// <summary>
+    /// Item screenshot used only when the active game selection has no item or
+    /// inherited wallpaper. This lets themes provide a screenshot fallback
+    /// without decoding it underneath an already available wallpaper.
+    /// </summary>
+    public string? ActiveScreenshotFallbackPath =>
+        IsGameListActive && string.IsNullOrWhiteSpace(ActiveWallpaperPath)
+            ? SelectedItem?.PrimaryScreenshotPath
+            : null;
 
     /// <summary>
     /// Resolved wallpaper path for category selection view.
@@ -736,12 +746,14 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     private void UpdateCircularItems()
     {
-        _circularItems.Clear();
-
         if (!IsGameListActive || Items.Count == 0)
+        {
+            if (_circularItems.Count > 0)
+                _circularItems.ReplaceAll(Array.Empty<MediaItem>());
             return;
+        }
 
-        CircularWindowHelper.BuildCircularWindow(
+        CircularWindowHelper.SynchronizeCircularWindow(
             Items,
             SelectedItem,
             _circularWindowSize,

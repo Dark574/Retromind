@@ -283,6 +283,7 @@ public partial class BigModeViewModel
         CancelPreviewDebounce();
         OnPropertyChanged(nameof(ActiveLogoPath));
         OnPropertyChanged(nameof(ActiveWallpaperPath));
+        OnPropertyChanged(nameof(ActiveScreenshotFallbackPath));
         OnPropertyChanged(nameof(DynamicAccentArtworkPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));
@@ -320,6 +321,7 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveLogoPath));
         OnPropertyChanged(nameof(HasDisplayLogo));
         OnPropertyChanged(nameof(ActiveWallpaperPath));
+        OnPropertyChanged(nameof(ActiveScreenshotFallbackPath));
         OnPropertyChanged(nameof(DynamicAccentArtworkPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));
@@ -365,6 +367,7 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveLogoPath));
         OnPropertyChanged(nameof(HasDisplayLogo));
         OnPropertyChanged(nameof(ActiveWallpaperPath));
+        OnPropertyChanged(nameof(ActiveScreenshotFallbackPath));
         OnPropertyChanged(nameof(DynamicAccentArtworkPath));
         OnPropertyChanged(nameof(ActiveVideoPath));
         OnPropertyChanged(nameof(ActiveMarqueePath));

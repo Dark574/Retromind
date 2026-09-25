@@ -112,6 +112,12 @@ The host automatically sets:
 
 So you can bind directly:
 
+- `ActiveWallpaperPath` resolves the selected item's wallpaper and an enabled
+  node fallback.
+- `ActiveScreenshotFallbackPath` exposes the selected item's screenshot only
+  when `ActiveWallpaperPath` is empty. Use it for a fallback layer without
+  decoding a hidden screenshot underneath an available wallpaper.
+
 > Note: Some existing themes in Retromind use helpers (e.g. async image loading). That’s optional; you can use standard Avalonia controls if you prefer.
 
 ---
@@ -284,6 +290,7 @@ Supported properties:
 - `Stretch` (Avalonia Stretch)
 - `FadeDurationMs` (int, optional; when 0, uses `ThemeProperties.FadeDurationMs`)
 - `FadeDelayMs` (int, optional; delay before switching to the new image)
+- `LoadDelayMs` (int, optional; waits for a rapidly changing URL to settle before decoding)
 
 Tip:
 - For a visible crossfade, keep the control present in the visual tree.
