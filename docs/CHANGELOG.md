@@ -24,6 +24,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - update all Prism game details when selecting a carousel cover with the mouse
 - honor the GOG installer-retention choice for automatically reinstalled DLC packages
 - restore live stdout/stderr forwarding for launched games while retaining early-failure diagnostics
+- validate selected runners before launch
 
 ---
 

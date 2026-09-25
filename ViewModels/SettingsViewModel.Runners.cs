@@ -523,7 +523,10 @@ public partial class SettingsViewModel
             var relativeInstalledPath = NormalizeRelativePath(Path.Combine(baseRelativePath, rootFolder));
 
             if (Directory.Exists(targetDir))
+            {
+                EnsureCompleteProtonRunner(targetDir);
                 return relativeInstalledPath;
+            }
 
             var stagingDir = Path.Combine(baseAbsolutePath, $".tmp_ge_{Guid.NewGuid():N}");
             Directory.CreateDirectory(stagingDir);
@@ -537,6 +540,7 @@ public partial class SettingsViewModel
                 var expectedRoot = Path.Combine(stagingDir, rootFolder);
                 if (Directory.Exists(expectedRoot))
                 {
+                    EnsureCompleteProtonRunner(expectedRoot);
                     Directory.Move(expectedRoot, targetDir);
                 }
                 else
@@ -544,10 +548,12 @@ public partial class SettingsViewModel
                     var extractedDirs = Directory.GetDirectories(stagingDir);
                     if (extractedDirs.Length == 1)
                     {
+                        EnsureCompleteProtonRunner(extractedDirs[0]);
                         Directory.Move(extractedDirs[0], targetDir);
                     }
                     else
                     {
+                        EnsureCompleteProtonRunner(stagingDir);
                         Directory.CreateDirectory(targetDir);
                         MoveDirectoryContents(stagingDir, targetDir);
                     }
@@ -579,6 +585,18 @@ public partial class SettingsViewModel
             {
                 // best-effort cleanup
             }
+        }
+    }
+
+    private static void EnsureCompleteProtonRunner(string runnerDirectory)
+    {
+        if (RunnerVersionPathHelper.ResolveExecutablePath(RunnerVersionKind.Proton, runnerDirectory) == null)
+        {
+            var format = Strings.ResourceManager.GetString(
+                             "Settings_GeProtonIncompleteFormat",
+                             Strings.Culture)
+                         ?? "The Proton archive is incomplete. Expected 'proton' and 'toolmanifest.vdf' in '{0}'.";
+            throw new InvalidOperationException(string.Format(format, runnerDirectory));
         }
     }
 

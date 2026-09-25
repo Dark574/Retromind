@@ -966,6 +966,21 @@ public partial class MainWindowViewModel
                 }
             }
 
+            var runnerValidationError = GetRunnerValidationError(item, emulator);
+            if (runnerValidationError != null)
+            {
+                Debug.WriteLine($"[Launch] Runner validation failed for '{item.Title}': {runnerValidationError}");
+                if (CurrentWindow is { } owner)
+                {
+                    var format = T(
+                        "Launch.FailedFormat",
+                        "\"{0}\" could not be started.\n\n{1}\n\nPlease check the launch file, emulator/runner, wrapper, and permissions.");
+                    await ShowInfoDialog(owner, string.Format(format, item.Title, runnerValidationError));
+                }
+
+                return;
+            }
+
             // Native wrapper resolution (emulator -> node -> item)
             IReadOnlyList<LaunchWrapper>? effectiveWrappers = null;
 
@@ -1232,6 +1247,35 @@ public partial class MainWindowViewModel
             matchNodesById: true);
 
         return env.Count > 0 ? env : null;
+    }
+
+    private string? GetRunnerValidationError(MediaItem item, EmulatorConfig? emulator)
+    {
+        var runnerId = !string.IsNullOrWhiteSpace(item.RunnerVersionId)
+            ? item.RunnerVersionId
+            : emulator?.DefaultRunnerVersionId;
+        if (string.IsNullOrWhiteSpace(runnerId))
+            return null;
+
+        var isAvailable = RunnerVersionEnvironmentHelper.TryFindAvailableRunnerVersion(
+            _currentSettings,
+            runnerId,
+            out var runner,
+            out var resolvedPath);
+        if (runner == null)
+        {
+            return T(
+                "Launch.RunnerAssignmentMissing",
+                "The runner configured for this game or emulator no longer exists in Settings. Select another runner in Settings -> Runner.");
+        }
+
+        if (isAvailable)
+            return null;
+
+        var format = T(
+            "Launch.RunnerUnavailableFormat",
+            "The configured runner '{0}' was not found or is incomplete at:\n{1}\n\nSelect or install it again in Settings -> Runner.");
+        return string.Format(format, runner.Name, resolvedPath);
     }
 
     private async Task DeleteMediaAsync(MediaItem? item)

@@ -400,6 +400,7 @@ Fortfahren?</value></data>
     <data name="Gog.Install.ValidationUmuRequired" xml:space="preserve"><value>Für einen Proton-Runner wird umu-run im PATH benötigt. Bitte umu installieren oder einen Wine-Runner wählen.</value></data>
     <data name="Gog.Install.UmuRequired" xml:space="preserve"><value>Für einen Proton-Runner wird umu-run im PATH benötigt. Bitte umu installieren oder einen Wine-Runner wählen.</value></data>
     <data name="Gog.Install.RunnerInvalidFormat" xml:space="preserve"><value>Der ausgewählte Runner '{0}' ist nicht verfügbar oder unvollständig. Bitte den Pfad unter Einstellungen -&gt; Runner prüfen.</value></data>
+    <data name="Settings_GeProtonIncompleteFormat" xml:space="preserve"><value>Das Proton-Archiv ist unvollständig. In „{0}“ wurden „proton“ und „toolmanifest.vdf“ erwartet.</value></data>
     <data name="Gog.Install.ResolveFailed" xml:space="preserve"><value>GOG-Installerdaten konnten nicht geladen werden.</value></data>
     <data name="Gog.Install.ResolveFailedFormat" xml:space="preserve"><value>GOG-Installerdaten konnten nicht geladen werden: {0}</value></data>
     <data name="Gog.Install.NoInstallerAvailable" xml:space="preserve"><value>Für diesen GOG-Titel ist kein installierbares Paket verfügbar.</value></data>
@@ -879,6 +880,11 @@ Vorhandene Einstellungsdateien werden nicht überschrieben, und Änderungen an d
 
 Bitte prüfe Startdatei, Emulator/Runner, Wrapper und Berechtigungen.</value>
     </data>
+    <data name="Launch.RunnerAssignmentMissing" xml:space="preserve"><value>Der für dieses Spiel oder den Emulator konfigurierte Runner ist in den Einstellungen nicht mehr vorhanden. Wähle unter Einstellungen -&gt; Runner einen anderen Runner aus.</value></data>
+    <data name="Launch.RunnerUnavailableFormat" xml:space="preserve"><value>Der konfigurierte Runner „{0}“ wurde nicht gefunden oder ist unvollständig:
+{1}
+
+Wähle oder installiere ihn unter Einstellungen -&gt; Runner erneut.</value></data>
     <data name="Launch.WatchedProcessNotFoundFormat" xml:space="preserve">
         <value>Der Launcher für „{0}“ wurde gestartet, aber der erwartete Prozess „{1}“ ist nicht erschienen.
 

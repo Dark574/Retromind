@@ -12,6 +12,7 @@ public sealed class GogLaunchConfigurationHelperTests
         using var temp = new TemporaryDirectory();
         var runnerDirectory = temp.CreateDirectory("GE-Proton");
         var protonExecutable = temp.CreateFile(Path.Combine("GE-Proton", "proton"));
+        temp.CreateFile(Path.Combine("GE-Proton", "toolmanifest.vdf"));
 
         var resolved = GogLaunchConfigurationHelper.ResolveRunnerExecutablePath(
             RunnerVersionKind.Proton,
@@ -57,6 +58,7 @@ public sealed class GogLaunchConfigurationHelperTests
         var relativeRunnerPath = Path.Combine("Emulators", "ProtonVersions", "GE-Proton");
         temp.CreateDirectory(relativeRunnerPath);
         var protonExecutable = temp.CreateFile(Path.Combine(relativeRunnerPath, "proton"));
+        temp.CreateFile(Path.Combine(relativeRunnerPath, "toolmanifest.vdf"));
 
         var resolved = GogLaunchConfigurationHelper.ResolveRunnerExecutablePath(
             RunnerVersionKind.Proton,

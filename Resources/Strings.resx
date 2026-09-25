@@ -399,6 +399,7 @@ Continue?</value></data>
     <data name="Gog.Install.ValidationUmuRequired" xml:space="preserve"><value>Proton runner requires umu-run in PATH. Install umu or select a Wine runner.</value></data>
     <data name="Gog.Install.UmuRequired" xml:space="preserve"><value>Proton runner requires umu-run in PATH. Install umu or choose a Wine runner.</value></data>
     <data name="Gog.Install.RunnerInvalidFormat" xml:space="preserve"><value>The selected runner '{0}' is unavailable or incomplete. Check its path in Settings -&gt; Runner.</value></data>
+    <data name="Settings_GeProtonIncompleteFormat" xml:space="preserve"><value>The Proton archive is incomplete. Expected 'proton' and 'toolmanifest.vdf' in '{0}'.</value></data>
     <data name="Gog.Install.ResolveFailed" xml:space="preserve"><value>GOG installer metadata could not be loaded.</value></data>
     <data name="Gog.Install.ResolveFailedFormat" xml:space="preserve"><value>GOG installer metadata could not be loaded: {0}</value></data>
     <data name="Gog.Install.NoInstallerAvailable" xml:space="preserve"><value>No installable package is available for this GOG title.</value></data>
@@ -877,6 +878,11 @@ Existing settings files will not be overwritten, and settings changes made durin
 
 Please check the launch file, emulator/runner, wrapper, and permissions.</value>
     </data>
+    <data name="Launch.RunnerAssignmentMissing" xml:space="preserve"><value>The runner configured for this game or emulator no longer exists in Settings. Select another runner in Settings -&gt; Runner.</value></data>
+    <data name="Launch.RunnerUnavailableFormat" xml:space="preserve"><value>The configured runner '{0}' was not found or is incomplete at:
+{1}
+
+Select or install it again in Settings -&gt; Runner.</value></data>
     <data name="Launch.WatchedProcessNotFoundFormat" xml:space="preserve">
         <value>The launcher for "{0}" was started, but the expected process "{1}" did not appear.
 

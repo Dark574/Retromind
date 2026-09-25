@@ -15,6 +15,21 @@ public static class RunnerVersionEnvironmentHelper
         return settings.RunnerVersions?.FirstOrDefault(v => string.Equals(v.Id, id, StringComparison.Ordinal));
     }
 
+    public static bool TryFindAvailableRunnerVersion(
+        AppSettings settings,
+        string? id,
+        out RunnerVersionConfig? version,
+        out string? resolvedConfiguredPath)
+    {
+        version = FindRunnerVersionById(settings, id);
+        resolvedConfiguredPath = version == null
+            ? null
+            : RunnerVersionPathHelper.ResolveConfiguredPath(version.Path) ?? version.Path;
+
+        return version != null &&
+               RunnerVersionPathHelper.ResolveExecutablePath(version.Kind, version.Path) != null;
+    }
+
     public static void ApplyRunnerToEnvironment(
         Dictionary<string, string> env,
         AppSettings settings,

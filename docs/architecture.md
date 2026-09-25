@@ -365,7 +365,10 @@ Runner definitions are stored in `AppSettings` and selected through inheritance 
 `SettingsViewModel.Runners` owns discovery, managed GE-Proton downloads, registration, usage/replacement, and
 removal. A completed managed download is registered immediately, managed files require confirmation before
 physical removal, and display order uses `MediaSortHelper.NaturalStringComparer` so numeric release segments
-sort naturally (for example, GE-Proton9 before GE-Proton10).
+sort naturally (for example, GE-Proton9 before GE-Proton10). Managed downloads are registered only after their
+Proton entry point and UMU tool manifest have been verified. Before a selected runner is launched, its persisted
+definition and files are checked again so removed, moved, or incomplete runners fail with visible guidance rather
+than silently falling back to another runtime.
 
 ## Parental control as cross-cutting concern
 Parental behavior is not isolated to one screen:
