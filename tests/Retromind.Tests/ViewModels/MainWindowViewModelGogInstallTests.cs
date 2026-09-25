@@ -1,3 +1,4 @@
+using Retromind.Models;
 using Retromind.Services.Stores.Gog;
 using Retromind.ViewModels;
 
@@ -45,39 +46,88 @@ public sealed class MainWindowViewModelGogInstallTests
             "/tmp/test-game",
             availableRunnerConfigs: null,
             isUpdate: true,
-            installedDlcReinstallCount: 31);
+            installedDlcsToReinstall: CreateInstalledDlcs());
 
         Assert.True(viewModel.ShowInstalledDlcReinstallNotice);
-        Assert.Contains("31", viewModel.InstalledDlcReinstallNoticeText, StringComparison.Ordinal);
+        Assert.Contains("2", viewModel.InstalledDlcReinstallNoticeText, StringComparison.Ordinal);
         Assert.True(viewModel.IsUpdate);
         Assert.False(viewModel.ShowCleanInstallOption);
+        Assert.False(viewModel.ShowDlcReinstallSelection);
         Assert.False(viewModel.CleanInstall);
 
+        viewModel.ClearInstalledDlcSelectionCommand.Execute(null);
         viewModel.CleanInstall = true;
         viewModel.ConfirmCommand.Execute(null);
 
         Assert.NotNull(viewModel.Result);
         Assert.False(viewModel.Result!.CleanInstall);
+        Assert.Equal(["1", "2"], viewModel.Result.DlcProductIdsToReinstall);
     }
 
     [Fact]
-    public void InstallDialog_ReinstallRetainsCleanInstallChoiceAndShowsDlcCount()
+    public void InstallDialog_CleanReinstallUsesSelectedDlcs()
     {
         var viewModel = new GogInstallDialogViewModel(
             "Test Game",
             "/tmp/test-game",
             availableRunnerConfigs: null,
             isUpdate: false,
-            installedDlcReinstallCount: 31);
+            installedDlcsToReinstall: CreateInstalledDlcs());
 
         Assert.False(viewModel.IsUpdate);
         Assert.True(viewModel.ShowCleanInstallOption);
         Assert.True(viewModel.CleanInstall);
-        Assert.True(viewModel.ShowInstalledDlcReinstallNotice);
+        Assert.True(viewModel.ShowDlcReinstallSelection);
+        Assert.False(viewModel.ShowInstalledDlcReinstallNotice);
+
+        viewModel.InstalledDlcOptions[1].IsSelected = false;
 
         viewModel.ConfirmCommand.Execute(null);
 
         Assert.NotNull(viewModel.Result);
         Assert.True(viewModel.Result!.CleanInstall);
+        Assert.Equal(["1"], viewModel.Result.DlcProductIdsToReinstall);
     }
+
+    [Fact]
+    public void InstallDialog_InPlaceReinstallForcesAllInstalledDlcs()
+    {
+        var viewModel = new GogInstallDialogViewModel(
+            "Test Game",
+            "/tmp/test-game",
+            availableRunnerConfigs: null,
+            isUpdate: false,
+            installedDlcsToReinstall: CreateInstalledDlcs());
+        viewModel.ClearInstalledDlcSelectionCommand.Execute(null);
+        viewModel.CleanInstall = false;
+
+        Assert.False(viewModel.ShowDlcReinstallSelection);
+        Assert.True(viewModel.ShowInstalledDlcReinstallNotice);
+
+        viewModel.ConfirmCommand.Execute(null);
+
+        Assert.NotNull(viewModel.Result);
+        Assert.False(viewModel.Result!.CleanInstall);
+        Assert.Equal(["1", "2"], viewModel.Result.DlcProductIdsToReinstall);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DlcInstallRequest_InheritsInstallerCleanupChoice(bool deleteStagingAfterSuccess)
+    {
+        var request = MainWindowViewModel.CreateGogDlcInstallRequest(
+            "/tmp/test-game",
+            GogInstallPlatform.Linux,
+            GogInstallDialogViewModel.WindowsInstallerPreference.AutoPrefer64,
+            deleteStagingAfterSuccess);
+
+        Assert.Equal(deleteStagingAfterSuccess, request.DeleteStagingAfterSuccess);
+    }
+
+    private static GogDlcInstallationState[] CreateInstalledDlcs() =>
+    [
+        new() { ProductId = "1", Title = "First DLC" },
+        new() { ProductId = "2", Title = "Second DLC" }
+    ];
 }

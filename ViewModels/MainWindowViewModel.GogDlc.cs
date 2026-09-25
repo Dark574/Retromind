@@ -42,7 +42,8 @@ public partial class MainWindowViewModel
         IReadOnlyList<GogDlcCatalogEntry> entries,
         Window owner,
         CancellationToken dialogCancellationToken,
-        ProcessLogViewModel? existingProgressLog = null)
+        ProcessLogViewModel? existingProgressLog = null,
+        bool deleteStagingAfterSuccess = true)
     {
         if (entries.Count == 0)
             return new GogDlcInstallBatchResult(new HashSet<string>(), string.Empty);
@@ -70,16 +71,12 @@ public partial class MainWindowViewModel
                 T("Gog.Dlc.SignInRequired", "DLC installation or update requires a GOG sign-in."));
         }
 
-        var request = new GogInstallDialogViewModel.GogInstallDialogResult(
+        var request = CreateGogDlcInstallRequest(
             installPath,
             platform.Value,
-            Runner: null,
-            WindowsInstallerPreference: GetPreferredInstalledWindowsInstallerPreference(item) ??
+            GetPreferredInstalledWindowsInstallerPreference(item) ??
                 GogInstallDialogViewModel.WindowsInstallerPreference.AutoPrefer64,
-            CreateDesktopShortcut: false,
-            CreateStartMenuShortcuts: false,
-            CleanInstall: false,
-            DeleteStagingAfterSuccess: true);
+            deleteStagingAfterSuccess);
 
         var ownsProgressLog = existingProgressLog == null;
         var progressLogVm = existingProgressLog;
@@ -333,7 +330,8 @@ public partial class MainWindowViewModel
         MediaItem item,
         IReadOnlyList<GogDlcInstallationState> previouslyInstalledDlcs,
         Window owner,
-        ProcessLogViewModel progressLogVm)
+        ProcessLogViewModel progressLogVm,
+        bool deleteStagingAfterSuccess)
     {
         var gameId = GogMediaItemStateHelper.TryGetGameId(item);
         var platform = GetPreferredInstalledGogPlatform(item);
@@ -427,7 +425,8 @@ public partial class MainWindowViewModel
                 entries,
                 owner,
                 progressLogVm.Token,
-                progressLogVm)
+                progressLogVm,
+                deleteStagingAfterSuccess)
             : new GogDlcInstallBatchResult(new HashSet<string>(), string.Empty);
 
         var updatedCount = plan.Targets.Count(target =>
@@ -484,6 +483,21 @@ public partial class MainWindowViewModel
         });
         item.GogDlcInstallations = states;
     }
+
+    internal static GogInstallDialogViewModel.GogInstallDialogResult CreateGogDlcInstallRequest(
+        string installPath,
+        GogInstallPlatform platform,
+        GogInstallDialogViewModel.WindowsInstallerPreference windowsInstallerPreference,
+        bool deleteStagingAfterSuccess) =>
+        new(
+            installPath,
+            platform,
+            Runner: null,
+            WindowsInstallerPreference: windowsInstallerPreference,
+            CreateDesktopShortcut: false,
+            CreateStartMenuShortcuts: false,
+            CleanInstall: false,
+            DeleteStagingAfterSuccess: deleteStagingAfterSuccess);
 
     private static GogDlcInstallBatchResult CreateGogDlcInstallError(string message) =>
         new(new HashSet<string>(), message);

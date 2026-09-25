@@ -128,7 +128,7 @@ public partial class MainWindowViewModel
             preferredRunnerId,
             preferredWindowsInstallerPreference,
             isUpdate: operation == GogInstallOperation.Update,
-            installedDlcReinstallCount: installedDlcsToReapply.Length);
+            installedDlcsToReinstall: installedDlcsToReapply);
         dialogVm.RequestBrowseInstallPath += async () => await BrowseFolderForGogInstallAsync(owner);
 
         var dialog = new GogInstallDialogView { DataContext = dialogVm };
@@ -137,6 +137,17 @@ public partial class MainWindowViewModel
             return false;
 
         var installRequest = dialogVm.Result;
+        if (operation == GogInstallOperation.Reinstall &&
+            installRequest.CleanInstall &&
+            installRequest.DlcProductIdsToReinstall != null)
+        {
+            var selectedDlcProductIds = installRequest.DlcProductIdsToReinstall
+                .ToHashSet(StringComparer.Ordinal);
+            installedDlcsToReapply = installedDlcsToReapply
+                .Where(state => selectedDlcProductIds.Contains(state.ProductId.Trim()))
+                .ToArray();
+        }
+
         if (!await ValidateGogInstallRuntimeRequirementsAsync(owner, installRequest))
             return false;
 
@@ -414,7 +425,8 @@ public partial class MainWindowViewModel
                     item,
                     installedDlcsToReapply,
                     owner,
-                    progressLogVm);
+                    progressLogVm,
+                    installRequest.DeleteStagingAfterSuccess);
             }
         }
         finally

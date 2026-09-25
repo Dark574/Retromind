@@ -94,6 +94,34 @@
                        TextWrapping="Wrap" />
         </StackPanel>
 
+        <Expander Header="{Binding DlcReinstallSelectionHeaderText}"
+                  IsVisible="{Binding ShowDlcReinstallSelection}">
+            <StackPanel Margin="0,8,0,0" Spacing="8">
+                <TextBlock Text="{Binding DlcReinstallSelectionHintText}"
+                           Opacity="0.75"
+                           TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="{Binding SelectAllInstalledDlcsText}"
+                            Command="{Binding SelectAllInstalledDlcsCommand}" />
+                    <Button Content="{Binding ClearInstalledDlcSelectionText}"
+                            Command="{Binding ClearInstalledDlcSelectionCommand}" />
+                </StackPanel>
+                <ScrollViewer MaxHeight="180"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding InstalledDlcOptions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:GogInstallDlcOption">
+                                <CheckBox Content="{Binding Title}"
+                                          IsChecked="{Binding IsSelected}"
+                                          Margin="0,2" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </StackPanel>
+        </Expander>
+
         <StackPanel Spacing="4">
             <CheckBox Content="{Binding DeleteStagingAfterSuccessLabel}"
                       IsChecked="{Binding DeleteStagingAfterSuccess}" />

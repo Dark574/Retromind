@@ -115,8 +115,13 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - explicit reinstalls also reapply every previously installed DLC; clean reinstalls first require the existing
     ownership/path-safety confirmation and delete the contents of the managed game folder, including mods and unmanaged files,
     while preserving a separate Wine/Proton prefix
+  - the clean-reinstall dialog offers a collapsed, scrollable checklist of previously installed DLCs; all are
+    selected by default, and only the selected subset is restored. Updates and in-place reinstalls force the full
+    installed set because omitting an installer cannot remove payload files from an existing game directory
   - DLC failures do not stop later DLCs, remain visibly pending through the update indicator, and are reported
     in the shared installation log
+  - the main install dialog's staging-data choice is inherited by automatic DLC reinstalls, so their downloaded
+    packages are retained or removed consistently with the main-game package
 - Uninstall wiring:
   - dedicated uninstall action for installed GOG items
   - physical deletion runs before metadata cleanup (metadata is only cleared after successful deletion phase)
@@ -321,7 +326,9 @@ mixed-version installation.
 The separate **Reinstall** action uses the same current main-game and DLC packages but may additionally perform a
 clean installation. This destructive option is never available through **Update**. Before cleaning, Retromind
 shows the exact managed game directory and requires confirmation; the folder contents are removed, but a separate
-Wine/Proton prefix and its Winetricks changes are preserved.
+Wine/Proton prefix and its Winetricks changes are preserved. For a clean reinstall, the user may choose which
+previously installed DLCs are restored; the default remains all. An in-place reinstall forces every installed DLC
+because skipping its installer would not remove the existing payload.
 
 ### 5) UX/API shape
 

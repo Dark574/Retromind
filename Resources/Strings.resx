@@ -315,6 +315,10 @@
     <data name="Gog.Dlc.ReapplySuccessFormat" xml:space="preserve"><value>[DLC] All {0:N0} installed DLC(s) were reinstalled successfully.</value></data>
     <data name="Gog.Dlc.ReapplyPartialFormat" xml:space="preserve"><value>[DLC] {0:N0} of {1:N0} installed DLC(s) were reinstalled. The GOG update indicator remains active.</value></data>
     <data name="Gog.Install.InstalledDlcReinstallNoticeFormat" xml:space="preserve"><value>All {0:N0} DLC(s) currently registered as installed will also be reinstalled afterwards.</value></data>
+    <data name="Gog.Install.DlcSelectionHeaderFormat" xml:space="preserve"><value>Reinstall DLCs: {0:N0} of {1:N0}</value></data>
+    <data name="Gog.Install.DlcSelectionHint" xml:space="preserve"><value>Only the selected DLCs will be reinstalled after the clean main-game installation.</value></data>
+    <data name="Gog.Install.DlcSelectAll" xml:space="preserve"><value>Select all</value></data>
+    <data name="Gog.Install.DlcClearSelection" xml:space="preserve"><value>Clear selection</value></data>
     <data name="Gog.Media.AddMenu" xml:space="preserve"><value>Add GOG media</value></data>
     <data name="Gog.AuthCheckFailed" xml:space="preserve"><value>GOG sign-in state could not be verified.</value></data>
     <data name="Gog.SignInRequiredPrompt" xml:space="preserve"><value>GOG sign-in is required. Open secure sign-in now?</value></data>
@@ -384,7 +388,7 @@ Continue?</value></data>
   <data name="Gog.Install.MarkerWriteFailedFormat" xml:space="preserve"><value>Retromind could not safely claim the install directory: {0}</value></data>
   <data name="Gog.Install.MarkerWriteWarningFormat" xml:space="preserve"><value>Installation succeeded, but Retromind could not mark the install directory as managed: {0}</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Delete staging data after successful installation</value></data>
-  <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Removes downloaded installer files after a successful install.</value></data>
+  <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Removes downloaded main-game and automatically reinstalled DLC packages after a successful install.</value></data>
   <data name="Gog.Update.BadgeTooltip" xml:space="preserve"><value>GOG update available</value></data>
   <data name="Gog.Install.PlatformLinux" xml:space="preserve"><value>Linux</value></data>
     <data name="Gog.Install.PlatformWindows" xml:space="preserve"><value>Windows</value></data>

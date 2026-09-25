@@ -316,6 +316,10 @@
     <data name="Gog.Dlc.ReapplySuccessFormat" xml:space="preserve"><value>[DLC] Alle {0:N0} installierten DLC(s) wurden erfolgreich neu installiert.</value></data>
     <data name="Gog.Dlc.ReapplyPartialFormat" xml:space="preserve"><value>[DLC] {0:N0} von {1:N0} installierten DLC(s) wurden neu installiert. Die GOG-Update-Markierung bleibt aktiv.</value></data>
     <data name="Gog.Install.InstalledDlcReinstallNoticeFormat" xml:space="preserve"><value>Anschließend werden außerdem alle {0:N0} derzeit als installiert erfassten DLC(s) neu installiert.</value></data>
+    <data name="Gog.Install.DlcSelectionHeaderFormat" xml:space="preserve"><value>DLCs erneut installieren: {0:N0} von {1:N0}</value></data>
+    <data name="Gog.Install.DlcSelectionHint" xml:space="preserve"><value>Nach der sauberen Neuinstallation des Hauptspiels werden nur die ausgewählten DLCs erneut installiert.</value></data>
+    <data name="Gog.Install.DlcSelectAll" xml:space="preserve"><value>Alle auswählen</value></data>
+    <data name="Gog.Install.DlcClearSelection" xml:space="preserve"><value>Auswahl aufheben</value></data>
     <data name="Gog.Media.AddMenu" xml:space="preserve"><value>GOG-Medium hinzufügen</value></data>
     <data name="Gog.AuthCheckFailed" xml:space="preserve"><value>GOG-Anmeldestatus konnte nicht geprüft werden.</value></data>
     <data name="Gog.SignInRequiredPrompt" xml:space="preserve"><value>Für GOG-Medien ist eine Anmeldung erforderlich. Jetzt sichere Anmeldung öffnen?</value></data>
@@ -386,7 +390,7 @@ Fortfahren?</value></data>
   <data name="Gog.Install.MarkerWriteWarningFormat" xml:space="preserve"><value>Die Installation war erfolgreich, aber Retromind konnte den Installationsordner nicht als verwaltet markieren: {0}</value></data>
   <data name="Gog.Update.BadgeTooltip" xml:space="preserve"><value>GOG-Update verfügbar</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Staging-Daten nach erfolgreicher Installation löschen</value></data>
-  <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Entfernt nach erfolgreicher Installation die heruntergeladenen Installer-Dateien.</value></data>
+  <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Entfernt nach erfolgreicher Installation die heruntergeladenen Pakete des Hauptspiels und der automatisch neu installierten DLCs.</value></data>
   <data name="Gog.Install.PlatformLinux" xml:space="preserve"><value>Linux</value></data>
     <data name="Gog.Install.PlatformWindows" xml:space="preserve"><value>Windows</value></data>
     <data name="Gog.Install.ValidationPathRequired" xml:space="preserve"><value>Ein Installationspfad ist erforderlich.</value></data>

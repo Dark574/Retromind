@@ -270,8 +270,10 @@ separate statistics database or persisted aggregate state.
   offline installer, then reapply those installed DLCs with their current same-platform packages in the shared
   cancelable progress flow. Updates are always in-place and cannot request directory cleanup; explicit reinstalls
   retain the clean-install option and its ownership/path-safety confirmation. Cleanup affects the contents of the
-  managed game folder but not a separate Wine/Proton prefix. Each successful DLC is persisted independently, while unavailable
-  or failed DLCs keep the aggregate update indicator active; owned but uninstalled DLCs are never added implicitly
+  managed game folder but not a separate Wine/Proton prefix. Clean reinstalls may restore a user-selected subset
+  of the previously installed DLCs, while updates and in-place reinstalls always reapply all of them because omitted
+  payloads would otherwise remain on disk. Each successful DLC is persisted independently, while unavailable or
+  failed DLCs keep the aggregate update indicator active; owned but uninstalled DLCs are never added implicitly
 - a node action can run the same identification pipeline sequentially across that node and its descendants, while
   local-folder ROM imports invoke it automatically for their new items when the target node has an effective game
   system. Already identified or incomplete items are skipped, individual failures do not stop a batch, and

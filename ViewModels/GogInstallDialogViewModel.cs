@@ -43,7 +43,8 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         bool CreateDesktopShortcut,
         bool CreateStartMenuShortcuts,
         bool CleanInstall,
-        bool DeleteStagingAfterSuccess);
+        bool DeleteStagingAfterSuccess,
+        IReadOnlyList<string>? DlcProductIdsToReinstall = null);
 
     [ObservableProperty]
     private string _title = string.Empty;
@@ -81,8 +82,11 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
     public ObservableCollection<PlatformOption> Platforms { get; } = new();
     public ObservableCollection<RunnerOption> RunnerOptions { get; } = new();
     public ObservableCollection<WindowsInstallerPreferenceOption> WindowsInstallerPreferences { get; } = new();
+    public ObservableCollection<GogInstallDlcOption> InstalledDlcOptions { get; } = new();
 
     public IAsyncRelayCommand BrowseInstallPathCommand { get; }
+    public IRelayCommand SelectAllInstalledDlcsCommand { get; }
+    public IRelayCommand ClearInstalledDlcSelectionCommand { get; }
     public IRelayCommand<Window?> ConfirmCommand { get; }
     public IRelayCommand<Window?> CancelCommand { get; }
 
@@ -96,13 +100,27 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
     public bool ShowMissingRunnerHint => IsWindowsPlatformSelected && !HasRunnerOptions;
     public bool ShowCleanInstallOption => !IsUpdate;
     public bool IsUpdate { get; }
-    public bool ShowInstalledDlcReinstallNotice => InstalledDlcReinstallCount > 0;
-    public int InstalledDlcReinstallCount { get; }
+    public bool ShowDlcReinstallSelection => !IsUpdate && CleanInstall && InstalledDlcReinstallCount > 0;
+    public bool ShowInstalledDlcReinstallNotice =>
+        InstalledDlcReinstallCount > 0 && !ShowDlcReinstallSelection;
+    public int InstalledDlcReinstallCount => InstalledDlcOptions.Count;
+    public int SelectedDlcReinstallCount => InstalledDlcOptions.Count(static option => option.IsSelected);
     public string InstalledDlcReinstallNoticeText => string.Format(
         T(
             "Gog.Install.InstalledDlcReinstallNoticeFormat",
             "All {0:N0} DLC(s) currently registered as installed will also be reinstalled afterwards."),
         InstalledDlcReinstallCount);
+    public string DlcReinstallSelectionHeaderText => string.Format(
+        T(
+            "Gog.Install.DlcSelectionHeaderFormat",
+            "Reinstall DLCs: {0:N0} of {1:N0}"),
+        SelectedDlcReinstallCount,
+        InstalledDlcReinstallCount);
+    public string DlcReinstallSelectionHintText => T(
+        "Gog.Install.DlcSelectionHint",
+        "Only the selected DLCs will be reinstalled after the clean main-game installation.");
+    public string SelectAllInstalledDlcsText => T("Gog.Install.DlcSelectAll", "Select all");
+    public string ClearInstalledDlcSelectionText => T("Gog.Install.DlcClearSelection", "Clear selection");
     public string InstallPathLabel => T("Gog.InstallPathLabel", "Install path");
     public string PlatformLabel => T("Gog.InstallPlatformLabel", "Version");
     public string RunnerLabel => T("Gog.InstallRunnerLabel", "Wine/Proton runner");
@@ -144,10 +162,9 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         string? preferredRunnerVersionId = null,
         WindowsInstallerPreference? preferredWindowsInstallerPreference = null,
         bool isUpdate = false,
-        int installedDlcReinstallCount = 0)
+        IEnumerable<GogDlcInstallationState>? installedDlcsToReinstall = null)
     {
         IsUpdate = isUpdate;
-        InstalledDlcReinstallCount = Math.Max(0, installedDlcReinstallCount);
         CleanInstall = !isUpdate;
         Title = T("Gog.Install.DialogTitle", "Install GOG game");
         Message = string.Format(
@@ -218,7 +235,26 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         SelectedWindowsInstallerPreference = WindowsInstallerPreferences.FirstOrDefault(
             option => option.Value == preferredInstallerPreference) ?? WindowsInstallerPreferences.FirstOrDefault();
 
+        if (installedDlcsToReinstall != null)
+        {
+            foreach (var state in installedDlcsToReinstall
+                         .Where(static state => !string.IsNullOrWhiteSpace(state.ProductId))
+                         .GroupBy(static state => state.ProductId.Trim(), StringComparer.Ordinal)
+                         .Select(static group => group.Last())
+                         .OrderBy(
+                             static state => string.IsNullOrWhiteSpace(state.Title) ? state.ProductId : state.Title,
+                             StringComparer.CurrentCultureIgnoreCase))
+            {
+                InstalledDlcOptions.Add(new GogInstallDlcOption(
+                    state.ProductId.Trim(),
+                    string.IsNullOrWhiteSpace(state.Title) ? state.ProductId.Trim() : state.Title.Trim(),
+                    OnInstalledDlcSelectionChanged));
+            }
+        }
+
         BrowseInstallPathCommand = new AsyncRelayCommand(BrowseInstallPathAsync);
+        SelectAllInstalledDlcsCommand = new RelayCommand(SelectAllInstalledDlcs);
+        ClearInstalledDlcSelectionCommand = new RelayCommand(ClearInstalledDlcSelection);
         ConfirmCommand = new RelayCommand<Window?>(Confirm);
         CancelCommand = new RelayCommand<Window?>(window => window?.Close(false));
     }
@@ -235,6 +271,30 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
     partial void OnValidationMessageChanged(string value)
     {
         OnPropertyChanged(nameof(HasValidationMessage));
+    }
+
+    partial void OnCleanInstallChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowDlcReinstallSelection));
+        OnPropertyChanged(nameof(ShowInstalledDlcReinstallNotice));
+    }
+
+    private void OnInstalledDlcSelectionChanged()
+    {
+        OnPropertyChanged(nameof(SelectedDlcReinstallCount));
+        OnPropertyChanged(nameof(DlcReinstallSelectionHeaderText));
+    }
+
+    private void SelectAllInstalledDlcs()
+    {
+        foreach (var option in InstalledDlcOptions)
+            option.IsSelected = true;
+    }
+
+    private void ClearInstalledDlcSelection()
+    {
+        foreach (var option in InstalledDlcOptions)
+            option.IsSelected = false;
     }
 
     private async Task BrowseInstallPathAsync()
@@ -294,6 +354,12 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         }
 
         var installerPreference = SelectedWindowsInstallerPreference?.Value ?? WindowsInstallerPreference.AutoPrefer64;
+        var selectedDlcProductIds = IsUpdate || !CleanInstall
+            ? InstalledDlcOptions.Select(static option => option.ProductId).ToArray()
+            : InstalledDlcOptions
+                .Where(static option => option.IsSelected)
+                .Select(static option => option.ProductId)
+                .ToArray();
         Result = new GogInstallDialogResult(
             path,
             platform,
@@ -302,10 +368,31 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
             CreateDesktopShortcut,
             CreateStartMenuShortcuts,
             !IsUpdate && CleanInstall,
-            DeleteStagingAfterSuccess);
+            DeleteStagingAfterSuccess,
+            selectedDlcProductIds);
         window?.Close(true);
     }
 
     private static bool IsUmuRunAvailable()
         => !string.IsNullOrWhiteSpace(EnvironmentPathHelper.TryFindExecutableInCurrentPath("umu-run"));
+}
+
+public sealed partial class GogInstallDlcOption : ObservableObject
+{
+    private readonly Action _selectionChanged;
+
+    public string ProductId { get; }
+    public string Title { get; }
+
+    [ObservableProperty]
+    private bool _isSelected = true;
+
+    public GogInstallDlcOption(string productId, string title, Action selectionChanged)
+    {
+        ProductId = productId;
+        Title = title;
+        _selectionChanged = selectionChanged;
+    }
+
+    partial void OnIsSelectedChanged(bool value) => _selectionChanged();
 }

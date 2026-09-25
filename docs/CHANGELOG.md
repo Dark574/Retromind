@@ -12,9 +12,11 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Added
 
 ### Changed
+- allow selecting which installed GOG DLCs are restored by a clean reinstall
 
 ### Fixed
 - keep installed GOG DLCs synchronized when updating or reinstalling their main game
+- honor the GOG installer-retention choice for automatically reinstalled DLC packages
 
 ---
 
