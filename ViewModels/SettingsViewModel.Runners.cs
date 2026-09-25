@@ -554,8 +554,10 @@ public partial class SettingsViewModel
                     else
                     {
                         EnsureCompleteProtonRunner(stagingDir);
-                        Directory.CreateDirectory(targetDir);
-                        MoveDirectoryContents(stagingDir, targetDir);
+                        // Publish the complete extracted tree with one same-filesystem rename.
+                        // A hard process stop can therefore leave either the staging directory
+                        // or the final directory, but never a partially populated final runner.
+                        Directory.Move(stagingDir, targetDir);
                     }
                 }
             }
@@ -622,32 +624,6 @@ public partial class SettingsViewModel
         }
 
         return string.Empty;
-    }
-
-    private static void MoveDirectoryContents(string sourceDir, string destinationDir)
-    {
-        if (!Directory.Exists(sourceDir))
-            return;
-
-        Directory.CreateDirectory(destinationDir);
-
-        foreach (var dir in Directory.GetDirectories(sourceDir))
-        {
-            var target = Path.Combine(destinationDir, Path.GetFileName(dir));
-            if (Directory.Exists(target))
-                throw new IOException($"Target directory already exists: {target}");
-
-            Directory.Move(dir, target);
-        }
-
-        foreach (var file in Directory.GetFiles(sourceDir))
-        {
-            var target = Path.Combine(destinationDir, Path.GetFileName(file));
-            if (File.Exists(target))
-                throw new IOException($"Target file already exists: {target}");
-
-            File.Move(file, target);
-        }
     }
 
     private static string SanitizeFolderName(string value)
