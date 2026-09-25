@@ -18,6 +18,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Fixed
 - keep installed GOG DLCs synchronized when updating or reinstalling their main game
 - honor the GOG installer-retention choice for automatically reinstalled DLC packages
+- restore live stdout/stderr forwarding for launched games while retaining early-failure diagnostics
 
 ---
 

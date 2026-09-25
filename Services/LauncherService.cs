@@ -1719,6 +1719,10 @@ public sealed class LauncherService
                 return;
             }
 
+            // Output is redirected so early launch failures can include useful diagnostics.
+            // Mirror it to the parent process as well, preserving the live console output
+            // users had before launch diagnostics were introduced.
+            Console.Out.WriteLine(args.Data);
             AppendTail(_standardOutput, args.Data);
         }
 
@@ -1730,6 +1734,7 @@ public sealed class LauncherService
                 return;
             }
 
+            Console.Error.WriteLine(args.Data);
             AppendTail(_standardError, args.Data);
         }
 
