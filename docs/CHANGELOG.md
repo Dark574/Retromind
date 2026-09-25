@@ -14,9 +14,11 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 - allow selecting which installed GOG DLCs are restored by a clean reinstall
 - improve Prism carousel and background-loading performance and add smoother wallpaper crossfades
+- synchronize Prism logo and wallpaper crossfades
 
 ### Fixed
 - keep installed GOG DLCs synchronized when updating or reinstalling their main game
+- update all Prism game details when selecting a carousel cover with the mouse
 - honor the GOG installer-retention choice for automatically reinstalled DLC packages
 - restore live stdout/stderr forwarding for launched games while retaining early-failure diagnostics
 

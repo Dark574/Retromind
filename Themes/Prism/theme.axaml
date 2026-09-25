@@ -10,7 +10,7 @@
 
              ext:ThemeProperties.Name="Prism"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.3.0"
+             ext:ThemeProperties.Version="0.3.1"
              ext:ThemeProperties.AccentColor="#62E6FF"
              ext:ThemeProperties.DynamicAccentEnabled="True"
              ext:ThemeProperties.DynamicAccentTransitionMs="400"
@@ -26,7 +26,6 @@
              ext:ThemeProperties.SelectedGlowRadius="34"
              ext:ThemeProperties.FadeDurationMs="220"
              ext:ThemeProperties.MoveDurationMs="260"
-             ext:ThemeProperties.CircularWindowSize="11"
              ext:ThemeProperties.PrimaryVisualElementName="HeroSurface"
              ext:ThemeProperties.PrimaryVisualEnterMode="None"
              ext:ThemeProperties.SecondaryVisualElementName="IdentityPanel"
@@ -116,7 +115,8 @@
                                 Opacity="0.42"
                                 IsVisible="{Binding IsGameListActive}" />
 
-            <ext:CrossfadeImage Url="{Binding ActiveWallpaperPath}"
+            <ext:CrossfadeImage x:Name="GameWallpaper"
+                                Url="{Binding ActiveWallpaperPath}"
                                 DecodeWidth="1920"
                                 DisableCache="True"
                                 LoadDelayMs="220"
@@ -125,7 +125,8 @@
                                 Opacity="0.58"
                                 IsVisible="{Binding IsGameListActive}" />
 
-            <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
+            <ext:CrossfadeImage x:Name="CategoryWallpaper"
+                                Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
                                 DecodeWidth="1920"
                                 DisableCache="True"
                                 LoadDelayMs="220"
@@ -253,8 +254,8 @@
                         <ext:CrossfadeImage Url="{Binding ActiveLogoPath}"
                                             DecodeWidth="720"
                                             DisableCache="True"
-                                            LoadDelayMs="160"
-                                            FadeDurationMs="180"
+                                            LoadDelayMs="{Binding ElementName=GameWallpaper, Path=LoadDelayMs}"
+                                            FadeDurationMs="{Binding ElementName=GameWallpaper, Path=FadeDurationMs}"
                                             MaxWidth="680"
                                             MaxHeight="150"
                                             Stretch="Uniform"
@@ -277,8 +278,8 @@
                         <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
                                             DecodeWidth="720"
                                             DisableCache="True"
-                                            LoadDelayMs="160"
-                                            FadeDurationMs="180"
+                                            LoadDelayMs="{Binding ElementName=CategoryWallpaper, Path=LoadDelayMs}"
+                                            FadeDurationMs="{Binding ElementName=CategoryWallpaper, Path=FadeDurationMs}"
                                             MaxWidth="680"
                                             MaxHeight="150"
                                             Stretch="Uniform"
@@ -588,8 +589,9 @@
             <Rectangle Fill="{StaticResource BottomFade}" />
 
             <ListBox Classes="prism-carousel"
-                     ItemsSource="{Binding CircularItems}"
-                     SelectedItem="{Binding SelectedItem, Mode=OneWay}"
+                     ItemsSource="{Binding Items}"
+                     SelectedItem="{Binding SelectedItem}"
+                     SelectedIndex="{Binding SelectedItemIndex, Mode=OneWayToSource}"
                      IsVisible="{Binding IsGameListActive}"
                      Background="Transparent"
                      BorderThickness="0"
@@ -597,11 +599,12 @@
                      ClipToBounds="False"
                      ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     helpers:ListBoxBehaviors.CenterSelectedItemHorizontally="True"
+                     helpers:ListBoxBehaviors.CenterSelectedItemHorizontallyOnceOnFirstSelection="True"
                      ext:ThemeProperties.UseHostSelectionEffects="False">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Center" />
+                        <VirtualizingStackPanel Orientation="Horizontal" />
                     </ItemsPanelTemplate>
                 </ListBox.ItemsPanel>
 

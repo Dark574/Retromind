@@ -452,8 +452,10 @@ How to enable it:
 Notes:
 - `CircularWindowSize <= 0` shows the full list (no windowing).
 - Keep the size odd so the selected item can be centered.
-- If you need mouse selection in that list, you can use `Mode=TwoWay`
-  but controller-driven navigation should keep the selection in the view model.
+- Keep `SelectedItem` one-way. A two-way binding can feed the collection reset
+  produced by a new circular window back into the view model recursively.
+- Themes that need native mouse selection should instead bind to the stable
+  `Items` collection with a `VirtualizingStackPanel`, as used by Horizontal Row.
 
 ### 6.5 Dynamic artwork accents
 

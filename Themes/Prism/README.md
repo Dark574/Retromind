@@ -17,7 +17,10 @@ logos, and videos are loaded from the selected Retromind item or node.
 The background crossfades independently from the shorter foreground
 transitions. A screenshot is decoded only when no wallpaper is available, so
 rapid navigation does not load two full-screen images for the same selection.
-The circular carousel also retains overlapping cards while moving one step.
+The horizontal carousel virtualizes the complete game list so only visible cards
+are realized while native mouse selection remains available.
+Item and category logos use the same delay and fade duration as their wallpaper,
+keeping both artwork transitions visually synchronized.
 
 ## Dynamic accents
 
