@@ -252,10 +252,13 @@ public partial class App : Application
         services.AddSingleton<MediaDataService>();
         services.AddSingleton<MetadataBackupService>();
         services.AddSingleton<FileManagementService>(_ => new FileManagementService(libraryPath));
+        services.AddSingleton(_ => new LaunchLogService(
+            Path.Combine(AppPaths.DataRoot, "Logs", "Launch")));
         services.AddSingleton<LauncherService>(provider =>
         {
             var settings = provider.GetRequiredService<AppSettings>();
-            return new LauncherService(libraryPath, settings);
+            var launchLogService = provider.GetRequiredService<LaunchLogService>();
+            return new LauncherService(libraryPath, settings, launchLogService);
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();

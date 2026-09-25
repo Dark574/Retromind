@@ -25,11 +25,16 @@ public sealed class LauncherService
 
     private readonly string _libraryRootPath;
     private readonly AppSettings _settings;
+    private readonly LaunchLogService _launchLogService;
 
-    public LauncherService(string libraryRootPath, AppSettings settings)
+    public LauncherService(
+        string libraryRootPath,
+        AppSettings settings,
+        LaunchLogService launchLogService)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _launchLogService = launchLogService ?? throw new ArgumentNullException(nameof(launchLogService));
     }
 
     public async Task<LaunchResult> LaunchAsync(
@@ -44,8 +49,15 @@ public sealed class LauncherService
     {
         ArgumentNullException.ThrowIfNull(item);
 
+        var launchLog = new LaunchLogBuilder(
+            item,
+            inheritedConfig,
+            _settings,
+            nativeWrappers,
+            recordStatistics);
         Process? process = null;
         ProcessOutputCapture? outputCapture = null;
+        Task initialLogWriteTask = Task.CompletedTask;
         var stopwatch = Stopwatch.StartNew();
         var shouldRecordSession = false;
         var watchedProcessName = string.IsNullOrWhiteSpace(item.OverrideWatchProcess)
@@ -73,17 +85,35 @@ public sealed class LauncherService
         try
         {
             process = item.MediaType == MediaType.Command
-                ? LaunchCommand(item, environmentOverrides)
-                : LaunchNativeOrEmulator(item, inheritedConfig, nodePath, nativeWrappers, usePlaylistForMultiDisc, environmentOverrides);
+                ? LaunchCommand(item, environmentOverrides, launchLog)
+                : LaunchNativeOrEmulator(
+                    item,
+                    inheritedConfig,
+                    nodePath,
+                    nativeWrappers,
+                    usePlaylistForMultiDisc,
+                    environmentOverrides,
+                    launchLog);
             processStartedAt = stopwatch.Elapsed;
             outputCapture = ProcessOutputCapture.TryStart(process);
+            initialLogWriteTask = _launchLogService.TryWriteAsync(
+                item.Id,
+                launchLog.Build("Process started; session still running", stopwatch.Elapsed));
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
             process?.Dispose();
             Debug.WriteLine($"[Launcher] Failed to launch: {ex.Message}");
-            return LaunchResult.Failed(ex.Message);
+            var failedResult = LaunchResult.Failed(ex.Message);
+            await _launchLogService.TryWriteAsync(
+                    item.Id,
+                    launchLog.Build(
+                        failedResult.Outcome.ToString(),
+                        stopwatch.Elapsed,
+                        errorMessage: ex.Message))
+                .ConfigureAwait(false);
+            return failedResult;
         }
 
         try
@@ -165,24 +195,40 @@ public sealed class LauncherService
             }
         }
 
+        LaunchResult result;
         if (!string.IsNullOrWhiteSpace(missingWatchedProcessName))
-            return LaunchResult.WatchedProcessNotFound(missingWatchedProcessName, consoleOutput);
-
-        if (exitCode is not null and not 0 &&
-            processStartedAt is { } startedAt &&
-            elapsed - startedAt <= TimeSpan.FromSeconds(EarlyFailureThresholdSeconds))
         {
-            return LaunchResult.ExitedEarly(exitCode.Value, consoleOutput);
+            result = LaunchResult.WatchedProcessNotFound(missingWatchedProcessName, consoleOutput);
+        }
+        else if (exitCode is not null and not 0 &&
+                 processStartedAt is { } startedAt &&
+                 elapsed - startedAt <= TimeSpan.FromSeconds(EarlyFailureThresholdSeconds))
+        {
+            result = LaunchResult.ExitedEarly(exitCode.Value, consoleOutput);
+        }
+        else
+        {
+            result = shouldRecordSession
+                ? LaunchResult.TrackedSessionCompleted
+                : LaunchResult.Started;
         }
 
-        return shouldRecordSession
-            ? LaunchResult.TrackedSessionCompleted
-            : LaunchResult.Started;
+        await initialLogWriteTask.ConfigureAwait(false);
+        await _launchLogService.TryWriteAsync(
+                item.Id,
+                launchLog.Build(
+                    DescribeLaunchOutcome(result),
+                    elapsed,
+                    exitCode,
+                    consoleOutput: consoleOutput))
+            .ConfigureAwait(false);
+        return result;
     }
 
     private static Process? LaunchCommand(
         MediaItem item,
-        IReadOnlyDictionary<string, string>? environmentOverrides)
+        IReadOnlyDictionary<string, string>? environmentOverrides,
+        LaunchLogBuilder launchLog)
     {
         // Command media: can be either
         // A) a URL/protocol (steam://, heroic://, https://, …) -> open via xdg-open on Linux
@@ -207,6 +253,7 @@ public sealed class LauncherService
             SanitizeAppImageRuntimeEnvironment(psi);
             SanitizeStorePortableEnvironment(psi, target, forceStoreCompatSanitization: true);
             ApplyEnvironmentOverrides(psi, environmentOverrides);
+            launchLog.CaptureProcessStart(psi, target, environmentOverrides);
 
             return StartProcess(psi);
         }
@@ -227,6 +274,7 @@ public sealed class LauncherService
         SanitizeStorePortableEnvironment(startInfo, item.LauncherArgs, forceStoreCompatSanitization: true);
         ApplyEnvironmentOverrides(startInfo, environmentOverrides);
         ApplyXdgOverrides(startInfo, item);
+        launchLog.CaptureProcessStart(startInfo, target, environmentOverrides);
         return StartProcess(startInfo);
     }
 
@@ -236,7 +284,8 @@ public sealed class LauncherService
         List<string>? nodePath,
         IReadOnlyList<LaunchWrapper>? nativeWrappers,
         bool usePlaylistForMultiDisc,
-        IReadOnlyDictionary<string, string>? environmentOverrides)
+        IReadOnlyDictionary<string, string>? environmentOverrides,
+        LaunchLogBuilder launchLog)
     {
         var (fileName, args, useShellExecute, launchFilePath) =
             ResolveLaunchPlan(item, inheritedConfig, nodePath, nativeWrappers, usePlaylistForMultiDisc);
@@ -313,9 +362,19 @@ public sealed class LauncherService
         LogIfEnvSet(startInfo, "WINEPREFIX");
         // DEBUG: log the exact command-line we are about to run
         Debug.WriteLine($"[Launcher] START: {startInfo.FileName} {startInfo.Arguments}");
+        launchLog.CaptureProcessStart(startInfo, launchFilePath, environmentOverrides);
 
         return StartProcess(startInfo);
     }
+
+    private static string DescribeLaunchOutcome(LaunchResult result) => result.Outcome switch
+    {
+        LaunchOutcome.ExitedEarly => "Process started and exited early with an error",
+        LaunchOutcome.WatchedProcessNotFound => "Launcher started, but the configured game process was not found",
+        LaunchOutcome.StartFailed => "Process could not be started",
+        _ when result.WasSessionTracked => "Tracked session completed",
+        _ => "Launch handed off successfully"
+    };
 
     private static Process? StartProcess(ProcessStartInfo startInfo)
     {

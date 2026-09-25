@@ -904,6 +904,9 @@ The game may not have started, or the configured process name may be incorrect.<
 The program may not have started correctly.</value>
     </data>
     <data name="Launch.ConsoleOutputHeader" xml:space="preserve"><value>Console output:</value></data>
+    <data name="Launch.ViewLastLog" xml:space="preserve"><value>View last launch log</value></data>
+    <data name="Launch.LastLogTitleFormat" xml:space="preserve"><value>Last launch log - {0}</value></data>
+    <data name="Launch.LastLogUnavailable" xml:space="preserve"><value>No launch log is available for this item.</value></data>
     <data name="MetadataBackup.SettingsSection" xml:space="preserve"><value>Metadata backups</value></data>
     <data name="MetadataBackup.SettingsHint" xml:space="preserve"><value>Choose which events should create automatic backups.</value></data>
     <data name="MetadataBackup.EnableAutomatic" xml:space="preserve"><value>Create automatic metadata backups</value></data>

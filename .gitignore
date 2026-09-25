@@ -21,6 +21,7 @@ retromind_tree.bak
 retromind_tree.tmp
 app_settings.json
 Backups/
+Logs/
 config.yaml
 
 # Secrets (NICHT HOCHLADEN!)

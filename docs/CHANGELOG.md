@@ -11,6 +11,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Added
 - show resolved emulator paths and Wine versions
+- Add per-game launch diagnostics
 
 ### Changed
 - allow selecting which installed GOG DLCs are restored by a clean reinstall

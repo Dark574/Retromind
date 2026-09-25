@@ -906,6 +906,9 @@ Möglicherweise wurde das Spiel nicht gestartet oder der konfigurierte Prozessna
 Möglicherweise wurde das Programm nicht korrekt gestartet.</value>
     </data>
     <data name="Launch.ConsoleOutputHeader" xml:space="preserve"><value>Konsolenausgabe:</value></data>
+    <data name="Launch.ViewLastLog" xml:space="preserve"><value>Letztes Startprotokoll anzeigen</value></data>
+    <data name="Launch.LastLogTitleFormat" xml:space="preserve"><value>Letztes Startprotokoll – {0}</value></data>
+    <data name="Launch.LastLogUnavailable" xml:space="preserve"><value>Für diesen Eintrag ist kein Startprotokoll verfügbar.</value></data>
     <data name="MetadataBackup.SettingsSection" xml:space="preserve"><value>Metadaten-Backups</value></data>
     <data name="MetadataBackup.SettingsHint" xml:space="preserve"><value>Wähle, bei welchen Ereignissen automatische Backups erstellt werden.</value></data>
     <data name="MetadataBackup.EnableAutomatic" xml:space="preserve"><value>Automatische Metadaten-Backups erstellen</value></data>

@@ -362,6 +362,9 @@
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TestPlayMediaMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TestPlayMediaCommand}"
                                                       CommandParameter="{Binding .}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ViewLastLaunchLogMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ViewLastLaunchLogCommand}"
+                                                      CommandParameter="{Binding .}" />
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaCommand}"
                                                       CommandParameter="{Binding .}" />

@@ -354,6 +354,9 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 - captures a bounded tail of stdout/stderr for direct process starts and includes it in missing-process or
   non-zero-exit feedback within ten seconds of process start; shell-based launches remain limited to
   operating-system start diagnostics
+- writes one atomically replaced diagnostic log per media item below `DataRoot/Logs/Launch`; an initial record
+  is persisted after process handoff and finalized with outcome, runtime, exit code, and captured output, while
+  likely secret environment values and command arguments are redacted
 - session tracking updates playtime/playcount after launch
 - GOG launch detection prefers local or account `playTasks` metadata and preserves its executable,
   arguments, and working directory before falling back to filesystem heuristics; this is important for

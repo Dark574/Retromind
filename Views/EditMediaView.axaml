@@ -269,6 +269,13 @@
                                      PlaceholderText="{x:Static p:Strings.Launch_ArgumentsHintLong}" />
                         </StackPanel>
 
+                        <Button Content="{Binding ViewLastLaunchLogText}"
+                                Command="{Binding ViewLastLaunchLogCommand}"
+                                CommandParameter="{Binding $parent[Window]}"
+                                IsEnabled="{Binding HasLastLaunchLog}"
+                                HorizontalAlignment="Left"
+                                Margin="0,15,0,0" />
+
                         <!-- XDG folders (native) -->
                         <Expander IsExpanded="False" Margin="0,10,0,0" HorizontalAlignment="Stretch"
                                   IsVisible="{Binding IsNativeMode}">

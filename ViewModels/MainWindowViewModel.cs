@@ -41,6 +41,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly FileManagementService _fileService;
     private readonly ImportService _importService;
     private readonly LauncherService _launcherService;
+    private readonly LaunchLogService _launchLogService;
     private readonly StoreImportService _storeService;
     private readonly IStoreAuthProvider _storeAuthProvider;
     private readonly IStoreLibraryProvider _storeLibraryProvider;
@@ -342,6 +343,7 @@ public partial class MainWindowViewModel : ViewModelBase
         FileManagementService fileService,
         ImportService importService,
         LauncherService launcherService,
+        LaunchLogService launchLogService,
         StoreImportService storeService,
         IStoreAuthProvider storeAuthProvider,
         IStoreLibraryProvider storeLibraryProvider,
@@ -365,6 +367,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _fileService = fileService;
         _importService = importService;
         _launcherService = launcherService;
+        _launchLogService = launchLogService;
         _storeService = storeService;
         _storeAuthProvider = storeAuthProvider;
         _storeLibraryProvider = storeLibraryProvider;

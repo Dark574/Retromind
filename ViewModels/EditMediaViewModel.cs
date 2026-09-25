@@ -53,6 +53,9 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     public IRelayCommand OpenPrefixFolderCommand { get; }
     public IRelayCommand ClearPrefixCommand { get; }
     public IAsyncRelayCommand<Window?> RunWinetricksCommand { get; }
+    public IAsyncRelayCommand<Window?> ViewLastLaunchLogCommand { get; }
+    public bool HasLastLaunchLog { get; }
+    public string ViewLastLaunchLogText => T("Launch.ViewLastLog", "View last launch log");
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RunWinetricksCommand))]
@@ -588,7 +591,9 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         Func<Window, Task>? gogCheckUpdates = null,
         Func<Window, Task<bool>>? gogUpdate = null,
         Func<Window, Task<bool>>? gogUninstall = null,
-        Func<Window, Task>? gogManageDlcs = null)
+        Func<Window, Task>? gogManageDlcs = null,
+        Func<Window, Task>? viewLastLaunchLog = null,
+        bool hasLastLaunchLog = false)
     {
         _originalItem = item;
         _editedFiles = CloneFiles(item.Files);
@@ -611,6 +616,12 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         OpenPrefixFolderCommand = new RelayCommand(OpenPrefixFolder, () => HasPrefix);
         ClearPrefixCommand = new RelayCommand(ClearPrefix, () => HasPrefix);
         RunWinetricksCommand = new AsyncRelayCommand<Window?>(RunWinetricksAsync, CanRunWinetricks);
+        HasLastLaunchLog = hasLastLaunchLog && viewLastLaunchLog != null;
+        ViewLastLaunchLogCommand = new AsyncRelayCommand<Window?>(
+            owner => owner != null && viewLastLaunchLog != null
+                ? viewLastLaunchLog(owner)
+                : Task.CompletedTask,
+            _ => HasLastLaunchLog);
         
         // Primary launch file command
         ChangePrimaryFileCommand = new AsyncRelayCommand(ChangePrimaryFileAsync);

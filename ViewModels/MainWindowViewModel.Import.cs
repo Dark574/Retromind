@@ -1179,7 +1179,9 @@ public partial class MainWindowViewModel
             gogUpdate: dialogOwner =>
                 RunGogInstallFromEditorAsync(item, dialogOwner, requireAvailableUpdate: true),
             gogUninstall: dialogOwner => RunGogUninstallAsync(item, dialogOwner),
-            gogManageDlcs: dialogOwner => ShowGogDlcManagerAsync(item, dialogOwner))
+            gogManageDlcs: dialogOwner => ShowGogDlcManagerAsync(item, dialogOwner),
+            viewLastLaunchLog: dialogOwner => ShowLastLaunchLogAsync(item, dialogOwner),
+            hasLastLaunchLog: _launchLogService.HasLog(item.Id))
         { 
             StorageProvider = StorageProvider ?? owner.StorageProvider 
         };

@@ -32,7 +32,10 @@ public sealed class LauncherServiceTests
                 }
             ]
         };
-        var service = new LauncherService(libraryRoot, new AppSettings());
+        var service = new LauncherService(
+            libraryRoot,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")));
 
         var result = await service.LaunchAsync(item, recordStatistics: false);
 
@@ -58,7 +61,10 @@ public sealed class LauncherServiceTests
                 }
             ]
         };
-        var service = new LauncherService(temp.RootPath, new AppSettings());
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")));
 
         var result = await service.LaunchAsync(item, recordStatistics: false);
 
@@ -92,7 +98,10 @@ public sealed class LauncherServiceTests
                 }
             ]
         };
-        var service = new LauncherService(temp.RootPath, new AppSettings());
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")));
 
         var result = await service.LaunchAsync(item, recordStatistics: false);
 
@@ -126,7 +135,10 @@ public sealed class LauncherServiceTests
                 }
             ]
         };
-        var service = new LauncherService(temp.RootPath, new AppSettings());
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")));
 
         var result = await service.LaunchAsync(item, recordStatistics: false);
 
@@ -157,12 +169,62 @@ public sealed class LauncherServiceTests
                 }
             ]
         };
-        var service = new LauncherService(temp.RootPath, new AppSettings());
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")));
 
         var result = await service.LaunchAsync(item, recordStatistics: false);
 
         Assert.Equal(LaunchOutcome.Started, result.Outcome);
         Assert.True(result.WasSessionTracked);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_PersistsCopyableLogAndRedactsSecrets()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile(
+            "logged-launch.sh",
+            "#!/bin/sh\nprintf 'launch-log-marker\\n' >&2\nexit 23\n");
+        var item = new MediaItem("Logged Game")
+        {
+            MediaType = MediaType.Native,
+            LauncherArgs = "--token command-secret --mode test",
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = scriptPath
+                }
+            ]
+        };
+        item.EnvironmentOverrides["TEST_TOKEN"] = "environment-secret";
+        item.EnvironmentOverrides["DXVK_HUD"] = "fps";
+        var launchLogs = new LaunchLogService(temp.GetPath("launch-logs"));
+        var service = new LauncherService(temp.RootPath, new AppSettings(), launchLogs);
+
+        var result = await service.LaunchAsync(
+            item,
+            environmentOverrides: item.EnvironmentOverrides,
+            recordStatistics: false);
+        var log = await launchLogs.TryReadAsync(item.Id);
+
+        Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.NotNull(log);
+        Assert.Contains("Title: Logged Game", log);
+        Assert.Contains($"Executable: {scriptPath}", log);
+        Assert.Contains("Arguments: --token <redacted> --mode test", log);
+        Assert.Contains("TEST_TOKEN=<redacted>", log);
+        Assert.Contains("DXVK_HUD=fps", log);
+        Assert.Contains("Exit code: 23", log);
+        Assert.Contains("launch-log-marker", log);
+        Assert.DoesNotContain("command-secret", log);
+        Assert.DoesNotContain("environment-secret", log);
     }
 
     [Fact]

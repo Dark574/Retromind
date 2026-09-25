@@ -46,6 +46,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> EditMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand BulkEditSelectedMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> TestPlayMediaCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> ViewLastLaunchLogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> MoveMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> DeleteMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> ToggleItemProtectionCommand { get; private set; } = null!;
@@ -83,6 +84,7 @@ public partial class MainWindowViewModel
 
     public string GogMediaMenuText => T("Gog.Media.AddMenu", "Add GOG media");
     public string TestPlayMediaMenuText => T("Ctx.Media.TestLaunch", "Test launch (without tracking)");
+    public string ViewLastLaunchLogMenuText => T("Launch.ViewLastLog", "View last launch log");
     public string MoveMediaMenuText => T("Ctx.Media.Move", "Move to category...");
     public string BulkEditSelectedMediaText => T("BulkEdit.Selection.Edit", "Edit selected...");
     public string RetroAchievementsSearchAllText => T(
@@ -113,6 +115,9 @@ public partial class MainWindowViewModel
         EditMediaCommand = new AsyncRelayCommand<MediaItem?>(EditMediaAsync);
         BulkEditSelectedMediaCommand = new AsyncRelayCommand(BulkEditSelectedMediaAsync);
         TestPlayMediaCommand = new AsyncRelayCommand<MediaItem?>(TestPlayMediaAsync, CanTestPlayMedia);
+        ViewLastLaunchLogCommand = new AsyncRelayCommand<MediaItem?>(
+            ViewLastLaunchLogAsync,
+            item => item != null && _launchLogService.HasLog(item.Id));
         MoveMediaCommand = new AsyncRelayCommand<MediaItem?>(MoveMediaAsync);
         DeleteMediaCommand = new AsyncRelayCommand<MediaItem?>(DeleteMediaAsync);
         ToggleItemProtectionCommand = new AsyncRelayCommand<MediaItem?>(ToggleItemProtectionAsync);
@@ -970,6 +975,13 @@ public partial class MainWindowViewModel
             if (runnerValidationError != null)
             {
                 Debug.WriteLine($"[Launch] Runner validation failed for '{item.Title}': {runnerValidationError}");
+                await _launchLogService.TryWritePreflightFailureAsync(
+                    item,
+                    emulator,
+                    _currentSettings,
+                    recordStatistics,
+                    runnerValidationError);
+                ViewLastLaunchLogCommand.NotifyCanExecuteChanged();
                 if (CurrentWindow is { } owner)
                 {
                     var format = T(
@@ -1013,6 +1025,7 @@ public partial class MainWindowViewModel
                 environmentOverrides: effectiveEnvironment,
                 usePlaylistForMultiDisc: emulator?.UsePlaylistForMultiDisc == true,
                 recordStatistics: recordStatistics);
+            ViewLastLaunchLogCommand.NotifyCanExecuteChanged();
 
             if (!launchResult.IsStarted)
             {
@@ -1101,6 +1114,39 @@ public partial class MainWindowViewModel
 
         var header = T("Launch.ConsoleOutputHeader", "Console output:");
         return $"{message}{Environment.NewLine}{Environment.NewLine}{header}{Environment.NewLine}{consoleOutput}";
+    }
+
+    private async Task ViewLastLaunchLogAsync(MediaItem? item)
+    {
+        if (item == null || CurrentWindow is not { } owner)
+            return;
+
+        await ShowLastLaunchLogAsync(item, owner);
+    }
+
+    private async Task ShowLastLaunchLogAsync(MediaItem item, Window owner)
+    {
+        var logText = await _launchLogService.TryReadAsync(item.Id);
+        if (string.IsNullOrWhiteSpace(logText))
+        {
+            ViewLastLaunchLogCommand.NotifyCanExecuteChanged();
+            await ShowInfoDialog(
+                owner,
+                T("Launch.LastLogUnavailable", "No launch log is available for this item."),
+                showCopyButton: false);
+            return;
+        }
+
+        var titleFormat = T("Launch.LastLogTitleFormat", "Last launch log - {0}");
+        var logViewModel = new ProcessLogViewModel(string.Format(titleFormat, item.Title))
+        {
+            LogText = logText,
+            IsRunning = false
+        };
+        logViewModel.MarkFinished();
+
+        var logView = new ProcessLogView { DataContext = logViewModel };
+        logView.Show(owner);
     }
 
     private async Task ReinstallGogMediaAsync(MediaItem? item)
@@ -1299,6 +1345,8 @@ public partial class MainWindowViewModel
             {
                 parentNode.Items.Remove(item);
                 await SaveData();
+                _launchLogService.TryDelete(item.Id);
+                ViewLastLaunchLogCommand.NotifyCanExecuteChanged();
                 
                 RefreshContentAfterMediaCollectionChange();
             }
