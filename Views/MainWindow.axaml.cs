@@ -63,6 +63,8 @@ public partial class MainWindow : Window
 
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         AddHandler(KeyUpEvent, OnKeyUp, RoutingStrategies.Tunnel);
+        Activated += OnWindowActivated;
+        Deactivated += OnWindowDeactivated;
     }
 
     protected override void OnOpened(EventArgs e)
@@ -89,6 +91,18 @@ public partial class MainWindow : Window
             ? WaylandBigModeRevealTimeout
             : WaylandMaximizedRevealTimeout;
         DispatcherTimer.RunOnce(RevealWaylandStartupWindow, timeout);
+    }
+
+    private void OnWindowActivated(object? sender, EventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+            vm.SetGamepadUiInputEnabled(true);
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+            vm.SetGamepadUiInputEnabled(false);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)

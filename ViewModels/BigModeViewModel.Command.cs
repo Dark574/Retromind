@@ -24,6 +24,13 @@ public partial class BigModeViewModel
     private void OnGamepadDirectionStateChanged(GamepadService.GamepadDirection direction, bool isPressed)
         => DispatchGamepadAction(() =>
         {
+            if (_isLaunching)
+            {
+                if (!isPressed)
+                    StopGamepadRepeat(direction);
+                return;
+            }
+
             if (isPressed)
             {
                 if (_gamepadRepeatDirection == direction && _gamepadRepeatTimer?.IsEnabled == true)
@@ -42,6 +49,9 @@ public partial class BigModeViewModel
     private void OnGamepadSelect()
         => DispatchGamepadAction(() =>
         {
+            if (_isLaunching)
+                return;
+
             ResetAttractIdleTimer();
 
             if (IsAchievementsOverlayOpen)
@@ -54,6 +64,9 @@ public partial class BigModeViewModel
     private void OnGamepadBack()
         => DispatchGamepadAction(() =>
         {
+            if (_isLaunching)
+                return;
+
             ResetAttractIdleTimer();
 
             if (CloseAchievementsOverlay())
@@ -69,6 +82,9 @@ public partial class BigModeViewModel
     private void OnGamepadDetails()
         => DispatchGamepadAction(() =>
         {
+            if (_isLaunching)
+                return;
+
             ResetAttractIdleTimer();
             ToggleAchievementsOverlay();
         });
@@ -81,6 +97,9 @@ public partial class BigModeViewModel
     [RelayCommand]
     private void HardExitBigMode()
     {
+        if (_isLaunching)
+            return;
+
         ThemeContextNode = null;
         RequestClose?.Invoke();
     }
@@ -121,10 +140,9 @@ public partial class BigModeViewModel
 
     private void OnGamepadRepeatTimerTick(object? sender, EventArgs e)
     {
-        if (_gamepadRepeatDirection == null)
+        if (_isLaunching || _gamepadRepeatDirection == null)
         {
-            if (_gamepadRepeatTimer != null)
-                _gamepadRepeatTimer.IsEnabled = false;
+            StopGamepadRepeatTimer();
             return;
         }
 
@@ -389,6 +407,7 @@ public partial class BigModeViewModel
         // Game view: launch the selected item.
         if (SelectedItem == null) return;
 
+        StopGamepadRepeatTimer();
         _isLaunching = true;
 
         try
@@ -410,6 +429,9 @@ public partial class BigModeViewModel
     [RelayCommand]
     private void ExitBigMode()
     {
+        if (_isLaunching)
+            return;
+
         ResetAttractIdleTimer();
         
         // If we are currently in the game list, go back to category view first.

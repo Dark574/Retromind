@@ -51,6 +51,8 @@ public sealed class GamepadService : IDisposable
     // 0 = center, -1 = negative, 1 = positive
     private int _lastAxisXState;
     private int _lastAxisYState;
+    private readonly object _uiInputGate = new();
+    private bool _uiInputEnabled = true;
 
     public GamepadService()
     {
@@ -133,6 +135,35 @@ public sealed class GamepadService : IDisposable
         // We intentionally do NOT call SDL_Quit() here.
         // Global Quit can affect other SDL consumers and may cause odd behavior across re-inits.
         // If you ever want full shutdown, expose a separate method that explicitly quits SDL.
+    }
+
+    /// <summary>
+    /// Enables or suppresses controller events intended for the Retromind UI.
+    /// SDL continues monitoring devices so controller input can be restored
+    /// immediately when the application window becomes active again.
+    /// </summary>
+    public void SetUiInputEnabled(bool enabled)
+    {
+        lock (_uiInputGate)
+        {
+            if (_uiInputEnabled == enabled)
+                return;
+
+            _uiInputEnabled = enabled;
+            _lastBackPressedUtc = DateTime.MinValue;
+            _lastStartPressedUtc = DateTime.MinValue;
+
+            if (enabled)
+                return;
+
+            _lastAxisXState = 0;
+            _lastAxisYState = 0;
+        }
+
+        // End any active repeat navigation before handing the controller to
+        // another application. Releasing all directions is harmless for idle ones.
+        foreach (var direction in Enum.GetValues<GamepadDirection>())
+            OnDirectionStateChanged?.Invoke(direction, false);
     }
 
     private bool EnsureInitialized()
@@ -247,15 +278,32 @@ public sealed class GamepadService : IDisposable
                 break;
 
             case EventType.Controllerbuttondown:
-                HandleButtonDown(sdlEvent.Cbutton);
-                break;
             case EventType.Controllerbuttonup:
-                HandleButtonUp(sdlEvent.Cbutton);
-                break;
-
             case EventType.Controlleraxismotion:
-                HandleAxisMotion(sdlEvent.Caxis);
+                HandleUiInputEvent(sdlEvent);
                 break;
+        }
+    }
+
+    private void HandleUiInputEvent(Event sdlEvent)
+    {
+        lock (_uiInputGate)
+        {
+            if (!_uiInputEnabled)
+                return;
+
+            switch ((EventType)sdlEvent.Type)
+            {
+                case EventType.Controllerbuttondown:
+                    HandleButtonDown(sdlEvent.Cbutton);
+                    break;
+                case EventType.Controllerbuttonup:
+                    HandleButtonUp(sdlEvent.Cbutton);
+                    break;
+                case EventType.Controlleraxismotion:
+                    HandleAxisMotion(sdlEvent.Caxis);
+                    break;
+            }
         }
     }
 
