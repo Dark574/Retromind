@@ -105,6 +105,39 @@ public sealed class LauncherServiceTests
     }
 
     [Fact]
+    public async Task LaunchAsync_InvalidUtf8OutputDoesNotBreakLaunchTracking()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile(
+            "invalid-utf8-output.sh",
+            "#!/bin/sh\nprintf '\\200\\201\\202\\377stdout-marker\\n'\nprintf '\\377\\202\\201\\200stderr-marker\\n' >&2\nexit 23\n");
+        var item = new MediaItem("Invalid UTF-8 output")
+        {
+            MediaType = MediaType.Native,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = scriptPath
+                }
+            ]
+        };
+        var service = new LauncherService(temp.RootPath, new AppSettings());
+
+        var result = await service.LaunchAsync(item, recordStatistics: false);
+
+        Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.True(result.WasSessionTracked);
+        Assert.Equal(23, result.ExitCode);
+        Assert.Contains("stdout-marker", result.ConsoleOutput);
+        Assert.Contains("stderr-marker", result.ConsoleOutput);
+    }
+
+    [Fact]
     public async Task LaunchAsync_ReportsTrackedSessionWhenProcessExitWasObserved()
     {
         if (!OperatingSystem.IsLinux())
