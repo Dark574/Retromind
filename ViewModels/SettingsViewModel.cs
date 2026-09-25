@@ -113,6 +113,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _geReleaseStatusText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EmulatorExecutableVersionButtonText))]
+    private bool _isCheckingEmulatorExecutableVersion;
+
+    [ObservableProperty]
+    private string _emulatorExecutableVersionText = string.Empty;
     
     // Available scraper types for the UI.
     // Keep "None" so new entries can stay intentionally unconfigured.
@@ -479,6 +486,59 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string EmulatorRunnerTypeLabel => T("Settings_EmulatorRunnerTypeLabel", "Runner type");
     public string EmulatorRunnerVersionLabel => T("Settings_EmulatorRunnerVersionLabel", "Default runner version");
     public string EmulatorRunnerDisabledHint => T("Settings_EmulatorRunnerDisabledHint", "Enable per-game prefixes to activate emulator-level defaults.");
+    public string EmulatorExecutableResolutionText
+    {
+        get
+        {
+            var resolution = GetSelectedEmulatorExecutableResolution();
+            if (string.IsNullOrWhiteSpace(resolution.LaunchValue))
+                return string.Empty;
+
+            if (!resolution.IsAvailable)
+            {
+                return string.Format(
+                    T("Settings_EmulatorExecutableNotFoundFormat", "Currently resolved: not found ({0})"),
+                    resolution.LaunchValue);
+            }
+
+            return string.Format(
+                T("Settings_EmulatorExecutableResolvedFormat", "Currently resolved: {0}"),
+                resolution.ResolvedPath);
+        }
+    }
+
+    public string EmulatorExecutableResolutionHint
+    {
+        get
+        {
+            var resolution = GetSelectedEmulatorExecutableResolution();
+            if (string.IsNullOrWhiteSpace(resolution.LaunchValue))
+                return string.Empty;
+
+            return resolution.UsesPathLookup
+                ? T(
+                    "Settings_EmulatorExecutablePathLookupHint",
+                    "Resolved through PATH. System updates or PATH changes can select a different executable.")
+                : string.Empty;
+        }
+    }
+
+    public bool IsEmulatorExecutableResolutionVisible
+        => !string.IsNullOrWhiteSpace(SelectedEmulator?.Path);
+
+    public bool IsEmulatorWineVersionCheckVisible
+    {
+        get
+        {
+            var resolution = GetSelectedEmulatorExecutableResolution();
+            return resolution.IsAvailable &&
+                   LaunchExecutablePathHelper.IsWineExecutable(resolution.ResolvedPath);
+        }
+    }
+
+    public string EmulatorExecutableVersionButtonText => IsCheckingEmulatorExecutableVersion
+        ? T("Settings_EmulatorExecutableVersionChecking", "Checking...")
+        : T("Settings_EmulatorExecutableVersionCheck", "Check Wine version");
 
     public bool IsRunnerReplacementVisible => SelectedRunnerVersion?.UsedByGames > 0;
     public bool IsEmulatorRunnerSelectionEnabled => SelectedEmulator?.UsesWinePrefix == true;
@@ -624,6 +684,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IAsyncRelayCommand SaveCommand { get; }
     public IRelayCommand CancelCommand { get; }
     public IAsyncRelayCommand BrowsePathCommand { get; }
+    public IAsyncRelayCommand CheckEmulatorExecutableVersionCommand { get; }
     public IAsyncRelayCommand BrowseSteamLibraryPathCommand { get; }
     public IAsyncRelayCommand BrowseHeroicEpicPathCommand { get; }
     public IAsyncRelayCommand ConvertExistingToPortableCommand { get; }
@@ -756,6 +817,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         SaveCommand = new AsyncRelayCommand(SaveAsync, CanSave);
         CancelCommand = new RelayCommand(Cancel);
         BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync, () => SelectedEmulator != null);
+        CheckEmulatorExecutableVersionCommand = new AsyncRelayCommand(
+            CheckEmulatorExecutableVersionAsync,
+            CanCheckEmulatorExecutableVersion);
         BrowseSteamLibraryPathCommand = new AsyncRelayCommand(BrowseSteamLibraryPathAsync);
         BrowseHeroicEpicPathCommand = new AsyncRelayCommand(BrowseHeroicEpicPathAsync);
         
@@ -846,6 +910,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         if (newValue != null)
             newValue.PropertyChanged += OnEmulatorPropertyChanged;
 
+        foreach (var row in EmulatorEnvironmentOverrides)
+            row.PropertyChanged -= OnEmulatorEnvironmentRowPropertyChanged;
+
         // Rebuild wrapper UI collection based on the newly selected emulator
         EmulatorNativeWrappers.Clear();
         EmulatorEnvironmentOverrides.Clear();
@@ -861,11 +928,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         {
             foreach (var kv in newValue.EnvironmentOverrides)
             {
-                EmulatorEnvironmentOverrides.Add(new EnvVarRow
+                var row = new EnvVarRow
                 {
                     Key = kv.Key,
                     Value = kv.Value
-                });
+                };
+                row.PropertyChanged += OnEmulatorEnvironmentRowPropertyChanged;
+                EmulatorEnvironmentOverrides.Add(row);
             }
         }
         
@@ -874,6 +943,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsEmulatorXdgCustomSelected));
         OnPropertyChanged(nameof(IsEmulatorRunnerSelectionEnabled));
         RebuildSelectedEmulatorRunnerVersionOptions();
+        RefreshEmulatorExecutableResolution();
     }
 
     private void OnEmulatorPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -883,6 +953,15 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         if (e.PropertyName == nameof(EmulatorConfig.UsesWinePrefix))
             OnPropertyChanged(nameof(IsEmulatorRunnerSelectionEnabled));
+
+        if (e.PropertyName == nameof(EmulatorConfig.Path))
+            RefreshEmulatorExecutableResolution();
+    }
+
+    private void OnEmulatorEnvironmentRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(EnvVarRow.Key) or nameof(EnvVarRow.Value))
+            RefreshEmulatorExecutableResolution();
     }
 
     private void OnAnyEmulatorPropertyChanged(object? sender, PropertyChangedEventArgs e)

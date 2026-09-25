@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.0-alpha] - unreleased
 
 ### Added
+- show resolved emulator paths and Wine versions
 
 ### Changed
 - allow selecting which installed GOG DLCs are restored by a clean reinstall

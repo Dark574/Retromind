@@ -779,6 +779,15 @@ zelda AND platform:switch</value></data>
     <data name="Settings.ConvertExistingLaunchPaths" xml:space="preserve"><value>Convert existing launch paths</value></data>
     <data name="Settings.DefaultArguments" xml:space="preserve"><value>Default Arguments</value></data>
     <data name="Settings.ExecutablePath" xml:space="preserve"><value>Executable Path</value></data>
+    <data name="Settings_EmulatorExecutableResolvedFormat" xml:space="preserve"><value>Currently resolved: {0}</value></data>
+    <data name="Settings_EmulatorExecutableNotFoundFormat" xml:space="preserve"><value>Currently resolved: not found ({0})</value></data>
+    <data name="Settings_EmulatorExecutablePathLookupHint" xml:space="preserve"><value>Resolved through PATH. System updates or PATH changes can select a different executable.</value></data>
+    <data name="Settings_EmulatorExecutableVersionCheck" xml:space="preserve"><value>Check Wine version</value></data>
+    <data name="Settings_EmulatorExecutableVersionChecking" xml:space="preserve"><value>Checking...</value></data>
+    <data name="Settings_EmulatorExecutableVersionStartFailed" xml:space="preserve"><value>Wine could not be started.</value></data>
+    <data name="Settings_EmulatorExecutableVersionTimeout" xml:space="preserve"><value>The Wine version check timed out.</value></data>
+    <data name="Settings_EmulatorExecutableVersionUnavailable" xml:space="preserve"><value>Wine did not report a version.</value></data>
+    <data name="Settings_EmulatorExecutableVersionFailedFormat" xml:space="preserve"><value>Version check failed: {0}</value></data>
     <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Play music on selection</value></data>
     <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>Automatically plays the selected item's music in the main view, when available.</value></data>
     <data name="Settings.PortableHome" xml:space="preserve"><value>Use portable HOME/XDG for AppImage</value></data>

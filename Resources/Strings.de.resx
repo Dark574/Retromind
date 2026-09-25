@@ -781,6 +781,15 @@ zelda AND platform:switch</value></data>
     <data name="Settings.ConvertExistingLaunchPaths" xml:space="preserve"><value>Startpfade konvertieren</value></data>
     <data name="Settings.DefaultArguments" xml:space="preserve"><value>Standardargumente</value></data>
     <data name="Settings.ExecutablePath" xml:space="preserve"><value>Ausführungsdatei-Pfad</value></data>
+    <data name="Settings_EmulatorExecutableResolvedFormat" xml:space="preserve"><value>Aktuell aufgelöst: {0}</value></data>
+    <data name="Settings_EmulatorExecutableNotFoundFormat" xml:space="preserve"><value>Aktuell aufgelöst: nicht gefunden ({0})</value></data>
+    <data name="Settings_EmulatorExecutablePathLookupHint" xml:space="preserve"><value>Wird über PATH aufgelöst. Systemupdates oder PATH-Änderungen können eine andere ausführbare Datei auswählen.</value></data>
+    <data name="Settings_EmulatorExecutableVersionCheck" xml:space="preserve"><value>Wine-Version prüfen</value></data>
+    <data name="Settings_EmulatorExecutableVersionChecking" xml:space="preserve"><value>Wird geprüft...</value></data>
+    <data name="Settings_EmulatorExecutableVersionStartFailed" xml:space="preserve"><value>Wine konnte nicht gestartet werden.</value></data>
+    <data name="Settings_EmulatorExecutableVersionTimeout" xml:space="preserve"><value>Die Prüfung der Wine-Version hat zu lange gedauert.</value></data>
+    <data name="Settings_EmulatorExecutableVersionUnavailable" xml:space="preserve"><value>Wine hat keine Version gemeldet.</value></data>
+    <data name="Settings_EmulatorExecutableVersionFailedFormat" xml:space="preserve"><value>Versionsprüfung fehlgeschlagen: {0}</value></data>
     <data name="Settings.PlayRandomMusic" xml:space="preserve"><value>Musik bei Auswahl abspielen</value></data>
     <data name="Settings.PlayRandomMusic.Hint" xml:space="preserve"><value>Spielt in der Hauptansicht automatisch die Musik des ausgewählten Mediums ab, falls vorhanden.</value></data>
     <data name="Settings.PortableHome" xml:space="preserve"><value>Portables HOME/XDG für AppImage verwenden</value></data>

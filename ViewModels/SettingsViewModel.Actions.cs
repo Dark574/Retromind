@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -82,13 +83,17 @@ public partial class SettingsViewModel
 
     private void AddEmulatorEnvVar()
     {
-        EmulatorEnvironmentOverrides.Add(new EnvVarRow());
+        var row = new EnvVarRow();
+        row.PropertyChanged += OnEmulatorEnvironmentRowPropertyChanged;
+        EmulatorEnvironmentOverrides.Add(row);
     }
 
     private void RemoveEmulatorEnvVar(EnvVarRow? row)
     {
         if (row == null) return;
+        row.PropertyChanged -= OnEmulatorEnvironmentRowPropertyChanged;
         EmulatorEnvironmentOverrides.Remove(row);
+        RefreshEmulatorExecutableResolution();
     }
 
     private void ApplyPortableXdgPreset()
@@ -130,11 +135,13 @@ public partial class SettingsViewModel
             return;
         }
 
-        EmulatorEnvironmentOverrides.Add(new EnvVarRow
+        var row = new EnvVarRow
         {
             Key = key,
             Value = value
-        });
+        };
+        row.PropertyChanged += OnEmulatorEnvironmentRowPropertyChanged;
+        EmulatorEnvironmentOverrides.Add(row);
     }
 
     // --- Actions ---
@@ -358,6 +365,130 @@ public partial class SettingsViewModel
         }
     }
 
+    private LaunchExecutableResolution GetSelectedEmulatorExecutableResolution()
+    {
+        var pathOverride = EmulatorEnvironmentOverrides.LastOrDefault(row =>
+            string.Equals(row.Key?.Trim(), "PATH", StringComparison.OrdinalIgnoreCase));
+        var effectivePath = pathOverride == null
+            ? Environment.GetEnvironmentVariable("PATH")
+            : pathOverride.Value;
+
+        return LaunchExecutablePathHelper.ResolveForDisplay(
+            SelectedEmulator?.Path,
+            effectivePath);
+    }
+
+    private void RefreshEmulatorExecutableResolution()
+    {
+        EmulatorExecutableVersionText = string.Empty;
+        OnPropertyChanged(nameof(EmulatorExecutableResolutionText));
+        OnPropertyChanged(nameof(EmulatorExecutableResolutionHint));
+        OnPropertyChanged(nameof(IsEmulatorExecutableResolutionVisible));
+        OnPropertyChanged(nameof(IsEmulatorWineVersionCheckVisible));
+        CheckEmulatorExecutableVersionCommand?.NotifyCanExecuteChanged();
+    }
+
+    private bool CanCheckEmulatorExecutableVersion()
+        => !IsCheckingEmulatorExecutableVersion && IsEmulatorWineVersionCheckVisible;
+
+    private async Task CheckEmulatorExecutableVersionAsync()
+    {
+        var resolution = GetSelectedEmulatorExecutableResolution();
+        if (!resolution.IsAvailable ||
+            !LaunchExecutablePathHelper.IsWineExecutable(resolution.ResolvedPath))
+        {
+            return;
+        }
+
+        IsCheckingEmulatorExecutableVersion = true;
+        CheckEmulatorExecutableVersionCommand.NotifyCanExecuteChanged();
+        EmulatorExecutableVersionText = T(
+            "Settings_EmulatorExecutableVersionChecking",
+            "Checking...");
+
+        try
+        {
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = resolution.ResolvedPath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                }
+            };
+            process.StartInfo.ArgumentList.Add("--version");
+            HostProcessEnvironmentSanitizer.Sanitize(process.StartInfo);
+
+            if (!process.Start())
+            {
+                throw new InvalidOperationException(T(
+                    "Settings_EmulatorExecutableVersionStartFailed",
+                    "Wine could not be started."));
+            }
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            var exitTask = process.WaitForExitAsync();
+            if (await Task.WhenAny(exitTask, Task.Delay(TimeSpan.FromSeconds(3))) != exitTask)
+            {
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                    // Best-effort timeout cleanup.
+                }
+
+                try
+                {
+                    await process.WaitForExitAsync();
+                    await Task.WhenAll(stdoutTask, stderrTask);
+                }
+                catch
+                {
+                    // The timeout message below is the actionable result.
+                }
+
+                throw new TimeoutException(T(
+                    "Settings_EmulatorExecutableVersionTimeout",
+                    "The Wine version check timed out."));
+            }
+
+            await exitTask;
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+            var version = FirstNonEmptyLine(stdout) ?? FirstNonEmptyLine(stderr);
+            if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(version))
+            {
+                throw new InvalidOperationException(T(
+                    "Settings_EmulatorExecutableVersionUnavailable",
+                    "Wine did not report a version."));
+            }
+
+            EmulatorExecutableVersionText = version;
+        }
+        catch (Exception ex)
+        {
+            EmulatorExecutableVersionText = string.Format(
+                T("Settings_EmulatorExecutableVersionFailedFormat", "Version check failed: {0}"),
+                ex.Message);
+        }
+        finally
+        {
+            IsCheckingEmulatorExecutableVersion = false;
+            CheckEmulatorExecutableVersionCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    private static string? FirstNonEmptyLine(string? value)
+        => value?
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault();
+
     private static void ConvertEmulatorPathsToPortable(EmulatorConfig emulator)
     {
         emulator.Path = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(emulator.Path) ?? emulator.Path;
@@ -536,6 +667,9 @@ public partial class SettingsViewModel
 
         if (SelectedEmulator != null)
             SelectedEmulator.PropertyChanged -= OnEmulatorPropertyChanged;
+
+        foreach (var row in EmulatorEnvironmentOverrides)
+            row.PropertyChanged -= OnEmulatorEnvironmentRowPropertyChanged;
 
         foreach (var emulator in Emulators)
             emulator.PropertyChanged -= OnAnyEmulatorPropertyChanged;

@@ -370,6 +370,11 @@ Proton entry point and UMU tool manifest have been verified. Before a selected r
 definition and files are checked again so removed, moved, or incomplete runners fail with visible guidance rather
 than silently falling back to another runtime.
 
+Emulator executable values without path separators remain command tokens resolved through the effective `PATH` at
+launch time; explicit and portable-relative paths bypass that lookup. The emulator settings use the same resolver
+to show the current concrete executable and whether it is PATH-dependent. Wine entry points additionally expose an
+explicit, timeout-bounded version check instead of starting arbitrary emulator binaries automatically.
+
 ## Parental control as cross-cutting concern
 Parental behavior is not isolated to one screen:
 - tree visibility recalculation (`IsVisibleInTree`) on lock/protection changes

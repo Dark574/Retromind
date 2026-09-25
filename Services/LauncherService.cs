@@ -377,7 +377,7 @@ public sealed class LauncherService
             var templateArgs = string.IsNullOrWhiteSpace(item.LauncherArgs) ? "{file}" : item.LauncherArgs;
             var args = BuildArgumentsString(launchFilePath, templateArgs);
 
-            var fileName = ResolveConfiguredExecutablePath(item.LauncherPath);
+            var fileName = LaunchExecutablePathHelper.ResolveConfiguredPath(item.LauncherPath);
             var useShellExecute = false;
 
             // If there is a wrapper chain, wrap the item-level launcher as inner command.
@@ -402,7 +402,7 @@ public sealed class LauncherService
             var templateArgs = LaunchArgumentHelper.CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
             var args = BuildArgumentsString(launchFilePath, templateArgs);
 
-            var fileName = ResolveConfiguredExecutablePath(inheritedConfig.Path);
+            var fileName = LaunchExecutablePathHelper.ResolveConfiguredPath(inheritedConfig.Path);
             var useShellExecute = false;
 
             // Apply wrapper chain around the emulator command if present
@@ -474,7 +474,7 @@ public sealed class LauncherService
                 ? template.Replace("{file}", current, StringComparison.Ordinal)
                 : $"{template} {current}";
 
-            var resolvedWrapperPath = ResolveConfiguredExecutablePath(w.Path);
+            var resolvedWrapperPath = LaunchExecutablePathHelper.ResolveConfiguredPath(w.Path);
             if (string.IsNullOrWhiteSpace(resolvedWrapperPath))
                 continue;
 
@@ -659,27 +659,6 @@ public sealed class LauncherService
         }
 
         return string.Empty;
-    }
-
-    private static string ResolveConfiguredExecutablePath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return string.Empty;
-
-        var trimmed = path.Trim();
-        if (Path.IsPathRooted(trimmed))
-            return trimmed;
-
-        // Keep command tokens (e.g. "flatpak", "retroarch") PATH-resolved.
-        // Relative paths with separators are treated as DataRoot-relative for portability.
-        if (!trimmed.Contains('/') &&
-            !trimmed.Contains('\\') &&
-            !trimmed.StartsWith(".", StringComparison.Ordinal))
-        {
-            return trimmed;
-        }
-
-        return AppPaths.ResolveDataPath(trimmed);
     }
 
     private static string? ResolveWorkingDirectoryOverride(string? overrideDirectory)
