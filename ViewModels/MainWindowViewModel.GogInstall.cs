@@ -1354,6 +1354,16 @@ public partial class MainWindowViewModel
             return false;
         }
 
+        if (string.IsNullOrWhiteSpace(EmulatorResolverHelper.ResolveSystemWine()))
+        {
+            await ShowInfoDialog(
+                owner,
+                T(
+                    "Gog.Install.SystemWineRequired",
+                    "Installing GOG Windows games requires system Wine. Install Wine and try again."));
+            return false;
+        }
+
         if (request.Runner.Kind != RunnerVersionKind.Proton || IsUmuRunAvailable())
             return true;
 

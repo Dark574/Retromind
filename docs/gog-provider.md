@@ -82,6 +82,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - installer execution now opens a process log window (stdout/stderr + exit code)
   - Windows installer robustness hardening:
     - Windows installer execution currently uses system Wine resolution (`wine`/`wine64`) through `EmulatorResolverHelper`
+    - missing system Wine is rejected before installer metadata resolution or download; the selected Wine/Proton runner remains the runtime used after installation
     - execution path now evaluates multiple `.exe` installer candidates (architecture-aware preference + fallback order)
     - Inno argument handling now uses profile fallback (`/SP- /SILENT /NOGUI /SUPPRESSMSGBOXES /NORESTART /DIR=... /LOG=...`, with less-silent fallback profile)
     - Windows installer logs include diagnostics (runner env snapshot, prefix `dosdevices` mappings, installer candidate metadata, and per-attempt process outcome)

@@ -399,6 +399,7 @@ Fortfahren?</value></data>
     <data name="Gog.Install.ValidationRunnerRequired" xml:space="preserve"><value>Bitte für die Windows-Installation einen Wine/Proton-Runner auswählen.</value></data>
     <data name="Gog.Install.ValidationUmuRequired" xml:space="preserve"><value>Für einen Proton-Runner wird umu-run im PATH benötigt. Bitte umu installieren oder einen Wine-Runner wählen.</value></data>
     <data name="Gog.Install.UmuRequired" xml:space="preserve"><value>Für einen Proton-Runner wird umu-run im PATH benötigt. Bitte umu installieren oder einen Wine-Runner wählen.</value></data>
+    <data name="Gog.Install.SystemWineRequired" xml:space="preserve"><value>Für die Installation von GOG-Windows-Spielen wird System-Wine benötigt. Installiere Wine und versuche es erneut.</value></data>
     <data name="Gog.Install.RunnerInvalidFormat" xml:space="preserve"><value>Der ausgewählte Runner '{0}' ist nicht verfügbar oder unvollständig. Bitte den Pfad unter Einstellungen -&gt; Runner prüfen.</value></data>
     <data name="Settings_GeProtonIncompleteFormat" xml:space="preserve"><value>Das Proton-Archiv ist unvollständig. In „{0}“ wurden „proton“ und „toolmanifest.vdf“ erwartet.</value></data>
     <data name="Gog.Install.ResolveFailed" xml:space="preserve"><value>GOG-Installerdaten konnten nicht geladen werden.</value></data>
