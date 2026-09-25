@@ -6,6 +6,23 @@ namespace Retromind.Helpers;
 
 public static class PrefixPathHelper
 {
+    /// <summary>
+    /// Resolves a stored prefix path against the library root and returns one
+    /// canonical absolute path without redundant trailing separators.
+    /// </summary>
+    public static string ResolveAbsolutePrefixPath(string prefixPath, string libraryRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(prefixPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(libraryRoot);
+
+        var trimmedPath = prefixPath.Trim();
+        var absolutePath = Path.IsPathRooted(trimmedPath)
+            ? trimmedPath
+            : Path.Combine(libraryRoot, trimmedPath);
+
+        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(absolutePath));
+    }
+
     public static string SanitizePrefixFolderName(string input)
     {
         if (string.IsNullOrWhiteSpace(input))

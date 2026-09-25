@@ -8,6 +8,40 @@ namespace Retromind.Tests.Services;
 public sealed class LauncherServiceTests
 {
     [Fact]
+    public async Task LaunchAsync_NormalizesExplicitRelativePrefixBeforeSettingEnvironment()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var libraryRoot = temp.CreateDirectory("Library");
+        var expectedPrefix = temp.GetPath("Library", "Prefixes", "Trailing Slash Game");
+        var scriptPath = temp.CreateFile(
+            "print-prefix.sh",
+            "#!/bin/sh\nprintf 'WINEPREFIX=%s\\n' \"$WINEPREFIX\" >&2\nexit 23\n");
+        var item = new MediaItem("Trailing Slash Game")
+        {
+            MediaType = MediaType.Native,
+            PrefixPath = "Prefixes/Trailing Slash Game//",
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = scriptPath
+                }
+            ]
+        };
+        var service = new LauncherService(libraryRoot, new AppSettings());
+
+        var result = await service.LaunchAsync(item, recordStatistics: false);
+
+        Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.Contains($"WINEPREFIX={expectedPrefix}", result.ConsoleOutput);
+        Assert.True(Directory.Exists(expectedPrefix));
+    }
+
+    [Fact]
     public async Task LaunchAsync_ReturnsFailureWhenExecutableDoesNotExist()
     {
         using var temp = new TemporaryDirectory();

@@ -142,9 +142,14 @@ RetroAchievements Web API key) are stored through `ISecretStore`, not in `DataRo
   containment in the selected install root has been established
 - GOG `Store.InstallPath` values inside DataRoot are stored DataRoot-relative when portable paths are
   enabled; the shared GOG resolver also supports legacy and intentionally external absolute paths
+- Wine/Proton prefix paths are resolved centrally against `LibraryRoot`; relative and absolute inputs are
+  canonicalized before launcher, GOG, or Winetricks operations consume them
 - destructive store operations have an additional ownership boundary: GOG install directories must not
   be dangerous roots, must not traverse symbolic links, and must contain a matching
   `.retromind-install.json` marker before recursive deletion
+- GOG uninstall removes a separate prefix only when it is a non-shared subdirectory inside `LibraryRoot`
+  without symbolic-link traversal; external prefixes and the shared `Library/Prefixes` or `Library/Games`
+  roots are preserved together with their metadata for manual cleanup
 - moving an item between nodes transfers its referenced assets through a staging transaction; failures roll
   files and the collection assignment back, while assets shared with another item or node are copied instead
   of removing the shared source

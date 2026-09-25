@@ -79,7 +79,9 @@ public partial class EditMediaViewModel
         {
             if (!HasPrefix) return;
 
-            var folder = Path.GetFullPath(Path.Combine(AppPaths.LibraryRoot, PrefixPath));
+            var folder = PrefixPathHelper.ResolveAbsolutePrefixPath(
+                PrefixPath,
+                AppPaths.LibraryRoot);
             Directory.CreateDirectory(folder);
 
             var psi = new ProcessStartInfo
@@ -616,9 +618,7 @@ public partial class EditMediaViewModel
         if (string.IsNullOrWhiteSpace(PrefixPath))
             return string.Empty;
 
-        return Path.IsPathRooted(PrefixPath)
-            ? PrefixPath
-            : Path.GetFullPath(Path.Combine(AppPaths.LibraryRoot, PrefixPath));
+        return PrefixPathHelper.ResolveAbsolutePrefixPath(PrefixPath, AppPaths.LibraryRoot);
     }
 
     private bool IsProtonBased(Dictionary<string, string> env)

@@ -2295,9 +2295,9 @@ public partial class MainWindowViewModel
         string absolutePrefixPath;
         if (!string.IsNullOrWhiteSpace(item.PrefixPath))
         {
-            absolutePrefixPath = Path.IsPathRooted(item.PrefixPath)
-                ? Path.GetFullPath(item.PrefixPath)
-                : Path.Combine(AppPaths.LibraryRoot, item.PrefixPath);
+            absolutePrefixPath = PrefixPathHelper.ResolveAbsolutePrefixPath(
+                item.PrefixPath,
+                AppPaths.LibraryRoot);
         }
         else
         {

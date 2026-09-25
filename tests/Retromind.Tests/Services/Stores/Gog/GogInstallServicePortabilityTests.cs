@@ -10,6 +10,79 @@ namespace Retromind.Tests.Services.Stores.Gog;
 public sealed class GogInstallServicePortabilityTests
 {
     [Fact]
+    public async Task Uninstall_RelativePrefixWithTrailingSeparators_DeletesCanonicalPrefix()
+    {
+        using var portableRoot = new TemporaryDirectory();
+        var installPath = portableRoot.CreateDirectory("Library", "Games", "GOG", "Slash Game");
+        var prefixPath = portableRoot.CreateDirectory("Library", "Prefixes", "Slash Game");
+        var item = CreateInstalledItem(Path.Combine("Library", "Games", "GOG", "Slash Game"));
+        item.PrefixPath = "Prefixes/Slash Game//";
+        GogInstallDirectorySafety.WriteMarker(installPath, item);
+        portableRoot.CreateFile("Library/Prefixes/Slash Game/prefix-state.txt", "delete with prefix");
+
+        using (UseDataRoot(portableRoot.RootPath))
+        {
+            await CreateInstallService().UninstallGogGameAsync(item);
+        }
+
+        Assert.False(Directory.Exists(installPath));
+        Assert.False(Directory.Exists(prefixPath));
+        Assert.Null(item.PrefixPath);
+    }
+
+    [Fact]
+    public async Task Uninstall_ExternalPrefixWithTrailingSeparators_PreservesPrefixAndMetadata()
+    {
+        using var portableRoot = new TemporaryDirectory();
+        using var externalRoot = new TemporaryDirectory();
+        var installPath = portableRoot.CreateDirectory("Library", "Games", "GOG", "External Prefix Game");
+        var externalPrefix = externalRoot.CreateDirectory("prefix");
+        var externalSentinel = externalRoot.CreateFile("prefix/must-remain.txt", "external prefix data");
+        var item = CreateInstalledItem(
+            Path.Combine("Library", "Games", "GOG", "External Prefix Game"));
+        item.PrefixPath = externalPrefix + "//";
+        GogInstallDirectorySafety.WriteMarker(installPath, item);
+
+        using (UseDataRoot(portableRoot.RootPath))
+        {
+            await CreateInstallService().UninstallGogGameAsync(item);
+        }
+
+        Assert.False(Directory.Exists(installPath));
+        Assert.True(Directory.Exists(externalPrefix));
+        Assert.True(File.Exists(externalSentinel));
+        Assert.Equal(externalPrefix + "//", item.PrefixPath);
+    }
+
+    [Theory]
+    [InlineData("Prefixes")]
+    [InlineData("Games")]
+    public async Task Uninstall_SharedLibraryRootWithTrailingSeparators_PreservesDirectory(
+        string sharedDirectoryName)
+    {
+        using var portableRoot = new TemporaryDirectory();
+        var installPath = portableRoot.CreateDirectory("Library", "Games", "GOG", "Shared Prefix Game");
+        var sharedDirectory = portableRoot.CreateDirectory("Library", sharedDirectoryName);
+        var otherPrefixSentinel = portableRoot.CreateFile(
+            Path.Combine("Library", sharedDirectoryName, "Other Game", "must-remain.txt"),
+            "other prefix data");
+        var item = CreateInstalledItem(
+            Path.Combine("Library", "Games", "GOG", "Shared Prefix Game"));
+        item.PrefixPath = sharedDirectoryName + "//";
+        GogInstallDirectorySafety.WriteMarker(installPath, item);
+
+        using (UseDataRoot(portableRoot.RootPath))
+        {
+            await CreateInstallService().UninstallGogGameAsync(item);
+        }
+
+        Assert.False(Directory.Exists(installPath));
+        Assert.True(Directory.Exists(sharedDirectory));
+        Assert.True(File.Exists(otherPrefixSentinel));
+        Assert.Equal(sharedDirectoryName + "//", item.PrefixPath);
+    }
+
+    [Fact]
     public async Task Uninstall_RelativeInstallPathAfterMove_DeletesOnlyCurrentPortableRoot()
     {
         using var firstRoot = new TemporaryDirectory();

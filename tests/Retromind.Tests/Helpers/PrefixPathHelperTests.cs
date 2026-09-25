@@ -6,6 +6,85 @@ namespace Retromind.Tests.Helpers;
 public sealed class PrefixPathHelperTests
 {
     [Fact]
+    public void ResolveAbsolutePrefixPath_NormalizesRelativeTrailingSeparators()
+    {
+        using var temp = new TemporaryDirectory();
+        var libraryRoot = temp.CreateDirectory("Library");
+        var expected = temp.GetPath("Library", "Prefixes");
+
+        var variants = new[]
+        {
+            "Prefixes",
+            "Prefixes/",
+            "Prefixes//"
+        };
+
+        foreach (var variant in variants)
+        {
+            Assert.Equal(
+                expected,
+                PrefixPathHelper.ResolveAbsolutePrefixPath(variant, libraryRoot));
+        }
+    }
+
+    [Fact]
+    public void ResolveAbsolutePrefixPath_NormalizesAbsoluteTrailingSeparators()
+    {
+        using var temp = new TemporaryDirectory();
+        var libraryRoot = temp.CreateDirectory("Library");
+        var expected = temp.GetPath("External", "Prefixes");
+        var variants = new[]
+        {
+            expected,
+            expected + Path.DirectorySeparatorChar,
+            expected + Path.DirectorySeparatorChar + Path.DirectorySeparatorChar
+        };
+
+        foreach (var variant in variants)
+        {
+            Assert.Equal(
+                expected,
+                PrefixPathHelper.ResolveAbsolutePrefixPath(variant, libraryRoot));
+        }
+    }
+
+    [Fact]
+    public void ResolveAbsolutePrefixPath_NormalizesRelativeDotSegments()
+    {
+        using var temp = new TemporaryDirectory();
+        var libraryRoot = temp.CreateDirectory("Library");
+        var expected = temp.GetPath("Library", "Prefixes", "Game");
+        var variants = new[]
+        {
+            "Prefixes/./Game/",
+            "Prefixes/Nested/../Game//"
+        };
+
+        foreach (var variant in variants)
+        {
+            Assert.Equal(
+                expected,
+                PrefixPathHelper.ResolveAbsolutePrefixPath(variant, libraryRoot));
+        }
+    }
+
+    [Fact]
+    public void ResolveAbsolutePrefixPath_PreservesPfxLeafDetection()
+    {
+        using var temp = new TemporaryDirectory();
+        var libraryRoot = temp.CreateDirectory("Library");
+        var expected = temp.GetPath("Library", "Prefixes", "Game", "pfx");
+
+        foreach (var variant in new[] { "Prefixes/Game/pfx", "Prefixes/Game/pfx/", "Prefixes/Game/pfx//" })
+        {
+            var resolved = PrefixPathHelper.ResolveAbsolutePrefixPath(variant, libraryRoot);
+
+            Assert.Equal(expected, resolved);
+            Assert.True(PrefixPathHelper.IsPfxPath(resolved));
+        }
+    }
+
+    [Fact]
     public void EnsureDosDeviceMapping_CreatesMappingAndPreservesExistingTarget()
     {
         using var temp = new TemporaryDirectory();

@@ -1223,9 +1223,7 @@ public sealed class LauncherService
                 }
             }
 
-            prefixPath = Path.IsPathRooted(storedPath)
-                ? Path.GetFullPath(storedPath)
-                : Path.Combine(_libraryRootPath, storedPath);
+            prefixPath = PrefixPathHelper.ResolveAbsolutePrefixPath(storedPath, _libraryRootPath);
         }
         else
         {

@@ -311,18 +311,10 @@ public sealed class GogInstallService
         
         if (!string.IsNullOrWhiteSpace(prefixPath))
         {
-            string resolvedPrefix;
-            
-            // 1. Normalize path (handles ../ sequences)
-            if (Path.IsPathRooted(prefixPath))
-            {
-                resolvedPrefix = Path.GetFullPath(prefixPath);
-            }
-            else
-            {
-                // Resolve relative to LibraryRoot
-                resolvedPrefix = Path.GetFullPath(Path.Combine(AppPaths.LibraryRoot, prefixPath));
-            }
+            // 1. Normalize path (handles ../ sequences and redundant separators)
+            var resolvedPrefix = PrefixPathHelper.ResolveAbsolutePrefixPath(
+                prefixPath,
+                AppPaths.LibraryRoot);
             
             // 2. Safety Check: Ensure resolved path is inside LibraryRoot
             var libraryRoot = Path.GetFullPath(AppPaths.LibraryRoot);
@@ -330,9 +322,19 @@ public sealed class GogInstallService
                 ? libraryRoot
                 : libraryRoot + Path.DirectorySeparatorChar;
 
+            var protectedLibraryDirectories = new[]
+            {
+                Path.Combine(libraryRoot, "Prefixes"),
+                Path.Combine(libraryRoot, "Games")
+            };
+            var isProtectedLibraryDirectory = protectedLibraryDirectories.Any(path =>
+                string.Equals(resolvedPrefix, path, StringComparison.Ordinal));
+
             // CRITICAL: resolvedPrefix must be a STRICT subdirectory of LibraryRoot.
-            // Never allow deleting LibraryRoot itself (e.g., if PrefixPath is "." or empty-normalized).
-            var isSafePrefix = resolvedPrefix.StartsWith(libraryRootWithSep, StringComparison.Ordinal);
+            // Never allow deleting LibraryRoot itself or shared library roots such as Prefixes/Games.
+            var isSafePrefix =
+                !isProtectedLibraryDirectory &&
+                resolvedPrefix.StartsWith(libraryRootWithSep, StringComparison.Ordinal);
 
             if (isSafePrefix)
             {
@@ -348,7 +350,7 @@ public sealed class GogInstallService
 
             if (!isSafePrefix)
             {
-                Debug.WriteLine($"[Warning] Prefix path '{prefixPath}' is outside LibraryRoot or contains a symbolic link ('{resolvedPrefix}'). Skipping prefix deletion for safety.");
+                Debug.WriteLine($"[Warning] Prefix path '{prefixPath}' is outside LibraryRoot, is a protected library directory, or contains a symbolic link ('{resolvedPrefix}'). Skipping prefix deletion for safety.");
                 prefixPath = null; // Abort prefix deletion
                 prefixSkippedForSafety = true;
             }
