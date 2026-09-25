@@ -291,6 +291,7 @@ Supported properties:
 - `FadeDurationMs` (int, optional; when 0, uses `ThemeProperties.FadeDurationMs`)
 - `FadeDelayMs` (int, optional; delay before switching to the new image)
 - `LoadDelayMs` (int, optional; waits for a rapidly changing URL to settle before decoding)
+- `RetainCurrentImageUntilLoaded` (bool, default `true`; set to `false` when stale artwork must disappear immediately after a URL change)
 
 Tip:
 - For a visible crossfade, keep the control present in the visual tree.

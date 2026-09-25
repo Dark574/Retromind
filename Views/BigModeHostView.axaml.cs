@@ -49,7 +49,10 @@ public partial class BigModeHostView : UserControl
     private readonly LinkedList<string> _systemThemeLru = new();
     private const int SystemLayoutCrossfadeMs = 180;
     private const int SystemVideoRevealFadeMs = 220;
+    private const int InitialPresentationDelayMs = 250;
+    private const int InitialPresentationFadeMs = 120;
     private int _systemLayoutTransitionGeneration;
+    private int _initialPresentationGeneration;
     private int _waitingSystemVideoGeneration;
     private int _waitingSystemVideoFrameRevision;
     private bool _waitingForSystemVideoFrame;
@@ -141,6 +144,7 @@ public partial class BigModeHostView : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        _initialPresentationGeneration++;
         StopMouseCursorAutoHide();
         CancelDynamicAccentUpdates();
         base.OnDetachedFromVisualTree(e);
@@ -152,6 +156,28 @@ public partial class BigModeHostView : UserControl
         }
 
         UnhookThemeTuning();
+    }
+
+    public void RevealAfterInitialLayout()
+    {
+        var generation = ++_initialPresentationGeneration;
+        _ = RevealAfterInitialLayoutAsync(generation);
+    }
+
+    private async Task RevealAfterInitialLayoutAsync(int generation)
+    {
+        await Task.Delay(InitialPresentationDelayMs).ConfigureAwait(false);
+
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            if (generation != _initialPresentationGeneration || !this.IsAttachedToVisualTree())
+                return;
+
+            SetOpacityTransition(this, InitialPresentationFadeMs);
+            IsHitTestVisible = true;
+            Opacity = 1;
+            Focus();
+        }, DispatcherPriority.Render);
     }
 
     private void StartMouseCursorAutoHide()

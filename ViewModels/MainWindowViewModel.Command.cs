@@ -439,13 +439,16 @@ public partial class MainWindowViewModel
         var host = new BigModeHostView
         {
             DataContext = bigVm,
-            Focusable = true
+            Focusable = true,
+            Opacity = 0,
+            IsHitTestVisible = false
         };
 
-        // Show the host first, then inject the theme view (more stable attach/layout behavior).
+        // Attach the host while hidden so fullscreen sizing, virtualized carousel
+        // realization and initial artwork loading can settle without a visible rebuild.
         FullScreenContent = host;
         host.SetThemeContent(initialTheme.View, initialTheme);
-        host.Focus();
+        host.RevealAfterInitialLayout();
 
         // Prevent out-of-order theme swaps when the user navigates quickly.
         var themeSwapGeneration = 0;

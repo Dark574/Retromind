@@ -17,6 +17,8 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - synchronize Prism logo and wallpaper crossfades
 
 ### Fixed
+- prevent stale cover or screenshot frames from appearing underneath the video preview after changing the selected BigMode item
+- reveal BigMode after its initial layout and artwork setup pass to avoid a visible second rebuild
 - keep installed GOG DLCs synchronized when updating or reinstalling their main game
 - update all Prism game details when selecting a carousel cover with the mouse
 - honor the GOG installer-retention choice for automatically reinstalled DLC packages

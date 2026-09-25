@@ -506,6 +506,7 @@
                                                     DecodeWidth="520"
                                                     DisableCache="True"
                                                     LoadDelayMs="160"
+                                                    RetainCurrentImageUntilLoaded="False"
                                                     Stretch="Uniform"
                                                     Margin="90,40"
                                                     Opacity="0.78"
@@ -515,6 +516,7 @@
                                                     DecodeWidth="520"
                                                     DisableCache="True"
                                                     LoadDelayMs="160"
+                                                    RetainCurrentImageUntilLoaded="False"
                                                     Stretch="Uniform"
                                                     Margin="90,40"
                                                     Opacity="0.78"
@@ -524,6 +526,7 @@
                                                     DecodeWidth="1280"
                                                     DisableCache="True"
                                                     LoadDelayMs="160"
+                                                    RetainCurrentImageUntilLoaded="False"
                                                     Stretch="UniformToFill"
                                                     IsVisible="{Binding IsGameListActive}" />
 

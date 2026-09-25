@@ -36,6 +36,11 @@ public class CrossfadeImage : Grid
     public static readonly StyledProperty<bool> FadeOutOnClearProperty =
         AvaloniaProperty.Register<CrossfadeImage, bool>(nameof(FadeOutOnClear));
 
+    public static readonly StyledProperty<bool> RetainCurrentImageUntilLoadedProperty =
+        AvaloniaProperty.Register<CrossfadeImage, bool>(
+            nameof(RetainCurrentImageUntilLoaded),
+            defaultValue: true);
+
     private readonly Image _imageA;
     private readonly Image _imageB;
     private int _activeIndex;
@@ -135,6 +140,17 @@ public class CrossfadeImage : Grid
         set => SetValue(FadeOutOnClearProperty, value);
     }
 
+    /// <summary>
+    /// Keeps the current image visible while a changed URL is delayed and loaded.
+    /// Disable this for previews where showing artwork from the previous selection
+    /// would be more misleading than briefly showing an empty surface.
+    /// </summary>
+    public bool RetainCurrentImageUntilLoaded
+    {
+        get => GetValue(RetainCurrentImageUntilLoadedProperty);
+        set => SetValue(RetainCurrentImageUntilLoadedProperty, value);
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         _imageA.Measure(availableSize);
@@ -190,11 +206,19 @@ public class CrossfadeImage : Grid
 
     private void StartCrossfadeToUrl(string? url, bool forceReload)
     {
-        if (!forceReload && string.Equals(_currentUrl, url, StringComparison.OrdinalIgnoreCase))
+        var urlChanged = !string.Equals(_currentUrl, url, StringComparison.OrdinalIgnoreCase);
+        if (!forceReload && !urlChanged)
             return;
 
         _currentUrl = url;
         var generation = ++_loadGeneration;
+
+        if (urlChanged &&
+            !string.IsNullOrWhiteSpace(url) &&
+            !RetainCurrentImageUntilLoaded)
+        {
+            ClearImagesImmediately();
+        }
 
         if (string.IsNullOrWhiteSpace(url))
         {
