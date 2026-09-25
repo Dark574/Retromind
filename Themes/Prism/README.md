@@ -21,6 +21,9 @@ The horizontal carousel virtualizes the complete game list so only visible cards
 are realized while native mouse selection remains available.
 Item and category logos use the same delay and fade duration as their wallpaper,
 keeping both artwork transitions visually synchronized.
+The center-stage cover, screenshot, and new video frame use the same fade duration.
+Previous preview frames are cleared immediately instead of being retained during
+that transition.
 
 ## Dynamic accents
 

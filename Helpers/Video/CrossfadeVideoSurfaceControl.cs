@@ -4,6 +4,7 @@ using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Retromind.Extensions;
 
@@ -34,9 +35,15 @@ public sealed class CrossfadeVideoSurfaceControl : Grid
             nameof(Stretch),
             defaultValue: Stretch.Fill);
 
+    public static readonly StyledProperty<bool> RetainPreviousSurfaceDuringFadeProperty =
+        AvaloniaProperty.Register<CrossfadeVideoSurfaceControl, bool>(
+            nameof(RetainPreviousSurfaceDuringFade),
+            defaultValue: true);
+
     private readonly VideoSurfaceControl _surfaceControlA;
     private readonly VideoSurfaceControl _surfaceControlB;
     private int _activeIndex;
+    private int _fadeGeneration;
 
     static CrossfadeVideoSurfaceControl()
     {
@@ -99,12 +106,23 @@ public sealed class CrossfadeVideoSurfaceControl : Grid
     }
 
     /// <summary>
+    /// Controls whether a surface change crossfades from the previous video or
+    /// clears it first and fades in only the new first frame.
+    /// </summary>
+    public bool RetainPreviousSurfaceDuringFade
+    {
+        get => GetValue(RetainPreviousSurfaceDuringFadeProperty);
+        set => SetValue(RetainPreviousSurfaceDuringFadeProperty, value);
+    }
+
+    /// <summary>
     /// Immediately presents only the currently active surface. This is used when
     /// an outer transition has already hidden the video and an inner crossfade
     /// would otherwise reveal a stale frame from the previous preview.
     /// </summary>
     public void SnapToActiveSurface()
     {
+        _fadeGeneration++;
         var transitionsA = _surfaceControlA.Transitions;
         var transitionsB = _surfaceControlB.Transitions;
 
@@ -149,6 +167,7 @@ public sealed class CrossfadeVideoSurfaceControl : Grid
             return;
 
         _activeIndex = index;
+        var fadeGeneration = ++_fadeGeneration;
 
         if (index is 0 or 1)
         {
@@ -156,15 +175,57 @@ public sealed class CrossfadeVideoSurfaceControl : Grid
             var other = index == 0 ? _surfaceControlB : _surfaceControlA;
 
             UpdateTransitions();
+
+            if (!RetainPreviousSurfaceDuringFade && ResolveFadeDuration() > TimeSpan.Zero)
+            {
+                SetSurfaceOpacitiesImmediately(targetOpacity: 0, otherOpacity: 0, target, other);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (fadeGeneration != _fadeGeneration || _activeIndex != index)
+                        return;
+
+                    target.Opacity = 1;
+                }, DispatcherPriority.Render);
+                return;
+            }
+
             target.Opacity = 1;
             other.Opacity = 0;
         }
         else
         {
             UpdateTransitions();
-            _surfaceControlA.Opacity = 0;
-            _surfaceControlB.Opacity = 0;
+            if (RetainPreviousSurfaceDuringFade)
+            {
+                _surfaceControlA.Opacity = 0;
+                _surfaceControlB.Opacity = 0;
+            }
+            else
+            {
+                SetSurfaceOpacitiesImmediately(
+                    targetOpacity: 0,
+                    otherOpacity: 0,
+                    _surfaceControlA,
+                    _surfaceControlB);
+            }
         }
+    }
+
+    private static void SetSurfaceOpacitiesImmediately(
+        double targetOpacity,
+        double otherOpacity,
+        Control target,
+        Control other)
+    {
+        var targetTransitions = target.Transitions;
+        var otherTransitions = other.Transitions;
+
+        target.Transitions = null;
+        other.Transitions = null;
+        target.Opacity = targetOpacity;
+        other.Opacity = otherOpacity;
+        target.Transitions = targetTransitions;
+        other.Transitions = otherTransitions;
     }
 
     private void UpdateTransitions()

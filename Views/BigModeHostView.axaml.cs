@@ -362,6 +362,8 @@ public partial class BigModeHostView : UserControl
             // Base capability from outer theme
             vm.CanShowVideo = theme.PrimaryVideoEnabled;
             vm.VideoFadeDurationMs = ThemeProperties.GetVideoFadeDurationMs(themeRoot);
+            _primaryVideoControl.RetainPreviousSurfaceDuringFade =
+                ThemeProperties.GetVideoRetainPreviousFrameDuringFade(themeRoot);
         }
         
         // Apply theme tuning (selection UX, spacing, typography, animation timings)
@@ -659,6 +661,8 @@ public partial class BigModeHostView : UserControl
         // per-system subtheme enables the primary channel.
         vm.CanShowVideo = vm.CanShowVideo || systemTheme.PrimaryVideoEnabled;
         vm.VideoFadeDurationMs = ThemeProperties.GetVideoFadeDurationMs(subView);
+        _primaryVideoControl.RetainPreviousSurfaceDuringFade =
+            ThemeProperties.GetVideoRetainPreviousFrameDuringFade(subView);
 
         ConfigureSystemVideoPresentationGate(vm, generation);
 

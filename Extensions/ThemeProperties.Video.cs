@@ -109,6 +109,21 @@ public partial class ThemeProperties
         element.SetValue(VideoFadeDurationMsProperty, value);
 
     /// <summary>
+    /// When false, the previous video surface is cleared before the next first
+    /// frame fades in. This avoids presenting frames from the previous selection.
+    /// </summary>
+    public static readonly AttachedProperty<bool> VideoRetainPreviousFrameDuringFadeProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "VideoRetainPreviousFrameDuringFade",
+            defaultValue: true);
+
+    public static bool GetVideoRetainPreviousFrameDuringFade(AvaloniaObject element) =>
+        element.GetValue(VideoRetainPreviousFrameDuringFadeProperty);
+
+    public static void SetVideoRetainPreviousFrameDuringFade(AvaloniaObject element, bool value) =>
+        element.SetValue(VideoRetainPreviousFrameDuringFadeProperty, value);
+
+    /// <summary>
     /// Relative path to an optional secondary background video for the theme
     /// (e.g. "Videos/background_loop.mp4"). Resolved relative to the theme base folder.
     /// </summary>
