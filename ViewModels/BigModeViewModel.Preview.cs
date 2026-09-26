@@ -289,7 +289,10 @@ public partial class BigModeViewModel
         OnPropertyChanged(nameof(ActiveMarqueePath));
         RequestActiveBezelRefresh();
         OnPropertyChanged(nameof(ActiveControlPanelPath));
-        if (IsGameListActive)
+        // Home keeps the underlying library list untouched. Reapplying fallback
+        // overrides to that hidden list can emit thousands of item notifications
+        // in large libraries and serves no visual purpose on the dashboard.
+        if (IsGameListActive && !IsHomeActive)
             ApplyNodeFallbackOverrides();
         TriggerPreviewPlaybackWithDebounce();
     }
@@ -853,6 +856,16 @@ public partial class BigModeViewModel
 
     private string? ResolvePreviewVideoPath()
     {
+        if (IsHomeActive)
+        {
+            if (SelectedHomeEntry?.Item != null)
+                return ResolveItemVideoPath(SelectedHomeEntry.Item, SelectedHomeEntry.SourceNode);
+
+            return SelectedHomeEntry?.Node is { } homeNode
+                ? ResolveNodeVideoPath(homeNode)
+                : null;
+        }
+
         var node = ThemeContextNode ?? CurrentNode;
 
         return IsGameListActive
@@ -1055,6 +1068,25 @@ public partial class BigModeViewModel
         await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
 
         await Task.Delay(VideoStartSettleDelay).ConfigureAwait(false);
+
+        try
+        {
+            await UiThreadHelper.InvokeAsync(
+                () => StartPlaybackOnUiThread(videoPath, generation, targetIndex, oldIndex),
+                DispatcherPriority.Render).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Preview startup is fire-and-forget. A closing dispatcher or a
+            // playback failure must therefore not surface as an unobserved task.
+            ClearPendingPreviewStart(generation);
+        }
+    }
+
+    private void StartPlaybackOnUiThread(string videoPath, int generation, int targetIndex, int oldIndex)
+    {
+        if (!UiThreadHelper.CheckAccess())
+            throw new InvalidOperationException("Preview playback must be started on the UI thread.");
 
         if (generation != Volatile.Read(ref _previewPlayGeneration))
         {

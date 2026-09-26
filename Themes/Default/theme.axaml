@@ -10,7 +10,8 @@
              
              ext:ThemeProperties.Name="Default"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.3.0"
+             ext:ThemeProperties.Version="0.4.0"
+             ext:ThemeProperties.SupportsHome="True"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
              ext:ThemeProperties.VideoFadeDurationMs="600"
@@ -399,5 +400,6 @@
                 </Border>
             </Grid>
         </Grid>
+
     </Grid>
 </UserControl>

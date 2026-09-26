@@ -93,6 +93,7 @@ public static class ThemeLoader
             var attractEnabled = ThemeProperties.GetAttractModeEnabled(view);
             var attractIdleSeconds = ThemeProperties.GetAttractModeIdleSeconds(view);
             var attractSound = ThemeProperties.GetAttractModeSound(view);
+            var supportsHome = ThemeProperties.GetSupportsHome(view);
 
             TimeSpan? attractInterval = null;
             if (attractEnabled && attractIdleSeconds > 0)
@@ -127,6 +128,7 @@ public static class ThemeLoader
                 attractModeEnabled: attractEnabled,
                 attractModeIdleInterval: attractInterval,
                 attractModeSoundPath: attractSound,
+                supportsHome: supportsHome,
                 viewFactory: ViewFactory);
         }
         catch (Exception ex)

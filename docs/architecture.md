@@ -185,6 +185,7 @@ BigMode is an overlay workflow with clear host/VM split:
 
 ### Host (`BigModeHostView`)
 - theme root attachment/swapping (`SetThemeContent`)
+- shared, theme-independent Home presentation for every opted-in root theme
 - shared video control attachment to theme-defined slots
 - system-host mode with per-system subtheme loading (`Themes/System/<id>/theme.axaml`)
 - each subtheme instance receives a fixed `SystemPreviewNode`, keeping the outgoing
@@ -205,6 +206,13 @@ BigMode is an overlay workflow with clear host/VM split:
 - secondary background video channel support
 - attract mode (theme-driven idle navigation)
 - circular carousel windows retain overlapping item containers during one-step navigation instead of rebuilding every card
+- root themes can opt into a non-persisted Home dashboard through `ThemeProperties.SupportsHome`; the user-facing
+  `AppSettings.EnableBigModeHomeScreen` switch must also be enabled. Its recent,
+  favorite, and library shortcuts retain their real source nodes for inherited artwork and launch behavior.
+  The Library row keeps a transient mini-navigation path over the real node hierarchy without mutating the tree
+  or the regular BigMode navigation stacks.
+  Y/Triangle or the keyboard Home key toggles Home against an untouched library navigation snapshot, while direct
+  BigMode startup opens Home and an explicit desktop item selection keeps the established library start position
 - mirrors final BigMode selection back into core app settings on exit
 
 ## Search architecture

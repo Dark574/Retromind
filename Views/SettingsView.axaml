@@ -74,6 +74,9 @@
                                 <CheckBox Content="{Binding ShowStoreBadgesText}"
                                           IsChecked="{Binding ShowStoreBadges}"
                                           ToolTip.Tip="{Binding ShowStoreBadgesHint}" />
+                                <CheckBox Content="{Binding EnableBigModeHomeScreenText}"
+                                          IsChecked="{Binding EnableBigModeHomeScreen}"
+                                          ToolTip.Tip="{Binding EnableBigModeHomeScreenHint}" />
                                 <StackPanel Spacing="4" Margin="0,6,0,0">
                                     <TextBlock Text="{Binding RootBigModeThemeText}"
                                                FontWeight="SemiBold" />

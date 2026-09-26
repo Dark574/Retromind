@@ -701,31 +701,27 @@ public partial class MainWindow : Window
             switch (e.Key)
             {
                 case Key.Up:
-                    if (bigVm.IsAchievementsOverlayOpen)
-                        bigVm.NavigateAchievementsOverlay(GamepadService.GamepadDirection.Up);
-                    else
-                    {
+                    if (!bigVm.IsHomeActive && !bigVm.IsAchievementsOverlayOpen)
                         bigVm.NotifyKeyboardScrollStart();
-                        bigVm.SelectPreviousCommand.Execute(null);
-                    }
+                    bigVm.NavigateFromKeyboard(GamepadService.GamepadDirection.Up);
                     e.Handled = true;
                     break;
                 case Key.Down:
-                    if (bigVm.IsAchievementsOverlayOpen)
-                        bigVm.NavigateAchievementsOverlay(GamepadService.GamepadDirection.Down);
-                    else
-                    {
+                    if (!bigVm.IsHomeActive && !bigVm.IsAchievementsOverlayOpen)
                         bigVm.NotifyKeyboardScrollStart();
-                        bigVm.SelectNextCommand.Execute(null);
-                    }
+                    bigVm.NavigateFromKeyboard(GamepadService.GamepadDirection.Down);
                     e.Handled = true;
                     break;
-                case Key.Left when bigVm.IsAchievementsOverlayOpen:
-                    bigVm.NavigateAchievementsOverlay(GamepadService.GamepadDirection.Left);
+                case Key.Left when bigVm.IsAchievementsOverlayOpen || bigVm.IsHomeActive:
+                    bigVm.NavigateFromKeyboard(GamepadService.GamepadDirection.Left);
                     e.Handled = true;
                     break;
-                case Key.Right when bigVm.IsAchievementsOverlayOpen:
-                    bigVm.NavigateAchievementsOverlay(GamepadService.GamepadDirection.Right);
+                case Key.Right when bigVm.IsAchievementsOverlayOpen || bigVm.IsHomeActive:
+                    bigVm.NavigateFromKeyboard(GamepadService.GamepadDirection.Right);
+                    e.Handled = true;
+                    break;
+                case Key.Home:
+                    bigVm.ToggleHomeCommand.Execute(null);
                     e.Handled = true;
                     break;
                 case Key.Enter:
@@ -780,7 +776,7 @@ public partial class MainWindow : Window
         {
             case Key.Up:
             case Key.Down:
-                if (!bigVm.IsAchievementsOverlayOpen)
+                if (!bigVm.IsHomeActive && !bigVm.IsAchievementsOverlayOpen)
                     bigVm.NotifyKeyboardScrollEnd();
                 e.Handled = true;
                 break;

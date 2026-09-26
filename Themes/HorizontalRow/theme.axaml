@@ -10,6 +10,7 @@
              ext:ThemeProperties.Name="Horizontal Row"
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.SupportsHome="True"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
              ext:ThemeProperties.VideoStretchMode="Fill"

@@ -2,13 +2,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="using:Retromind.Helpers"
              xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
              Background="#111319"
 
              ext:ThemeProperties.Name="System Host"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.Version="0.2.0"
+             ext:ThemeProperties.SupportsHome="True"
              ext:ThemeProperties.VideoFadeDurationMs="600">
              <!-- ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"> -->
@@ -25,8 +27,9 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid ColumnDefinitions="0.20*,0.80*"
-          Margin="40,30">
+    <Grid>
+        <Grid ColumnDefinitions="0.20*,0.80*"
+              Margin="40,30">
 
         <!-- LEFT COLUMN: match Default theme styling -->
         <Border Grid.Column="0"
@@ -102,5 +105,7 @@
                 </Border>-->
             </Grid>
         </Border>
+        </Grid>
+
     </Grid>
 </UserControl>

@@ -1,0 +1,342 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="using:Retromind.Extensions"
+             xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="using:Retromind.Resources"
+             x:Class="Retromind.Views.BigModeHomeView"
+             x:DataType="vm:BigModeViewModel"
+             Background="#111319">
+
+    <UserControl.Styles>
+        <Style Selector="ListBox.bm-home-row">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox.bm-home-row ListBoxItem">
+            <Setter Property="Width" Value="186" />
+            <Setter Property="Height" Value="250" />
+            <Setter Property="Margin" Value="0,0,14,0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+        <Style Selector="ListBox.bm-home-row ListBoxItem:selected">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#62E6FF" />
+            <Setter Property="BorderThickness" Value="3" />
+        </Style>
+        <Style Selector="ListBox.bm-home-row ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.bm-home-row ListBoxItem:selected Border.bm-home-card">
+            <Setter Property="BoxShadow" Value="0 0 26 0 #8062E6FF" />
+        </Style>
+        <Style Selector="ListBox.bm-home-sections">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox.bm-home-sections ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+        <Style Selector="ListBox.bm-home-sections > ListBoxItem:selected">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="ListBox.bm-home-sections > ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.bm-home-sections > ListBoxItem:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.bm-home-sections > ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.bm-home-sections > ListBoxItem Border.bm-home-section-marker">
+            <Setter Property="Background" Value="#35FFFFFF" />
+        </Style>
+        <Style Selector="ListBox.bm-home-sections > ListBoxItem:selected Border.bm-home-section-marker">
+            <Setter Property="Background" Value="#62E6FF" />
+        </Style>
+        <Style Selector="ListBox.bm-home-sections > ListBoxItem TextBlock.bm-home-section-title">
+            <Setter Property="Foreground" Value="#93A0B5" />
+        </Style>
+        <Style Selector="ListBox.bm-home-sections > ListBoxItem:selected TextBlock.bm-home-section-title">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <ext:CrossfadeImage Url="{Binding ActiveWallpaperPath}"
+                            DecodeWidth="1920"
+                            DisableCache="True"
+                            Stretch="UniformToFill"
+                            Opacity="0.30"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
+                            IsHitTestVisible="False" />
+
+        <Grid Margin="54,30"
+              RowDefinitions="Auto,*,Auto"
+              RowSpacing="18">
+            <Ellipse Grid.RowSpan="3"
+                     Width="720"
+                     Height="720"
+                     Fill="#1262E6FF"
+                     HorizontalAlignment="Right"
+                     VerticalAlignment="Top"
+                     Margin="0,-390,-300,0"
+                     IsHitTestVisible="False" />
+            <Ellipse Grid.RowSpan="3"
+                     Width="520"
+                     Height="520"
+                     Fill="#109B7BFF"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Bottom"
+                     Margin="-280,0,0,-320"
+                     IsHitTestVisible="False" />
+
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{Binding HomeTitle}"
+                               Foreground="White"
+                               FontSize="36"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <TextBlock Text="{Binding HomeLabel}"
+                               Foreground="#7BA3FF"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               LetterSpacing="3" />
+                </StackPanel>
+                <Border Grid.Column="1"
+                        Height="1"
+                        Margin="28,0"
+                        Background="#32FFFFFF"
+                        VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2"
+                           Text="{Binding SelectedHomeEntry.Title}"
+                           Foreground="#CFDAED"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           MaxWidth="620"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center" />
+            </Grid>
+
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="*,520"
+                  ColumnSpacing="28">
+                <Border Grid.Column="0"
+                        Background="#C40A0D18"
+                        BorderBrush="#3DFFFFFF"
+                        BorderThickness="1"
+                        CornerRadius="20"
+                        Padding="24,20">
+                    <ListBox Classes="bm-home-sections"
+                             ItemsSource="{Binding HomeSections}"
+                             SelectedItem="{Binding SelectedHomeSection, Mode=TwoWay}"
+                             ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             helpers:ListBoxBehaviors.CenterSelectedItem="True"
+                             ext:ThemeProperties.UseHostSelectionEffects="False">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:BigModeHomeSectionViewModel">
+                                <StackPanel Margin="0,0,0,18" Spacing="10">
+                                    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+                                        <Border Classes="bm-home-section-marker"
+                                                Width="34"
+                                                Height="4"
+                                                CornerRadius="2"
+                                                VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1"
+                                                   Classes="bm-home-section-title"
+                                                   Text="{Binding Title}"
+                                                   FontSize="20"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding Breadcrumb}"
+                                                   Foreground="#8290A8"
+                                                   FontSize="12"
+                                                   MaxLines="1"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                    <ListBox Classes="bm-home-row"
+                                             ItemsSource="{Binding Entries}"
+                                             SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                                             MaxWidth="1200"
+                                             HorizontalAlignment="Left"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                             ext:ThemeProperties.UseHostSelectionEffects="False">
+                                        <ListBox.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ListBox.ItemsPanel>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:BigModeHomeEntryViewModel">
+                                                <Grid RowDefinitions="*,Auto">
+                                                    <Border Grid.Row="0"
+                                                            Classes="bm-home-card"
+                                                            Margin="7"
+                                                            Background="Transparent"
+                                                            CornerRadius="10"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <Border Background="#D0080B14"
+                                                                    BorderBrush="#40FFFFFF"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="10"
+                                                                    IsVisible="{Binding CoverPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
+                                                                <TextBlock Text="{Binding Title}"
+                                                                           Margin="12"
+                                                                           Foreground="#526078"
+                                                                           FontSize="15"
+                                                                           FontWeight="Bold"
+                                                                           TextAlignment="Center"
+                                                                           TextWrapping="Wrap"
+                                                                           VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <Image helpers:AsyncImageHelper.Url="{Binding CoverPath}"
+                                                                   helpers:AsyncImageHelper.DecodeWidth="348"
+                                                                   Stretch="Uniform" />
+                                                            <Border Background="#E5121825"
+                                                                    BorderBrush="#5962E6FF"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="6"
+                                                                    Padding="8,3"
+                                                                    Margin="10"
+                                                                    HorizontalAlignment="Right"
+                                                                    VerticalAlignment="Top"
+                                                                    IsVisible="{Binding HasNavigationBadge}">
+                                                                <TextBlock Text="{Binding NavigationBadge}"
+                                                                           Foreground="#9CEEFF"
+                                                                           FontSize="11"
+                                                                           FontWeight="Bold" />
+                                                            </Border>
+                                                        </Grid>
+                                                    </Border>
+                                                    <StackPanel Grid.Row="1"
+                                                                Margin="10,4,10,10"
+                                                                Spacing="2">
+                                                        <TextBlock Text="{Binding Title}"
+                                                                   Foreground="White"
+                                                                   FontSize="13"
+                                                                   FontWeight="SemiBold"
+                                                                   MaxLines="1"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding Subtitle}"
+                                                                   Foreground="#91A1BA"
+                                                                   FontSize="11"
+                                                                   MaxLines="1"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+
+                <Border Grid.Column="1"
+                        Background="#D90A0D18"
+                        BorderBrush="#3DFFFFFF"
+                        BorderThickness="1"
+                        CornerRadius="20"
+                        Padding="18">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000"
+                                          BlurRadius="42"
+                                          OffsetY="18"
+                                          Opacity="0.62" />
+                    </Border.Effect>
+                    <Grid RowDefinitions="292,Auto,*" RowSpacing="16">
+                        <Border x:Name="HomeVideoSlot"
+                                Grid.Row="0"
+                                Background="#101218"
+                                BorderBrush="#30FFFFFF"
+                                BorderThickness="1"
+                                CornerRadius="14"
+                                ClipToBounds="True">
+                            <TextBlock Text="{x:Static resources:ThemeStrings.NoPreviewVideo}"
+                                       Foreground="#526078"
+                                       FontSize="16"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
+                        <Border Grid.Row="0"
+                                Height="4"
+                                Margin="42,0"
+                                CornerRadius="2"
+                                VerticalAlignment="Bottom">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#62E6FF" Offset="0" />
+                                    <GradientStop Color="#9B7BFF" Offset="0.58" />
+                                    <GradientStop Color="#62E6FF" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+
+                        <StackPanel Grid.Row="1" Spacing="5">
+                            <TextBlock Text="{Binding SelectedHomeEntry.Title}"
+                                       Foreground="White"
+                                       FontSize="25"
+                                       FontWeight="Bold"
+                                       TextWrapping="Wrap"
+                                       MaxLines="2"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding SelectedHomeEntry.Subtitle}"
+                                       Foreground="#7BA3FF"
+                                       FontSize="13" />
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="2"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <Grid>
+                                <TextBlock Text="{Binding SelectedHomeEntry.Item.Description}"
+                                           Foreground="#C8D2E5"
+                                           FontSize="14"
+                                           TextWrapping="Wrap"
+                                           IsVisible="{Binding SelectedHomeEntry.IsMediaItem}" />
+                                <TextBlock Text="{Binding SelectedHomeEntry.Node.Description}"
+                                           Foreground="#C8D2E5"
+                                           FontSize="14"
+                                           TextWrapping="Wrap"
+                                           IsVisible="{Binding SelectedHomeEntry.IsNode}" />
+                            </Grid>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <TextBlock Grid.Row="2"
+                       Text="{Binding HomeHintText}"
+                       Foreground="#9EABC0"
+                       FontSize="13"
+                       HorizontalAlignment="Right" />
+        </Grid>
+    </Grid>
+</UserControl>

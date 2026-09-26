@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using System.Xml.Linq;
 using Retromind.Extensions;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -19,6 +20,39 @@ public sealed class ThemeTests
             secondaryVideoEnabled: false);
 
         Assert.False(theme.SecondaryVideoEnabled);
+    }
+
+    [Fact]
+    public void Constructor_HomeSupportIsOptIn()
+    {
+        var classicTheme = new Theme(new Border(), new ThemeSounds(), "/theme");
+        var homeTheme = new Theme(
+            new Border(),
+            new ThemeSounds(),
+            "/theme",
+            supportsHome: true);
+
+        Assert.False(classicTheme.SupportsHome);
+        Assert.True(homeTheme.SupportsHome);
+    }
+
+    [Theory]
+    [InlineData("Arcade/theme.axaml")]
+    [InlineData("ArchiveAtlas/theme.axaml")]
+    [InlineData("Default/theme.axaml")]
+    [InlineData("HorizontalRow/theme.axaml")]
+    [InlineData("LivingRoom/theme.axaml")]
+    [InlineData("Prism/theme.axaml")]
+    [InlineData("System/theme.axaml")]
+    [InlineData("Wheel/theme.axaml")]
+    public void ShippedRootTheme_DeclaresHomeSupport(string themePath)
+    {
+        var filePath = Path.Combine(AppContext.BaseDirectory, "Themes", themePath);
+        var root = XDocument.Load(filePath).Root;
+        var supportsHome = root?.Attributes().FirstOrDefault(attribute =>
+            string.Equals(attribute.Name.LocalName, "ThemeProperties.SupportsHome", StringComparison.Ordinal));
+
+        Assert.Equal("True", supportsHome?.Value);
     }
 
     [Fact]

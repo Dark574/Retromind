@@ -411,6 +411,12 @@ public partial class MainWindowViewModel
         // Stop music immediately to avoid overlap and to keep the UI responsive.
         _audioService.StopMusic();
 
+        // Direct BigMode startup and desktop views without an active media item
+        // begin on Home. An explicit CoreApp item selection keeps the established
+        // behavior and opens at that exact library position.
+        var startOnHome = _currentSettings.EnableBigModeHomeScreen &&
+                          (App.Current?.IsBigModeOnly == true || GetCurrentSelectedItem() == null);
+
         // Ensure we have a valid node selection once the library is loaded.
         if (SelectedNode == null)
             SelectedNode = FindFirstVisibleNode();
@@ -439,7 +445,8 @@ public partial class MainWindowViewModel
             _gamepadService,
             _retroAchievementsProgressService,
             _retroAchievementsBadgeService,
-            IsParentalFilterActive);
+            IsParentalFilterActive,
+            startOnHome);
         _activeBigModeViewModel = bigVm;
 
         var host = new BigModeHostView

@@ -29,6 +29,7 @@ namespace Retromind.Views;
 public partial class BigModeHostView : UserControl
 {
     private ContentPresenter _themePresenter = null!;
+    private BigModeHomeView _homeView = null!;
     
     // When the active theme is a "system host" theme, this points to its
     // right-hand content placeholder (SystemLayoutHost).
@@ -62,6 +63,7 @@ public partial class BigModeHostView : UserControl
 
     // Shared secondary video control for the background / B-roll channel.
     private readonly VideoSurfaceControl _secondaryVideoControl;
+    private Theme? _activeTheme;
     
     // Track ViewModel notifications so we can react to SelectedCategory changes
     // while the SystemHost theme is active.
@@ -84,6 +86,8 @@ public partial class BigModeHostView : UserControl
 
         _themePresenter = this.FindControl<ContentPresenter>("ThemePresenter")
                           ?? throw new InvalidOperationException("ThemePresenter control not found in BigModeHostView.");
+        _homeView = this.FindControl<BigModeHomeView>("HomeView")
+                    ?? throw new InvalidOperationException("HomeView control not found in BigModeHostView.");
 
         // Shared primary video control: main preview channel
         _primaryVideoControl = new CrossfadeVideoSurfaceControl
@@ -121,6 +125,8 @@ public partial class BigModeHostView : UserControl
         _mouseCursorTimer.Tick += OnMouseCursorTimerTick;
         AddHandler(PointerMovedEvent, OnBigModePointerMoved,
             RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnBigModePointerReleased,
+            RoutingStrategies.Bubble, handledEventsToo: true);
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
@@ -214,6 +220,32 @@ public partial class BigModeHostView : UserControl
         RestartMouseCursorTimer();
     }
 
+    private void OnBigModePointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.LeftButtonReleased ||
+            DataContext is not Retromind.ViewModels.BigModeViewModel { IsHomeActive: true } vm ||
+            e.Source is not Visual source)
+        {
+            return;
+        }
+
+        var container = source as ListBoxItem
+                        ?? source.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
+        if (container?.DataContext is not Retromind.ViewModels.BigModeHomeEntryViewModel entry ||
+            entry.Kind == Retromind.ViewModels.BigModeHomeEntryKind.MediaItem)
+        {
+            return;
+        }
+
+        // ListBox selection is completed by the time the release bubbles to
+        // the host. Defer activation once so bindings can publish that entry.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (vm.IsHomeActive && ReferenceEquals(vm.SelectedHomeEntry, entry))
+                vm.PlayCurrentCommand.Execute(null);
+        }, DispatcherPriority.Input);
+    }
+
     private void OnMouseCursorTimerTick(object? sender, EventArgs e)
     {
         _mouseCursorTimer.Stop();
@@ -251,13 +283,35 @@ public partial class BigModeHostView : UserControl
     {
         var isItemChange = e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedItem);
         var isCategoryChange = e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedCategory);
+        var vm = DataContext as Retromind.ViewModels.BigModeViewModel;
+
+        if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.IsHomeActive) &&
+            _themePresenter.Content is Control activeThemeRoot &&
+            _activeTheme != null)
+        {
+            if (_isSystemHostTheme && vm?.IsHomeActive == true)
+            {
+                _systemLayoutTransitionGeneration++;
+                _waitingForSystemVideoFrame = false;
+            }
+
+            AttachPrimaryVideoToSlot(activeThemeRoot, _activeTheme);
+
+            if (_isSystemHostTheme && vm?.IsHomeActive == false)
+                UpdateSystemLayoutForSelectedCategory(animateTransition: false);
+        }
 
         if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.MainVideoFrameRevision))
             TryRevealSystemVideoAfterFrameReady();
 
         // SystemHost theme only: refresh the system layout on category change
-        if (_isSystemHostTheme && isCategoryChange)
+        if (_isSystemHostTheme && isCategoryChange && vm?.IsHomeActive != true)
             UpdateSystemLayoutForSelectedCategory();
+
+        // The theme presenter is hidden on Home. Avoid animating and repainting
+        // its potentially expensive visual tree for Home shortcut selection.
+        if (vm?.IsHomeActive == true)
+            return;
 
         if (!isItemChange && !isCategoryChange)
             return;
@@ -314,6 +368,7 @@ public partial class BigModeHostView : UserControl
     public void SetThemeContent(Control themeRoot, Theme theme)
     {
         UnhookThemeTuning();
+        _activeTheme = theme;
 
         // Ensure bindings in the theme root resolve to the BigModeViewModel
         themeRoot.DataContext = DataContext;
@@ -338,7 +393,7 @@ public partial class BigModeHostView : UserControl
         var vm = DataContext as Retromind.ViewModels.BigModeViewModel;
 
         // System Host theme is category-first; avoid being stuck in game list mode.
-        if (_isSystemHostTheme && vm != null)
+        if (_isSystemHostTheme && vm is { IsHomeActive: false })
         {
             if (vm.CurrentCategories.Count > 0)
             {
@@ -384,7 +439,7 @@ public partial class BigModeHostView : UserControl
 
         // If this is the SystemHost theme, initialize the right-hand system layout
         // immediately for the current SelectedCategory
-        if (_isSystemHostTheme)
+        if (_isSystemHostTheme && vm?.IsHomeActive != true)
         {
             UpdateSystemLayoutForSelectedCategory(animateTransition: false);
         }
@@ -413,11 +468,14 @@ public partial class BigModeHostView : UserControl
         if (DataContext is not Retromind.ViewModels.BigModeViewModel)
             return;
 
-        var slotName = theme.VideoSlotName;
+        var isHomeActive = DataContext is Retromind.ViewModels.BigModeViewModel { IsHomeActive: true };
+        var slotName = isHomeActive ? "HomeVideoSlot" : theme.VideoSlotName;
         if (string.IsNullOrWhiteSpace(slotName))
             return;
 
-        var slot = themeRoot.FindControl<Control>(slotName);
+        var slot = isHomeActive
+            ? _homeView.FindControl<Control>(slotName)
+            : themeRoot.FindControl<Control>(slotName);
         if (slot is null)
             return;
 

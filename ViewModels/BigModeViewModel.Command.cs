@@ -89,6 +89,15 @@ public partial class BigModeViewModel
             ToggleAchievementsOverlay();
         });
 
+    private void OnGamepadHome()
+        => DispatchGamepadAction(() =>
+        {
+            if (_isLaunching)
+                return;
+
+            _ = ToggleHomeAsync();
+        });
+
     /// <summary>
     /// Immediately exits BigMode regardless of the current navigation depth.
     /// Intended for keyboard ESC (quick way back to desktop UI),
@@ -245,6 +254,12 @@ public partial class BigModeViewModel
             return;
         }
 
+        if (IsHomeActive)
+        {
+            NavigateHome(direction);
+            return;
+        }
+
         switch (direction)
         {
             case GamepadService.GamepadDirection.Up:
@@ -344,6 +359,30 @@ public partial class BigModeViewModel
         if (_isLaunching) return;
 
         ResetAttractIdleTimer();
+
+        if (IsHomeActive)
+        {
+            var homeEntry = SelectedHomeEntry;
+            if (homeEntry == null)
+                return;
+
+            if (NavigateHomeLibrary(homeEntry))
+                return;
+
+            if (homeEntry.Kind == BigModeHomeEntryKind.LibraryCurrent && homeEntry.Node == null)
+                return;
+
+            if (homeEntry.Node != null)
+            {
+                var node = homeEntry.Node;
+                await ToggleHomeAsync();
+                await OpenHomeLibraryNodeAsync(node);
+                return;
+            }
+
+            if (homeEntry?.Item == null)
+                return;
+        }
         
         // Category view: enter folder (children) or switch into game list (items).
         if (!IsGameListActive)
@@ -433,6 +472,12 @@ public partial class BigModeViewModel
             return;
 
         ResetAttractIdleTimer();
+
+        if (IsHomeActive)
+        {
+            RequestClose?.Invoke();
+            return;
+        }
         
         // If we are currently in the game list, go back to category view first.
         if (IsGameListActive)

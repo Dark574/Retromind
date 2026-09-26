@@ -237,6 +237,19 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public bool EnableBigModeHomeScreen
+    {
+        get => _appSettings.EnableBigModeHomeScreen;
+        set
+        {
+            if (_appSettings.EnableBigModeHomeScreen == value)
+                return;
+
+            _appSettings.EnableBigModeHomeScreen = value;
+            OnPropertyChanged();
+        }
+    }
+
     private ScraperImportSettings ScraperImportSettings
     {
         get
@@ -421,6 +434,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string RootBigModeThemeHint => T(
         "Settings_RootBigModeTheme_Hint",
         "Controls the top-level category view only. Main categories keep their own themes.");
+    public string EnableBigModeHomeScreenText => T(
+        "Settings_EnableBigModeHomeScreen",
+        "Use the BigMode Home screen");
+    public string EnableBigModeHomeScreenHint => T(
+        "Settings_EnableBigModeHomeScreen_Hint",
+        "Shows Home when BigMode starts without an explicit media selection and enables switching with Y / Triangle.");
     public string IgnoreLeadingArticlesInSortText =>
         T("Settings_IgnoreLeadingArticlesInSort", "Ignore leading articles in title sorting");
     public string IgnoreLeadingArticlesInSortHint =>

@@ -14,6 +14,7 @@ namespace Retromind.Extensions;
 /// - ThemeProperties.AttractMode.cs
 /// - ThemeProperties.Filesystem.cs
 /// - ThemeProperties.System.cs
+/// - ThemeProperties.Home.cs
 /// </summary>
 public partial class ThemeProperties
 {

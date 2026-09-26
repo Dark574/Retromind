@@ -52,6 +52,11 @@ public class Theme
     /// </summary>
     public string VideoSlotName { get; }
 
+    /// <summary>
+    /// Whether this root theme allows Retromind's host-owned Home screen.
+    /// </summary>
+    public bool SupportsHome { get; }
+
     // Optional metadata (for UI / diagnostics / theme browser)
     public string? Name { get; }
     public string? Author { get; }
@@ -92,6 +97,7 @@ public class Theme
         bool attractModeEnabled = false,
         TimeSpan? attractModeIdleInterval = null,
         string? attractModeSoundPath = null,
+        bool supportsHome = false,
         Func<Control>? viewFactory = null)
     {
         View = view ?? throw new ArgumentNullException(nameof(view));
@@ -113,6 +119,7 @@ public class Theme
         AttractModeEnabled = attractModeEnabled;
         AttractModeIdleInterval = attractModeIdleInterval;
         AttractModeSoundPath = attractModeSoundPath;
+        SupportsHome = supportsHome;
         
         _viewFactory = viewFactory;
     }

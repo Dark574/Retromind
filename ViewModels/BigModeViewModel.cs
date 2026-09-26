@@ -231,6 +231,19 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     {
         get
         {
+            if (IsHomeActive)
+            {
+                return SelectedHomeEntry?.Item != null
+                    ? FirstNonBlank(
+                        SelectedHomeEntry.Item.PrimaryWallpaperPath,
+                        SelectedHomeEntry.Item.PrimaryScreenshotPath,
+                        SelectedHomeEntry.Item.PrimaryCoverPath,
+                        ActiveWallpaperPath)
+                    : FirstNonBlank(
+                        SelectedHomeEntry?.Node?.PrimaryWallpaperAbsolutePath,
+                        SelectedHomeEntry?.Node?.PrimaryCoverAbsolutePath);
+            }
+
             if (IsGameListActive)
             {
                 return FirstNonBlank(
@@ -262,7 +275,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// Node-level logo is only used when logo fallback is enabled on the node.
     /// </summary>
     public string? ActiveCategoryLogoPath =>
-        IsCategorySelectionActive && SelectedCategory?.LogoFallbackEnabled == true
+        IsHomeActive
+            ? SelectedHomeEntry?.Node?.PrimaryLogoAbsolutePath
+            : IsCategorySelectionActive && SelectedCategory?.LogoFallbackEnabled == true
             ? SelectedCategory.PrimaryLogoAbsolutePath
             : null;
 
@@ -287,7 +302,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// without decoding it underneath an already available wallpaper.
     /// </summary>
     public string? ActiveScreenshotFallbackPath =>
-        IsGameListActive && string.IsNullOrWhiteSpace(ActiveWallpaperPath)
+        (IsGameListActive || IsHomeActive) && string.IsNullOrWhiteSpace(ActiveWallpaperPath)
             ? SelectedItem?.PrimaryScreenshotPath
             : null;
 
@@ -296,7 +311,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// Node-level wallpaper is only used when wallpaper fallback is enabled on the node.
     /// </summary>
     public string? ActiveCategoryWallpaperPath =>
-        IsCategorySelectionActive && SelectedCategory?.WallpaperFallbackEnabled == true
+        IsHomeActive
+            ? SelectedHomeEntry?.Node?.PrimaryWallpaperAbsolutePath
+            : IsCategorySelectionActive && SelectedCategory?.WallpaperFallbackEnabled == true
             ? SelectedCategory.PrimaryWallpaperAbsolutePath
             : null;
 
@@ -329,11 +346,20 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     private string? ResolveArtworkForSelection(AssetType type)
     {
-        if (!IsGameListActive || SelectedItem is null)
+        if (IsHomeActive && SelectedHomeEntry?.Node is { } homeNode)
+        {
+            var relativePath = homeNode.GetPrimaryAssetPath(type);
+            if (string.IsNullOrWhiteSpace(relativePath))
+                return null;
+
+            var absolutePath = AppPaths.ResolveDataPathInsideRootOrEmpty(relativePath);
+            return string.IsNullOrWhiteSpace(absolutePath) ? null : absolutePath;
+        }
+
+        if ((!IsGameListActive && !IsHomeActive) || SelectedItem is null)
             return null;
 
-        // ThemeContextNode represents the logical node whose items are currently shown
-        var node = ThemeContextNode ?? CurrentNode;
+        var node = GetActiveItemSourceNode();
 
         return AssetResolver.ResolveAssetPath(
             SelectedItem,
@@ -406,7 +432,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         GamepadService gamepadService,
         IRetroAchievementsProgressService retroAchievementsProgressService,
         IRetroAchievementsBadgeService retroAchievementsBadgeService,
-        bool parentalFilterActive = false)
+        bool parentalFilterActive = false,
+        bool startOnHome = false)
     {
         _rootNodes = rootNodes ?? throw new ArgumentNullException(nameof(rootNodes));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -516,11 +543,14 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         _gamepadService.OnSelect += OnGamepadSelect;
         _gamepadService.OnBack += OnGamepadBack;
         _gamepadService.OnDetails += OnGamepadDetails;
+        _gamepadService.OnHome += OnGamepadHome;
 
         if (CurrentCategories.Count > 0)
         {
             RestoreLastState();
         }
+
+        InitializeHome(startOnHome);
         
         // Ensure counters are in a known state even if the restored state
         // did not activate a game list yet
@@ -677,7 +707,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void EnsureSecondaryBackgroundPlayingIfReady()
     {
-        if (!_theme.SecondaryVideoEnabled || !_isViewReady || _isLaunching)
+        if (IsHomeActive || !_theme.SecondaryVideoEnabled || !_isViewReady || _isLaunching)
             return;
 
         if (!SecondaryVideoHasContent || _secondaryPlayer == null || _secondaryBackgroundMedia == null)
@@ -701,12 +731,12 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private void OnSecondaryBackgroundEndReached(object? sender, EventArgs e)
     {
         // Loop the background video indefinitely
-        if (!SecondaryVideoHasContent || _secondaryPlayer == null)
+        if (IsHomeActive || !SecondaryVideoHasContent || _secondaryPlayer == null)
             return;
 
         UiThreadHelper.Post(() =>
         {
-            if (!SecondaryVideoHasContent || _secondaryPlayer == null)
+            if (IsHomeActive || !SecondaryVideoHasContent || _secondaryPlayer == null)
                 return;
 
             try

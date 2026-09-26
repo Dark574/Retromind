@@ -313,23 +313,28 @@ public partial class BigModeViewModel
 
         _settings.LastBigModeNavigationPath = _navigationPath.Reverse().Select(n => n.Id).ToList();
 
+        var savedHomeState = IsHomeActive ? _libraryViewStateBeforeHome : null;
+        var selectedItemForState = savedHomeState?.SelectedItem ?? SelectedItem;
+        var isGameListActiveForState = savedHomeState?.IsGameListActive ?? IsGameListActive;
+        var themeContextForState = savedHomeState?.ThemeContextNode ?? ThemeContextNode;
+
         // Some themes (e.g. Arcade/Wheel) can end up showing items even if IsGameListActive is false.
         // Treat "item view" as active when we still have a valid selected item and a populated items list.
-        var isItemView = IsGameListActive || (SelectedItem != null && Items.Count > 0);
+        var isItemView = isGameListActiveForState || (selectedItemForState != null && Items.Count > 0);
         _settings.LastBigModeWasItemView = isItemView;
 
         var nodeForState = SelectedCategory
             ?? (_navigationPath.Count > 0 ? _navigationPath.Peek() : null)
-            ?? ThemeContextNode
+            ?? themeContextForState
             ?? CurrentNode;
 
         if (isItemView)
         {
-            _settings.LastBigModeSelectedNodeId = SelectedItem?.Id;
+            _settings.LastBigModeSelectedNodeId = selectedItemForState?.Id;
 
             // Mirror to CoreApp
             _settings.LastSelectedNodeId = nodeForState?.Id;
-            _settings.LastSelectedMediaId = SelectedItem?.Id;
+            _settings.LastSelectedMediaId = selectedItemForState?.Id;
         }
         else
         {
@@ -353,6 +358,8 @@ public partial class BigModeViewModel
         _gamepadService.OnSelect -= OnGamepadSelect;
         _gamepadService.OnBack -= OnGamepadBack;
         _gamepadService.OnDetails -= OnGamepadDetails;
+        _gamepadService.OnHome -= OnGamepadHome;
+        DisposeHome();
         DisposeRetroAchievementsProgress();
 
         _videoSurfaceA.FrameReady -= OnMainVideoFrameReadyA;

@@ -30,6 +30,11 @@
 
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Hauptmenü</value></data>
+    <data name="BigMode.Home.Title" xml:space="preserve"><value>Start</value></data>
+    <data name="BigMode.Home.Hint" xml:space="preserve"><value>Y / Dreieck · Bibliothek    A / Kreuz · Öffnen</value></data>
+    <data name="BigMode.Home.Library.Back" xml:space="preserve"><value>Zurück</value></data>
+    <data name="BigMode.Home.Library.Open" xml:space="preserve"><value>Öffnen</value></data>
+    <data name="BigMode.Home.Library.Overview" xml:space="preserve"><value>Bibliotheksübersicht</value></data>
     <data name="BigMode_GameCountLabel" xml:space="preserve"><value>Spiele</value></data>
     
     <!-- BUTTONS -->
@@ -476,6 +481,8 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_ShowStoreBadges_Hint" xml:space="preserve"><value>Zeigt GOG-, Steam- und Epic-Marken auf erkannten Store-Spielen an.</value></data>
     <data name="Settings_RootBigModeTheme" xml:space="preserve"><value>BigMode-Theme der Hauptebene</value></data>
     <data name="Settings_RootBigModeTheme_Hint" xml:space="preserve"><value>Gilt nur für die oberste Kategorieansicht. Die Hauptkategorien behalten ihre eigenen Themes.</value></data>
+    <data name="Settings_EnableBigModeHomeScreen" xml:space="preserve"><value>BigMode-Startbildschirm verwenden</value></data>
+    <data name="Settings_EnableBigModeHomeScreen_Hint" xml:space="preserve"><value>Zeigt den Startbildschirm, wenn BigMode ohne ausgewähltes Medium startet, und aktiviert den Wechsel mit Y / Dreieck.</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper-Import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Lege fest, welche Daten aus Scraper-Treffern übernommen werden. Nicht jeder Anbieter liefert alle aufgeführten Inhalte.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Voreinstellung für vorhandene Metadaten</value></data>

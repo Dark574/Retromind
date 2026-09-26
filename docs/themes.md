@@ -406,7 +406,45 @@ Example:
 </UserControl>
 ```
 
-### 6.4 Tuning: selection/focus (controller-friendly)
+### 6.4 Optional BigMode Home screen
+
+Root themes can opt into Retromind's non-persisted dashboard with:
+
+```xml
+<UserControl xmlns:ext="clr-namespace:Retromind.Extensions"
+             ext:ThemeProperties.SupportsHome="True">
+    <!-- The regular library layout -->
+</UserControl>
+```
+
+- `ThemeProperties.SupportsHome` is `false` by default. Existing themes therefore keep
+  their classic root navigation without any changes.
+- `AppSettings.EnableBigModeHomeScreen` is the user-facing master switch. Home is available
+  only when both the setting and the root theme capability are enabled.
+- The opt-in belongs on the configured virtual-root theme. All themes shipped with Retromind
+  enable it; system subthemes do not need the property.
+- The Home view, its primary-video slot, layout, and interaction are owned by the BigMode host.
+  Themes must not duplicate the Home markup and continue to define only their regular library
+  presentation through `ThemeProperties.VideoSlotName` and the existing theme API.
+
+Home data is derived from the real library at BigMode startup and is never serialized as
+nodes or items. Retromind keeps the original source node with every shortcut so inherited
+artwork, video, launch settings, and parental filtering remain intact.
+
+The Library row is a shallow navigator over the actual node tree. With one root it starts
+at that root; with multiple roots it starts at a virtual Library overview. Activating a child
+that has children drills into it, while activating a leaf opens the regular themed library
+view. The left current-node card opens that node directly, and a Back card appears at the end
+of the row below the initial level (also reachable by moving left from the current card).
+Library cards activate with A/Enter or a primary mouse click. This navigation state is UI-only
+and does not alter or persist the real tree.
+
+The controls are fixed at host level: Y/Triangle and the keyboard Home key toggle between
+Home and the exact previous library view. B/Circle exits BigMode while Home is active.
+Direct `--bigmode` startup opens Home; launching BigMode from the desktop keeps an explicit
+item selection and otherwise opens Home.
+
+### 6.5 Tuning: selection/focus (controller-friendly)
 
 These values are used by the host to produce consistent “TV-like” selection behavior.
 
@@ -462,7 +500,7 @@ Notes:
 - Themes that need native mouse selection should instead bind to the stable
   `Items` collection with a `VirtualizingStackPanel`, as used by Horizontal Row.
 
-### 6.5 Dynamic artwork accents
+### 6.6 Dynamic artwork accents
 
 Dynamic accents are opt-in. When enabled, the BigMode host extracts a vivid
 primary and secondary color from the active artwork and updates the colors on
@@ -526,7 +564,7 @@ feature is enabled, preserving compatibility with existing custom glow
 bindings. Themes may also bind `GradientStop.Color` directly to either dynamic
 color property.
 
-### 6.6 RetroAchievements progress
+### 6.7 RetroAchievements progress
 
 BigMode exposes a selection-specific `RetroAchievementsProgress` view model.
 It is populated only when the integration and its BigMode display option are
@@ -579,7 +617,7 @@ state is exposed as `CanOpenAchievementsOverlay`, `IsAchievementsOverlayOpen`,
 and `SelectedAchievement`, but themes normally do not need to bind these
 properties themselves.
 
-### 6.7 Tuning: animations
+### 6.8 Tuning: animations
 
 - `ThemeProperties.FadeDurationMs` (int, default: `200`)
 - `ThemeProperties.MoveDurationMs` (int, default: `160`)
@@ -587,7 +625,7 @@ properties themselves.
 “Snappy” UI: ~120–180ms  
 “Cinematic” UI: ~220–320ms
 
-### 6.8 Tuning: layout
+### 6.9 Tuning: layout
 
 - `ThemeProperties.PanelPadding` (Thickness, default: `20`)
 - `ThemeProperties.HeaderSpacing` (double, default: `10`)
@@ -598,7 +636,7 @@ properties themselves.
 
 Not every theme must use every value; many are intended as shared knobs.
 
-### 6.9 Tuning: typography (TV-friendly defaults)
+### 6.10 Tuning: typography (TV-friendly defaults)
 
 - `ThemeProperties.TitleFontSize` (double, default: `34`)
 - `ThemeProperties.BodyFontSize` (double, default: `18`)
@@ -627,7 +665,7 @@ Example:
 </UserControl>
 ```
 
-### 6.10 Attract Mode (auto-random selection on idle)
+### 6.11 Attract Mode (auto-random selection on idle)
 
 Some BigMode themes (especially arcade-style layouts) may want to automatically
 scroll/select random games after a period of user inactivity — similar to an
@@ -696,7 +734,7 @@ In this example:
 
 ---
 
-### 6.11 Host selection effects for lists (zoom/opacity/glow)
+### 6.12 Host selection effects for lists (zoom/opacity/glow)
 
 By default, the BigMode host applies generic selection effects to all `ListBox`
 instances in the theme:
@@ -718,7 +756,7 @@ Via the attached property
 a theme can control **per ListBox** whether the host is allowed to apply its
 standard selection effects.
 
-#### 6.10.1 Default behavior (host effects enabled)
+#### 6.12.1 Default behavior (host effects enabled)
 
 If you don't set anything, the behavior is:
 ```xml
@@ -741,7 +779,7 @@ The host reads the global tuning values from the theme root:
 
 and automatically applies them to all `ListBoxItem`s.
 
-#### 6.10.2 Explicitly disabling host effects (custom zoom logic)
+#### 6.12.2 Explicitly disabling host effects (custom zoom logic)
 
 If a particular `ListBox` implements its **own** selection animation
 (e.g. via `LayoutTransformControl` + converter bound to `IsSelected`), you can
@@ -763,7 +801,7 @@ In this case:
 - it does not change `Opacity`, `RenderTransform`, or `Effect` on the items,
 - all selection visuals are fully controlled by the theme.
 
-#### 6.10.3 Example: Arcade logo list with custom zoom
+#### 6.12.3 Example: Arcade logo list with custom zoom
 
 The Arcade theme uses a vertical logo rail where the zoom is implemented purely
 in XAML. To keep the host from adding its own selection visuals on top, the

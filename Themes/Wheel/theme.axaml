@@ -12,6 +12,7 @@
              ext:ThemeProperties.Name="Arcade"
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.SupportsHome="True"
              ext:ThemeProperties.AccentColor="#FFD700"
              ext:ThemeProperties.BackgroundDimOpacity="0.30"
              ext:ThemeProperties.TitleFontSize="48"

@@ -30,6 +30,11 @@
 
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Main menu</value></data>
+    <data name="BigMode.Home.Title" xml:space="preserve"><value>Home</value></data>
+    <data name="BigMode.Home.Hint" xml:space="preserve"><value>Y / Triangle · Library    A / Cross · Open</value></data>
+    <data name="BigMode.Home.Library.Back" xml:space="preserve"><value>Back</value></data>
+    <data name="BigMode.Home.Library.Open" xml:space="preserve"><value>Open</value></data>
+    <data name="BigMode.Home.Library.Overview" xml:space="preserve"><value>Library overview</value></data>
     <data name="BigMode_GameCountLabel" xml:space="preserve"><value>Games</value></data>
     
     <!-- BUTTONS -->
@@ -475,6 +480,8 @@ This action cannot be undone.</value></data>
     <data name="Settings_ShowStoreBadges_Hint" xml:space="preserve"><value>Shows GOG, Steam, and Epic labels on recognized store games.</value></data>
     <data name="Settings_RootBigModeTheme" xml:space="preserve"><value>BigMode theme for the main level</value></data>
     <data name="Settings_RootBigModeTheme_Hint" xml:space="preserve"><value>Controls the top-level category view only. Main categories keep their own themes.</value></data>
+    <data name="Settings_EnableBigModeHomeScreen" xml:space="preserve"><value>Use the BigMode Home screen</value></data>
+    <data name="Settings_EnableBigModeHomeScreen_Hint" xml:space="preserve"><value>Shows Home when BigMode starts without an explicit media selection and enables switching with Y / Triangle.</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Choose which data is copied from scraper results. Not every provider supplies every field.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Default for existing metadata</value></data>

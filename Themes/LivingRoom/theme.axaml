@@ -11,6 +11,7 @@
              ext:ThemeProperties.Name="LivingRoom"
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.SupportsHome="True"
              ext:ThemeProperties.SelectedScale="1.05"
              ext:ThemeProperties.UnselectedOpacity="0.8"
              ext:ThemeProperties.SelectedGlowOpacity="0.35"

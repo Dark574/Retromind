@@ -11,6 +11,7 @@
              ext:ThemeProperties.Name="Prism"
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.3.2"
+             ext:ThemeProperties.SupportsHome="True"
              ext:ThemeProperties.AccentColor="#62E6FF"
              ext:ThemeProperties.DynamicAccentEnabled="True"
              ext:ThemeProperties.DynamicAccentTransitionMs="400"

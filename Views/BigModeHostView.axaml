@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:helpers="using:Retromind.Helpers"
+             xmlns:views="using:Retromind.Views"
              x:Class="Retromind.Views.BigModeHostView"
              x:DataType="vm:BigModeViewModel">
 
@@ -32,7 +33,12 @@
 
     <Grid>
         <!-- The theme is being loaded/replaced here -->
-        <ContentPresenter x:Name="ThemePresenter" />
+        <ContentPresenter x:Name="ThemePresenter"
+                          IsVisible="{Binding !IsHomeActive}" />
+
+        <!-- Home is host-owned so every opted-in root theme uses one maintained layout. -->
+        <views:BigModeHomeView x:Name="HomeView"
+                               IsVisible="{Binding IsHomeActive}" />
 
         <!-- Host-owned hint: every theme gets the same controller entry point. -->
         <Border HorizontalAlignment="Right"

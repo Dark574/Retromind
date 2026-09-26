@@ -89,6 +89,11 @@ public class AppSettings
     public string RootBigModeThemePath { get; set; } = "Default/theme.axaml";
 
     /// <summary>
+    /// Enables the optional BigMode Home screen when the configured root theme supports it.
+    /// </summary>
+    public bool EnableBigModeHomeScreen { get; set; } = true;
+
+    /// <summary>
     /// Master switch for event-driven metadata backups. Manual backups remain available.
     /// </summary>
     public bool EnableAutomaticMetadataBackups { get; set; } = true;

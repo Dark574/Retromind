@@ -25,6 +25,7 @@ public sealed class GamepadService : IDisposable
     public event Action? OnSelect;   // A / Cross
     public event Action? OnBack;     // B / Circle
     public event Action? OnDetails;  // X / Square
+    public event Action? OnHome;     // Y / Triangle
     public event Action? OnGuide;    // Guide / Home
     public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
 
@@ -349,6 +350,10 @@ public sealed class GamepadService : IDisposable
 
             case GameControllerButton.X:
                 OnDetails?.Invoke();
+                break;
+
+            case GameControllerButton.Y:
+                OnHome?.Invoke();
                 break;
 
             case GameControllerButton.Start:

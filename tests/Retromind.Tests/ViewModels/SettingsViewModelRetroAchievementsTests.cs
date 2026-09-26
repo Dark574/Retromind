@@ -12,6 +12,21 @@ namespace Retromind.Tests.ViewModels;
 public sealed class SettingsViewModelRetroAchievementsTests
 {
     [Fact]
+    public async Task Save_PersistsBigModeHomeScreenPreference()
+    {
+        var targetSettings = new AppSettings { EnableBigModeHomeScreen = true };
+        var secretStore = new RecordingSecretStore();
+        using var httpClient = CreateProfileClient();
+        using var viewModel = CreateViewModel(targetSettings, secretStore, httpClient);
+        await viewModel.InitializeRetroAchievementsAsync();
+
+        viewModel.EnableBigModeHomeScreen = false;
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.False(targetSettings.EnableBigModeHomeScreen);
+    }
+
+    [Fact]
     public async Task TestThenCancel_DoesNotPersistKeyOrWorkingSettings()
     {
         var targetSettings = new AppSettings();
