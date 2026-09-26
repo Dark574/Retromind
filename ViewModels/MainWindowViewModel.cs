@@ -82,13 +82,20 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowLibraryLoadingHint))]
     [NotifyPropertyChangedFor(nameof(ShowEmptyLibraryHint))]
+    [NotifyPropertyChangedFor(nameof(ShowGettingStarted))]
     [NotifyPropertyChangedFor(nameof(ShowLibraryLoadError))]
     private bool _isLibraryLoading;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEmptyLibraryHint))]
+    [NotifyPropertyChangedFor(nameof(ShowGettingStarted))]
     [NotifyPropertyChangedFor(nameof(ShowLibraryLoadError))]
     private string? _libraryLoadErrorMessage;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyLibraryHint))]
+    [NotifyPropertyChangedFor(nameof(ShowGettingStarted))]
+    private bool _isGettingStartedDismissed;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowSettingsLoadError))]
@@ -167,6 +174,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
             RefreshTreeVisibility();
             OnPropertyChanged(nameof(ShowEmptyLibraryHint));
+            OnPropertyChanged(nameof(ShowGettingStarted));
             UpdateLibraryGameCounters();
         }
     }
@@ -218,6 +226,7 @@ public partial class MainWindowViewModel : ViewModelBase
             _ = RetroAchievementsProgress.SelectItemAsync(selectedItem);
             OnPropertyChanged(nameof(ShowLibraryLoadingHint));
             OnPropertyChanged(nameof(ShowEmptyLibraryHint));
+            OnPropertyChanged(nameof(ShowGettingStarted));
             UpdateLibraryGameCounters();
             NotifyPlayAvailabilityChanged();
             OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
@@ -236,11 +245,43 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // Empty-library hint should only be shown for truly empty libraries,
     // not while startup loading is still building the first content.
-    public bool ShowEmptyLibraryHint =>
+    private bool IsEmptyLibraryState =>
         !IsLibraryLoading &&
         !ShowLibraryLoadError &&
         SelectedNodeContent is null &&
         RootItems.Count == 0;
+
+    public bool ShowGettingStarted =>
+        !IsLibraryLoading &&
+        !ShowLibraryLoadError &&
+        IsEmptyLibraryState &&
+        !IsGettingStartedDismissed;
+
+    public bool ShowEmptyLibraryHint => IsEmptyLibraryState && !ShowGettingStarted;
+
+    public string GettingStartedTitle => T("GettingStarted.Title", "Welcome to Retromind");
+    public string GettingStartedIntro => T(
+        "GettingStarted.Intro",
+        "Retromind organizes games and other media in categories. Start with the structure that fits your library.");
+    public string GettingStartedCategoryTitle => T("GettingStarted.Category.Title", "Create your first category");
+    public string GettingStartedCategoryDescription => T(
+        "GettingStarted.Category.Description",
+        "Create a category such as Games, Movies or Books. You can add more levels at any time.");
+    public string GettingStartedCategoryAction => T("GettingStarted.Category.Action", "Create category...");
+    public string GettingStartedSettingsTitle => T("GettingStarted.Settings.Title", "Configure integrations");
+    public string GettingStartedSettingsDescription => T(
+        "GettingStarted.Settings.Description",
+        "Set up emulators, metadata providers, library paths and optional RetroAchievements access.");
+    public string GettingStartedSettingsAction => T("GettingStarted.Settings.Action", "Open settings...");
+    public string GettingStartedRestoreTitle => T("GettingStarted.Restore.Title", "Restore an existing library");
+    public string GettingStartedRestoreDescription => T(
+        "GettingStarted.Restore.Description",
+        "Restore library metadata and settings from a Retromind backup stored in the current data location.");
+    public string GettingStartedRestoreAction => T("GettingStarted.Restore.Action", "Manage backups...");
+    public string GettingStartedNextStep => T(
+        "GettingStarted.NextStep",
+        "After creating a category, right-click it to import ROMs, Steam or Epic games, add GOG games, or create media manually.");
+    public string GettingStartedCloseText => T("GettingStarted.Close", "Close overview");
     public bool ShowLibraryGameCountSummary => TotalLibraryGameCount > 0;
     public int CurrentShownGameCount => _currentShownGameCount;
     public int TotalLibraryGameCount => _totalLibraryGameCount;
@@ -408,6 +449,7 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 RefreshTreeVisibility();
                 OnPropertyChanged(nameof(ShowEmptyLibraryHint));
+                OnPropertyChanged(nameof(ShowGettingStarted));
             },
             onItemProtectionChanged: item =>
             {
@@ -484,6 +526,7 @@ public partial class MainWindowViewModel : ViewModelBase
             RootItems = await _dataService.LoadAsync();
             Debug.WriteLine("[DEBUG] LoadData: RootItems loaded. Count = " + RootItems.Count);
             OnPropertyChanged(nameof(ShowEmptyLibraryHint));
+            OnPropertyChanged(nameof(ShowGettingStarted));
         
             _libraryTracker.Initialize(RootItems);
             InitializeParentalStateAfterLoad();

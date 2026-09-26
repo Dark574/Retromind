@@ -64,6 +64,9 @@ public partial class MainWindowViewModel
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenStatisticsCommand { get; private set; } = null!;
+    public IRelayCommand CloseGettingStartedCommand { get; private set; } = null!;
+    public IAsyncRelayCommand CreateFirstCategoryCommand { get; private set; } = null!;
+    public IAsyncRelayCommand OpenMetadataBackupsCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> EditNodeCommand { get; private set; } = null!;
     public IRelayCommand ToggleThemeCommand { get; private set; } = null!; // Sync is fine here
     
@@ -133,6 +136,9 @@ public partial class MainWindowViewModel
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenStatisticsCommand = new AsyncRelayCommand(OpenStatisticsAsync);
+        CloseGettingStartedCommand = new RelayCommand(CloseGettingStarted);
+        CreateFirstCategoryCommand = new AsyncRelayCommand(CreateFirstCategoryAsync);
+        OpenMetadataBackupsCommand = new AsyncRelayCommand(OpenMetadataBackupsFromMainWindowAsync);
         OpenManualCommand = new RelayCommand<MediaAsset?>(OpenManual);
         EditNodeCommand = new AsyncRelayCommand<MediaNode?>(EditNodeAsync);
         
@@ -154,6 +160,32 @@ public partial class MainWindowViewModel
         EnterBigModeCommand = new RelayCommand(EnterBigMode, () => !_libraryLoadFailed);
         
         AddManualToMediaCommand = new AsyncRelayCommand<MediaItem?>(AddManualToMediaAsync);
+    }
+
+    private void CloseGettingStarted()
+    {
+        IsGettingStartedDismissed = true;
+    }
+
+    private async Task CreateFirstCategoryAsync()
+    {
+        var previousRootCount = RootItems.Count;
+        await AddCategoryAsync(null);
+
+        if (RootItems.Count > previousRootCount)
+        {
+            OnPropertyChanged(nameof(ShowGettingStarted));
+        }
+    }
+
+    private async Task OpenMetadataBackupsFromMainWindowAsync()
+    {
+        if (CurrentWindow is not { } owner)
+            return;
+
+        var restored = await OpenMetadataBackupsAsync(owner);
+        if (restored)
+            UiThreadHelper.Post(owner.Close, DispatcherPriority.Background);
     }
 
     private async Task OpenStatisticsAsync()

@@ -28,6 +28,37 @@
     <!-- APP -->
     <data name="App.Title" xml:space="preserve"><value>Retromind</value></data>
 
+    <!-- GETTING STARTED -->
+    <data name="GettingStarted.Title" xml:space="preserve"><value>Welcome to Retromind</value></data>
+    <data name="GettingStarted.Intro" xml:space="preserve"><value>Retromind organizes games and other media in categories. Start with the structure that fits your library.</value></data>
+    <data name="GettingStarted.Category.Title" xml:space="preserve"><value>Create your first category</value></data>
+    <data name="GettingStarted.Category.Description" xml:space="preserve"><value>Create a category such as Games, Movies or Books. You can add more levels at any time.</value></data>
+    <data name="GettingStarted.Category.Details" xml:space="preserve"><value>• Right-click the empty library tree to create a top-level category.
+• Right-click an existing category to create a child category.
+• Move and reorder categories in the tree using drag and drop.
+• Category settings such as game system, emulator and BigMode theme are inherited by their children.</value></data>
+    <data name="GettingStarted.Category.Action" xml:space="preserve"><value>Create category...</value></data>
+    <data name="GettingStarted.Import.Title" xml:space="preserve"><value>Add content</value></data>
+    <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Right-click a category to import ROMs, Steam or Epic games, add GOG games, or create media manually.</value></data>
+    <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Select the category that should contain the new items.
+• Use Import for ROM folders, Steam or Epic libraries; GOG and manual media have their own entries.
+• Set the game system before importing ROMs if RetroAchievements should identify supported games automatically.</value></data>
+    <data name="GettingStarted.Settings.Title" xml:space="preserve"><value>Configure integrations</value></data>
+    <data name="GettingStarted.Settings.Description" xml:space="preserve"><value>Set up emulators, metadata providers, library paths and optional RetroAchievements access.</value></data>
+    <data name="GettingStarted.Settings.Details" xml:space="preserve"><value>• The Emulators tab defines programs, launch arguments and inherited runner defaults.
+• Metadata &amp; scrapers contains providers and controls which discovered data is imported.
+• Integrations contains RetroAchievements and additional Steam or Heroic library locations.</value></data>
+    <data name="GettingStarted.Settings.Action" xml:space="preserve"><value>Open settings...</value></data>
+    <data name="GettingStarted.Restore.Title" xml:space="preserve"><value>Restore an existing library</value></data>
+    <data name="GettingStarted.Restore.Description" xml:space="preserve"><value>Restore library metadata and settings from a Retromind backup stored in the current data location.</value></data>
+    <data name="GettingStarted.Restore.Details" xml:space="preserve"><value>• Open Backups and choose Manage backups to view the available archives.
+• A backup contains the library database and settings, but not games, artwork, videos, themes or portable HOME data.
+• Retromind closes after a successful restore so the restored state can be loaded cleanly on the next start.</value></data>
+    <data name="GettingStarted.Restore.Action" xml:space="preserve"><value>Manage backups...</value></data>
+    <data name="GettingStarted.NextStep" xml:space="preserve"><value>After creating a category, right-click it to import ROMs, Steam or Epic games, add GOG games, or create media manually.</value></data>
+    <data name="GettingStarted.Close" xml:space="preserve"><value>Close overview</value></data>
+    <data name="Settings_TabHelp" xml:space="preserve"><value>Help</value></data>
+
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Main menu</value></data>
     <data name="BigMode.Home.Title" xml:space="preserve"><value>Home</value></data>

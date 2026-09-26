@@ -866,6 +866,135 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
+            <!-- TAB 7: HELP -->
+            <TabItem Header="{Binding SettingsTabHelpTitle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="16" Margin="10,10,20,20" MaxWidth="760">
+                        <StackPanel Spacing="6" Margin="4,4,4,8">
+                            <TextBlock Text="{Binding GettingStartedTitle}"
+                                       FontSize="24"
+                                       FontWeight="Bold" />
+                            <TextBlock Text="{Binding GettingStartedIntro}"
+                                       FontSize="14"
+                                       Opacity="0.72"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Expander IsExpanded="True">
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="42,*" Margin="6">
+                                    <Border Width="30" Height="30"
+                                            VerticalAlignment="Top"
+                                            Background="#287BC0E3"
+                                            CornerRadius="15">
+                                        <TextBlock Text="1"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="Bold" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="3">
+                                        <TextBlock Text="{Binding GettingStartedCategoryTitle}"
+                                                   FontSize="16"
+                                                   FontWeight="Bold" />
+                                        <TextBlock Text="{Binding GettingStartedCategoryDescription}"
+                                                   Opacity="0.72"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                            </Expander.Header>
+                            <TextBlock Text="{Binding GettingStartedCategoryDetails}"
+                                       Margin="54,4,16,16"
+                                       LineHeight="22"
+                                       TextWrapping="Wrap" />
+                        </Expander>
+
+                        <Expander>
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="42,*" Margin="6">
+                                    <Border Width="30" Height="30"
+                                            VerticalAlignment="Top"
+                                            Background="#287BC0E3"
+                                            CornerRadius="15">
+                                        <TextBlock Text="2"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="Bold" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="3">
+                                        <TextBlock Text="{Binding GettingStartedImportTitle}"
+                                                   FontSize="16"
+                                                   FontWeight="Bold" />
+                                        <TextBlock Text="{Binding GettingStartedImportDescription}"
+                                                   Opacity="0.72"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                            </Expander.Header>
+                            <TextBlock Text="{Binding GettingStartedImportDetails}"
+                                       Margin="54,4,16,16"
+                                       LineHeight="22"
+                                       TextWrapping="Wrap" />
+                        </Expander>
+
+                        <Expander>
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="42,*" Margin="6">
+                                    <Border Width="30" Height="30"
+                                            VerticalAlignment="Top"
+                                            Background="#287BC0E3"
+                                            CornerRadius="15">
+                                        <TextBlock Text="3"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="Bold" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="3">
+                                        <TextBlock Text="{Binding GettingStartedSettingsTitle}"
+                                                   FontSize="16"
+                                                   FontWeight="Bold" />
+                                        <TextBlock Text="{Binding GettingStartedSettingsDescription}"
+                                                   Opacity="0.72"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                            </Expander.Header>
+                            <TextBlock Text="{Binding GettingStartedSettingsDetails}"
+                                       Margin="54,4,16,16"
+                                       LineHeight="22"
+                                       TextWrapping="Wrap" />
+                        </Expander>
+
+                        <Expander>
+                            <Expander.Header>
+                                <Grid ColumnDefinitions="42,*" Margin="6">
+                                    <Border Width="30" Height="30"
+                                            VerticalAlignment="Top"
+                                            Background="#287BC0E3"
+                                            CornerRadius="15">
+                                        <TextBlock Text="4"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="Bold" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="3">
+                                        <TextBlock Text="{Binding GettingStartedRestoreTitle}"
+                                                   FontSize="16"
+                                                   FontWeight="Bold" />
+                                        <TextBlock Text="{Binding GettingStartedRestoreDescription}"
+                                                   Opacity="0.72"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                            </Expander.Header>
+                            <TextBlock Text="{Binding GettingStartedRestoreDetails}"
+                                       Margin="54,4,16,16"
+                                       LineHeight="22"
+                                       TextWrapping="Wrap" />
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
             
         </TabControl>
 

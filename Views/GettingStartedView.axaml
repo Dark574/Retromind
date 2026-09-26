@@ -1,0 +1,148 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             x:Class="Retromind.Views.GettingStartedView"
+             x:DataType="vm:MainWindowViewModel">
+    <UserControl.Resources>
+        <Geometry x:Key="IconCategory">M4 4h6l2 2h8v14H4z M6 8v10h12V8z</Geometry>
+        <Geometry x:Key="IconSettings">M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58-1.92-3.32-2.39.96a7 7 0 0 0-1.63-.94l-.36-2.54h-3.84l-.36 2.54c-.58.24-1.12.55-1.63.94l-2.39-.96-1.92 3.32 2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.7 14.52l1.92 3.32 2.39-.96c.5.39 1.05.7 1.63.94l.36 2.54h3.84l.36-2.54c.58-.24 1.12-.55 1.63-.94l2.39.96 1.92-3.32z M12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z</Geometry>
+        <Geometry x:Key="IconRestore">M12 4a8 8 0 1 1-7.45 5H2l3.5-3.5L9 9H6.6A6 6 0 1 0 12 6z M11 8h2v5h-5v-2h3z</Geometry>
+    </UserControl.Resources>
+
+    <Grid Background="{Binding PanelBackground}">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <Border MaxWidth="880"
+                    Margin="36"
+                    Padding="34"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="#18000000"
+                    BorderBrush="#44888888"
+                    BorderThickness="1"
+                    CornerRadius="12">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                    <TextBlock Grid.Row="0"
+                               Text="{Binding GettingStartedTitle}"
+                               FontSize="30"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center" />
+
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding GettingStartedIntro}"
+                               Margin="20,10,20,26"
+                               MaxWidth="700"
+                               FontSize="15"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               Opacity="0.82" />
+
+                    <Grid Grid.Row="2" ColumnDefinitions="*,18,*,18,*">
+                        <Border Grid.Column="0"
+                                Padding="22"
+                                Background="#14000000"
+                                BorderBrush="#44888888"
+                                BorderThickness="1"
+                                CornerRadius="8">
+                            <Grid RowDefinitions="Auto,Auto,*,Auto">
+                                <PathIcon Data="{StaticResource IconCategory}"
+                                          Width="30" Height="30"
+                                          HorizontalAlignment="Left" />
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding GettingStartedCategoryTitle}"
+                                           Margin="0,14,0,8"
+                                           FontSize="17"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="2"
+                                           Text="{Binding GettingStartedCategoryDescription}"
+                                           MinHeight="82"
+                                           TextWrapping="Wrap"
+                                           Opacity="0.76" />
+                                <Button Grid.Row="3"
+                                        Content="{Binding GettingStartedCategoryAction}"
+                                        Command="{Binding CreateFirstCategoryCommand}"
+                                        Margin="0,18,0,0"
+                                        HorizontalAlignment="Stretch" />
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="2"
+                                Padding="22"
+                                Background="#14000000"
+                                BorderBrush="#44888888"
+                                BorderThickness="1"
+                                CornerRadius="8">
+                            <Grid RowDefinitions="Auto,Auto,*,Auto">
+                                <PathIcon Data="{StaticResource IconSettings}"
+                                          Width="30" Height="30"
+                                          HorizontalAlignment="Left" />
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding GettingStartedSettingsTitle}"
+                                           Margin="0,14,0,8"
+                                           FontSize="17"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="2"
+                                           Text="{Binding GettingStartedSettingsDescription}"
+                                           MinHeight="82"
+                                           TextWrapping="Wrap"
+                                           Opacity="0.76" />
+                                <Button Grid.Row="3"
+                                        Content="{Binding GettingStartedSettingsAction}"
+                                        Command="{Binding OpenSettingsCommand}"
+                                        Margin="0,18,0,0"
+                                        HorizontalAlignment="Stretch" />
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="4"
+                                Padding="22"
+                                Background="#14000000"
+                                BorderBrush="#44888888"
+                                BorderThickness="1"
+                                CornerRadius="8">
+                            <Grid RowDefinitions="Auto,Auto,*,Auto">
+                                <PathIcon Data="{StaticResource IconRestore}"
+                                          Width="30" Height="30"
+                                          HorizontalAlignment="Left" />
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding GettingStartedRestoreTitle}"
+                                           Margin="0,14,0,8"
+                                           FontSize="17"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="2"
+                                           Text="{Binding GettingStartedRestoreDescription}"
+                                           MinHeight="82"
+                                           TextWrapping="Wrap"
+                                           Opacity="0.76" />
+                                <Button Grid.Row="3"
+                                        Content="{Binding GettingStartedRestoreAction}"
+                                        Command="{Binding OpenMetadataBackupsCommand}"
+                                        Margin="0,18,0,0"
+                                        HorizontalAlignment="Stretch" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <TextBlock Grid.Row="3"
+                               Text="{Binding GettingStartedNextStep}"
+                               Margin="16,24,16,0"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               Opacity="0.72" />
+
+                    <Button Grid.Row="4"
+                            Content="{Binding GettingStartedCloseText}"
+                            Command="{Binding CloseGettingStartedCommand}"
+                            Margin="0,20,0,0"
+                            HorizontalAlignment="Center"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Opacity="0.78" />
+                </Grid>
+            </Border>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

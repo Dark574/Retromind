@@ -28,6 +28,37 @@
     <!-- APP -->
     <data name="App.Title" xml:space="preserve"><value>Retromind</value></data>
 
+    <!-- ERSTE SCHRITTE -->
+    <data name="GettingStarted.Title" xml:space="preserve"><value>Willkommen bei Retromind</value></data>
+    <data name="GettingStarted.Intro" xml:space="preserve"><value>Retromind ordnet Spiele und andere Medien in Kategorien. Beginne mit der Struktur, die zu deiner Bibliothek passt.</value></data>
+    <data name="GettingStarted.Category.Title" xml:space="preserve"><value>Erste Kategorie anlegen</value></data>
+    <data name="GettingStarted.Category.Description" xml:space="preserve"><value>Lege eine Kategorie wie Spiele, Filme oder Bücher an. Weitere Ebenen kannst du jederzeit ergänzen.</value></data>
+    <data name="GettingStarted.Category.Details" xml:space="preserve"><value>• Klicke mit der rechten Maustaste in den leeren Bibliotheksbaum, um eine Hauptkategorie anzulegen.
+• Klicke mit der rechten Maustaste auf eine vorhandene Kategorie, um darunter eine weitere Kategorie anzulegen.
+• Kategorien lassen sich im Baum per Drag&amp;Drop verschieben, neu anordnen oder anderen Kategorien unterordnen.
+• Einstellungen einer Kategorie wie Spielsystem, Emulator und BigMode-Theme werden an ihre untergeordneten Inhalte vererbt.</value></data>
+    <data name="GettingStarted.Category.Action" xml:space="preserve"><value>Kategorie anlegen...</value></data>
+    <data name="GettingStarted.Import.Title" xml:space="preserve"><value>Inhalte hinzufügen</value></data>
+    <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf eine Kategorie, um ROMs, Steam- oder Epic-Spiele zu importieren, GOG-Spiele hinzuzufügen oder Medien manuell anzulegen.</value></data>
+    <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Wähle zuerst die Kategorie, in der die neuen Einträge abgelegt werden sollen.
+• Unter Importieren findest du ROM-Ordner sowie Steam- und Epic-Bibliotheken; GOG und manuelle Medien besitzen eigene Einträge.
+• Lege vor einem ROM-Import das Spielsystem der Kategorie fest, wenn unterstützte Spiele automatisch durch RetroAchievements erkannt werden sollen.</value></data>
+    <data name="GettingStarted.Settings.Title" xml:space="preserve"><value>Integrationen einrichten</value></data>
+    <data name="GettingStarted.Settings.Description" xml:space="preserve"><value>Richte Emulatoren, Metadatenanbieter, Bibliothekspfade und optional RetroAchievements ein.</value></data>
+    <data name="GettingStarted.Settings.Details" xml:space="preserve"><value>• Unter Emulatoren legst du Programme, Startargumente und vererbte Runner-Vorgaben fest.
+• Metadaten &amp; Scraper enthält die Anbieter und steuert, welche gefundenen Daten übernommen werden.
+• Integrationen enthält RetroAchievements sowie zusätzliche Bibliothekspfade für Steam und Heroic.</value></data>
+    <data name="GettingStarted.Settings.Action" xml:space="preserve"><value>Einstellungen öffnen...</value></data>
+    <data name="GettingStarted.Restore.Title" xml:space="preserve"><value>Vorhandene Bibliothek wiederherstellen</value></data>
+    <data name="GettingStarted.Restore.Description" xml:space="preserve"><value>Stelle Bibliotheksmetadaten und Einstellungen aus einem Retromind-Backup am aktuellen Datenort wieder her.</value></data>
+    <data name="GettingStarted.Restore.Details" xml:space="preserve"><value>• Öffne Sicherungen und anschließend Backups verwalten, um die vorhandenen Archive anzuzeigen.
+• Ein Backup enthält die Bibliotheksdatenbank und Einstellungen, aber keine Spiele, Bilder, Videos, Themes oder portablen HOME-Daten.
+• Nach einer erfolgreichen Wiederherstellung wird Retromind geschlossen, damit der wiederhergestellte Zustand beim nächsten Start sauber geladen wird.</value></data>
+    <data name="GettingStarted.Restore.Action" xml:space="preserve"><value>Backups verwalten...</value></data>
+    <data name="GettingStarted.NextStep" xml:space="preserve"><value>Nach dem Anlegen einer Kategorie kannst du per Rechtsklick ROMs, Steam- oder Epic-Spiele importieren, GOG-Spiele hinzufügen oder Medien manuell anlegen.</value></data>
+    <data name="GettingStarted.Close" xml:space="preserve"><value>Übersicht schließen</value></data>
+    <data name="Settings_TabHelp" xml:space="preserve"><value>Hilfe</value></data>
+
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Hauptmenü</value></data>
     <data name="BigMode.Home.Title" xml:space="preserve"><value>Start</value></data>

@@ -485,6 +485,39 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string SettingsTabLaunchCompatibilityTitle => T("Settings_TabLaunchCompatibility", "Launch & compatibility");
     public string SettingsTabIntegrationsTitle => T("Settings_TabIntegrations", "Integrations");
     public string SettingsTabBackupsTitle => T("Settings_TabBackups", "Backups");
+    public string SettingsTabHelpTitle => T("Settings_TabHelp", "Help");
+    public string GettingStartedTitle => T("GettingStarted.Title", "Welcome to Retromind");
+    public string GettingStartedIntro => T(
+        "GettingStarted.Intro",
+        "Retromind organizes games and other media in categories. Start with the structure that fits your library.");
+    public string GettingStartedCategoryTitle => T("GettingStarted.Category.Title", "Create categories");
+    public string GettingStartedCategoryDescription => T(
+        "GettingStarted.Category.Description",
+        "Create a category such as Games, Movies or Books. You can add more levels at any time.");
+    public string GettingStartedCategoryDetails => T(
+        "GettingStarted.Category.Details",
+        "• Right-click the empty library tree to create a top-level category.\n• Right-click an existing category to create a child category.\n• Move and reorder categories in the tree using drag and drop.\n• Category settings such as game system, emulator and BigMode theme are inherited by their children.");
+    public string GettingStartedImportTitle => T("GettingStarted.Import.Title", "Add content");
+    public string GettingStartedImportDescription => T(
+        "GettingStarted.Import.Description",
+        "Right-click a category to import ROMs, Steam or Epic games, add GOG games, or create media manually.");
+    public string GettingStartedImportDetails => T(
+        "GettingStarted.Import.Details",
+        "• Select the category that should contain the new items.\n• Use Import for ROM folders, Steam or Epic libraries; GOG and manual media have their own entries.\n• Set the game system before importing ROMs if RetroAchievements should identify supported games automatically.");
+    public string GettingStartedSettingsTitle => T("GettingStarted.Settings.Title", "Configure integrations");
+    public string GettingStartedSettingsDescription => T(
+        "GettingStarted.Settings.Description",
+        "Set up emulators, metadata providers, library paths and optional RetroAchievements access in the corresponding settings tabs.");
+    public string GettingStartedSettingsDetails => T(
+        "GettingStarted.Settings.Details",
+        "• The Emulators tab defines programs, launch arguments and inherited runner defaults.\n• Metadata & scrapers contains providers and controls which discovered data is imported.\n• Integrations contains RetroAchievements and additional Steam or Heroic library locations.");
+    public string GettingStartedRestoreTitle => T("GettingStarted.Restore.Title", "Restore an existing library");
+    public string GettingStartedRestoreDescription => T(
+        "GettingStarted.Restore.Description",
+        "Use the Backups tab to restore library metadata and settings from a Retromind backup stored in the current data location.");
+    public string GettingStartedRestoreDetails => T(
+        "GettingStarted.Restore.Details",
+        "• Open Backups and choose Manage backups to view the available archives.\n• A backup contains the library database and settings, but not games, artwork, videos, themes or portable HOME data.\n• Retromind closes after a successful restore so the restored state can be loaded cleanly on the next start.");
     public string SettingsIntegrationLibrariesTitle => T("Settings_IntegrationLibraries", "Game libraries");
     public string RunnerVersionsSectionTitle => T("Settings_SectionRunnerVersions", "Wine/Proton versions");
     public string RunnerVersionNameLabel => T("Settings_RunnerVersionNameLabel", "Name");

@@ -338,6 +338,8 @@
                                       FontSize="16"
                                       FontStyle="Italic"
                                       IsVisible="{Binding ShowEmptyLibraryHint}" />
+                           <views:GettingStartedView DataContext="{Binding}"
+                                                     IsVisible="{Binding ShowGettingStarted}" />
                            <Border MaxWidth="560"
                                    Margin="24"
                                    Padding="20"
