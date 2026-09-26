@@ -22,6 +22,7 @@ public sealed class LauncherService
     private const int EarlyFailureThresholdSeconds = 10;
     private static readonly TimeSpan WatchProcessStartupTimeout = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan WatchProcessStartupPollInterval = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan DelegatedCommandObservationTimeout = TimeSpan.FromSeconds(1);
 
     private readonly string _libraryRootPath;
     private readonly AppSettings _settings;
@@ -63,6 +64,7 @@ public sealed class LauncherService
         var watchedProcessName = string.IsNullOrWhiteSpace(item.OverrideWatchProcess)
             ? null
             : item.OverrideWatchProcess;
+        var isDelegatedCommand = watchedProcessName == null && IsDelegatedCommand(item);
         string? missingWatchedProcessName = null;
         var watchedProcessWasAlreadyRunning = false;
         int? exitCode = null;
@@ -120,8 +122,8 @@ public sealed class LauncherService
         {
             // Tracking strategy:
             // A) If OverrideWatchProcess is set, we track by process name (for launchers like Steam).
-            // B) Otherwise, if we have a process handle, wait for it.
-            // C) If neither is available (typical for URL commands), we cannot track duration reliably.
+            // B) Store/URI commands without a watched process are only handoffs.
+            // C) Otherwise, if we have a process handle, wait for it.
             if (watchedProcessName != null)
             {
                 var watchOutcome = await WatchProcessByNameAsync(
@@ -132,6 +134,14 @@ public sealed class LauncherService
                 shouldRecordSession = watchOutcome == ProcessWatchOutcome.Tracked;
                 if (watchOutcome == ProcessWatchOutcome.NotFound)
                     missingWatchedProcessName = watchedProcessName;
+            }
+            else if (isDelegatedCommand && process != null)
+            {
+                // The Steam/Heroic/xdg-open process is not the game. Observe it
+                // briefly for an immediate error, but never use its lifetime as
+                // game playtime or as a game-exit boundary.
+                if (await WaitForDelegatedCommandAsync(process, cancellationToken).ConfigureAwait(false))
+                    exitCode = process.ExitCode;
             }
             else if (process is { HasExited: false })
             {
@@ -183,11 +193,15 @@ public sealed class LauncherService
             process?.Dispose();
         }
 
-        if (shouldRecordSession && recordStatistics)
+        var delegatedCommandSucceeded = isDelegatedCommand && exitCode is null or 0;
+        if (recordStatistics && (shouldRecordSession || delegatedCommandSucceeded))
         {
             try
             {
-                await EvaluateSessionAsync(item, elapsed).ConfigureAwait(false);
+                if (shouldRecordSession)
+                    await EvaluateSessionAsync(item, elapsed).ConfigureAwait(false);
+                else
+                    await RecordLaunchAsync(item).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -204,7 +218,10 @@ public sealed class LauncherService
                  processStartedAt is { } startedAt &&
                  elapsed - startedAt <= TimeSpan.FromSeconds(EarlyFailureThresholdSeconds))
         {
-            result = LaunchResult.ExitedEarly(exitCode.Value, consoleOutput);
+            result = LaunchResult.ExitedEarly(
+                exitCode.Value,
+                consoleOutput,
+                wasSessionTracked: shouldRecordSession);
         }
         else
         {
@@ -276,6 +293,50 @@ public sealed class LauncherService
         ApplyXdgOverrides(startInfo, item);
         launchLog.CaptureProcessStart(startInfo, target, environmentOverrides);
         return StartProcess(startInfo);
+    }
+
+    internal static bool IsDelegatedCommand(MediaItem item)
+    {
+        if (item.MediaType != MediaType.Command)
+            return false;
+
+        var target = item.GetPrimaryLaunchPath();
+        if (string.IsNullOrWhiteSpace(target))
+            return false;
+
+        if (LooksLikeUriOrProtocol(target) || IsStoreCommandToken(target))
+            return true;
+
+        var executable = Path.GetFileName(target.Trim('"', '\''));
+        if (string.Equals(executable, "xdg-open", StringComparison.OrdinalIgnoreCase))
+            return LooksLikeUriOrProtocol(item.LauncherArgs ?? string.Empty);
+
+        if (!string.Equals(executable, "env", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var commandToken = TryGetFirstExecutableTokenFromEnvArgs(item.LauncherArgs);
+        return !string.IsNullOrWhiteSpace(commandToken) && IsStoreCommandToken(commandToken);
+    }
+
+    private static async Task<bool> WaitForDelegatedCommandAsync(
+        Process process,
+        CancellationToken cancellationToken)
+    {
+        if (process.HasExited)
+            return true;
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(DelegatedCommandObservationTimeout);
+
+        try
+        {
+            await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
+            return true;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return process.HasExited;
+        }
     }
 
     private Process? LaunchNativeOrEmulator(
@@ -1624,6 +1685,9 @@ public sealed class LauncherService
         await UiThreadHelper.InvokeAsync(() => UpdateStats(item, effectiveSessionTime))
             .ConfigureAwait(false);
     }
+
+    private static Task RecordLaunchAsync(MediaItem item) =>
+        UiThreadHelper.InvokeAsync(() => UpdateStats(item, TimeSpan.Zero));
 
     private static void UpdateStats(MediaItem item, TimeSpan sessionTime)
     {

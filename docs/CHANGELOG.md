@@ -28,6 +28,8 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - restore live stdout/stderr forwarding for launched games while retaining early-failure diagnostics
 - validate selected runners before launch
 - restore BigMode focus after tracked game sessions
+- avoid treating Steam, Heroic, and URI launcher handoffs as completed game sessions
+- keep delegated store launches guarded while the external game is starting
 
 ---
 

@@ -30,10 +30,13 @@ public sealed record LaunchResult(
     public static LaunchResult WatchedProcessNotFound(string processName, string? consoleOutput) =>
         new(LaunchOutcome.WatchedProcessNotFound, null, processName, null, consoleOutput);
 
-    public static LaunchResult ExitedEarly(int exitCode, string? consoleOutput) =>
+    public static LaunchResult ExitedEarly(
+        int exitCode,
+        string? consoleOutput,
+        bool wasSessionTracked = true) =>
         new(LaunchOutcome.ExitedEarly, null, null, exitCode, consoleOutput)
         {
-            WasSessionTracked = true
+            WasSessionTracked = wasSessionTracked
         };
 }
 

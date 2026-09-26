@@ -181,6 +181,120 @@ public sealed class LauncherServiceTests
     }
 
     [Fact]
+    public async Task LaunchAsync_DoesNotTreatSteamCommandAsTrackedGameSession()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var steamPath = temp.CreateFile("steam", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            steamPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = new MediaItem("Steam handoff")
+        {
+            MediaType = MediaType.Command,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = steamPath
+                }
+            ],
+            LauncherArgs = "steam://rungameid/123"
+        };
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")));
+
+        var result = await service.LaunchAsync(item, recordStatistics: false);
+
+        Assert.Equal(LaunchOutcome.Started, result.Outcome);
+        Assert.False(result.WasSessionTracked);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_DoesNotMarkFailedSteamHandoffAsTrackedSession()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var steamPath = temp.CreateFile("steam", "#!/bin/sh\nexit 23\n");
+        File.SetUnixFileMode(
+            steamPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = new MediaItem("Failed Steam handoff")
+        {
+            MediaType = MediaType.Command,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = steamPath
+                }
+            ],
+            LauncherArgs = "steam://rungameid/123"
+        };
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")));
+
+        var result = await service.LaunchAsync(item, recordStatistics: false);
+
+        Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.Equal(23, result.ExitCode);
+        Assert.False(result.WasSessionTracked);
+    }
+
+    [Theory]
+    [InlineData("steam", "steam://rungameid/123")]
+    [InlineData("heroic", "epic://example")]
+    [InlineData("steam://rungameid/123", "")]
+    [InlineData("xdg-open", "heroic://example")]
+    public void IsDelegatedCommand_RecognizesStoreAndProtocolHandoffs(string target, string arguments)
+    {
+        var item = new MediaItem("Delegated command")
+        {
+            MediaType = MediaType.Command,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = target
+                }
+            ],
+            LauncherArgs = arguments
+        };
+
+        Assert.True(LauncherService.IsDelegatedCommand(item));
+    }
+
+    [Fact]
+    public void IsDelegatedCommand_DoesNotClassifyRegularCommandAsHandoff()
+    {
+        var item = new MediaItem("Regular command")
+        {
+            MediaType = MediaType.Command,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = "/usr/bin/example-game"
+                }
+            ]
+        };
+
+        Assert.False(LauncherService.IsDelegatedCommand(item));
+    }
+
+    [Fact]
     public async Task LaunchAsync_PersistsCopyableLogAndRedactsSecrets()
     {
         if (!OperatingSystem.IsLinux())

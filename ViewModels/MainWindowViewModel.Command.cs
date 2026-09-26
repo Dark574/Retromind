@@ -22,6 +22,7 @@ namespace Retromind.ViewModels;
 public partial class MainWindowViewModel
 {
     private const int BulkSortedInsertThreshold = 32;
+    private static readonly TimeSpan DelegatedLaunchGuardDuration = TimeSpan.FromSeconds(10);
 
     public enum NodeDropPosition
     {
@@ -291,6 +292,9 @@ public partial class MainWindowViewModel
     {
         get
         {
+            if (IsDelegatedLaunchPending)
+                return T("Button.Launching", "Starting...");
+
             var item = GetCurrentSelectedItem();
             if (ShouldOfferInstallForItem(item))
                 return T("Button_Install", "Install");
@@ -961,6 +965,10 @@ public partial class MainWindowViewModel
         if (IsLaunchInProgress)
             return null;
 
+        var isDelegatedLaunch = string.IsNullOrWhiteSpace(item.OverrideWatchProcess) &&
+                                LauncherService.IsDelegatedCommand(item);
+        var launchGuardStartedAt = Stopwatch.GetTimestamp();
+        IsDelegatedLaunchPending = isDelegatedLaunch;
         IsLaunchInProgress = true;
         
         // Stop music immediately for responsiveness
@@ -1099,8 +1107,13 @@ public partial class MainWindowViewModel
                 }
             }
 
-            // Resume selection music after game exit in either desktop content view.
-            if (ReferenceEquals(GetCurrentSelectedItem(), item))
+            var delegatedLaunchSucceeded = isDelegatedLaunch &&
+                                           launchResult.Outcome == LaunchOutcome.Started &&
+                                           !launchResult.WasSessionTracked;
+
+            // A delegated store handoff has no reliable game-exit boundary. Do
+            // not restart preview music while the external game is still opening.
+            if (!delegatedLaunchSucceeded && ReferenceEquals(GetCurrentSelectedItem(), item))
             {
                 var contextNode = GetSelectionMusicContextNode(item);
                 await PlaySelectionMusicAsync(item, contextNode);
@@ -1128,6 +1141,14 @@ public partial class MainWindowViewModel
                 }
             }
 
+            if (delegatedLaunchSucceeded)
+            {
+                var elapsed = Stopwatch.GetElapsedTime(launchGuardStartedAt);
+                var remaining = DelegatedLaunchGuardDuration - elapsed;
+                if (remaining > TimeSpan.Zero)
+                    await Task.Delay(remaining);
+            }
+
             return launchResult;
         }
         catch (Exception ex)
@@ -1137,6 +1158,7 @@ public partial class MainWindowViewModel
         }
         finally
         {
+            IsDelegatedLaunchPending = false;
             IsLaunchInProgress = false;
         }
     }

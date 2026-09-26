@@ -39,6 +39,7 @@
     <data name="Button.Ok" xml:space="preserve"><value>OK</value></data>
     <data name="Button.Install" xml:space="preserve"><value>Installieren</value></data>
     <data name="Button.Play" xml:space="preserve"><value>▶ START</value></data>
+    <data name="Button.Launching" xml:space="preserve"><value>WIRD GESTARTET...</value></data>
     <data name="Button.Save" xml:space="preserve"><value>Speichern</value></data>
     <data name="Button.Apply" xml:space="preserve"><value>Anwenden</value></data>
     <data name="Button.TakeOver" xml:space="preserve"><value>Übernehmen</value></data>

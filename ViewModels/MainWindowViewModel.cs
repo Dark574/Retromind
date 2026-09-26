@@ -102,6 +102,10 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLaunchIdle))]
     private bool _isLaunchInProgress;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PlaySelectedMediaButtonText))]
+    private bool _isDelegatedLaunchPending;
     
     /// <summary>
     /// True if no launch is currently running. Can be used to enable/disable UI elements.

@@ -351,13 +351,16 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 - reports launch-plan and process-start failures to the caller for visible user feedback
 - waits up to 60 seconds for a configured `OverrideWatchProcess` and reports separately when the launcher starts
   but the expected game process never appears; already-running processes remain a neutral, untracked case
+- treats Steam, Heroic, and URI commands without `OverrideWatchProcess` as delegated handoffs: a successful
+  handoff updates play count and last-played once, but does not record the launcher's lifetime as game playtime
+  or expose it as a reliable game-exit boundary
 - captures a bounded tail of stdout/stderr for direct process starts and includes it in missing-process or
   non-zero-exit feedback within ten seconds of process start; shell-based launches remain limited to
   operating-system start diagnostics
 - writes one atomically replaced diagnostic log per media item below `DataRoot/Logs/Launch`; an initial record
   is persisted after process handoff and finalized with outcome, runtime, exit code, and captured output, while
   likely secret environment values and command arguments are redacted
-- session tracking updates playtime/playcount after launch
+- direct or explicitly watched game sessions update playtime and play count after launch
 - GOG launch detection prefers local or account `playTasks` metadata and preserves its executable,
   arguments, and working directory before falling back to filesystem heuristics; this is important for
   installer-supplied DOSBox configurations
