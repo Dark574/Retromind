@@ -1,5 +1,7 @@
 FROM debian:bookworm
 
+LABEL org.retromind.appimage-builder="true"
+
 # Full AppImage build toolchain in Debian 12 (bookworm):
 # - dotnet publish (self-contained)
 # - VLC / LibVLC runtime export

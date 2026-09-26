@@ -146,6 +146,14 @@ The version is read from `InformationalVersion` in `Retromind.csproj`. The build
 - `dist/Retromind-<version>-linux-x86_64.AppImage`
 - `dist/Retromind-<version>-linux-x86_64.AppImage.zsync`
 
+The script uses an isolated Buildx builder named `retromind-appimage`. After a successful build it removes
+obsolete Retromind builder images and limits this builder's cache to 20 GB. The limit can be changed for a
+single build without affecting other Docker builders:
+
+```bash
+RETROMIND_BUILDX_CACHE_LIMIT=10gb ./build/build-appimage.sh
+```
+
 ## Build & Run
 ### IDE
 
