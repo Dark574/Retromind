@@ -62,7 +62,7 @@
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Hauptmenü</value></data>
     <data name="BigMode.Home.Title" xml:space="preserve"><value>Start</value></data>
-    <data name="BigMode.Home.Hint" xml:space="preserve"><value>Y / Dreieck · Bibliothek    A / Kreuz · Öffnen</value></data>
+    <data name="BigMode.Home.Hint" xml:space="preserve"><value>Y / Dreieck / Pos1 · Bibliothek    A / Kreuz / Enter · Öffnen</value></data>
     <data name="BigMode.Home.Library.Back" xml:space="preserve"><value>Zurück</value></data>
     <data name="BigMode.Home.Library.Open" xml:space="preserve"><value>Öffnen</value></data>
     <data name="BigMode.Home.Library.Overview" xml:space="preserve"><value>Bibliotheksübersicht</value></data>

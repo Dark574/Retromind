@@ -32,7 +32,7 @@ public partial class BigModeViewModel
     public string HomeLabel => T("BigMode.Home.Title", "Home");
     public string HomeHintText => T(
         "BigMode.Home.Hint",
-        "Y / Triangle · Library    A / Cross · Open");
+        "Y / Triangle / Home · Library    A / Cross / Enter · Open");
 
     [ObservableProperty]
     private bool _isHomeActive;
