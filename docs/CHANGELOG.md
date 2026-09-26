@@ -27,6 +27,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - honor the GOG installer-retention choice for automatically reinstalled DLC packages
 - restore live stdout/stderr forwarding for launched games while retaining early-failure diagnostics
 - validate selected runners before launch
+- restore BigMode focus after tracked game sessions
 
 ---
 

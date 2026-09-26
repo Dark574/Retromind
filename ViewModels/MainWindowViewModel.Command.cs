@@ -438,9 +438,6 @@ public partial class MainWindowViewModel
             IsParentalFilterActive);
         _activeBigModeViewModel = bigVm;
 
-        // Connect launch requests from BigMode to the central Play logic
-        bigVm.RequestPlay += async item => await PlayMediaAsync(item);
-        
         var host = new BigModeHostView
         {
             DataContext = bigVm,
@@ -448,6 +445,11 @@ public partial class MainWindowViewModel
             Opacity = 0,
             IsHitTestVisible = false
         };
+
+        // Only a tracked session has a reliable game-end boundary. Restoring
+        // focus after an untracked protocol launch could steal it from a game
+        // which is still starting through Steam or Heroic.
+        bigVm.RequestPlay += item => PlayMediaFromBigModeAsync(item, bigVm, host);
 
         // Attach the host while hidden so fullscreen sizing, virtualized carousel
         // realization and initial artwork loading can settle without a visible rebuild.
@@ -546,6 +548,35 @@ public partial class MainWindowViewModel
 
         if (bigVm.CurrentCategories.Any() && bigVm.SelectedCategory == null)
             bigVm.SelectedCategory = bigVm.CurrentCategories.First();
+    }
+
+    private async Task PlayMediaFromBigModeAsync(
+        MediaItem item,
+        BigModeViewModel bigVm,
+        BigModeHostView host)
+    {
+        var result = await PlayMediaAsync(item);
+        if (result?.WasSessionTracked == true)
+            await RestoreBigModeAfterLaunchAsync(bigVm, host);
+    }
+
+    private async Task RestoreBigModeAfterLaunchAsync(BigModeViewModel bigVm, BigModeHostView host)
+    {
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            if (!ReferenceEquals(_activeBigModeViewModel, bigVm) ||
+                !ReferenceEquals(FullScreenContent, host) ||
+                CurrentWindow is not { } window)
+            {
+                return;
+            }
+
+            if (window.WindowState != WindowState.FullScreen)
+                window.WindowState = WindowState.FullScreen;
+
+            window.Activate();
+            host.Focus();
+        }, DispatcherPriority.Input);
     }
     
     private void UpdateBigModeStateFromCoreSelection(MediaNode node, MediaItem? selectedItem)
@@ -918,17 +949,17 @@ public partial class MainWindowViewModel
     private Task TestPlayMediaAsync(MediaItem? item)
         => PlayMediaAsync(item, recordStatistics: false);
 
-    private async Task PlayMediaAsync(MediaItem? item, bool recordStatistics = true)
+    private async Task<LaunchResult?> PlayMediaAsync(MediaItem? item, bool recordStatistics = true)
     {
         if (item == null)
-            return;
+            return null;
 
         if (!CanPlayMedia(item))
-            return;
+            return null;
 
         // Global launch guard: ignore additional requests while one is in progress.
         if (IsLaunchInProgress)
-            return;
+            return null;
 
         IsLaunchInProgress = true;
         
@@ -940,7 +971,7 @@ public partial class MainWindowViewModel
             if (ShouldOfferInstallForItem(item))
             {
                 await InstallGogItemAsync(item);
-                return;
+                return null;
             }
 
             EmulatorConfig? emulator = null;
@@ -950,7 +981,7 @@ public partial class MainWindowViewModel
             }
 
             var trueParent = FindParentNode(RootItems, item) ?? SelectedNode;
-            if (trueParent == null) return;
+            if (trueParent == null) return null;
 
             var nodePath = PathHelper.GetNodePath(trueParent, RootItems);
 
@@ -990,7 +1021,7 @@ public partial class MainWindowViewModel
                     await ShowInfoDialog(owner, string.Format(format, item.Title, runnerValidationError));
                 }
 
-                return;
+                return null;
             }
 
             // Native wrapper resolution (emulator -> node -> item)
@@ -1096,10 +1127,13 @@ public partial class MainWindowViewModel
                     _ = RetroAchievementsProgress.SelectItemAsync(item, forceRefresh: true);
                 }
             }
+
+            return launchResult;
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[Error] PlayMedia failed: {ex.Message}");
+            return null;
         }
         finally
         {
