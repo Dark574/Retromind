@@ -13,6 +13,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - show resolved emulator paths and Wine versions
 - Add per-game launch diagnostics
 - add a configurable BigMode Home screen with recently played, favorites, and library rows across all shipped themes
+- add unobtrusive getting-started help
 
 ### Changed
 - allow selecting which installed GOG DLCs are restored by a clean reinstall
