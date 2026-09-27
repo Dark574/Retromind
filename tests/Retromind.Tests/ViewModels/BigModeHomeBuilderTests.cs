@@ -79,7 +79,7 @@ public sealed class BigModeHomeBuilderTests
     }
 
     [Fact]
-    public void Build_LimitsItemRowsButNotRootLibraryRow()
+    public void Build_LimitsRecentRowAndPagesFavoritesWithoutLimitingLibraryRow()
     {
         var root = new MediaNode { Name = "Games" };
         for (var index = 0; index < 5; index++)
@@ -103,6 +103,21 @@ public sealed class BigModeHomeBuilderTests
 
         Assert.Equal(2, sections[0].Entries.Count);
         Assert.Equal(2, sections[1].Entries.Count);
+        Assert.True(sections[1].IsPaged);
+        Assert.Equal(3, sections[1].PageCount);
+        Assert.Equal("1/3", sections[1].PageIndicator);
+        Assert.True(sections[1].MovePage(1, selectLastEntry: false));
+        Assert.Equal("2/3", sections[1].PageIndicator);
+        Assert.Equal(["Game 2", "Game 1"], sections[1].Entries.Select(entry => entry.Title));
+        Assert.True(sections[1].MovePage(1, selectLastEntry: false));
+        Assert.Equal("3/3", sections[1].PageIndicator);
+        Assert.Equal("Game 0", Assert.Single(sections[1].Entries).Title);
+        Assert.True(sections[1].MovePage(1, selectLastEntry: false));
+        Assert.Equal("1/3", sections[1].PageIndicator);
+        Assert.Equal(["Game 4", "Game 3"], sections[1].Entries.Select(entry => entry.Title));
+        Assert.True(sections[1].MovePage(-1, selectLastEntry: true));
+        Assert.Equal("3/3", sections[1].PageIndicator);
+        Assert.Equal("Game 0", sections[1].SelectedEntry?.Title);
         Assert.Single(sections[2].Entries);
     }
 

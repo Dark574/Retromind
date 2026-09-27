@@ -32,6 +32,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - restore BigMode focus after tracked game sessions
 - avoid treating Steam, Heroic, and URI launcher handoffs as completed game sessions
 - keep delegated store launches guarded while the external game is starting
+- restore Home selection highlight and page favorites
 
 ---
 

@@ -98,11 +98,14 @@ public partial class BigModeViewModel
         var selectedSection = HomeSections.FirstOrDefault(section =>
                                   string.Equals(section.Title, previousSectionTitle, StringComparison.CurrentCulture))
                               ?? HomeSections.FirstOrDefault();
-        var selectedEntry = selectedSection?.Entries.FirstOrDefault(entry =>
+        var selectedEntry = selectedSection?.FindEntry(entry =>
                                 entry.Kind == previousKind &&
                                 ((previousItem != null && ReferenceEquals(entry.Item, previousItem)) ||
                                  (previousNode != null && ReferenceEquals(entry.Node, previousNode))))
                             ?? selectedSection?.Entries.FirstOrDefault();
+
+        if (selectedSection != null && selectedEntry != null)
+            selectedSection.RevealEntry(selectedEntry);
 
         SelectedHomeSection = selectedSection;
         SelectedHomeEntry = selectedEntry;
@@ -327,6 +330,15 @@ public partial class BigModeViewModel
             entryIndex = 0;
 
         var entryDelta = direction == GamepadService.GamepadDirection.Left ? -1 : 1;
+
+        if (section.IsPaged &&
+            ((entryDelta < 0 && entryIndex == 0) ||
+             (entryDelta > 0 && entryIndex == section.Entries.Count - 1)))
+        {
+            section.MovePage(entryDelta, selectLastEntry: entryDelta < 0);
+            return;
+        }
+
         entryIndex = (entryIndex + entryDelta + section.Entries.Count) % section.Entries.Count;
         section.SelectedEntry = section.Entries[entryIndex];
     }

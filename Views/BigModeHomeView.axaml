@@ -43,7 +43,7 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
         </Style>
-        <Style Selector="ListBox.bm-home-sections ListBoxItem">
+        <Style Selector="ListBox.bm-home-sections > ListBoxItem">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -158,7 +158,7 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:BigModeHomeSectionViewModel">
                                 <StackPanel Margin="0,0,0,18" Spacing="10">
-                                    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+                                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
                                         <Border Classes="bm-home-section-marker"
                                                 Width="34"
                                                 Height="4"
@@ -177,6 +177,41 @@
                                                    TextTrimming="CharacterEllipsis"
                                                    HorizontalAlignment="Right"
                                                    VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="3"
+                                                    Orientation="Horizontal"
+                                                    Spacing="8"
+                                                    VerticalAlignment="Center"
+                                                    IsVisible="{Binding IsPaged}">
+                                            <Button Command="{Binding PreviousPageCommand}"
+                                                    Content="‹"
+                                                    Width="30"
+                                                    Height="26"
+                                                    Padding="0"
+                                                    FontSize="18"
+                                                    Foreground="#9CEEFF"
+                                                    Background="#70121825"
+                                                    BorderBrush="#5962E6FF"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6" />
+                                            <TextBlock Text="{Binding PageIndicator}"
+                                                       MinWidth="42"
+                                                       Foreground="#9CEEFF"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       TextAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                            <Button Command="{Binding NextPageCommand}"
+                                                    Content="›"
+                                                    Width="30"
+                                                    Height="26"
+                                                    Padding="0"
+                                                    FontSize="18"
+                                                    Foreground="#9CEEFF"
+                                                    Background="#70121825"
+                                                    BorderBrush="#5962E6FF"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6" />
+                                        </StackPanel>
                                     </Grid>
                                     <ListBox Classes="bm-home-row"
                                              ItemsSource="{Binding Entries}"

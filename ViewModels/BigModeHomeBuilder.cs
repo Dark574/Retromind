@@ -54,10 +54,15 @@ public static class BigModeHomeBuilder
             .Where(entry => entry.Item.IsFavorite)
             .OrderByDescending(entry => entry.Item.LastPlayed)
             .ThenBy(entry => entry.Item.Title, StringComparer.CurrentCultureIgnoreCase)
-            .Take(itemLimit)
             .Select(entry => CreateItemEntry(entry.Item, entry.SourceNode, entry.SourceNode.Name))
-            .ToObservableCollection();
-        AddNonEmptySection(sections, favoritesTitle, favorites);
+            .ToArray();
+        if (favorites.Length > 0)
+        {
+            sections.Add(new BigModeHomeSectionViewModel(
+                favoritesTitle,
+                favorites,
+                itemLimit));
+        }
 
         if (visibleRoots.Length > 0)
         {
