@@ -44,6 +44,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private readonly Stack<MediaNode> _navigationPath = new();
 
     private bool _isLaunching;
+    private bool _isCloseRequestInProgress;
 
     // --- Video (VLC + surfaces + players) ---
     private readonly LibVlcVideoSurface _videoSurfaceA;
@@ -421,7 +422,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     
     public ICommand ForceExitCommand { get; }
 
-    public event Action? RequestClose;
+    public event Func<Task>? RequestClose;
     public event Func<MediaItem, Task>? RequestPlay;
 
     public BigModeViewModel(
@@ -532,11 +533,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         _secondaryPlayer.EndReached += OnSecondaryBackgroundEndReached;
 
-        ForceExitCommand = new RelayCommand(() =>
-        {
-            if (!_isLaunching)
-                RequestClose?.Invoke();
-        });
+        ForceExitCommand = new AsyncRelayCommand(RequestBigModeCloseAsync);
 
         // Subscribe to gamepad events (raised on SDL thread; handler methods must marshal if they touch UI state)
         _gamepadService.OnDirectionStateChanged += OnGamepadDirectionStateChanged;

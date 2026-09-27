@@ -76,7 +76,7 @@ public partial class BigModeViewModel
             }
 
             PlaySound(_theme.Sounds.Cancel);
-            ExitBigMode();
+            _ = ExitBigMode();
         });
 
     private void OnGamepadDetails()
@@ -104,13 +104,30 @@ public partial class BigModeViewModel
     /// while gamepad back keeps its step-by-step behavior.
     /// </summary>
     [RelayCommand]
-    private void HardExitBigMode()
+    private Task HardExitBigMode() => RequestBigModeCloseAsync();
+
+    private async Task RequestBigModeCloseAsync()
     {
-        if (_isLaunching)
+        if (_isLaunching || _isCloseRequestInProgress)
             return;
 
-        ThemeContextNode = null;
-        RequestClose?.Invoke();
+        var requestClose = RequestClose;
+        if (requestClose == null)
+            return;
+
+        _isCloseRequestInProgress = true;
+        StopGamepadRepeatTimer();
+
+        try
+        {
+            await requestClose();
+        }
+        finally
+        {
+            // On successful teardown this instance is no longer reachable. If the
+            // owner could not close it, allow a later attempt instead of stranding it.
+            _isCloseRequestInProgress = false;
+        }
     }
     
     /// <summary>
@@ -466,7 +483,7 @@ public partial class BigModeViewModel
     }
 
     [RelayCommand]
-    private void ExitBigMode()
+    private async Task ExitBigMode()
     {
         if (_isLaunching)
             return;
@@ -475,7 +492,7 @@ public partial class BigModeViewModel
 
         if (IsHomeActive)
         {
-            RequestClose?.Invoke();
+            await RequestBigModeCloseAsync();
             return;
         }
         
@@ -514,8 +531,7 @@ public partial class BigModeViewModel
         // If we are already at root, exit BigMode completely.
         if (_navigationStack.Count == 0 && _navigationPath.Count == 0)
         {
-            ThemeContextNode = null;
-            RequestClose?.Invoke();
+            await RequestBigModeCloseAsync();
             return;
         }
 
@@ -538,7 +554,6 @@ public partial class BigModeViewModel
             return;
         }
 
-        ThemeContextNode = null;
-        RequestClose?.Invoke();
+        await RequestBigModeCloseAsync();
     }
 }
