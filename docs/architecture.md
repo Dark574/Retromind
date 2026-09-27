@@ -378,6 +378,11 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   termination, stdout/stderr draining, known MojoSetup/Wine error classification, the temporary Konsole
   compatibility shim, and Wine-prefix diagnostics. Installer output is reported through a callback so this
   infrastructure service remains independent of Avalonia and process-log view models
+- `GogInstallerExecutionService` owns the platform installation workflow. Its Linux path selects compatibility
+  argument profiles, falls back to extracted `startmojo.sh`, isolates shell-sensitive destination paths,
+  promotes temporary installs while preserving Unix modes, repairs relocated MojoSetup metadata, and validates
+  that DLC installers actually changed the payload. Shared payload snapshots are provided by
+  `GogInstallPayloadTracker`; the Windows workflow is migrated to this boundary incrementally
 
 Winetricks follows the same application/infrastructure boundary. `EditMediaViewModel` resolves the effective
 item/emulator environment and owns the process-log window, while `WinetricksService` owns prefix preparation,

@@ -173,6 +173,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Services/Stores/Gog/GogInstallService.cs` (installer metadata + downlink resolution + package download)
 - `Services/Stores/Gog/GogLaunchDetectionService.cs` (installed launch metadata + filesystem fallbacks)
 - `Services/Stores/Gog/GogInstallerProcessService.cs` (process execution, cancellation, shims + diagnostics)
+- `Services/Stores/Gog/GogInstallerExecutionService.cs` (platform-specific installer workflows)
+- `Services/Stores/Gog/GogInstallPayloadTracker.cs` (installer payload change detection)
 - `Services/Stores/Gog/Auth/GogAuthService.cs` (interactive sign-in + refresh implemented)
 - `Services/Stores/Gog/Auth/GogOAuthClient.cs` (authorize URL + token/account HTTP flows implemented)
 - `Services/Stores/Gog/Auth/GogOAuthLoopbackListener.cs` (callback listener implemented)

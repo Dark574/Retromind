@@ -804,7 +804,6 @@ public partial class MainWindowViewModel
     }
 
     private sealed record InstallerRunResult(bool Success, string? ErrorMessage = null);
-    private sealed record LinuxInstallerArgumentProfile(string Name, IReadOnlyList<string> Arguments);
     private sealed record WindowsInstallerArgumentProfile(
         string Name,
         string? DirectoryArgumentPrefix,
@@ -848,172 +847,17 @@ public partial class MainWindowViewModel
 
             if (request.Platform == GogInstallPlatform.Linux)
             {
-                var linuxPayloadBaseline = requireLinuxPayloadChange
-                    ? CaptureInstallPayloadSnapshot(request.InstallPath)
-                    : default;
-                var installerPath = downloadedPackage.EntryFilePath;
-                if (!File.Exists(installerPath))
-                    return Fail("Linux installer entry file was not found.");
-
-                if (OperatingSystem.IsLinux())
-                {
-                    try
-                    {
-                        File.SetUnixFileMode(
-                            installerPath,
-                            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                            UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                            UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
-                    }
-                    catch
-                    {
-                        // best-effort: installer might still be executable
-                    }
-                }
-
-                AppendProcessLog(logVm, $"Install path: {request.InstallPath}", installerLogPath);
-                AppendProcessLog(logVm, $"Staging path: {downloadedPackage.StagingDirectory}", installerLogPath);
-                var effectiveInstallPath = useTemporaryLinuxDestination
-                    ? ResolveSafeLinuxInstallerDestinationPath(request.InstallPath, storeGameId)
-                    : request.InstallPath;
-                string? existingInstallAlias = null;
-                if (!useTemporaryLinuxDestination &&
-                    OperatingSystem.IsLinux() &&
-                    HasShellSensitivePathCharacters(request.InstallPath))
-                {
-                    try
-                    {
-                        existingInstallAlias = CreateSafeLinuxInstallerDestinationAlias(
-                            request.InstallPath,
-                            storeGameId);
-                        effectiveInstallPath = existingInstallAlias;
-                        AppendProcessLog(
-                            logVm,
-                            $"Installer destination (safe alias): {effectiveInstallPath}",
-                            installerLogPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        return Fail($"Could not create a safe Linux installer destination alias: {ex.Message}");
-                    }
-                }
-
-                var usesTemporaryInstallPath = useTemporaryLinuxDestination &&
-                    !PathsEqual(effectiveInstallPath, request.InstallPath);
-                if (usesTemporaryInstallPath)
-                {
-                    Directory.CreateDirectory(effectiveInstallPath);
-                    AppendProcessLog(logVm, $"Installer destination (temporary): {effectiveInstallPath}", installerLogPath);
-                }
-
                 Action<string> appendInstallerLog = line => AppendProcessLog(logVm, line, installerLogPath);
-                var linuxCompatibilityEnvironment = _gogInstallerProcessService
-                    .PrepareLinuxCompatibilityEnvironment(appendInstallerLog);
-                try
-                {
-                    var linuxProfiles = BuildLinuxInstallerArgumentProfiles(effectiveInstallPath);
-                    var profileSucceeded = false;
-                    for (var i = 0; i < linuxProfiles.Count; i++)
-                    {
-                        var profile = linuxProfiles[i];
-                        var startInfo = _gogInstallerProcessService.CreateStartInfo(downloadedPackage.StagingDirectory);
-                        GogInstallerProcessService.ApplyLinuxCompatibilityEnvironment(startInfo, linuxCompatibilityEnvironment);
-                        startInfo.FileName = installerPath;
-                        foreach (var argument in profile.Arguments)
-                            startInfo.ArgumentList.Add(argument);
-
-                        AppendProcessLog(logVm, $"[Linux installer] Attempt {i + 1}/{linuxProfiles.Count} ({profile.Name})", installerLogPath);
-                        AppendProcessLog(logVm, $"> {GogInstallerProcessService.FormatCommand(startInfo)}", installerLogPath);
-
-                        var execution = await _gogInstallerProcessService.ExecuteAsync(
-                            startInfo,
-                            appendInstallerLog,
-                            ct).ConfigureAwait(false);
-                        if (!execution.Started)
-                            return Fail(execution.StartErrorMessage ?? "Installer process could not be started.");
-
-                        if (execution.ExitCode == 0)
-                        {
-                            profileSucceeded = true;
-                            break;
-                        }
-
-                        if (i < linuxProfiles.Count - 1 &&
-                            (execution.HasUnsupportedFlagsError || execution.HasShellParsingError || execution.HasTerminalSpawnError))
-                        {
-                            if (execution.HasUnsupportedFlagsError)
-                                AppendProcessLog(logVm, "Installer rejected flags, retrying with compatibility profile.");
-                            else if (execution.HasShellParsingError)
-                                AppendProcessLog(logVm, "Installer hit shell argument parsing issue, retrying with compatibility profile.");
-                            else
-                                AppendProcessLog(logVm, "Installer hit terminal launch issue, retrying with compatibility profile.");
-                            continue;
-                        }
-
-                        break;
-                    }
-
-                    if (!profileSucceeded)
-                    {
-                        AppendProcessLog(logVm, "[Linux installer] Fallback: extract mode (noexec + startmojo direct)", installerLogPath);
-                        var extractedFallbackResult = await RunLinuxInstallerViaExtractedStartMojoAsync(
-                            installerPath,
-                            downloadedPackage.StagingDirectory,
-                            effectiveInstallPath,
-                            linuxCompatibilityEnvironment,
-                            logVm,
-                            installerLogPath,
-                            ct).ConfigureAwait(false);
-                        if (!extractedFallbackResult.Success)
-                            return extractedFallbackResult;
-                    }
-                }
-                finally
-                {
-                    GogInstallerProcessService.CleanupLinuxCompatibilityEnvironment(linuxCompatibilityEnvironment);
-                    TryDeleteLinuxInstallerDestinationAlias(existingInstallAlias);
-                }
-
-                if (usesTemporaryInstallPath)
-                {
-                    AppendProcessLog(logVm, $"Promoting install from temporary path to requested path: {request.InstallPath}", installerLogPath);
-                    MoveDirectoryContentsOverwrite(effectiveInstallPath, request.InstallPath);
-                    TryDeleteDirectoryIfEmpty(effectiveInstallPath);
-
-                    try
-                    {
-                        var repairedFiles = GogLinuxInstallRelocationRepair.RepairMovedInstallation(
-                            request.InstallPath,
-                            effectiveInstallPath);
-                        if (repairedFiles > 0)
-                        {
-                            AppendProcessLog(
-                                logVm,
-                                $"Repaired {repairedFiles} relocated MojoSetup metadata file(s).",
-                                installerLogPath);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[GOG] Failed to repair relocated Linux installer metadata: {ex.Message}");
-                        AppendProcessLog(
-                            logVm,
-                            $"Warning: relocated MojoSetup metadata could not be repaired: {ex.Message}",
-                            installerLogPath);
-                    }
-                }
-
-                EnsureLinuxInstalledExecutablePermissionsBestEffort(request.InstallPath);
-
-                if (requireLinuxPayloadChange &&
-                    !HasInstallPayloadChanged(request.InstallPath, linuxPayloadBaseline))
-                {
-                    return Fail(
-                        "Linux installer exited without changing game files. " +
-                        "The installation may have been declined or cancelled.");
-                }
-
-                return Success();
+                var result = await _gogInstallerExecutionService.RunLinuxAsync(
+                    new GogLinuxInstallerExecutionRequest(
+                        storeGameId,
+                        request.InstallPath,
+                        downloadedPackage,
+                        useTemporaryLinuxDestination,
+                        requireLinuxPayloadChange),
+                    appendInstallerLog,
+                    ct).ConfigureAwait(false);
+                return new InstallerRunResult(result.Success, result.ErrorMessage);
             }
 
             if (request.Platform == GogInstallPlatform.Windows)
@@ -1042,8 +886,8 @@ public partial class MainWindowViewModel
                     return Fail("Windows installer entry file was not found.");
 
                 AppendProcessLog(logVm, $"[Windows installer] Using: {installerPath}", installerLogPath);
-                var payloadBaseline = CaptureInstallPayloadSnapshot(request.InstallPath);
-                var prefixPayloadBaseline = CaptureInstallPayloadSnapshot(prefixDrivePath);
+                var payloadBaseline = GogInstallPayloadTracker.Capture(request.InstallPath);
+                var prefixPayloadBaseline = GogInstallPayloadTracker.Capture(prefixDrivePath);
                 var profiles = BuildWindowsInstallerArgumentProfiles(
                     request.CreateDesktopShortcut,
                     request.CreateStartMenuShortcuts);
@@ -1120,9 +964,11 @@ public partial class MainWindowViewModel
                         $"[Windows installer] Process outcome: exit={windowsExecution.ExitCode}, durationMs={windowsExecution.DurationMs}, runtimeCrash={windowsExecution.HasRuntimeCrashError}, unsupportedFlags={windowsExecution.HasUnsupportedFlagsError}, shellParse={windowsExecution.HasShellParsingError}, terminalSpawn={windowsExecution.HasTerminalSpawnError}",
                         installerLogPath);
 
-                    var payloadDetected = await WaitForWindowsInstallPayloadChangeAsync(
+                    var payloadDetected = await GogInstallPayloadTracker.WaitForChangeAsync(
                         request.InstallPath,
-                        payloadBaseline).ConfigureAwait(false);
+                        payloadBaseline,
+                        TimeSpan.FromSeconds(25),
+                        ct).ConfigureAwait(false);
                     if (payloadDetected)
                     {
                         if (attemptIndex > 0)
@@ -1152,7 +998,7 @@ public partial class MainWindowViewModel
                     return Fail("Windows installer exited with code " + lastExecution.ExitCode + " and did not place files.");
                 }
 
-                if (HasInstallPayloadChanged(prefixDrivePath, prefixPayloadBaseline))
+                if (GogInstallPayloadTracker.HasChanged(prefixDrivePath, prefixPayloadBaseline))
                 {
                     AppendProcessLog(
                         logVm,
@@ -1189,25 +1035,6 @@ public partial class MainWindowViewModel
             AppendProcessLog(logVm, $"Error: {ex.Message}");
             return Fail(ex.Message);
         }
-    }
-
-    private static List<LinuxInstallerArgumentProfile> BuildLinuxInstallerArgumentProfiles(string installPath)
-    {
-        return
-        [
-            new LinuxInstallerArgumentProfile(
-                "makeself-pass-through",
-                ["--nox11", "--", "--i-agree-to-all-licenses", "--noreadme", "--destination", installPath]),
-            new LinuxInstallerArgumentProfile(
-                "legacy-direct",
-                ["--nox11", "--i-agree-to-all-licenses", "--noreadme", "--destination", installPath]),
-            new LinuxInstallerArgumentProfile(
-                "pass-through-destination-only",
-                ["--nox11", "--", "--destination", installPath]),
-            new LinuxInstallerArgumentProfile(
-                "legacy-destination-only",
-                ["--nox11", "--destination", installPath])
-        ];
     }
 
     private async Task<bool> ValidateGogInstallRuntimeRequirementsAsync(
@@ -1443,369 +1270,6 @@ public partial class MainWindowViewModel
         return $@"Z:\{windowsSlashes.TrimStart('\\')}";
     }
 
-    private readonly struct InstallPayloadSnapshot(
-        int fileCount,
-        long totalSize,
-        DateTimeOffset latestWriteUtc,
-        ulong metadataFingerprint)
-    {
-        public int FileCount { get; } = fileCount;
-        public long TotalSize { get; } = totalSize;
-        public DateTimeOffset LatestWriteUtc { get; } = latestWriteUtc;
-        public ulong MetadataFingerprint { get; } = metadataFingerprint;
-    }
-
-    private static async Task<bool> WaitForWindowsInstallPayloadChangeAsync(
-        string installPath,
-        InstallPayloadSnapshot baseline)
-    {
-        if (HasInstallPayloadChanged(installPath, baseline))
-            return true;
-
-        var timeoutAt = DateTimeOffset.UtcNow.AddSeconds(25);
-        while (DateTimeOffset.UtcNow < timeoutAt)
-        {
-            await Task.Delay(500).ConfigureAwait(false);
-            if (HasInstallPayloadChanged(installPath, baseline))
-                return true;
-        }
-
-        return HasInstallPayloadChanged(installPath, baseline);
-    }
-
-    private static bool HasInstallPayloadChanged(string installPath, InstallPayloadSnapshot baseline)
-    {
-        var current = CaptureInstallPayloadSnapshot(installPath);
-        return current.FileCount != baseline.FileCount ||
-               current.TotalSize != baseline.TotalSize ||
-               current.LatestWriteUtc != baseline.LatestWriteUtc ||
-               current.MetadataFingerprint != baseline.MetadataFingerprint;
-    }
-
-    private static InstallPayloadSnapshot CaptureInstallPayloadSnapshot(string installPath)
-    {
-        if (string.IsNullOrWhiteSpace(installPath) || !Directory.Exists(installPath))
-            return default;
-
-        try
-        {
-            var fileCount = 0;
-            long totalSize = 0;
-            var latestWriteUtc = DateTimeOffset.MinValue;
-            ulong metadataFingerprint = 0;
-            foreach (var file in Directory.EnumerateFiles(installPath, "*", SearchOption.AllDirectories))
-            {
-                var relativePath = Path.GetRelativePath(installPath, file);
-                if (IsInsideInstallerStaging(file) ||
-                    relativePath.StartsWith($".mojosetup{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var fileInfo = new FileInfo(file);
-                fileCount++;
-                totalSize += fileInfo.Length;
-                var writeUtc = fileInfo.LastWriteTimeUtc;
-                if (writeUtc > latestWriteUtc.UtcDateTime)
-                    latestWriteUtc = new DateTimeOffset(writeUtc, TimeSpan.Zero);
-
-                metadataFingerprint ^= BuildInstallFileMetadataFingerprint(
-                    relativePath,
-                    fileInfo.Length,
-                    writeUtc.Ticks);
-            }
-
-            return new InstallPayloadSnapshot(fileCount, totalSize, latestWriteUtc, metadataFingerprint);
-        }
-        catch
-        {
-            return default;
-        }
-    }
-
-    private static ulong BuildInstallFileMetadataFingerprint(
-        string relativePath,
-        long length,
-        long lastWriteTicks)
-    {
-        const ulong offsetBasis = 14695981039346656037UL;
-        const ulong prime = 1099511628211UL;
-        unchecked
-        {
-            var hash = offsetBasis;
-
-            foreach (var ch in relativePath)
-            {
-                hash ^= (byte)ch;
-                hash *= prime;
-                hash ^= (byte)(ch >> 8);
-                hash *= prime;
-            }
-
-            for (var shift = 0; shift < 64; shift += 8)
-            {
-                hash ^= (byte)(length >> shift);
-                hash *= prime;
-                hash ^= (byte)(lastWriteTicks >> shift);
-                hash *= prime;
-            }
-
-            return hash;
-        }
-    }
-
-    private static string ResolveSafeLinuxInstallerDestinationPath(string requestedInstallPath, string storeGameId)
-    {
-        if (!HasShellSensitivePathCharacters(requestedInstallPath))
-            return requestedInstallPath;
-
-        var safeId = string.IsNullOrWhiteSpace(storeGameId)
-            ? "gog"
-            : new string(storeGameId.Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_').ToArray());
-        if (string.IsNullOrWhiteSpace(safeId))
-            safeId = "gog";
-
-        var safeRoot = Path.Combine(Path.GetTempPath(), "retromind-gog-install", safeId);
-        Directory.CreateDirectory(safeRoot);
-        return Path.Combine(
-            safeRoot,
-            $"install-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}");
-    }
-
-    private static string CreateSafeLinuxInstallerDestinationAlias(
-        string requestedInstallPath,
-        string storeGameId)
-    {
-        var safeId = string.IsNullOrWhiteSpace(storeGameId)
-            ? "gog"
-            : new string(storeGameId.Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_').ToArray());
-        if (string.IsNullOrWhiteSpace(safeId))
-            safeId = "gog";
-
-        var aliasRoot = Path.Combine(Path.GetTempPath(), "retromind-gog-install-targets");
-        Directory.CreateDirectory(aliasRoot);
-        var aliasPath = Path.Combine(aliasRoot, $"{safeId}-{Guid.NewGuid():N}");
-        Directory.CreateSymbolicLink(aliasPath, Path.GetFullPath(requestedInstallPath));
-        return aliasPath;
-    }
-
-    private static void TryDeleteLinuxInstallerDestinationAlias(string? aliasPath)
-    {
-        if (string.IsNullOrWhiteSpace(aliasPath))
-            return;
-
-        try
-        {
-            File.Delete(aliasPath);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GOG] Failed to delete Linux installer destination alias '{aliasPath}': {ex.Message}");
-        }
-    }
-
-    private static bool HasShellSensitivePathCharacters(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return false;
-
-        foreach (var ch in path)
-        {
-            if (ch is ' ' or '\t' or '\r' or '\n' or '(' or ')' or '\'' or '"' or '`' or '$' or '&' or ';' or '|' or '<' or '>' or '*' or '?' or '[' or ']' or '{' or '}' or '!')
-                return true;
-        }
-
-        return false;
-    }
-
-    private async Task<InstallerRunResult> RunLinuxInstallerViaExtractedStartMojoAsync(
-        string installerPath,
-        string installerWorkingDirectory,
-        string installPath,
-        GogLinuxInstallerCompatibilityEnvironment compatibilityEnvironment,
-        ProcessLogViewModel logVm,
-        string? installerLogPath,
-        CancellationToken ct = default)
-    {
-        var extractionRoot = Path.Combine(
-            Path.GetTempPath(),
-            "retromind-gog-extract",
-            $"extract-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}");
-
-        Directory.CreateDirectory(extractionRoot);
-        try
-        {
-            Action<string> appendInstallerLog = line => AppendProcessLog(logVm, line, installerLogPath);
-            var extractStartInfo = _gogInstallerProcessService.CreateStartInfo(installerWorkingDirectory);
-            GogInstallerProcessService.ApplyLinuxCompatibilityEnvironment(extractStartInfo, compatibilityEnvironment);
-            extractStartInfo.FileName = installerPath;
-            extractStartInfo.ArgumentList.Add("--noexec");
-            extractStartInfo.ArgumentList.Add("--target");
-            extractStartInfo.ArgumentList.Add(extractionRoot);
-
-            AppendProcessLog(logVm, $"> {GogInstallerProcessService.FormatCommand(extractStartInfo)}", installerLogPath);
-            var extractExecution = await _gogInstallerProcessService.ExecuteAsync(
-                extractStartInfo,
-                appendInstallerLog,
-                ct).ConfigureAwait(false);
-            if (!extractExecution.Started)
-                return new InstallerRunResult(false, extractExecution.StartErrorMessage ?? "Installer extraction process could not be started.");
-            if (extractExecution.ExitCode != 0)
-                return new InstallerRunResult(false, $"Exit code {extractExecution.ExitCode}");
-
-            var startMojoPath = Path.Combine(extractionRoot, "startmojo.sh");
-            if (!File.Exists(startMojoPath))
-                return new InstallerRunResult(false, "Extracted Linux installer is missing startmojo.sh.");
-
-            if (OperatingSystem.IsLinux())
-            {
-                try
-                {
-                    File.SetUnixFileMode(
-                        startMojoPath,
-                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                        UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                        UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
-                }
-                catch
-                {
-                    // best-effort
-                }
-            }
-
-            var runStartMojoInfo = _gogInstallerProcessService.CreateStartInfo(extractionRoot);
-            GogInstallerProcessService.ApplyLinuxCompatibilityEnvironment(runStartMojoInfo, compatibilityEnvironment);
-            runStartMojoInfo.FileName = startMojoPath;
-            runStartMojoInfo.ArgumentList.Add("--i-agree-to-all-licenses");
-            runStartMojoInfo.ArgumentList.Add("--noreadme");
-            runStartMojoInfo.ArgumentList.Add("--destination");
-            runStartMojoInfo.ArgumentList.Add(installPath);
-
-            AppendProcessLog(logVm, $"> {GogInstallerProcessService.FormatCommand(runStartMojoInfo)}", installerLogPath);
-            var runExecution = await _gogInstallerProcessService.ExecuteAsync(
-                runStartMojoInfo,
-                appendInstallerLog,
-                ct).ConfigureAwait(false);
-            if (!runExecution.Started)
-                return new InstallerRunResult(false, runExecution.StartErrorMessage ?? "startmojo process could not be started.");
-            if (runExecution.ExitCode != 0)
-                return new InstallerRunResult(false, $"Exit code {runExecution.ExitCode}");
-
-            return new InstallerRunResult(true);
-        }
-        finally
-        {
-            try
-            {
-                if (Directory.Exists(extractionRoot))
-                    Directory.Delete(extractionRoot, recursive: true);
-            }
-            catch
-            {
-                // best-effort
-            }
-        }
-    }
-
-    private static void MoveDirectoryContentsOverwrite(string sourceDirectory, string targetDirectory)
-    {
-        if (string.IsNullOrWhiteSpace(sourceDirectory) || !Directory.Exists(sourceDirectory))
-            return;
-
-        Directory.CreateDirectory(targetDirectory);
-
-        foreach (var directoryPath in Directory.EnumerateDirectories(sourceDirectory))
-        {
-            var directoryName = Path.GetFileName(directoryPath);
-            if (string.IsNullOrWhiteSpace(directoryName))
-                continue;
-
-            var targetSubDirectory = Path.Combine(targetDirectory, directoryName);
-            Directory.CreateDirectory(targetSubDirectory);
-            MoveDirectoryContentsOverwrite(directoryPath, targetSubDirectory);
-            TryDeleteDirectoryIfEmpty(directoryPath);
-        }
-
-        foreach (var filePath in Directory.EnumerateFiles(sourceDirectory))
-        {
-            var fileName = Path.GetFileName(filePath);
-            if (string.IsNullOrWhiteSpace(fileName))
-                continue;
-
-            var targetFile = Path.Combine(targetDirectory, fileName);
-            var sourceMode = TryGetUnixFileModeBestEffort(filePath);
-            try
-            {
-                File.Move(filePath, targetFile, overwrite: true);
-            }
-            catch (IOException)
-            {
-                File.Copy(filePath, targetFile, overwrite: true);
-                TrySetUnixFileModeBestEffort(targetFile, sourceMode);
-                File.Delete(filePath);
-            }
-        }
-    }
-
-    private static UnixFileMode? TryGetUnixFileModeBestEffort(string path)
-    {
-        if (!OperatingSystem.IsLinux() || string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-            return null;
-
-        try
-        {
-            return File.GetUnixFileMode(path);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static void TrySetUnixFileModeBestEffort(string path, UnixFileMode? mode)
-    {
-        if (!OperatingSystem.IsLinux() ||
-            mode == null ||
-            string.IsNullOrWhiteSpace(path) ||
-            !File.Exists(path))
-        {
-            return;
-        }
-
-        try
-        {
-            File.SetUnixFileMode(path, mode.Value);
-        }
-        catch
-        {
-            // best-effort
-        }
-    }
-
-    private static void TryDeleteDirectoryIfEmpty(string directoryPath)
-    {
-        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
-            return;
-
-        if (Directory.EnumerateFileSystemEntries(directoryPath).Any())
-            return;
-
-        Directory.Delete(directoryPath, recursive: false);
-    }
-
-    private static bool PathsEqual(string pathA, string pathB)
-    {
-        if (string.IsNullOrWhiteSpace(pathA) || string.IsNullOrWhiteSpace(pathB))
-            return false;
-
-        var fullA = Path.GetFullPath(pathA);
-        var fullB = Path.GetFullPath(pathB);
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        return string.Equals(fullA, fullB, comparison);
-    }
-
     private static void TryDeleteGogStagingDirectoryBestEffort(string? stagingDirectory)
     {
         if (string.IsNullOrWhiteSpace(stagingDirectory))
@@ -1926,6 +1390,14 @@ public partial class MainWindowViewModel
         }
 
         return false;
+    }
+
+    private static bool PathsEqual(string pathA, string pathB)
+    {
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        return string.Equals(Path.GetFullPath(pathA), Path.GetFullPath(pathB), comparison);
     }
 
     private static bool IsSubPathOfOrEqual(string path, string potentialParentPath)
@@ -2109,77 +1581,6 @@ public partial class MainWindowViewModel
         return true;
     }
 
-    private static void EnsureLinuxInstalledExecutablePermissionsBestEffort(string installRoot)
-    {
-        if (!OperatingSystem.IsLinux() || string.IsNullOrWhiteSpace(installRoot) || !Directory.Exists(installRoot))
-            return;
-
-        IEnumerable<string> allFiles;
-        try
-        {
-            allFiles = Directory.EnumerateFiles(installRoot, "*", SearchOption.AllDirectories).ToArray();
-        }
-        catch
-        {
-            return;
-        }
-
-        foreach (var filePath in allFiles)
-        {
-            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath) || IsInsideInstallerStaging(filePath))
-                continue;
-
-            if (!ShouldEnsureLinuxExecutableBit(filePath))
-                continue;
-
-            LinuxFileSystemHelper.EnsureExecutableBitBestEffort(filePath);
-        }
-    }
-
-    private static bool ShouldEnsureLinuxExecutableBit(string filePath)
-    {
-        var fileName = Path.GetFileName(filePath);
-        if (string.IsNullOrWhiteSpace(fileName))
-            return false;
-
-        if (fileName.Equals("start.sh", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        var extension = Path.GetExtension(fileName);
-        if (!string.IsNullOrWhiteSpace(extension))
-        {
-            return extension.Equals(".sh", StringComparison.OrdinalIgnoreCase) ||
-                   extension.Equals(".run", StringComparison.OrdinalIgnoreCase) ||
-                   extension.Equals(".x86", StringComparison.OrdinalIgnoreCase) ||
-                   extension.Equals(".x86_64", StringComparison.OrdinalIgnoreCase) ||
-                   extension.Equals(".AppImage", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return LooksLikeElfBinary(filePath);
-    }
-
-    private static bool LooksLikeElfBinary(string filePath)
-    {
-        try
-        {
-            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            if (stream.Length < 4)
-                return false;
-
-            Span<byte> magic = stackalloc byte[4];
-            var read = stream.Read(magic);
-            return read == 4 &&
-                   magic[0] == 0x7F &&
-                   magic[1] == (byte)'E' &&
-                   magic[2] == (byte)'L' &&
-                   magic[3] == (byte)'F';
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     private async Task<GogDetectedLaunchInfo?> DetectGogLaunchInfoAsync(
         MediaItem item,
         string selectedInstallPath,
@@ -2270,6 +1671,4 @@ public partial class MainWindowViewModel
             installRoot);
     }
 
-    private static bool IsInsideInstallerStaging(string path)
-        => path.IndexOf(".retromind-gog-installers", StringComparison.OrdinalIgnoreCase) >= 0;
 }
