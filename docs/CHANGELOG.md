@@ -17,6 +17,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Changed
 - remove the redundant `linux` segment from AppImage filenames while preserving legacy update discovery
+- publish a curated BigMode screenshot through the AppImage's AppStream metadata
 - allow selecting which installed GOG DLCs are restored by a clean reinstall
 - improve Prism carousel and background-loading performance and add smoother wallpaper crossfades
 - synchronize Prism logo and wallpaper crossfades
