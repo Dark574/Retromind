@@ -64,7 +64,7 @@ public static class MediaSortHelper
             return string.Empty;
 
         if (!string.IsNullOrWhiteSpace(item.SortTitle))
-            return item.SortTitle.Trim();
+            return GetTitleSortKey(item.SortTitle);
 
         return GetTitleSortKey(item.Title);
     }

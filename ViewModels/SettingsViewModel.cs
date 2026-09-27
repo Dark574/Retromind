@@ -200,8 +200,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// Controls whether leading title articles should be ignored during title-based sorting.
-    /// Explicit SortTitle values are never modified by this option.
+    /// Controls whether leading articles should be ignored in Title and SortTitle values.
     /// </summary>
     public bool IgnoreLeadingArticlesInSort
     {
@@ -437,7 +436,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string IgnoreLeadingArticlesInSortText =>
         T("Settings_IgnoreLeadingArticlesInSort", "Ignore leading articles in title sorting");
     public string IgnoreLeadingArticlesInSortHint =>
-        T("Settings_IgnoreLeadingArticlesInSort_Hint", "Applies to Title only. Sort Title is always used as entered.");
+        T("Settings_IgnoreLeadingArticlesInSort_Hint", "Applies to both Title and Sort Title.");
     public string ScraperImportHint => T(
         "Settings_ScraperImportHint",
         "Choose which data is copied from scraper results. Not every provider supplies every field.");

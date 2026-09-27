@@ -72,8 +72,8 @@ public class AppSettings
     public bool EnableSelectionMusicPreview { get; set; } = true;
 
     /// <summary>
-    /// When true, common leading articles in the title (culture-specific, e.g. "A", "An", "The")
-    /// are ignored for title-based sorting. Explicit SortTitle values are never modified.
+    /// When true, common leading articles in the effective sort title (culture-specific,
+    /// e.g. "A", "An", "The") are ignored for title-based sorting.
     /// </summary>
     public bool IgnoreLeadingArticlesInSort { get; set; } = false;
 

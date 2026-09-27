@@ -504,7 +504,7 @@ This action cannot be undone.</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Launch paths</value></data>
     <data name="Settings_SectionSorting" xml:space="preserve"><value>Sorting</value></data>
     <data name="Settings_IgnoreLeadingArticlesInSort" xml:space="preserve"><value>Ignore leading articles in title sorting</value></data>
-    <data name="Settings_IgnoreLeadingArticlesInSort_Hint" xml:space="preserve"><value>Applies to Title only. Sort Title is always used as entered.</value></data>
+    <data name="Settings_IgnoreLeadingArticlesInSort_Hint" xml:space="preserve"><value>Applies to both Title and Sort Title.</value></data>
     <data name="Settings_SectionMusic" xml:space="preserve"><value>Music</value></data>
     <data name="Settings_SectionAppearance" xml:space="preserve"><value>Appearance</value></data>
     <data name="Settings_ShowStoreBadges" xml:space="preserve"><value>Show store labels on game covers</value></data>

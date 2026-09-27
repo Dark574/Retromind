@@ -22,6 +22,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - synchronize Prism preview cover, screenshot, and new-video fade durations with its wallpaper transition
 
 ### Fixed
+- respect the leading-article sorting setting for explicit sort titles
 - prevent stale cover or screenshot frames from appearing underneath the video preview after changing the selected BigMode item
 - reveal BigMode after its initial layout and artwork setup pass to avoid a visible second rebuild
 - keep installed GOG DLCs synchronized when updating or reinstalling their main game
