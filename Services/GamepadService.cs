@@ -104,7 +104,30 @@ public sealed class GamepadService : IDisposable
 
     public void StopMonitoring()
     {
-        _cts?.Cancel();
+        var cts = _cts;
+        var loopTask = _loopTask;
+        _cts = null;
+        _loopTask = null;
+
+        cts?.Cancel();
+
+        // The polling loop owns hot-plug updates. Let it finish before closing
+        // controller handles so the dictionary cannot change during cleanup.
+        if (loopTask != null)
+        {
+            try
+            {
+                loopTask.GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when cancellation happens before the task starts.
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Gamepad] Monitoring loop stopped with an error: {ex.Message}");
+            }
+        }
 
         // Best effort: close all controllers.
         if (_isSdlAvailable)
@@ -127,10 +150,7 @@ public sealed class GamepadService : IDisposable
 
         _activeControllers.Clear();
 
-        _cts?.Dispose();
-        _cts = null;
-
-        _loopTask = null;
+        cts?.Dispose();
 
         // Important:
         // We intentionally do NOT call SDL_Quit() here.
@@ -203,7 +223,7 @@ public sealed class GamepadService : IDisposable
 
         while (!token.IsCancellationRequested)
         {
-            while (PollNextEvent(out sdlEvent))
+            while (!token.IsCancellationRequested && PollNextEvent(out sdlEvent))
             {
                 ProcessEvent(sdlEvent);
             }

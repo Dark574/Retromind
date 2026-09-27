@@ -1042,7 +1042,7 @@ public partial class MainWindowViewModel : ViewModelBase
     }
     
     /// <summary>
-    /// Fast, non-blocking cleanup. No IO here (no saving).
+    /// Fast cleanup. No IO here (no saving).
     /// Safe to call from Exit handlers too.
     /// </summary>
     public void Cleanup()
