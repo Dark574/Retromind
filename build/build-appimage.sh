@@ -10,6 +10,36 @@ BUILDER_IMAGE="retromind-appimage-builder:bookworm"
 BUILDX_BUILDER="${RETROMIND_BUILDX_BUILDER:-retromind-appimage}"
 BUILDX_CACHE_LIMIT="${RETROMIND_BUILDX_CACHE_LIMIT:-20gb}"
 BUILDER_IMAGE_LABEL="org.retromind.appimage-builder=true"
+CID=""
+BUILDX_CLEANUP_ENABLED=0
+
+cleanup_container() {
+  if [ -n "${CID:-}" ]; then
+    docker rm "$CID" >/dev/null 2>&1 || true
+    CID=""
+  fi
+}
+
+cleanup_on_exit() {
+  cleanup_status=$?
+  trap - EXIT
+
+  cleanup_container
+
+  if [ "$BUILDX_CLEANUP_ENABLED" -eq 1 ]; then
+    echo "Limit Retromind Docker build cache to $BUILDX_CACHE_LIMIT..."
+    if ! docker buildx prune \
+        --builder "$BUILDX_BUILDER" \
+        --force \
+        --max-used-space "$BUILDX_CACHE_LIMIT"; then
+      echo "WARNING: Could not prune the Retromind Docker build cache."
+    fi
+  fi
+
+  exit "$cleanup_status"
+}
+
+trap cleanup_on_exit EXIT
 
 # Keep the packaging tool and embedded runtime reproducible. The type2-runtime
 # project currently publishes only a mutable "continuous" release, so its
@@ -46,6 +76,7 @@ rm -rf "$WORK_DIR"
 mkdir -p "$OUT_DIR" "$WORK_DIR"
 
 echo "[2/8] Build Debian Bookworm appimage builder image..."
+BUILDX_CLEANUP_ENABLED=1
 PREVIOUS_BUILDER_IMAGE_ID="$(
   docker image inspect --format '{{.Id}}' "$BUILDER_IMAGE" 2>/dev/null || true
 )"
@@ -68,20 +99,12 @@ docker buildx build \
 
 echo "[3/8] Export publish output + runtime bundles from container..."
 CID="$(docker create "$BUILDER_IMAGE")"
-# Ensure the container always gets removed, even on failure.
-cleanup_container() {
-  if [ -n "${CID:-}" ]; then
-    docker rm "$CID" >/dev/null 2>&1 || true
-  fi
-}
-trap cleanup_container EXIT
 
 docker cp "$CID:/out/publish" "$WORK_DIR/publish"
 docker cp "$CID:/out/vlc" "$WORK_DIR/vlc"
 docker cp "$CID:/out/tools" "$WORK_DIR/tools"
 docker cp "$CID:/out/runtime-libs" "$WORK_DIR/runtime-libs"
 cleanup_container
-trap - EXIT
 
 if [ ! -f "$WORK_DIR/publish/Retromind" ]; then
   echo "ERROR: Publish output not found at '$WORK_DIR/publish/Retromind'."
@@ -301,12 +324,4 @@ fi
 
 if ! docker image prune -f --filter "label=$BUILDER_IMAGE_LABEL" >/dev/null; then
   echo "WARNING: Could not remove obsolete Retromind builder images."
-fi
-
-echo "Limit Retromind Docker build cache to $BUILDX_CACHE_LIMIT..."
-if ! docker buildx prune \
-    --builder "$BUILDX_BUILDER" \
-    --force \
-    --max-used-space "$BUILDX_CACHE_LIMIT"; then
-  echo "WARNING: Could not prune the Retromind Docker build cache."
 fi
