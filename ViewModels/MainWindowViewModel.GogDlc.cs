@@ -181,77 +181,44 @@ public partial class MainWindowViewModel
                     entry.ProductId,
                     platformFolder);
 
-                GogDownloadedInstallerPackage downloadedPackage;
-                try
-                {
-                    var lastLoggedFileIndex = -1;
-                    var lastLoggedFilePercent = -1;
-                    var lastLoggedOverallPercent = -1;
-                    var lastLoggedAtUtc = DateTimeOffset.MinValue;
-                    var downloadProgress = new Progress<GogInstallerDownloadProgress>(progress =>
-                    {
-                        var now = DateTimeOffset.UtcNow;
-                        var currentFilePercent = CalculateProgressPercent(
-                            progress.BytesDownloadedCurrentFile,
-                            progress.BytesTotalCurrentFile);
-                        var overallPercent = CalculateProgressPercent(
-                            progress.BytesDownloadedOverall,
-                            progress.BytesTotalOverall);
-                        var fileChanged = progress.FileIndex != lastLoggedFileIndex;
-                        var fileAdvanced = currentFilePercent >= 0 && currentFilePercent >= lastLoggedFilePercent + 2;
-                        var overallAdvanced = overallPercent >= 0 && overallPercent >= lastLoggedOverallPercent + 1;
-                        var timedPulse = now - lastLoggedAtUtc >= TimeSpan.FromMilliseconds(900);
-
-                        if (!fileChanged && !fileAdvanced && !overallAdvanced && !timedPulse)
-                            return;
-
-                        lastLoggedFileIndex = progress.FileIndex;
-                        if (currentFilePercent >= 0)
-                            lastLoggedFilePercent = currentFilePercent;
-                        if (overallPercent >= 0)
-                            lastLoggedOverallPercent = overallPercent;
-                        lastLoggedAtUtc = now;
-                        AppendProcessLog(progressLogVm, BuildDownloadProgressLine(progress));
-                    });
-                    downloadedPackage = await _gogInstallService.DownloadInstallerPackageAsync(
+                var workflowResult = await _gogInstallerWorkflowService.RunAsync(
+                    new GogInstallerWorkflowRequest(
+                        item,
+                        baseGameId,
+                        request.InstallPath,
+                        request.Platform,
                         installerPackage,
                         stagingRoot,
-                        downloadProgress,
-                        ct);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                        request.WindowsInstallerPreference,
+                        request.CreateDesktopShortcut,
+                        request.CreateStartMenuShortcuts,
+                        CleanInstall: false,
+                        UseTemporaryLinuxDestination: false,
+                        RequireLinuxPayloadChange: platform == GogInstallPlatform.Linux),
+                    line => AppendProcessLog(progressLogVm, line),
+                    ct);
+                if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Cancelled)
+                    throw new OperationCanceledException(ct);
+
+                if (!workflowResult.Success)
                 {
-                    Debug.WriteLine($"[GOG] Failed to download DLC installer '{entry.ProductId}': {ex.Message}");
-                    var failureMessage = string.Format(
-                        CultureInfo.CurrentCulture,
-                        T("Gog.Dlc.DownloadFailedFormat", "The installer for '{0}' could not be downloaded: {1}"),
-                        entry.Title,
-                        BuildShortErrorDetail(ex));
+                    var failureMessage = workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Download
+                        ? string.Format(
+                            CultureInfo.CurrentCulture,
+                            T("Gog.Dlc.DownloadFailedFormat", "The installer for '{0}' could not be downloaded: {1}"),
+                            entry.Title,
+                            BuildShortErrorDetail(workflowResult.ErrorMessage))
+                        : string.Format(
+                            CultureInfo.CurrentCulture,
+                            T("Gog.Dlc.RunFailedFormat", "The installer for '{0}' failed: {1}"),
+                            entry.Title,
+                            workflowResult.ErrorMessage ?? T("Gog.Install.RunFailed", "Installer execution failed."));
                     failureMessages.Add(failureMessage);
                     AppendProcessLog(progressLogVm, failureMessage);
                     continue;
                 }
 
-                var runResult = await RunInstallerAsync(
-                    item,
-                    baseGameId,
-                    request,
-                    downloadedPackage,
-                    progressLogVm,
-                    ct,
-                    useTemporaryLinuxDestination: false,
-                    requireLinuxPayloadChange: platform == GogInstallPlatform.Linux);
-                if (!runResult.Success)
-                {
-                    var failureMessage = string.Format(
-                        CultureInfo.CurrentCulture,
-                        T("Gog.Dlc.RunFailedFormat", "The installer for '{0}' failed: {1}"),
-                        entry.Title,
-                        runResult.ErrorMessage ?? T("Gog.Install.RunFailed", "Installer execution failed."));
-                    failureMessages.Add(failureMessage);
-                    AppendProcessLog(progressLogVm, failureMessage);
-                    continue;
-                }
+                var downloadedPackage = workflowResult.DownloadedPackage!;
 
                 UpdateInstalledGogDlcState(item, entry, platform.Value, installerPackage);
                 _libraryTracker.MarkDirty();
@@ -263,7 +230,7 @@ public partial class MainWindowViewModel
                     installedCount++;
 
                 if (request.DeleteStagingAfterSuccess)
-                    TryDeleteGogStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
+                    GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
 
                 AppendProcessLog(
                     progressLogVm,

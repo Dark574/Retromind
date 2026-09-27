@@ -384,6 +384,11 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   that DLC installers actually changed the payload. Its Windows path owns prefix creation, installer architecture
   selection, silent/interactive Inno profiles, shortcut policy cleanup, Wine diagnostics, and target/prefix
   payload validation. Shared payload snapshots are provided by `GogInstallPayloadTracker`
+- `GogInstallerWorkflowService` coordinates the common base-game and DLC pipeline above those platform paths:
+  resumable package download, throttled progress reporting, detailed file logging, clean-install preparation,
+  execution, cancellation classification, and guarded staging cleanup. It reports plain results and log lines;
+  `MainWindowViewModel` retains user confirmation, progress-window ownership, manual executable selection,
+  media-item mutation, and persistence
 
 Winetricks follows the same application/infrastructure boundary. `EditMediaViewModel` resolves the effective
 item/emulator environment and owns the process-log window, while `WinetricksService` owns prefix preparation,

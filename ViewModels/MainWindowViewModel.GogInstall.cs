@@ -1,11 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
@@ -19,8 +16,6 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
-    private static readonly object InstallerLogFileWriteLock = new();
-
     private enum GogInstallOperation
     {
         Install,
@@ -207,7 +202,7 @@ public partial class MainWindowViewModel
             return false;
         }
 
-        var selectedInstallerPackage = SelectInstallerPackageForRequest(installerPackage, installRequest);
+        var selectedInstallerPackage = installerPackage;
 
         if (!await PrepareGogInstallDirectoryAsync(owner, item, installRequest))
             return false;
@@ -231,101 +226,55 @@ public partial class MainWindowViewModel
 
         try
         {
-            GogDownloadedInstallerPackage downloadedPackage;
-            var lastLoggedFileIndex = -1;
-            var lastLoggedFilePercent = -1;
-            var lastLoggedOverallPercent = -1;
-            var lastLoggedAtUtc = DateTimeOffset.MinValue;
-
-            AppendProcessLog(progressLogVm, "[Download] Starting installer download...");
-            if (installRequest.Platform == GogInstallPlatform.Windows &&
-                selectedInstallerPackage.Files.Count != installerPackage.Files.Count)
-            {
-                AppendProcessLog(
-                    progressLogVm,
-                    $"[Download] Installer file filter active ({selectedInstallerPackage.Files.Count}/{installerPackage.Files.Count} files).");
-            }
-
-            var reusableStagingFiles = CountExistingStagedInstallerFiles(selectedInstallerPackage, stagingRoot);
-            if (reusableStagingFiles > 0)
-            {
-                AppendProcessLog(
-                    progressLogVm,
-                    $"[Download] Reusing {reusableStagingFiles}/{selectedInstallerPackage.Files.Count} staged installer file(s).");
-            }
-
-            var downloadProgress = new Progress<GogInstallerDownloadProgress>(progress =>
-            {
-                var now = DateTimeOffset.UtcNow;
-                var currentFilePercent = CalculateProgressPercent(progress.BytesDownloadedCurrentFile, progress.BytesTotalCurrentFile);
-                var overallPercent = CalculateProgressPercent(progress.BytesDownloadedOverall, progress.BytesTotalOverall);
-                var fileChanged = progress.FileIndex != lastLoggedFileIndex;
-                var fileAdvanced = currentFilePercent >= 0 && currentFilePercent >= lastLoggedFilePercent + 2;
-                var overallAdvanced = overallPercent >= 0 && overallPercent >= lastLoggedOverallPercent + 1;
-                var timedPulse = now - lastLoggedAtUtc >= TimeSpan.FromMilliseconds(900);
-
-                if (!fileChanged && !fileAdvanced && !overallAdvanced && !timedPulse)
-                    return;
-
-                lastLoggedFileIndex = progress.FileIndex;
-                if (currentFilePercent >= 0)
-                    lastLoggedFilePercent = currentFilePercent;
-                if (overallPercent >= 0)
-                    lastLoggedOverallPercent = overallPercent;
-                lastLoggedAtUtc = now;
-
-                AppendProcessLog(progressLogVm, BuildDownloadProgressLine(progress));
-            });
-
-            try
-            {
-                await Task.Yield();
-                downloadedPackage = await _gogInstallService.DownloadInstallerPackageAsync(
+            var workflowResult = await _gogInstallerWorkflowService.RunAsync(
+                new GogInstallerWorkflowRequest(
+                    item,
+                    storeGameId,
+                    installRequest.InstallPath,
+                    installRequest.Platform,
                     selectedInstallerPackage,
                     stagingRoot,
-                    downloadProgress,
-                    progressLogVm.Token);
-            }
-            catch (OperationCanceledException)
+                    installRequest.WindowsInstallerPreference,
+                    installRequest.CreateDesktopShortcut,
+                    installRequest.CreateStartMenuShortcuts,
+                    installRequest.CleanInstall,
+                    UseTemporaryLinuxDestination: true,
+                    RequireLinuxPayloadChange: false),
+                line => AppendProcessLog(progressLogVm, line),
+                progressLogVm.Token);
+            if (!workflowResult.Success)
             {
-                Debug.WriteLine("[GOG] Installer download cancelled by user.");
-                progressLogVm.MarkCancelled(T("Gog.Install.Cancelled", "Installation cancelled by user."));
-                AppendProcessLog(
-                    progressLogVm,
-                    T(
-                        "Gog.Install.StagingPreserved",
-                        "Staging files preserved for resume on next attempt."));
-                return false;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[GOG] Installer download failed: {ex.Message}");
-                AppendProcessLog(
-                    progressLogVm,
-                    string.Format(
-                        T("Gog.Install.DownloadFailedFormat", "GOG installer download failed: {0}"),
-                        BuildShortErrorDetail(ex)));
+                if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Cancelled)
+                {
+                    progressLogVm.MarkCancelled(T("Gog.Install.Cancelled", "Installation cancelled by user."));
+                    AppendProcessLog(
+                        progressLogVm,
+                        T(
+                            "Gog.Install.StagingPreserved",
+                            "Staging files preserved for resume on next attempt."));
+                }
+                else if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Download)
+                {
+                    AppendProcessLog(
+                        progressLogVm,
+                        string.Format(
+                            T("Gog.Install.DownloadFailedFormat", "GOG installer download failed: {0}"),
+                            BuildShortErrorDetail(workflowResult.ErrorMessage)));
+                }
+                else
+                {
+                    var message = string.IsNullOrWhiteSpace(workflowResult.ErrorMessage)
+                        ? T("Gog.Install.RunFailed", "Installer execution failed.")
+                        : string.Format(
+                            T("Gog.Install.RunFailedFormat", "Installer execution failed: {0}"),
+                            workflowResult.ErrorMessage);
+                    AppendProcessLog(progressLogVm, message);
+                }
+
                 return false;
             }
 
-            AppendProcessLog(progressLogVm, "[Install] Starting installer execution...");
-            var runResult = await RunInstallerAsync(
-                item,
-                storeGameId,
-                installRequest,
-                downloadedPackage,
-                progressLogVm,
-                progressLogVm.Token);
-            if (!runResult.Success)
-            {
-                var message = string.IsNullOrWhiteSpace(runResult.ErrorMessage)
-                    ? T("Gog.Install.RunFailed", "Installer execution failed.")
-                    : string.Format(
-                        T("Gog.Install.RunFailedFormat", "Installer execution failed: {0}"),
-                        runResult.ErrorMessage);
-                AppendProcessLog(progressLogVm, message);
-                return false;
-            }
+            var downloadedPackage = workflowResult.DownloadedPackage!;
 
             AppendProcessLog(progressLogVm, "[Detect] Resolving launch executable...");
             var launchInfo = await DetectGogLaunchInfoAsync(
@@ -406,7 +355,7 @@ public partial class MainWindowViewModel
 
             if (installRequest.DeleteStagingAfterSuccess)
             {
-                TryDeleteGogStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
+                GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
                 AppendProcessLog(progressLogVm, "Staging data deleted after successful installation.");
             }
 
@@ -584,65 +533,16 @@ public partial class MainWindowViewModel
                message.IndexOf("forbidden", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
-    private static string BuildShortErrorDetail(Exception ex)
+    private static string BuildShortErrorDetail(Exception ex) =>
+        BuildShortErrorDetail(ex.Message);
+
+    private static string BuildShortErrorDetail(string? message)
     {
-        var message = ex.Message.Trim();
         if (string.IsNullOrWhiteSpace(message))
             return "Unknown error";
 
-        var compact = message.Replace(Environment.NewLine, " ", StringComparison.Ordinal).Trim();
+        var compact = message.Trim().Replace(Environment.NewLine, " ", StringComparison.Ordinal).Trim();
         return compact.Length <= 260 ? compact : compact[..260] + "...";
-    }
-
-    private static int CalculateProgressPercent(long downloadedBytes, long? totalBytes)
-    {
-        if (!totalBytes.HasValue || totalBytes.Value <= 0)
-            return -1;
-
-        var value = (int)Math.Clamp(
-            Math.Round(downloadedBytes * 100.0 / totalBytes.Value, MidpointRounding.AwayFromZero),
-            0,
-            100);
-        return value;
-    }
-
-    private static string BuildDownloadProgressLine(GogInstallerDownloadProgress progress)
-    {
-        var filePercent = CalculateProgressPercent(progress.BytesDownloadedCurrentFile, progress.BytesTotalCurrentFile);
-        var overallPercent = CalculateProgressPercent(progress.BytesDownloadedOverall, progress.BytesTotalOverall);
-
-        var filePart = $"{progress.FileIndex}/{progress.FileCount} {progress.FileName}";
-        var fileBytes = progress.BytesTotalCurrentFile.HasValue && progress.BytesTotalCurrentFile.Value > 0
-            ? $"{FormatByteSize(progress.BytesDownloadedCurrentFile)} / {FormatByteSize(progress.BytesTotalCurrentFile.Value)}"
-            : FormatByteSize(progress.BytesDownloadedCurrentFile);
-        var fileProgress = filePercent >= 0 ? $"{filePercent}% ({fileBytes})" : fileBytes;
-
-        var overallProgress = progress.BytesTotalOverall.HasValue && progress.BytesTotalOverall.Value > 0
-            ? (overallPercent >= 0
-                ? $"{overallPercent}% ({FormatByteSize(progress.BytesDownloadedOverall)} / {FormatByteSize(progress.BytesTotalOverall.Value)})"
-                : $"{FormatByteSize(progress.BytesDownloadedOverall)} / {FormatByteSize(progress.BytesTotalOverall.Value)}")
-            : FormatByteSize(progress.BytesDownloadedOverall);
-
-        return $"Download {filePart}: {fileProgress} | Overall: {overallProgress}";
-    }
-
-    private static string FormatByteSize(long bytes)
-    {
-        if (bytes < 0)
-            bytes = 0;
-
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        var value = (double)bytes;
-        var unitIndex = 0;
-        while (value >= 1024d && unitIndex < units.Length - 1)
-        {
-            value /= 1024d;
-            unitIndex++;
-        }
-
-        return unitIndex == 0
-            ? $"{bytes} {units[unitIndex]}"
-            : $"{value:0.0} {units[unitIndex]}";
     }
 
     private string ResolveDefaultGogInstallPath(MediaItem item, string storeGameId)
@@ -714,47 +614,6 @@ public partial class MainWindowViewModel
         };
     }
 
-    private static GogInstallerPackage SelectInstallerPackageForRequest(
-        GogInstallerPackage package,
-        GogInstallDialogViewModel.GogInstallDialogResult request)
-    {
-        // Keep all package files for Windows installers.
-        // Some GOG installers rely on companion payload files that are not safely inferable by filename heuristics.
-        return package;
-    }
-
-    private static int CountExistingStagedInstallerFiles(GogInstallerPackage package, string stagingDirectory)
-    {
-        if (package.Files.Count == 0 || string.IsNullOrWhiteSpace(stagingDirectory) || !Directory.Exists(stagingDirectory))
-            return 0;
-
-        var existing = 0;
-        foreach (var file in package.Files)
-        {
-            var fileName = SanitizeStagedInstallerFileName(file.FileName);
-            if (string.IsNullOrWhiteSpace(fileName))
-                continue;
-
-            var candidatePath = Path.Combine(stagingDirectory, fileName);
-            if (File.Exists(candidatePath))
-                existing++;
-        }
-
-        return existing;
-    }
-
-    private static string SanitizeStagedInstallerFileName(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-            return "installer.bin";
-
-        var sanitized = fileName;
-        foreach (var invalid in Path.GetInvalidFileNameChars())
-            sanitized = sanitized.Replace(invalid, '_');
-
-        return string.IsNullOrWhiteSpace(sanitized) ? "installer.bin" : sanitized;
-    }
-
     private async Task<string?> BrowseFolderForGogInstallAsync(Window owner)
     {
         var storageProvider = StorageProvider ?? owner.StorageProvider;
@@ -768,110 +627,6 @@ public partial class MainWindowViewModel
             return null;
 
         return result[0].Path.LocalPath;
-    }
-
-    private sealed record InstallerRunResult(bool Success, string? ErrorMessage = null);
-    private async Task<InstallerRunResult> RunInstallerAsync(
-        MediaItem item,
-        string storeGameId,
-        GogInstallDialogViewModel.GogInstallDialogResult request,
-        GogDownloadedInstallerPackage downloadedPackage,
-        ProcessLogViewModel logVm,
-        CancellationToken ct = default,
-        bool useTemporaryLinuxDestination = true,
-        bool requireLinuxPayloadChange = false)
-    {
-        InstallerRunResult Fail(string? errorMessage) => new(false, errorMessage);
-        InstallerRunResult Success() => new(true, null);
-
-        try
-        {
-            Directory.CreateDirectory(request.InstallPath);
-            Directory.CreateDirectory(downloadedPackage.StagingDirectory);
-
-            var installerLogPath = Path.Combine(downloadedPackage.StagingDirectory, "retromind-install.log");
-            InitializeInstallerLogFile(installerLogPath, request.InstallPath, downloadedPackage.StagingDirectory);
-            AppendProcessLog(logVm, $"Detailed log file: {installerLogPath}", installerLogPath);
-
-            if (request.CleanInstall)
-            {
-                AppendProcessLog(logVm, "Clean install requested: removing existing target files.", installerLogPath);
-                if (!TryPrepareCleanInstallDirectory(
-                        item,
-                        request.InstallPath,
-                        downloadedPackage.StagingDirectory,
-                        logVm,
-                        installerLogPath,
-                        out var cleanError))
-                {
-                    return Fail(cleanError ?? "Clean install preparation failed.");
-                }
-            }
-
-            if (request.Platform == GogInstallPlatform.Linux)
-            {
-                Action<string> appendInstallerLog = line => AppendProcessLog(logVm, line, installerLogPath);
-                var result = await _gogInstallerExecutionService.RunLinuxAsync(
-                    new GogLinuxInstallerExecutionRequest(
-                        storeGameId,
-                        request.InstallPath,
-                        downloadedPackage,
-                        useTemporaryLinuxDestination,
-                        requireLinuxPayloadChange),
-                    appendInstallerLog,
-                    ct).ConfigureAwait(false);
-                return new InstallerRunResult(result.Success, result.ErrorMessage);
-            }
-
-            if (request.Platform == GogInstallPlatform.Windows)
-            {
-                var winePath = EmulatorResolverHelper.ResolveSystemWine();
-                if (string.IsNullOrWhiteSpace(winePath))
-                    return Fail("Windows installation requires a system wine version.");
-
-                Action<string> appendInstallerLog = line => AppendProcessLog(logVm, line, installerLogPath);
-                var result = await _gogInstallerExecutionService.RunWindowsAsync(
-                    new GogWindowsInstallerExecutionRequest(
-                        storeGameId,
-                        item.Title,
-                        item.PrefixPath,
-                        request.InstallPath,
-                        winePath,
-                        downloadedPackage,
-                        request.WindowsInstallerPreference,
-                        request.CreateDesktopShortcut,
-                        request.CreateStartMenuShortcuts),
-                    appendInstallerLog,
-                    ct).ConfigureAwait(false);
-                return new InstallerRunResult(result.Success, result.ErrorMessage);
-            }
-
-            return Success();
-        }
-        catch (Win32Exception ex) when (ex.NativeErrorCode == 2)
-        {
-            AppendProcessLog(logVm, "Error: executable not found.");
-            Debug.WriteLine($"[GOG] Installer execution failed: {ex.Message}");
-            return Fail(ex.Message);
-        }
-        catch (Win32Exception ex) when (ex.NativeErrorCode == 13)
-        {
-            AppendProcessLog(logVm, "Error: permission denied while starting installer.");
-            Debug.WriteLine($"[GOG] Installer execution failed: {ex.Message}");
-            return Fail(ex.Message);
-        }
-        catch (OperationCanceledException)
-        {
-            AppendProcessLog(logVm, "Installer execution cancelled by user.");
-            Debug.WriteLine("[GOG] Installer execution cancelled by user.");
-            return Fail("Installation cancelled by user.");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GOG] Installer execution failed: {ex.Message}");
-            AppendProcessLog(logVm, $"Error: {ex.Message}");
-            return Fail(ex.Message);
-        }
     }
 
     private async Task<bool> ValidateGogInstallRuntimeRequirementsAsync(
@@ -929,203 +684,12 @@ public partial class MainWindowViewModel
     private static bool IsUmuRunAvailable()
         => !string.IsNullOrWhiteSpace(EnvironmentPathHelper.TryFindExecutableInCurrentPath("umu-run"));
 
-    private static void TryDeleteGogStagingDirectoryBestEffort(string? stagingDirectory)
-    {
-        if (string.IsNullOrWhiteSpace(stagingDirectory))
-            return;
-
-        string fullStagingPath;
-        try
-        {
-            fullStagingPath = Path.GetFullPath(stagingDirectory);
-        }
-        catch
-        {
-            return;
-        }
-
-        var marker = $"{Path.DirectorySeparatorChar}.retromind-gog-installers{Path.DirectorySeparatorChar}";
-        if (fullStagingPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase) < 0)
-            return;
-
-        try
-        {
-            if (Directory.Exists(fullStagingPath))
-                Directory.Delete(fullStagingPath, recursive: true);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GOG] Failed to delete staging directory '{fullStagingPath}': {ex.Message}");
-        }
-    }
-
-    private static bool TryPrepareCleanInstallDirectory(
-        MediaItem item,
-        string installPath,
-        string? preservePath,
-        ProcessLogViewModel logVm,
-        string? installerLogPath,
-        out string? errorMessage)
-    {
-        errorMessage = null;
-
-        if (string.IsNullOrWhiteSpace(installPath))
-            return true;
-
-        var assessment = GogInstallDirectorySafety.Assess(
-            installPath,
-            item,
-            rejectSymbolicLinks: true);
-        var fullInstallPath = assessment.FullPath;
-        if (!assessment.IsAllowed)
-        {
-            errorMessage = "Clean install was blocked because the selected folder is unsafe or is no longer owned by this Retromind item.";
-            AppendProcessLog(logVm, errorMessage, installerLogPath);
-            return false;
-        }
-
-        Directory.CreateDirectory(fullInstallPath);
-        var preservedPaths = new List<string>
-        {
-            Path.Combine(fullInstallPath, GogInstallDirectorySafety.MarkerFileName)
-        };
-        if (!string.IsNullOrWhiteSpace(preservePath))
-        {
-            var fullPreservePath = Path.GetFullPath(preservePath);
-            if (IsSubPathOfOrEqual(fullPreservePath, fullInstallPath))
-                preservedPaths.Add(fullPreservePath);
-        }
-
-        foreach (var entry in Directory.EnumerateFileSystemEntries(fullInstallPath))
-        {
-            if (ShouldPreserveDuringCleanInstall(entry, preservedPaths))
-            {
-                AppendProcessLog(logVm, $"Preserving: {entry}", installerLogPath);
-                continue;
-            }
-
-            try
-            {
-                if (Directory.Exists(entry))
-                    Directory.Delete(entry, recursive: true);
-                else if (File.Exists(entry))
-                    File.Delete(entry);
-            }
-            catch (Exception ex)
-            {
-                errorMessage = $"Failed to remove '{entry}': {ex.Message}";
-                AppendProcessLog(logVm, errorMessage, installerLogPath);
-                return false;
-            }
-        }
-
-        try
-        {
-            GogInstallDirectorySafety.WriteMarker(fullInstallPath, item);
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Failed to restore the Retromind install marker: {ex.Message}";
-            AppendProcessLog(logVm, errorMessage, installerLogPath);
-            return false;
-        }
-
-        return true;
-    }
-
-    private static bool ShouldPreserveDuringCleanInstall(string candidatePath, IReadOnlyList<string> preservedPaths)
-    {
-        if (preservedPaths.Count == 0 || string.IsNullOrWhiteSpace(candidatePath))
-            return false;
-
-        var fullCandidatePath = Path.GetFullPath(candidatePath);
-        foreach (var preservedPath in preservedPaths)
-        {
-            if (PathsEqual(fullCandidatePath, preservedPath))
-                return true;
-
-            if (IsSubPathOfOrEqual(preservedPath, fullCandidatePath))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool PathsEqual(string pathA, string pathB)
-    {
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        return string.Equals(Path.GetFullPath(pathA), Path.GetFullPath(pathB), comparison);
-    }
-
-    private static bool IsSubPathOfOrEqual(string path, string potentialParentPath)
-    {
-        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(potentialParentPath))
-            return false;
-
-        var fullPath = Path.GetFullPath(path);
-        var fullParent = Path.GetFullPath(potentialParentPath);
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-
-        if (string.Equals(fullPath, fullParent, comparison))
-            return true;
-
-        var parentWithSeparator = fullParent.EndsWith(Path.DirectorySeparatorChar)
-            ? fullParent
-            : fullParent + Path.DirectorySeparatorChar;
-        return fullPath.StartsWith(parentWithSeparator, comparison);
-    }
-
-    private static void InitializeInstallerLogFile(string logFilePath, string installPath, string stagingPath)
-    {
-        if (string.IsNullOrWhiteSpace(logFilePath))
-            return;
-
-        try
-        {
-            var directory = Path.GetDirectoryName(logFilePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-                Directory.CreateDirectory(directory);
-
-            var header = $"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz}] Retromind GOG installer log{Environment.NewLine}" +
-                         $"Install path: {installPath}{Environment.NewLine}" +
-                         $"Staging path: {stagingPath}{Environment.NewLine}" +
-                         new string('-', 70) + Environment.NewLine;
-            File.WriteAllText(logFilePath, header, Encoding.UTF8);
-        }
-        catch
-        {
-            // best-effort
-        }
-    }
-
-    private static void AppendProcessLog(ProcessLogViewModel logVm, string line, string? logFilePath = null)
+    private static void AppendProcessLog(ProcessLogViewModel logVm, string line)
     {
         if (string.IsNullOrWhiteSpace(line))
             return;
 
-        if (!string.IsNullOrWhiteSpace(logFilePath))
-            TryAppendLineToInstallerLogFile(logFilePath, line);
-
         UiThreadHelper.Post(() => logVm.AppendLine(line));
-    }
-
-    private static void TryAppendLineToInstallerLogFile(string logFilePath, string line)
-    {
-        try
-        {
-            lock (InstallerLogFileWriteLock)
-            {
-                File.AppendAllText(logFilePath, line + Environment.NewLine, Encoding.UTF8);
-            }
-        }
-        catch
-        {
-            // best-effort
-        }
     }
 
     private bool ApplyDetectedGogLaunchConfiguration(

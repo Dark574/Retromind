@@ -284,6 +284,7 @@ public partial class App : Application
         services.AddSingleton(provider => new GogInstallerExecutionService(
             provider.GetRequiredService<GogInstallerProcessService>(),
             AppPaths.LibraryRoot));
+        services.AddSingleton<GogInstallerWorkflowService>();
         services.AddSingleton<GogProvider>();
         services.AddSingleton<IStoreAuthProvider>(provider => provider.GetRequiredService<GogProvider>());
         services.AddSingleton<IStoreLibraryProvider>(provider => provider.GetRequiredService<GogProvider>());
