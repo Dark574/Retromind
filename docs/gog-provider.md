@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-09-24
+Last updated: 2026-09-27
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -92,6 +92,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - fallback to account `gameDetails` `playTasks` from `https://embed.gog.com/account/gameDetails/{id}.json`
     - fallback to filesystem heuristics (`start.sh`/script candidates on Linux, filtered `.exe` candidates on Windows)
     - final fallback: manual executable picker dialog
+    - automatic metadata detection is isolated in `GogLaunchDetectionService`; executable and working-directory
+      paths read from metadata cannot escape the selected installation root
   - if mapping succeeds, item launch config is updated and the Start action switches back to launch behavior
   - if mapping still fails, install completes but manual launch config is required
   - when portable paths are enabled, an install root inside `DataRoot` is stored DataRoot-relative in
@@ -169,6 +171,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Services/Stores/Gog/GogProvider.cs`
 - `Services/Stores/Gog/GogLibraryService.cs` (owned-games fetch implemented)
 - `Services/Stores/Gog/GogInstallService.cs` (installer metadata + downlink resolution + package download)
+- `Services/Stores/Gog/GogLaunchDetectionService.cs` (installed launch metadata + filesystem fallbacks)
 - `Services/Stores/Gog/Auth/GogAuthService.cs` (interactive sign-in + refresh implemented)
 - `Services/Stores/Gog/Auth/GogOAuthClient.cs` (authorize URL + token/account HTTP flows implemented)
 - `Services/Stores/Gog/Auth/GogOAuthLoopbackListener.cs` (callback listener implemented)

@@ -369,9 +369,11 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   is persisted after process handoff and finalized with outcome, runtime, exit code, and captured output, while
   likely secret environment values and command arguments are redacted
 - direct or explicitly watched game sessions update playtime and play count after launch
-- GOG launch detection prefers local or account `playTasks` metadata and preserves its executable,
-  arguments, and working directory before falling back to filesystem heuristics; this is important for
-  installer-supplied DOSBox configurations
+- `GogLaunchDetectionService` owns installed-game launch detection. It prefers local or account `playTasks`
+  metadata and preserves its executable, arguments, and working directory before falling back to filesystem
+  heuristics; metadata-derived executable and working-directory paths are constrained to the selected install
+  root. `MainWindowViewModel` retains only the API fallback orchestration, manual picker, and application of the
+  detected configuration to the media item
 
 Winetricks follows the same application/infrastructure boundary. `EditMediaViewModel` resolves the effective
 item/emulator environment and owns the process-log window, while `WinetricksService` owns prefix preparation,
