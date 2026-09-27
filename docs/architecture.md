@@ -18,7 +18,9 @@ This document summarizes how Retromind is structured today and where core behavi
   - mandatory LibVLC initialization (`Core.Initialize()`)
 - Release AppImages use checksum-pinned official `appimagetool` and static Type-2 runtime artifacts, removing
   the host `libfuse2` dependency. Their versioned filename, embedded GitHub Releases update information, and
-  matching `.zsync` metadata are produced together and must not be renamed after the build.
+  matching `.zsync` metadata are produced together and must not be renamed after the build. A legacy-named
+  `.zsync` alias keeps update discovery working for AppImages released before the redundant `linux` filename
+  segment was removed; it points to the single canonical AppImage asset.
 - `App.OnFrameworkInitializationCompleted` then:
   - synchronizes portable themes (`AppPaths.EnsurePortableThemes()`)
   - bootstraps settings first

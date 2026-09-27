@@ -141,10 +141,15 @@ chmod +x build/AppRun build/build-appimage.sh
 ./build/build-appimage.sh
 ```
 
-The version is read from `InformationalVersion` in `Retromind.csproj`. The build creates two release assets:
+The version is read from `InformationalVersion` in `Retromind.csproj`. The build creates the primary release assets:
 
-- `dist/Retromind-<version>-linux-x86_64.AppImage`
-- `dist/Retromind-<version>-linux-x86_64.AppImage.zsync`
+- `dist/Retromind-<version>-x86_64.AppImage`
+- `dist/Retromind-<version>-x86_64.AppImage.zsync`
+
+It also creates the small compatibility metadata file
+`dist/Retromind-<version>-linux-x86_64.AppImage.zsync`. Upload it with the primary assets so AppImageUpdate
+clients from 0.1.9 and earlier can discover releases after the filename transition; it does not duplicate the
+AppImage itself.
 
 The script uses an isolated Buildx builder named `retromind-appimage`. After every build attempt, including a
 failed or interrupted one, it removes its temporary export container and limits this builder's cache to 20 GB.
@@ -320,7 +325,7 @@ A practical layout might look like this:
 
 ```text
 Retromind/
-├── Retromind-<version>-linux-x86_64.AppImage
+├── Retromind-<version>-x86_64.AppImage
 ├── Library/
 │   └── Prefixes/
 ├── ROMs/
@@ -645,7 +650,7 @@ Retromind uses X11/XWayland by default. Avalonia 12.1's native Wayland backend i
 **experimental opt-in**:
 
 ```bash
-./Retromind-<version>-linux-x86_64.AppImage --avalonia-platform=wayland
+./Retromind-<version>-x86_64.AppImage --avalonia-platform=wayland
 ```
 
 For source builds, pass the Retromind argument after the `dotnet run` separator:

@@ -16,6 +16,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - add unobtrusive getting-started help
 
 ### Changed
+- remove the redundant `linux` segment from AppImage filenames while preserving legacy update discovery
 - allow selecting which installed GOG DLCs are restored by a clean reinstall
 - improve Prism carousel and background-loading performance and add smoother wallpaper crossfades
 - synchronize Prism logo and wallpaper crossfades

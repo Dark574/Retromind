@@ -9,13 +9,15 @@ It is designed to be portable, controller‑friendly and run well on Linux deskt
 
 **Linux (x86_64)**
 
-- `Retromind-{{VERSION}}-linux-x86_64.AppImage`
-- `Retromind-{{VERSION}}-linux-x86_64.AppImage.zsync`
+- `Retromind-{{VERSION}}-x86_64.AppImage`
+- `Retromind-{{VERSION}}-x86_64.AppImage.zsync`
+- `Retromind-{{VERSION}}-linux-x86_64.AppImage.zsync` (legacy update-discovery metadata)
 
 SHA‑256 checksum: `checksum`
 
-Upload both files without renaming them. Alpha/beta releases must be marked as a GitHub **prerelease** so
-AppImage update tools select the correct release channel.
+Upload all three files without renaming them. The legacy `.zsync` file lets AppImageUpdate clients from 0.1.9
+and earlier discover the renamed AppImage without requiring a duplicate AppImage asset. Alpha/beta releases
+must be marked as a GitHub **prerelease** so AppImage update tools select the correct release channel.
 
 ---
 
@@ -24,19 +26,19 @@ AppImage update tools select the correct release channel.
 Download the AppImage and make it executable:
 
 ```bash
-chmod +x Retromind-{{VERSION}}-linux-x86_64.AppImage
+chmod +x Retromind-{{VERSION}}-x86_64.AppImage
 ```
 
 ### 2.1 Start BigMode directly
 
 ```bash
-./Retromind-{{VERSION}}-linux-x86_64.AppImage --bigmode
+./Retromind-{{VERSION}}-x86_64.AppImage --bigmode
 ```
 
 ### 2.2 Start the regular desktop UI
 
 ```bash
-./Retromind-{{VERSION}}-linux-x86_64.AppImage
+./Retromind-{{VERSION}}-x86_64.AppImage
 ```
 
 ---
@@ -76,7 +78,7 @@ Replace this list for each release:
 To capture additional LibVLC and console output (useful for bug reports), you can run:
 
 ```bash
-./Retromind-{{VERSION}}-linux-x86_64.AppImage --bigmode |& tee vlc-log.txt
+./Retromind-{{VERSION}}-x86_64.AppImage --bigmode |& tee vlc-log.txt
 ```
 
 When opening an issue, please include:

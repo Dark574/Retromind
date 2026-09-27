@@ -66,10 +66,12 @@ case "$RETROMIND_VERSION" in
   *)   APPIMAGE_UPDATE_CHANNEL="latest" ;;
 esac
 
-APPIMAGE_NAME="Retromind-$RETROMIND_VERSION-linux-x86_64.AppImage"
+APPIMAGE_NAME="Retromind-$RETROMIND_VERSION-x86_64.AppImage"
 APPIMAGE_PATH="$OUT_DIR/$APPIMAGE_NAME"
 ZSYNC_PATH="$APPIMAGE_PATH.zsync"
-APPIMAGE_UPDATE_INFORMATION="gh-releases-zsync|Dark574|Retromind|$APPIMAGE_UPDATE_CHANNEL|Retromind-*-linux-x86_64.AppImage.zsync"
+LEGACY_ZSYNC_NAME="Retromind-$RETROMIND_VERSION-linux-x86_64.AppImage.zsync"
+LEGACY_ZSYNC_PATH="$OUT_DIR/$LEGACY_ZSYNC_NAME"
+APPIMAGE_UPDATE_INFORMATION="gh-releases-zsync|Dark574|Retromind|$APPIMAGE_UPDATE_CHANNEL|Retromind-*-x86_64.AppImage.zsync"
 
 echo "[1/8] Prepare folders..."
 rm -rf "$WORK_DIR"
@@ -288,7 +290,7 @@ echo "[8/8] Build AppImage..."
 cd "$WORK_DIR"
 # Extract-and-run keeps the packaging step independent of host FUSE support.
 # The generated Retromind AppImage still uses the explicitly pinned static runtime.
-rm -f "$APPIMAGE_PATH" "$ZSYNC_PATH"
+rm -f "$APPIMAGE_PATH" "$ZSYNC_PATH" "$LEGACY_ZSYNC_PATH"
 ARCH=x86_64 VERSION="$RETROMIND_VERSION" APPIMAGE_EXTRACT_AND_RUN=1 \
   "$APPIMAGETOOL" \
   --runtime-file "$APPIMAGE_RUNTIME" \
@@ -307,8 +309,16 @@ if [ ! -f "$ZSYNC_PATH" ]; then
   exit 1
 fi
 
+# Retromind 0.1.9 and earlier search GitHub releases using the former
+# *-linux-x86_64.AppImage.zsync pattern. Keep a tiny metadata alias so those
+# AppImages can discover the first and later releases with the canonical name.
+# The copied zsync header still points to APPIMAGE_NAME, so no duplicate
+# AppImage asset is required.
+cp "$ZSYNC_PATH" "$LEGACY_ZSYNC_PATH"
+
 echo "Done: $APPIMAGE_PATH"
 echo "Delta metadata: $ZSYNC_PATH"
+echo "Legacy update metadata: $LEGACY_ZSYNC_PATH"
 echo "Run it with: $APPIMAGE_PATH"
 
 echo "Clean up obsolete Retromind builder images..."

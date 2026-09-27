@@ -85,23 +85,23 @@ The latest alpha builds are available on GitHub Releases:
 - **Releases:**  
   [https://github.com/Dark574/Retromind/releases](https://github.com/Dark574/Retromind/releases)
 
-Download `Retromind-<version>-linux-x86_64.AppImage`, make it executable and start it:
+Download `Retromind-<version>-x86_64.AppImage`, make it executable and start it:
 
 ```bash
-chmod +x Retromind-<version>-linux-x86_64.AppImage
-./Retromind-<version>-linux-x86_64.AppImage
+chmod +x Retromind-<version>-x86_64.AppImage
+./Retromind-<version>-x86_64.AppImage
 ```
 
 Start directly in BigMode:
 
 ```bash
-./Retromind-<version>-linux-x86_64.AppImage --bigmode
+./Retromind-<version>-x86_64.AppImage --bigmode
 ```
 
 Native Wayland support is experimental and must be enabled explicitly:
 
 ```bash
-./Retromind-<version>-linux-x86_64.AppImage --avalonia-platform=wayland
+./Retromind-<version>-x86_64.AppImage --avalonia-platform=wayland
 ```
 
 Without this option, Retromind keeps the stable X11/XWayland default.
