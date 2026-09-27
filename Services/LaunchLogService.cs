@@ -117,6 +117,17 @@ public sealed class LaunchLogService
         }
     }
 
+    public void TryDeleteForSubtree(MediaNode root)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+
+        foreach (var item in root.Items)
+            TryDelete(item.Id);
+
+        foreach (var child in root.Children)
+            TryDeleteForSubtree(child);
+    }
+
     internal string? GetLogPath(string? mediaItemId)
     {
         if (string.IsNullOrWhiteSpace(mediaItemId))

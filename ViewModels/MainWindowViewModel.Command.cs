@@ -854,16 +854,17 @@ public partial class MainWindowViewModel
         {
             if (!await ShowConfirmDialog(owner, Strings.Dialog_MsgConfirmDelete)) return;
 
-            if (RootItems.Contains(nodeToDelete)) 
+            var removed = RootItems.Remove(nodeToDelete) ||
+                          RemoveNodeRecursive(RootItems, nodeToDelete);
+            if (!removed)
+                return;
+
+            var saved = await SaveData();
+            if (saved && !_libraryLoadFailed)
             {
-                RootItems.Remove(nodeToDelete);
+                _launchLogService.TryDeleteForSubtree(nodeToDelete);
+                ViewLastLaunchLogCommand.NotifyCanExecuteChanged();
             }
-            else 
-            {
-                RemoveNodeRecursive(RootItems, nodeToDelete);
-            }
-            
-            await SaveData();
         }
         catch (Exception ex)
         {
@@ -1439,9 +1440,12 @@ public partial class MainWindowViewModel
             if (parentNode != null)
             {
                 parentNode.Items.Remove(item);
-                await SaveData();
-                _launchLogService.TryDelete(item.Id);
-                ViewLastLaunchLogCommand.NotifyCanExecuteChanged();
+                var saved = await SaveData();
+                if (saved && !_libraryLoadFailed)
+                {
+                    _launchLogService.TryDelete(item.Id);
+                    ViewLastLaunchLogCommand.NotifyCanExecuteChanged();
+                }
                 
                 RefreshContentAfterMediaCollectionChange();
             }
