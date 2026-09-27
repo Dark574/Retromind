@@ -39,6 +39,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly MediaDataService _dataService;
     private readonly MetadataBackupService _metadataBackupService;
     private readonly FileManagementService _fileService;
+    private readonly WinetricksService _winetricksService;
     private readonly ImportService _importService;
     private readonly LauncherService _launcherService;
     private readonly LaunchLogService _launchLogService;
@@ -387,6 +388,7 @@ public partial class MainWindowViewModel : ViewModelBase
         MediaDataService dataService,
         MetadataBackupService metadataBackupService,
         FileManagementService fileService,
+        WinetricksService winetricksService,
         ImportService importService,
         LauncherService launcherService,
         LaunchLogService launchLogService,
@@ -412,6 +414,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _dataService = dataService;
         _metadataBackupService = metadataBackupService;
         _fileService = fileService;
+        _winetricksService = winetricksService;
         _importService = importService;
         _launcherService = launcherService;
         _launchLogService = launchLogService;

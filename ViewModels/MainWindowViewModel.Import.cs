@@ -1168,6 +1168,7 @@ public partial class MainWindowViewModel
             item,
             _currentSettings,
             _fileService,
+            _winetricksService,
             nodePath,
             _retroAchievementsGameIdentificationService,
             inherited,

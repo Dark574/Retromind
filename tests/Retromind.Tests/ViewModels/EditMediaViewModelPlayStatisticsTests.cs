@@ -103,6 +103,7 @@ public sealed class EditMediaViewModelPlayStatisticsTests
             item,
             new AppSettings(),
             new FileManagementService(temp.CreateDirectory("Library")),
+            new WinetricksService(temp.GetPath("Library")),
             [parent.Name],
             new UnexpectedIdentificationService(),
             rootNodes: new ObservableCollection<MediaNode> { parent },

@@ -373,6 +373,12 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   arguments, and working directory before falling back to filesystem heuristics; this is important for
   installer-supplied DOSBox configurations
 
+Winetricks follows the same application/infrastructure boundary. `EditMediaViewModel` resolves the effective
+item/emulator environment and owns the process-log window, while `WinetricksService` owns prefix preparation,
+portable C:/D: mappings, Proton/UMU fallback selection, command construction, process execution, and the
+`winetricks.log` summary. The service receives plain request data and reports log lines through a callback; it has
+no dependency on Avalonia views or view models.
+
 ## Runner management
 
 Runner definitions are stored in `AppSettings` and selected through inheritance from emulator to media item.
@@ -413,9 +419,9 @@ Parental behavior is not isolated to one screen:
 assembly through `InternalsVisibleTo` rather than widening the production API.
 
 The suite is risk-focused rather than UI-complete. It covers persistence recovery and restore behavior,
-portable-path and prefix contracts, launch planning, import and multi-disc rules, metadata matching, search,
-statistics, managed runner publication/removal, GOG authentication/install safety, and the RetroAchievements
-account, hashing, catalog, progress,
+portable-path and prefix contracts, Winetricks prefix/command preparation, launch planning, import and multi-disc
+rules, metadata matching, search, statistics, managed runner publication/removal, GOG authentication/install
+safety, and the RetroAchievements account, hashing, catalog, progress,
 badge, cache-migration, and bulk-identification services. Destructive filesystem tests use unique
 `/tmp/retromind-tests-<guid>` roots, validate the exact target before cleanup, and avoid following symbolic
 links. This includes dangerous system/application roots, ownership markers, symbolic links, Linux case

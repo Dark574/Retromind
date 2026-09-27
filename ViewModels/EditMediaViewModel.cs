@@ -27,6 +27,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     private readonly MediaItem _originalItem;
     private readonly List<MediaFileRef> _editedFiles;
     private readonly FileManagementService _fileService;
+    private readonly WinetricksService _winetricksService;
     private readonly List<string> _nodePath;
     private NotifyCollectionChangedEventHandler? _assetsChangedHandler;
     
@@ -582,6 +583,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         MediaItem item,
         AppSettings settings,
         FileManagementService fileService,
+        WinetricksService winetricksService,
         List<string> nodePath,
         IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService,
         EmulatorConfig? inheritedEmulator = null,
@@ -598,6 +600,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         _originalItem = item;
         _editedFiles = CloneFiles(item.Files);
         _fileService = fileService;
+        _winetricksService = winetricksService ?? throw new ArgumentNullException(nameof(winetricksService));
         _nodePath = nodePath; 
         _inheritedEmulator = inheritedEmulator;
         
