@@ -103,7 +103,7 @@ internal sealed partial class LaunchLogBuilder
             .AppendLine($"Executable: {ValueOrUnavailable(_executable)}")
             .AppendLine($"Arguments: {ValueOrUnavailable(RedactKnownSecrets(RedactArguments(_arguments)))}")
             .AppendLine($"Working directory: {ValueOrUnavailable(_workingDirectory)}")
-            .AppendLine($"Game: {ValueOrUnavailable(_gamePath)}")
+            .AppendLine($"Game: {ValueOrUnavailable(RedactKnownSecrets(RedactArguments(_gamePath)))}")
             .AppendLine($"Runner: {ValueOrUnavailable(_runnerDescription)}")
             .AppendLine($"Wrappers: {ValueOrUnavailable(RedactKnownSecrets(RedactArguments(_wrapperDescription)))}");
 
@@ -218,7 +218,7 @@ internal sealed partial class LaunchLogBuilder
     }
 
     [GeneratedRegex(
-        "(?<prefix>(?:--?|/)?(?:password|passwd|token|secret|api[-_]?key|authorization|cookie|credential)(?:\\s*=\\s*|\\s+))(?:\\\"[^\\\"]*\\\"|'[^']*'|\\S+)",
+        "(?<prefix>(?:--?|/)?(?:password|passwd|token|secret|api[-_]?key|authorization|cookie|credential)(?:\\s*=\\s*|\\s+))(?:\\\"[^\\\"]*\\\"|'[^']*'|[^\\s&#]+)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SensitiveArgumentRegex();
 
