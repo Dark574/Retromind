@@ -262,6 +262,7 @@ public partial class App : Application
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();
+        services.AddSingleton(_ => new RunnerVersionService(AppPaths.DataRoot));
         
         // --- Store providers ---
         services.AddSingleton<SecretServiceSecretStore>();

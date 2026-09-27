@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO.Compression;
-using System.Formats.Tar;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using Retromind.Helpers;
@@ -36,7 +33,7 @@ public partial class SettingsViewModel
         {
             Id = Guid.NewGuid().ToString(),
             Name = name,
-            Kind = DetectRunnerKindFromPath(path),
+            Kind = _runnerVersionService.DetectRunnerKind(path),
             SourceType = RunnerVersionSourceType.ExternalPath,
             Path = normalizedPath
         };
@@ -159,19 +156,13 @@ public partial class SettingsViewModel
         {
             if (removed.SourceType == RunnerVersionSourceType.ManagedDownload)
             {
-                if (!TryResolveManagedRunnerDirectory(removed.Path, out var runnerDirectory))
+                if (!await _runnerVersionService.DeleteManagedRunnerAsync(removed.Path))
                 {
                     RunnerVersionStatusText = T(
                         "Settings_RunnerVersionRemoveInvalidPath",
                         "The managed runner path is invalid. Nothing was removed.");
                     return;
                 }
-
-                await Task.Run(() =>
-                {
-                    if (Directory.Exists(runnerDirectory))
-                        Directory.Delete(runnerDirectory, recursive: true);
-                });
             }
 
             RemapRunnerAssignmentsInWorkingState(removedId, replacementId);
@@ -198,21 +189,6 @@ public partial class SettingsViewModel
         {
             IsRemovingRunnerVersion = false;
         }
-    }
-
-    private static bool TryResolveManagedRunnerDirectory(string path, out string directory)
-    {
-        directory = string.Empty;
-        if (!AppPaths.TryResolveDataPathInsideRoot(path, out var candidate))
-            return false;
-
-        var managedRoot = Path.GetFullPath(Path.Combine(AppPaths.DataRoot, "Emulators", "ProtonVersions"));
-        var parentDirectory = Path.GetDirectoryName(candidate.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        if (!string.Equals(parentDirectory, managedRoot, StringComparison.Ordinal))
-            return false;
-
-        directory = candidate;
-        return true;
     }
 
     private async Task BrowseRunnerVersionPathAsync()
@@ -245,7 +221,7 @@ public partial class SettingsViewModel
 
         try
         {
-            var releases = await FetchGeProtonReleasesAsync();
+            var releases = await _runnerVersionService.GetGeProtonReleasesAsync();
 
             GeProtonReleases.Clear();
             foreach (var release in releases)
@@ -282,7 +258,7 @@ public partial class SettingsViewModel
 
         try
         {
-            var relativePath = await DownloadAndInstallGeReleaseAsync(selected);
+            var relativePath = await _runnerVersionService.DownloadAndInstallGeProtonAsync(selected);
 
             var existing = RunnerVersions.FirstOrDefault(r =>
                 string.Equals(r.Path, relativePath, StringComparison.OrdinalIgnoreCase));
@@ -413,274 +389,6 @@ public partial class SettingsViewModel
         runners.RemoveAll(runner =>
             string.Equals(runner.Id, removed.Id, StringComparison.Ordinal) ||
             string.Equals(runner.Path, removed.Path, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static async Task<List<GeProtonReleaseOption>> FetchGeProtonReleasesAsync()
-    {
-        var result = new List<GeProtonReleaseOption>();
-
-        for (var page = 1; page <= GeProtonMaxPages; page++)
-        {
-            var url = $"{GeProtonReleasesApiUrl}?per_page={GeProtonPerPage}&page={page}";
-            using var response = await GitHubHttpClient.GetAsync(url).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            await using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            using var json = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
-
-            if (json.RootElement.ValueKind != JsonValueKind.Array)
-                break;
-
-            var releaseCountOnPage = json.RootElement.GetArrayLength();
-            if (releaseCountOnPage == 0)
-                break;
-
-            foreach (var release in json.RootElement.EnumerateArray())
-            {
-                if (!TryGetStringProperty(release, "tag_name", out var tagName))
-                    continue;
-
-                if (release.TryGetProperty("draft", out var draftProp) && draftProp.ValueKind == JsonValueKind.True)
-                    continue;
-
-                if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
-                    continue;
-
-                foreach (var asset in assets.EnumerateArray())
-                {
-                    if (!TryGetStringProperty(asset, "name", out var assetName))
-                        continue;
-
-                    if (!assetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    if (!TryGetStringProperty(asset, "browser_download_url", out var downloadUrl))
-                        continue;
-
-                    if (!assetName.Contains("aarch64", StringComparison.OrdinalIgnoreCase)
-                        && !assetName.Contains("arm", StringComparison.OrdinalIgnoreCase))
-                    {
-                        result.Add(new GeProtonReleaseOption(tagName, assetName, downloadUrl));
-                        break; // One download asset per release is enough.
-                    }
-                }
-
-                if (result.Count >= GeProtonMaxItems)
-                    return result;
-            }
-
-            if (releaseCountOnPage < GeProtonPerPage)
-                break;
-        }
-
-        return result;
-    }
-
-    private static bool TryGetStringProperty(JsonElement element, string propertyName, out string value)
-    {
-        value = string.Empty;
-        if (!element.TryGetProperty(propertyName, out var property))
-            return false;
-
-        if (property.ValueKind != JsonValueKind.String)
-            return false;
-
-        value = property.GetString() ?? string.Empty;
-        return !string.IsNullOrWhiteSpace(value);
-    }
-
-    private static async Task<string> DownloadAndInstallGeReleaseAsync(GeProtonReleaseOption release)
-    {
-        if (release == null)
-            throw new ArgumentNullException(nameof(release));
-
-        var baseRelativePath = Path.Combine("Emulators", "ProtonVersions");
-        var baseAbsolutePath = AppPaths.ResolveDataPath(baseRelativePath);
-        Directory.CreateDirectory(baseAbsolutePath);
-
-        var tempArchivePath = Path.Combine(Path.GetTempPath(), $"retromind_ge_{Guid.NewGuid():N}.tar.gz");
-
-        try
-        {
-            await using (var remote = await GitHubHttpClient.GetStreamAsync(release.DownloadUrl).ConfigureAwait(false))
-            await using (var local = File.Create(tempArchivePath))
-            {
-                await remote.CopyToAsync(local).ConfigureAwait(false);
-            }
-
-            var rootFolder = DetectArchiveRootFolderName(tempArchivePath);
-            if (string.IsNullOrWhiteSpace(rootFolder))
-            {
-                rootFolder = Path.GetFileNameWithoutExtension(
-                    Path.GetFileNameWithoutExtension(release.AssetName));
-            }
-
-            rootFolder = SanitizeFolderName(rootFolder);
-            if (string.IsNullOrWhiteSpace(rootFolder))
-                throw new InvalidOperationException("Unable to determine installation folder name.");
-
-            var targetDir = Path.Combine(baseAbsolutePath, rootFolder);
-            var relativeInstalledPath = NormalizeRelativePath(Path.Combine(baseRelativePath, rootFolder));
-
-            if (Directory.Exists(targetDir))
-            {
-                EnsureCompleteProtonRunner(targetDir);
-                return relativeInstalledPath;
-            }
-
-            var stagingDir = Path.Combine(baseAbsolutePath, $".tmp_ge_{Guid.NewGuid():N}");
-            Directory.CreateDirectory(stagingDir);
-
-            try
-            {
-                await using var archiveStream = File.OpenRead(tempArchivePath);
-                await using var gzipStream = new GZipStream(archiveStream, CompressionMode.Decompress);
-                TarFile.ExtractToDirectory(gzipStream, stagingDir, overwriteFiles: false);
-
-                var expectedRoot = Path.Combine(stagingDir, rootFolder);
-                if (Directory.Exists(expectedRoot))
-                {
-                    EnsureCompleteProtonRunner(expectedRoot);
-                    Directory.Move(expectedRoot, targetDir);
-                }
-                else
-                {
-                    var extractedDirs = Directory.GetDirectories(stagingDir);
-                    if (extractedDirs.Length == 1)
-                    {
-                        EnsureCompleteProtonRunner(extractedDirs[0]);
-                        Directory.Move(extractedDirs[0], targetDir);
-                    }
-                    else
-                    {
-                        EnsureCompleteProtonRunner(stagingDir);
-                        // Publish the complete extracted tree with one same-filesystem rename.
-                        // A hard process stop can therefore leave either the staging directory
-                        // or the final directory, but never a partially populated final runner.
-                        Directory.Move(stagingDir, targetDir);
-                    }
-                }
-            }
-            finally
-            {
-                try
-                {
-                    if (Directory.Exists(stagingDir))
-                        Directory.Delete(stagingDir, recursive: true);
-                }
-                catch
-                {
-                    // best-effort cleanup
-                }
-            }
-
-            return relativeInstalledPath;
-        }
-        finally
-        {
-            try
-            {
-                if (File.Exists(tempArchivePath))
-                    File.Delete(tempArchivePath);
-            }
-            catch
-            {
-                // best-effort cleanup
-            }
-        }
-    }
-
-    private static void EnsureCompleteProtonRunner(string runnerDirectory)
-    {
-        if (RunnerVersionPathHelper.ResolveExecutablePath(RunnerVersionKind.Proton, runnerDirectory) == null)
-        {
-            var format = Strings.ResourceManager.GetString(
-                             "Settings_GeProtonIncompleteFormat",
-                             Strings.Culture)
-                         ?? "The Proton archive is incomplete. Expected 'proton' and 'toolmanifest.vdf' in '{0}'.";
-            throw new InvalidOperationException(string.Format(format, runnerDirectory));
-        }
-    }
-
-    private static string DetectArchiveRootFolderName(string tarGzPath)
-    {
-        if (string.IsNullOrWhiteSpace(tarGzPath) || !File.Exists(tarGzPath))
-            return string.Empty;
-
-        using var fileStream = File.OpenRead(tarGzPath);
-        using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress);
-        using var tarReader = new TarReader(gzipStream, leaveOpen: false);
-
-        TarEntry? entry;
-        while ((entry = tarReader.GetNextEntry()) != null)
-        {
-            var name = entry.Name?.Trim('/', '\\');
-            if (string.IsNullOrWhiteSpace(name))
-                continue;
-
-            var firstSegment = name.Split(new[] { '/', '\\' }, 2)[0];
-            if (!string.IsNullOrWhiteSpace(firstSegment))
-                return firstSegment;
-        }
-
-        return string.Empty;
-    }
-
-    private static string SanitizeFolderName(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return string.Empty;
-
-        var result = value.Trim();
-        foreach (var c in Path.GetInvalidFileNameChars())
-            result = result.Replace(c.ToString(), string.Empty, StringComparison.Ordinal);
-
-        return result.Trim();
-    }
-
-    private static string NormalizeRelativePath(string path)
-        => (path ?? string.Empty).Replace('\\', '/');
-
-    private static RunnerVersionKind DetectRunnerKindFromPath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return RunnerVersionKind.Proton;
-
-        var trimmed = path.Trim();
-        var normalized = trimmed.Replace('\\', '/');
-        var lower = normalized.ToLowerInvariant();
-
-        if (lower.Contains("/wine") || lower.Contains("wine64"))
-            return RunnerVersionKind.Wine;
-
-        if (lower.Contains("proton"))
-            return RunnerVersionKind.Proton;
-
-        try
-        {
-            var candidateDir = Directory.Exists(trimmed)
-                ? trimmed
-                : (File.Exists(trimmed) ? Path.GetDirectoryName(trimmed) : null);
-
-            if (!string.IsNullOrWhiteSpace(candidateDir))
-            {
-                var wineBin = Path.Combine(candidateDir, "bin", "wine");
-                var wineBin64 = Path.Combine(candidateDir, "bin", "wine64");
-                if (File.Exists(wineBin) || File.Exists(wineBin64))
-                    return RunnerVersionKind.Wine;
-
-                var protonScript = Path.Combine(candidateDir, "proton");
-                var protonFixes = Path.Combine(candidateDir, "protonfixes");
-                if (File.Exists(protonScript) || Directory.Exists(protonFixes))
-                    return RunnerVersionKind.Proton;
-            }
-        }
-        catch
-        {
-            // best-effort detection
-        }
-
-        return RunnerVersionKind.Proton;
     }
 
     private void RebuildSelectedEmulatorRunnerVersionOptions()

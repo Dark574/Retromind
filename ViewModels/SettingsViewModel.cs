@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
@@ -22,15 +21,10 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ViewModelBase, IDisposable
 {
-    private static readonly HttpClient GitHubHttpClient = CreateGitHubHttpClient();
-    private const string GeProtonReleasesApiUrl = "https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases";
-    private const int GeProtonPerPage = 100;
-    private const int GeProtonMaxPages = 6;
-    private const int GeProtonMaxItems = 300;
-
     private readonly AppSettings _targetSettings;
     private readonly AppSettings _appSettings;
     private readonly SettingsService _settingsService;
+    private readonly RunnerVersionService _runnerVersionService;
     private readonly ObservableCollection<MediaNode> _rootNodes;
     private readonly bool _originalIgnoreLeadingArticlesInSort;
     private readonly Dictionary<string, int> _runnerUsageById = new(StringComparer.Ordinal);
@@ -102,7 +96,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadSelectedGeReleaseCommand))]
-    private GeProtonReleaseOption? _selectedGeProtonRelease;
+    private GeProtonRelease? _selectedGeProtonRelease;
 
     [ObservableProperty]
     private int _selectedSettingsTabIndex;
@@ -139,7 +133,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public ObservableCollection<RunnerVersionRow> RunnerVersions { get; } = new();
     public ObservableCollection<RunnerVersionSelectionOption> SelectedEmulatorRunnerVersionOptions { get; } = new();
     public ObservableCollection<RunnerVersionSelectionOption> RunnerReplacementOptions { get; } = new();
-    public ObservableCollection<GeProtonReleaseOption> GeProtonReleases { get; } = new();
+    public ObservableCollection<GeProtonRelease> GeProtonReleases { get; } = new();
     public ObservableCollection<string> AvailableRootBigModeThemes { get; } = new();
 
     [ObservableProperty]
@@ -695,21 +689,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         public RunnerVersionKind? Kind { get; }
     }
 
-    public sealed class GeProtonReleaseOption
-    {
-        public GeProtonReleaseOption(string tagName, string assetName, string downloadUrl)
-        {
-            TagName = tagName ?? string.Empty;
-            AssetName = assetName ?? string.Empty;
-            DownloadUrl = downloadUrl ?? string.Empty;
-        }
-
-        public string TagName { get; }
-        public string AssetName { get; }
-        public string DownloadUrl { get; }
-        public string DisplayName => string.IsNullOrWhiteSpace(AssetName) ? TagName : $"{TagName} ({AssetName})";
-    }
-    
     public bool IsEmulatorXdgCustomSelected => SelectedEmulator?.XdgMode == EmulatorConfig.XdgOverrideMode.Custom;
 
     /// <summary>
@@ -804,11 +783,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         AppSettings settings,
         SettingsService settingsService,
         RetroAchievementsAccountService retroAchievementsAccountService,
+        RunnerVersionService runnerVersionService,
         ObservableCollection<MediaNode>? rootNodes = null)
     {
         _targetSettings = settings ?? throw new ArgumentNullException(nameof(settings));
         _appSettings = CreateWorkingCopy(_targetSettings);
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _runnerVersionService = runnerVersionService ?? throw new ArgumentNullException(nameof(runnerVersionService));
         _retroAchievementsAccountService = retroAchievementsAccountService ??
             throw new ArgumentNullException(nameof(retroAchievementsAccountService));
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();

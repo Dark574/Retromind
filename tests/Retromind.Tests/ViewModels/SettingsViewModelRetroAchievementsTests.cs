@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
@@ -134,7 +135,11 @@ public sealed class SettingsViewModelRetroAchievementsTests
         var accountService = new RetroAchievementsAccountService(
             new RetroAchievementsApiClient(httpClient),
             secretStore);
-        return new SettingsViewModel(targetSettings, new SettingsService(), accountService);
+        return new SettingsViewModel(
+            targetSettings,
+            new SettingsService(),
+            accountService,
+            new RunnerVersionService(AppPaths.DataRoot));
     }
 
     private static HttpClient CreateProfileClient()

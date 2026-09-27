@@ -1541,6 +1541,7 @@ public partial class MainWindowViewModel
             _currentSettings,
             _settingsService,
             _retroAchievementsAccountService,
+            _runnerVersionService,
             RootItems);
         await settingsVm.InitializeRetroAchievementsAsync();
         settingsVm.RequestRunnerVersionRemovalConfirmation += runner =>

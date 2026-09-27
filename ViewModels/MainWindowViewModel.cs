@@ -47,6 +47,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IStoreLibraryProvider _storeLibraryProvider;
     private readonly GogInstallService _gogInstallService;
     private readonly SettingsService _settingsService;
+    private readonly RunnerVersionService _runnerVersionService;
     private readonly MetadataService _metadataService; 
     private readonly GamepadService _gamepadService;
     private readonly SoundEffectService _soundEffectService;
@@ -394,6 +395,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IStoreLibraryProvider storeLibraryProvider,
         GogInstallService gogInstallService,
         SettingsService settingsService,
+        RunnerVersionService runnerVersionService,
         MetadataService metadataService,
         SoundEffectService soundEffectService,
         HttpClient httpClient,
@@ -418,6 +420,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _storeLibraryProvider = storeLibraryProvider;
         _gogInstallService = gogInstallService;
         _settingsService = settingsService;
+        _runnerVersionService = runnerVersionService;
         _metadataService = metadataService;
         _soundEffectService = soundEffectService;
         _httpClient = httpClient;

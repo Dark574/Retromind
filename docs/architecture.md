@@ -376,12 +376,14 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 ## Runner management
 
 Runner definitions are stored in `AppSettings` and selected through inheritance from emulator to media item.
-`SettingsViewModel.Runners` owns discovery, managed GE-Proton downloads, registration, usage/replacement, and
-removal. A completed managed download is registered immediately, managed files require confirmation before
-physical removal, and display order uses `MediaSortHelper.NaturalStringComparer` so numeric release segments
-sort naturally (for example, GE-Proton9 before GE-Proton10). Managed downloads are extracted into uniquely named
-staging directories and atomically renamed into place; they are registered only after their Proton entry point and
-UMU tool manifest have been verified. Before a selected runner is launched, its persisted
+`RunnerVersionService` owns external GE-Proton discovery, managed downloads, archive extraction, validation,
+runner-kind inspection, and the safe removal of managed runner directories. `SettingsViewModel.Runners` owns the
+editable UI state, registration, usage/replacement, confirmation, and persistence workflow. A completed managed
+download is registered immediately, managed files require confirmation before physical removal, and display order
+uses `MediaSortHelper.NaturalStringComparer` so numeric release segments sort naturally (for example, GE-Proton9
+before GE-Proton10). Managed downloads are extracted into uniquely named staging directories and atomically renamed
+into place; they are registered only after their Proton entry point and UMU tool manifest have been verified. Before
+a selected runner is launched, its persisted
 definition and files are checked again so removed, moved, or incomplete runners fail with visible guidance rather
 than silently falling back to another runtime.
 
@@ -412,7 +414,8 @@ assembly through `InternalsVisibleTo` rather than widening the production API.
 
 The suite is risk-focused rather than UI-complete. It covers persistence recovery and restore behavior,
 portable-path and prefix contracts, launch planning, import and multi-disc rules, metadata matching, search,
-statistics, GOG authentication/install safety, and the RetroAchievements account, hashing, catalog, progress,
+statistics, managed runner publication/removal, GOG authentication/install safety, and the RetroAchievements
+account, hashing, catalog, progress,
 badge, cache-migration, and bulk-identification services. Destructive filesystem tests use unique
 `/tmp/retromind-tests-<guid>` roots, validate the exact target before cleanup, and avoid following symbolic
 links. This includes dangerous system/application roots, ownership markers, symbolic links, Linux case
