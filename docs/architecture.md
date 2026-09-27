@@ -381,8 +381,9 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 - `GogInstallerExecutionService` owns the platform installation workflow. Its Linux path selects compatibility
   argument profiles, falls back to extracted `startmojo.sh`, isolates shell-sensitive destination paths,
   promotes temporary installs while preserving Unix modes, repairs relocated MojoSetup metadata, and validates
-  that DLC installers actually changed the payload. Shared payload snapshots are provided by
-  `GogInstallPayloadTracker`; the Windows workflow is migrated to this boundary incrementally
+  that DLC installers actually changed the payload. Its Windows path owns prefix creation, installer architecture
+  selection, silent/interactive Inno profiles, shortcut policy cleanup, Wine diagnostics, and target/prefix
+  payload validation. Shared payload snapshots are provided by `GogInstallPayloadTracker`
 
 Winetricks follows the same application/infrastructure boundary. `EditMediaViewModel` resolves the effective
 item/emulator environment and owns the process-log window, while `WinetricksService` owns prefix preparation,

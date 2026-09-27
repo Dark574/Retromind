@@ -20,15 +20,20 @@ internal sealed record GogInstallerExecutionResult(bool Success, string? ErrorMe
 
 /// <summary>
 /// Owns platform-specific GOG installer workflows independently from dialogs
-/// and media-item mutation. Windows execution will use the same boundary.
+/// and media-item mutation.
 /// </summary>
-public sealed class GogInstallerExecutionService
+public sealed partial class GogInstallerExecutionService
 {
     private readonly GogInstallerProcessService _processService;
+    private readonly string _libraryRoot;
 
-    public GogInstallerExecutionService(GogInstallerProcessService processService)
+    public GogInstallerExecutionService(GogInstallerProcessService processService, string libraryRoot)
     {
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
+        if (string.IsNullOrWhiteSpace(libraryRoot))
+            throw new ArgumentException("A library root is required.", nameof(libraryRoot));
+
+        _libraryRoot = Path.GetFullPath(libraryRoot);
     }
 
     internal async Task<GogInstallerExecutionResult> RunLinuxAsync(

@@ -75,7 +75,7 @@ public partial class MainWindowViewModel
             installPath,
             platform.Value,
             GetPreferredInstalledWindowsInstallerPreference(item) ??
-                GogInstallDialogViewModel.WindowsInstallerPreference.AutoPrefer64,
+                GogWindowsInstallerPreference.AutoPrefer64,
             deleteStagingAfterSuccess);
 
         var ownsProgressLog = existingProgressLog == null;
@@ -487,7 +487,7 @@ public partial class MainWindowViewModel
     internal static GogInstallDialogViewModel.GogInstallDialogResult CreateGogDlcInstallRequest(
         string installPath,
         GogInstallPlatform platform,
-        GogInstallDialogViewModel.WindowsInstallerPreference windowsInstallerPreference,
+        GogWindowsInstallerPreference windowsInstallerPreference,
         bool deleteStagingAfterSuccess) =>
         new(
             installPath,

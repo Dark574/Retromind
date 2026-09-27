@@ -15,13 +15,6 @@ namespace Retromind.ViewModels;
 
 public sealed partial class GogInstallDialogViewModel : ViewModelBase
 {
-    public enum WindowsInstallerPreference
-    {
-        AutoPrefer64 = 0,
-        Prefer64 = 1,
-        Prefer32 = 2
-    }
-
     public sealed record PlatformOption(GogInstallPlatform Platform, string Name);
 
     public sealed record RunnerOption(
@@ -33,13 +26,13 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         public string DisplayName => $"{Name} ({(Kind == RunnerVersionKind.Wine ? "Wine" : "Proton")})";
     }
 
-    public sealed record WindowsInstallerPreferenceOption(WindowsInstallerPreference Value, string Name);
+    public sealed record WindowsInstallerPreferenceOption(GogWindowsInstallerPreference Value, string Name);
 
     public sealed record GogInstallDialogResult(
         string InstallPath,
         GogInstallPlatform Platform,
         RunnerOption? Runner,
-        WindowsInstallerPreference WindowsInstallerPreference,
+        GogWindowsInstallerPreference WindowsInstallerPreference,
         bool CreateDesktopShortcut,
         bool CreateStartMenuShortcuts,
         bool CleanInstall,
@@ -160,7 +153,7 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         IEnumerable<GogInstallPlatform>? availablePlatforms = null,
         GogInstallPlatform? preferredPlatform = null,
         string? preferredRunnerVersionId = null,
-        WindowsInstallerPreference? preferredWindowsInstallerPreference = null,
+        GogWindowsInstallerPreference? preferredWindowsInstallerPreference = null,
         bool isUpdate = false,
         IEnumerable<GogDlcInstallationState>? installedDlcsToReinstall = null)
     {
@@ -222,16 +215,16 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
             : RunnerOptions.FirstOrDefault();
 
         WindowsInstallerPreferences.Add(new WindowsInstallerPreferenceOption(
-            WindowsInstallerPreference.AutoPrefer64,
+            GogWindowsInstallerPreference.AutoPrefer64,
             T("Gog.Install.WindowsInstallerPreference.AutoPrefer64", "Auto (prefer 64-bit)")));
         WindowsInstallerPreferences.Add(new WindowsInstallerPreferenceOption(
-            WindowsInstallerPreference.Prefer64,
+            GogWindowsInstallerPreference.Prefer64,
             T("Gog.Install.WindowsInstallerPreference.Prefer64", "64-bit installer")));
         WindowsInstallerPreferences.Add(new WindowsInstallerPreferenceOption(
-            WindowsInstallerPreference.Prefer32,
+            GogWindowsInstallerPreference.Prefer32,
             T("Gog.Install.WindowsInstallerPreference.Prefer32", "32-bit installer")));
 
-        var preferredInstallerPreference = preferredWindowsInstallerPreference ?? WindowsInstallerPreference.AutoPrefer64;
+        var preferredInstallerPreference = preferredWindowsInstallerPreference ?? GogWindowsInstallerPreference.AutoPrefer64;
         SelectedWindowsInstallerPreference = WindowsInstallerPreferences.FirstOrDefault(
             option => option.Value == preferredInstallerPreference) ?? WindowsInstallerPreferences.FirstOrDefault();
 
@@ -353,7 +346,7 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
             }
         }
 
-        var installerPreference = SelectedWindowsInstallerPreference?.Value ?? WindowsInstallerPreference.AutoPrefer64;
+        var installerPreference = SelectedWindowsInstallerPreference?.Value ?? GogWindowsInstallerPreference.AutoPrefer64;
         var selectedDlcProductIds = IsUpdate || !CleanInstall
             ? InstalledDlcOptions.Select(static option => option.ProductId).ToArray()
             : InstalledDlcOptions

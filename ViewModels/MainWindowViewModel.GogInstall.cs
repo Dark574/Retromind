@@ -687,7 +687,7 @@ public partial class MainWindowViewModel
         return runnerId.Trim();
     }
 
-    private static GogInstallDialogViewModel.WindowsInstallerPreference? GetPreferredInstalledWindowsInstallerPreference(MediaItem item)
+    private static GogWindowsInstallerPreference? GetPreferredInstalledWindowsInstallerPreference(MediaItem item)
     {
         if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallWindowsInstallerPreference, out var raw) ||
             string.IsNullOrWhiteSpace(raw))
@@ -697,19 +697,19 @@ public partial class MainWindowViewModel
 
         return raw.Trim().ToLowerInvariant() switch
         {
-            "prefer64" or "64" => GogInstallDialogViewModel.WindowsInstallerPreference.Prefer64,
-            "prefer32" or "32" => GogInstallDialogViewModel.WindowsInstallerPreference.Prefer32,
-            "auto" or "autoprefer64" => GogInstallDialogViewModel.WindowsInstallerPreference.AutoPrefer64,
+            "prefer64" or "64" => GogWindowsInstallerPreference.Prefer64,
+            "prefer32" or "32" => GogWindowsInstallerPreference.Prefer32,
+            "auto" or "autoprefer64" => GogWindowsInstallerPreference.AutoPrefer64,
             _ => null
         };
     }
 
-    private static string ToInstallerPreferenceStorageValue(GogInstallDialogViewModel.WindowsInstallerPreference value)
+    private static string ToInstallerPreferenceStorageValue(GogWindowsInstallerPreference value)
     {
         return value switch
         {
-            GogInstallDialogViewModel.WindowsInstallerPreference.Prefer64 => "prefer64",
-            GogInstallDialogViewModel.WindowsInstallerPreference.Prefer32 => "prefer32",
+            GogWindowsInstallerPreference.Prefer64 => "prefer64",
+            GogWindowsInstallerPreference.Prefer32 => "prefer32",
             _ => "auto"
         };
     }
@@ -721,39 +721,6 @@ public partial class MainWindowViewModel
         // Keep all package files for Windows installers.
         // Some GOG installers rely on companion payload files that are not safely inferable by filename heuristics.
         return package;
-    }
-
-    private enum WindowsInstallerArchitecture
-    {
-        Unknown = 0,
-        X64 = 1,
-        X86 = 2
-    }
-
-    private static WindowsInstallerArchitecture DetectWindowsInstallerArchitecture(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-            return WindowsInstallerArchitecture.Unknown;
-
-        var normalized = Path.GetFileNameWithoutExtension(fileName).ToLowerInvariant();
-        var tokens = normalized
-            .Split(['_', '-', '.', ' ', '(', ')', '[', ']', '{', '}', '+'], StringSplitOptions.RemoveEmptyEntries);
-
-        var has64 = tokens.Any(token =>
-            token is "x64" or "64" or "64bit" or "win64" or "amd64" ||
-            token.EndsWith("x64", StringComparison.Ordinal) ||
-            token.EndsWith("64bit", StringComparison.Ordinal));
-        var has32 = tokens.Any(token =>
-            token is "x86" or "32" or "32bit" or "win32" or "i386" ||
-            token.EndsWith("x86", StringComparison.Ordinal) ||
-            token.EndsWith("32bit", StringComparison.Ordinal));
-
-        if (has64 && !has32)
-            return WindowsInstallerArchitecture.X64;
-        if (has32 && !has64)
-            return WindowsInstallerArchitecture.X86;
-
-        return WindowsInstallerArchitecture.Unknown;
     }
 
     private static int CountExistingStagedInstallerFiles(GogInstallerPackage package, string stagingDirectory)
@@ -804,10 +771,6 @@ public partial class MainWindowViewModel
     }
 
     private sealed record InstallerRunResult(bool Success, string? ErrorMessage = null);
-    private sealed record WindowsInstallerArgumentProfile(
-        string Name,
-        string? DirectoryArgumentPrefix,
-        IReadOnlyList<string>? AdditionalArguments = null);
     private async Task<InstallerRunResult> RunInstallerAsync(
         MediaItem item,
         string storeGameId,
@@ -863,150 +826,24 @@ public partial class MainWindowViewModel
             if (request.Platform == GogInstallPlatform.Windows)
             {
                 var winePath = EmulatorResolverHelper.ResolveSystemWine();
-                if (winePath == null)
+                if (string.IsNullOrWhiteSpace(winePath))
                     return Fail("Windows installation requires a system wine version.");
 
-                var prefixRoot = ResolveOrCreatePrefixRoot(item, storeGameId);
-                var prefixDrivePath = Path.Combine(prefixRoot, "drive_c");
-                var windowsInstallDestinationPath = ToWineWindowsAbsolutePath(request.InstallPath);
-                
-                AppendProcessLog(logVm, $"Windows prefix root: {prefixRoot}", installerLogPath);
-                AppendProcessLog(logVm, $"Windows prefix dosdevices: {Path.Combine(prefixRoot, "dosdevices")}", installerLogPath);
                 Action<string> appendInstallerLog = line => AppendProcessLog(logVm, line, installerLogPath);
-                GogInstallerProcessService.AppendWineDosDeviceMappings(appendInstallerLog, prefixRoot);
-                AppendProcessLog(logVm, $"Windows installer destination: {windowsInstallDestinationPath}", installerLogPath);
-                
-                // 1. get install file
-                var installerCandidates = BuildWindowsInstallerEntryCandidates(downloadedPackage, request.WindowsInstallerPreference);
-                if (installerCandidates.Count == 0)
-                    return Fail("Windows installer entry file was not found.");
-                
-                var installerPath = installerCandidates.FirstOrDefault(File.Exists);
-                if (string.IsNullOrWhiteSpace(installerPath))
-                    return Fail("Windows installer entry file was not found.");
-
-                AppendProcessLog(logVm, $"[Windows installer] Using: {installerPath}", installerLogPath);
-                var payloadBaseline = GogInstallPayloadTracker.Capture(request.InstallPath);
-                var prefixPayloadBaseline = GogInstallPayloadTracker.Capture(prefixDrivePath);
-                var profiles = BuildWindowsInstallerArgumentProfiles(
-                    request.CreateDesktopShortcut,
-                    request.CreateStartMenuShortcuts);
-                GogInstallerProcessResult? lastExecution = null;
-
-                for (var attemptIndex = 0; attemptIndex < profiles.Count; attemptIndex++)
-                {
-                    var profile = profiles[attemptIndex];
-                    var startInfo = EmulatorResolverHelper.BuildWineInstallStartInfo(winePath, prefixRoot);
-                    startInfo.WorkingDirectory = downloadedPackage.StagingDirectory;
-                    GogWindowsShortcutPolicy.ApplyInstallerEnvironment(
-                        startInfo,
-                        request.CreateDesktopShortcut,
-                        request.CreateStartMenuShortcuts);
-                    startInfo.ArgumentList.Add(installerPath);
-
-                    if (profile.AdditionalArguments is { Count: > 0 })
-                    {
-                        foreach (var argument in profile.AdditionalArguments)
-                        {
-                            if (!string.IsNullOrWhiteSpace(argument))
-                                startInfo.ArgumentList.Add(argument);
-                        }
-                    }
-
-                    var dirArg = BuildWindowsInstallerDirectoryArgument(
-                        windowsInstallDestinationPath,
-                        profile.DirectoryArgumentPrefix);
-                    if (!string.IsNullOrEmpty(dirArg))
-                        startInfo.ArgumentList.Add(dirArg);
-
-                    var innoLogHostPath = attemptIndex == 0
-                        ? Path.Combine(downloadedPackage.StagingDirectory, "inno-setup.log")
-                        : Path.Combine(downloadedPackage.StagingDirectory, $"inno-setup-{profile.Name}.log");
-                    startInfo.ArgumentList.Add(BuildInnoSetupLogArgument(innoLogHostPath));
-
-                    AppendProcessLog(logVm, $"[Windows installer] Inno log path: {innoLogHostPath}", installerLogPath);
-                    AppendProcessLog(
-                        logVm,
-                        $"[Windows installer] Attempt {attemptIndex + 1}/{profiles.Count} ({profile.Name})",
-                        installerLogPath);
-                    GogInstallerProcessService.AppendRunnerEnvironmentSnapshot(appendInstallerLog, startInfo);
-                    AppendProcessLog(logVm, $"> {GogInstallerProcessService.FormatCommand(startInfo)}", installerLogPath);
-
-                    GogInstallerProcessResult windowsExecution;
-                    try
-                    {
-                        windowsExecution = await _gogInstallerProcessService.ExecuteAsync(
-                            startInfo,
-                            appendInstallerLog,
-                            ct).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        var removedShortcutExports = GogWindowsShortcutPolicy.RemoveUnwantedExports(
-                            prefixRoot,
-                            request.CreateDesktopShortcut,
-                            request.CreateStartMenuShortcuts,
-                            startInfo.Environment);
-                        if (removedShortcutExports > 0)
-                        {
-                            AppendProcessLog(
-                                logVm,
-                                $"[Windows installer] Removed {removedShortcutExports} unwanted Wine shortcut export(s).",
-                                installerLogPath);
-                        }
-                    }
-                    if (!windowsExecution.Started)
-                        return Fail(windowsExecution.StartErrorMessage ?? "Installer process could not be started.");
-
-                    lastExecution = windowsExecution;
-                    AppendProcessLog(
-                        logVm,
-                        $"[Windows installer] Process outcome: exit={windowsExecution.ExitCode}, durationMs={windowsExecution.DurationMs}, runtimeCrash={windowsExecution.HasRuntimeCrashError}, unsupportedFlags={windowsExecution.HasUnsupportedFlagsError}, shellParse={windowsExecution.HasShellParsingError}, terminalSpawn={windowsExecution.HasTerminalSpawnError}",
-                        installerLogPath);
-
-                    var payloadDetected = await GogInstallPayloadTracker.WaitForChangeAsync(
+                var result = await _gogInstallerExecutionService.RunWindowsAsync(
+                    new GogWindowsInstallerExecutionRequest(
+                        storeGameId,
+                        item.Title,
+                        item.PrefixPath,
                         request.InstallPath,
-                        payloadBaseline,
-                        TimeSpan.FromSeconds(25),
-                        ct).ConfigureAwait(false);
-                    if (payloadDetected)
-                    {
-                        if (attemptIndex > 0)
-                        {
-                            AppendProcessLog(
-                                logVm,
-                                "[Windows installer] Interactive fallback succeeded; install payload detected.",
-                                installerLogPath);
-                        }
-
-                        return Success();
-                    }
-
-                    if (attemptIndex < profiles.Count - 1)
-                    {
-                        AppendProcessLog(
-                            logVm,
-                            "[Windows installer] Silent attempt failed or produced no payload. Starting interactive fallback with prefilled target directory.",
-                            installerLogPath);
-                        continue;
-                    }
-                }
-
-                if (lastExecution is { ExitCode: not 0 })
-                {
-                    AppendProcessLog(logVm, $"[Windows installer] Warning: Exit code {lastExecution.ExitCode}. Payload unchanged.", installerLogPath);
-                    return Fail("Windows installer exited with code " + lastExecution.ExitCode + " and did not place files.");
-                }
-
-                if (GogInstallPayloadTracker.HasChanged(prefixDrivePath, prefixPayloadBaseline))
-                {
-                    AppendProcessLog(
-                        logVm,
-                        $"Installer changed files inside prefix drive_c ({prefixDrivePath}), but target path stayed unchanged. /DIR may have been ignored.",
-                        installerLogPath);
-                }
-
-                return Fail("Windows installer did not complete successfully.");
+                        winePath,
+                        downloadedPackage,
+                        request.WindowsInstallerPreference,
+                        request.CreateDesktopShortcut,
+                        request.CreateStartMenuShortcuts),
+                    appendInstallerLog,
+                    ct).ConfigureAwait(false);
+                return new InstallerRunResult(result.Success, result.ErrorMessage);
             }
 
             return Success();
@@ -1091,184 +928,6 @@ public partial class MainWindowViewModel
 
     private static bool IsUmuRunAvailable()
         => !string.IsNullOrWhiteSpace(EnvironmentPathHelper.TryFindExecutableInCurrentPath("umu-run"));
-
-    private static List<WindowsInstallerArgumentProfile> BuildWindowsInstallerArgumentProfiles(
-        bool createDesktopShortcut,
-        bool createStartMenuShortcuts)
-    {
-        var shortcutArguments = BuildWindowsShortcutArguments(
-            createDesktopShortcut,
-            createStartMenuShortcuts);
-
-        return
-        [
-            new WindowsInstallerArgumentProfile(
-                "inno-silent-dir-argument",
-                "/DIR=",
-                ["/SP-", "/SILENT", "/NOGUI", "/SUPPRESSMSGBOXES", "/NORESTART", .. shortcutArguments]),
-            new WindowsInstallerArgumentProfile(
-                "inno-interactive-dir-argument",
-                "/DIR=",
-                ["/SP-", .. shortcutArguments])
-        ];
-    }
-
-    // GOG's customized Inno Setup creates shortcuts in installer code instead of
-    // exposing the conventional desktopicon task, so /MERGETASKS does not affect it.
-    internal static IReadOnlyList<string> BuildWindowsShortcutArguments(
-        bool createDesktopShortcut,
-        bool createStartMenuShortcuts)
-    {
-        var arguments = new List<string>(3);
-        if (!createDesktopShortcut)
-        {
-            // GOG's Galaxy setup scripts contain this historical typo. Heroic sends
-            // both spellings for compatibility, while offline setup executables vary.
-            arguments.Add("/nodesktopshorctut");
-            arguments.Add("/nodesktopshortcut");
-        }
-        if (!createStartMenuShortcuts)
-            arguments.Add("/nostartmenushortcut");
-
-        return arguments;
-    }
-
-    private static List<string> BuildWindowsInstallerEntryCandidates(
-        GogDownloadedInstallerPackage downloadedPackage,
-        GogInstallDialogViewModel.WindowsInstallerPreference preference)
-    {
-        if (downloadedPackage == null)
-            return new List<string>();
-
-        var candidates = downloadedPackage.DownloadedFiles
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Where(path => path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-
-        if (!string.IsNullOrWhiteSpace(downloadedPackage.EntryFilePath) &&
-            downloadedPackage.EntryFilePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
-            !candidates.Contains(downloadedPackage.EntryFilePath, StringComparer.Ordinal))
-        {
-            candidates.Add(downloadedPackage.EntryFilePath);
-        }
-
-        var preferredEntry = downloadedPackage.EntryFilePath ?? string.Empty;
-        var orderedCandidates = candidates
-            .OrderByDescending(path => ScoreWindowsInstallerCandidate(path, preferredEntry, preference))
-            .ThenBy(path => path.Length)
-            .ToList();
-
-        var preferredArchitectureCandidates = orderedCandidates
-            .Where(path => MatchesWindowsInstallerPreference(path, preference))
-            .ToList();
-
-        if (preferredArchitectureCandidates.Count == 0)
-            return orderedCandidates;
-
-        var fallbackCandidates = orderedCandidates
-            .Where(path => !preferredArchitectureCandidates.Contains(path, StringComparer.Ordinal))
-            .ToList();
-
-        return preferredArchitectureCandidates
-            .Concat(fallbackCandidates)
-            .ToList();
-    }
-
-    private static int ScoreWindowsInstallerCandidate(
-        string path,
-        string preferredEntryPath,
-        GogInstallDialogViewModel.WindowsInstallerPreference preference)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return int.MinValue;
-
-        var score = 0;
-        var fileName = Path.GetFileName(path).ToLowerInvariant();
-
-        if (path.Equals(preferredEntryPath, StringComparison.Ordinal))
-            score += 1;
-        if (fileName.Contains("setup", StringComparison.Ordinal))
-            score += 4;
-        var has64Token = fileName.Contains("x64", StringComparison.Ordinal) ||
-                         fileName.Contains("64", StringComparison.Ordinal);
-        var has32Token = fileName.Contains("x86", StringComparison.Ordinal) ||
-                         fileName.Contains("32", StringComparison.Ordinal);
-
-        if (has64Token)
-        {
-            score += preference switch
-            {
-                GogInstallDialogViewModel.WindowsInstallerPreference.Prefer32 => -3,
-                _ => 3
-            };
-        }
-
-        if (has32Token)
-        {
-            score += preference switch
-            {
-                GogInstallDialogViewModel.WindowsInstallerPreference.Prefer32 => 3,
-                _ => -2
-            };
-        }
-
-        return score;
-    }
-
-    private static bool MatchesWindowsInstallerPreference(
-        string path,
-        GogInstallDialogViewModel.WindowsInstallerPreference preference)
-    {
-        var architecture = DetectWindowsInstallerArchitecture(path);
-        if (architecture == WindowsInstallerArchitecture.Unknown)
-            return false;
-
-        return preference switch
-        {
-            GogInstallDialogViewModel.WindowsInstallerPreference.Prefer32 => architecture == WindowsInstallerArchitecture.X86,
-            _ => architecture == WindowsInstallerArchitecture.X64
-        };
-    }
-
-    private static string? BuildWindowsInstallerDirectoryArgument(string targetInstallPath, string? prefix)
-    {
-        if (string.IsNullOrWhiteSpace(prefix))
-            return null;
-
-        var value = targetInstallPath?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(value))
-            return prefix;
-
-        return prefix + value;
-    }
-
-    private static string BuildInnoSetupLogArgument(string hostLogPath)
-    {
-        if (string.IsNullOrWhiteSpace(hostLogPath))
-            return "/LOG";
-
-        return "/LOG=" + ToWineWindowsAbsolutePath(hostLogPath);
-    }
-
-    private static string ToWineWindowsAbsolutePath(string hostPath)
-    {
-        if (string.IsNullOrWhiteSpace(hostPath))
-            return @"Z:\";
-
-        var fullPath = Path.GetFullPath(hostPath);
-        var windowsSlashes = fullPath
-            .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
-            .Replace(Path.DirectorySeparatorChar, '\\');
-
-        if (windowsSlashes.Length >= 2 && windowsSlashes[1] == ':')
-            return windowsSlashes;
-
-        if (windowsSlashes.StartsWith('\\'))
-            return $"Z:{windowsSlashes}";
-
-        return $@"Z:\{windowsSlashes.TrimStart('\\')}";
-    }
 
     private static void TryDeleteGogStagingDirectoryBestEffort(string? stagingDirectory)
     {
@@ -1467,28 +1126,6 @@ public partial class MainWindowViewModel
         {
             // best-effort
         }
-    }
-
-    private string ResolveOrCreatePrefixRoot(MediaItem item, string storeGameId)
-    {
-        string absolutePrefixPath;
-        if (!string.IsNullOrWhiteSpace(item.PrefixPath))
-        {
-            absolutePrefixPath = PrefixPathHelper.ResolveAbsolutePrefixPath(
-                item.PrefixPath,
-                AppPaths.LibraryRoot);
-        }
-        else
-        {
-            var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(item.Title);
-            var folderName = string.IsNullOrWhiteSpace(safeTitle)
-                ? $"gog_{storeGameId}"
-                : $"gog_{storeGameId}_{safeTitle}";
-            absolutePrefixPath = Path.Combine(AppPaths.LibraryRoot, "Prefixes", folderName);
-        }
-
-        Directory.CreateDirectory(absolutePrefixPath);
-        return absolutePrefixPath;
     }
 
     private bool ApplyDetectedGogLaunchConfiguration(

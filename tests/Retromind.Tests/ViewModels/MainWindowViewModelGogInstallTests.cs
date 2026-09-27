@@ -30,7 +30,7 @@ public sealed class MainWindowViewModelGogInstallTests
         bool createStartMenuShortcuts,
         string expectedArguments)
     {
-        var arguments = MainWindowViewModel.BuildWindowsShortcutArguments(
+        var arguments = GogInstallerExecutionService.BuildWindowsShortcutArguments(
             createDesktopShortcut,
             createStartMenuShortcuts);
         var expected = expectedArguments.Split(',', StringSplitOptions.RemoveEmptyEntries);
@@ -119,7 +119,7 @@ public sealed class MainWindowViewModelGogInstallTests
         var request = MainWindowViewModel.CreateGogDlcInstallRequest(
             "/tmp/test-game",
             GogInstallPlatform.Linux,
-            GogInstallDialogViewModel.WindowsInstallerPreference.AutoPrefer64,
+            GogWindowsInstallerPreference.AutoPrefer64,
             deleteStagingAfterSuccess);
 
         Assert.Equal(deleteStagingAfterSuccess, request.DeleteStagingAfterSuccess);

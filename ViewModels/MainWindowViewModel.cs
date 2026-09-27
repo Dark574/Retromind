@@ -48,7 +48,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IStoreLibraryProvider _storeLibraryProvider;
     private readonly GogInstallService _gogInstallService;
     private readonly GogLaunchDetectionService _gogLaunchDetectionService;
-    private readonly GogInstallerProcessService _gogInstallerProcessService;
     private readonly GogInstallerExecutionService _gogInstallerExecutionService;
     private readonly SettingsService _settingsService;
     private readonly RunnerVersionService _runnerVersionService;
@@ -400,7 +399,6 @@ public partial class MainWindowViewModel : ViewModelBase
         IStoreLibraryProvider storeLibraryProvider,
         GogInstallService gogInstallService,
         GogLaunchDetectionService gogLaunchDetectionService,
-        GogInstallerProcessService gogInstallerProcessService,
         GogInstallerExecutionService gogInstallerExecutionService,
         SettingsService settingsService,
         RunnerVersionService runnerVersionService,
@@ -429,7 +427,6 @@ public partial class MainWindowViewModel : ViewModelBase
         _storeLibraryProvider = storeLibraryProvider;
         _gogInstallService = gogInstallService;
         _gogLaunchDetectionService = gogLaunchDetectionService;
-        _gogInstallerProcessService = gogInstallerProcessService;
         _gogInstallerExecutionService = gogInstallerExecutionService;
         _settingsService = settingsService;
         _runnerVersionService = runnerVersionService;
