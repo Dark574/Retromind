@@ -804,22 +804,11 @@ public partial class MainWindowViewModel
     }
 
     private sealed record InstallerRunResult(bool Success, string? ErrorMessage = null);
-    private sealed record InstallerProcessExecutionResult(
-        bool Started,
-        int ExitCode,
-        long DurationMs,
-        string? StartErrorMessage,
-        bool HasUnsupportedFlagsError,
-        bool HasShellParsingError,
-        bool HasTerminalSpawnError,
-        bool HasRuntimeCrashError);
     private sealed record LinuxInstallerArgumentProfile(string Name, IReadOnlyList<string> Arguments);
     private sealed record WindowsInstallerArgumentProfile(
         string Name,
         string? DirectoryArgumentPrefix,
         IReadOnlyList<string>? AdditionalArguments = null);
-    private sealed record LinuxInstallerCompatibilityEnvironment(string? ShimDirectory, string? RealKonsolePath);
-
     private async Task<InstallerRunResult> RunInstallerAsync(
         MediaItem item,
         string storeGameId,
@@ -917,7 +906,9 @@ public partial class MainWindowViewModel
                     AppendProcessLog(logVm, $"Installer destination (temporary): {effectiveInstallPath}", installerLogPath);
                 }
 
-                var linuxCompatibilityEnvironment = PrepareLinuxInstallerCompatibilityEnvironment(logVm, installerLogPath);
+                Action<string> appendInstallerLog = line => AppendProcessLog(logVm, line, installerLogPath);
+                var linuxCompatibilityEnvironment = _gogInstallerProcessService
+                    .PrepareLinuxCompatibilityEnvironment(appendInstallerLog);
                 try
                 {
                     var linuxProfiles = BuildLinuxInstallerArgumentProfiles(effectiveInstallPath);
@@ -925,16 +916,19 @@ public partial class MainWindowViewModel
                     for (var i = 0; i < linuxProfiles.Count; i++)
                     {
                         var profile = linuxProfiles[i];
-                        var startInfo = CreateInstallerProcessStartInfo(downloadedPackage.StagingDirectory);
-                        ApplyLinuxInstallerCompatibilityEnvironment(startInfo, linuxCompatibilityEnvironment);
+                        var startInfo = _gogInstallerProcessService.CreateStartInfo(downloadedPackage.StagingDirectory);
+                        GogInstallerProcessService.ApplyLinuxCompatibilityEnvironment(startInfo, linuxCompatibilityEnvironment);
                         startInfo.FileName = installerPath;
                         foreach (var argument in profile.Arguments)
                             startInfo.ArgumentList.Add(argument);
 
                         AppendProcessLog(logVm, $"[Linux installer] Attempt {i + 1}/{linuxProfiles.Count} ({profile.Name})", installerLogPath);
-                        AppendProcessLog(logVm, $"> {FormatProcessCommand(startInfo)}", installerLogPath);
+                        AppendProcessLog(logVm, $"> {GogInstallerProcessService.FormatCommand(startInfo)}", installerLogPath);
 
-                        var execution = await ExecuteInstallerProcessWithLogAsync(startInfo, logVm, installerLogPath, ct).ConfigureAwait(false);
+                        var execution = await _gogInstallerProcessService.ExecuteAsync(
+                            startInfo,
+                            appendInstallerLog,
+                            ct).ConfigureAwait(false);
                         if (!execution.Started)
                             return Fail(execution.StartErrorMessage ?? "Installer process could not be started.");
 
@@ -976,7 +970,7 @@ public partial class MainWindowViewModel
                 }
                 finally
                 {
-                    CleanupLinuxInstallerCompatibilityEnvironment(linuxCompatibilityEnvironment);
+                    GogInstallerProcessService.CleanupLinuxCompatibilityEnvironment(linuxCompatibilityEnvironment);
                     TryDeleteLinuxInstallerDestinationAlias(existingInstallAlias);
                 }
 
@@ -1034,7 +1028,8 @@ public partial class MainWindowViewModel
                 
                 AppendProcessLog(logVm, $"Windows prefix root: {prefixRoot}", installerLogPath);
                 AppendProcessLog(logVm, $"Windows prefix dosdevices: {Path.Combine(prefixRoot, "dosdevices")}", installerLogPath);
-                AppendWineDosDeviceMappings(logVm, installerLogPath, prefixRoot);
+                Action<string> appendInstallerLog = line => AppendProcessLog(logVm, line, installerLogPath);
+                GogInstallerProcessService.AppendWineDosDeviceMappings(appendInstallerLog, prefixRoot);
                 AppendProcessLog(logVm, $"Windows installer destination: {windowsInstallDestinationPath}", installerLogPath);
                 
                 // 1. get install file
@@ -1052,7 +1047,7 @@ public partial class MainWindowViewModel
                 var profiles = BuildWindowsInstallerArgumentProfiles(
                     request.CreateDesktopShortcut,
                     request.CreateStartMenuShortcuts);
-                InstallerProcessExecutionResult? lastExecution = null;
+                GogInstallerProcessResult? lastExecution = null;
 
                 for (var attemptIndex = 0; attemptIndex < profiles.Count; attemptIndex++)
                 {
@@ -1090,16 +1085,15 @@ public partial class MainWindowViewModel
                         logVm,
                         $"[Windows installer] Attempt {attemptIndex + 1}/{profiles.Count} ({profile.Name})",
                         installerLogPath);
-                    AppendRunnerEnvironmentSnapshot(logVm, installerLogPath, startInfo);
-                    AppendProcessLog(logVm, $"> {FormatProcessCommand(startInfo)}", installerLogPath);
+                    GogInstallerProcessService.AppendRunnerEnvironmentSnapshot(appendInstallerLog, startInfo);
+                    AppendProcessLog(logVm, $"> {GogInstallerProcessService.FormatCommand(startInfo)}", installerLogPath);
 
-                    InstallerProcessExecutionResult windowsExecution;
+                    GogInstallerProcessResult windowsExecution;
                     try
                     {
-                        windowsExecution = await ExecuteInstallerProcessWithLogAsync(
+                        windowsExecution = await _gogInstallerProcessService.ExecuteAsync(
                             startInfo,
-                            logVm,
-                            installerLogPath,
+                            appendInstallerLog,
                             ct).ConfigureAwait(false);
                     }
                     finally
@@ -1197,21 +1191,6 @@ public partial class MainWindowViewModel
         }
     }
 
-    private static ProcessStartInfo CreateInstallerProcessStartInfo(string stagingDirectory)
-    {
-        var startInfo = new ProcessStartInfo
-        {
-            UseShellExecute = false,
-            WorkingDirectory = stagingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-
-        HostProcessEnvironmentSanitizer.Sanitize(startInfo);
-        return startInfo;
-    }
-
     private static List<LinuxInstallerArgumentProfile> BuildLinuxInstallerArgumentProfiles(string installPath)
     {
         return
@@ -1229,91 +1208,6 @@ public partial class MainWindowViewModel
                 "legacy-destination-only",
                 ["--nox11", "--destination", installPath])
         ];
-    }
-
-    private static LinuxInstallerCompatibilityEnvironment PrepareLinuxInstallerCompatibilityEnvironment(
-        ProcessLogViewModel logVm,
-        string? installerLogPath)
-    {
-        if (!OperatingSystem.IsLinux())
-            return new LinuxInstallerCompatibilityEnvironment(null, null);
-
-        var realKonsolePath = EnvironmentPathHelper.TryFindExecutableInCurrentPath("konsole");
-        if (string.IsNullOrWhiteSpace(realKonsolePath))
-            return new LinuxInstallerCompatibilityEnvironment(null, null);
-
-        try
-        {
-            var shimDirectory = Path.Combine(
-                Path.GetTempPath(),
-                "retromind-gog-shims",
-                $"konsole-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(shimDirectory);
-
-            var shimPath = Path.Combine(shimDirectory, "konsole");
-            const string shimScript = """
-            #!/usr/bin/env bash
-            real="${RETROMIND_REAL_KONSOLE:-konsole}"
-            args=()
-            for arg in "$@"; do
-              if [[ "$arg" == "-title" ]]; then
-                args+=("--title")
-              else
-                args+=("$arg")
-              fi
-            done
-            exec "$real" "${args[@]}"
-            """;
-            File.WriteAllText(shimPath, shimScript, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            File.SetUnixFileMode(
-                shimPath,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
-
-            AppendProcessLog(logVm, $"Linux compatibility shim enabled for konsole: {shimPath}", installerLogPath);
-            return new LinuxInstallerCompatibilityEnvironment(shimDirectory, realKonsolePath);
-        }
-        catch (Exception ex)
-        {
-            AppendProcessLog(logVm, $"Warning: could not initialize konsole compatibility shim ({ex.Message})", installerLogPath);
-            return new LinuxInstallerCompatibilityEnvironment(null, null);
-        }
-    }
-
-    private static void ApplyLinuxInstallerCompatibilityEnvironment(
-        ProcessStartInfo startInfo,
-        LinuxInstallerCompatibilityEnvironment compatibilityEnvironment)
-    {
-        if (string.IsNullOrWhiteSpace(compatibilityEnvironment.ShimDirectory))
-            return;
-
-        var currentPath = startInfo.Environment.TryGetValue("PATH", out var configuredPath)
-            ? configuredPath
-            : Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-
-        startInfo.Environment["PATH"] = string.IsNullOrWhiteSpace(currentPath)
-            ? compatibilityEnvironment.ShimDirectory
-            : compatibilityEnvironment.ShimDirectory + Path.PathSeparator + currentPath;
-
-        if (!string.IsNullOrWhiteSpace(compatibilityEnvironment.RealKonsolePath))
-            startInfo.Environment["RETROMIND_REAL_KONSOLE"] = compatibilityEnvironment.RealKonsolePath;
-    }
-
-    private static void CleanupLinuxInstallerCompatibilityEnvironment(LinuxInstallerCompatibilityEnvironment compatibilityEnvironment)
-    {
-        if (string.IsNullOrWhiteSpace(compatibilityEnvironment.ShimDirectory))
-            return;
-
-        try
-        {
-            if (Directory.Exists(compatibilityEnvironment.ShimDirectory))
-                Directory.Delete(compatibilityEnvironment.ShimDirectory, recursive: true);
-        }
-        catch
-        {
-            // best-effort
-        }
     }
 
     private async Task<bool> ValidateGogInstallRuntimeRequirementsAsync(
@@ -1728,7 +1622,7 @@ public partial class MainWindowViewModel
         string installerPath,
         string installerWorkingDirectory,
         string installPath,
-        LinuxInstallerCompatibilityEnvironment compatibilityEnvironment,
+        GogLinuxInstallerCompatibilityEnvironment compatibilityEnvironment,
         ProcessLogViewModel logVm,
         string? installerLogPath,
         CancellationToken ct = default)
@@ -1741,15 +1635,19 @@ public partial class MainWindowViewModel
         Directory.CreateDirectory(extractionRoot);
         try
         {
-            var extractStartInfo = CreateInstallerProcessStartInfo(installerWorkingDirectory);
-            ApplyLinuxInstallerCompatibilityEnvironment(extractStartInfo, compatibilityEnvironment);
+            Action<string> appendInstallerLog = line => AppendProcessLog(logVm, line, installerLogPath);
+            var extractStartInfo = _gogInstallerProcessService.CreateStartInfo(installerWorkingDirectory);
+            GogInstallerProcessService.ApplyLinuxCompatibilityEnvironment(extractStartInfo, compatibilityEnvironment);
             extractStartInfo.FileName = installerPath;
             extractStartInfo.ArgumentList.Add("--noexec");
             extractStartInfo.ArgumentList.Add("--target");
             extractStartInfo.ArgumentList.Add(extractionRoot);
 
-            AppendProcessLog(logVm, $"> {FormatProcessCommand(extractStartInfo)}", installerLogPath);
-            var extractExecution = await ExecuteInstallerProcessWithLogAsync(extractStartInfo, logVm, installerLogPath, ct).ConfigureAwait(false);
+            AppendProcessLog(logVm, $"> {GogInstallerProcessService.FormatCommand(extractStartInfo)}", installerLogPath);
+            var extractExecution = await _gogInstallerProcessService.ExecuteAsync(
+                extractStartInfo,
+                appendInstallerLog,
+                ct).ConfigureAwait(false);
             if (!extractExecution.Started)
                 return new InstallerRunResult(false, extractExecution.StartErrorMessage ?? "Installer extraction process could not be started.");
             if (extractExecution.ExitCode != 0)
@@ -1775,16 +1673,19 @@ public partial class MainWindowViewModel
                 }
             }
 
-            var runStartMojoInfo = CreateInstallerProcessStartInfo(extractionRoot);
-            ApplyLinuxInstallerCompatibilityEnvironment(runStartMojoInfo, compatibilityEnvironment);
+            var runStartMojoInfo = _gogInstallerProcessService.CreateStartInfo(extractionRoot);
+            GogInstallerProcessService.ApplyLinuxCompatibilityEnvironment(runStartMojoInfo, compatibilityEnvironment);
             runStartMojoInfo.FileName = startMojoPath;
             runStartMojoInfo.ArgumentList.Add("--i-agree-to-all-licenses");
             runStartMojoInfo.ArgumentList.Add("--noreadme");
             runStartMojoInfo.ArgumentList.Add("--destination");
             runStartMojoInfo.ArgumentList.Add(installPath);
 
-            AppendProcessLog(logVm, $"> {FormatProcessCommand(runStartMojoInfo)}", installerLogPath);
-            var runExecution = await ExecuteInstallerProcessWithLogAsync(runStartMojoInfo, logVm, installerLogPath, ct).ConfigureAwait(false);
+            AppendProcessLog(logVm, $"> {GogInstallerProcessService.FormatCommand(runStartMojoInfo)}", installerLogPath);
+            var runExecution = await _gogInstallerProcessService.ExecuteAsync(
+                runStartMojoInfo,
+                appendInstallerLog,
+                ct).ConfigureAwait(false);
             if (!runExecution.Started)
                 return new InstallerRunResult(false, runExecution.StartErrorMessage ?? "startmojo process could not be started.");
             if (runExecution.ExitCode != 0)
@@ -2047,188 +1948,6 @@ public partial class MainWindowViewModel
         return fullPath.StartsWith(parentWithSeparator, comparison);
     }
 
-    private static async Task<InstallerProcessExecutionResult> ExecuteInstallerProcessWithLogAsync(
-        ProcessStartInfo startInfo,
-        ProcessLogViewModel logVm,
-        string? installerLogPath = null,
-        CancellationToken ct = default)
-    {
-        var hasUnsupportedFlagsError = false;
-        var hasShellParsingError = false;
-        var hasTerminalSpawnError = false;
-        var hasRuntimeCrashError = false;
-
-        using var process = new Process { StartInfo = startInfo };
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (string.IsNullOrWhiteSpace(e.Data))
-                return;
-
-            if (LooksLikeUnsupportedFlagError(e.Data))
-                hasUnsupportedFlagsError = true;
-            if (LooksLikeShellArgumentParsingError(e.Data))
-                hasShellParsingError = true;
-            if (LooksLikeTerminalSpawnError(e.Data))
-                hasTerminalSpawnError = true;
-            if (LooksLikeRuntimeCrashError(e.Data))
-                hasRuntimeCrashError = true;
-
-            AppendProcessLog(logVm, e.Data, installerLogPath);
-        };
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (string.IsNullOrWhiteSpace(e.Data))
-                return;
-
-            if (LooksLikeUnsupportedFlagError(e.Data))
-                hasUnsupportedFlagsError = true;
-            if (LooksLikeShellArgumentParsingError(e.Data))
-                hasShellParsingError = true;
-            if (LooksLikeTerminalSpawnError(e.Data))
-                hasTerminalSpawnError = true;
-            if (LooksLikeRuntimeCrashError(e.Data))
-                hasRuntimeCrashError = true;
-
-            AppendProcessLog(logVm, e.Data, installerLogPath);
-        };
-
-        if (!process.Start())
-            return new InstallerProcessExecutionResult(false, -1, 0, "Installer process could not be started.", false, false, false, false);
-
-        var stopwatch = Stopwatch.StartNew();
-
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        try
-        {
-            // Poll for cancellation while waiting for process to exit
-            while (!process.HasExited)
-            {
-                ct.ThrowIfCancellationRequested();
-                await Task.Delay(500, ct).ConfigureAwait(false);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // if aborted, the process needs to be killedexplicitly
-            if (!process.HasExited)
-            {
-                try 
-                { 
-                    process.Kill(true); // true = also child-processes (important for Wine/Shells) 
-                }
-                catch { /* ignore kill errors */ }
-            }
-            throw;
-        }
-
-        stopwatch.Stop();
-        AppendProcessLog(logVm, $"Exit code: {process.ExitCode}", installerLogPath);
-
-        return new InstallerProcessExecutionResult(
-            Started: true,
-            ExitCode: process.ExitCode,
-            DurationMs: stopwatch.ElapsedMilliseconds,
-            StartErrorMessage: null,
-            HasUnsupportedFlagsError: hasUnsupportedFlagsError,
-            HasShellParsingError: hasShellParsingError,
-            HasTerminalSpawnError: hasTerminalSpawnError,
-            HasRuntimeCrashError: hasRuntimeCrashError);
-    }
-
-    private static void AppendRunnerEnvironmentSnapshot(
-        ProcessLogViewModel logVm,
-        string? installerLogPath,
-        ProcessStartInfo startInfo)
-    {
-        var keys =
-            new[]
-            {
-                "PROTONPATH",
-                "STEAM_COMPAT_DATA_PATH",
-                "WINEPREFIX",
-                "STEAM_COMPAT_CLIENT_INSTALL_PATH",
-                "STEAM_COMPAT_INSTALL_PATH",
-                "PROTON_LOG",
-                "PROTON_LOG_DIR",
-                "PROTON_USE_XALIA"
-            };
-
-        foreach (var key in keys)
-        {
-            if (!startInfo.Environment.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
-                continue;
-
-            AppendProcessLog(logVm, $"ENV {key}={value}", installerLogPath);
-        }
-    }
-
-    private static void AppendWineDosDeviceMappings(ProcessLogViewModel logVm, string? installerLogPath, string prefixRoot)
-    {
-        if (string.IsNullOrWhiteSpace(prefixRoot))
-            return;
-
-        var dosdevicesPath = Path.Combine(prefixRoot, "dosdevices");
-        if (!Directory.Exists(dosdevicesPath))
-            return;
-
-        foreach (var path in Directory.EnumerateFileSystemEntries(dosdevicesPath).OrderBy(p => p, StringComparer.Ordinal))
-        {
-            var label = Path.GetFileName(path);
-            if (string.IsNullOrWhiteSpace(label))
-                continue;
-
-            try
-            {
-                var linkTarget = File.ResolveLinkTarget(path, returnFinalTarget: false);
-                var targetPath = linkTarget?.FullName ?? "(not a symlink)";
-                AppendProcessLog(logVm, $"[Windows prefix] {label} -> {targetPath}", installerLogPath);
-            }
-            catch (Exception ex)
-            {
-                AppendProcessLog(logVm, $"[Windows prefix] {label} -> <unresolved: {ex.Message}>", installerLogPath);
-            }
-        }
-    }
-
-    private static bool LooksLikeUnsupportedFlagError(string line)
-    {
-        return line.IndexOf("unrecognized flag", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               line.IndexOf("unknown option", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               line.IndexOf("invalid option", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static bool LooksLikeShellArgumentParsingError(string line)
-    {
-        return line.IndexOf("syntax error", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               line.IndexOf("syntaxfehler", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               line.IndexOf("unexpected token", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               line.IndexOf("unerwarteten symbol", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static bool LooksLikeTerminalSpawnError(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line))
-            return false;
-
-        return (line.IndexOf("konsole", StringComparison.OrdinalIgnoreCase) >= 0 &&
-                (line.IndexOf("unknown option", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                 line.IndexOf("unbekannte option", StringComparison.OrdinalIgnoreCase) >= 0)) ||
-               line.IndexOf("couldn't run mojosetup", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               line.IndexOf("xterm", StringComparison.OrdinalIgnoreCase) >= 0 && line.IndexOf("option", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static bool LooksLikeRuntimeCrashError(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line))
-            return false;
-
-        return line.IndexOf("Unhandled exception code", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               line.IndexOf("EXCEPTION_ACCESS_VIOLATION", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               line.IndexOf("NtRaiseException", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
     private static void InitializeInstallerLogFile(string logFilePath, string installPath, string stagingPath)
     {
         if (string.IsNullOrWhiteSpace(logFilePath))
@@ -2276,21 +1995,6 @@ public partial class MainWindowViewModel
         {
             // best-effort
         }
-    }
-
-    private static string FormatProcessCommand(ProcessStartInfo startInfo)
-    {
-        if (startInfo.ArgumentList.Count == 0)
-            return startInfo.FileName ?? string.Empty;
-
-        var builder = new StringBuilder(startInfo.FileName ?? string.Empty);
-        foreach (var argument in startInfo.ArgumentList)
-        {
-            builder.Append(' ');
-            builder.Append(GogPlayTaskParser.QuoteArgumentIfNeeded(argument));
-        }
-
-        return builder.ToString();
     }
 
     private string ResolveOrCreatePrefixRoot(MediaItem item, string storeGameId)

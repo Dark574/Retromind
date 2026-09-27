@@ -280,6 +280,7 @@ public partial class App : Application
         services.AddSingleton<GogLibraryService>();
         services.AddSingleton<GogInstallService>();
         services.AddSingleton<GogLaunchDetectionService>();
+        services.AddSingleton<GogInstallerProcessService>();
         services.AddSingleton<GogProvider>();
         services.AddSingleton<IStoreAuthProvider>(provider => provider.GetRequiredService<GogProvider>());
         services.AddSingleton<IStoreLibraryProvider>(provider => provider.GetRequiredService<GogProvider>());

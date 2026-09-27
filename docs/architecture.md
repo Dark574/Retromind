@@ -374,6 +374,10 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   heuristics; metadata-derived executable and working-directory paths are constrained to the selected install
   root. `MainWindowViewModel` retains only the API fallback orchestration, manual picker, and application of the
   detected configuration to the media item
+- `GogInstallerProcessService` owns low-level installer process execution, cancellation with child-process
+  termination, stdout/stderr draining, known MojoSetup/Wine error classification, the temporary Konsole
+  compatibility shim, and Wine-prefix diagnostics. Installer output is reported through a callback so this
+  infrastructure service remains independent of Avalonia and process-log view models
 
 Winetricks follows the same application/infrastructure boundary. `EditMediaViewModel` resolves the effective
 item/emulator environment and owns the process-log window, while `WinetricksService` owns prefix preparation,

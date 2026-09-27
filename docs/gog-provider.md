@@ -172,6 +172,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Services/Stores/Gog/GogLibraryService.cs` (owned-games fetch implemented)
 - `Services/Stores/Gog/GogInstallService.cs` (installer metadata + downlink resolution + package download)
 - `Services/Stores/Gog/GogLaunchDetectionService.cs` (installed launch metadata + filesystem fallbacks)
+- `Services/Stores/Gog/GogInstallerProcessService.cs` (process execution, cancellation, shims + diagnostics)
 - `Services/Stores/Gog/Auth/GogAuthService.cs` (interactive sign-in + refresh implemented)
 - `Services/Stores/Gog/Auth/GogOAuthClient.cs` (authorize URL + token/account HTTP flows implemented)
 - `Services/Stores/Gog/Auth/GogOAuthLoopbackListener.cs` (callback listener implemented)
