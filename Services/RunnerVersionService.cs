@@ -24,6 +24,22 @@ public sealed record GeProtonRelease(
         : $"{TagName} ({AssetName})";
 }
 
+public enum GeProtonInstallStage
+{
+    Downloading,
+    Installing
+}
+
+public readonly record struct GeProtonInstallProgress(
+    GeProtonInstallStage Stage,
+    long DownloadedBytes,
+    long? TotalBytes)
+{
+    public double? Percentage => TotalBytes is > 0
+        ? Math.Clamp(DownloadedBytes * 100d / TotalBytes.Value, 0d, 100d)
+        : null;
+}
+
 /// <summary>
 /// Owns external runner discovery and managed runner filesystem operations.
 /// Settings UI state and assignment changes remain in <c>SettingsViewModel</c>.
@@ -131,7 +147,9 @@ public sealed class RunnerVersionService : IDisposable
 
     public async Task<string> DownloadAndInstallGeProtonAsync(
         GeProtonRelease release,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<GeProtonInstallProgress>? progress = null,
+        bool replaceExisting = false)
     {
         ArgumentNullException.ThrowIfNull(release);
 
@@ -149,10 +167,20 @@ public sealed class RunnerVersionService : IDisposable
                 await using var remote = await response.Content.ReadAsStreamAsync(cancellationToken)
                     .ConfigureAwait(false);
                 await using var local = File.Create(tempArchivePath);
-                await remote.CopyToAsync(local, cancellationToken).ConfigureAwait(false);
+                await CopyDownloadAsync(
+                        remote,
+                        local,
+                        response.Content.Headers.ContentLength,
+                        progress,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new GeProtonInstallProgress(
+                GeProtonInstallStage.Installing,
+                0,
+                null));
 
             var rootFolder = DetectArchiveRootFolderName(tempArchivePath);
             if (string.IsNullOrWhiteSpace(rootFolder))
@@ -169,7 +197,7 @@ public sealed class RunnerVersionService : IDisposable
             var relativeInstalledPath = NormalizeRelativePath(
                 Path.Combine(ManagedRunnerRelativeRoot, rootFolder));
 
-            if (Directory.Exists(targetDir))
+            if (Directory.Exists(targetDir) && !replaceExisting)
             {
                 EnsureCompleteProtonRunner(targetDir);
                 return relativeInstalledPath;
@@ -185,28 +213,9 @@ public sealed class RunnerVersionService : IDisposable
                 TarFile.ExtractToDirectory(gzipStream, stagingDir, overwriteFiles: false);
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var expectedRoot = Path.Combine(stagingDir, rootFolder);
-                if (Directory.Exists(expectedRoot))
-                {
-                    EnsureCompleteProtonRunner(expectedRoot);
-                    Directory.Move(expectedRoot, targetDir);
-                }
-                else
-                {
-                    var extractedDirs = Directory.GetDirectories(stagingDir);
-                    if (extractedDirs.Length == 1)
-                    {
-                        EnsureCompleteProtonRunner(extractedDirs[0]);
-                        Directory.Move(extractedDirs[0], targetDir);
-                    }
-                    else
-                    {
-                        EnsureCompleteProtonRunner(stagingDir);
-                        // Publish the complete tree with a same-filesystem rename so
-                        // the final runner directory can never be only half populated.
-                        Directory.Move(stagingDir, targetDir);
-                    }
-                }
+                var extractedRunnerDir = ResolveExtractedRunnerDirectory(stagingDir, rootFolder);
+                EnsureCompleteProtonRunner(extractedRunnerDir);
+                PublishRunnerDirectory(extractedRunnerDir, targetDir, replaceExisting);
             }
             finally
             {
@@ -365,6 +374,96 @@ public sealed class RunnerVersionService : IDisposable
     }
 
     private static string NormalizeRelativePath(string path) => path.Replace('\\', '/');
+
+    private static string ResolveExtractedRunnerDirectory(string stagingDir, string rootFolder)
+    {
+        var expectedRoot = Path.Combine(stagingDir, rootFolder);
+        if (Directory.Exists(expectedRoot))
+            return expectedRoot;
+
+        var extractedDirs = Directory.GetDirectories(stagingDir);
+        return extractedDirs.Length == 1 ? extractedDirs[0] : stagingDir;
+    }
+
+    private static void PublishRunnerDirectory(string sourceDir, string targetDir, bool replaceExisting)
+    {
+        if (!Directory.Exists(targetDir))
+        {
+            Directory.Move(sourceDir, targetDir);
+            return;
+        }
+
+        if (!replaceExisting)
+            throw new IOException($"The runner directory already exists: {targetDir}");
+
+        var backupDir = Path.Combine(
+            Path.GetDirectoryName(targetDir)!,
+            $".backup_ge_{Guid.NewGuid():N}");
+        Directory.Move(targetDir, backupDir);
+
+        try
+        {
+            // Both directories are below the managed runner root, so publishing
+            // remains an atomic same-filesystem rename.
+            Directory.Move(sourceDir, targetDir);
+            TryDeleteDirectory(backupDir);
+        }
+        catch
+        {
+            if (!Directory.Exists(targetDir) && Directory.Exists(backupDir))
+                Directory.Move(backupDir, targetDir);
+
+            throw;
+        }
+    }
+
+    private static async Task CopyDownloadAsync(
+        Stream source,
+        Stream destination,
+        long? totalBytes,
+        IProgress<GeProtonInstallProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var buffer = new byte[81920];
+        long downloadedBytes = 0;
+        var lastReportedPercentage = -1;
+
+        progress?.Report(new GeProtonInstallProgress(
+            GeProtonInstallStage.Downloading,
+            downloadedBytes,
+            totalBytes));
+
+        while (true)
+        {
+            var bytesRead = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            if (bytesRead == 0)
+                break;
+
+            await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+            downloadedBytes += bytesRead;
+
+            if (totalBytes is not > 0)
+                continue;
+
+            var percentage = (int)Math.Clamp(downloadedBytes * 100L / totalBytes.Value, 0L, 100L);
+            if (percentage == lastReportedPercentage)
+                continue;
+
+            lastReportedPercentage = percentage;
+            progress?.Report(new GeProtonInstallProgress(
+                GeProtonInstallStage.Downloading,
+                downloadedBytes,
+                totalBytes));
+        }
+
+        if (totalBytes is not > 0)
+            return;
+
+        progress?.Report(new GeProtonInstallProgress(
+            GeProtonInstallStage.Downloading,
+            downloadedBytes,
+            totalBytes));
+    }
 
     private static void TryDeleteDirectory(string path)
     {

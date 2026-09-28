@@ -557,6 +557,9 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_GeProtonSelectionLabel" xml:space="preserve"><value>Verfügbare Versionen</value></data>
     <data name="Settings_GeProtonRefreshLabel" xml:space="preserve"><value>Liste aktualisieren</value></data>
     <data name="Settings_GeProtonDownloadLabel" xml:space="preserve"><value>Ausgewählte herunterladen</value></data>
+    <data name="Settings_GeProtonReinstallLabel" xml:space="preserve"><value>Ausgewählte neu installieren</value></data>
+    <data name="Settings_GeProtonInstalledDisplayFormat" xml:space="preserve"><value>{0} (installiert)</value></data>
+    <data name="Settings_GeProtonReinstallConfirmFormat" xml:space="preserve"><value>{0} erneut herunterladen und die vorhandene Installation ersetzen?</value></data>
     <data name="Settings_GeProtonStatusLabel" xml:space="preserve"><value>Status</value></data>
     <data name="Settings_GeProtonStatusIdle" xml:space="preserve"><value>Bereit</value></data>
     <data name="Settings_GeProtonStatusLoading" xml:space="preserve"><value>Lade Release-Liste...</value></data>
@@ -564,6 +567,11 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_GeProtonStatusNoReleases" xml:space="preserve"><value>Keine herunterladbare GE-Proton-Version gefunden.</value></data>
     <data name="Settings_GeProtonStatusLoadFailedFormat" xml:space="preserve"><value>Release-Liste konnte nicht geladen werden: {0}</value></data>
     <data name="Settings_GeProtonStatusDownloadingFormat" xml:space="preserve"><value>{0} wird heruntergeladen ...</value></data>
+    <data name="Settings_GeProtonStatusDownloadingProgressFormat" xml:space="preserve"><value>{0} wird heruntergeladen ... {1:0} %</value></data>
+    <data name="Settings_GeProtonStatusInstallingFormat" xml:space="preserve"><value>{0} wird entpackt und installiert ...</value></data>
+    <data name="Settings_GeProtonCancelDownload" xml:space="preserve"><value>Download abbrechen</value></data>
+    <data name="Settings_GeProtonStatusCancelingDownload" xml:space="preserve"><value>GE-Proton-Download wird abgebrochen ...</value></data>
+    <data name="Settings_GeProtonStatusDownloadCanceled" xml:space="preserve"><value>Der GE-Proton-Download wurde abgebrochen.</value></data>
     <data name="Settings_GeProtonStatusInstalledFormat" xml:space="preserve"><value>Installiert: {0}</value></data>
     <data name="Settings_GeProtonStatusInstallFailedFormat" xml:space="preserve"><value>Installation fehlgeschlagen: {0}</value></data>
     <data name="Settings_EmulatorRunnerTypeLabel" xml:space="preserve"><value>Runner-Typ</value></data>

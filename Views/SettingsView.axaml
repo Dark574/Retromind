@@ -679,12 +679,25 @@
                                     <Button Content="{Binding GeProtonRefreshLabel}"
                                             Command="{Binding RefreshGeReleasesCommand}" />
                                     <Button Content="{Binding GeProtonDownloadLabel}"
-                                            Command="{Binding DownloadSelectedGeReleaseCommand}" />
+                                            Command="{Binding DownloadSelectedGeReleaseCommand}"
+                                            IsVisible="{Binding ShowGeProtonDownloadButton}" />
+                                    <Button Content="{Binding GeProtonReinstallLabel}"
+                                            Command="{Binding ReinstallSelectedGeReleaseCommand}"
+                                            IsVisible="{Binding ShowGeProtonReinstallButton}" />
+                                    <Button Content="{Binding GeProtonCancelDownloadLabel}"
+                                            Command="{Binding CancelGeReleaseDownloadCommand}"
+                                            IsVisible="{Binding IsGeReleaseDownloadActive}" />
                                 </StackPanel>
                                 <TextBlock Text="{Binding GeProtonStatusLabel}" FontWeight="Bold" />
                                 <TextBlock Text="{Binding GeReleaseStatusText}"
                                            Opacity="0.7"
                                            TextWrapping="Wrap" />
+                                <ProgressBar Minimum="0"
+                                             Maximum="100"
+                                             Value="{Binding GeReleaseDownloadProgress}"
+                                             IsIndeterminate="{Binding IsGeReleaseDownloadIndeterminate}"
+                                             IsVisible="{Binding IsGeReleaseDownloadActive}"
+                                             Height="6" />
                             </StackPanel>
 
                             <Separator Height="1" Background="Gray" Opacity="0.5" Margin="0,5" />

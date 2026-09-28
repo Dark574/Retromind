@@ -7,9 +7,31 @@ namespace Retromind.Views;
 
 public partial class SettingsView : Window
 {
+    private bool _closeAfterDownloadCancellation;
+    private bool _downloadCancellationForCloseInProgress;
+
     public SettingsView()
     {
         InitializeComponent();
+    }
+
+    protected override async void OnClosing(WindowClosingEventArgs e)
+    {
+        if (!_closeAfterDownloadCancellation &&
+            DataContext is SettingsViewModel { IsGeReleaseDownloadActive: true } vm)
+        {
+            e.Cancel = true;
+            if (_downloadCancellationForCloseInProgress)
+                return;
+
+            _downloadCancellationForCloseInProgress = true;
+            await vm.CancelGeReleaseDownloadAsync();
+            _closeAfterDownloadCancellation = true;
+            Close();
+            return;
+        }
+
+        base.OnClosing(e);
     }
 
     private async void OnPortableHomeClick(object? sender, RoutedEventArgs e)

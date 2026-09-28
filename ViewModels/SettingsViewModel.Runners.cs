@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
@@ -173,6 +175,7 @@ public partial class SettingsViewModel
             RecomputeRunnerUsageCounts();
             RebuildSelectedEmulatorRunnerVersionOptions();
             RebuildRunnerReplacementOptions();
+            RefreshGeProtonReleaseInstallStates();
 
             await PersistRunnerRemovalAsync(removed, replacementId);
             RunnerVersionStatusText = removed.SourceType == RunnerVersionSourceType.ManagedDownload
@@ -209,7 +212,10 @@ public partial class SettingsViewModel
     }
 
     private bool CanDownloadSelectedGeRelease()
-        => !IsGeReleaseBusy && SelectedGeProtonRelease != null;
+        => !IsGeReleaseBusy && SelectedGeProtonRelease is { IsInstalled: false };
+
+    private bool CanReinstallSelectedGeRelease()
+        => !IsGeReleaseBusy && SelectedGeProtonRelease is { IsInstalled: true };
 
     private async Task RefreshGeReleasesAsync()
     {
@@ -223,11 +229,14 @@ public partial class SettingsViewModel
         {
             var releases = await _runnerVersionService.GetGeProtonReleasesAsync();
 
+            var selectedTag = SelectedGeProtonRelease?.TagName;
             GeProtonReleases.Clear();
             foreach (var release in releases)
-                GeProtonReleases.Add(release);
+                GeProtonReleases.Add(CreateGeProtonReleaseOption(release));
 
-            SelectedGeProtonRelease = GeProtonReleases.FirstOrDefault();
+            SelectedGeProtonRelease = GeProtonReleases.FirstOrDefault(option =>
+                                          string.Equals(option.TagName, selectedTag, StringComparison.Ordinal))
+                                      ?? GeProtonReleases.FirstOrDefault();
 
             GeReleaseStatusText = releases.Count > 0
                 ? string.Format(T("Settings_GeProtonStatusLoadedFormat", "Loaded {0} release(s)."), releases.Count)
@@ -245,20 +254,47 @@ public partial class SettingsViewModel
         }
     }
 
-    private async Task DownloadSelectedGeReleaseAsync()
+    private async Task ReinstallSelectedGeReleaseAsync()
     {
         var selected = SelectedGeProtonRelease;
-        if (!CanDownloadSelectedGeRelease() || selected == null)
+        if (!CanReinstallSelectedGeRelease() || selected == null)
             return;
 
+        var confirmation = RequestGeProtonReinstallConfirmation;
+        if (confirmation == null || !await confirmation(selected.TagName))
+            return;
+
+        await InstallSelectedGeReleaseAsync(replaceExisting: true);
+    }
+
+    private async Task InstallSelectedGeReleaseAsync(bool replaceExisting)
+    {
+        var selected = SelectedGeProtonRelease;
+        if (selected == null || IsGeReleaseBusy || selected.IsInstalled != replaceExisting)
+            return;
+
+        var downloadCts = new CancellationTokenSource();
+        var downloadCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _geReleaseDownloadCts = downloadCts;
+        _geReleaseDownloadCompletion = downloadCompletion;
+
         IsGeReleaseBusy = true;
+        IsGeReleaseDownloadActive = true;
+        IsGeReleaseDownloadIndeterminate = true;
+        GeReleaseDownloadProgress = 0;
         GeReleaseStatusText = string.Format(
             T("Settings_GeProtonStatusDownloadingFormat", "Downloading {0} ..."),
             selected.TagName);
 
         try
         {
-            var relativePath = await _runnerVersionService.DownloadAndInstallGeProtonAsync(selected);
+            var progress = new Progress<GeProtonInstallProgress>(value =>
+                UpdateGeProtonInstallProgress(selected.TagName, value));
+            var relativePath = await _runnerVersionService.DownloadAndInstallGeProtonAsync(
+                selected.Release,
+                downloadCts.Token,
+                progress,
+                replaceExisting);
 
             var existing = RunnerVersions.FirstOrDefault(r =>
                 string.Equals(r.Path, relativePath, StringComparison.OrdinalIgnoreCase));
@@ -293,10 +329,17 @@ public partial class SettingsViewModel
             RebuildRunnerReplacementOptions();
 
             await PersistDownloadedRunnerRegistrationAsync(relativePath);
+            RefreshGeProtonReleaseInstallStates();
 
             GeReleaseStatusText = string.Format(
                 T("Settings_GeProtonStatusInstalledFormat", "Installed: {0}"),
                 relativePath);
+        }
+        catch (OperationCanceledException) when (downloadCts.IsCancellationRequested)
+        {
+            GeReleaseStatusText = T(
+                "Settings_GeProtonStatusDownloadCanceled",
+                "The GE-Proton download was canceled.");
         }
         catch (Exception ex)
         {
@@ -306,8 +349,101 @@ public partial class SettingsViewModel
         }
         finally
         {
+            if (ReferenceEquals(_geReleaseDownloadCts, downloadCts))
+                _geReleaseDownloadCts = null;
+            if (ReferenceEquals(_geReleaseDownloadCompletion, downloadCompletion))
+                _geReleaseDownloadCompletion = null;
+
+            IsGeReleaseDownloadActive = false;
+            IsGeReleaseDownloadIndeterminate = false;
             IsGeReleaseBusy = false;
+            downloadCompletion.TrySetResult();
+            downloadCts.Dispose();
         }
+    }
+
+    public async Task CancelGeReleaseDownloadAsync()
+    {
+        var downloadCts = _geReleaseDownloadCts;
+        var downloadCompletion = _geReleaseDownloadCompletion;
+        if (downloadCts == null || downloadCompletion == null)
+            return;
+
+        GeReleaseStatusText = T(
+            "Settings_GeProtonStatusCancelingDownload",
+            "Canceling GE-Proton download ...");
+        IsGeReleaseDownloadIndeterminate = true;
+        downloadCts.Cancel();
+        await downloadCompletion.Task;
+    }
+
+    private void UpdateGeProtonInstallProgress(string releaseTag, GeProtonInstallProgress progress)
+    {
+        if (!IsGeReleaseDownloadActive)
+            return;
+
+        if (progress.Stage == GeProtonInstallStage.Installing)
+        {
+            IsGeReleaseDownloadIndeterminate = true;
+            GeReleaseStatusText = string.Format(
+                T("Settings_GeProtonStatusInstallingFormat", "Installing {0} ..."),
+                releaseTag);
+            return;
+        }
+
+        var percentage = progress.Percentage;
+        IsGeReleaseDownloadIndeterminate = percentage == null;
+        if (percentage == null)
+        {
+            GeReleaseStatusText = string.Format(
+                T("Settings_GeProtonStatusDownloadingFormat", "Downloading {0} ..."),
+                releaseTag);
+            return;
+        }
+
+        GeReleaseDownloadProgress = percentage.Value;
+        GeReleaseStatusText = string.Format(
+            T("Settings_GeProtonStatusDownloadingProgressFormat", "Downloading {0} ... {1:0}%"),
+            releaseTag,
+            percentage.Value);
+    }
+
+    private GeProtonReleaseOption CreateGeProtonReleaseOption(GeProtonRelease release)
+    {
+        var isInstalled = IsGeProtonReleaseInstalled(release);
+        var displayName = isInstalled
+            ? string.Format(
+                T("Settings_GeProtonInstalledDisplayFormat", "{0} (installed)"),
+                release.DisplayName)
+            : release.DisplayName;
+
+        return new GeProtonReleaseOption(release, isInstalled, displayName);
+    }
+
+    private bool IsGeProtonReleaseInstalled(GeProtonRelease release)
+    {
+        return RunnerVersions.Any(runner =>
+            runner.SourceType == RunnerVersionSourceType.ManagedDownload &&
+            (string.Equals(runner.ReleaseTag, release.TagName, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(
+                 Path.GetFileName(runner.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+                 release.TagName,
+                 StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private void RefreshGeProtonReleaseInstallStates()
+    {
+        if (GeProtonReleases.Count == 0)
+            return;
+
+        var selectedTag = SelectedGeProtonRelease?.TagName;
+        var releases = GeProtonReleases.Select(option => option.Release).ToList();
+        GeProtonReleases.Clear();
+        foreach (var release in releases)
+            GeProtonReleases.Add(CreateGeProtonReleaseOption(release));
+
+        SelectedGeProtonRelease = GeProtonReleases.FirstOrDefault(option =>
+            string.Equals(option.TagName, selectedTag, StringComparison.Ordinal));
     }
 
     /// <summary>

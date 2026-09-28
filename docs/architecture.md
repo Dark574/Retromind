@@ -407,7 +407,8 @@ editable UI state, registration, usage/replacement, confirmation, and persistenc
 download is registered immediately, managed files require confirmation before physical removal, and display order
 uses `MediaSortHelper.NaturalStringComparer` so numeric release segments sort naturally (for example, GE-Proton9
 before GE-Proton10). Managed downloads are extracted into uniquely named staging directories and atomically renamed
-into place; they are registered only after their Proton entry point and UMU tool manifest have been verified. Before
+into place; they are registered only after their Proton entry point and UMU tool manifest have been verified. An
+explicit reinstall validates the replacement first and preserves the previous runner until the final atomic swap. Before
 a selected runner is launched, its persisted
 definition and files are checked again so removed, moved, or incomplete runners fail with visible guidance rather
 than silently falling back to another runtime.

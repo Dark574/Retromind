@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -29,6 +30,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private readonly bool _originalIgnoreLeadingArticlesInSort;
     private readonly Dictionary<string, int> _runnerUsageById = new(StringComparer.Ordinal);
     private bool _hasAutoLoadedGeReleases;
+    private CancellationTokenSource? _geReleaseDownloadCts;
+    private TaskCompletionSource? _geReleaseDownloadCompletion;
     private bool _disposed;
 
     // Currently selected emulator profile
@@ -96,7 +99,10 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadSelectedGeReleaseCommand))]
-    private GeProtonRelease? _selectedGeProtonRelease;
+    [NotifyCanExecuteChangedFor(nameof(ReinstallSelectedGeReleaseCommand))]
+    [NotifyPropertyChangedFor(nameof(ShowGeProtonDownloadButton))]
+    [NotifyPropertyChangedFor(nameof(ShowGeProtonReinstallButton))]
+    private GeProtonReleaseOption? _selectedGeProtonRelease;
 
     [ObservableProperty]
     private int _selectedSettingsTabIndex;
@@ -107,6 +113,17 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _geReleaseStatusText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGeProtonDownloadButton))]
+    [NotifyPropertyChangedFor(nameof(ShowGeProtonReinstallButton))]
+    private bool _isGeReleaseDownloadActive;
+
+    [ObservableProperty]
+    private bool _isGeReleaseDownloadIndeterminate;
+
+    [ObservableProperty]
+    private double _geReleaseDownloadProgress;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(EmulatorExecutableVersionButtonText))]
@@ -133,7 +150,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public ObservableCollection<RunnerVersionRow> RunnerVersions { get; } = new();
     public ObservableCollection<RunnerVersionSelectionOption> SelectedEmulatorRunnerVersionOptions { get; } = new();
     public ObservableCollection<RunnerVersionSelectionOption> RunnerReplacementOptions { get; } = new();
-    public ObservableCollection<GeProtonRelease> GeProtonReleases { get; } = new();
+    public ObservableCollection<GeProtonReleaseOption> GeProtonReleases { get; } = new();
     public ObservableCollection<string> AvailableRootBigModeThemes { get; } = new();
 
     [ObservableProperty]
@@ -527,7 +544,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string GeProtonSelectionLabel => T("Settings_GeProtonSelectionLabel", "Available releases");
     public string GeProtonRefreshLabel => T("Settings_GeProtonRefreshLabel", "Refresh list");
     public string GeProtonDownloadLabel => T("Settings_GeProtonDownloadLabel", "Download selected");
+    public string GeProtonReinstallLabel => T("Settings_GeProtonReinstallLabel", "Reinstall selected");
+    public string GeProtonCancelDownloadLabel => T("Settings_GeProtonCancelDownload", "Cancel download");
     public string GeProtonStatusLabel => T("Settings_GeProtonStatusLabel", "Status");
+    public bool ShowGeProtonDownloadButton =>
+        !IsGeReleaseDownloadActive && SelectedGeProtonRelease is { IsInstalled: false };
+    public bool ShowGeProtonReinstallButton =>
+        !IsGeReleaseDownloadActive && SelectedGeProtonRelease is { IsInstalled: true };
     public string EmulatorRunnerTypeLabel => T("Settings_EmulatorRunnerTypeLabel", "Runner type");
     public string EmulatorRunnerVersionLabel => T("Settings_EmulatorRunnerVersionLabel", "Default runner version");
     public string EmulatorRunnerDisabledHint => T("Settings_EmulatorRunnerDisabledHint", "Enable per-game prefixes to activate emulator-level defaults.");
@@ -625,6 +648,17 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         [ObservableProperty] private string _value = string.Empty;
     }
 
+    public sealed class GeProtonReleaseOption(
+        GeProtonRelease release,
+        bool isInstalled,
+        string displayName)
+    {
+        public GeProtonRelease Release { get; } = release;
+        public bool IsInstalled { get; } = isInstalled;
+        public string DisplayName { get; } = displayName;
+        public string TagName => Release.TagName;
+    }
+
     public sealed partial class RunnerVersionRow : ObservableObject
     {
         [ObservableProperty] private string _id = Guid.NewGuid().ToString();
@@ -712,7 +746,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IRelayCommand AddHeroicEpicPathCommand { get; }
     public IRelayCommand RemoveHeroicEpicPathCommand { get; }
     public IAsyncRelayCommand SaveCommand { get; }
-    public IRelayCommand CancelCommand { get; }
+    public IAsyncRelayCommand CancelCommand { get; }
     public IAsyncRelayCommand BrowsePathCommand { get; }
     public IAsyncRelayCommand CheckEmulatorExecutableVersionCommand { get; }
     public IAsyncRelayCommand BrowseSteamLibraryPathCommand { get; }
@@ -737,6 +771,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IAsyncRelayCommand BrowseRunnerVersionPathCommand { get; }
     public IAsyncRelayCommand RefreshGeReleasesCommand { get; }
     public IAsyncRelayCommand DownloadSelectedGeReleaseCommand { get; }
+    public IAsyncRelayCommand ReinstallSelectedGeReleaseCommand { get; }
+    public IAsyncRelayCommand CancelGeReleaseDownloadCommand { get; }
 
     public event Action? RequestClose;
     public event Action? RequestSortPreviewRefresh;
@@ -765,6 +801,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     /// The settings window owner is responsible for presenting the confirmation dialog.
     /// </summary>
     public event Func<RunnerVersionRow, RunnerVersionRow, Task<bool>>? RequestRunnerVersionReplacementConfirmation;
+
+    public event Func<string, Task<bool>>? RequestGeProtonReinstallConfirmation;
 
     /// <summary>
     /// Persists an explicitly confirmed runner reassignment immediately without
@@ -847,7 +885,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         RemoveHeroicEpicPathCommand = new RelayCommand(RemoveHeroicEpicPath, () => SelectedHeroicEpicPath != null);
         
         SaveCommand = new AsyncRelayCommand(SaveAsync, CanSave);
-        CancelCommand = new RelayCommand(Cancel);
+        CancelCommand = new AsyncRelayCommand(CancelAsync);
         BrowsePathCommand = new AsyncRelayCommand(BrowsePathAsync, () => SelectedEmulator != null);
         CheckEmulatorExecutableVersionCommand = new AsyncRelayCommand(
             CheckEmulatorExecutableVersionAsync,
@@ -887,7 +925,15 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             CanReplaceRunnerVersionAssignments);
         BrowseRunnerVersionPathCommand = new AsyncRelayCommand(BrowseRunnerVersionPathAsync);
         RefreshGeReleasesCommand = new AsyncRelayCommand(RefreshGeReleasesAsync, () => !IsGeReleaseBusy);
-        DownloadSelectedGeReleaseCommand = new AsyncRelayCommand(DownloadSelectedGeReleaseAsync, CanDownloadSelectedGeRelease);
+        DownloadSelectedGeReleaseCommand = new AsyncRelayCommand(
+            () => InstallSelectedGeReleaseAsync(replaceExisting: false),
+            CanDownloadSelectedGeRelease);
+        ReinstallSelectedGeReleaseCommand = new AsyncRelayCommand(
+            ReinstallSelectedGeReleaseAsync,
+            CanReinstallSelectedGeRelease);
+        CancelGeReleaseDownloadCommand = new AsyncRelayCommand(
+            CancelGeReleaseDownloadAsync,
+            () => IsGeReleaseDownloadActive);
         TestRetroAchievementsConnectionCommand = new AsyncRelayCommand(
             TestRetroAchievementsConnectionAsync,
             CanTestRetroAchievementsConnection);
@@ -1106,6 +1152,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         RefreshGeReleasesCommand.NotifyCanExecuteChanged();
         DownloadSelectedGeReleaseCommand.NotifyCanExecuteChanged();
+        ReinstallSelectedGeReleaseCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsGeReleaseDownloadActiveChanged(bool value)
+    {
+        CancelGeReleaseDownloadCommand.NotifyCanExecuteChanged();
+        SaveCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedSettingsTabIndexChanged(int value)

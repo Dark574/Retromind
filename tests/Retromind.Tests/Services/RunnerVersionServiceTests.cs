@@ -86,6 +86,153 @@ public sealed class RunnerVersionServiceTests
     }
 
     [Fact]
+    public async Task DownloadAndInstallGeProton_ReinstallReplacesOnlyAfterValidation()
+    {
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", "new runner"),
+            ("GE-Proton10-1/toolmanifest.vdf", "new manifest"));
+
+        using var temp = new TemporaryDirectory();
+        var existingDirectory = temp.CreateDirectory(
+            "Emulators",
+            "ProtonVersions",
+            "GE-Proton10-1");
+        temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/proton", "old runner");
+        temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/toolmanifest.vdf", "old manifest");
+        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        await service.DownloadAndInstallGeProtonAsync(
+            new GeProtonRelease(
+                "GE-Proton10-1",
+                "GE-Proton10-1.tar.gz",
+                "https://example.invalid/ge-proton.tar.gz"),
+            replaceExisting: true);
+
+        Assert.Equal("new runner", File.ReadAllText(Path.Combine(existingDirectory, "proton")));
+        Assert.Equal("new manifest", File.ReadAllText(Path.Combine(existingDirectory, "toolmanifest.vdf")));
+        Assert.Empty(Directory.GetDirectories(
+            temp.GetPath("Emulators", "ProtonVersions"),
+            ".backup_ge_*"));
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_ExistingRunnerIsNotOverwrittenByNormalInstall()
+    {
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", "new runner"),
+            ("GE-Proton10-1/toolmanifest.vdf", "new manifest"));
+
+        using var temp = new TemporaryDirectory();
+        var existingDirectory = temp.CreateDirectory(
+            "Emulators",
+            "ProtonVersions",
+            "GE-Proton10-1");
+        temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/proton", "old runner");
+        temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/toolmanifest.vdf", "old manifest");
+        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        await service.DownloadAndInstallGeProtonAsync(
+            new GeProtonRelease(
+                "GE-Proton10-1",
+                "GE-Proton10-1.tar.gz",
+                "https://example.invalid/ge-proton.tar.gz"));
+
+        Assert.Equal("old runner", File.ReadAllText(Path.Combine(existingDirectory, "proton")));
+        Assert.Equal("old manifest", File.ReadAllText(Path.Combine(existingDirectory, "toolmanifest.vdf")));
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_InvalidReinstallPreservesExistingRunner()
+    {
+        var archive = CreateTarGz(("GE-Proton10-1/proton", "incomplete runner"));
+
+        using var temp = new TemporaryDirectory();
+        var existingDirectory = temp.CreateDirectory(
+            "Emulators",
+            "ProtonVersions",
+            "GE-Proton10-1");
+        temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/proton", "old runner");
+        temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/toolmanifest.vdf", "old manifest");
+        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.DownloadAndInstallGeProtonAsync(
+                new GeProtonRelease(
+                    "GE-Proton10-1",
+                    "GE-Proton10-1.tar.gz",
+                    "https://example.invalid/ge-proton.tar.gz"),
+                replaceExisting: true));
+
+        Assert.Equal("old runner", File.ReadAllText(Path.Combine(existingDirectory, "proton")));
+        Assert.Equal("old manifest", File.ReadAllText(Path.Combine(existingDirectory, "toolmanifest.vdf")));
+        Assert.Empty(Directory.GetDirectories(
+            temp.GetPath("Emulators", "ProtonVersions"),
+            ".backup_ge_*"));
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_ReportsDownloadAndInstallProgress()
+    {
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", "runner"),
+            ("GE-Proton10-1/toolmanifest.vdf", "manifest"));
+        var reports = new List<GeProtonInstallProgress>();
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        await service.DownloadAndInstallGeProtonAsync(
+            new GeProtonRelease(
+                "GE-Proton10-1",
+                "GE-Proton10-1.tar.gz",
+                "https://example.invalid/ge-proton.tar.gz"),
+            progress: new InlineProgress<GeProtonInstallProgress>(reports.Add));
+
+        Assert.Contains(reports, report =>
+            report.Stage == GeProtonInstallStage.Downloading &&
+            report.DownloadedBytes == archive.Length &&
+            report.TotalBytes == archive.Length &&
+            report.Percentage == 100d);
+        Assert.Contains(reports, report => report.Stage == GeProtonInstallStage.Installing);
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_CanceledDownloadLeavesNoPublishedRunner()
+    {
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", "runner"),
+            ("GE-Proton10-1/toolmanifest.vdf", "manifest"));
+        using var cancellation = new CancellationTokenSource();
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        var progress = new InlineProgress<GeProtonInstallProgress>(report =>
+        {
+            if (report.Stage == GeProtonInstallStage.Downloading)
+                cancellation.Cancel();
+        });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.DownloadAndInstallGeProtonAsync(
+                new GeProtonRelease(
+                    "GE-Proton10-1",
+                    "GE-Proton10-1.tar.gz",
+                    "https://example.invalid/ge-proton.tar.gz"),
+                cancellation.Token,
+                progress));
+
+        var runnerRoot = temp.GetPath("Emulators", "ProtonVersions");
+        Assert.False(Directory.Exists(Path.Combine(runnerRoot, "GE-Proton10-1")));
+        Assert.Empty(Directory.GetDirectories(runnerRoot, ".tmp_ge_*"));
+    }
+
+    [Fact]
     public async Task DownloadAndInstallGeProton_IncompleteArchiveLeavesNoPublishedRunner()
     {
         var archive = CreateTarGz(("GE-Proton10-1/proton", "runner"));
@@ -197,5 +344,10 @@ public sealed class RunnerVersionServiceTests
             HttpRequestMessage request,
             CancellationToken cancellationToken) =>
             Task.FromResult(responseFactory(request, cancellationToken));
+    }
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
     }
 }

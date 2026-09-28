@@ -18,7 +18,8 @@ public partial class SettingsViewModel
     private bool CanSave()
     {
         // Prevent persisting half-configured scraper entries.
-        return Scrapers.All(s => s.Type != ScraperType.None) &&
+        return !IsGeReleaseDownloadActive &&
+               Scrapers.All(s => s.Type != ScraperType.None) &&
                CanSaveRetroAchievements();
     }
 
@@ -284,8 +285,9 @@ public partial class SettingsViewModel
         RequestClose?.Invoke();
     }
 
-    private void Cancel()
+    private async Task CancelAsync()
     {
+        await CancelGeReleaseDownloadAsync();
         RequestClose?.Invoke();
     }
 
@@ -640,6 +642,7 @@ public partial class SettingsViewModel
             return;
 
         _disposed = true;
+        _geReleaseDownloadCts?.Cancel();
 
         if (!IsSaved && IgnoreLeadingArticlesInSort != _originalIgnoreLeadingArticlesInSort)
         {

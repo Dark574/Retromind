@@ -1567,6 +1567,14 @@ public partial class MainWindowViewModel
 
             return ShowConfirmDialog(owner, string.Format(format, source.Name, replacement.Name));
         };
+        settingsVm.RequestGeProtonReinstallConfirmation += releaseTag =>
+        {
+            var format = Strings.ResourceManager.GetString(
+                             "Settings_GeProtonReinstallConfirmFormat",
+                             Strings.Culture)
+                         ?? "Download {0} again and replace the existing installation?";
+            return ShowConfirmDialog(owner, string.Format(format, releaseTag));
+        };
         settingsVm.RequestRunnerVersionAssignmentPersistence += async () =>
         {
             if (settingsVm.LibraryModified)
