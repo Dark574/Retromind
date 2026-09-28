@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
@@ -20,16 +19,13 @@ public sealed class LauncherService
 {
     private const int MinPlayTimeSeconds = 5;
     private const int EarlyFailureThresholdSeconds = 10;
-    private static readonly TimeSpan WatchProcessStartupTimeout = TimeSpan.FromSeconds(60);
-    private static readonly TimeSpan WatchProcessStartupPollInterval = TimeSpan.FromSeconds(1);
-    private static readonly TimeSpan DelegatedCommandObservationTimeout = TimeSpan.FromSeconds(1);
-
     private readonly string _libraryRootPath;
     private readonly AppSettings _settings;
     private readonly LaunchLogService _launchLogService;
     private readonly LaunchPlaylistService _launchPlaylistService;
     private readonly LaunchEnvironmentService _launchEnvironmentService;
     private readonly WinePrefixService _winePrefixService;
+    private readonly LaunchProcessService _launchProcessService;
 
     public LauncherService(
         string libraryRootPath,
@@ -37,7 +33,8 @@ public sealed class LauncherService
         LaunchLogService launchLogService,
         LaunchPlaylistService? launchPlaylistService = null,
         LaunchEnvironmentService? launchEnvironmentService = null,
-        WinePrefixService? winePrefixService = null)
+        WinePrefixService? winePrefixService = null,
+        LaunchProcessService? launchProcessService = null)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -45,6 +42,7 @@ public sealed class LauncherService
         _launchPlaylistService = launchPlaylistService ?? new LaunchPlaylistService(libraryRootPath);
         _launchEnvironmentService = launchEnvironmentService ?? new LaunchEnvironmentService();
         _winePrefixService = winePrefixService ?? new WinePrefixService(libraryRootPath, settings);
+        _launchProcessService = launchProcessService ?? new LaunchProcessService();
     }
 
     public async Task<LaunchResult> LaunchAsync(
@@ -66,7 +64,7 @@ public sealed class LauncherService
             nativeWrappers,
             recordStatistics);
         Process? process = null;
-        ProcessOutputCapture? outputCapture = null;
+        LaunchProcessOutputCapture? outputCapture = null;
         Task initialLogWriteTask = Task.CompletedTask;
         var stopwatch = Stopwatch.StartNew();
         var shouldRecordSession = false;
@@ -85,7 +83,7 @@ public sealed class LauncherService
         {
             try
             {
-                watchedProcessWasAlreadyRunning = IsProcessRunning(GetWatchProcessName(watchedProcessName));
+                watchedProcessWasAlreadyRunning = _launchProcessService.IsProcessRunning(watchedProcessName);
             }
             catch (Exception ex)
             {
@@ -106,7 +104,7 @@ public sealed class LauncherService
                     environmentOverrides,
                     launchLog);
             processStartedAt = stopwatch.Elapsed;
-            outputCapture = ProcessOutputCapture.TryStart(process);
+            outputCapture = _launchProcessService.StartOutputCapture(process);
             initialLogWriteTask = _launchLogService.TryWriteAsync(
                 item.Id,
                 launchLog.Build("Process started; session still running", stopwatch.Elapsed));
@@ -135,7 +133,7 @@ public sealed class LauncherService
             // C) Otherwise, if we have a process handle, wait for it.
             if (watchedProcessName != null)
             {
-                var watchOutcome = await WatchProcessByNameAsync(
+                var watchOutcome = await _launchProcessService.WatchProcessByNameAsync(
                         watchedProcessName,
                         watchedProcessWasAlreadyRunning,
                         cancellationToken)
@@ -149,7 +147,8 @@ public sealed class LauncherService
                 // The Steam/Heroic/xdg-open process is not the game. Observe it
                 // briefly for an immediate error, but never use its lifetime as
                 // game playtime or as a game-exit boundary.
-                if (await WaitForDelegatedCommandAsync(process, cancellationToken).ConfigureAwait(false))
+                if (await _launchProcessService.WaitForDelegatedCommandAsync(process, cancellationToken)
+                        .ConfigureAwait(false))
                     exitCode = process.ExitCode;
             }
             else if (process is { HasExited: false })
@@ -278,7 +277,7 @@ public sealed class LauncherService
             _launchEnvironmentService.PrepareHostCommand(psi, environmentOverrides);
             launchLog.CaptureProcessStart(psi, target, environmentOverrides);
 
-            return StartProcess(psi);
+            return _launchProcessService.Start(psi);
         }
 
         // Otherwise treat as executable command
@@ -294,7 +293,7 @@ public sealed class LauncherService
         startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, target, launchFilePath: null);
         _launchEnvironmentService.PrepareCommand(startInfo, environmentOverrides);
         launchLog.CaptureProcessStart(startInfo, target, environmentOverrides);
-        return StartProcess(startInfo);
+        return _launchProcessService.Start(startInfo);
     }
 
     internal static bool IsDelegatedCommand(MediaItem item)
@@ -318,27 +317,6 @@ public sealed class LauncherService
 
         var commandToken = TryGetFirstExecutableTokenFromEnvArgs(item.LauncherArgs);
         return !string.IsNullOrWhiteSpace(commandToken) && IsStoreCommandToken(commandToken);
-    }
-
-    private static async Task<bool> WaitForDelegatedCommandAsync(
-        Process process,
-        CancellationToken cancellationToken)
-    {
-        if (process.HasExited)
-            return true;
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(DelegatedCommandObservationTimeout);
-
-        try
-        {
-            await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
-            return true;
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            return process.HasExited;
-        }
     }
 
     private Process? LaunchNativeOrEmulator(
@@ -418,7 +396,7 @@ public sealed class LauncherService
         Debug.WriteLine($"[Launcher] START: {startInfo.FileName} {startInfo.Arguments}");
         launchLog.CaptureProcessStart(startInfo, launchFilePath, environmentOverrides);
 
-        return StartProcess(startInfo);
+        return _launchProcessService.Start(startInfo);
     }
 
     private static string DescribeLaunchOutcome(LaunchResult result) => result.Outcome switch
@@ -430,48 +408,6 @@ public sealed class LauncherService
         _ => "Launch handed off successfully"
     };
 
-    private static Process? StartProcess(ProcessStartInfo startInfo)
-    {
-        if (!startInfo.UseShellExecute)
-        {
-            startInfo.RedirectStandardOutput = true;
-            startInfo.RedirectStandardError = true;
-        }
-
-        try
-        {
-            return Process.Start(startInfo);
-        }
-        catch (Exception ex)
-        {
-            var command = BuildCommandDisplay(startInfo);
-            var details = new StringBuilder(ex.Message)
-                .AppendLine()
-                .Append("Command: ")
-                .Append(command);
-
-            if (!string.IsNullOrWhiteSpace(startInfo.WorkingDirectory))
-            {
-                details.AppendLine()
-                    .Append("Working directory: ")
-                    .Append(startInfo.WorkingDirectory);
-            }
-
-            throw new InvalidOperationException(details.ToString(), ex);
-        }
-    }
-
-    private static string BuildCommandDisplay(ProcessStartInfo startInfo)
-    {
-        var arguments = startInfo.ArgumentList.Count > 0
-            ? string.Join(' ', startInfo.ArgumentList.Select(LaunchCommandLineHelper.QuoteIfNeeded))
-            : startInfo.Arguments;
-
-        return string.IsNullOrWhiteSpace(arguments)
-            ? LaunchCommandLineHelper.QuoteIfNeeded(startInfo.FileName)
-            : $"{LaunchCommandLineHelper.QuoteIfNeeded(startInfo.FileName)} {arguments}";
-    }
-    
     private static string ResolveWorkingDirectory(string? overrideDirectory, string fileName, string? launchFilePath)
     {
         var overridePath = ResolveWorkingDirectoryOverride(overrideDirectory);
@@ -638,81 +574,6 @@ public sealed class LauncherService
                nativeWrappers.Any(w => LaunchRuntimeHelper.ContainsUmuToken(w.Path));
     }
 
-    private static bool IsProcessRunning(string processName)
-    {
-        var processes = Process.GetProcessesByName(processName);
-        try
-        {
-            return processes.Length > 0;
-        }
-        finally
-        {
-            foreach (var process in processes)
-                process.Dispose();
-        }
-    }
-
-    private static Task<ProcessWatchOutcome> WatchProcessByNameAsync(
-        string processName,
-        bool wasRunningBeforeLaunch,
-        CancellationToken cancellationToken)
-        => WatchProcessByNameAsync(
-            processName,
-            wasRunningBeforeLaunch,
-            WatchProcessStartupTimeout,
-            WatchProcessStartupPollInterval,
-            cancellationToken);
-
-    internal static async Task<ProcessWatchOutcome> WatchProcessByNameAsync(
-        string processName,
-        bool wasRunningBeforeLaunch,
-        TimeSpan startupTimeout,
-        TimeSpan startupPollInterval,
-        CancellationToken cancellationToken)
-    {
-        var cleanName = GetWatchProcessName(processName);
-        var startWatch = Stopwatch.StartNew();
-
-        // If the process is already running, do not block waiting for it to exit.
-        // This avoids hanging the launch flow when watching long-running launchers (e.g. Steam).
-        if (wasRunningBeforeLaunch)
-            return ProcessWatchOutcome.AlreadyRunning;
-
-        // Phase 1: wait for process to appear.
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (IsProcessRunning(cleanName))
-                break;
-
-            var remaining = startupTimeout - startWatch.Elapsed;
-            if (remaining <= TimeSpan.Zero)
-                return ProcessWatchOutcome.NotFound;
-
-            var delay = remaining < startupPollInterval
-                ? remaining
-                : startupPollInterval;
-            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-        }
-
-        // Phase 2: wait for process to disappear.
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
-
-            if (!IsProcessRunning(cleanName))
-                break;
-        }
-
-        return ProcessWatchOutcome.Tracked;
-    }
-
-    private static string GetWatchProcessName(string processName)
-        => Path.GetFileNameWithoutExtension(processName);
-
     private static async Task EvaluateSessionAsync(MediaItem item, TimeSpan elapsed)
     {
         var seconds = elapsed.TotalSeconds;
@@ -742,159 +603,4 @@ public sealed class LauncherService
         item.TotalPlayTime += sessionTime;
     }
 
-    private sealed class ProcessOutputCapture : IDisposable
-    {
-        private const int MaxCharactersPerStream = 2000;
-
-        private readonly object _gate = new();
-        private readonly Process _process;
-        private readonly StringBuilder _standardOutput = new();
-        private readonly StringBuilder _standardError = new();
-        private readonly TaskCompletionSource _outputCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly TaskCompletionSource _errorCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private bool _outputReadStarted;
-        private bool _errorReadStarted;
-
-        private ProcessOutputCapture(Process process)
-        {
-            _process = process;
-            _process.OutputDataReceived += OnOutputDataReceived;
-            _process.ErrorDataReceived += OnErrorDataReceived;
-        }
-
-        public static ProcessOutputCapture? TryStart(Process? process)
-        {
-            if (process == null ||
-                !process.StartInfo.RedirectStandardOutput ||
-                !process.StartInfo.RedirectStandardError)
-            {
-                return null;
-            }
-
-            var capture = new ProcessOutputCapture(process);
-            try
-            {
-                process.BeginOutputReadLine();
-                capture._outputReadStarted = true;
-                process.BeginErrorReadLine();
-                capture._errorReadStarted = true;
-                return capture;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[Launcher] Could not capture process output: {ex.Message}");
-                capture.Dispose();
-                return null;
-            }
-        }
-
-        public string? GetOutput()
-        {
-            lock (_gate)
-            {
-                var output = _standardOutput.ToString().Trim();
-                var error = _standardError.ToString().Trim();
-                if (output.Length == 0 && error.Length == 0)
-                    return null;
-
-                var result = new StringBuilder();
-                if (error.Length > 0)
-                    result.AppendLine("stderr:").AppendLine(error);
-
-                if (output.Length > 0)
-                {
-                    if (result.Length > 0)
-                        result.AppendLine();
-
-                    result.AppendLine("stdout:").Append(output);
-                }
-
-                return result.ToString();
-            }
-        }
-
-        public async Task WaitForCompletionAsync(TimeSpan timeout)
-        {
-            try
-            {
-                await Task.WhenAll(_outputCompleted.Task, _errorCompleted.Task)
-                    .WaitAsync(timeout)
-                    .ConfigureAwait(false);
-            }
-            catch (TimeoutException)
-            {
-                // A child process may have inherited the output pipes. Keep the launch flow bounded.
-            }
-        }
-
-        public void Dispose()
-        {
-            if (_outputReadStarted)
-            {
-                try
-                {
-                    _process.CancelOutputRead();
-                }
-                catch (InvalidOperationException)
-                {
-                    // The asynchronous reader already completed.
-                }
-            }
-
-            if (_errorReadStarted)
-            {
-                try
-                {
-                    _process.CancelErrorRead();
-                }
-                catch (InvalidOperationException)
-                {
-                    // The asynchronous reader already completed.
-                }
-            }
-
-            _process.OutputDataReceived -= OnOutputDataReceived;
-            _process.ErrorDataReceived -= OnErrorDataReceived;
-        }
-
-        private void OnOutputDataReceived(object sender, DataReceivedEventArgs args)
-        {
-            if (args.Data == null)
-            {
-                _outputCompleted.TrySetResult();
-                return;
-            }
-
-            // Output is redirected so early launch failures can include useful diagnostics.
-            // Mirror it to the parent process as well, preserving the live console output
-            // users had before launch diagnostics were introduced.
-            Console.Out.WriteLine(args.Data);
-            AppendTail(_standardOutput, args.Data);
-        }
-
-        private void OnErrorDataReceived(object sender, DataReceivedEventArgs args)
-        {
-            if (args.Data == null)
-            {
-                _errorCompleted.TrySetResult();
-                return;
-            }
-
-            Console.Error.WriteLine(args.Data);
-            AppendTail(_standardError, args.Data);
-        }
-
-        private void AppendTail(StringBuilder target, string? line)
-        {
-            if (line == null)
-                return;
-
-            lock (_gate)
-            {
-                target.AppendLine(line);
-                if (target.Length > MaxCharactersPerStream)
-                    target.Remove(0, target.Length - MaxCharactersPerStream);
-            }
-        }
-    }
 }

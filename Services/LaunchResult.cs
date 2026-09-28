@@ -47,10 +47,3 @@ public enum LaunchOutcome
     WatchedProcessNotFound,
     ExitedEarly
 }
-
-internal enum ProcessWatchOutcome
-{
-    Tracked,
-    AlreadyRunning,
-    NotFound
-}

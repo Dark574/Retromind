@@ -259,6 +259,7 @@ public partial class App : Application
         services.AddSingleton(provider => new WinePrefixService(
             libraryPath,
             provider.GetRequiredService<AppSettings>()));
+        services.AddSingleton<LaunchProcessService>();
         services.AddSingleton<LauncherService>(provider =>
         {
             var settings = provider.GetRequiredService<AppSettings>();
@@ -266,13 +267,15 @@ public partial class App : Application
             var launchPlaylistService = provider.GetRequiredService<LaunchPlaylistService>();
             var launchEnvironmentService = provider.GetRequiredService<LaunchEnvironmentService>();
             var winePrefixService = provider.GetRequiredService<WinePrefixService>();
+            var launchProcessService = provider.GetRequiredService<LaunchProcessService>();
             return new LauncherService(
                 libraryPath,
                 settings,
                 launchLogService,
                 launchPlaylistService,
                 launchEnvironmentService,
-                winePrefixService);
+                winePrefixService,
+                launchProcessService);
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();

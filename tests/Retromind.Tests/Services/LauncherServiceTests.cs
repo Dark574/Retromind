@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Retromind.Models;
 using Retromind.Services;
 using Retromind.Tests.TestInfrastructure;
@@ -341,34 +340,4 @@ public sealed class LauncherServiceTests
         Assert.DoesNotContain("environment-secret", log);
     }
 
-    [Fact]
-    public async Task WatchProcessByNameAsync_ReturnsNotFoundAfterConfiguredTimeout()
-    {
-        var missingProcessName = "retromind-missing-" + Guid.NewGuid().ToString("N");
-        var stopwatch = Stopwatch.StartNew();
-
-        var outcome = await LauncherService.WatchProcessByNameAsync(
-            missingProcessName,
-            wasRunningBeforeLaunch: false,
-            startupTimeout: TimeSpan.FromMilliseconds(50),
-            startupPollInterval: TimeSpan.FromMilliseconds(10),
-            CancellationToken.None);
-
-        stopwatch.Stop();
-        Assert.Equal(ProcessWatchOutcome.NotFound, outcome);
-        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(2));
-    }
-
-    [Fact]
-    public async Task WatchProcessByNameAsync_DoesNotWaitForProcessThatWasAlreadyRunning()
-    {
-        var outcome = await LauncherService.WatchProcessByNameAsync(
-            "already-running",
-            wasRunningBeforeLaunch: true,
-            startupTimeout: TimeSpan.FromSeconds(30),
-            startupPollInterval: TimeSpan.FromSeconds(1),
-            CancellationToken.None);
-
-        Assert.Equal(ProcessWatchOutcome.AlreadyRunning, outcome);
-    }
 }
