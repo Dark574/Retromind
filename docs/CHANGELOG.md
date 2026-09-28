@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - Add per-game launch diagnostics
 - add a configurable BigMode Home screen with recently played, favorites, and library rows across all shipped themes
 - add unobtrusive getting-started help
+- allow retaining manually downloaded GOG DLC installer packages for backup or reuse
 
 ### Changed
 - remove the redundant `linux` segment from AppImage filenames while preserving legacy update discovery

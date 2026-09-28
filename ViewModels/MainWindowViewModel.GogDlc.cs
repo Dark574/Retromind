@@ -31,7 +31,12 @@ public partial class MainWindowViewModel
             gameId,
             installedPlatform,
             item.GogDlcInstallations,
-            (entries, ct) => InstallGogDlcsAsync(item, entries, dialog, ct),
+            (entries, deleteStagingAfterSuccess, ct) => InstallGogDlcsAsync(
+                item,
+                entries,
+                dialog,
+                ct,
+                deleteStagingAfterSuccess: deleteStagingAfterSuccess),
             hasUpdate => SetGogDlcUpdateAvailability(item, hasUpdate));
         dialog.DataContext = viewModel;
         await dialog.ShowDialog(owner);
@@ -230,7 +235,20 @@ public partial class MainWindowViewModel
                     installedCount++;
 
                 if (request.DeleteStagingAfterSuccess)
+                {
                     GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
+                }
+                else
+                {
+                    AppendProcessLog(
+                        progressLogVm,
+                        string.Format(
+                            CultureInfo.CurrentCulture,
+                            T(
+                                "Gog.Dlc.InstallerFilesPreservedFormat",
+                                "DLC installer files preserved at: {0}"),
+                            downloadedPackage.StagingDirectory));
+                }
 
                 AppendProcessLog(
                     progressLogVm,

@@ -428,6 +428,9 @@ Fortfahren?</value></data>
   <data name="Gog.Update.BadgeTooltip" xml:space="preserve"><value>GOG-Update verfügbar</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Staging-Daten nach erfolgreicher Installation löschen</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Entfernt nach erfolgreicher Installation die heruntergeladenen Pakete des Hauptspiels und der automatisch neu installierten DLCs.</value></data>
+  <data name="Gog.Dlc.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Heruntergeladene DLC-Installerdateien nach erfolgreicher Installation löschen</value></data>
+  <data name="Gog.Dlc.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Deaktivieren, um die Offline-Installer im Ordner .retromind-gog-installers/dlc für Backups oder eine erneute Verwendung aufzubewahren.</value></data>
+  <data name="Gog.Dlc.InstallerFilesPreservedFormat" xml:space="preserve"><value>DLC-Installerdateien aufbewahrt unter: {0}</value></data>
   <data name="Gog.Install.PlatformLinux" xml:space="preserve"><value>Linux</value></data>
     <data name="Gog.Install.PlatformWindows" xml:space="preserve"><value>Windows</value></data>
     <data name="Gog.Install.ValidationPathRequired" xml:space="preserve"><value>Ein Installationspfad ist erforderlich.</value></data>

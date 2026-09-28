@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-09-27
+Last updated: 2026-09-28
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -127,6 +127,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     in the shared installation log
   - the main install dialog's staging-data choice is inherited by automatic DLC reinstalls, so their downloaded
     packages are retained or removed consistently with the main-game package
+  - manual DLC installation and update offers the same cleanup choice; retained packages remain below
+    `.retromind-gog-installers/dlc/<product-id>/<platform>` and the exact directory is written to the install log
 - Uninstall wiring:
   - dedicated uninstall action for installed GOG items
   - physical deletion runs before metadata cleanup (metadata is only cleared after successful deletion phase)

@@ -426,6 +426,9 @@ Continue?</value></data>
   <data name="Gog.Install.MarkerWriteWarningFormat" xml:space="preserve"><value>Installation succeeded, but Retromind could not mark the install directory as managed: {0}</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Delete staging data after successful installation</value></data>
   <data name="Gog.Install.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Removes downloaded main-game and automatically reinstalled DLC packages after a successful install.</value></data>
+  <data name="Gog.Dlc.DeleteStagingAfterSuccessLabel" xml:space="preserve"><value>Delete downloaded DLC installer files after successful installation</value></data>
+  <data name="Gog.Dlc.DeleteStagingAfterSuccessHint" xml:space="preserve"><value>Disable this to keep the offline installer files in the game's .retromind-gog-installers/dlc folder for backup or reuse.</value></data>
+  <data name="Gog.Dlc.InstallerFilesPreservedFormat" xml:space="preserve"><value>DLC installer files preserved at: {0}</value></data>
   <data name="Gog.Update.BadgeTooltip" xml:space="preserve"><value>GOG update available</value></data>
   <data name="Gog.Install.PlatformLinux" xml:space="preserve"><value>Linux</value></data>
     <data name="Gog.Install.PlatformWindows" xml:space="preserve"><value>Windows</value></data>

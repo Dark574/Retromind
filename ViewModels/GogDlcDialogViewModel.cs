@@ -34,7 +34,7 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
     private readonly GogInstallService _gogInstallService;
     private readonly string _gameId;
     private readonly GogInstallPlatform? _installedPlatform;
-    private readonly Func<IReadOnlyList<GogDlcCatalogEntry>, CancellationToken, Task<GogDlcInstallBatchResult>>? _installAsync;
+    private readonly Func<IReadOnlyList<GogDlcCatalogEntry>, bool, CancellationToken, Task<GogDlcInstallBatchResult>>? _installAsync;
     private readonly Action<bool>? _updateAvailabilityChanged;
     private readonly Dictionary<string, GogDlcInstallationState> _installedDlcs;
     private readonly HashSet<string> _installedProductIds;
@@ -68,6 +68,9 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(HasStatusMessage))]
     private string _statusMessage = string.Empty;
 
+    [ObservableProperty]
+    private bool _deleteStagingAfterSuccess = true;
+
     public RangeObservableCollection<GogDlcCatalogEntry> FilteredDlcs { get; } = new();
     public IReadOnlyList<GogDlcFilterOption> FilterOptions { get; }
 
@@ -87,6 +90,12 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
     public string MainGameRequiredText => T(
         "Gog.Dlc.MainGameRequired",
         "Install the main game before installing DLCs.");
+    public string DeleteStagingAfterSuccessLabel => T(
+        "Gog.Dlc.DeleteStagingAfterSuccessLabel",
+        "Delete downloaded DLC installer files after successful installation");
+    public string DeleteStagingAfterSuccessHint => T(
+        "Gog.Dlc.DeleteStagingAfterSuccessHint",
+        "Disable this to keep the offline installer files for backup or reuse.");
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
@@ -122,7 +131,7 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
         string gameId,
         GogInstallPlatform? installedPlatform = null,
         IEnumerable<GogDlcInstallationState>? installedDlcs = null,
-        Func<IReadOnlyList<GogDlcCatalogEntry>, CancellationToken, Task<GogDlcInstallBatchResult>>? installAsync = null,
+        Func<IReadOnlyList<GogDlcCatalogEntry>, bool, CancellationToken, Task<GogDlcInstallBatchResult>>? installAsync = null,
         Action<bool>? updateAvailabilityChanged = null)
     {
         _gogInstallService = gogInstallService ?? throw new ArgumentNullException(nameof(gogInstallService));
@@ -250,7 +259,10 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
         StatusMessage = string.Empty;
         try
         {
-            var result = await _installAsync(selected, _lifetimeCts.Token);
+            var result = await _installAsync(
+                selected,
+                DeleteStagingAfterSuccess,
+                _lifetimeCts.Token);
             foreach (var productId in result.InstalledProductIds)
             {
                 _installedProductIds.Add(productId);
