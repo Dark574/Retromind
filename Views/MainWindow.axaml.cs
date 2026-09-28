@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private const string DropBeforeClass = "drop-before";
     private const string DropAfterClass = "drop-after";
     private const string DropInsideClass = "drop-inside";
+    private const string TreeNodeClass = "tree-node";
     private static readonly TimeSpan WaylandMaximizedRevealTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan WaylandBigModeRevealTimeout = TimeSpan.FromSeconds(15);
 
@@ -34,7 +35,7 @@ public partial class MainWindow : Window
     private MediaNode? _draggedNode;
     private MediaItem? _draggedMediaItem;
     private Point? _dragStartPoint;
-    private PointerPressedEventArgs? _dragStartPressedEvent;
+    private IPointer? _nodeDragPointer;
     private bool _dragInProgress;
     private Control? _dropIndicatorTarget;
     private MainWindowViewModel.NodeDropPosition? _dropIndicatorPosition;
@@ -347,35 +348,41 @@ public partial class MainWindow : Window
 
         _draggedNode = node;
         _dragStartPoint = e.GetPosition(this);
-        _dragStartPressedEvent = e;
+        _nodeDragPointer = e.Pointer;
     }
 
-    private async void OnTreeNodePointerMoved(object? sender, PointerEventArgs e)
+    private void OnTreeNodePointerMoved(object? sender, PointerEventArgs e)
     {
-        if (_dragInProgress || _draggedNode == null || _dragStartPoint == null || _dragStartPressedEvent == null)
+        if (_draggedNode == null || _dragStartPoint == null || _nodeDragPointer == null)
             return;
 
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-            return;
-
-        var currentPos = e.GetPosition(this);
-        var delta = currentPos - _dragStartPoint.Value;
-
-        if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold)
-            return;
-
-        _dragInProgress = true;
-
-        try
-        {
-            using var data = new DataTransfer();
-            data.Add(DataTransferItem.CreateText(_draggedNode.Id));
-            await DragDrop.DoDragDropAsync(_dragStartPressedEvent, data, DragDropEffects.Move);
-        }
-        finally
         {
             ResetDragState();
+            return;
         }
+
+        var currentPos = e.GetPosition(this);
+        if (!_dragInProgress)
+        {
+            var delta = currentPos - _dragStartPoint.Value;
+            if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold)
+                return;
+
+            _dragInProgress = true;
+            e.Pointer.Capture(sender as Control);
+        }
+
+        var targetControl = FindTreeNodeControl(this.InputHitTest(currentPos));
+        if (targetControl?.DataContext is not MediaNode targetNode ||
+            ReferenceEquals(_draggedNode, targetNode) ||
+            IsDescendant(_draggedNode, targetNode))
+        {
+            ClearDropIndicator();
+            return;
+        }
+
+        ApplyDropIndicator(targetControl, GetDropPosition(targetControl, e.GetPosition(targetControl)));
     }
 
     public async Task BeginMediaItemDragAsync(MediaItem item, PointerPressedEventArgs pressedEvent)
@@ -405,12 +412,41 @@ public partial class MainWindow : Window
             await vm.TryMoveMediaAsync(item, dropTarget);
     }
 
-    private void OnTreeNodePointerReleased(object? sender, PointerReleasedEventArgs e)
+    private async void OnTreeNodePointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (_dragInProgress)
+        if (_draggedNode == null)
             return;
 
+        var sourceNode = _draggedNode;
+        var targetNode = _dropIndicatorTarget?.DataContext as MediaNode;
+        var dropPosition = _dropIndicatorPosition;
+        var completedDrag = _dragInProgress;
+
         ResetDragState();
+
+        if (!completedDrag || targetNode == null || dropPosition == null)
+            return;
+
+        e.Handled = true;
+        if (DataContext is MainWindowViewModel vm)
+            await vm.TryMoveNodeAsync(sourceNode, targetNode, dropPosition.Value);
+    }
+
+    private void OnTreeNodePointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        if (ReferenceEquals(_nodeDragPointer, e.Pointer))
+            ResetDragState();
+    }
+
+    private static Control? FindTreeNodeControl(IInputElement? inputElement)
+    {
+        if (inputElement is not Visual visual)
+            return null;
+
+        return visual
+            .GetSelfAndVisualAncestors()
+            .OfType<Control>()
+            .FirstOrDefault(control => control.Classes.Contains(TreeNodeClass));
     }
 
     private void OnTreeNodeDragOver(object? sender, DragEventArgs e)
@@ -503,12 +539,14 @@ public partial class MainWindow : Window
     }
 
     private static MainWindowViewModel.NodeDropPosition GetDropPosition(Control targetControl, DragEventArgs e)
+        => GetDropPosition(targetControl, e.GetPosition(targetControl));
+
+    private static MainWindowViewModel.NodeDropPosition GetDropPosition(Control targetControl, Point position)
     {
         var height = targetControl.Bounds.Height;
         if (height <= 0)
             return MainWindowViewModel.NodeDropPosition.Inside;
 
-        var position = e.GetPosition(targetControl);
         var upperBand = height * 0.25;
         var lowerBand = height * 0.75;
 
@@ -537,10 +575,15 @@ public partial class MainWindow : Window
 
     private void ResetDragState()
     {
+        var nodeDragPointer = _nodeDragPointer;
+        _nodeDragPointer = null;
+
+        if (nodeDragPointer?.Captured != null)
+            nodeDragPointer.Capture(null);
+
         _draggedNode = null;
         _draggedMediaItem = null;
         _dragStartPoint = null;
-        _dragStartPressedEvent = null;
         _dragInProgress = false;
         ClearDropIndicator();
         _pendingMediaDropTarget = null;

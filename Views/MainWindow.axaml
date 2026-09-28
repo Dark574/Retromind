@@ -230,6 +230,7 @@
                                              PointerPressed="OnTreeNodePointerPressed"
                                              PointerMoved="OnTreeNodePointerMoved"
                                              PointerReleased="OnTreeNodePointerReleased"
+                                             PointerCaptureLost="OnTreeNodePointerCaptureLost"
                                              input:DragDrop.DragOver="OnTreeNodeDragOver"
                                              input:DragDrop.DragLeave="OnTreeNodeDragLeave"
                                              input:DragDrop.Drop="OnTreeNodeDrop"
