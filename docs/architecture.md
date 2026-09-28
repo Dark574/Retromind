@@ -356,13 +356,15 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 - `LaunchPlanBuilder` owns the deterministic executable, argument-placeholder, and wrapper composition after the
   launch file has been resolved. Plan layering remains item launcher -> emulator config -> node/item wrapper chain;
   there is no application-global wrapper layer
-- `LauncherService` retains launch orchestration: working directory and environment setup, Wine/Proton prefix
-  preparation, process execution, output capture, and session tracking
+- `LaunchEnvironmentService` owns inherited environment cleanup for AppImage and portable-home launches, applies
+  resolved emulator/item variables in launch order, and enforces emulator/item XDG precedence
+- `LauncherService` retains launch orchestration: working-directory selection, Wine/Proton prefix preparation,
+  process execution, output capture, and session tracking
 - explicit test launches use the same launch plan while suppressing play count, last-played, and playtime updates
 - supports multi-file launch decisions (including playlist mode)
 - supports merged environment overrides (node/emulator/item)
 - handles Wine/Proton/UMU prefix setup and compatibility environment shaping
-- sanitizes host/runtime environment in AppImage/Flatpak/store-related cases
+- prevents AppImage-injected library paths and the portable HOME/XDG environment from leaking into launched host processes
 - reports launch-plan and process-start failures to the caller for visible user feedback
 - waits up to 60 seconds for a configured `OverrideWatchProcess` and reports separately when the launcher starts
   but the expected game process never appears; already-running processes remain a neutral, untracked case

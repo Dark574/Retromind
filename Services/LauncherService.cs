@@ -28,17 +28,20 @@ public sealed class LauncherService
     private readonly AppSettings _settings;
     private readonly LaunchLogService _launchLogService;
     private readonly LaunchPlaylistService _launchPlaylistService;
+    private readonly LaunchEnvironmentService _launchEnvironmentService;
 
     public LauncherService(
         string libraryRootPath,
         AppSettings settings,
         LaunchLogService launchLogService,
-        LaunchPlaylistService? launchPlaylistService = null)
+        LaunchPlaylistService? launchPlaylistService = null,
+        LaunchEnvironmentService? launchEnvironmentService = null)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _launchLogService = launchLogService ?? throw new ArgumentNullException(nameof(launchLogService));
         _launchPlaylistService = launchPlaylistService ?? new LaunchPlaylistService(libraryRootPath);
+        _launchEnvironmentService = launchEnvironmentService ?? new LaunchEnvironmentService();
     }
 
     public async Task<LaunchResult> LaunchAsync(
@@ -245,7 +248,7 @@ public sealed class LauncherService
         return result;
     }
 
-    private static Process? LaunchCommand(
+    private Process? LaunchCommand(
         MediaItem item,
         IReadOnlyDictionary<string, string>? environmentOverrides,
         LaunchLogBuilder launchLog)
@@ -269,10 +272,7 @@ public sealed class LauncherService
 
             // xdg-open expects the URI as a single argument
             psi.ArgumentList.Add(target);
-            HostProcessEnvironmentSanitizer.Sanitize(psi);
-            SanitizeAppImageRuntimeEnvironment(psi);
-            SanitizeStorePortableEnvironment(psi, target, forceStoreCompatSanitization: true);
-            ApplyEnvironmentOverrides(psi, environmentOverrides);
+            _launchEnvironmentService.PrepareHostCommand(psi, environmentOverrides);
             launchLog.CaptureProcessStart(psi, target, environmentOverrides);
 
             return StartProcess(psi);
@@ -280,7 +280,7 @@ public sealed class LauncherService
 
         // Otherwise treat as executable command
         var hasEnvOverrides = environmentOverrides is { Count: > 0 };
-        var forceDirectExec = hasEnvOverrides || IsRunningInsideAppImageRuntime();
+        var forceDirectExec = hasEnvOverrides || _launchEnvironmentService.IsRunningInsideAppImageRuntime;
         var startInfo = new ProcessStartInfo
         {
             FileName = target,
@@ -289,11 +289,7 @@ public sealed class LauncherService
             UseShellExecute = !forceDirectExec
         };
         startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, target, launchFilePath: null);
-        SanitizeAppImageRuntimeEnvironment(startInfo);
-        SanitizeFlatpakPortableEnvironment(startInfo, item.LauncherArgs);
-        SanitizeStorePortableEnvironment(startInfo, item.LauncherArgs, forceStoreCompatSanitization: true);
-        ApplyEnvironmentOverrides(startInfo, environmentOverrides);
-        ApplyXdgOverrides(startInfo, item);
+        _launchEnvironmentService.PrepareCommand(startInfo, environmentOverrides);
         launchLog.CaptureProcessStart(startInfo, target, environmentOverrides);
         return StartProcess(startInfo);
     }
@@ -379,7 +375,7 @@ public sealed class LauncherService
         var shouldApplyPrefix =
             !string.IsNullOrWhiteSpace(item.PrefixPath) ||
             (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
-        var isAppImageRuntime = IsRunningInsideAppImageRuntime();
+        var isAppImageRuntime = _launchEnvironmentService.IsRunningInsideAppImageRuntime;
 
         // Ensure env vars + wrapper arguments are honored (shell exec can drop env vars).
         var requiresDirectExec = isAppImageRuntime ||
@@ -393,28 +389,11 @@ public sealed class LauncherService
         if (shouldApplyPrefix)
             ConfigureWinePrefix(item, nodePath, startInfo, isProtonLaunch, isUmuLaunch);
             
-        SanitizeAppImageRuntimeEnvironment(startInfo);
-        SanitizeFlatpakPortableEnvironment(startInfo, args);
-        SanitizeStorePortableEnvironment(startInfo, args, forceStoreCompatSanitization: true);
-
-        // Apply environment overrides (node/emulator/item merged by caller when provided).
-        if (environmentOverrides is { Count: > 0 })
-        {
-            ApplyEnvironmentOverrides(startInfo, environmentOverrides);
-        }
-        else
-        {
-            // Apply emulator-level environment overrides (base layer)
-            if (inheritedConfig?.EnvironmentOverrides is { Count: > 0 })
-                ApplyEnvironmentOverrides(startInfo, inheritedConfig.EnvironmentOverrides);
-
-            // Apply per-item environment overrides (e.g. PROTONPATH, PROTON_LOG, DXVK_HUD)
-            if (item.EnvironmentOverrides is { Count: > 0 })
-                ApplyEnvironmentOverrides(startInfo, item.EnvironmentOverrides);
-        }
-
-        ApplyEmulatorXdgOverrides(startInfo, inheritedConfig);
-        ApplyXdgOverrides(startInfo, item);
+        _launchEnvironmentService.PrepareNativeOrEmulator(
+            startInfo,
+            item,
+            inheritedConfig,
+            environmentOverrides);
 
         startInfo.Arguments = args ?? string.Empty;
 
@@ -425,9 +404,6 @@ public sealed class LauncherService
             LinuxFileSystemHelper.EnsureExecutableBitBestEffort(launchFilePath);
         }
 
-        LogIfEnvSet(startInfo, "PROTONPATH");
-        LogIfEnvSet(startInfo, "STEAM_COMPAT_DATA_PATH");
-        LogIfEnvSet(startInfo, "WINEPREFIX");
         // DEBUG: log the exact command-line we are about to run
         Debug.WriteLine($"[Launcher] START: {startInfo.FileName} {startInfo.Arguments}");
         launchLog.CaptureProcessStart(startInfo, launchFilePath, environmentOverrides);
@@ -551,284 +527,11 @@ public sealed class LauncherService
         return true;
     }
 
-    private static void ApplyEnvironmentOverrides(
-        ProcessStartInfo startInfo,
-        IReadOnlyDictionary<string, string>? overrides)
-    {
-        if (overrides == null || overrides.Count == 0)
-            return;
-
-        foreach (var kv in overrides)
-        {
-            if (string.IsNullOrWhiteSpace(kv.Key))
-                continue;
-
-            var key = kv.Key.Trim();
-            var value = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(key, kv.Value);
-            startInfo.EnvironmentVariables[key] = value ?? string.Empty;
-        }
-    }
-
-    private static void LogIfEnvSet(ProcessStartInfo startInfo, string key)
-    {
-        if (startInfo.EnvironmentVariables.ContainsKey(key))
-        {
-            var value = startInfo.EnvironmentVariables[key];
-            if (!string.IsNullOrWhiteSpace(value))
-                Debug.WriteLine($"[Launcher] ENV {key}={value}");
-        }
-    }
-
-    private static void ApplyXdgOverrides(ProcessStartInfo startInfo, MediaItem item)
-    {
-        // Item-level XDG overrides apply to Native and Emulator launches.
-        // Command entries (URL/protocol/external command) are excluded.
-        if (item.MediaType == MediaType.Command)
-            return;
-
-        // Priority model:
-        // Item overrides should win over emulator-level XDG and base environment.
-        ApplyXdgPath(startInfo, "XDG_CONFIG_HOME", item.XdgConfigPath, overwriteExisting: true);
-        ApplyXdgPath(startInfo, "XDG_DATA_HOME", item.XdgDataPath, overwriteExisting: true);
-        ApplyXdgPath(startInfo, "XDG_CACHE_HOME", item.XdgCachePath, overwriteExisting: true);
-        ApplyXdgPath(startInfo, "XDG_STATE_HOME", item.XdgStatePath, overwriteExisting: true);
-    }
-
-    private static void ApplyXdgPath(ProcessStartInfo startInfo, string key, string? value, bool overwriteExisting = false)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return;
-
-        if (!overwriteExisting && startInfo.EnvironmentVariables.ContainsKey(key))
-            return;
-
-        var resolved = Path.IsPathRooted(value)
-            ? value
-            : AppPaths.ResolveDataPath(value);
-
-        startInfo.EnvironmentVariables[key] = resolved;
-    }
-
-    private static void ApplyEmulatorXdgOverrides(ProcessStartInfo startInfo, EmulatorConfig? emulator)
-    {
-        if (emulator == null)
-            return;
-
-        switch (emulator.XdgMode)
-        {
-            case EmulatorConfig.XdgOverrideMode.Inherit:
-                return;
-
-            case EmulatorConfig.XdgOverrideMode.Host:
-                startInfo.EnvironmentVariables.Remove("XDG_CONFIG_HOME");
-                startInfo.EnvironmentVariables.Remove("XDG_DATA_HOME");
-                startInfo.EnvironmentVariables.Remove("XDG_CACHE_HOME");
-                startInfo.EnvironmentVariables.Remove("XDG_STATE_HOME");
-                return;
-
-            case EmulatorConfig.XdgOverrideMode.Custom:
-                SetXdgPath(startInfo, "XDG_CONFIG_HOME", emulator.XdgConfigPath);
-                SetXdgPath(startInfo, "XDG_DATA_HOME", emulator.XdgDataPath);
-                SetXdgPath(startInfo, "XDG_CACHE_HOME", emulator.XdgCachePath);
-                SetXdgPath(startInfo, "XDG_STATE_HOME", emulator.XdgStatePath);
-                return;
-        }
-    }
-
-    private static void SetXdgPath(ProcessStartInfo startInfo, string key, string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return;
-
-        var resolved = Path.IsPathRooted(value)
-            ? value
-            : AppPaths.ResolveDataPath(value);
-
-        startInfo.EnvironmentVariables[key] = resolved;
-    }
-
-    private static void SanitizeAppImageRuntimeEnvironment(ProcessStartInfo startInfo)
-    {
-        // Environment variable overrides require direct execution.
-        if (startInfo.UseShellExecute)
-            return;
-
-        var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
-        var appDir = Environment.GetEnvironmentVariable("APPDIR");
-        if (string.IsNullOrWhiteSpace(appImage) && string.IsNullOrWhiteSpace(appDir))
-            return;
-
-        if (startInfo.EnvironmentVariables.ContainsKey("LD_LIBRARY_PATH"))
-        {
-            var currentLd = startInfo.EnvironmentVariables["LD_LIBRARY_PATH"];
-            if (!string.IsNullOrWhiteSpace(currentLd))
-            {
-                var appDirPrefixes = BuildAppImageLdPrefixes(appDir);
-                var filtered = currentLd
-                    .Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Where(path =>
-                        !string.IsNullOrWhiteSpace(path) &&
-                        !IsAppImageInjectedLdSegment(path, appDirPrefixes))
-                    .ToArray();
-
-                if (filtered.Length == 0)
-                    startInfo.EnvironmentVariables.Remove("LD_LIBRARY_PATH");
-                else
-                    startInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = string.Join(':', filtered);
-            }
-        }
-        
-        // Prevent AppImage-bundled VLC plugins from being forced into external processes.
-        if (startInfo.EnvironmentVariables.ContainsKey("VLC_PLUGIN_PATH"))
-            startInfo.EnvironmentVariables.Remove("VLC_PLUGIN_PATH");
-    }
-
-    private static bool IsRunningInsideAppImageRuntime()
-    {
-        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPIMAGE")) ||
-               !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPDIR"));
-    }
-
-    private static void SanitizeFlatpakPortableEnvironment(ProcessStartInfo startInfo, string? launchArgsHint = null)
-    {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            return;
-
-        if (!IsFlatpakLaunch(startInfo, launchArgsHint))
-            return;
-
-        var portableHomeRoot = NormalizePathForComparison(Path.Combine(AppPaths.DataRoot, "Home"));
-        if (string.IsNullOrWhiteSpace(portableHomeRoot))
-            return;
-
-        RemoveIfPortableXdgPath(startInfo, "XDG_CONFIG_HOME", portableHomeRoot);
-        RemoveIfPortableXdgPath(startInfo, "XDG_DATA_HOME", portableHomeRoot);
-        RemoveIfPortableXdgPath(startInfo, "XDG_CACHE_HOME", portableHomeRoot);
-        RemoveIfPortableXdgPath(startInfo, "XDG_STATE_HOME", portableHomeRoot);
-    }
-
-    private static bool IsFlatpakLaunch(ProcessStartInfo startInfo, string? launchArgsHint)
-    {
-        var fileName = Path.GetFileName(startInfo.FileName)?.Trim();
-        if (string.IsNullOrWhiteSpace(fileName))
-            return false;
-
-        if (string.Equals(fileName, "flatpak", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        if (!string.Equals(fileName, "env", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        var commandToken = TryGetFirstExecutableTokenFromEnvArgs(startInfo.Arguments ?? launchArgsHint);
-        if (string.IsNullOrWhiteSpace(commandToken))
-            return false;
-
-        var token = Path.GetFileName(commandToken.Trim('"', '\''));
-        return string.Equals(token, "flatpak", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static void RemoveIfPortableXdgPath(ProcessStartInfo startInfo, string key, string portableHomeRoot)
-    {
-        if (!startInfo.EnvironmentVariables.ContainsKey(key))
-            return;
-
-        var value = startInfo.EnvironmentVariables[key];
-        if (string.IsNullOrWhiteSpace(value))
-            return;
-
-        var normalizedValue = NormalizePathForComparison(value);
-        if (normalizedValue.Equals(portableHomeRoot, StringComparison.Ordinal) ||
-            normalizedValue.StartsWith(portableHomeRoot + "/", StringComparison.Ordinal))
-        {
-            startInfo.EnvironmentVariables.Remove(key);
-        }
-    }
-
-    private static void SanitizeStorePortableEnvironment(
-        ProcessStartInfo startInfo,
-        string? launchArgsHint,
-        bool forceStoreCompatSanitization = false)
-    {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            return;
-
-        if (!forceStoreCompatSanitization &&
-            !IsStoreLaunch(startInfo, launchArgsHint) &&
-            !IsSteamCompatLaunch(startInfo, launchArgsHint))
-        {
-            return;
-        }
-
-        var portableHomeRoot = NormalizePathForComparison(Path.Combine(AppPaths.DataRoot, "Home"));
-        if (string.IsNullOrWhiteSpace(portableHomeRoot))
-            return;
-
-        RemoveIfPortableXdgPath(startInfo, "XDG_CONFIG_HOME", portableHomeRoot);
-        RemoveIfPortableXdgPath(startInfo, "XDG_DATA_HOME", portableHomeRoot);
-        RemoveIfPortableXdgPath(startInfo, "XDG_CACHE_HOME", portableHomeRoot);
-        RemoveIfPortableXdgPath(startInfo, "XDG_STATE_HOME", portableHomeRoot);
-        RemoveIfPortableXdgPath(startInfo, "DOTNET_CLI_HOME", portableHomeRoot);
-
-        if (!startInfo.EnvironmentVariables.ContainsKey("HOME"))
-            return;
-
-        var homeValue = startInfo.EnvironmentVariables["HOME"];
-        if (string.IsNullOrWhiteSpace(homeValue))
-            return;
-
-        var normalizedHome = NormalizePathForComparison(homeValue);
-        if (!normalizedHome.Equals(portableHomeRoot, StringComparison.Ordinal) &&
-            !normalizedHome.StartsWith(portableHomeRoot + "/", StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        var realHome = EnvironmentPathHelper.TryGetRealUserHomePath();
-        if (!string.IsNullOrWhiteSpace(realHome))
-            startInfo.EnvironmentVariables["HOME"] = realHome;
-        else
-            startInfo.EnvironmentVariables.Remove("HOME");
-    }
-
-    private static bool IsStoreLaunch(ProcessStartInfo startInfo, string? launchArgsHint)
-    {
-        var fileName = Path.GetFileName(startInfo.FileName)?.Trim();
-        if (string.IsNullOrWhiteSpace(fileName))
-            return false;
-
-        if (IsStoreCommandToken(fileName))
-            return true;
-
-        if (string.Equals(fileName, "xdg-open", StringComparison.OrdinalIgnoreCase))
-            return LooksLikeStoreUri(launchArgsHint);
-
-        if (!string.Equals(fileName, "env", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        var commandToken = TryGetFirstExecutableTokenFromEnvArgs(startInfo.Arguments ?? launchArgsHint);
-        if (string.IsNullOrWhiteSpace(commandToken))
-            return false;
-
-        return IsStoreCommandToken(commandToken);
-    }
-
     private static bool IsStoreCommandToken(string token)
     {
         var executable = Path.GetFileName(token.Trim('"', '\''));
         return string.Equals(executable, "steam", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(executable, "heroic", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool LooksLikeStoreUri(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return false;
-
-        var trimmed = value.Trim();
-        return trimmed.StartsWith("steam://", StringComparison.OrdinalIgnoreCase) ||
-               trimmed.StartsWith("heroic://", StringComparison.OrdinalIgnoreCase) ||
-               trimmed.StartsWith("gog://", StringComparison.OrdinalIgnoreCase) ||
-               trimmed.StartsWith("epic://", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? TryGetFirstExecutableTokenFromEnvArgs(string? arguments)
@@ -871,96 +574,6 @@ public sealed class LauncherService
         }
 
         return null;
-    }
-
-    private static bool IsSteamCompatLaunch(ProcessStartInfo startInfo, string? launchArgsHint)
-    {
-        var fileName = Path.GetFileName(startInfo.FileName)?.Trim();
-        if (string.IsNullOrWhiteSpace(fileName))
-            return false;
-
-        if (IsSteamCompatCommandToken(fileName))
-            return true;
-
-        if (string.Equals(fileName, "env", StringComparison.OrdinalIgnoreCase))
-        {
-            var commandToken = TryGetFirstExecutableTokenFromEnvArgs(startInfo.Arguments ?? launchArgsHint);
-            if (!string.IsNullOrWhiteSpace(commandToken))
-                return IsSteamCompatCommandToken(commandToken);
-        }
-
-        // Wrapper case: e.g. "gamemoderun umu-run ...".
-        var firstArgToken = LaunchCommandLineHelper
-            .SplitCommandLinePreservingArgs(startInfo.Arguments ?? launchArgsHint ?? string.Empty)
-            .FileName;
-        return IsSteamCompatCommandToken(firstArgToken);
-    }
-
-    private static bool IsSteamCompatCommandToken(string token)
-    {
-        var executable = Path.GetFileName(token.Trim('"', '\''));
-        if (string.IsNullOrWhiteSpace(executable))
-            return false;
-
-        if (executable.StartsWith("umu", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return executable.Contains("proton", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string[] BuildAppImageLdPrefixes(string? appDir)
-    {
-        if (string.IsNullOrWhiteSpace(appDir))
-            return Array.Empty<string>();
-
-        return
-        [
-            NormalizePathForComparison(Path.Combine(appDir, "usr", "lib", "vlc", "lib")),
-            NormalizePathForComparison(Path.Combine(appDir, "usr", "lib"))
-        ];
-    }
-
-    private static bool IsAppImageInjectedLdSegment(string segment, IReadOnlyList<string> appDirPrefixes)
-    {
-        var normalizedSegment = NormalizePathForComparison(segment);
-        if (string.IsNullOrWhiteSpace(normalizedSegment))
-            return false;
-
-        foreach (var prefix in appDirPrefixes)
-        {
-            if (string.IsNullOrWhiteSpace(prefix))
-                continue;
-
-            if (normalizedSegment.Equals(prefix, StringComparison.Ordinal))
-                return true;
-
-            if (normalizedSegment.StartsWith(prefix + "/", StringComparison.Ordinal))
-                return true;
-        }
-
-        // Fallback for AppImage runtimes where APPDIR is missing but mount paths leaked.
-        if (normalizedSegment.StartsWith("/tmp/.mount_", StringComparison.Ordinal))
-        {
-            if (normalizedSegment.Contains("/usr/lib/vlc/lib", StringComparison.Ordinal))
-                return true;
-
-            if (normalizedSegment.EndsWith("/usr/lib", StringComparison.Ordinal))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static string NormalizePathForComparison(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return string.Empty;
-
-        var value = path.Replace('\\', '/').Trim();
-        while (value.EndsWith("/", StringComparison.Ordinal))
-            value = value[..^1];
-
-        return value;
     }
 
     private void ConfigureWinePrefix(
