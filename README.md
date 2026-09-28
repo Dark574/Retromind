@@ -357,6 +357,8 @@ remember a **per-item Wine prefix** in the library:
 - The stored prefix path is **relative** to the library root.
 - On another system, as long as the whole `Retromind/` folder moves together,
   the same prefixes will be reused.
+- Broken absolute runtime links created internally by Proton are repaired against the currently selected Proton
+  version before launch and before later GOG update/DLC installer runs.
 
 Note:
 

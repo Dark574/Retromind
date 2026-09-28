@@ -81,7 +81,9 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - fallback to full redownload if Range is not honored by the server
   - installer execution now opens a process log window (stdout/stderr + exit code)
   - Windows installer robustness hardening:
-    - Windows installer execution currently uses system Wine resolution (`wine`/`wine64`) through `EmulatorResolverHelper`
+    - fresh Windows installer execution uses system Wine resolution (`wine`/`wine64`) through `EmulatorResolverHelper`
+    - if an existing prefix has already been converted to Proton, later updates and DLC installers repair relocated
+      Proton runtime links before invoking the installer through the usual system Wine
     - missing system Wine is rejected before installer metadata resolution or download; the selected Wine/Proton runner remains the runtime used after installation
     - execution path now evaluates multiple `.exe` installer candidates (architecture-aware preference + fallback order)
     - Inno argument handling now uses profile fallback (`/SP- /SILENT /NOGUI /SUPPRESSMSGBOXES /NORESTART /DIR=... /LOG=...`, with less-silent fallback profile)

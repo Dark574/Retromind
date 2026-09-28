@@ -26,6 +26,7 @@ public sealed class LauncherService
     private readonly LaunchEnvironmentService _launchEnvironmentService;
     private readonly WinePrefixService _winePrefixService;
     private readonly LaunchProcessService _launchProcessService;
+    private readonly ProtonPrefixRelocationService _protonPrefixRelocationService;
 
     public LauncherService(
         string libraryRootPath,
@@ -34,7 +35,8 @@ public sealed class LauncherService
         LaunchPlaylistService? launchPlaylistService = null,
         LaunchEnvironmentService? launchEnvironmentService = null,
         WinePrefixService? winePrefixService = null,
-        LaunchProcessService? launchProcessService = null)
+        LaunchProcessService? launchProcessService = null,
+        ProtonPrefixRelocationService? protonPrefixRelocationService = null)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -43,6 +45,8 @@ public sealed class LauncherService
         _launchEnvironmentService = launchEnvironmentService ?? new LaunchEnvironmentService();
         _winePrefixService = winePrefixService ?? new WinePrefixService(libraryRootPath, settings);
         _launchProcessService = launchProcessService ?? new LaunchProcessService();
+        _protonPrefixRelocationService = protonPrefixRelocationService ??
+                                         new ProtonPrefixRelocationService(libraryRootPath, settings);
     }
 
     public async Task<LaunchResult> LaunchAsync(
@@ -382,6 +386,26 @@ public sealed class LauncherService
             item,
             inheritedConfig,
             environmentOverrides);
+
+        if (shouldApplyPrefix && isProtonLaunch)
+        {
+            var effectiveProtonPath = startInfo.EnvironmentVariables.ContainsKey("PROTONPATH")
+                ? startInfo.EnvironmentVariables["PROTONPATH"]
+                : null;
+            var repair = _protonPrefixRelocationService.Repair(item, effectiveProtonPath);
+            if (repair.RepairedLinks > 0)
+            {
+                Debug.WriteLine(
+                    $"[Launcher] Repaired {repair.RepairedLinks} relocated Proton prefix link(s) for '{item.Title}'.");
+            }
+
+            if (repair.UnresolvedLinks > 0 || repair.FailedLinks > 0)
+            {
+                Debug.WriteLine(
+                    $"[Launcher] Proton prefix repair incomplete for '{item.Title}': " +
+                    $"unresolved={repair.UnresolvedLinks}, failed={repair.FailedLinks}.");
+            }
+        }
 
         startInfo.Arguments = args ?? string.Empty;
 

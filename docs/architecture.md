@@ -360,6 +360,8 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   resolved emulator/item variables in launch order, and enforces emulator/item XDG precedence
 - `WinePrefixService` resolves existing portable or absolute prefix paths, selects the correct Wine, Proton, or UMU
   prefix layout, creates safe `dosdevices` mappings, and supplies the launch environment paths
+- `ProtonPrefixRelocationService` repairs only broken Proton-runtime links after a portable data-root move before
+  a game launch or a later GOG installer accesses the existing prefix
 - `LaunchProcessService` owns operating-system process startup, bounded stdout/stderr capture, delegated-command
   observation, and configured watch-process tracking
 - `LauncherService` retains launch orchestration and business decisions: working-directory selection, runtime

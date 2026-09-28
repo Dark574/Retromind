@@ -256,6 +256,9 @@ public partial class App : Application
             Path.Combine(AppPaths.DataRoot, "Logs", "Launch")));
         services.AddSingleton(_ => new LaunchPlaylistService(libraryPath));
         services.AddSingleton<LaunchEnvironmentService>();
+        services.AddSingleton(provider => new ProtonPrefixRelocationService(
+            libraryPath,
+            provider.GetRequiredService<AppSettings>()));
         services.AddSingleton(provider => new WinePrefixService(
             libraryPath,
             provider.GetRequiredService<AppSettings>()));
@@ -268,6 +271,7 @@ public partial class App : Application
             var launchEnvironmentService = provider.GetRequiredService<LaunchEnvironmentService>();
             var winePrefixService = provider.GetRequiredService<WinePrefixService>();
             var launchProcessService = provider.GetRequiredService<LaunchProcessService>();
+            var protonPrefixRelocationService = provider.GetRequiredService<ProtonPrefixRelocationService>();
             return new LauncherService(
                 libraryPath,
                 settings,
@@ -275,7 +279,8 @@ public partial class App : Application
                 launchPlaylistService,
                 launchEnvironmentService,
                 winePrefixService,
-                launchProcessService);
+                launchProcessService,
+                protonPrefixRelocationService);
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();

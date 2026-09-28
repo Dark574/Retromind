@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Retromind.Models;
+using Retromind.Services;
 using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Auth;
 using Retromind.Services.Stores.Security;
@@ -193,6 +194,11 @@ public sealed class GogInstallerWorkflowServiceTests
         var executionService = new GogInstallerExecutionService(
             new GogInstallerProcessService(),
             Path.Combine(rootPath, "Library"));
-        return new GogInstallerWorkflowService(installService, executionService);
+        return new GogInstallerWorkflowService(
+            installService,
+            executionService,
+            new ProtonPrefixRelocationService(
+                Path.Combine(rootPath, "Library"),
+                new AppSettings()));
     }
 }

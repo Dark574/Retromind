@@ -49,13 +49,17 @@ public sealed class GogInstallerWorkflowService
 
     private readonly GogInstallService _installService;
     private readonly GogInstallerExecutionService _executionService;
+    private readonly ProtonPrefixRelocationService _protonPrefixRelocationService;
 
     public GogInstallerWorkflowService(
         GogInstallService installService,
-        GogInstallerExecutionService executionService)
+        GogInstallerExecutionService executionService,
+        ProtonPrefixRelocationService protonPrefixRelocationService)
     {
         _installService = installService ?? throw new ArgumentNullException(nameof(installService));
         _executionService = executionService ?? throw new ArgumentNullException(nameof(executionService));
+        _protonPrefixRelocationService = protonPrefixRelocationService ??
+                                         throw new ArgumentNullException(nameof(protonPrefixRelocationService));
     }
 
     internal async Task<GogInstallerWorkflowResult> RunAsync(
@@ -253,11 +257,42 @@ public sealed class GogInstallerWorkflowService
                 if (string.IsNullOrWhiteSpace(winePath))
                     return ExecutionFailure("Windows installation requires a system wine version.");
 
+                var repairedPrefixPath = request.Item.PrefixPath;
+                var prefixRepair = _protonPrefixRelocationService.Repair(request.Item);
+                if (prefixRepair.IsProtonManagedPrefix)
+                {
+                    repairedPrefixPath = prefixRepair.PrefixPath ?? repairedPrefixPath;
+                    if (prefixRepair.RepairedLinks > 0)
+                    {
+                        AppendInstallerLog(
+                            $"[Windows prefix] Repaired {prefixRepair.RepairedLinks} relocated Proton runtime link(s).");
+                    }
+
+                    if (prefixRepair.FailedLinks > 0)
+                    {
+                        return ExecutionFailure(
+                            $"Could not repair {prefixRepair.FailedLinks} relocated Proton prefix link(s).");
+                    }
+
+                    if (prefixRepair.ProtonRootPath == null && prefixRepair.UnresolvedLinks > 0)
+                    {
+                        return ExecutionFailure(
+                            "The existing prefix contains relocated Proton links, but its configured Proton runner is unavailable.");
+                    }
+
+                    if (prefixRepair.UnresolvedLinks > 0)
+                    {
+                        AppendInstallerLog(
+                            $"[Windows prefix] Warning: {prefixRepair.UnresolvedLinks} obsolete Proton link(s) " +
+                            "have no equivalent in the selected runner.");
+                    }
+                }
+
                 result = await _executionService.RunWindowsAsync(
                         new GogWindowsInstallerExecutionRequest(
                             request.StoreGameId,
                             request.Item.Title,
-                            request.Item.PrefixPath,
+                            repairedPrefixPath,
                             request.InstallPath,
                             winePath,
                             downloadedPackage,
