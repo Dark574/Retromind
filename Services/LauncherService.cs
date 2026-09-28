@@ -348,8 +348,9 @@ public sealed class LauncherService
         IReadOnlyDictionary<string, string>? environmentOverrides,
         LaunchLogBuilder launchLog)
     {
-        var (fileName, args, useShellExecute, launchFilePath) =
-            ResolveLaunchPlan(item, inheritedConfig, nodePath, nativeWrappers, usePlaylistForMultiDisc);
+        var launchFilePath = ResolveLaunchFilePath(item, nodePath, usePlaylistForMultiDisc);
+        var (fileName, args, useShellExecute) =
+            LaunchPlanBuilder.Build(item, inheritedConfig, nativeWrappers, launchFilePath);
 
         var startInfo = new ProcessStartInfo
         {
@@ -471,164 +472,12 @@ public sealed class LauncherService
     private static string BuildCommandDisplay(ProcessStartInfo startInfo)
     {
         var arguments = startInfo.ArgumentList.Count > 0
-            ? string.Join(' ', startInfo.ArgumentList.Select(QuoteIfNeeded))
+            ? string.Join(' ', startInfo.ArgumentList.Select(LaunchCommandLineHelper.QuoteIfNeeded))
             : startInfo.Arguments;
 
         return string.IsNullOrWhiteSpace(arguments)
-            ? QuoteIfNeeded(startInfo.FileName)
-            : $"{QuoteIfNeeded(startInfo.FileName)} {arguments}";
-    }
-
-    private (string FileName, string? Args, bool UseShellExecute, string? LaunchFilePath) ResolveLaunchPlan(
-        MediaItem item,
-        EmulatorConfig? inheritedConfig,
-        List<string>? nodePath,
-        IReadOnlyList<LaunchWrapper>? nativeWrappers,
-        bool usePlaylistForMultiDisc)
-    {
-        // Determine which file should be passed into {file}.
-        // Default: primary file (Disc 1 / first entry).
-        // Optional: generate an .m3u playlist for multi-disc items and pass the playlist path instead.
-        var launchFilePath = ResolveLaunchFilePath(item, nodePath, usePlaylistForMultiDisc);
-
-        // 1) Item-level custom launcher (wrapper/emulator/etc.) always wins
-        if (!string.IsNullOrWhiteSpace(item.LauncherPath))
-        {
-            var templateArgs = string.IsNullOrWhiteSpace(item.LauncherArgs) ? "{file}" : item.LauncherArgs;
-            var args = BuildArgumentsString(launchFilePath, templateArgs);
-
-            var fileName = LaunchExecutablePathHelper.ResolveConfiguredPath(item.LauncherPath);
-            var useShellExecute = false;
-
-            // If there is a wrapper chain, wrap the item-level launcher as inner command.
-            if (nativeWrappers is { Count: > 0 })
-            {
-                var inner = string.IsNullOrWhiteSpace(args)
-                    ? QuoteIfNeeded(fileName)
-                    : $"{QuoteIfNeeded(fileName)} {args}";
-
-                var folded = FoldWrappers(innerExecutable: inner, nativeWrappers);
-                fileName = folded.FileName;
-                args = folded.Args;
-                useShellExecute = folded.UseShellExecute;
-            }
-
-            return (fileName, args, useShellExecute, LaunchFilePath: launchFilePath);
-        }
-
-        // 2) Inherited emulator profile
-        if (inheritedConfig != null)
-        {
-            var templateArgs = LaunchArgumentHelper.CombineTemplateArguments(inheritedConfig.Arguments, item.LauncherArgs);
-            var args = BuildArgumentsString(launchFilePath, templateArgs);
-
-            var fileName = LaunchExecutablePathHelper.ResolveConfiguredPath(inheritedConfig.Path);
-            var useShellExecute = false;
-
-            // Apply wrapper chain around the emulator command if present
-            if (nativeWrappers is { Count: > 0 })
-            {
-                var inner = string.IsNullOrWhiteSpace(args)
-                    ? QuoteIfNeeded(fileName)
-                    : $"{QuoteIfNeeded(fileName)} {args}";
-
-                var folded = FoldWrappers(innerExecutable: inner, nativeWrappers);
-                fileName = folded.FileName;
-                args = folded.Args;
-                useShellExecute = folded.UseShellExecute;
-            }
-
-            return (fileName, args, useShellExecute, LaunchFilePath: launchFilePath);
-        }
-
-        // 3) Native execution (direct or via wrappers)
-        if (string.IsNullOrWhiteSpace(launchFilePath))
-            throw new InvalidOperationException("MediaItem.Files must contain at least one valid file for native execution.");
-
-        var nativeArgs = BuildNativeArguments(item.LauncherArgs);
-
-        // Apply wrapper chain if provided and non-empty
-        if (nativeWrappers is { Count: > 0 })
-        {
-            // Here the inner executable is the actual media file itself.
-            var inner = string.IsNullOrWhiteSpace(nativeArgs)
-                ? QuoteIfNeeded(launchFilePath)
-                : $"{QuoteIfNeeded(launchFilePath)} {nativeArgs}";
-
-            var folded = FoldWrappers(innerExecutable: inner, nativeWrappers);
-            return (folded.FileName, folded.Args, UseShellExecute: folded.UseShellExecute, LaunchFilePath: launchFilePath);
-        }
-
-        // Direct native
-        // On Linux, UseShellExecute=true routes through xdg-open/desktop handlers and can be
-        // blocked for executables ("not allowed to launch executable in this context").
-        // Native game binaries should run directly.
-        var useShell = !RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-
-        return (launchFilePath, nativeArgs, UseShellExecute: useShell, LaunchFilePath: launchFilePath);
-    }
-
-    /// <summary>
-    /// Folds a wrapper chain around an already composed inner command line.
-    /// Example: inner = "myemu \"rom.smc\" --option", wrappers = [gamemoderun, mangohud]
-    /// result: FileName = "gamemoderun", Args = "mangohud myemu \"rom.smc\" --option"
-    /// </summary>
-    private static (string FileName, string Args, bool UseShellExecute) FoldWrappers(
-        string innerExecutable,
-        IReadOnlyList<LaunchWrapper> wrappers)
-    {
-        var current = innerExecutable;
-        string? outerFileName = null;
-        string outerArgs = string.Empty;
-
-        // We interpret wrapper order as "outer -> inner".
-        // Example: [gamemoderun, mangohud] -> gamemoderun mangohud <inner>
-        for (int i = wrappers.Count - 1; i >= 0; i--)
-        {
-            var w = wrappers[i];
-            if (string.IsNullOrWhiteSpace(w.Path))
-                continue;
-
-            var template = string.IsNullOrWhiteSpace(w.Args) ? "{file}" : w.Args!;
-            var argsWithChild = template.Contains("{file}", StringComparison.Ordinal)
-                ? template.Replace("{file}", current, StringComparison.Ordinal)
-                : $"{template} {current}";
-
-            var resolvedWrapperPath = LaunchExecutablePathHelper.ResolveConfiguredPath(w.Path);
-            if (string.IsNullOrWhiteSpace(resolvedWrapperPath))
-                continue;
-
-            outerFileName = resolvedWrapperPath;
-            outerArgs = LaunchArgumentHelper.NormalizeWhitespace(argsWithChild);
-            current = string.IsNullOrWhiteSpace(outerArgs)
-                ? outerFileName
-                : $"{outerFileName} {outerArgs}";
-        }
-
-        if (string.IsNullOrWhiteSpace(outerFileName))
-        {
-            // No valid wrapper path found; fall back to a best-effort split that respects quotes.
-            var (fallbackFileName, fallbackArgs) = SplitCommandLinePreservingArgs(current);
-
-            var fallbackUseShellExecute = true;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
-                fallbackFileName.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
-            {
-                fallbackUseShellExecute = false;
-            }
-
-            return (fallbackFileName, fallbackArgs, fallbackUseShellExecute);
-        }
-
-        // Avoid splitting by space: wrapper paths may contain spaces.
-        var useShellExecute = true;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
-            outerFileName.EndsWith(".sh", StringComparison.OrdinalIgnoreCase))
-        {
-            useShellExecute = false;
-        }
-
-        return (outerFileName, outerArgs, useShellExecute);
+            ? LaunchCommandLineHelper.QuoteIfNeeded(startInfo.FileName)
+            : $"{LaunchCommandLineHelper.QuoteIfNeeded(startInfo.FileName)} {arguments}";
     }
     
     private string? ResolveLaunchFilePath(MediaItem item, List<string>? nodePath, bool usePlaylistForMultiDisc)
@@ -1151,7 +1000,9 @@ public sealed class LauncherService
         }
 
         // Wrapper case: e.g. "gamemoderun umu-run ...".
-        var firstArgToken = SplitCommandLinePreservingArgs(startInfo.Arguments ?? launchArgsHint ?? string.Empty).FileName;
+        var firstArgToken = LaunchCommandLineHelper
+            .SplitCommandLinePreservingArgs(startInfo.Arguments ?? launchArgsHint ?? string.Empty)
+            .FileName;
         return IsSteamCompatCommandToken(firstArgToken);
     }
 
@@ -1220,77 +1071,6 @@ public sealed class LauncherService
             value = value[..^1];
 
         return value;
-    }
-
-    private static string QuoteIfNeeded(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return string.Empty;
-
-        return path.Contains(' ', StringComparison.Ordinal) ? $"\"{path}\"" : path;
-    }
-
-    private static (string FileName, string Args) SplitCommandLinePreservingArgs(string commandLine)
-    {
-        if (string.IsNullOrWhiteSpace(commandLine))
-            return (string.Empty, string.Empty);
-
-        int i = 0;
-        while (i < commandLine.Length && char.IsWhiteSpace(commandLine[i]))
-            i++;
-
-        if (i >= commandLine.Length)
-            return (string.Empty, string.Empty);
-
-        bool inQuotes = false;
-        char quoteChar = '"';
-        var fileName = new System.Text.StringBuilder();
-
-        for (; i < commandLine.Length; i++)
-        {
-            var c = commandLine[i];
-            if (inQuotes)
-            {
-                if (c == quoteChar)
-                {
-                    inQuotes = false;
-                    continue;
-                }
-
-                fileName.Append(c);
-                continue;
-            }
-
-            if (c == '"' || c == '\'')
-            {
-                inQuotes = true;
-                quoteChar = c;
-                continue;
-            }
-
-            if (char.IsWhiteSpace(c))
-                break;
-
-            fileName.Append(c);
-        }
-
-        var args = i < commandLine.Length
-            ? commandLine[i..].TrimStart()
-            : string.Empty;
-
-        return (fileName.ToString(), args);
-    }
-
-    private static string BuildNativeArguments(string? templateArgs)
-    {
-        if (string.IsNullOrWhiteSpace(templateArgs))
-            return string.Empty;
-
-        // For direct native execution the executable is already FileName, so "{file}" is a marker and removed.
-        var args = templateArgs;
-        args = args.Replace("\"{file}\"", string.Empty, StringComparison.Ordinal);
-        args = args.Replace("{file}", string.Empty, StringComparison.Ordinal);
-        return LaunchArgumentHelper.NormalizeWhitespace(args);
     }
 
     private void ConfigureWinePrefix(
@@ -1533,63 +1313,6 @@ public sealed class LauncherService
 
         return nativeWrappers != null &&
                nativeWrappers.Any(w => LaunchRuntimeHelper.ContainsUmuToken(w.Path));
-    }
-
-    private static string BuildArgumentsString(string? filePath, string? templateArgs)
-    {
-        var fullPath = string.IsNullOrWhiteSpace(filePath) ? string.Empty : Path.GetFullPath(filePath);
-
-        // The caller can use additional placeholders, which we derive directly from the path:
-        // - {fileDir}  -> Directory (without a trailing slash)
-        // - {fileName} -> Filename with extension
-        // - {fileBase} -> Filename without extension (e.g., ROM shortname for MAME)
-        var fileDir = string.Empty;
-        var fileName = string.Empty;
-        var fileBase = string.Empty;
-        
-        if (!string.IsNullOrWhiteSpace(fullPath))
-        {
-            fileDir = Path.GetDirectoryName(fullPath) ?? string.Empty;
-            fileName = Path.GetFileName(fullPath);
-            fileBase = string.IsNullOrEmpty(fileName)
-                ? string.Empty
-                : Path.GetFileNameWithoutExtension(fileName);
-        }
-
-        // If no template is specified, we only return the (possibly quoted) path.
-        if (string.IsNullOrWhiteSpace(templateArgs))
-        {
-            if (string.IsNullOrEmpty(fullPath))
-                return string.Empty;
-
-            return fullPath.Contains(' ', StringComparison.Ordinal)
-                ? $"\"{fullPath}\""
-                : fullPath;
-        }
-
-        static string QuoteIfNeededOrEmpty(string value)
-            => string.IsNullOrEmpty(value)
-                ? string.Empty
-                : (value.Contains(' ', StringComparison.Ordinal) ? $"\"{value}\"" : value);
-
-        static string ReplacePlaceholder(string input, string name, string rawValue)
-        {
-            var explicitToken = $"\"{{{name}}}\"";
-            if (input.Contains(explicitToken, StringComparison.Ordinal))
-                return input.Replace($"{{{name}}}", rawValue, StringComparison.Ordinal);
-
-            var quotedValue = QuoteIfNeededOrEmpty(rawValue);
-            return input.Replace($"{{{name}}}", quotedValue, StringComparison.Ordinal);
-        }
-
-        // Replace placeholders with proper quoting, preserving explicit quotes if provided by the user.
-        var result = templateArgs;
-        result = ReplacePlaceholder(result, "fileDir", fileDir);
-        result = ReplacePlaceholder(result, "fileName", fileName);
-        result = ReplacePlaceholder(result, "fileBase", fileBase);
-        result = ReplacePlaceholder(result, "file", fullPath);
-
-        return result;
     }
 
     private static bool IsProcessRunning(string processName)
