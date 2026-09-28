@@ -351,11 +351,13 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 - supports `Native`, `Emulator`, and `Command` media types
 - media items may intentionally have no launch file and act as catalog placeholders; the editor can add,
   replace, or clear launch files later
-- `LaunchPlanBuilder` owns the deterministic executable, argument-placeholder, and wrapper composition after
-  `LauncherService` has resolved the launch file or generated playlist. Plan layering remains item launcher ->
-  emulator config -> node/item wrapper chain; there is no application-global wrapper layer
-- `LauncherService` retains launch orchestration: playlist resolution, working directory and environment setup,
-  Wine/Proton prefix preparation, process execution, output capture, and session tracking
+- `LaunchPlaylistService` selects the primary media file and owns optional multi-disc playlist generation below
+  the resolved library node folder, falling back to the primary file when a playlist cannot be created
+- `LaunchPlanBuilder` owns the deterministic executable, argument-placeholder, and wrapper composition after the
+  launch file has been resolved. Plan layering remains item launcher -> emulator config -> node/item wrapper chain;
+  there is no application-global wrapper layer
+- `LauncherService` retains launch orchestration: working directory and environment setup, Wine/Proton prefix
+  preparation, process execution, output capture, and session tracking
 - explicit test launches use the same launch plan while suppressing play count, last-played, and playtime updates
 - supports multi-file launch decisions (including playlist mode)
 - supports merged environment overrides (node/emulator/item)

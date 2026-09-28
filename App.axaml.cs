@@ -254,11 +254,13 @@ public partial class App : Application
         services.AddSingleton<FileManagementService>(_ => new FileManagementService(libraryPath));
         services.AddSingleton(_ => new LaunchLogService(
             Path.Combine(AppPaths.DataRoot, "Logs", "Launch")));
+        services.AddSingleton(_ => new LaunchPlaylistService(libraryPath));
         services.AddSingleton<LauncherService>(provider =>
         {
             var settings = provider.GetRequiredService<AppSettings>();
             var launchLogService = provider.GetRequiredService<LaunchLogService>();
-            return new LauncherService(libraryPath, settings, launchLogService);
+            var launchPlaylistService = provider.GetRequiredService<LaunchPlaylistService>();
+            return new LauncherService(libraryPath, settings, launchLogService, launchPlaylistService);
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();

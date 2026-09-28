@@ -27,15 +27,18 @@ public sealed class LauncherService
     private readonly string _libraryRootPath;
     private readonly AppSettings _settings;
     private readonly LaunchLogService _launchLogService;
+    private readonly LaunchPlaylistService _launchPlaylistService;
 
     public LauncherService(
         string libraryRootPath,
         AppSettings settings,
-        LaunchLogService launchLogService)
+        LaunchLogService launchLogService,
+        LaunchPlaylistService? launchPlaylistService = null)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _launchLogService = launchLogService ?? throw new ArgumentNullException(nameof(launchLogService));
+        _launchPlaylistService = launchPlaylistService ?? new LaunchPlaylistService(libraryRootPath);
     }
 
     public async Task<LaunchResult> LaunchAsync(
@@ -348,7 +351,10 @@ public sealed class LauncherService
         IReadOnlyDictionary<string, string>? environmentOverrides,
         LaunchLogBuilder launchLog)
     {
-        var launchFilePath = ResolveLaunchFilePath(item, nodePath, usePlaylistForMultiDisc);
+        var launchFilePath = _launchPlaylistService.ResolveLaunchFilePath(
+            item,
+            nodePath,
+            usePlaylistForMultiDisc);
         var (fileName, args, useShellExecute) =
             LaunchPlanBuilder.Build(item, inheritedConfig, nativeWrappers, launchFilePath);
 
@@ -480,122 +486,6 @@ public sealed class LauncherService
             : $"{LaunchCommandLineHelper.QuoteIfNeeded(startInfo.FileName)} {arguments}";
     }
     
-    private string? ResolveLaunchFilePath(MediaItem item, List<string>? nodePath, bool usePlaylistForMultiDisc)
-    {
-        var primary = item.GetPrimaryLaunchPath();
-        if (string.IsNullOrWhiteSpace(primary))
-            return null;
-
-        if (!usePlaylistForMultiDisc)
-            return primary;
-
-        if (item.Files is not { Count: > 1 })
-            return primary;
-
-        // Playlists are stored inside the selected node folder:
-        // <LibraryRoot>/<NodePath>/Playlists/<itemId>_<GameTitle>.m3u
-        if (nodePath is not { Count: > 0 })
-            return primary;
-
-        var playlistPath = CreateOrUpdatePlaylist(item, nodePath);
-        return string.IsNullOrWhiteSpace(playlistPath) ? primary : playlistPath;
-    }
-
-    private string? CreateOrUpdatePlaylist(MediaItem item, List<string> nodePath)
-    {
-        try
-        {
-            var nodeFolder = ResolveNodeFolder(nodePath);
-            var playlistsFolder = Path.Combine(nodeFolder, "Playlists");
-            Directory.CreateDirectory(playlistsFolder);
-
-            var safeTitle = SanitizeForFilename(item.Title);
-            var fileName = $"{item.Id}_{safeTitle}.m3u";
-            var fullPath = Path.Combine(playlistsFolder, fileName);
-
-            // Build playlist lines in a stable order (Index ascending, then Label, then Path).
-            var ordered = new List<MediaFileRef>(item.Files);
-            ordered.Sort(static (a, b) =>
-            {
-                var ai = a.Index ?? int.MaxValue;
-                var bi = b.Index ?? int.MaxValue;
-                var c = ai.CompareTo(bi);
-                if (c != 0) return c;
-
-                c = string.Compare(a.Label, b.Label, StringComparison.OrdinalIgnoreCase);
-                if (c != 0) return c;
-
-                return string.Compare(a.Path, b.Path, StringComparison.OrdinalIgnoreCase);
-            });
-
-            var lines = new List<string>(capacity: ordered.Count);
-            foreach (var f in ordered)
-            {
-                if (string.IsNullOrWhiteSpace(f.Path))
-                    continue;
-
-                // Resolve the file path to an absolute path:
-                // - Absolute   -> use as-is
-                // - LibraryRelative -> resolve relative to DataRoot (portable mode)
-                // Other kinds are currently ignored until a concrete semantics is defined
-                string resolved;
-                switch (f.Kind)
-                {
-                    case MediaFileKind.Absolute:
-                        resolved = f.Path;
-                        break;
-
-                    case MediaFileKind.LibraryRelative:
-                        resolved = AppPaths.ResolveDataPathInsideRootOrEmpty(f.Path);
-                        if (string.IsNullOrWhiteSpace(resolved))
-                            continue;
-                        break;
-
-                    default:
-                        continue;
-                }
-
-                lines.Add(resolved);
-            }
-
-            // If we ended up with an invalid playlist, do not create anything.
-            if (lines.Count == 0)
-                return null;
-
-            File.WriteAllLines(fullPath, lines);
-            return fullPath;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Launcher] Failed to create playlist: {ex.Message}");
-            return null;
-        }
-    }
-
-    private string ResolveNodeFolder(List<string> nodePath)
-        => PathHelper.ResolveNodeFolder(nodePath, _libraryRootPath);
-
-    private static string SanitizeForFilename(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return "Unknown";
-
-        var sanitized = input.Replace(' ', '_');
-
-        foreach (var c in Path.GetInvalidFileNameChars())
-            sanitized = sanitized.Replace(c.ToString(), string.Empty);
-
-        while (sanitized.Contains("__", StringComparison.Ordinal))
-            sanitized = sanitized.Replace("__", "_", StringComparison.Ordinal);
-
-        // Keep filenames at a reasonable length for portability/usability.
-        const int maxLen = 80;
-        if (sanitized.Length > maxLen)
-            sanitized = sanitized[..maxLen];
-
-        return sanitized;
-    }
-
     private static string ResolveWorkingDirectory(string? overrideDirectory, string fileName, string? launchFilePath)
     {
         var overridePath = ResolveWorkingDirectoryOverride(overrideDirectory);
