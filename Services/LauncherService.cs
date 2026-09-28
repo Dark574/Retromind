@@ -29,19 +29,22 @@ public sealed class LauncherService
     private readonly LaunchLogService _launchLogService;
     private readonly LaunchPlaylistService _launchPlaylistService;
     private readonly LaunchEnvironmentService _launchEnvironmentService;
+    private readonly WinePrefixService _winePrefixService;
 
     public LauncherService(
         string libraryRootPath,
         AppSettings settings,
         LaunchLogService launchLogService,
         LaunchPlaylistService? launchPlaylistService = null,
-        LaunchEnvironmentService? launchEnvironmentService = null)
+        LaunchEnvironmentService? launchEnvironmentService = null,
+        WinePrefixService? winePrefixService = null)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _launchLogService = launchLogService ?? throw new ArgumentNullException(nameof(launchLogService));
         _launchPlaylistService = launchPlaylistService ?? new LaunchPlaylistService(libraryRootPath);
         _launchEnvironmentService = launchEnvironmentService ?? new LaunchEnvironmentService();
+        _winePrefixService = winePrefixService ?? new WinePrefixService(libraryRootPath, settings);
     }
 
     public async Task<LaunchResult> LaunchAsync(
@@ -387,7 +390,14 @@ public sealed class LauncherService
         startInfo.UseShellExecute = requiresDirectExec ? false : useShellExecute;
 
         if (shouldApplyPrefix)
-            ConfigureWinePrefix(item, nodePath, startInfo, isProtonLaunch, isUmuLaunch);
+        {
+            var prefixRuntime = isUmuLaunch
+                ? WinePrefixRuntime.Umu
+                : isProtonLaunch
+                    ? WinePrefixRuntime.Proton
+                    : WinePrefixRuntime.Wine;
+            _winePrefixService.Prepare(item, startInfo, prefixRuntime);
+        }
             
         _launchEnvironmentService.PrepareNativeOrEmulator(
             startInfo,
@@ -574,196 +584,6 @@ public sealed class LauncherService
         }
 
         return null;
-    }
-
-    private void ConfigureWinePrefix(
-        MediaItem item,
-        List<string>? nodePath,
-        ProcessStartInfo startInfo,
-        bool isProton,
-        bool isUmu)
-    {
-        string? prefixPath = null;
-        string? relativePrefixPathToSave = null;
-
-        // Prefix base folder on library/app level (portable).
-        // Library/Prefixes/<itemId_Title>
-        var prefixesBaseRel = "Prefixes";
-
-        // Priority 1: Existing saved path (relative to library root).
-        if (!string.IsNullOrWhiteSpace(item.PrefixPath))
-        {
-            var storedPath = item.PrefixPath.Trim();
-            if (_settings.PreferPortableLaunchPaths)
-            {
-                var portableStoredPath =
-                    PrefixPathHelper.ConvertPathToLibraryRelativeIfInsideLibraryRoot(storedPath, _libraryRootPath);
-                if (!string.Equals(portableStoredPath, storedPath, StringComparison.Ordinal))
-                {
-                    storedPath = portableStoredPath ?? storedPath;
-                    relativePrefixPathToSave = storedPath;
-                }
-            }
-
-            prefixPath = PrefixPathHelper.ResolveAbsolutePrefixPath(storedPath, _libraryRootPath);
-        }
-        else
-        {
-            // Priority 2: Stable, human-friendly per-item folder.
-            var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(item.Title);
-
-            // Keep both: stable id + readable title
-            // Example: Prefixes/123e4567-e89b-12d3-a456-426614174000_My_Game
-            var folderName = $"{item.Id}_{safeTitle}";
-
-            relativePrefixPathToSave = Path.Combine(prefixesBaseRel, folderName);
-            prefixPath = Path.Combine(_libraryRootPath, relativePrefixPathToSave);
-        }
-
-        if (string.IsNullOrWhiteSpace(prefixPath))
-            return;
-
-        var prefixRoot = prefixPath;
-        var winePrefixPath = prefixPath;
-        var launchWinePrefixPath = prefixPath;
-
-        if (isUmu)
-        {
-            // UMU expects WINEPREFIX to be the compat root; it will create <root>/pfx as a symlink.
-            string pfxPath;
-            if (PrefixPathHelper.IsPfxPath(prefixPath))
-            {
-                pfxPath = prefixPath;
-                var parent = Directory.GetParent(prefixPath)?.FullName;
-                if (!string.IsNullOrWhiteSpace(parent))
-                {
-                    prefixRoot = parent;
-                }
-            }
-            else
-            {
-                pfxPath = Path.Combine(prefixPath, "pfx");
-            }
-
-            var rootInitialized = PrefixPathHelper.IsWinePrefixInitialized(prefixRoot);
-            var pfxInitialized = PrefixPathHelper.IsWinePrefixInitialized(pfxPath);
-            winePrefixPath = rootInitialized && !pfxInitialized ? prefixRoot : pfxPath;
-            launchWinePrefixPath = prefixRoot;
-        }
-        else if (isProton)
-        {
-            // Proton/UMU typically use "<prefix>/pfx" as the actual Wine prefix.
-            // For legacy prefixes that already have a root drive_c (and no pfx),
-            // keep using the root to avoid "losing" settings/installations.
-            if (PrefixPathHelper.IsPfxPath(prefixPath))
-            {
-                winePrefixPath = prefixPath;
-                var parent = Directory.GetParent(prefixPath)?.FullName;
-                if (!string.IsNullOrWhiteSpace(parent))
-                    prefixRoot = parent;
-            }
-            else
-            {
-                var pfxPath = Path.Combine(prefixPath, "pfx");
-                var rootInitialized = PrefixPathHelper.IsWinePrefixInitialized(prefixPath);
-                var pfxInitialized = PrefixPathHelper.IsWinePrefixInitialized(pfxPath);
-
-                if (rootInitialized && !pfxInitialized)
-                {
-                    winePrefixPath = prefixPath;
-                }
-                else
-                {
-                    winePrefixPath = pfxPath;
-                }
-            }
-
-            launchWinePrefixPath = winePrefixPath;
-        }
-        else
-        {
-            // Wine: prefer an existing root prefix, but fall back to "<prefix>/pfx" if present.
-            if (PrefixPathHelper.IsPfxPath(prefixPath))
-            {
-                winePrefixPath = prefixPath;
-                var parent = Directory.GetParent(prefixPath)?.FullName;
-                if (!string.IsNullOrWhiteSpace(parent))
-                    prefixRoot = parent;
-            }
-            else
-            {
-                var driveC = Path.Combine(prefixPath, "drive_c");
-                if (!Directory.Exists(driveC))
-                {
-                    var pfxDir = Path.Combine(prefixPath, "pfx");
-                    var pfxDriveC = Path.Combine(pfxDir, "drive_c");
-                    if (Directory.Exists(pfxDriveC) || Directory.Exists(pfxDir))
-                        winePrefixPath = pfxDir;
-                }
-            }
-
-            launchWinePrefixPath = winePrefixPath;
-        }
-
-        // Ensure basic prefix structure
-        Directory.CreateDirectory(prefixRoot);
-
-        // For UMU we avoid pre-creating "<root>/pfx" (owned by umu-run),
-        // but still scaffold compat-root dosdevices so portable drive mappings remain available.
-        var scaffoldPrefixPath =
-            (isUmu && !string.Equals(winePrefixPath, prefixRoot, StringComparison.OrdinalIgnoreCase))
-                ? prefixRoot
-                : winePrefixPath;
-
-        Directory.CreateDirectory(scaffoldPrefixPath);
-
-        var dosDevicesDir = Path.Combine(scaffoldPrefixPath, "dosdevices");
-        Directory.CreateDirectory(dosDevicesDir);
-        
-        // If UMU is expected to materialize/use "<compat-root>/pfx", avoid turning the compat
-        // root into a full classic Wine prefix (drive_c/c:). Keep only dosdevices for portable drives.
-        var isUmuCompatRootScaffold =
-            isUmu &&
-            string.Equals(scaffoldPrefixPath, prefixRoot, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(winePrefixPath, prefixRoot, StringComparison.OrdinalIgnoreCase);
-
-        if (!isUmuCompatRootScaffold)
-        {
-            // drive_c + c: mapping for regular Wine-style prefixes.
-            var driveCPath = Path.Combine(scaffoldPrefixPath, "drive_c");
-            Directory.CreateDirectory(driveCPath);
-            PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDir, "c:", "../drive_c");
-        }
-        
-        var libraryRoot = Path.GetFullPath(_libraryRootPath); // .../Library
-        var prefixFull = Path.GetFullPath(prefixRoot);
-        var libraryRootWithSep = libraryRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? libraryRoot
-            : libraryRoot + Path.DirectorySeparatorChar;
-
-        var isPrefixInsideLibrary =
-            prefixFull.StartsWith(libraryRootWithSep, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(prefixFull, libraryRoot, StringComparison.OrdinalIgnoreCase);
-
-        if (isPrefixInsideLibrary)
-        {
-            var gamesRoot = Path.Combine(libraryRoot, "Games");
-            Directory.CreateDirectory(gamesRoot);
-
-            var relativeTarget = Path.GetRelativePath(dosDevicesDir, gamesRoot);
-            PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDir, "d:", relativeTarget);
-        }
-        
-        if (isProton)
-            startInfo.EnvironmentVariables["STEAM_COMPAT_DATA_PATH"] = prefixRoot;
-
-        // Apply WINEPREFIX to the launched process
-        startInfo.EnvironmentVariables["WINEPREFIX"] = launchWinePrefixPath;
-
-        // Persist generated relative path (portable).
-        if (relativePrefixPathToSave != null)
-            item.PrefixPath = relativePrefixPathToSave;
-
     }
 
     private static bool IsProtonBased(

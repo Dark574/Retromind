@@ -256,18 +256,23 @@ public partial class App : Application
             Path.Combine(AppPaths.DataRoot, "Logs", "Launch")));
         services.AddSingleton(_ => new LaunchPlaylistService(libraryPath));
         services.AddSingleton<LaunchEnvironmentService>();
+        services.AddSingleton(provider => new WinePrefixService(
+            libraryPath,
+            provider.GetRequiredService<AppSettings>()));
         services.AddSingleton<LauncherService>(provider =>
         {
             var settings = provider.GetRequiredService<AppSettings>();
             var launchLogService = provider.GetRequiredService<LaunchLogService>();
             var launchPlaylistService = provider.GetRequiredService<LaunchPlaylistService>();
             var launchEnvironmentService = provider.GetRequiredService<LaunchEnvironmentService>();
+            var winePrefixService = provider.GetRequiredService<WinePrefixService>();
             return new LauncherService(
                 libraryPath,
                 settings,
                 launchLogService,
                 launchPlaylistService,
-                launchEnvironmentService);
+                launchEnvironmentService,
+                winePrefixService);
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();

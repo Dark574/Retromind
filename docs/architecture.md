@@ -358,8 +358,10 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   there is no application-global wrapper layer
 - `LaunchEnvironmentService` owns inherited environment cleanup for AppImage and portable-home launches, applies
   resolved emulator/item variables in launch order, and enforces emulator/item XDG precedence
-- `LauncherService` retains launch orchestration: working-directory selection, Wine/Proton prefix preparation,
-  process execution, output capture, and session tracking
+- `WinePrefixService` resolves existing portable or absolute prefix paths, selects the correct Wine, Proton, or UMU
+  prefix layout, creates safe `dosdevices` mappings, and supplies the launch environment paths
+- `LauncherService` retains launch orchestration: working-directory selection, runtime classification, process
+  execution, output capture, and session tracking
 - explicit test launches use the same launch plan while suppressing play count, last-played, and playtime updates
 - supports multi-file launch decisions (including playlist mode)
 - supports merged environment overrides (node/emulator/item)
