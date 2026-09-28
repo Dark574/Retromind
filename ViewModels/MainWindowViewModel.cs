@@ -38,6 +38,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly AudioService _audioService;
     private readonly MediaDataService _dataService;
     private readonly MetadataBackupService _metadataBackupService;
+    private readonly LibraryHealthService _libraryHealthService;
     private readonly FileManagementService _fileService;
     private readonly WinetricksService _winetricksService;
     private readonly ImportService _importService;
@@ -412,11 +413,13 @@ public partial class MainWindowViewModel : ViewModelBase
         IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService,
         RetroAchievementsBulkIdentificationService retroAchievementsBulkIdentificationService,
         IRetroAchievementsProgressService retroAchievementsProgressService,
-        IRetroAchievementsBadgeService retroAchievementsBadgeService)
+        IRetroAchievementsBadgeService retroAchievementsBadgeService,
+        LibraryHealthService? libraryHealthService = null)
     {
         _audioService = audioService;
         _dataService = dataService;
         _metadataBackupService = metadataBackupService;
+        _libraryHealthService = libraryHealthService ?? new LibraryHealthService();
         _fileService = fileService;
         _winetricksService = winetricksService;
         _importService = importService;

@@ -842,10 +842,24 @@
                 </TabControl>
             </TabItem>
 
-            <!-- TAB 6: BACKUPS -->
+            <!-- TAB 6: DATA -->
             <TabItem Header="{Binding SettingsTabBackupsTitle}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10,10,20,20">
+                    <StackPanel Margin="10,10,20,20" Spacing="16">
+                        <Border Classes="section">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="{Binding LibraryHealthSectionTitle}"
+                                           FontWeight="Bold"
+                                           FontSize="16" />
+                                <TextBlock Text="{Binding LibraryHealthSectionHint}"
+                                           Opacity="0.6"
+                                           TextWrapping="Wrap" />
+                                <Button Content="{Binding OpenLibraryHealthText}"
+                                        Command="{Binding OpenLibraryHealthCommand}"
+                                        HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Border>
+
                         <Border Classes="section">
                             <StackPanel Spacing="10">
                                 <TextBlock Text="{Binding MetadataBackupSectionTitle}"

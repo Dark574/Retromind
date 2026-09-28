@@ -491,10 +491,10 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string ChangeParentalPasswordText => T("Settings_ChangeParentalPassword", "Change parental password");
     public string SettingsTabGeneralTitle => T("Settings_TabGeneral", "General");
     public string SettingsTabEmulatorsTitle => T("Settings_TabEmulators", "Emulators");
-    public string SettingsTabMetadataTitle => T("Settings_TabMetadataAndScrapers", "Metadata & scrapers");
-    public string SettingsTabLaunchCompatibilityTitle => T("Settings_TabLaunchCompatibility", "Launch & compatibility");
+    public string SettingsTabMetadataTitle => T("Settings_TabMetadataAndScrapers", "Metadata");
+    public string SettingsTabLaunchCompatibilityTitle => T("Settings_TabLaunchCompatibility", "Launch");
     public string SettingsTabIntegrationsTitle => T("Settings_TabIntegrations", "Integrations");
-    public string SettingsTabBackupsTitle => T("Settings_TabBackups", "Backups");
+    public string SettingsTabBackupsTitle => T("Settings_TabBackups", "Data");
     public string SettingsTabHelpTitle => T("Settings_TabHelp", "Help");
     public string GettingStartedTitle => T("GettingStarted.Title", "Welcome to Retromind");
     public string GettingStartedIntro => T(

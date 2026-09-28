@@ -1,0 +1,110 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Retromind.ViewModels"
+        x:Class="Retromind.Views.LibraryHealthView"
+        x:DataType="vm:LibraryHealthViewModel"
+        Title="{Binding Title}"
+        Width="1040"
+        Height="680"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        CanResize="False"
+        CanMaximize="False">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" Margin="20" RowSpacing="12">
+        <StackPanel Grid.Row="0" Spacing="3">
+            <TextBlock Text="{Binding Title}" FontSize="23" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Opacity="0.7" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
+            <Border Grid.Column="0" Classes="section" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="{Binding MissingAssetsTitle}" Opacity="0.7" />
+                    <TextBlock Text="{Binding MissingAssetCount}" FontSize="22" FontWeight="SemiBold" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Classes="section" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="{Binding OrphanedAssetsTitle}" Opacity="0.7" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding OrphanedAssetCount}" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding OrphanedAssetSizeText}" VerticalAlignment="Bottom" Margin="0,0,0,3" Opacity="0.7" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Classes="section" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="{Binding MissingLaunchFilesTitle}" Opacity="0.7" />
+                    <TextBlock Text="{Binding MissingLaunchFileCount}" FontSize="22" FontWeight="SemiBold" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="3" Classes="section" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="{Binding InconsistentEntriesTitle}" Opacity="0.7" />
+                    <TextBlock Text="{Binding InconsistentEntryCount}" FontSize="22" FontWeight="SemiBold" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="260,*,Auto,Auto" ColumnSpacing="8">
+            <ComboBox Grid.Column="0"
+                      ItemsSource="{Binding FilterOptions}"
+                      SelectedItem="{Binding SelectedFilter}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LibraryHealthFilterOption">
+                        <TextBlock Text="{Binding Label}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Grid.Column="2" Content="{Binding ScanText}" Command="{Binding ScanCommand}" />
+            <Button Grid.Column="3" Content="{Binding CancelText}" Command="{Binding CancelCommand}" />
+        </Grid>
+
+        <ProgressBar Grid.Row="3" Height="4" IsIndeterminate="True" IsVisible="{Binding IsScanning}" />
+
+        <Border Grid.Row="4" BorderBrush="Gray" BorderThickness="1" CornerRadius="5">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled">
+                <Grid MinWidth="980" RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="260,180,Auto" ColumnSpacing="10" Margin="10,7" Background="#18000000">
+                        <TextBlock Grid.Column="0" Text="{Binding TypeHeader}" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="1" Text="{Binding OwnerHeader}" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="2" Text="{Binding LocationHeader}" FontWeight="SemiBold" />
+                    </Grid>
+                    <Grid Grid.Row="1">
+                        <ListBox ItemsSource="{Binding VisibleIssues}" Background="Transparent">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:LibraryHealthIssueRow">
+                                    <Grid ColumnDefinitions="260,180,Auto" ColumnSpacing="10" Margin="5,2" ToolTip.Tip="{Binding LocationText}">
+                                        <TextBlock Grid.Column="0" Text="{Binding TypeText}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="1" Text="{Binding OwnerText}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="2" Text="{Binding LocationText}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="{Binding EmptyResultText}"
+                                   IsVisible="{Binding ShowEmptyResult}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Opacity="0.7" />
+                    </Grid>
+                </Grid>
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Grid.Row="5" Spacing="4">
+            <TextBlock Text="{Binding StatusText}" IsVisible="{Binding HasStatusText}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ScopeHint}" TextWrapping="Wrap" FontSize="11" Opacity="0.6" />
+        </StackPanel>
+
+        <Grid Grid.Row="6" ColumnDefinitions="Auto,*,Auto">
+            <Button Grid.Column="0" Content="{Binding CopyReportText}" Command="{Binding CopyReportCommand}" />
+            <Button Grid.Column="2" Content="{Binding CloseText}" Command="{Binding CloseCommand}" IsCancel="True" />
+        </Grid>
+    </Grid>
+</Window>

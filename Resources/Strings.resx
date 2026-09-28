@@ -499,10 +499,10 @@ This action cannot be undone.</value></data>
     <!-- SETTINGS -->
     <data name="Settings_TabGeneral" xml:space="preserve"><value>General</value></data>
     <data name="Settings_TabEmulators" xml:space="preserve"><value>Emulators</value></data>
-    <data name="Settings_TabMetadataAndScrapers" xml:space="preserve"><value>Metadata &amp; scrapers</value></data>
-    <data name="Settings_TabLaunchCompatibility" xml:space="preserve"><value>Launch &amp; compatibility</value></data>
+    <data name="Settings_TabMetadataAndScrapers" xml:space="preserve"><value>Metadata</value></data>
+    <data name="Settings_TabLaunchCompatibility" xml:space="preserve"><value>Launch</value></data>
     <data name="Settings_TabIntegrations" xml:space="preserve"><value>Integrations</value></data>
-    <data name="Settings_TabBackups" xml:space="preserve"><value>Backups</value></data>
+    <data name="Settings_TabBackups" xml:space="preserve"><value>Data</value></data>
     <data name="Settings_IntegrationLibraries" xml:space="preserve"><value>Game libraries</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Launch paths</value></data>
     <data name="Settings_SectionSorting" xml:space="preserve"><value>Sorting</value></data>
@@ -958,6 +958,47 @@ The program may not have started correctly.</value>
     <data name="Launch.LastLogTitleFormat" xml:space="preserve"><value>Last launch log - {0}</value></data>
     <data name="Launch.LastLogUnavailable" xml:space="preserve"><value>No launch log is available for this item.</value></data>
     <data name="MetadataBackup.SettingsSection" xml:space="preserve"><value>Metadata backups</value></data>
+    <data name="LibraryHealth.SettingsSection" xml:space="preserve"><value>Library check</value></data>
+    <data name="LibraryHealth.SettingsHint" xml:space="preserve"><value>Find missing references, orphaned media files and inconsistent library entries. The check does not change or delete anything.</value></data>
+    <data name="LibraryHealth.Open" xml:space="preserve"><value>Check library...</value></data>
+    <data name="LibraryHealth.Title" xml:space="preserve"><value>Library check</value></data>
+    <data name="LibraryHealth.Description" xml:space="preserve"><value>Checks library references and Retromind-managed media folders without changing or deleting anything.</value></data>
+    <data name="LibraryHealth.Scan" xml:space="preserve"><value>Check again</value></data>
+    <data name="LibraryHealth.CopyReport" xml:space="preserve"><value>Copy report</value></data>
+    <data name="LibraryHealth.Header.Type" xml:space="preserve"><value>Problem</value></data>
+    <data name="LibraryHealth.Header.Owner" xml:space="preserve"><value>Item / category</value></data>
+    <data name="LibraryHealth.Header.Node" xml:space="preserve"><value>Library path</value></data>
+    <data name="LibraryHealth.Header.Location" xml:space="preserve"><value>File / value</value></data>
+    <data name="LibraryHealth.Header.Size" xml:space="preserve"><value>Size</value></data>
+    <data name="LibraryHealth.Summary.MissingAssets" xml:space="preserve"><value>Missing media</value></data>
+    <data name="LibraryHealth.Summary.OrphanedAssets" xml:space="preserve"><value>Orphaned media</value></data>
+    <data name="LibraryHealth.Summary.MissingLaunchFiles" xml:space="preserve"><value>Missing launch files</value></data>
+    <data name="LibraryHealth.Summary.InconsistentEntries" xml:space="preserve"><value>Inconsistent entries</value></data>
+    <data name="LibraryHealth.Empty" xml:space="preserve"><value>No problems were found in the checked areas.</value></data>
+    <data name="LibraryHealth.ScopeHint" xml:space="preserve"><value>Orphan detection is limited to the managed media folders of existing categories. Game folders, prefixes, installers, themes, caches and backups are never scanned as orphaned media.</value></data>
+    <data name="LibraryHealth.Filter.All" xml:space="preserve"><value>All findings</value></data>
+    <data name="LibraryHealth.Filter.MissingAssets" xml:space="preserve"><value>Missing media</value></data>
+    <data name="LibraryHealth.Filter.OrphanedAssets" xml:space="preserve"><value>Orphaned media</value></data>
+    <data name="LibraryHealth.Filter.MissingLaunchFiles" xml:space="preserve"><value>Missing launch files</value></data>
+    <data name="LibraryHealth.Filter.InconsistentEntries" xml:space="preserve"><value>Inconsistent entries</value></data>
+    <data name="LibraryHealth.Scanning" xml:space="preserve"><value>Checking library...</value></data>
+    <data name="LibraryHealth.CompletedFormat" xml:space="preserve"><value>Checked {0:N0} categories, {1:N0} items, {2:N0} media references and {3:N0} media files.</value></data>
+    <data name="LibraryHealth.Cancelled" xml:space="preserve"><value>Library check cancelled.</value></data>
+    <data name="LibraryHealth.FailedFormat" xml:space="preserve"><value>Library check failed: {0}</value></data>
+    <data name="LibraryHealth.Copied" xml:space="preserve"><value>The report was copied to the clipboard.</value></data>
+    <data name="LibraryHealth.Reason.AssetFileMissing" xml:space="preserve"><value>Referenced media file is missing</value></data>
+    <data name="LibraryHealth.Reason.OrphanedAssetFile" xml:space="preserve"><value>Media file is not referenced</value></data>
+    <data name="LibraryHealth.Reason.LaunchFileMissing" xml:space="preserve"><value>Launch file is missing</value></data>
+    <data name="LibraryHealth.Reason.EmptyAssetPath" xml:space="preserve"><value>Media reference has an empty path</value></data>
+    <data name="LibraryHealth.Reason.InvalidAssetPath" xml:space="preserve"><value>Media path is invalid or outside the data folder</value></data>
+    <data name="LibraryHealth.Reason.DuplicateAssetReference" xml:space="preserve"><value>Duplicate media reference</value></data>
+    <data name="LibraryHealth.Reason.EmptyLaunchPath" xml:space="preserve"><value>Launch reference has an empty path</value></data>
+    <data name="LibraryHealth.Reason.InvalidLaunchPath" xml:space="preserve"><value>Launch path is invalid</value></data>
+    <data name="LibraryHealth.Reason.MissingNodeId" xml:space="preserve"><value>Category ID is missing</value></data>
+    <data name="LibraryHealth.Reason.DuplicateNodeId" xml:space="preserve"><value>Category ID is duplicated</value></data>
+    <data name="LibraryHealth.Reason.MissingItemId" xml:space="preserve"><value>Item ID is missing</value></data>
+    <data name="LibraryHealth.Reason.DuplicateItemId" xml:space="preserve"><value>Item ID is duplicated</value></data>
+    <data name="LibraryHealth.Reason.AssetFolderUnreadable" xml:space="preserve"><value>Media folder could not be scanned safely</value></data>
     <data name="MetadataBackup.SettingsHint" xml:space="preserve"><value>Choose which events should create automatic backups.</value></data>
     <data name="MetadataBackup.EnableAutomatic" xml:space="preserve"><value>Create automatic metadata backups</value></data>
     <data name="MetadataBackup.Trigger.BeforeBulkEdit" xml:space="preserve"><value>Before applying a bulk edit</value></data>

@@ -252,6 +252,17 @@ separate statistics database or persisted aggregate state.
   section. Changes remain staged until the editor is saved; resetting all three values removes the same play
   evidence used by statistics and `played:` searches
 
+## Library health check
+
+`LibraryHealthService` performs an explicitly read-only, cancelable comparison between the loaded library tree
+and the filesystem. It reports missing or invalid asset references, missing launch files, duplicate identities or
+asset references, and unreferenced files in the immediate managed asset folders of existing nodes.
+
+The orphan scan deliberately does not recurse indiscriminately through `Library/`: game installations, Wine/Proton
+prefixes, GOG staging data, themes, caches, and backups are outside its scope. Shared asset paths remain live as long
+as at least one node or item references them. The settings **Data** tab opens the report dialog; scanning and copying
+the report never mutates JSON or deletes files.
+
 ## Import and metadata flow
 - `ImportService`: recursive local file import with multi-disc grouping/labeling
 - `MultiDiscFileNameHelper`: shared recognition for separated `Disk`, `Disc`, `CD`, `Side`, `Part`, and

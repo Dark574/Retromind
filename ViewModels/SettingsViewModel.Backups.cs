@@ -40,6 +40,16 @@ public partial class SettingsViewModel
     public string ManageMetadataBackupsText =>
         T("MetadataBackup.Manage", "Manage backups...");
 
+    public string LibraryHealthSectionTitle =>
+        T("LibraryHealth.SettingsSection", "Library check");
+
+    public string LibraryHealthSectionHint => T(
+        "LibraryHealth.SettingsHint",
+        "Find missing references, orphaned media files and inconsistent library entries. The check does not change or delete anything.");
+
+    public string OpenLibraryHealthText =>
+        T("LibraryHealth.Open", "Check library...");
+
     public bool EnableAutomaticMetadataBackups
     {
         get => _appSettings.EnableAutomaticMetadataBackups;
@@ -78,11 +88,19 @@ public partial class SettingsViewModel
     }
 
     public event Func<Task>? RequestOpenMetadataBackups;
+    public event Func<Task>? RequestOpenLibraryHealth;
 
     [RelayCommand]
     private async Task OpenMetadataBackupsAsync()
     {
         if (RequestOpenMetadataBackups != null)
             await RequestOpenMetadataBackups();
+    }
+
+    [RelayCommand]
+    private async Task OpenLibraryHealthAsync()
+    {
+        if (RequestOpenLibraryHealth != null)
+            await RequestOpenLibraryHealth();
     }
 }

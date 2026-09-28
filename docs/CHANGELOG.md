@@ -15,8 +15,10 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - add a configurable BigMode Home screen with recently played, favorites, and library rows across all shipped themes
 - add unobtrusive getting-started help
 - allow retaining manually downloaded GOG DLC installer packages for backup or reuse
+- add a read-only library check for missing references, orphaned media and inconsistent entries
 
 ### Changed
+- shorten settings tab labels and group backups and library maintenance under Data
 - remove the redundant `linux` segment from AppImage filenames while preserving legacy update discovery
 - publish a curated BigMode screenshot through the AppImage's AppStream metadata
 - allow selecting which installed GOG DLCs are restored by a clean reinstall

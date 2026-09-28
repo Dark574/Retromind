@@ -1598,6 +1598,14 @@ public partial class MainWindowViewModel
             dialog.Close();
             UiThreadHelper.Post(owner.Close, DispatcherPriority.Background);
         };
+        settingsVm.RequestOpenLibraryHealth += async () =>
+        {
+            var healthDialog = new LibraryHealthView
+            {
+                DataContext = new LibraryHealthViewModel(_libraryHealthService, RootItems)
+            };
+            await healthDialog.ShowDialog(dialog);
+        };
         dialog.Closed += (_, _) => settingsVm.Dispose();
     
         // Allow the settings dialog to request a one-time portable migration

@@ -500,10 +500,10 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <!-- SETTINGS -->
     <data name="Settings_TabGeneral" xml:space="preserve"><value>Allgemein</value></data>
     <data name="Settings_TabEmulators" xml:space="preserve"><value>Emulatoren</value></data>
-    <data name="Settings_TabMetadataAndScrapers" xml:space="preserve"><value>Metadaten &amp; Scraper</value></data>
-    <data name="Settings_TabLaunchCompatibility" xml:space="preserve"><value>Start &amp; Kompatibilität</value></data>
+    <data name="Settings_TabMetadataAndScrapers" xml:space="preserve"><value>Metadaten</value></data>
+    <data name="Settings_TabLaunchCompatibility" xml:space="preserve"><value>Start</value></data>
     <data name="Settings_TabIntegrations" xml:space="preserve"><value>Integrationen</value></data>
-    <data name="Settings_TabBackups" xml:space="preserve"><value>Sicherungen</value></data>
+    <data name="Settings_TabBackups" xml:space="preserve"><value>Daten</value></data>
     <data name="Settings_IntegrationLibraries" xml:space="preserve"><value>Spielebibliotheken</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Startpfade</value></data>
     <data name="Settings_SectionSorting" xml:space="preserve"><value>Sortierung</value></data>
@@ -960,6 +960,47 @@ Möglicherweise wurde das Programm nicht korrekt gestartet.</value>
     <data name="Launch.LastLogTitleFormat" xml:space="preserve"><value>Letztes Startprotokoll – {0}</value></data>
     <data name="Launch.LastLogUnavailable" xml:space="preserve"><value>Für diesen Eintrag ist kein Startprotokoll verfügbar.</value></data>
     <data name="MetadataBackup.SettingsSection" xml:space="preserve"><value>Metadaten-Backups</value></data>
+    <data name="LibraryHealth.SettingsSection" xml:space="preserve"><value>Bibliotheksprüfung</value></data>
+    <data name="LibraryHealth.SettingsHint" xml:space="preserve"><value>Findet fehlende Referenzen, verwaiste Mediendateien und inkonsistente Bibliothekseinträge. Die Prüfung verändert oder löscht nichts.</value></data>
+    <data name="LibraryHealth.Open" xml:space="preserve"><value>Bibliothek prüfen...</value></data>
+    <data name="LibraryHealth.Title" xml:space="preserve"><value>Bibliotheksprüfung</value></data>
+    <data name="LibraryHealth.Description" xml:space="preserve"><value>Prüft Bibliotheksreferenzen und von Retromind verwaltete Medienordner, ohne etwas zu verändern oder zu löschen.</value></data>
+    <data name="LibraryHealth.Scan" xml:space="preserve"><value>Erneut prüfen</value></data>
+    <data name="LibraryHealth.CopyReport" xml:space="preserve"><value>Bericht kopieren</value></data>
+    <data name="LibraryHealth.Header.Type" xml:space="preserve"><value>Problem</value></data>
+    <data name="LibraryHealth.Header.Owner" xml:space="preserve"><value>Item / Kategorie</value></data>
+    <data name="LibraryHealth.Header.Node" xml:space="preserve"><value>Bibliothekspfad</value></data>
+    <data name="LibraryHealth.Header.Location" xml:space="preserve"><value>Datei / Wert</value></data>
+    <data name="LibraryHealth.Header.Size" xml:space="preserve"><value>Größe</value></data>
+    <data name="LibraryHealth.Summary.MissingAssets" xml:space="preserve"><value>Fehlende Medien</value></data>
+    <data name="LibraryHealth.Summary.OrphanedAssets" xml:space="preserve"><value>Verwaiste Medien</value></data>
+    <data name="LibraryHealth.Summary.MissingLaunchFiles" xml:space="preserve"><value>Fehlende Startdateien</value></data>
+    <data name="LibraryHealth.Summary.InconsistentEntries" xml:space="preserve"><value>Inkonsistente Einträge</value></data>
+    <data name="LibraryHealth.Empty" xml:space="preserve"><value>In den geprüften Bereichen wurden keine Probleme gefunden.</value></data>
+    <data name="LibraryHealth.ScopeHint" xml:space="preserve"><value>Die Suche nach verwaisten Dateien ist auf die verwalteten Medienordner vorhandener Kategorien begrenzt. Spieleordner, Prefixe, Installer, Themes, Caches und Backups werden niemals als verwaiste Medien durchsucht.</value></data>
+    <data name="LibraryHealth.Filter.All" xml:space="preserve"><value>Alle Funde</value></data>
+    <data name="LibraryHealth.Filter.MissingAssets" xml:space="preserve"><value>Fehlende Medien</value></data>
+    <data name="LibraryHealth.Filter.OrphanedAssets" xml:space="preserve"><value>Verwaiste Medien</value></data>
+    <data name="LibraryHealth.Filter.MissingLaunchFiles" xml:space="preserve"><value>Fehlende Startdateien</value></data>
+    <data name="LibraryHealth.Filter.InconsistentEntries" xml:space="preserve"><value>Inkonsistente Einträge</value></data>
+    <data name="LibraryHealth.Scanning" xml:space="preserve"><value>Bibliothek wird geprüft...</value></data>
+    <data name="LibraryHealth.CompletedFormat" xml:space="preserve"><value>{0:N0} Kategorien, {1:N0} Items, {2:N0} Medienreferenzen und {3:N0} Mediendateien geprüft.</value></data>
+    <data name="LibraryHealth.Cancelled" xml:space="preserve"><value>Bibliotheksprüfung abgebrochen.</value></data>
+    <data name="LibraryHealth.FailedFormat" xml:space="preserve"><value>Bibliotheksprüfung fehlgeschlagen: {0}</value></data>
+    <data name="LibraryHealth.Copied" xml:space="preserve"><value>Der Bericht wurde in die Zwischenablage kopiert.</value></data>
+    <data name="LibraryHealth.Reason.AssetFileMissing" xml:space="preserve"><value>Referenzierte Mediendatei fehlt</value></data>
+    <data name="LibraryHealth.Reason.OrphanedAssetFile" xml:space="preserve"><value>Mediendatei wird nicht referenziert</value></data>
+    <data name="LibraryHealth.Reason.LaunchFileMissing" xml:space="preserve"><value>Startdatei fehlt</value></data>
+    <data name="LibraryHealth.Reason.EmptyAssetPath" xml:space="preserve"><value>Medienreferenz hat einen leeren Pfad</value></data>
+    <data name="LibraryHealth.Reason.InvalidAssetPath" xml:space="preserve"><value>Medienpfad ist ungültig oder liegt außerhalb des Datenordners</value></data>
+    <data name="LibraryHealth.Reason.DuplicateAssetReference" xml:space="preserve"><value>Doppelte Medienreferenz</value></data>
+    <data name="LibraryHealth.Reason.EmptyLaunchPath" xml:space="preserve"><value>Startreferenz hat einen leeren Pfad</value></data>
+    <data name="LibraryHealth.Reason.InvalidLaunchPath" xml:space="preserve"><value>Startpfad ist ungültig</value></data>
+    <data name="LibraryHealth.Reason.MissingNodeId" xml:space="preserve"><value>Kategorie-ID fehlt</value></data>
+    <data name="LibraryHealth.Reason.DuplicateNodeId" xml:space="preserve"><value>Kategorie-ID ist doppelt vorhanden</value></data>
+    <data name="LibraryHealth.Reason.MissingItemId" xml:space="preserve"><value>Item-ID fehlt</value></data>
+    <data name="LibraryHealth.Reason.DuplicateItemId" xml:space="preserve"><value>Item-ID ist doppelt vorhanden</value></data>
+    <data name="LibraryHealth.Reason.AssetFolderUnreadable" xml:space="preserve"><value>Medienordner konnte nicht sicher geprüft werden</value></data>
     <data name="MetadataBackup.SettingsHint" xml:space="preserve"><value>Wähle, bei welchen Ereignissen automatische Backups erstellt werden.</value></data>
     <data name="MetadataBackup.EnableAutomatic" xml:space="preserve"><value>Automatische Metadaten-Backups erstellen</value></data>
     <data name="MetadataBackup.Trigger.BeforeBulkEdit" xml:space="preserve"><value>Vor dem Anwenden einer Massenänderung</value></data>
