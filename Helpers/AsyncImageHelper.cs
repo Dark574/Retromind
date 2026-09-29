@@ -213,8 +213,10 @@ public class AsyncImageHelper : AvaloniaObject
                             token);
                         response.EnsureSuccessStatusCode();
 
-                        await using var stream = await response.Content.ReadAsStreamAsync(token);
-                        return DecodeBitmapUnlessCancelled(stream, decodeWidth, token);
+                        await using var networkStream = await response.Content.ReadAsStreamAsync(token);
+                        using var bufferedStream = new MemoryStream();
+                        await networkStream.CopyToAsync(bufferedStream, token);
+                        return DecodeBitmapUnlessCancelled(bufferedStream, decodeWidth, token);
                     }
 
                     if (!File.Exists(url)) return null;
