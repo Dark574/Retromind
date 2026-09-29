@@ -48,9 +48,9 @@ trap cleanup_on_exit EXIT
 APPIMAGETOOL_VERSION="1.9.1"
 APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-x86_64.AppImage"
 APPIMAGETOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
-APPIMAGE_RUNTIME_COMMIT="75849dce7cc37e4319b633df1f116ca895c71a12"
+APPIMAGE_RUNTIME_COMMIT="8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa"
 APPIMAGE_RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
-APPIMAGE_RUNTIME_SHA256="1cc49bcf1e2ccd593c379adb17c9f85a36d619088296504de95b1d06215aebbf"
+APPIMAGE_RUNTIME_SHA256="156f4bdbde9c52d01814600013e0a273f0118dc2de98975f3c8c63427ec79074"
 
 RETROMIND_VERSION="$(
   sed -n 's:.*<InformationalVersion>\([^<]*\)</InformationalVersion>.*:\1:p' \
