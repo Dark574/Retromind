@@ -49,6 +49,7 @@
                                Url="{Binding $parent[Window].DataContext.ResolvedSelectedItemLogoPath}"
                                DecodeWidth="400"
                                DisableCache="True"
+                               LoadDelayMs="220"
                                Stretch="Uniform"
                                FadeDurationMs="1600"
                                MaxHeight="150"
@@ -188,7 +189,7 @@
                                 Padding="8,2" />
                     </Grid>
 
-                    <ProgressBar IsIndeterminate="True"
+                    <ProgressBar IsIndeterminate="{Binding IsLoading}"
                                  IsVisible="{Binding IsLoading}"
                                  Height="4" />
 

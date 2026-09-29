@@ -61,7 +61,10 @@
             <Button Grid.Column="3" Content="{Binding CancelText}" Command="{Binding CancelCommand}" />
         </Grid>
 
-        <ProgressBar Grid.Row="3" Height="4" IsIndeterminate="True" IsVisible="{Binding IsScanning}" />
+        <ProgressBar Grid.Row="3"
+                     Height="4"
+                     IsIndeterminate="{Binding IsScanning}"
+                     IsVisible="{Binding IsScanning}" />
 
         <Border Grid.Row="4" BorderBrush="Gray" BorderThickness="1" CornerRadius="5">
             <ScrollViewer HorizontalScrollBarVisibility="Auto"

@@ -306,7 +306,7 @@
                                                          Height="5"
                                                          Foreground="#7BA3FF"
                                                          IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
-                                            <ProgressBar IsIndeterminate="True"
+                                            <ProgressBar IsIndeterminate="{Binding RetroAchievementsProgress.IsLoading}"
                                                          Height="4"
                                                          IsVisible="{Binding RetroAchievementsProgress.IsLoading}" />
                                             <TextBlock Text="{Binding RetroAchievementsProgress.HardcoreSummaryText}"

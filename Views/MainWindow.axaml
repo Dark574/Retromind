@@ -60,6 +60,7 @@
               Url="{Binding ResolvedSelectedItemWallpaperPath}"
               DecodeWidth="1920"
               DisableCache="True"
+              LoadDelayMs="220"
               Stretch="UniformToFill"
               FadeDurationMs="1600"
               Opacity="0.4"
@@ -326,7 +327,7 @@
                    <!-- Remove the background so the wallpaper shows through completely -->
                    <Border Grid.Column="2" Background="Transparent"> <!-- Transparent! -->
                        <Grid>
-                           <ProgressBar IsIndeterminate="True"
+                           <ProgressBar IsIndeterminate="{Binding ShowLibraryLoadingHint}"
                                         Width="220"
                                         Height="6"
                                         VerticalAlignment="Center"

@@ -106,7 +106,7 @@
                                        Foreground="#AFC2DD"
                                        FontSize="13"
                                        HorizontalAlignment="Right" />
-                            <ProgressBar IsIndeterminate="True"
+                            <ProgressBar IsIndeterminate="{Binding RetroAchievementsProgress.IsBadgeLoading}"
                                          Width="170"
                                          Height="4"
                                          HorizontalAlignment="Right"

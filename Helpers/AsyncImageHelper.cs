@@ -205,19 +205,28 @@ public class AsyncImageHelper : AvaloniaObject
 
                 try
                 {
-                    byte[]? data;
                     if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                     {
-                        data = await http.GetByteArrayAsync(url, token);
-                    }
-                    else
-                    {
-                        if (!File.Exists(url)) return null;
-                        data = await File.ReadAllBytesAsync(url, token);
+                        using var response = await http.GetAsync(
+                            url,
+                            HttpCompletionOption.ResponseHeadersRead,
+                            token);
+                        response.EnsureSuccessStatusCode();
+
+                        await using var stream = await response.Content.ReadAsStreamAsync(token);
+                        return DecodeBitmapUnlessCancelled(stream, decodeWidth, token);
                     }
 
-                    using var stream = new MemoryStream(data);
-                    return DecodeBitmap(stream, decodeWidth);
+                    if (!File.Exists(url)) return null;
+
+                    await using var fileStream = new FileStream(
+                        url,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read,
+                        bufferSize: 64 * 1024,
+                        FileOptions.Asynchronous | FileOptions.SequentialScan);
+                    return DecodeBitmapUnlessCancelled(fileStream, decodeWidth, token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -284,6 +293,19 @@ public class AsyncImageHelper : AvaloniaObject
             return Bitmap.DecodeToWidth(stream, decodeWidth.Value);
         }
         return new Bitmap(stream);
+    }
+
+    private static Bitmap? DecodeBitmapUnlessCancelled(
+        Stream stream,
+        int? decodeWidth,
+        CancellationToken cancellationToken)
+    {
+        var bitmap = DecodeBitmap(stream, decodeWidth);
+        if (!cancellationToken.IsCancellationRequested)
+            return bitmap;
+
+        bitmap.Dispose();
+        return null;
     }
     
     private static IImage CreatePlaceholderImage()

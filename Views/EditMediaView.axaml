@@ -110,7 +110,7 @@
                                 </Border>
 
                                 <ProgressBar IsVisible="{Binding IsGogOperationRunning}"
-                                             IsIndeterminate="True"
+                                             IsIndeterminate="{Binding IsGogOperationRunning}"
                                              Height="3" />
                             </StackPanel>
                         </Border>

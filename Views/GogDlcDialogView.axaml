@@ -121,7 +121,7 @@
                         Spacing="10"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center">
-                <ProgressBar IsIndeterminate="True" Height="5" />
+                <ProgressBar IsIndeterminate="{Binding IsLoading}" Height="5" />
                 <TextBlock Text="{Binding LoadingText}"
                            HorizontalAlignment="Center" />
             </StackPanel>
