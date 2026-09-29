@@ -34,16 +34,28 @@ especially before installing a new release.
 
 ## Key features
 
-- **Portable media library** with relative paths, designed to move between Linux systems on an external drive
-- **Desktop and controller-friendly BigMode interfaces** with video previews and customizable runtime themes
-- **Flexible game launching** for native applications, scripts and emulators, including Wine, Proton, UMU, wrappers and environment overrides
-- **Metadata and artwork scraping** from multiple providers with bulk processing, per-field import decisions and additive artwork handling
-- **Library discovery and filtering** through global search, favorites, saved filters and an optional metadata query language
-- **Interactive library statistics** for play time, launches, progress, recent and most-played items, with category-aware filtering and metadata distributions
-- **Smart local imports** with multi-disc recognition and optional playlist launching
-- **Store integration** for Steam and Heroic imports plus experimental native GOG library, installation, update and uninstall support
-- **Managed compatibility runners**, including direct GE-Proton downloads and reusable emulator profiles
-- **Experimental RetroAchievements integration** with ROM/disc identification, achievement badges, cached progress and separate Casual/Hardcore summaries
+### Build your library
+
+- **One library for more than games.** Organize games, movies, books, comics and other media in a flexible tree, with drag-and-drop editing and smart folder imports.
+- **Rich metadata without losing control.** Scrape metadata and artwork from multiple providers, process whole categories in bulk, and decide which fields and images to keep.
+- **Find what matters.** Use global search, favorites, saved filters, missing-media filters, an optional query language, interactive statistics and a read-only library health check.
+
+### Launch everything from one place
+
+- **A flexible Linux launch pipeline.** Start native applications, scripts and emulators, or combine Wine, Proton, UMU, wrappers and environment overrides while preserving portable paths.
+- **Integrated game-library workflows.** Import Steam and Heroic titles, download GE-Proton versions, reuse emulator profiles, and manage GOG offline installations, updates and DLCs through the experimental GOG integration.
+- **Diagnostics you can actually share.** Retromind records the latest launch command, resolved runner, environment, output, runtime and exit result for easier troubleshooting.
+- **Experimental RetroAchievements support.** Identify supported ROM and disc images, view cached progress and badges, and keep Casual and Hardcore summaries separate.
+
+### Made for the couch
+
+- **A controller-friendly BigMode.** Jump between recently played titles, favorites and the library from the Home screen, then return to the same selection after a game exits.
+- **Media-rich, customizable themes.** Combine artwork, logos, music and video previews with runtime themes, system themes and optional artwork-derived accent colors.
+
+### Portable and maintainable
+
+- **Move the library, not every path.** Relative paths let a complete Retromind setup travel between Linux systems on an external drive; optional portable HOME/XDG isolation is available when needed.
+- **Built-in safety nets.** Automatic and manual metadata backups, restore support, atomic persistence and library diagnostics help protect a growing collection.
 
 ## Screenshots
 
