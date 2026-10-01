@@ -69,7 +69,8 @@ public class OpenLibraryProvider : IMetadataProvider
                 {
                     Source = "OpenLibrary",
                     Id = key,
-                    Title = string.IsNullOrEmpty(author) ? title : $"{title} ({author})",
+                    Title = title,
+                    DisplayTitle = string.IsNullOrEmpty(author) ? title : $"{title} ({author})",
                     Description = "",
                     SortTitle = book?["title_sort"]?.ToString(),
                     Publisher = book?["publisher"]?.AsArray()?[0]?.ToString(),

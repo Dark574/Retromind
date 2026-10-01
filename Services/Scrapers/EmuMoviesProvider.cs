@@ -175,7 +175,8 @@ public class EmuMoviesProvider : IMetadataProvider, IMetadataResultEnricher
             {
                 Source = "EmuMovies",
                 Id = id,
-                Title = $"{title} ({system})",
+                Title = title,
+                DisplayTitle = string.IsNullOrWhiteSpace(system) ? title : $"{title} ({system})",
                 Description = game?["Description"]?.ToString() ?? "",
                 MaxPlayers = game?["Players"]?.ToString(),
                 Platform = system

@@ -566,6 +566,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         {
             Id = source.Id,
             Title = source.Title,
+            DisplayTitle = source.DisplayTitle,
             Description = IsSelected(ScrapeMetadataField.Description) ? source.Description : string.Empty,
             ReleaseDate = IsSelected(ScrapeMetadataField.ReleaseDate) ? source.ReleaseDate : null,
             Rating = IsSelected(ScrapeMetadataField.Rating) ? source.Rating : null,

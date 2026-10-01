@@ -77,7 +77,7 @@
                                 </Border>
 
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Title}" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding DisplayTitle}" FontWeight="Bold"/>
                                     <TextBlock Text="{Binding ReleaseDate, StringFormat={}{0:yyyy}}"
                                                FontSize="12"/>
                                     <TextBlock Text="{Binding Platform}"

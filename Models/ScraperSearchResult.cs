@@ -10,6 +10,8 @@ namespace Retromind.Models;
 /// </summary>
 public class ScraperSearchResult
 {
+    private string? _displayTitle;
+
     /// <summary>
     /// The unique ID provided by the source service (e.g., TMDB-ID "550" or IGDB-ID "1337").
     /// </summary>
@@ -19,6 +21,17 @@ public class ScraperSearchResult
     /// The main title of the found media.
     /// </summary>
     public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional title used only when presenting a search result. Providers may
+    /// add disambiguating details such as an author or release year here while
+    /// keeping <see cref="Title"/> suitable for automatic title matching.
+    /// </summary>
+    public string DisplayTitle
+    {
+        get => string.IsNullOrWhiteSpace(_displayTitle) ? Title : _displayTitle;
+        set => _displayTitle = value;
+    }
 
     /// <summary>
     /// A localized summary or plot description.

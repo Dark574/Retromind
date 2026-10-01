@@ -86,16 +86,19 @@ public class ComicVineProvider : IMetadataProvider
                 var issueNumber = item?["issue_number"]?.ToString();
 
                 var title = "Unknown";
+                var displayTitle = title;
                 if (resType == "issue" && !string.IsNullOrEmpty(volumeName))
                 {
                     title = $"{volumeName} #{issueNumber}";
-                    if (!string.IsNullOrEmpty(name)) title += $" - {name}";
+                    displayTitle = title;
+                    if (!string.IsNullOrEmpty(name)) displayTitle += $" - {name}";
                 }
                 else
                 {
                     title = name ?? "Unknown";
+                    displayTitle = title;
                     var startYear = item?["start_year"]?.ToString();
-                    if (!string.IsNullOrEmpty(startYear)) title += $" ({startYear})";
+                    if (!string.IsNullOrEmpty(startYear)) displayTitle += $" ({startYear})";
                 }
 
                 var desc = item?["description"]?.ToString() ?? item?["deck"]?.ToString() ?? "";
@@ -105,6 +108,7 @@ public class ComicVineProvider : IMetadataProvider
                     Source = "ComicVine",
                     Id = id,
                     Title = title,
+                    DisplayTitle = displayTitle,
                     Description = StripHtml(desc),
                     Series = volumeName,
                     SortTitle = name,

@@ -76,8 +76,9 @@ public class GoogleBooksProvider : IMetadataProvider
                         continue;
 
                     var title = info["title"]?.ToString() ?? "Unknown";
+                    var displayTitle = title;
                     var subtitle = info["subtitle"]?.ToString();
-                    if (!string.IsNullOrEmpty(subtitle)) title += $" - {subtitle}";
+                    if (!string.IsNullOrEmpty(subtitle)) displayTitle += $" - {subtitle}";
 
                     var authors = info["authors"]?.AsArray();
                     var authorStr = "";
@@ -85,7 +86,7 @@ public class GoogleBooksProvider : IMetadataProvider
                         authorStr = authors[0]?.ToString() ?? "";
 
                     if (!string.IsNullOrEmpty(authorStr))
-                        title += $" ({authorStr})";
+                        displayTitle += $" ({authorStr})";
 
                     var desc = info["description"]?.ToString() ?? "";
                     var publishedDate = info["publishedDate"]?.ToString(); // "YYYY-MM-DD" or simple "YYYY"
@@ -95,6 +96,7 @@ public class GoogleBooksProvider : IMetadataProvider
                         Source = "GoogleBooks",
                         Id = id,
                         Title = title,
+                        DisplayTitle = displayTitle,
                         Description = desc,
                         Publisher = info["publisher"]?.ToString(),
                         SortTitle = info["title"]?.ToString(),

@@ -353,6 +353,8 @@ the report never mutates JSON or deletes files.
 - Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
+- scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider
+  details such as book authors, comic release years, or issue names must not weaken automatic bulk matching
 - providers with expensive per-result calls expose optional preview/result enrichment
   capabilities; the manual dialog loads lightweight previews first and details only
   for the current selection, while bulk scraping enriches only the matched result

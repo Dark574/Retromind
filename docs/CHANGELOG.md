@@ -20,6 +20,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Fixed
 - stop TheGamesDB bulk scraping cleanly when the provider reports an exhausted request allowance
+- keep authors, subtitles, release years and issue names from weakening automatic book and comic title matching
 
 ---
 
