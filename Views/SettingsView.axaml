@@ -438,6 +438,24 @@
                                         <TextBox Text="{Binding Password}" PasswordChar="*" />
                                     </StackPanel>
                                 </StackPanel>
+
+                                <!-- ScreenScraper credentials -->
+                                <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsScreenScraperSelected}"
+                                            Spacing="10">
+                                    <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ScreenScraperCredentialsHint}"
+                                               Opacity="0.65"
+                                               TextWrapping="Wrap" />
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ScreenScraperMemberUsernameText}"
+                                                   FontWeight="Bold" />
+                                        <TextBox Text="{Binding Username}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ScreenScraperMemberPasswordText}"
+                                                   FontWeight="Bold" />
+                                        <TextBox Text="{Binding Password}" PasswordChar="*" />
+                                    </StackPanel>
+                                </StackPanel>
                                 
                                 <!-- API Key (TMDB & Others) -->
                                 <StackPanel IsVisible="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).IsApiKeyUsedSelected}">

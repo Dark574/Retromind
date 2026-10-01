@@ -60,6 +60,9 @@
     <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf diese freie Fläche oder links auf die Kategorie, um Medien hinzuzufügen, einen ROM-Ordner oder Spiele aus Steam, Epic und GOG zu importieren.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Übersicht schließen</value></data>
     <data name="Settings_TabHelp" xml:space="preserve"><value>Hilfe</value></data>
+    <data name="Settings.ScreenScraper.CredentialsHint" xml:space="preserve"><value>Retromind stellt den Anwendungszugang bereit. Ohne persönliches ScreenScraper-Konto wird der eingeschränkte anonyme Zugang verwendet, der bei hoher Serverauslastung möglicherweise nicht verfügbar ist. Bitte entweder beide Kontofelder oder keines ausfüllen.</value></data>
+    <data name="Settings.ScreenScraper.MemberUsername" xml:space="preserve"><value>ScreenScraper-Benutzername (empfohlen)</value></data>
+    <data name="Settings.ScreenScraper.MemberPassword" xml:space="preserve"><value>ScreenScraper-Passwort</value></data>
 
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Hauptmenü</value></data>

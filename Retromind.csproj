@@ -18,6 +18,13 @@
         <RcheevosNativeLibrary Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(MSBuildProjectDirectory)/obj/$(Configuration)/$(TargetFramework)/native/libretromind-rhash.so</RcheevosNativeLibrary>
     </PropertyGroup>
 
+    <ItemGroup Condition="'$(RETROMIND_SCREENSCRAPER_DEVELOPER_ID)' != '' and '$(RETROMIND_SCREENSCRAPER_DEVELOPER_PASSWORD)' != ''">
+        <AssemblyMetadata Include="Retromind.ScreenScraper.DeveloperId"
+                          Value="$(RETROMIND_SCREENSCRAPER_DEVELOPER_ID)" />
+        <AssemblyMetadata Include="Retromind.ScreenScraper.DeveloperPassword"
+                          Value="$(RETROMIND_SCREENSCRAPER_DEVELOPER_PASSWORD)" />
+    </ItemGroup>
+
     <ItemGroup>
         <AvaloniaResource Include="Assets\**"/>
         <Content Include=".github\ISSUE_TEMPLATE\bug_report.md" />

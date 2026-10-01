@@ -7,6 +7,19 @@ namespace Retromind.Tests.ViewModels;
 
 public sealed class BulkScrapeViewModelTests
 {
+    [Fact]
+    public void Constructor_ExcludesScreenScraperFromGenericBulkPipeline()
+    {
+        var settings = new AppSettings();
+        settings.Scrapers.Add(new ScraperConfig { Type = ScraperType.ScreenScraper });
+        using var client = new HttpClient(new RecordingHttpHandler());
+        var service = new MetadataService(settings, client);
+        using var viewModel = new BulkScrapeViewModel(
+            new MediaNode("Games", NodeType.Area), settings, service);
+
+        Assert.Empty(viewModel.AvailableScrapers);
+    }
+
     [Theory]
     [InlineData(true, 0)]
     [InlineData(false, 1)]

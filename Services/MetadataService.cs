@@ -112,6 +112,7 @@ public class MetadataService
             ScraperType.GoogleBooks => new GoogleBooksProvider(config, _httpClient),
             ScraperType.ComicVine   => new ComicVineProvider(config, _httpClient),
             ScraperType.SteamGridDB => new SteamGridDbProvider(config, _httpClient),
+            ScraperType.ScreenScraper => new ScreenScraperProvider(config, _httpClient),
             _                       => null
         };
     }

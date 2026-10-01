@@ -964,9 +964,15 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public bool IsSteamGridDbSelected => SelectedScraper?.Type == ScraperType.SteamGridDB;
     public bool IsGoogleBooksSelected => SelectedScraper?.Type == ScraperType.GoogleBooks;
     public bool IsComicVineSelected => SelectedScraper?.Type == ScraperType.ComicVine;
+    public bool IsScreenScraperSelected => SelectedScraper?.Type == ScraperType.ScreenScraper;
     public bool IsApiKeyUsedSelected => IsTmdbSelected || IsTheGamesDbSelected || IsSteamGridDbSelected || IsComicVineSelected || IsGoogleBooksSelected;
     public bool IsApiKeyRequiredSelected => IsTmdbSelected || IsTheGamesDbSelected || IsSteamGridDbSelected || IsComicVineSelected;
-    public bool IsLanguageSelectionSupported => IsTmdbSelected || IsTheGamesDbSelected || IsGoogleBooksSelected;
+    public bool IsLanguageSelectionSupported => IsTmdbSelected || IsTheGamesDbSelected || IsGoogleBooksSelected || IsScreenScraperSelected;
+    public string ScreenScraperCredentialsHint => T(
+        "Settings.ScreenScraper.CredentialsHint",
+        "Retromind provides the application access. Without a personal ScreenScraper account, restricted anonymous access is used and may be unavailable during high server load. Enter either both account fields or neither.");
+    public string ScreenScraperMemberUsernameText => T("Settings.ScreenScraper.MemberUsername", "ScreenScraper username (recommended)");
+    public string ScreenScraperMemberPasswordText => T("Settings.ScreenScraper.MemberPassword", "ScreenScraper password");
     
     // Handle property changes on the selected scraper to update UI hints
     partial void OnSelectedScraperChanged(ScraperConfig? oldValue, ScraperConfig? newValue)

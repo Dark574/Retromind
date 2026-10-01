@@ -153,6 +153,33 @@ chmod +x build/AppRun build/build-appimage.sh
 ./build/build-appimage.sh
 ```
 
+Official builds provide Retromind's ScreenScraper application credentials through two environment variables.
+They are passed to BuildKit as secrets and embedded in the resulting assembly without being written to the
+repository or printed by the build script:
+
+```bash
+RETROMIND_SCREENSCRAPER_DEVELOPER_ID=... \
+RETROMIND_SCREENSCRAPER_DEVELOPER_PASSWORD=... \
+./build/build-appimage.sh
+```
+
+For repeatable local builds, the values can instead be stored as individual files in the Git-ignored
+`.build-secrets/` directory:
+
+```text
+.build-secrets/RETROMIND_SCREENSCRAPER_DEVELOPER_ID
+.build-secrets/RETROMIND_SCREENSCRAPER_DEVELOPER_PASSWORD
+```
+
+Each file contains only its value. Restrict the directory and files to the local user (`chmod 700 .build-secrets`
+and `chmod 600 .build-secrets/*`). Explicit environment variables take precedence over these files. Debug builds
+also read the local files at runtime when started with the repository root as their working directory; release
+builds receive the values only through the AppImage build script and embed them in the assembly.
+
+Both credentials are optional for local builds, but ScreenScraper is unavailable when neither embedded credentials,
+runtime variables nor local Debug credentials are present. Never embed ScreenScraper's separate developer-debug
+password.
+
 The version is read from `InformationalVersion` in `Retromind.csproj`. The build creates the primary release assets:
 
 - `dist/Retromind-<version>-x86_64.AppImage`

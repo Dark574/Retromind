@@ -20,7 +20,17 @@ public partial class SettingsViewModel
         // Prevent persisting half-configured scraper entries.
         return !IsGeReleaseDownloadActive &&
                Scrapers.All(s => s.Type != ScraperType.None) &&
+               Scrapers.All(HasCompleteScreenScraperMemberCredentials) &&
                CanSaveRetroAchievements();
+    }
+
+    private static bool HasCompleteScreenScraperMemberCredentials(ScraperConfig scraper)
+    {
+        if (scraper.Type != ScraperType.ScreenScraper)
+            return true;
+
+        return string.IsNullOrWhiteSpace(scraper.Username) ==
+               string.IsNullOrWhiteSpace(scraper.Password);
     }
 
     private void RefreshHintProperties()
@@ -32,6 +42,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(IsSteamGridDbSelected));
         OnPropertyChanged(nameof(IsGoogleBooksSelected));
         OnPropertyChanged(nameof(IsComicVineSelected));
+        OnPropertyChanged(nameof(IsScreenScraperSelected));
         OnPropertyChanged(nameof(IsApiKeyUsedSelected));
         OnPropertyChanged(nameof(IsApiKeyRequiredSelected));
         OnPropertyChanged(nameof(IsLanguageSelectionSupported));
@@ -271,7 +282,7 @@ public partial class SettingsViewModel
                 runner.Path = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(runner.Path) ?? runner.Path;
             }
         }
-        
+
         // Complete the working model first, then copy only the settings owned by
         // this dialog into the shared runtime settings object.
         _appSettings.Emulators = Emulators.ToList();

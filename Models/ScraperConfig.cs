@@ -121,5 +121,6 @@ public enum ScraperType
     OpenLibrary = 5,
     ComicVine = 6,
     TheGamesDB = 7,
-    SteamGridDB = 8
+    SteamGridDB = 8,
+    ScreenScraper = 9
 }

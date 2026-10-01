@@ -10,8 +10,44 @@ BUILDER_IMAGE="retromind-appimage-builder:bookworm"
 BUILDX_BUILDER="${RETROMIND_BUILDX_BUILDER:-retromind-appimage}"
 BUILDX_CACHE_LIMIT="${RETROMIND_BUILDX_CACHE_LIMIT:-20gb}"
 BUILDER_IMAGE_LABEL="org.retromind.appimage-builder=true"
+LOCAL_BUILD_SECRETS_DIR="$PROJECT_ROOT/.build-secrets"
 CID=""
 BUILDX_CLEANUP_ENABLED=0
+
+load_local_build_secret() {
+  secret_name="$1"
+
+  case "$secret_name" in
+    RETROMIND_*[!A-Z0-9_]*|*[!A-Z0-9_]*|RETROMIND_)
+      echo "WARNING: Ignoring invalid local build-secret filename '$secret_name'."
+      return
+      ;;
+  esac
+
+  if secret_value="$(printenv "$secret_name" 2>/dev/null)" && [ -n "$secret_value" ]; then
+    return
+  fi
+
+  secret_file="$LOCAL_BUILD_SECRETS_DIR/$secret_name"
+  if [ ! -f "$secret_file" ]; then
+    return
+  fi
+
+  secret_value="$(cat "$secret_file")"
+  if [ -z "$secret_value" ]; then
+    echo "WARNING: Local build secret '$secret_name' is empty."
+    return
+  fi
+
+  export "$secret_name=$secret_value"
+}
+
+if [ -d "$LOCAL_BUILD_SECRETS_DIR" ]; then
+  for secret_file in "$LOCAL_BUILD_SECRETS_DIR"/RETROMIND_*; do
+    [ -f "$secret_file" ] || continue
+    load_local_build_secret "$(basename "$secret_file")"
+  done
+fi
 
 cleanup_container() {
   if [ -n "${CID:-}" ]; then
@@ -92,12 +128,33 @@ if ! docker buildx inspect "$BUILDX_BUILDER" >/dev/null 2>&1; then
 fi
 
 docker buildx inspect "$BUILDX_BUILDER" --bootstrap >/dev/null
-docker buildx build \
+set -- \
   --builder "$BUILDX_BUILDER" \
   --load \
   -f "$BUILD_DIR/Dockerfile.appimage" \
-  -t "$BUILDER_IMAGE" \
-  "$PROJECT_ROOT"
+  -t "$BUILDER_IMAGE"
+
+if [ -n "${RETROMIND_SCREENSCRAPER_DEVELOPER_ID:-}" ] ||
+   [ -n "${RETROMIND_SCREENSCRAPER_DEVELOPER_PASSWORD:-}" ]; then
+  if [ -z "${RETROMIND_SCREENSCRAPER_DEVELOPER_ID:-}" ] ||
+     [ -z "${RETROMIND_SCREENSCRAPER_DEVELOPER_PASSWORD:-}" ]; then
+    echo "ERROR: Both ScreenScraper application credential variables must be set."
+    exit 1
+  fi
+
+  # BuildKit deliberately does not invalidate cached layers when a secret
+  # changes. A non-secret per-build value ensures the published assembly is
+  # regenerated without deriving any build argument from the credentials.
+  SCREENSCRAPER_BUILD_REVISION="$(date -u +%Y%m%d%H%M%S)-$$"
+  set -- "$@" \
+    --secret id=retromind_screenscraper_developer_id,env=RETROMIND_SCREENSCRAPER_DEVELOPER_ID \
+    --secret id=retromind_screenscraper_developer_password,env=RETROMIND_SCREENSCRAPER_DEVELOPER_PASSWORD \
+    --build-arg "RETROMIND_SCREENSCRAPER_BUILD_REVISION=$SCREENSCRAPER_BUILD_REVISION"
+else
+  echo "Notice: ScreenScraper application access is not embedded in this AppImage build."
+fi
+
+docker buildx build "$@" "$PROJECT_ROOT"
 
 echo "[3/8] Export publish output + runtime bundles from container..."
 CID="$(docker create "$BUILDER_IMAGE")"

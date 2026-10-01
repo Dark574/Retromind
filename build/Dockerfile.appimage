@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM debian:bookworm
 
 LABEL org.retromind.appimage-builder="true"
@@ -46,7 +47,13 @@ RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
 WORKDIR /src
 COPY . /src
 
-RUN dotnet publish Retromind.csproj -c Release -r linux-x64 \
+ARG RETROMIND_SCREENSCRAPER_BUILD_REVISION=none
+RUN --mount=type=secret,id=retromind_screenscraper_developer_id,required=false \
+    --mount=type=secret,id=retromind_screenscraper_developer_password,required=false \
+    export RETROMIND_SCREENSCRAPER_DEVELOPER_ID="$(cat /run/secrets/retromind_screenscraper_developer_id 2>/dev/null || true)"; \
+    export RETROMIND_SCREENSCRAPER_DEVELOPER_PASSWORD="$(cat /run/secrets/retromind_screenscraper_developer_password 2>/dev/null || true)"; \
+    test -n "$RETROMIND_SCREENSCRAPER_BUILD_REVISION"; \
+    dotnet publish Retromind.csproj -c Release -r linux-x64 \
       --self-contained true \
       -p:PublishSingleFile=true \
       -p:IncludeNativeLibrariesForSelfExtract=true \

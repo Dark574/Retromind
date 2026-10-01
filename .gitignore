@@ -26,6 +26,7 @@ config.yaml
 
 # Secrets (NICHT HOCHLADEN!)
 **/ApiSecrets.cs
+.build-secrets/
 
 # Local build artifacts for AppImage packaging
 .build-work/

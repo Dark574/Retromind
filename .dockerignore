@@ -1,5 +1,7 @@
 .git
 .idea
+.vscode
+.build-secrets
 .build-work
 dist
 bin

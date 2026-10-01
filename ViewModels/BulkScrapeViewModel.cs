@@ -73,7 +73,12 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     private void InitializeScrapers()
     {
         AvailableScrapers.Clear();
-        foreach (var scraper in _settings.Scrapers.Where(s => s.Type != ScraperType.None && s.Type != ScraperType.EmuMovies))
+        // ScreenScraper has strict per-user quotas. Keep it out of the generic
+        // parallel bulk pipeline until that path has provider-aware throttling.
+        foreach (var scraper in _settings.Scrapers.Where(s =>
+                     s.Type != ScraperType.None &&
+                     s.Type != ScraperType.EmuMovies &&
+                     s.Type != ScraperType.ScreenScraper))
         {
             AvailableScrapers.Add(scraper);
         }

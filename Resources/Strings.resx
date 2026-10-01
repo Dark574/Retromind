@@ -60,6 +60,9 @@
     <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Right-click this empty area or the category on the left to add media, import a ROM folder, or import games from Steam, Epic and GOG.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Close overview</value></data>
     <data name="Settings_TabHelp" xml:space="preserve"><value>Help</value></data>
+    <data name="Settings.ScreenScraper.CredentialsHint" xml:space="preserve"><value>Retromind provides the application access. Without a personal ScreenScraper account, restricted anonymous access is used and may be unavailable during high server load. Enter either both account fields or neither.</value></data>
+    <data name="Settings.ScreenScraper.MemberUsername" xml:space="preserve"><value>ScreenScraper username (recommended)</value></data>
+    <data name="Settings.ScreenScraper.MemberPassword" xml:space="preserve"><value>ScreenScraper password</value></data>
 
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Main menu</value></data>

@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.1-alpha] - unreleased
 
 ### Added
+- add the first ScreenScraper integration stage with embedded application access, optional encrypted user credentials, localized title search, metadata and artwork
 
 ### Changed
 - continue first-run guidance into empty categories and open setup directly on the emulator tab
