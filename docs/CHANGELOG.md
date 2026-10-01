@@ -12,6 +12,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Added
 
 ### Changed
+- continue first-run guidance into empty categories and open setup directly on the emulator tab
 
 ### Fixed
 

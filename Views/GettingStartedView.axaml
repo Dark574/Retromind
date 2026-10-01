@@ -90,7 +90,7 @@
                                            Opacity="0.76" />
                                 <Button Grid.Row="3"
                                         Content="{Binding GettingStartedSettingsAction}"
-                                        Command="{Binding OpenSettingsCommand}"
+                                        Command="{Binding OpenSetupSettingsCommand}"
                                         Margin="0,18,0,0"
                                         HorizontalAlignment="Stretch" />
                             </Grid>

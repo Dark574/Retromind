@@ -245,7 +245,19 @@
 
                                                    <Separator />
 
-                                                   <!-- IMPORT SUBMENU -->
+                                                   <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
+                                                             CommandParameter="{Binding .}"
+                                                             FontWeight="Bold" />
+                                                   <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddEmpty}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddEmptyMediaCommand}"
+                                                             CommandParameter="{Binding .}" />
+                                                   <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogMediaMenuText}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddGogMediaCommand}"
+                                                             CommandParameter="{Binding .}" />
+
+                                                   <Separator />
+
                                                    <MenuItem Header="{x:Static p:Strings.Button_Import}" FontWeight="Bold">
                                                        <MenuItem Header="{x:Static p:Strings.Import_Roms}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
@@ -258,6 +270,9 @@
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportEpicCommand}"
                                                                  CommandParameter="{Binding .}"/>
                                                    </MenuItem>
+
+                                                   <Separator />
+
                                                    <MenuItem Header="{x:Static p:Strings.Metadata_SearchMetadataAll}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeNodeCommand}"
                                                              CommandParameter="{Binding .}"
@@ -266,14 +281,6 @@
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IdentifyNodeWithRetroAchievementsCommand}"
                                                              CommandParameter="{Binding .}"
                                                              FontWeight="Bold" />
-                                                   <Separator/>
-                                                   <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
-                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
-                                                             CommandParameter="{Binding .}"
-                                                             FontWeight="Bold" />
-                                                   <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogMediaMenuText}"
-                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddGogMediaCommand}"
-                                                             CommandParameter="{Binding .}" />
 
                                                    <Separator/>
 

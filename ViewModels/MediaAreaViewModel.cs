@@ -124,6 +124,15 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
     public string ClearMultiSelectionText =>
         T("BulkEdit.Selection.Clear", "Clear selection");
+
+    public bool ShowEmptyCategoryGuidance => _allItems.Count == 0;
+
+    public string EmptyCategoryGuidanceTitle =>
+        T("GettingStarted.EmptyCategory.Title", "This category is ready");
+
+    public string EmptyCategoryGuidanceDescription => T(
+        "GettingStarted.EmptyCategory.Description",
+        "Right-click this empty area or the category on the left to add media, import a ROM folder, or import games from Steam, Epic and GOG.");
     
     public MediaAreaViewModel(
         MediaNode node,

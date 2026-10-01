@@ -43,7 +43,7 @@
     <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Wähle zuerst die Kategorie, in der die neuen Einträge abgelegt werden sollen.
 • Unter Importieren findest du ROM-Ordner sowie Steam- und Epic-Bibliotheken; GOG und manuelle Medien besitzen eigene Einträge.
 • Lege vor einem ROM-Import das Spielsystem der Kategorie fest, wenn unterstützte Spiele automatisch durch RetroAchievements erkannt werden sollen.</value></data>
-    <data name="GettingStarted.Settings.Title" xml:space="preserve"><value>Integrationen einrichten</value></data>
+    <data name="GettingStarted.Settings.Title" xml:space="preserve"><value>Emulatoren und Dienste einrichten</value></data>
     <data name="GettingStarted.Settings.Description" xml:space="preserve"><value>Richte Emulatoren, Metadatenanbieter, Bibliothekspfade und optional RetroAchievements ein.</value></data>
     <data name="GettingStarted.Settings.Details" xml:space="preserve"><value>• Unter Emulatoren legst du Programme, Startargumente und vererbte Runner-Vorgaben fest.
 • Metadaten &amp; Scraper enthält die Anbieter und steuert, welche gefundenen Daten übernommen werden.
@@ -56,6 +56,8 @@
 • Nach einer erfolgreichen Wiederherstellung wird Retromind geschlossen, damit der wiederhergestellte Zustand beim nächsten Start sauber geladen wird.</value></data>
     <data name="GettingStarted.Restore.Action" xml:space="preserve"><value>Backups verwalten...</value></data>
     <data name="GettingStarted.NextStep" xml:space="preserve"><value>Nach dem Anlegen einer Kategorie kannst du per Rechtsklick ROMs, Steam- oder Epic-Spiele importieren, GOG-Spiele hinzufügen oder Medien manuell anlegen.</value></data>
+    <data name="GettingStarted.EmptyCategory.Title" xml:space="preserve"><value>Diese Kategorie ist bereit</value></data>
+    <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf diese freie Fläche oder links auf die Kategorie, um Medien hinzuzufügen, einen ROM-Ordner oder Spiele aus Steam, Epic und GOG zu importieren.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Übersicht schließen</value></data>
     <data name="Settings_TabHelp" xml:space="preserve"><value>Hilfe</value></data>
 
@@ -302,7 +304,7 @@
 
     <!-- IMPORT -->
     <data name="Import.Folder" xml:space="preserve"><value>Importieren (Ordner)...</value></data>
-    <data name="Import.Epic" xml:space="preserve"><value>Epic (über Heroic)</value></data>
+    <data name="Import.Epic" xml:space="preserve"><value>Epic-Bibliothek (Heroic)</value></data>
     <data name="Import.Roms" xml:space="preserve"><value>Lokaler Ordner (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Steam-Bibliothek</value></data>
 

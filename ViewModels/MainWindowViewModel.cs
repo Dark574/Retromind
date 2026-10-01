@@ -273,7 +273,7 @@ public partial class MainWindowViewModel : ViewModelBase
         "GettingStarted.Category.Description",
         "Create a category such as Games, Movies or Books. You can add more levels at any time.");
     public string GettingStartedCategoryAction => T("GettingStarted.Category.Action", "Create category...");
-    public string GettingStartedSettingsTitle => T("GettingStarted.Settings.Title", "Configure integrations");
+    public string GettingStartedSettingsTitle => T("GettingStarted.Settings.Title", "Configure emulators and services");
     public string GettingStartedSettingsDescription => T(
         "GettingStarted.Settings.Description",
         "Set up emulators, metadata providers, library paths and optional RetroAchievements access.");

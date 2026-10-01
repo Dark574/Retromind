@@ -63,6 +63,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> UninstallGogCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
+    public IAsyncRelayCommand OpenSetupSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenStatisticsCommand { get; private set; } = null!;
     public IRelayCommand CloseGettingStartedCommand { get; private set; } = null!;
     public IAsyncRelayCommand CreateFirstCategoryCommand { get; private set; } = null!;
@@ -135,6 +136,7 @@ public partial class MainWindowViewModel
         UninstallGogCommand = new AsyncRelayCommand<MediaItem?>(UninstallGogMediaAsync, CanUninstallGogMedia);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
+        OpenSetupSettingsCommand = new AsyncRelayCommand(OpenSetupSettingsAsync);
         OpenStatisticsCommand = new AsyncRelayCommand(OpenStatisticsAsync);
         CloseGettingStartedCommand = new RelayCommand(CloseGettingStarted);
         CreateFirstCategoryCommand = new AsyncRelayCommand(CreateFirstCategoryAsync);
@@ -174,6 +176,7 @@ public partial class MainWindowViewModel
 
         if (RootItems.Count > previousRootCount)
         {
+            SelectedNode = RootItems[^1];
             OnPropertyChanged(nameof(ShowGettingStarted));
         }
     }
@@ -1532,7 +1535,13 @@ public partial class MainWindowViewModel
         };
     }
 
-    private async Task OpenSettingsAsync()
+    private Task OpenSettingsAsync()
+        => OpenSettingsAsync(initialTabIndex: null);
+
+    private Task OpenSetupSettingsAsync()
+        => OpenSettingsAsync(initialTabIndex: 1);
+
+    private async Task OpenSettingsAsync(int? initialTabIndex)
     {
         if (CurrentWindow is not { } owner) return;
 
@@ -1543,6 +1552,9 @@ public partial class MainWindowViewModel
             _retroAchievementsAccountService,
             _runnerVersionService,
             RootItems);
+        if (initialTabIndex.HasValue)
+            settingsVm.SelectedSettingsTabIndex = initialTabIndex.Value;
+
         await settingsVm.InitializeRetroAchievementsAsync();
         settingsVm.RequestRunnerVersionRemovalConfirmation += runner =>
         {

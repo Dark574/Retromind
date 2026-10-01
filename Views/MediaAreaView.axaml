@@ -274,9 +274,31 @@
                     <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddEmpty}"
                               Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddEmptyMediaCommand}"
                               CommandParameter="{Binding Node}" />
-                    <MenuItem Header="{x:Static p:Strings.Import_Folder}"
-                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
-                              CommandParameter="{Binding Node}" />
+                    <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogMediaMenuText}"
+                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddGogMediaCommand}"
+                              CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}" />
+                    <Separator />
+                    <MenuItem Header="{x:Static p:Strings.Button_Import}" FontWeight="Bold">
+                        <MenuItem Header="{x:Static p:Strings.Import_Roms}"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
+                                  CommandParameter="{Binding Node}" />
+                        <Separator />
+                        <MenuItem Header="{x:Static p:Strings.Import_Steam}"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportSteamCommand}"
+                                  CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}" />
+                        <MenuItem Header="{x:Static p:Strings.Import_Epic}"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportEpicCommand}"
+                                  CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}" />
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="{x:Static p:Strings.Metadata_SearchMetadataAll}"
+                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeNodeCommand}"
+                              CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}"
+                              FontWeight="Bold" />
+                    <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RetroAchievementsSearchAllText}"
+                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IdentifyNodeWithRetroAchievementsCommand}"
+                              CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}"
+                              FontWeight="Bold" />
                 </ContextMenu>
             </ListBox.ContextMenu>
 
@@ -336,6 +358,9 @@
                                             <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddManual}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddManualToMediaCommand}"
                                                       CommandParameter="{Binding .}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogMediaMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddGogMediaCommand}"
+                                                      CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}" />
                                             <Separator/>
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TestPlayMediaMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TestPlayMediaCommand}"
@@ -481,5 +506,30 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+
+        <Border Grid.Row="2"
+                MaxWidth="620"
+                Margin="32"
+                Padding="24"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="#18000000"
+                BorderBrush="#55808080"
+                BorderThickness="1"
+                CornerRadius="8"
+                IsHitTestVisible="False"
+                IsVisible="{Binding ShowEmptyCategoryGuidance}">
+            <StackPanel Spacing="10">
+                <TextBlock Text="{Binding EmptyCategoryGuidanceTitle}"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           TextAlignment="Center" />
+                <TextBlock Text="{Binding EmptyCategoryGuidanceDescription}"
+                           MaxWidth="540"
+                           Opacity="0.78"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
     </Grid>
 </UserControl>

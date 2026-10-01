@@ -43,7 +43,7 @@
     <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Select the category that should contain the new items.
 • Use Import for ROM folders, Steam or Epic libraries; GOG and manual media have their own entries.
 • Set the game system before importing ROMs if RetroAchievements should identify supported games automatically.</value></data>
-    <data name="GettingStarted.Settings.Title" xml:space="preserve"><value>Configure integrations</value></data>
+    <data name="GettingStarted.Settings.Title" xml:space="preserve"><value>Configure emulators and services</value></data>
     <data name="GettingStarted.Settings.Description" xml:space="preserve"><value>Set up emulators, metadata providers, library paths and optional RetroAchievements access.</value></data>
     <data name="GettingStarted.Settings.Details" xml:space="preserve"><value>• The Emulators tab defines programs, launch arguments and inherited runner defaults.
 • Metadata &amp; scrapers contains providers and controls which discovered data is imported.
@@ -56,6 +56,8 @@
 • Retromind closes after a successful restore so the restored state can be loaded cleanly on the next start.</value></data>
     <data name="GettingStarted.Restore.Action" xml:space="preserve"><value>Manage backups...</value></data>
     <data name="GettingStarted.NextStep" xml:space="preserve"><value>After creating a category, right-click it to import ROMs, Steam or Epic games, add GOG games, or create media manually.</value></data>
+    <data name="GettingStarted.EmptyCategory.Title" xml:space="preserve"><value>This category is ready</value></data>
+    <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Right-click this empty area or the category on the left to add media, import a ROM folder, or import games from Steam, Epic and GOG.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Close overview</value></data>
     <data name="Settings_TabHelp" xml:space="preserve"><value>Help</value></data>
 
@@ -301,7 +303,7 @@
   
     <!-- IMPORT -->
     <data name="Import.Folder" xml:space="preserve"><value>Import (folder)...</value></data>
-    <data name="Import.Epic" xml:space="preserve"><value>Epic (via Heroic)</value></data>
+    <data name="Import.Epic" xml:space="preserve"><value>Epic library (Heroic)</value></data>
     <data name="Import.Roms" xml:space="preserve"><value>Local Folder (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Steam library</value></data>
 
