@@ -299,7 +299,7 @@ public sealed class ScreenScraperProvider : IMetadataProvider, IGameFileMetadata
 
                 if ((int)response.StatusCode is 429 or 430 or 431)
                 {
-                    throw new InvalidOperationException(
+                    throw new MetadataQuotaExceededException(
                         "The ScreenScraper request limit has been reached. Please try again later.");
                 }
 

@@ -392,6 +392,25 @@ public sealed class ScreenScraperProviderTests
         Assert.DoesNotContain(memberPassword, exception.ToString(), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(429)]
+    [InlineData(430)]
+    [InlineData(431)]
+    public async Task SearchAsync_RequestAllowanceResponse_ReportsExhaustedQuota(int statusCode)
+    {
+        using var httpClient = new HttpClient(new StubHandler(_ =>
+            new HttpResponseMessage((HttpStatusCode)statusCode)));
+        var provider = new ScreenScraperProvider(
+            new ScraperConfig(),
+            httpClient,
+            new ScreenScraperApplicationCredentials("developer", "password"));
+
+        var exception = await Assert.ThrowsAsync<MetadataQuotaExceededException>(
+            () => provider.SearchAsync("game"));
+
+        Assert.Contains("request limit", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task ConnectAsync_WithoutApplicationCredentials_DoesNotSendRequest()
     {
