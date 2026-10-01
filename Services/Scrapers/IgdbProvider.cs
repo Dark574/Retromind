@@ -26,6 +26,8 @@ public class IgdbProvider : IMetadataProvider
 
     // Serialize token acquisition to avoid concurrent login races.
     private readonly SemaphoreSlim _connectGate = new(1, 1);
+    private readonly MetadataRequestRateGate _requestRateGate =
+        new(TimeSpan.FromMilliseconds(275));
 
     private const string TwitchTokenUrl = "https://id.twitch.tv/oauth2/token";
     private const string IgdbApiUrl = "https://api.igdb.com/v4/games";
@@ -302,13 +304,17 @@ public class IgdbProvider : IMetadataProvider
     {
         for (int retry = 0; retry <= MaxRetries; retry++)
         {
+            await _requestRateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             var response = await sendAction(cancellationToken).ConfigureAwait(false);
 
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests &&
                 retry < MaxRetries)
             {
                 response.Dispose();
-                await Task.Delay(1000 * (retry + 1), cancellationToken).ConfigureAwait(false); // Exponential backoff
+                await Task.Delay(
+                        TimeSpan.FromSeconds(Math.Pow(2, retry)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
                 continue;
             }
 

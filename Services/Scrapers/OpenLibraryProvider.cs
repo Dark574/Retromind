@@ -12,13 +12,14 @@ namespace Retromind.Services.Scrapers;
 
 public class OpenLibraryProvider : IMetadataProvider
 {
-    private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
+    private readonly MetadataRequestRateGate _requestRateGate =
+        new(TimeSpan.FromMilliseconds(350));
     private const int MaxSearchResults = 40;
 
     public OpenLibraryProvider(ScraperConfig config, HttpClient httpClient)
     {
-        _config = config;
+        ArgumentNullException.ThrowIfNull(config);
         _httpClient = httpClient;
         // Do not mutate shared HttpClient.DefaultRequestHeaders here (HttpClient is a singleton in DI).
     }
@@ -38,8 +39,9 @@ public class OpenLibraryProvider : IMetadataProvider
             var url = $"https://openlibrary.org/search.json?q={encodedQuery}&limit={MaxSearchResults}";
 
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.UserAgent.ParseAdd("Retromind/1.0 (OpenSource Media Manager)");
+            request.Headers.UserAgent.ParseAdd("Retromind/1.0 (retromind.project@proton.me)");
 
+            await _requestRateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 

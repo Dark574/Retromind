@@ -14,6 +14,8 @@ public class TmdbProvider : IMetadataProvider
 {
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
+    private readonly MetadataRequestRateGate _requestRateGate =
+        new(TimeSpan.FromMilliseconds(30));
     private const string BaseUrl = "https://api.themoviedb.org/3";
     private const string ImageBaseUrl = "https://image.tmdb.org/t/p/original";
     private const int MaxSearchResults = 40;
@@ -74,6 +76,7 @@ public class TmdbProvider : IMetadataProvider
             for (var page = 1; page <= MaxPages && results.Count < MaxSearchResults; page++)
             {
                 var url = $"{BaseUrl}/search/multi?api_key={apiKey}&query={encodedQuery}&language={lang}&page={page}";
+                await _requestRateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
                 using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
 

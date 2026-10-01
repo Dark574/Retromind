@@ -17,6 +17,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 - continue first-run guidance into empty categories and open setup directly on the emulator tab
 - reduce TheGamesDB bulk-scraping API usage through single-page searches, deferred enrichment and cached name lookups
+- pace IGDB, OpenLibrary and TMDB requests according to their provider limits during bulk scraping
 
 ### Fixed
 - stop TheGamesDB bulk scraping cleanly when the provider reports an exhausted request allowance
