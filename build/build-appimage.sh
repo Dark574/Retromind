@@ -175,7 +175,7 @@ Type=Application
 Name=Retromind
 Exec=Retromind
 Icon=retromind
-Categories=Utility;
+Categories=Game;Utility;
 Terminal=false
 EOF
 
