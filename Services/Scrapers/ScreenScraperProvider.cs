@@ -113,6 +113,26 @@ public sealed class ScreenScraperProvider : IMetadataProvider, IGameFileMetadata
         string query,
         CancellationToken cancellationToken = default)
     {
+        return await SearchCoreAsync(query, systemId: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<List<ScraperSearchResult>> SearchByGameSystemAsync(
+        string query,
+        string gameSystemId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameSystemId);
+        if (!ScreenScraperSystemCatalog.TryGetSystemId(gameSystemId, out var systemId))
+            throw new NotSupportedException($"ScreenScraper does not support the game system '{gameSystemId}'.");
+
+        return await SearchCoreAsync(query, systemId, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<List<ScraperSearchResult>> SearchCoreAsync(
+        string query,
+        int? systemId,
+        CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(query))
             return new List<ScraperSearchResult>();
 
@@ -120,9 +140,20 @@ public sealed class ScreenScraperProvider : IMetadataProvider, IGameFileMetadata
             throw new InvalidOperationException(
                 "ScreenScraper application access is unavailable or the optional member credentials are incomplete.");
 
+        var parameters = new List<KeyValuePair<string, string>>
+        {
+            new("recherche", query.Trim())
+        };
+        if (systemId.HasValue)
+        {
+            parameters.Add(new KeyValuePair<string, string>(
+                "systemeid",
+                systemId.Value.ToString(CultureInfo.InvariantCulture)));
+        }
+
         var root = await GetJsonAsync(
                 "jeuRecherche.php",
-                new[] { new KeyValuePair<string, string>("recherche", query.Trim()) },
+                parameters,
                 cancellationToken)
             .ConfigureAwait(false);
 

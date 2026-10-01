@@ -53,13 +53,25 @@ public interface IMetadataSearchPreviewEnricher
 }
 
 /// <summary>
-/// Optional capability for game metadata providers that can identify a ROM
-/// or disc image from its provider-neutral system assignment and file data.
+/// Optional capability for game metadata providers that can constrain title
+/// searches to a provider-neutral game-system assignment.
 /// </summary>
-public interface IGameFileMetadataProvider
+public interface IGameSystemMetadataProvider
 {
     bool SupportsGameSystem(string? gameSystemId);
 
+    Task<List<ScraperSearchResult>> SearchByGameSystemAsync(
+        string query,
+        string gameSystemId,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Optional capability for game metadata providers that can identify a ROM
+/// or disc image from its provider-neutral system assignment and file data.
+/// </summary>
+public interface IGameFileMetadataProvider : IGameSystemMetadataProvider
+{
     Task<ScraperSearchResult?> IdentifyGameFileAsync(
         string gameSystemId,
         string filePath,

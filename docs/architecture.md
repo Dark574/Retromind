@@ -273,11 +273,12 @@ the report never mutates JSON or deletes files.
   integrations such as ScreenScraper; these raw file checksums are intentionally not treated as the
   system-specific hash required by RetroAchievements
 - ScreenScraper keeps its numeric platform IDs in a provider-specific catalog instead of leaking them into the
-  provider-neutral game-system model. During a normal manual metadata search it first performs an exact ROM lookup
-  when the selected item has both a supported effective game system and an existing primary file. A successful
-  identification avoids the title-search request; an unknown ROM falls back to the ordinary title search, while
-  incomplete items start with title search immediately. Requests from one ScreenScraper profile are serialized
-  conservatively so even concurrent dialogs respect a one-thread account
+  provider-neutral game-system model. Manual and bulk metadata searches first perform an exact ROM lookup when an
+  item has both a supported effective game system and an existing primary file. A successful identification avoids
+  the title-search request; an unknown ROM falls back to a title search constrained to the same system, while
+  unsupported or incomplete items use the ordinary title search. ScreenScraper bulk jobs process one item at a
+  time, and requests from one ScreenScraper profile are additionally serialized so concurrent dialogs also respect
+  a one-thread account
 - `RetroAchievementsHashService` maps provider-neutral game-system identifiers to the console IDs from the
   pinned rcheevos version and generates official system-specific hashes through the bundled
   `libretromind-rhash.so`; compressed CHD disc images are decoded by the statically bundled libchdr adapter,

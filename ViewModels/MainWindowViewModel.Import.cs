@@ -1336,7 +1336,7 @@ public partial class MainWindowViewModel
         if (node == null || CurrentWindow is not { } owner) return;
         var importSettings = GetScraperImportSettings();
 
-        var vm = new BulkScrapeViewModel(node, _currentSettings, _metadataService);
+        var vm = new BulkScrapeViewModel(node, _currentSettings, _metadataService, RootItems);
         var dialog = new BulkScrapeView { DataContext = vm };
         vm.OnBeforeStartAsync = async () =>
         {

@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.GameSystems;
 using Retromind.Services.Scrapers;
 
 namespace Retromind.ViewModels;
@@ -24,6 +25,7 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     
     private readonly MetadataService _metadataService;
     private readonly MediaNode _rootNode;
+    private readonly ObservableCollection<MediaNode> _libraryRoots;
     private readonly AppSettings _settings;
     private CancellationTokenSource? _cancellationTokenSource;
     private bool _disposed;
@@ -47,11 +49,16 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     [ObservableProperty] 
     private string _logText = "";
 
-    public BulkScrapeViewModel(MediaNode node, AppSettings settings, MetadataService metadataService)
+    public BulkScrapeViewModel(
+        MediaNode node,
+        AppSettings settings,
+        MetadataService metadataService,
+        ObservableCollection<MediaNode>? libraryRoots = null)
     {
         _rootNode = node;
         _settings = settings;
         _metadataService = metadataService;
+        _libraryRoots = libraryRoots ?? new ObservableCollection<MediaNode> { node };
 
         InitializeScrapers();
 
@@ -73,12 +80,9 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     private void InitializeScrapers()
     {
         AvailableScrapers.Clear();
-        // ScreenScraper has strict per-user quotas. Keep it out of the generic
-        // parallel bulk pipeline until that path has provider-aware throttling.
         foreach (var scraper in _settings.Scrapers.Where(s =>
                      s.Type != ScraperType.None &&
-                     s.Type != ScraperType.EmuMovies &&
-                     s.Type != ScraperType.ScreenScraper))
+                     s.Type != ScraperType.EmuMovies))
         {
             AvailableScrapers.Add(scraper);
         }
@@ -94,7 +98,8 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         if (_disposed)
             return;
 
-        if (SelectedScraper == null)
+        var selectedScraper = SelectedScraper;
+        if (selectedScraper == null)
             return;
 
         if (OnBeforeStartAsync != null && !await OnBeforeStartAsync())
@@ -109,12 +114,12 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         _cancellationTokenSource = cancellationTokenSource;
         var cancellationToken = cancellationTokenSource.Token;
         ClearLog();
-        AppendLog($"Starting bulk scrape with {SelectedScraper.Name}...");
+        AppendLog($"Starting bulk scrape with {selectedScraper.Name}...");
 
         IMetadataProvider? provider;
         try
         {
-            provider = await _metadataService.GetProviderAsync(SelectedScraper.Id, cancellationToken);
+            provider = await _metadataService.GetProviderAsync(selectedScraper.Id, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -149,7 +154,7 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         // 1. Collect Items
         // Using a HashSet or checking for duplicates might be useful here if one item is in multiple categories,
         // but for now, we assume tree nodes are unique instances.
-        var allItems = new List<MediaItem>();
+        var allItems = new List<BulkScrapeTarget>();
         await CollectItemsRecursiveSnapshotAsync(_rootNode, allItems);
 
         AppendLog($"Found {allItems.Count} media items in total.");
@@ -162,7 +167,9 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         // ParallelOptions to control concurrency
         var parallelOptions = new ParallelOptions
         {
-            MaxDegreeOfParallelism = MaxConcurrentRequests,
+            MaxDegreeOfParallelism = selectedScraper.Type == ScraperType.ScreenScraper
+                ? 1
+                : MaxConcurrentRequests,
             CancellationToken = cancellationToken
         };
 
@@ -172,8 +179,9 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
 
         try
         {
-            await Parallel.ForEachAsync(allItems, parallelOptions, async (item, token) =>
+            await Parallel.ForEachAsync(allItems, parallelOptions, async (target, token) =>
             {
+                var item = target.Item;
                 // Logic: Searching
                 try
                 {
@@ -188,16 +196,30 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                         });
                     }
 
-                    var results = await provider.SearchAsync(item.Title, token);
-
-                    var decision = ScraperMatchEvaluator.SelectBestMatch(
+                    var gameSystemId = GameSystemResolver.ResolveForItem(
+                        item,
+                        target.ParentNode,
+                        _libraryRoots);
+                    var lookup = await GameMetadataLookupHelper.SearchAsync(
+                        provider,
                         item.Title,
-                        results,
-                        item.Platform,
-                        item.ReleaseDate);
-                    var match = decision.Status == ScraperMatchStatus.Match
-                        ? decision.BestCandidate
-                        : null;
+                        gameSystemId,
+                        item.GetPrimaryLaunchPath(),
+                        token);
+                    var results = lookup.Results;
+
+                    var decision = lookup.IsExactMatch
+                        ? null
+                        : ScraperMatchEvaluator.SelectBestMatch(
+                            item.Title,
+                            results,
+                            item.Platform,
+                            item.ReleaseDate);
+                    var match = lookup.IsExactMatch
+                        ? results.SingleOrDefault()
+                        : decision?.Status == ScraperMatchStatus.Match
+                            ? decision.BestCandidate
+                            : null;
 
                     if (match != null)
                     {
@@ -206,8 +228,10 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
 
                         // Buffer log in worker thread (no UI)
                         AppendLogBuffer(
-                            $"[MATCH] {item.Title} -> {match.Title} " +
-                            $"(confidence: {Math.Min(decision.Score, 1):P0})");
+                            lookup.IsExactMatch
+                                ? $"[HASH] {item.Title} -> {match.Title}"
+                                : $"[MATCH] {item.Title} -> {match.Title} " +
+                                  $"(confidence: {Math.Min(decision!.Score, 1):P0})");
 
                         // Apply scraping result on UI thread (likely touches bound objects)
                         await UiThreadHelper.InvokeAsync(async () =>
@@ -218,8 +242,8 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                     }
                     else
                     {
-                        var candidateTitle = decision.BestCandidate?.Title;
-                        if (decision.Status == ScraperMatchStatus.Ambiguous &&
+                        var candidateTitle = decision?.BestCandidate?.Title;
+                        if (decision?.Status == ScraperMatchStatus.Ambiguous &&
                             !string.IsNullOrWhiteSpace(candidateTitle))
                         {
                             var runnerUpTitle = decision.RunnerUpCandidate?.Title ?? "?";
@@ -318,7 +342,7 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Recursively collects all MediaItems from the node tree.
     /// </summary>
-    private async Task CollectItemsRecursiveSnapshotAsync(MediaNode node, List<MediaItem> list)
+    private async Task CollectItemsRecursiveSnapshotAsync(MediaNode node, List<BulkScrapeTarget> list)
     {
         List<MediaItem> items = new();
         List<MediaNode> children = new();
@@ -329,13 +353,15 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
             children = node.Children.ToList();
         });
 
-        list.AddRange(items);
+        list.AddRange(items.Select(item => new BulkScrapeTarget(item, node)));
 
         foreach (var child in children)
         {
             await CollectItemsRecursiveSnapshotAsync(child, list);
         }
     }
+
+    private sealed record BulkScrapeTarget(MediaItem Item, MediaNode ParentNode);
 
     // --- High Performance Logging ---
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -159,23 +158,13 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            List<ScraperSearchResult> results;
-            if (provider is IGameFileMetadataProvider gameFileProvider &&
-                !string.IsNullOrWhiteSpace(_gameSystemId) &&
-                !string.IsNullOrWhiteSpace(_gameFilePath) &&
-                File.Exists(_gameFilePath) &&
-                gameFileProvider.SupportsGameSystem(_gameSystemId))
-            {
-                var identified = await gameFileProvider
-                    .IdentifyGameFileAsync(_gameSystemId, _gameFilePath, token);
-                results = identified != null
-                    ? new List<ScraperSearchResult> { identified }
-                    : await provider.SearchAsync(SearchQuery, token);
-            }
-            else
-            {
-                results = await provider.SearchAsync(SearchQuery, token);
-            }
+            var lookup = await GameMetadataLookupHelper.SearchAsync(
+                provider,
+                SearchQuery,
+                _gameSystemId,
+                _gameFilePath,
+                token);
+            var results = lookup.Results;
 
             token.ThrowIfCancellationRequested();
 

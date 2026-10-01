@@ -559,10 +559,11 @@ Notes:
 - `CustomFields` are provider-specific key/value pairs and may vary by API response quality.
 - Missing values are normal when the upstream provider does not return that field for a specific item.
 - SteamGridDB is an artwork-focused provider and currently supplies cover, wallpaper and logo assets.
-- ScreenScraper automatically attempts exact ROM identification during a normal manual metadata search when a
+- ScreenScraper automatically attempts exact ROM identification during manual and bulk metadata searches when a
   supported technical game system and an existing primary game file are available. It sends the file size plus
-  CRC32, MD5 and SHA-1 in one API request. A successful match avoids a separate title request; unknown ROMs and
-  incomplete items fall back to the ordinary title search.
+  CRC32, MD5 and SHA-1 in one API request. A successful match avoids a separate title request; unknown ROMs fall
+  back to a system-constrained title search, while unsupported or incomplete items use ordinary title search.
+  ScreenScraper bulk jobs run sequentially to respect conservative account limits.
 - Providers can expose optional preview and result-enrichment capabilities. The manual dialog loads
   lightweight result previews first and requests fuller data only for the selected result; bulk scraping
   enriches only an accepted match.

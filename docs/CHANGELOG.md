@@ -12,6 +12,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Added
 - add the first ScreenScraper integration stage with embedded application access, optional encrypted user credentials, localized title search, metadata and artwork
 - identify supported ROM files in ScreenScraper from their game system, size, CRC32, MD5 and SHA-1 checksums
+- support quota-conscious ScreenScraper bulk scraping with exact ROM identification and safe title fallback
 
 ### Changed
 - continue first-run guidance into empty categories and open setup directly on the emulator tab

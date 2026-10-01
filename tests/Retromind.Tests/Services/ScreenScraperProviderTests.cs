@@ -104,6 +104,34 @@ public sealed class ScreenScraperProviderTests
     }
 
     [Fact]
+    public async Task SearchByGameSystemAsync_ConstrainsTitleSearchToMappedSystem()
+    {
+        Uri? requestedUri = null;
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            requestedUri = request.RequestUri;
+            return JsonResponse(
+                """
+                {"response":{"jeux":[{"id":"7","nom":"Sonic","systeme":{"nom":"Mega Drive"}}]}}
+                """);
+        }));
+        var provider = new ScreenScraperProvider(
+            new ScraperConfig(),
+            httpClient,
+            new ScreenScraperApplicationCredentials("developer", "password"));
+
+        var result = Assert.Single(await provider.SearchByGameSystemAsync(
+            "Sonic",
+            "sega.mega-drive"));
+
+        Assert.Equal("Sonic", result.Title);
+        Assert.NotNull(requestedUri);
+        Assert.EndsWith("/jeuRecherche.php", requestedUri.AbsolutePath, StringComparison.Ordinal);
+        Assert.Contains("recherche=Sonic", requestedUri.Query, StringComparison.Ordinal);
+        Assert.Contains("systemeid=1", requestedUri.Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ConnectAndSearch_EncodeCredentialsAndParseLocalizedGameData()
     {
         var requestedUris = new List<Uri>();

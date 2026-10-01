@@ -8,7 +8,7 @@ namespace Retromind.Tests.ViewModels;
 public sealed class BulkScrapeViewModelTests
 {
     [Fact]
-    public void Constructor_ExcludesScreenScraperFromGenericBulkPipeline()
+    public void Constructor_IncludesScreenScraperInProviderAwareBulkPipeline()
     {
         var settings = new AppSettings();
         settings.Scrapers.Add(new ScraperConfig { Type = ScraperType.ScreenScraper });
@@ -17,7 +17,8 @@ public sealed class BulkScrapeViewModelTests
         using var viewModel = new BulkScrapeViewModel(
             new MediaNode("Games", NodeType.Area), settings, service);
 
-        Assert.Empty(viewModel.AvailableScrapers);
+        Assert.Single(viewModel.AvailableScrapers);
+        Assert.Equal(ScraperType.ScreenScraper, viewModel.AvailableScrapers[0].Type);
     }
 
     [Theory]
