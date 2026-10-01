@@ -531,8 +531,9 @@ and use per-item arguments only for game-specific flags, e.g.:
 Retromind combines profile + item arguments into a single command line while expanding the placeholders as described above.
 
 ## API keys / Secrets (Scrapers)
-Retromind does **not** use any bundled default keys at runtime.  
-Providers that require credentials read them from the scraper configuration in the settings dialog.
+Retromind does **not** bundle personal user API keys. Providers that require personal credentials read them
+from the scraper configuration in the settings dialog. Official builds do embed Retromind's application-level
+ScreenScraper access, while an optional personal ScreenScraper account is configured separately by the user.
 OpenLibrary does not require credentials, and the Google Books API key is optional.
 
 Scraper secrets are not written to `app_settings.json` as plain text. Retromind stores them using portable
@@ -553,10 +554,15 @@ The table below shows which metadata fields are currently populated by each prov
 | Google Books | yes | yes | - | - | - | - | yes | - | yes | yes | - | - | - |
 | ComicVine | yes | - | - | - | - | - | yes | yes | yes | yes | - | - | `IssueNumber`, `StartYear` |
 | SteamGridDB | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| ScreenScraper | yes | yes | yes | yes | yes | yes | yes | - | - | - | - | yes | - |
 Notes:
 - `CustomFields` are provider-specific key/value pairs and may vary by API response quality.
 - Missing values are normal when the upstream provider does not return that field for a specific item.
 - SteamGridDB is an artwork-focused provider and currently supplies cover, wallpaper and logo assets.
+- ScreenScraper automatically attempts exact ROM identification during a normal manual metadata search when a
+  supported technical game system and an existing primary game file are available. It sends the file size plus
+  CRC32, MD5 and SHA-1 in one API request. A successful match avoids a separate title request; unknown ROMs and
+  incomplete items fall back to the ordinary title search.
 - Providers can expose optional preview and result-enrichment capabilities. The manual dialog loads
   lightweight result previews first and requests fuller data only for the selected result; bulk scraping
   enriches only an accepted match.
@@ -605,6 +611,15 @@ You need to create your own API keys on the respective provider pages:
   https://console.cloud.google.com/apis/library/books.googleapis.com  
   Create a project, enable the Books API, and create an API key. Enter it in
   the Google Books scraper configuration in Retromind.
+
+- **ScreenScraper (recommended)**
+  1. Create a personal account at <https://www.screenscraper.fr/>.
+  2. Enter your ScreenScraper username and password in Retromind.
+
+  Official Retromind builds already contain the separate application credentials approved for Retromind.
+  A personal account is therefore not an application key, but it provides the user's own quota and makes access
+  more reliable when anonymous API access is restricted. Both account fields must be entered together or both
+  left empty.
 
 Each user is responsible for their own API keys and must comply with the
 respective provider terms of service.

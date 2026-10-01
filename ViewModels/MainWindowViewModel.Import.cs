@@ -15,6 +15,7 @@ using Retromind.Models;
 using Retromind.Models.Stores;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.GameSystems;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -1289,7 +1290,12 @@ public partial class MainWindowViewModel
             AppendAssetsDuringBulkScrape = true
         };
 
-        var vm = new ScrapeDialogViewModel(item, _currentSettings, _metadataService);
+        var vm = new ScrapeDialogViewModel(
+            item,
+            _currentSettings,
+            _metadataService,
+            GameSystemResolver.ResolveForItem(item, parentNode, RootItems),
+            item.GetPrimaryLaunchPath());
         
         vm.OnResultSelectedAsync += async (result) => 
         {

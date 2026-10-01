@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -9,15 +10,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services.GameIdentification;
 
 namespace Retromind.Services.Scrapers;
 
 /// <summary>
 /// Metadata provider for the ScreenScraper Web API v2.
-/// This first integration stage supplies regular title search; ROM/hash
-/// identification remains a separate file-aware stage.
+/// Supports regular title search and explicit ROM identification through
+/// provider-neutral game-system assignments and raw file fingerprints.
 /// </summary>
-public sealed class ScreenScraperProvider : IMetadataProvider
+public sealed class ScreenScraperProvider : IMetadataProvider, IGameFileMetadataProvider
 {
     private const string BaseUrl = "https://api.screenscraper.fr/api2";
     private const string SoftwareName = "Retromind";
@@ -26,11 +28,17 @@ public sealed class ScreenScraperProvider : IMetadataProvider
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
     private readonly ScreenScraperApplicationCredentials? _applicationCredentials;
+    private readonly IGameFileFingerprintService _fingerprintService;
     private readonly SemaphoreSlim _connectGate = new(1, 1);
+    private readonly SemaphoreSlim _requestGate = new(1, 1);
     private int _isConnected;
 
     public ScreenScraperProvider(ScraperConfig config, HttpClient httpClient)
-        : this(config, httpClient, ScreenScraperApplicationCredentials.Resolve())
+        : this(
+            config,
+            httpClient,
+            ScreenScraperApplicationCredentials.Resolve(),
+            new GameFileFingerprintService())
     {
     }
 
@@ -38,10 +46,20 @@ public sealed class ScreenScraperProvider : IMetadataProvider
         ScraperConfig config,
         HttpClient httpClient,
         ScreenScraperApplicationCredentials? applicationCredentials)
+        : this(config, httpClient, applicationCredentials, new GameFileFingerprintService())
+    {
+    }
+
+    internal ScreenScraperProvider(
+        ScraperConfig config,
+        HttpClient httpClient,
+        ScreenScraperApplicationCredentials? applicationCredentials,
+        IGameFileFingerprintService fingerprintService)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _applicationCredentials = applicationCredentials;
+        _fingerprintService = fingerprintService ?? throw new ArgumentNullException(nameof(fingerprintService));
     }
 
     public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
@@ -67,7 +85,8 @@ public sealed class ScreenScraperProvider : IMetadataProvider
                         endpoint,
                         Array.Empty<KeyValuePair<string, string>>(),
                         cancellationToken)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("ScreenScraper returned an empty response.");
 
                 if (!string.IsNullOrWhiteSpace(_config.Username))
                     ValidateMemberConnection(response);
@@ -107,6 +126,9 @@ public sealed class ScreenScraperProvider : IMetadataProvider
                 cancellationToken)
             .ConfigureAwait(false);
 
+        if (root == null)
+            return new List<ScraperSearchResult>();
+
         var games = FindNode(root, "jeux") as JsonArray;
         if (games == null || games.Count == 0)
             return new List<ScraperSearchResult>();
@@ -121,37 +143,9 @@ public sealed class ScreenScraperProvider : IMetadataProvider
             if (game is not JsonObject gameObject)
                 continue;
 
-            var id = ReadText(gameObject["id"]);
-            var title = SelectLocalizedText(gameObject["noms"], language, isRegion: true)
-                        ?? ReadText(gameObject["nom"]);
-            if (string.IsNullOrWhiteSpace(id) ||
-                string.IsNullOrWhiteSpace(title) ||
-                !seenIds.Add(id))
-            {
+            var result = ParseGame(gameObject, language);
+            if (result == null || !seenIds.Add(result.Id))
                 continue;
-            }
-
-            var result = new ScraperSearchResult
-            {
-                Source = "ScreenScraper",
-                Id = id,
-                Title = title,
-                Description = SelectLocalizedText(gameObject["synopsis"], language, isRegion: false) ?? string.Empty,
-                Developer = ReadText(gameObject["developpeur"]),
-                Publisher = ReadText(gameObject["editeur"]),
-                MaxPlayers = ReadText(gameObject["joueurs"]),
-                Platform = ReadText(gameObject["systeme"]),
-                Genre = SelectGenre(gameObject["genres"], language),
-                ReleaseDate = SelectReleaseDate(gameObject["dates"], language),
-                Rating = NormalizeRating(gameObject["note"]),
-                CoverUrl = SelectMediaUrl(gameObject["medias"], language, "box-2D", "box-3D"),
-                WallpaperUrl = SelectMediaUrl(gameObject["medias"], language, "fanart"),
-                ScreenshotUrl = SelectMediaUrl(gameObject["medias"], language, "ss", "sstitle"),
-                LogoUrl = SelectMediaUrl(gameObject["medias"], language, "wheel-hd", "wheel"),
-                MarqueeUrl = SelectMediaUrl(gameObject["medias"], language, "marquee", "screenmarquee"),
-                BezelUrl = SelectMediaUrl(gameObject["medias"], language, "bezel-16-9", "bezel-16-10", "bezel-4-3"),
-                ControlPanelUrl = SelectMediaUrl(gameObject["medias"], language, "cpanel", "controlpanel")
-            };
 
             results.Add(result);
             if (results.Count >= MaxSearchResults)
@@ -159,6 +153,54 @@ public sealed class ScreenScraperProvider : IMetadataProvider
         }
 
         return results;
+    }
+
+    public bool SupportsGameSystem(string? gameSystemId) =>
+        ScreenScraperSystemCatalog.TryGetSystemId(gameSystemId, out _);
+
+    public async Task<ScraperSearchResult?> IdentifyGameFileAsync(
+        string gameSystemId,
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameSystemId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        if (!HasValidCredentialShape())
+        {
+            throw new InvalidOperationException(
+                "ScreenScraper application access is unavailable or the optional member credentials are incomplete.");
+        }
+
+        if (!ScreenScraperSystemCatalog.TryGetSystemId(gameSystemId, out var systemId))
+            throw new NotSupportedException($"ScreenScraper does not support the game system '{gameSystemId}'.");
+
+        var fingerprint = await _fingerprintService
+            .CalculateAsync(filePath, cancellationToken)
+            .ConfigureAwait(false);
+        var parameters = new[]
+        {
+            new KeyValuePair<string, string>("systemeid", systemId.ToString(CultureInfo.InvariantCulture)),
+            new KeyValuePair<string, string>("romtype", "rom"),
+            new KeyValuePair<string, string>("romnom", Path.GetFileName(filePath)),
+            new KeyValuePair<string, string>("romtaille", fingerprint.FileSize.ToString(CultureInfo.InvariantCulture)),
+            new KeyValuePair<string, string>("crc", fingerprint.Crc32.ToUpperInvariant()),
+            new KeyValuePair<string, string>("md5", fingerprint.Md5.ToUpperInvariant()),
+            new KeyValuePair<string, string>("sha1", fingerprint.Sha1.ToUpperInvariant())
+        };
+
+        var root = await GetJsonAsync(
+                "jeuInfos.php",
+                parameters,
+                cancellationToken,
+                allowNotFound: true)
+            .ConfigureAwait(false);
+        if (root == null || FindNode(root, "jeu") is not JsonObject game)
+            return null;
+
+        return ParseGame(
+            game,
+            LanguageCodeHelper.NormalizePrimaryCode(_config.Language));
     }
 
     private bool HasValidCredentialShape()
@@ -185,10 +227,11 @@ public sealed class ScreenScraperProvider : IMetadataProvider
         }
     }
 
-    private async Task<JsonNode> GetJsonAsync(
+    private async Task<JsonNode?> GetJsonAsync(
         string endpoint,
         IEnumerable<KeyValuePair<string, string>> parameters,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowNotFound = false)
     {
         var query = new List<KeyValuePair<string, string>>
         {
@@ -208,53 +251,63 @@ public sealed class ScreenScraperProvider : IMetadataProvider
         var queryString = string.Join("&", query.Select(pair =>
             $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"));
 
-        HttpResponseMessage response;
+        await _requestGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            response = await _httpClient
-                .GetAsync($"{BaseUrl}/{endpoint}?{queryString}", cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (HttpRequestException)
-        {
-            // Do not retain an exception containing a request URI with credentials.
-            throw new InvalidOperationException("The ScreenScraper service could not be reached.");
-        }
-
-        using (response)
-        {
-            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                throw new InvalidOperationException("ScreenScraper rejected the configured credentials.");
-
-            if ((int)response.StatusCode == 429)
-                throw new InvalidOperationException("The ScreenScraper request limit has been reached. Please try again later.");
-
-            if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException($"ScreenScraper returned HTTP {(int)response.StatusCode}.");
-
-            var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            JsonNode? root;
             try
             {
-                root = JsonNode.Parse(payload);
+                using var response = await _httpClient
+                    .GetAsync($"{BaseUrl}/{endpoint}?{queryString}", cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (allowNotFound && response.StatusCode == HttpStatusCode.NotFound)
+                    return null;
+
+                if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                    throw new InvalidOperationException("ScreenScraper rejected the configured credentials.");
+
+                if ((int)response.StatusCode is 429 or 430 or 431)
+                {
+                    throw new InvalidOperationException(
+                        "The ScreenScraper request limit has been reached. Please try again later.");
+                }
+
+                if (!response.IsSuccessStatusCode)
+                    throw new InvalidOperationException($"ScreenScraper returned HTTP {(int)response.StatusCode}.");
+
+                var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                JsonNode? root;
+                try
+                {
+                    root = JsonNode.Parse(payload);
+                }
+                catch
+                {
+                    throw new InvalidOperationException("ScreenScraper returned an invalid response.");
+                }
+
+                if (root == null)
+                    throw new InvalidOperationException("ScreenScraper returned an empty response.");
+
+                var apiError = ReadText(FindNode(root, "erreur")) ?? ReadText(FindNode(root, "error"));
+                if (!string.IsNullOrWhiteSpace(apiError))
+                    throw new InvalidOperationException(SanitizeApiError(apiError));
+
+                return root;
             }
-            catch
+            catch (OperationCanceledException)
             {
-                throw new InvalidOperationException("ScreenScraper returned an invalid response.");
+                throw;
             }
-
-            if (root == null)
-                throw new InvalidOperationException("ScreenScraper returned an empty response.");
-
-            var apiError = ReadText(FindNode(root, "erreur")) ?? ReadText(FindNode(root, "error"));
-            if (!string.IsNullOrWhiteSpace(apiError))
-                throw new InvalidOperationException(SanitizeApiError(apiError));
-
-            return root;
+            catch (HttpRequestException)
+            {
+                // Do not retain an exception containing a request URI with credentials.
+                throw new InvalidOperationException("The ScreenScraper service could not be reached.");
+            }
+        }
+        finally
+        {
+            _requestGate.Release();
         }
     }
 
@@ -283,6 +336,37 @@ public sealed class ScreenScraperProvider : IMetadataProvider
         }
 
         return null;
+    }
+
+    private static ScraperSearchResult? ParseGame(JsonObject game, string language)
+    {
+        var id = ReadText(game["id"]);
+        var title = SelectLocalizedText(game["noms"], language, isRegion: true)
+                    ?? ReadText(game["nom"]);
+        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(title))
+            return null;
+
+        return new ScraperSearchResult
+        {
+            Source = "ScreenScraper",
+            Id = id,
+            Title = title,
+            Description = SelectLocalizedText(game["synopsis"], language, isRegion: false) ?? string.Empty,
+            Developer = ReadText(game["developpeur"]),
+            Publisher = ReadText(game["editeur"]),
+            MaxPlayers = ReadText(game["joueurs"]),
+            Platform = ReadText(game["systeme"]),
+            Genre = SelectGenre(game["genres"], language),
+            ReleaseDate = SelectReleaseDate(game["dates"], language),
+            Rating = NormalizeRating(game["note"]),
+            CoverUrl = SelectMediaUrl(game["medias"], language, "box-2D", "box-3D"),
+            WallpaperUrl = SelectMediaUrl(game["medias"], language, "fanart"),
+            ScreenshotUrl = SelectMediaUrl(game["medias"], language, "ss", "sstitle"),
+            LogoUrl = SelectMediaUrl(game["medias"], language, "wheel-hd", "wheel"),
+            MarqueeUrl = SelectMediaUrl(game["medias"], language, "marquee", "screenmarquee"),
+            BezelUrl = SelectMediaUrl(game["medias"], language, "bezel-16-9", "bezel-16-10", "bezel-4-3"),
+            ControlPanelUrl = SelectMediaUrl(game["medias"], language, "cpanel", "controlpanel")
+        };
     }
 
     private static string? ReadText(JsonNode? node)

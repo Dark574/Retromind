@@ -445,6 +445,14 @@
                                     <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ScreenScraperCredentialsHint}"
                                                Opacity="0.65"
                                                TextWrapping="Wrap" />
+                                    <Border Background="#102EA9D6"
+                                            BorderBrush="#404EC9E8"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="10">
+                                        <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ScreenScraperHashRecognitionHint}"
+                                                   TextWrapping="Wrap" />
+                                    </Border>
                                     <StackPanel>
                                         <TextBlock Text="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).ScreenScraperMemberUsernameText}"
                                                    FontWeight="Bold" />

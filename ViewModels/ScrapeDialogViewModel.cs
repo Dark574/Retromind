@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,6 +26,8 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
     private readonly MetadataService _metadataService;
     private readonly MediaItem _targetItem;
     private readonly AppSettings _settings;
+    private readonly string? _gameSystemId;
+    private readonly string? _gameFilePath;
 
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _previewEnrichmentCts;
@@ -86,11 +89,18 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
 
     public event Func<ScraperSearchResult, Task>? OnResultSelectedAsync;
 
-    public ScrapeDialogViewModel(MediaItem item, AppSettings settings, MetadataService metadataService)
+    public ScrapeDialogViewModel(
+        MediaItem item,
+        AppSettings settings,
+        MetadataService metadataService,
+        string? gameSystemId = null,
+        string? gameFilePath = null)
     {
         _targetItem = item ?? throw new ArgumentNullException(nameof(item));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _metadataService = metadataService ?? throw new ArgumentNullException(nameof(metadataService));
+        _gameSystemId = gameSystemId;
+        _gameFilePath = gameFilePath;
 
         SearchCommand = new AsyncRelayCommand(SearchAsync);
         ApplyCommand = new AsyncRelayCommand(ApplyAsync, () => SelectedResult != null && !IsPreviewBusy);
@@ -138,13 +148,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         var token = _searchCts.Token;
 
         IsBusy = true;
-        SearchResults.Clear();
-        SelectedResult = null;
-        MetadataChoices.Clear();
-        ArtworkChoices.Clear();
-        RefreshChoiceCommandStates();
-        _enrichedResults.Clear();
-        StatusMessage = string.Empty;
+        ClearSearchResultState();
 
         try
         {
@@ -155,7 +159,24 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            var results = await provider.SearchAsync(SearchQuery, token);
+            List<ScraperSearchResult> results;
+            if (provider is IGameFileMetadataProvider gameFileProvider &&
+                !string.IsNullOrWhiteSpace(_gameSystemId) &&
+                !string.IsNullOrWhiteSpace(_gameFilePath) &&
+                File.Exists(_gameFilePath) &&
+                gameFileProvider.SupportsGameSystem(_gameSystemId))
+            {
+                var identified = await gameFileProvider
+                    .IdentifyGameFileAsync(_gameSystemId, _gameFilePath, token);
+                results = identified != null
+                    ? new List<ScraperSearchResult> { identified }
+                    : await provider.SearchAsync(SearchQuery, token);
+            }
+            else
+            {
+                results = await provider.SearchAsync(SearchQuery, token);
+            }
+
             token.ThrowIfCancellationRequested();
 
             if (results.Count == 0)
@@ -188,6 +209,17 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
                 _searchCts = null;
             }
         }
+    }
+
+    private void ClearSearchResultState()
+    {
+        SearchResults.Clear();
+        SelectedResult = null;
+        MetadataChoices.Clear();
+        ArtworkChoices.Clear();
+        RefreshChoiceCommandStates();
+        _enrichedResults.Clear();
+        StatusMessage = string.Empty;
     }
 
     partial void OnSelectedScraperChanged(ScraperConfig? value)

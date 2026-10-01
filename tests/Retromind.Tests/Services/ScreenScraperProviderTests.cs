@@ -2,12 +2,107 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using Retromind.Models;
+using Retromind.Services.GameIdentification;
 using Retromind.Services.Scrapers;
 
 namespace Retromind.Tests.Services;
 
 public sealed class ScreenScraperProviderTests
 {
+    [Fact]
+    public async Task IdentifyGameFileAsync_UsesSystemAndAllChecksums()
+    {
+        Uri? requestedUri = null;
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            requestedUri = request.RequestUri;
+            return JsonResponse(
+                """
+                {
+                  "response": {
+                    "jeu": {
+                      "id": "99",
+                      "nom": "Internal title",
+                      "noms": { "nom_de": "Erkanntes Spiel" },
+                      "systeme": { "id": "12", "nom": "Game Boy Advance" },
+                      "medias": {}
+                    }
+                  }
+                }
+                """);
+        }));
+        var fingerprintService = new StubFingerprintService(
+            new GameFileFingerprint(
+                123456,
+                DateTime.UnixEpoch,
+                "a1b2c3d4",
+                "00112233445566778899aabbccddeeff",
+                "00112233445566778899aabbccddeeff00112233"));
+        var provider = new ScreenScraperProvider(
+            new ScraperConfig { Language = "de-DE" },
+            httpClient,
+            new ScreenScraperApplicationCredentials("developer", "password"),
+            fingerprintService);
+
+        var result = await provider.IdentifyGameFileAsync(
+            "nintendo.game-boy-advance",
+            "/games/Test Game.gba");
+
+        Assert.NotNull(result);
+        Assert.Equal("99", result.Id);
+        Assert.Equal("Erkanntes Spiel", result.Title);
+        Assert.Equal("Game Boy Advance", result.Platform);
+        Assert.Equal("/games/Test Game.gba", fingerprintService.FilePath);
+        Assert.NotNull(requestedUri);
+        Assert.EndsWith("/jeuInfos.php", requestedUri.AbsolutePath, StringComparison.Ordinal);
+        Assert.Contains("systemeid=12", requestedUri.Query, StringComparison.Ordinal);
+        Assert.Contains("romtype=rom", requestedUri.Query, StringComparison.Ordinal);
+        Assert.Contains("romnom=Test%20Game.gba", requestedUri.Query, StringComparison.Ordinal);
+        Assert.Contains("romtaille=123456", requestedUri.Query, StringComparison.Ordinal);
+        Assert.Contains("crc=A1B2C3D4", requestedUri.Query, StringComparison.Ordinal);
+        Assert.Contains("md5=00112233445566778899AABBCCDDEEFF", requestedUri.Query, StringComparison.Ordinal);
+        Assert.Contains("sha1=00112233445566778899AABBCCDDEEFF00112233", requestedUri.Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task IdentifyGameFileAsync_NotFound_ReturnsNull()
+    {
+        using var httpClient = new HttpClient(new StubHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.NotFound)));
+        var provider = new ScreenScraperProvider(
+            new ScraperConfig(),
+            httpClient,
+            new ScreenScraperApplicationCredentials("developer", "password"),
+            new StubFingerprintService(new GameFileFingerprint(
+                1,
+                DateTime.UnixEpoch,
+                "00000000",
+                new string('0', 32),
+                new string('0', 40))));
+
+        var result = await provider.IdentifyGameFileAsync(
+            "sega.mega-drive",
+            "/games/unknown.zip");
+
+        Assert.Null(result);
+    }
+
+    [Theory]
+    [InlineData("sega.mega-drive", true)]
+    [InlineData("sony.playstation-2", true)]
+    [InlineData("unknown.system", false)]
+    [InlineData(null, false)]
+    public void SupportsGameSystem_UsesProviderSpecificMapping(string? gameSystemId, bool expected)
+    {
+        using var httpClient = new HttpClient(new StubHandler(_ => JsonResponse("{}")));
+        var provider = new ScreenScraperProvider(
+            new ScraperConfig(),
+            httpClient,
+            new ScreenScraperApplicationCredentials("developer", "password"));
+
+        Assert.Equal(expected, provider.SupportsGameSystem(gameSystemId));
+    }
+
     [Fact]
     public async Task ConnectAndSearch_EncodeCredentialsAndParseLocalizedGameData()
     {
@@ -299,5 +394,20 @@ public sealed class ScreenScraperProviderTests
             HttpRequestMessage request,
             CancellationToken cancellationToken)
             => Task.FromResult(handler(request));
+    }
+
+    private sealed class StubFingerprintService(GameFileFingerprint fingerprint)
+        : IGameFileFingerprintService
+    {
+        public string? FilePath { get; private set; }
+
+        public Task<GameFileFingerprint> CalculateAsync(
+            string filePath,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            FilePath = filePath;
+            return Task.FromResult(fingerprint);
+        }
     }
 }

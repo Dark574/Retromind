@@ -51,3 +51,17 @@ public interface IMetadataSearchPreviewEnricher
         IReadOnlyList<ScraperSearchResult> results,
         CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Optional capability for game metadata providers that can identify a ROM
+/// or disc image from its provider-neutral system assignment and file data.
+/// </summary>
+public interface IGameFileMetadataProvider
+{
+    bool SupportsGameSystem(string? gameSystemId);
+
+    Task<ScraperSearchResult?> IdentifyGameFileAsync(
+        string gameSystemId,
+        string filePath,
+        CancellationToken cancellationToken = default);
+}

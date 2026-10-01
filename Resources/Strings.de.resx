@@ -61,6 +61,7 @@
     <data name="GettingStarted.Close" xml:space="preserve"><value>Übersicht schließen</value></data>
     <data name="Settings_TabHelp" xml:space="preserve"><value>Hilfe</value></data>
     <data name="Settings.ScreenScraper.CredentialsHint" xml:space="preserve"><value>Retromind stellt den Anwendungszugang bereit. Ohne persönliches ScreenScraper-Konto wird der eingeschränkte anonyme Zugang verwendet, der bei hoher Serverauslastung möglicherweise nicht verfügbar ist. Bitte entweder beide Kontofelder oder keines ausfüllen.</value></data>
+    <data name="Settings.ScreenScraper.HashRecognitionHint" xml:space="preserve"><value>Für die automatische Hash-Erkennung muss bei der Kategorie ein Spielsystem gesetzt sein. Ein einzelnes Item kann das geerbte System überschreiben.</value></data>
     <data name="Settings.ScreenScraper.MemberUsername" xml:space="preserve"><value>ScreenScraper-Benutzername (empfohlen)</value></data>
     <data name="Settings.ScreenScraper.MemberPassword" xml:space="preserve"><value>ScreenScraper-Passwort</value></data>
 

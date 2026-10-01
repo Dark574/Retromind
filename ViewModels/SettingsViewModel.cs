@@ -971,6 +971,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string ScreenScraperCredentialsHint => T(
         "Settings.ScreenScraper.CredentialsHint",
         "Retromind provides the application access. Without a personal ScreenScraper account, restricted anonymous access is used and may be unavailable during high server load. Enter either both account fields or neither.");
+    public string ScreenScraperHashRecognitionHint => T(
+        "Settings.ScreenScraper.HashRecognitionHint",
+        "Automatic hash identification requires a game system on the category. An individual item can override the inherited system.");
     public string ScreenScraperMemberUsernameText => T("Settings.ScreenScraper.MemberUsername", "ScreenScraper username (recommended)");
     public string ScreenScraperMemberPasswordText => T("Settings.ScreenScraper.MemberPassword", "ScreenScraper password");
     

@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Models;
+using Retromind.Services.GameIdentification;
 using Retromind.Services.Scrapers;
 
 namespace Retromind.Services;
@@ -17,6 +18,7 @@ public class MetadataService
 {
     private readonly AppSettings _settings;
     private readonly HttpClient _httpClient;
+    private readonly IGameFileFingerprintService _gameFileFingerprintService;
 
     // Cache providers per scraper config ID so we can reuse connections/auth state.
     private readonly ConcurrentDictionary<string, IMetadataProvider> _providerCache = new();
@@ -24,10 +26,14 @@ public class MetadataService
     // Ensure ConnectAsync is executed at most once per provider (even with concurrent callers).
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _connectGates = new();
 
-    public MetadataService(AppSettings settings, HttpClient httpClient)
+    public MetadataService(
+        AppSettings settings,
+        HttpClient httpClient,
+        IGameFileFingerprintService? gameFileFingerprintService = null)
     {
         _settings = settings;
         _httpClient = httpClient;
+        _gameFileFingerprintService = gameFileFingerprintService ?? new GameFileFingerprintService();
     }
 
     /// <summary>
@@ -112,7 +118,11 @@ public class MetadataService
             ScraperType.GoogleBooks => new GoogleBooksProvider(config, _httpClient),
             ScraperType.ComicVine   => new ComicVineProvider(config, _httpClient),
             ScraperType.SteamGridDB => new SteamGridDbProvider(config, _httpClient),
-            ScraperType.ScreenScraper => new ScreenScraperProvider(config, _httpClient),
+            ScraperType.ScreenScraper => new ScreenScraperProvider(
+                config,
+                _httpClient,
+                ScreenScraperApplicationCredentials.Resolve(),
+                _gameFileFingerprintService),
             _                       => null
         };
     }
