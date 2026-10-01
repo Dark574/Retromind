@@ -163,11 +163,12 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         // 2. Prepare Processing
         int processedCount = 0;
         int totalItems = Math.Max(1, allItems.Count);
+        string? providerStopMessage = null;
 
         // ParallelOptions to control concurrency
         var parallelOptions = new ParallelOptions
         {
-            MaxDegreeOfParallelism = selectedScraper.Type == ScraperType.ScreenScraper
+            MaxDegreeOfParallelism = selectedScraper.Type is ScraperType.ScreenScraper or ScraperType.TheGamesDB
                 ? 1
                 : MaxConcurrentRequests,
             CancellationToken = cancellationToken
@@ -205,7 +206,8 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                         item.Title,
                         gameSystemId,
                         item.GetPrimaryLaunchPath(),
-                        token);
+                        token,
+                        useBulkSearch: true);
                     var results = lookup.Results;
 
                     var decision = lookup.IsExactMatch
@@ -267,6 +269,13 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                     // and do not continue with progress updates or throttling delays.
                     return;
                 }
+                catch (MetadataQuotaExceededException ex)
+                {
+                    Interlocked.CompareExchange(ref providerStopMessage, ex.Message, null);
+                    AppendLogBuffer($"[LIMIT] {ex.Message}");
+                    cancellationTokenSource.Cancel();
+                    return;
+                }
                 catch (Exception ex)
                 {
                     AppendLogBuffer($"[ERROR] {item.Title}: {ex.Message}");
@@ -303,7 +312,8 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            AppendLog("Scraping operation cancelled by user.");
+            if (providerStopMessage == null)
+                AppendLog("Scraping operation cancelled by user.");
         }
         catch (Exception ex)
         {
@@ -315,9 +325,9 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
             FlushLogBufferToUi();
 
             IsBusy = false;
-            StatusMessage = cancellationToken.IsCancellationRequested
+            StatusMessage = providerStopMessage ?? (cancellationToken.IsCancellationRequested
                 ? "Processing cancelled."
-                : "Processing finished.";
+                : "Processing finished.");
 
             if (ReferenceEquals(_cancellationTokenSource, cancellationTokenSource))
                 _cancellationTokenSource = null;

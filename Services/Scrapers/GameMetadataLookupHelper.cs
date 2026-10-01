@@ -17,7 +17,8 @@ internal static class GameMetadataLookupHelper
         string query,
         string? gameSystemId,
         string? gameFilePath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool useBulkSearch = false)
     {
         if (provider is IGameFileMetadataProvider fileProvider &&
             !string.IsNullOrWhiteSpace(gameSystemId) &&
@@ -36,13 +37,25 @@ internal static class GameMetadataLookupHelper
             }
         }
 
-        var results = provider is IGameSystemMetadataProvider systemProvider &&
-                      !string.IsNullOrWhiteSpace(gameSystemId) &&
-                      systemProvider.SupportsGameSystem(gameSystemId)
-            ? await systemProvider
+        List<ScraperSearchResult> results;
+        if (provider is IGameSystemMetadataProvider systemProvider &&
+            !string.IsNullOrWhiteSpace(gameSystemId) &&
+            systemProvider.SupportsGameSystem(gameSystemId))
+        {
+            results = await systemProvider
                 .SearchByGameSystemAsync(query, gameSystemId, cancellationToken)
-                .ConfigureAwait(false)
-            : await provider.SearchAsync(query, cancellationToken).ConfigureAwait(false);
+                .ConfigureAwait(false);
+        }
+        else if (useBulkSearch && provider is IBulkMetadataProvider bulkProvider)
+        {
+            results = await bulkProvider
+                .SearchForBulkAsync(query, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else
+        {
+            results = await provider.SearchAsync(query, cancellationToken).ConfigureAwait(false);
+        }
 
         return new GameMetadataLookupResult(results, IsExactMatch: false);
     }

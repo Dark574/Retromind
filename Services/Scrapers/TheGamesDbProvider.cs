@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -15,14 +18,25 @@ namespace Retromind.Services.Scrapers;
 /// <summary>
 /// Metadata provider for TheGamesDB API (v1).
 /// </summary>
-public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
+public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMetadataResultEnricher
 {
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
 
     private const string BaseUrl = "https://api.thegamesdb.net/v1";
     private const int MaxSearchResults = 40;
-    private const int MaxPages = 5;
+    private const int MaxManualPages = 5;
+    private const int MaxBulkPages = 1;
+
+    private readonly ConcurrentDictionary<string, string> _platformNames = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _genreNames = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _developerNames = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _publisherNames = new(StringComparer.Ordinal);
+    private readonly ConditionalWeakTable<ScraperSearchResult, PendingMetadata> _pendingMetadata = new();
+    private readonly SemaphoreSlim _metadataLookupGate = new(1, 1);
+    private readonly Lock _quotaLock = new();
+    private bool _quotaExhausted;
+    private string? _allowanceRefreshTimer;
 
     public TheGamesDbProvider(ScraperConfig config, HttpClient httpClient)
     {
@@ -51,7 +65,20 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
         }
     }
 
-    public async Task<List<ScraperSearchResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
+    public Task<List<ScraperSearchResult>> SearchAsync(
+        string query,
+        CancellationToken cancellationToken = default) =>
+        SearchCoreAsync(query, MaxManualPages, cancellationToken);
+
+    public Task<List<ScraperSearchResult>> SearchForBulkAsync(
+        string query,
+        CancellationToken cancellationToken = default) =>
+        SearchCoreAsync(query, MaxBulkPages, cancellationToken);
+
+    private async Task<List<ScraperSearchResult>> SearchCoreAsync(
+        string query,
+        int maxPages,
+        CancellationToken cancellationToken)
     {
         var apiKey = GetApiKey();
         if (string.IsNullOrWhiteSpace(query))
@@ -64,20 +91,16 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
             var results = new List<ScraperSearchResult>(MaxSearchResults);
             var seen = new HashSet<string>(StringComparer.Ordinal);
 
-            for (var page = 1; page <= MaxPages && results.Count < MaxSearchResults; page++)
+            for (var page = 1; page <= maxPages && results.Count < MaxSearchResults; page++)
             {
                 var url =
                     $"{BaseUrl}/Games/ByGameName?apikey={Uri.EscapeDataString(apiKey)}&name={encodedQuery}" +
                     "&fields=overview,genres,developers,publishers,players,platform,rating" +
-                    "&include=boxart,platform,genre" +
+                    "&include=boxart,platform" +
                     $"&filter%5Blanguage%5D={Uri.EscapeDataString(language)}" +
                     $"&page={page}";
 
-                using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-
-                var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-                var root = JsonNode.Parse(json);
+                var root = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
 
                 var games = root?["data"]?["games"]?.AsArray();
                 if (games == null || games.Count == 0)
@@ -92,42 +115,10 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
                                    ?? root?["include"]?["publishers"]?["data"];
                 var boxartData = root?["include"]?["boxart"]?["data"] as JsonObject;
                 var boxartBaseUrl = ResolveBoxartBaseUrl(root);
-                var platformNameById = await BuildPlatformNameMapAsync(apiKey, games, platformData, cancellationToken)
-                    .ConfigureAwait(false);
-                var genreNameById = await BuildCompanyNameMapAsync(
-                        apiKey,
-                        games,
-                        genreData,
-                        "Genres/ByGenreID",
-                        static g => ExtractCompanyIds(FirstPresent(g, "genres", "genre")),
-                        cancellationToken,
-                        "genres",
-                        "genre")
-                    .ConfigureAwait(false);
-                var developerNameById = await BuildCompanyNameMapAsync(
-                        apiKey,
-                        games,
-                        developerData,
-                        "Developers/ByDeveloperID",
-                        static g => ExtractCompanyIds(FirstPresent(g, "developers", "developer")),
-                        cancellationToken,
-                        "developers",
-                        "developer",
-                        "publishers",
-                        "publisher")
-                    .ConfigureAwait(false);
-                var publisherNameById = await BuildCompanyNameMapAsync(
-                        apiKey,
-                        games,
-                        publisherData,
-                        "Publishers/ByPublisherID",
-                        static g => ExtractCompanyIds(FirstPresent(g, "publishers", "publisher")),
-                        cancellationToken,
-                        "publishers",
-                        "publisher",
-                        "developers",
-                        "developer")
-                    .ConfigureAwait(false);
+                CacheNames(_platformNames, ExtractPlatformNameMapFromInclude(platformData));
+                CacheNames(_genreNames, ExtractIdNameMap(genreData));
+                CacheNames(_developerNames, ExtractIdNameMap(developerData));
+                CacheNames(_publisherNames, ExtractIdNameMap(publisherData));
 
                 var countBeforePage = results.Count;
 
@@ -148,9 +139,9 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
                         Id = id,
                         Title = title,
                         Description = game["overview"]?.ToString() ?? string.Empty,
-                        Developer = ResolveCompanyName(game, developerNameById, publisherNameById),
-                        Publisher = ResolvePublisher(game, publisherNameById),
-                        Genre = ResolveGenres(game, genreNameById),
+                        Developer = ResolveCompanyName(game, _developerNames, _publisherNames),
+                        Publisher = ResolvePublisher(game, _publisherNames),
+                        Genre = ResolveGenres(game, _genreNames),
                         MaxPlayers = game["players"]?.ToString()
                     };
 
@@ -165,7 +156,18 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
                         result.ReleaseDate = releaseDate;
                     }
 
-                    result.Platform = ResolvePlatform(game, platformNameById);
+                    result.Platform = ResolvePlatform(game, _platformNames);
+
+                    _pendingMetadata.Add(
+                        result,
+                        new PendingMetadata(
+                            ExtractPlatformIds(game).Distinct(StringComparer.Ordinal).ToArray(),
+                            ExtractCompanyIds(FirstPresent(game, "genres", "genre"))
+                                .Distinct(StringComparer.Ordinal).ToArray(),
+                            ExtractCompanyIds(FirstPresent(game, "developers", "developer"))
+                                .Distinct(StringComparer.Ordinal).ToArray(),
+                            ExtractCompanyIds(FirstPresent(game, "publishers", "publisher"))
+                                .Distinct(StringComparer.Ordinal).ToArray()));
 
                     if (!string.IsNullOrWhiteSpace(id) && boxartData != null && boxartData[id] is JsonArray artArray)
                     {
@@ -209,13 +211,17 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
                 }
 
                 // If pagination is ignored by the API and we keep receiving the same page, stop early.
-                if (results.Count == countBeforePage)
+                if (results.Count == countBeforePage || IsQuotaExhausted())
                     break;
             }
 
             return results;
         }
         catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (MetadataQuotaExceededException)
         {
             throw;
         }
@@ -233,6 +239,8 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
 
         if (string.IsNullOrWhiteSpace(result.Id))
             return;
+
+        await EnrichMetadataNamesAsync(result, cancellationToken).ConfigureAwait(false);
 
         var hasAllSupportedArtwork =
             !string.IsNullOrWhiteSpace(result.CoverUrl) &&
@@ -345,15 +353,13 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
         ScraperSearchResult result,
         CancellationToken cancellationToken)
     {
+        if (IsQuotaExhausted())
+            return;
+
         try
         {
             var url = $"{BaseUrl}/Games/Images?apikey={Uri.EscapeDataString(apiKey)}&games_id={Uri.EscapeDataString(gameId)}";
-            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-                return;
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var root = JsonNode.Parse(json);
+            var root = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
             var data = root?["data"];
             if (data == null)
                 return;
@@ -408,138 +414,260 @@ public class TheGamesDbProvider : IMetadataProvider, IMetadataResultEnricher
         {
             throw;
         }
+        catch (MetadataQuotaExceededException)
+        {
+            throw;
+        }
         catch
         {
             // Best effort only.
         }
     }
 
-    private async Task<Dictionary<string, string>> BuildCompanyNameMapAsync(
+    private async Task EnrichMetadataNamesAsync(
+        ScraperSearchResult result,
+        CancellationToken cancellationToken)
+    {
+        if (!_pendingMetadata.TryGetValue(result, out var pending))
+            return;
+
+        var apiKey = GetApiKey();
+        await EnsureNamesAsync(
+            apiKey,
+            "Platforms/ByPlatformID",
+            pending.PlatformIds,
+            _platformNames,
+            cancellationToken,
+            "platforms",
+            "platform").ConfigureAwait(false);
+        await EnsureNamesAsync(
+            apiKey,
+            "Genres/ByGenreID",
+            pending.GenreIds,
+            _genreNames,
+            cancellationToken,
+            "genres",
+            "genre").ConfigureAwait(false);
+        await EnsureNamesAsync(
+            apiKey,
+            "Developers/ByDeveloperID",
+            pending.DeveloperIds,
+            _developerNames,
+            cancellationToken,
+            "developers",
+            "developer").ConfigureAwait(false);
+        await EnsureNamesAsync(
+            apiKey,
+            "Publishers/ByPublisherID",
+            pending.PublisherIds,
+            _publisherNames,
+            cancellationToken,
+            "publishers",
+            "publisher").ConfigureAwait(false);
+
+        result.Platform ??= ResolveNames(pending.PlatformIds, _platformNames);
+        result.Genre ??= ResolveNames(pending.GenreIds, _genreNames);
+        result.Developer ??= ResolveNames(pending.DeveloperIds, _developerNames)
+                             ?? ResolveNames(pending.PublisherIds, _publisherNames);
+        result.Publisher ??= ResolveNames(pending.PublisherIds, _publisherNames);
+        _pendingMetadata.Remove(result);
+    }
+
+    private async Task EnsureNamesAsync(
         string apiKey,
-        JsonArray games,
-        JsonNode? includeData,
         string endpointPath,
-        Func<JsonNode?, IEnumerable<string>> idsSelector,
+        IReadOnlyCollection<string> ids,
+        ConcurrentDictionary<string, string> cache,
         CancellationToken cancellationToken,
         params string[] collectionKeys)
     {
-        var map = ExtractIdNameMap(includeData);
+        if (IsQuotaExhausted())
+            return;
 
-        var neededIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var game in games)
-        {
-            foreach (var id in idsSelector(game).Where(IsLikelyIdentifier))
-            {
-                if (!map.ContainsKey(id))
-                    neededIds.Add(id);
-            }
-        }
+        var missingIds = ids
+            .Where(IsLikelyIdentifier)
+            .Where(id => !cache.ContainsKey(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (missingIds.Length == 0)
+            return;
 
-        if (neededIds.Count == 0)
-            return map;
-
+        await _metadataLookupGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var idsCsv = string.Join(",", neededIds);
+            if (IsQuotaExhausted())
+                return;
+
+            missingIds = missingIds.Where(id => !cache.ContainsKey(id)).ToArray();
+            if (missingIds.Length == 0)
+                return;
+
+            var idsCsv = string.Join(",", missingIds);
             var url = $"{BaseUrl}/{endpointPath}?apikey={Uri.EscapeDataString(apiKey)}&id={Uri.EscapeDataString(idsCsv)}";
-
-            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-                return map;
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var root = JsonNode.Parse(json);
-            var dataNode = root?["data"];
-            if (dataNode is JsonObject dataObj)
-            {
-                // Try requested collection keys first, then fall back to common names.
-                if (collectionKeys != null && collectionKeys.Length > 0)
-                {
-                    foreach (var key in collectionKeys)
-                    {
-                        if (string.IsNullOrWhiteSpace(key))
-                            continue;
-
-                        if (dataObj[key] != null)
-                        {
-                            dataNode = dataObj[key];
-                            break;
-                        }
-                    }
-                }
-
-                if (ReferenceEquals(dataNode, root?["data"]))
-                {
-                    dataNode = dataObj["developers"]
-                               ?? dataObj["publishers"]
-                               ?? dataObj["developer"]
-                               ?? dataObj["publisher"]
-                               ?? dataObj["genres"]
-                               ?? dataObj["genre"]
-                               ?? dataObj;
-                }
-            }
-
-            var resolved = ExtractIdNameMap(dataNode);
-            foreach (var kv in resolved)
-                map[kv.Key] = kv.Value;
+            var root = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
+            var dataNode = SelectCollection(root?["data"], collectionKeys);
+            CacheNames(cache, ExtractIdNameMap(dataNode));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (MetadataQuotaExceededException)
+        {
+            throw;
         }
         catch
         {
-            // Best effort: keep names already available via include payload.
+            // Optional names are best effort; retain values already cached.
         }
-
-        return map;
+        finally
+        {
+            _metadataLookupGate.Release();
+        }
     }
 
-    private async Task<Dictionary<string, string>> BuildPlatformNameMapAsync(
-        string apiKey,
-        JsonArray games,
-        JsonNode? includePlatformData,
-        CancellationToken cancellationToken)
+    private async Task<JsonNode?> GetJsonAsync(string url, CancellationToken cancellationToken)
     {
-        var map = ExtractPlatformNameMapFromInclude(includePlatformData);
+        ThrowIfQuotaExhausted();
 
-        var neededIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var game in games)
-        {
-            if (game == null)
-                continue;
-
-            foreach (var id in ExtractPlatformIds(game))
-            {
-                if (!map.ContainsKey(id))
-                    neededIds.Add(id);
-            }
-        }
-
-        if (neededIds.Count == 0)
-            return map;
-
-        // Fallback query: some Games/ByGameName responses do not return include.platform mappings.
+        HttpResponseMessage response;
         try
         {
-            var idsCsv = string.Join(",", neededIds);
-            var url = $"{BaseUrl}/Platforms/ByPlatformID?apikey={Uri.EscapeDataString(apiKey)}&id={Uri.EscapeDataString(idsCsv)}";
-
-            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-                return map;
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var root = JsonNode.Parse(json);
-            var platformsNode = root?["data"]?["platforms"];
-            var resolved = ExtractPlatformNameMapFromPlatformsNode(platformsNode);
-            foreach (var kv in resolved)
-                map[kv.Key] = kv.Value;
+            response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (OperationCanceledException)
         {
-            // best effort: keep names already resolved from include payload
+            throw;
+        }
+        catch (HttpRequestException)
+        {
+            throw new InvalidOperationException("TheGamesDB could not be reached.");
         }
 
-        return map;
+        using (response)
+        {
+            var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            JsonNode? root = null;
+            if (!string.IsNullOrWhiteSpace(payload))
+            {
+                try
+                {
+                    root = JsonNode.Parse(payload);
+                }
+                catch when (response.IsSuccessStatusCode)
+                {
+                    throw new InvalidOperationException("TheGamesDB returned an invalid response.");
+                }
+            }
+
+            UpdateQuota(root);
+            var apiCode = ReadInteger(root?["code"]);
+            if (!response.IsSuccessStatusCode || apiCode is >= 400)
+            {
+                if (IsQuotaExhausted())
+                    throw CreateQuotaException();
+
+                if (response.StatusCode == HttpStatusCode.Forbidden || apiCode == 403)
+                {
+                    throw new MetadataQuotaExceededException(
+                        "TheGamesDB rejected the API key or its request allowance is exhausted; bulk scraping was stopped.");
+                }
+
+                throw new InvalidOperationException($"TheGamesDB returned HTTP {(int)response.StatusCode}.");
+            }
+
+            return root;
+        }
     }
+
+    private void ThrowIfQuotaExhausted()
+    {
+        if (IsQuotaExhausted())
+            throw CreateQuotaException();
+    }
+
+    private bool IsQuotaExhausted()
+    {
+        lock (_quotaLock)
+            return _quotaExhausted;
+    }
+
+    private MetadataQuotaExceededException CreateQuotaException()
+    {
+        string? refreshTimer;
+        lock (_quotaLock)
+            refreshTimer = _allowanceRefreshTimer;
+
+        var suffix = string.IsNullOrWhiteSpace(refreshTimer) ||
+                     (long.TryParse(refreshTimer, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds) &&
+                      seconds <= 0)
+            ? string.Empty
+            : $" Reset information: {refreshTimer}.";
+        return new MetadataQuotaExceededException(
+            $"TheGamesDB monthly request allowance is exhausted.{suffix}");
+    }
+
+    private void UpdateQuota(JsonNode? root)
+    {
+        var remaining = ReadInteger(root?["remaining_monthly_allowance"]);
+        if (!remaining.HasValue)
+            return;
+
+        var extra = ReadInteger(root?["extra_allowance"]) ?? 0;
+        lock (_quotaLock)
+        {
+            _quotaExhausted = remaining.Value <= 0 && extra <= 0;
+            _allowanceRefreshTimer = root?["allowance_refresh_timer"]?.ToString();
+        }
+    }
+
+    private static int? ReadInteger(JsonNode? node)
+    {
+        return int.TryParse(node?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
+    }
+
+    private static JsonNode? SelectCollection(JsonNode? dataNode, IReadOnlyList<string> collectionKeys)
+    {
+        if (dataNode is not JsonObject dataObject)
+            return dataNode;
+
+        foreach (var key in collectionKeys)
+        {
+            if (dataObject[key] is { } collection)
+                return collection;
+        }
+
+        return dataNode;
+    }
+
+    private static void CacheNames(
+        ConcurrentDictionary<string, string> cache,
+        IReadOnlyDictionary<string, string> names)
+    {
+        foreach (var pair in names)
+            cache.TryAdd(pair.Key, pair.Value);
+    }
+
+    private static string? ResolveNames(
+        IEnumerable<string> ids,
+        IReadOnlyDictionary<string, string> names)
+    {
+        var resolved = ids
+            .Select(id => names.TryGetValue(id, out var name) ? name : null)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return resolved.Length == 0 ? null : string.Join(", ", resolved!);
+    }
+
+    private sealed record PendingMetadata(
+        string[] PlatformIds,
+        string[] GenreIds,
+        string[] DeveloperIds,
+        string[] PublisherIds);
 
     private static string? ResolvePlatform(JsonNode game, IReadOnlyDictionary<string, string> platformNameById)
     {

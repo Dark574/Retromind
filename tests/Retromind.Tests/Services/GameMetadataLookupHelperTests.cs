@@ -91,16 +91,42 @@ public sealed class GameMetadataLookupHelperTests
         Assert.Equal(1, provider.GenericSearchCalls);
     }
 
-    private sealed class StubGameProvider : IMetadataProvider, IGameFileMetadataProvider
+    [Fact]
+    public async Task SearchAsync_BulkLookup_UsesProviderBulkSearchCapability()
+    {
+        var provider = new StubGameProvider
+        {
+            SupportsSystems = false,
+            BulkResults = new List<ScraperSearchResult>
+            {
+                new() { Id = "45", Title = "Bulk result" }
+            }
+        };
+
+        var result = await GameMetadataLookupHelper.SearchAsync(
+            provider,
+            "Game title",
+            gameSystemId: null,
+            gameFilePath: null,
+            useBulkSearch: true);
+
+        Assert.Equal("Bulk result", Assert.Single(result.Results).Title);
+        Assert.Equal(1, provider.BulkSearchCalls);
+        Assert.Equal(0, provider.GenericSearchCalls);
+    }
+
+    private sealed class StubGameProvider : IMetadataProvider, IGameFileMetadataProvider, IBulkMetadataProvider
     {
         public bool SupportsSystems { get; init; } = true;
         public ScraperSearchResult? IdentifiedResult { get; init; }
         public List<ScraperSearchResult> SystemResults { get; init; } = new();
         public List<ScraperSearchResult> GenericResults { get; init; } = new();
+        public List<ScraperSearchResult> BulkResults { get; init; } = new();
 
         public int IdentifyCalls { get; private set; }
         public int SystemSearchCalls { get; private set; }
         public int GenericSearchCalls { get; private set; }
+        public int BulkSearchCalls { get; private set; }
 
         public Task<bool> ConnectAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(true);
@@ -131,6 +157,14 @@ public sealed class GameMetadataLookupHelperTests
         {
             GenericSearchCalls++;
             return Task.FromResult(GenericResults);
+        }
+
+        public Task<List<ScraperSearchResult>> SearchForBulkAsync(
+            string query,
+            CancellationToken cancellationToken = default)
+        {
+            BulkSearchCalls++;
+            return Task.FromResult(BulkResults);
         }
     }
 }

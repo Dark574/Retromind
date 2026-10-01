@@ -26,6 +26,17 @@ public interface IMetadataProvider
 }
 
 /// <summary>
+/// Optional capability for providers that can use a less expensive search
+/// shape when results are selected automatically during bulk scraping.
+/// </summary>
+public interface IBulkMetadataProvider
+{
+    Task<List<ScraperSearchResult>> SearchForBulkAsync(
+        string query,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Optional capability for providers whose search endpoint returns lightweight
 /// results and whose complete metadata or artwork requires additional requests.
 /// </summary>

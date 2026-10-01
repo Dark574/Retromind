@@ -356,6 +356,11 @@ the report never mutates JSON or deletes files.
 - providers with expensive per-result calls expose optional preview/result enrichment
   capabilities; the manual dialog loads lightweight previews first and details only
   for the current selection, while bulk scraping enriches only the matched result
+- providers can expose a cheaper bulk-search capability without weakening manual search. TheGamesDB limits automatic
+  searches to its first probability-ranked result page, defers supplemental name and artwork requests until a safe
+  match has been selected, and caches resolved platform, genre, developer, and publisher IDs for the provider
+  lifetime. Its bulk jobs are sequential, track the allowance returned by the API, and stop the batch when access is
+  exhausted instead of repeating rejected requests
 - the manual metadata dialog presents changed fields individually; artwork imports are additive and never
   silently replace existing files
 - `ScraperMatchEvaluator` gates automatic bulk imports by normalized title similarity, optional platform/year

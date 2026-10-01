@@ -567,6 +567,9 @@ Notes:
 - Providers can expose optional preview and result-enrichment capabilities. The manual dialog loads
   lightweight result previews first and requests fuller data only for the selected result; bulk scraping
   enriches only an accepted match.
+- TheGamesDB bulk searches use only the first probability-ranked result page, resolve supplemental names and artwork
+  only for accepted matches, and reuse resolved names during the current session. The operation runs sequentially
+  and stops when TheGamesDB reports that the configured key's request allowance has been exhausted.
 - Manual scraping lets you choose individual changed metadata fields. Existing artwork is retained and
   selected new artwork is added instead of replacing it.
 - EmuMovies is currently not listed here because its API is being reworked.
