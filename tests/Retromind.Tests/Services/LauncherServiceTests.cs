@@ -180,6 +180,42 @@ public sealed class LauncherServiceTests
     }
 
     [Fact]
+    public async Task LaunchAsync_CancelledTrackingDoesNotRecordOrReportCompletedSession()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        var sleepPath = File.Exists("/usr/bin/sleep") ? "/usr/bin/sleep" : "/bin/sleep";
+        using var temp = new TemporaryDirectory();
+        using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        var item = new MediaItem("Cancelled tracking")
+        {
+            MediaType = MediaType.Command,
+            LauncherArgs = "1",
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = sleepPath
+                }
+            ]
+        };
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")));
+
+        var result = await service.LaunchAsync(item, cancellationToken: cancellationTokenSource.Token);
+
+        Assert.Equal(LaunchOutcome.Started, result.Outcome);
+        Assert.False(result.WasSessionTracked);
+        Assert.Equal(0, item.PlayCount);
+        Assert.Equal(TimeSpan.Zero, item.TotalPlayTime);
+        Assert.Null(item.LastPlayed);
+    }
+
+    [Fact]
     public async Task LaunchAsync_DoesNotTreatSteamCommandAsTrackedGameSession()
     {
         if (!OperatingSystem.IsLinux())

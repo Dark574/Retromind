@@ -173,6 +173,7 @@ public sealed class LauncherService
         catch (OperationCanceledException)
         {
             // App shutdown or caller cancellation: treat as "no/partial session".
+            shouldRecordSession = false;
         }
         catch (Exception ex)
         {
