@@ -22,6 +22,7 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
 {
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
+    private readonly TimeProvider _timeProvider;
 
     private const string BaseUrl = "https://api.thegamesdb.net/v1";
     private const int MaxSearchResults = 40;
@@ -37,11 +38,22 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
     private readonly Lock _quotaLock = new();
     private bool _quotaExhausted;
     private string? _allowanceRefreshTimer;
+    private DateTimeOffset? _allowanceRefreshAtUtc;
+    private bool _allowanceRefreshProbeInProgress;
 
     public TheGamesDbProvider(ScraperConfig config, HttpClient httpClient)
+        : this(config, httpClient, TimeProvider.System)
+    {
+    }
+
+    internal TheGamesDbProvider(
+        ScraperConfig config,
+        HttpClient httpClient,
+        TimeProvider timeProvider)
     {
         _config = config;
         _httpClient = httpClient;
+        _timeProvider = timeProvider;
     }
 
     private string GetApiKey()
@@ -562,8 +574,20 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
 
     private async Task<JsonNode?> GetJsonAsync(string url, CancellationToken cancellationToken)
     {
-        ThrowIfQuotaExhausted();
+        var isAllowanceRefreshProbe = BeginRequestOrThrowIfQuotaExhausted();
 
+        try
+        {
+            return await GetJsonCoreAsync(url, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            CompleteAllowanceRefreshProbe(isAllowanceRefreshProbe);
+        }
+    }
+
+    private async Task<JsonNode?> GetJsonCoreAsync(string url, CancellationToken cancellationToken)
+    {
         HttpResponseMessage response;
         try
         {
@@ -614,10 +638,32 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
         }
     }
 
-    private void ThrowIfQuotaExhausted()
+    private bool BeginRequestOrThrowIfQuotaExhausted()
     {
-        if (IsQuotaExhausted())
-            throw CreateQuotaException();
+        lock (_quotaLock)
+        {
+            if (!_quotaExhausted)
+                return false;
+
+            if (!_allowanceRefreshProbeInProgress &&
+                _allowanceRefreshAtUtc is { } refreshAtUtc &&
+                _timeProvider.GetUtcNow() >= refreshAtUtc)
+            {
+                _allowanceRefreshProbeInProgress = true;
+                return true;
+            }
+        }
+
+        throw CreateQuotaException();
+    }
+
+    private void CompleteAllowanceRefreshProbe(bool isAllowanceRefreshProbe)
+    {
+        if (!isAllowanceRefreshProbe)
+            return;
+
+        lock (_quotaLock)
+            _allowanceRefreshProbeInProgress = false;
     }
 
     private bool IsQuotaExhausted()
@@ -648,10 +694,35 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
             return;
 
         var extra = ReadInteger(root?["extra_allowance"]) ?? 0;
+        var refreshTimer = root?["allowance_refresh_timer"]?.ToString();
+        var refreshAtUtc = CalculateAllowanceRefreshAtUtc(refreshTimer);
         lock (_quotaLock)
         {
             _quotaExhausted = remaining.Value <= 0 && extra <= 0;
-            _allowanceRefreshTimer = root?["allowance_refresh_timer"]?.ToString();
+            _allowanceRefreshTimer = refreshTimer;
+            _allowanceRefreshAtUtc = _quotaExhausted ? refreshAtUtc : null;
+        }
+    }
+
+    private DateTimeOffset? CalculateAllowanceRefreshAtUtc(string? refreshTimer)
+    {
+        if (!long.TryParse(
+                refreshTimer,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var refreshSeconds) ||
+            refreshSeconds < 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            return _timeProvider.GetUtcNow().AddSeconds(refreshSeconds);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return null;
         }
     }
 

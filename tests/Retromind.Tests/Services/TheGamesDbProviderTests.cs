@@ -112,6 +112,31 @@ public sealed class TheGamesDbProviderTests
     }
 
     [Fact]
+    public async Task ReportedExhaustedAllowance_ProbesServerAfterRefreshTimerExpires()
+    {
+        var requestCount = 0;
+        using var client = new HttpClient(new StubHandler(_ =>
+        {
+            requestCount++;
+            return JsonResponse(SearchPayload(
+                remaining: requestCount == 1 ? 0 : 100,
+                refreshSeconds: 60));
+        }));
+        var timeProvider = new ManualTimeProvider(new DateTimeOffset(2026, 10, 2, 12, 0, 0, TimeSpan.Zero));
+        var provider = CreateProvider(client, timeProvider);
+
+        Assert.Single(await provider.SearchForBulkAsync("Last permitted request"));
+        await Assert.ThrowsAsync<MetadataQuotaExceededException>(
+            () => provider.SearchForBulkAsync("Still blocked"));
+
+        timeProvider.Advance(TimeSpan.FromSeconds(60));
+
+        Assert.Single(await provider.SearchForBulkAsync("Refresh probe"));
+        Assert.Single(await provider.SearchForBulkAsync("Allowance restored"));
+        Assert.Equal(3, requestCount);
+    }
+
+    [Fact]
     public async Task ForbiddenApiResponse_StopsBulkInsteadOfRepeatingRequests()
     {
         var requestCount = 0;
@@ -131,22 +156,24 @@ public sealed class TheGamesDbProviderTests
         Assert.Contains("bulk scraping was stopped", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static TheGamesDbProvider CreateProvider(HttpClient client) =>
+    private static TheGamesDbProvider CreateProvider(
+        HttpClient client,
+        TimeProvider? timeProvider = null) =>
         new(new ScraperConfig
         {
             Type = ScraperType.TheGamesDB,
             ApiKey = "secret-key",
             Language = "en"
-        }, client);
+        }, client, timeProvider ?? TimeProvider.System);
 
-    private static string SearchPayload(int remaining) =>
+    private static string SearchPayload(int remaining, long refreshSeconds = 12345) =>
         $$"""
         {
           "code": 200,
           "status": "Success",
           "remaining_monthly_allowance": {{remaining}},
           "extra_allowance": 0,
-          "allowance_refresh_timer": 12345,
+          "allowance_refresh_timer": {{refreshSeconds}},
           "data": {
             "games": [
               {
@@ -209,5 +236,14 @@ public sealed class TheGamesDbProviderTests
             HttpRequestMessage request,
             CancellationToken cancellationToken) =>
             Task.FromResult(responder(request));
+    }
+
+    private sealed class ManualTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        private DateTimeOffset _utcNow = utcNow;
+
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+
+        public void Advance(TimeSpan duration) => _utcNow += duration;
     }
 }
