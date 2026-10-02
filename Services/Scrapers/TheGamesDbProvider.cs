@@ -231,34 +231,45 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
         }
     }
 
+    public Task EnrichAsync(
+        ScraperSearchResult result,
+        CancellationToken cancellationToken = default) =>
+        EnrichAsync(result, MetadataEnrichmentRequest.All, cancellationToken);
+
     public async Task EnrichAsync(
         ScraperSearchResult result,
+        MetadataEnrichmentRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(request);
 
-        if (string.IsNullOrWhiteSpace(result.Id))
+        if (string.IsNullOrWhiteSpace(result.Id) || !request.HasAny)
             return;
 
-        await EnrichMetadataNamesAsync(result, cancellationToken).ConfigureAwait(false);
+        if (request.HasAnyMetadata)
+            await EnrichMetadataNamesAsync(result, request, cancellationToken).ConfigureAwait(false);
 
-        var hasAllSupportedArtwork =
-            !string.IsNullOrWhiteSpace(result.CoverUrl) &&
-            !string.IsNullOrWhiteSpace(result.WallpaperUrl) &&
-            !string.IsNullOrWhiteSpace(result.ScreenshotUrl) &&
-            !string.IsNullOrWhiteSpace(result.LogoUrl) &&
-            !string.IsNullOrWhiteSpace(result.MarqueeUrl);
-
-        if (hasAllSupportedArtwork)
+        if (!NeedsArtworkEnrichment(result, request))
             return;
 
         await TryEnrichWithGameImagesAsync(
                 GetApiKey(),
                 result.Id,
                 result,
+                request,
                 cancellationToken)
             .ConfigureAwait(false);
     }
+
+    private static bool NeedsArtworkEnrichment(
+        ScraperSearchResult result,
+        MetadataEnrichmentRequest request) =>
+        (request.Cover && string.IsNullOrWhiteSpace(result.CoverUrl)) ||
+        (request.Wallpaper && string.IsNullOrWhiteSpace(result.WallpaperUrl)) ||
+        (request.Screenshot && string.IsNullOrWhiteSpace(result.ScreenshotUrl)) ||
+        (request.Logo && string.IsNullOrWhiteSpace(result.LogoUrl)) ||
+        (request.Marquee && string.IsNullOrWhiteSpace(result.MarqueeUrl));
 
     private static string ResolveBoxartBaseUrl(JsonNode? root)
     {
@@ -351,6 +362,7 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
         string apiKey,
         string gameId,
         ScraperSearchResult result,
+        MetadataEnrichmentRequest request,
         CancellationToken cancellationToken)
     {
         if (IsQuotaExhausted())
@@ -380,31 +392,31 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            if (string.IsNullOrWhiteSpace(result.LogoUrl))
+            if (request.Logo && string.IsNullOrWhiteSpace(result.LogoUrl))
             {
                 result.LogoUrl = resolved.FirstOrDefault(p =>
                     ContainsAny(p, "clearlogo", "/logo/", "_logo", "logo/"));
             }
 
-            if (string.IsNullOrWhiteSpace(result.CoverUrl))
+            if (request.Cover && string.IsNullOrWhiteSpace(result.CoverUrl))
             {
                 result.CoverUrl = resolved.FirstOrDefault(p =>
                     ContainsAny(p, "boxart/front", "boxart") && !ContainsAny(p, "back"));
             }
 
-            if (string.IsNullOrWhiteSpace(result.WallpaperUrl))
+            if (request.Wallpaper && string.IsNullOrWhiteSpace(result.WallpaperUrl))
             {
                 result.WallpaperUrl = resolved.FirstOrDefault(p =>
                     ContainsAny(p, "fanart", "screenshot", "background", "screenshots"));
             }
 
-            if (string.IsNullOrWhiteSpace(result.ScreenshotUrl))
+            if (request.Screenshot && string.IsNullOrWhiteSpace(result.ScreenshotUrl))
             {
                 result.ScreenshotUrl = resolved.FirstOrDefault(p =>
                     ContainsAny(p, "screenshot", "screenshots", "screen"));
             }
 
-            if (string.IsNullOrWhiteSpace(result.MarqueeUrl))
+            if (request.Marquee && string.IsNullOrWhiteSpace(result.MarqueeUrl))
             {
                 result.MarqueeUrl = resolved.FirstOrDefault(p =>
                     ContainsAny(p, "marquee", "wheel", "banner"));
@@ -426,51 +438,73 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
 
     private async Task EnrichMetadataNamesAsync(
         ScraperSearchResult result,
+        MetadataEnrichmentRequest request,
         CancellationToken cancellationToken)
     {
         if (!_pendingMetadata.TryGetValue(result, out var pending))
             return;
 
         var apiKey = GetApiKey();
-        await EnsureNamesAsync(
-            apiKey,
-            "Platforms/ByPlatformID",
-            pending.PlatformIds,
-            _platformNames,
-            cancellationToken,
-            "platforms",
-            "platform").ConfigureAwait(false);
-        await EnsureNamesAsync(
-            apiKey,
-            "Genres/ByGenreID",
-            pending.GenreIds,
-            _genreNames,
-            cancellationToken,
-            "genres",
-            "genre").ConfigureAwait(false);
-        await EnsureNamesAsync(
-            apiKey,
-            "Developers/ByDeveloperID",
-            pending.DeveloperIds,
-            _developerNames,
-            cancellationToken,
-            "developers",
-            "developer").ConfigureAwait(false);
-        await EnsureNamesAsync(
-            apiKey,
-            "Publishers/ByPublisherID",
-            pending.PublisherIds,
-            _publisherNames,
-            cancellationToken,
-            "publishers",
-            "publisher").ConfigureAwait(false);
+        if (request.Platform)
+        {
+            await EnsureNamesAsync(
+                apiKey,
+                "Platforms/ByPlatformID",
+                pending.PlatformIds,
+                _platformNames,
+                cancellationToken,
+                "platforms",
+                "platform").ConfigureAwait(false);
+            result.Platform ??= ResolveNames(pending.PlatformIds, _platformNames);
+        }
 
-        result.Platform ??= ResolveNames(pending.PlatformIds, _platformNames);
-        result.Genre ??= ResolveNames(pending.GenreIds, _genreNames);
-        result.Developer ??= ResolveNames(pending.DeveloperIds, _developerNames)
-                             ?? ResolveNames(pending.PublisherIds, _publisherNames);
-        result.Publisher ??= ResolveNames(pending.PublisherIds, _publisherNames);
-        _pendingMetadata.Remove(result);
+        if (request.Genre)
+        {
+            await EnsureNamesAsync(
+                apiKey,
+                "Genres/ByGenreID",
+                pending.GenreIds,
+                _genreNames,
+                cancellationToken,
+                "genres",
+                "genre").ConfigureAwait(false);
+            result.Genre ??= ResolveNames(pending.GenreIds, _genreNames);
+        }
+
+        if (request.Developer)
+        {
+            await EnsureNamesAsync(
+                apiKey,
+                "Developers/ByDeveloperID",
+                pending.DeveloperIds,
+                _developerNames,
+                cancellationToken,
+                "developers",
+                "developer").ConfigureAwait(false);
+            await EnsureNamesAsync(
+                apiKey,
+                "Publishers/ByPublisherID",
+                pending.PublisherIds,
+                _publisherNames,
+                cancellationToken,
+                "publishers",
+                "publisher").ConfigureAwait(false);
+            result.Developer ??= ResolveNames(pending.DeveloperIds, _developerNames)
+                                 ?? ResolveNames(pending.PublisherIds, _publisherNames);
+        }
+
+        if (request.Publisher)
+        {
+            await EnsureNamesAsync(
+                apiKey,
+                "Publishers/ByPublisherID",
+                pending.PublisherIds,
+                _publisherNames,
+                cancellationToken,
+                "publishers",
+                "publisher").ConfigureAwait(false);
+            result.Publisher ??= ResolveNames(pending.PublisherIds, _publisherNames);
+        }
     }
 
     private async Task EnsureNamesAsync(

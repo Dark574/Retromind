@@ -280,6 +280,10 @@ the report never mutates JSON or deletes files.
   time, and requests from one ScreenScraper profile are additionally serialized so concurrent dialogs also respect
   a one-thread account. Provider responses for exhausted concurrency, daily-request, or daily-no-match allowances
   stop the current bulk job instead of issuing further requests that cannot succeed
+- bulk scraping derives a per-item enrichment request from the configured import fields, existing-data policy, and
+  already stored artwork. Providers with selective enrichment use it to avoid optional metadata or artwork calls
+  whose results would not be applied; manual scraping still enriches the selected result completely so every value
+  remains available for explicit selection
 - `RetroAchievementsHashService` maps provider-neutral game-system identifiers to the console IDs from the
   pinned rcheevos version and generates official system-specific hashes through the bundled
   `libretromind-rhash.so`; compressed CHD disc images are decoded by the statically bundled libchdr adapter,

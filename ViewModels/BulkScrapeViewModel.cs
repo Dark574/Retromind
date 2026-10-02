@@ -226,7 +226,12 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                     if (match != null)
                     {
                         if (provider is IMetadataResultEnricher enricher)
-                            await enricher.EnrichAsync(match, token);
+                        {
+                            var enrichmentRequest = MetadataEnrichmentRequest.ForBulk(
+                                item,
+                                _settings.ScraperImport);
+                            await enricher.EnrichAsync(match, enrichmentRequest, token);
+                        }
 
                         // Buffer log in worker thread (no UI)
                         AppendLogBuffer(

@@ -47,6 +47,19 @@ public interface IMetadataResultEnricher
     /// Implementations should leave already populated fields unchanged.
     /// </summary>
     Task EnrichAsync(ScraperSearchResult result, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads only supplemental data the caller intends to use. Providers that
+    /// do not support selective enrichment retain their existing all-or-nothing
+    /// behavior, but can still skip enrichment when nothing was requested.
+    /// </summary>
+    Task EnrichAsync(
+        ScraperSearchResult result,
+        MetadataEnrichmentRequest request,
+        CancellationToken cancellationToken = default) =>
+        request.HasAny
+            ? EnrichAsync(result, cancellationToken)
+            : Task.CompletedTask;
 }
 
 /// <summary>

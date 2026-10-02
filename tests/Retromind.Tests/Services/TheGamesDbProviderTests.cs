@@ -67,6 +67,32 @@ public sealed class TheGamesDbProviderTests
     }
 
     [Fact]
+    public async Task EnrichAsync_SelectiveRequest_LoadsOnlyRequestedSupplementalData()
+    {
+        var requests = new List<Uri>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            requests.Add(request.RequestUri!);
+            return request.RequestUri!.AbsolutePath.EndsWith("/Genres/ByGenreID", StringComparison.Ordinal)
+                ? JsonResponse(NamePayload("genres", "10", "Action"))
+                : JsonResponse(SearchPayload(remaining: 100));
+        }));
+        var provider = CreateProvider(client);
+
+        var result = Assert.Single(await provider.SearchForBulkAsync("Test Game"));
+        await provider.EnrichAsync(result, new MetadataEnrichmentRequest { Genre = true });
+
+        Assert.Equal("Action", result.Genre);
+        Assert.Null(result.Developer);
+        Assert.Null(result.Publisher);
+        Assert.Equal(2, requests.Count);
+        Assert.Contains(requests, uri => uri.AbsolutePath.EndsWith("/Genres/ByGenreID", StringComparison.Ordinal));
+        Assert.DoesNotContain(requests, uri => uri.AbsolutePath.EndsWith("/Developers/ByDeveloperID", StringComparison.Ordinal));
+        Assert.DoesNotContain(requests, uri => uri.AbsolutePath.EndsWith("/Publishers/ByPublisherID", StringComparison.Ordinal));
+        Assert.DoesNotContain(requests, uri => uri.AbsolutePath.EndsWith("/Games/Images", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ReportedExhaustedAllowance_BlocksFurtherRequests()
     {
         var requestCount = 0;

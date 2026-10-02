@@ -117,27 +117,34 @@ public sealed class SteamGridDbProvider :
         // All additional artwork is loaded generically when a result is selected.
     }
 
+    public Task EnrichAsync(
+        ScraperSearchResult result,
+        CancellationToken cancellationToken = default) =>
+        EnrichAsync(result, MetadataEnrichmentRequest.All, cancellationToken);
+
     public async Task EnrichAsync(
         ScraperSearchResult result,
+        MetadataEnrichmentRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(request);
 
-        if (string.IsNullOrWhiteSpace(result.Id))
+        if (string.IsNullOrWhiteSpace(result.Id) || !request.HasAnyArtwork)
             return;
 
         var gameId = Uri.EscapeDataString(result.Id);
-        var coverTask = string.IsNullOrWhiteSpace(result.CoverUrl)
+        var coverTask = request.Cover && string.IsNullOrWhiteSpace(result.CoverUrl)
             ? TryGetFirstAssetUrlAsync(
                 $"/grids/game/{gameId}?dimensions=600x900,342x482,660x930,512x512,1024x1024&{SafeStaticAssetQuery}",
                 cancellationToken)
             : Task.FromResult<string?>(null);
-        var wallpaperTask = string.IsNullOrWhiteSpace(result.WallpaperUrl)
+        var wallpaperTask = request.Wallpaper && string.IsNullOrWhiteSpace(result.WallpaperUrl)
             ? TryGetFirstAssetUrlAsync(
                 $"/heroes/game/{gameId}?{SafeStaticAssetQuery}",
                 cancellationToken)
             : Task.FromResult<string?>(null);
-        var logoTask = string.IsNullOrWhiteSpace(result.LogoUrl)
+        var logoTask = request.Logo && string.IsNullOrWhiteSpace(result.LogoUrl)
             ? TryGetFirstAssetUrlAsync(
                 $"/logos/game/{gameId}?{SafeStaticAssetQuery}",
                 cancellationToken)
