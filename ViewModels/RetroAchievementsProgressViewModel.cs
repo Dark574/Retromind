@@ -19,6 +19,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private readonly AppSettings _settings;
     private readonly IRetroAchievementsProgressService _progressService;
     private readonly IRetroAchievementsBadgeService _badgeService;
+    private readonly TimeSpan _selectionDelay;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _badgeLoadCts;
     private MediaItem? _selectedItem;
@@ -37,11 +38,16 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     public RetroAchievementsProgressViewModel(
         AppSettings settings,
         IRetroAchievementsProgressService progressService,
-        IRetroAchievementsBadgeService badgeService)
+        IRetroAchievementsBadgeService badgeService,
+        TimeSpan selectionDelay = default)
     {
+        if (selectionDelay < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(selectionDelay));
+
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _progressService = progressService ?? throw new ArgumentNullException(nameof(progressService));
         _badgeService = badgeService ?? throw new ArgumentNullException(nameof(badgeService));
+        _selectionDelay = selectionDelay;
         RefreshCommand = new AsyncRelayCommand(
             () => SelectItemAsync(_selectedItem, forceRefresh: true),
             CanRefresh);
@@ -242,6 +248,9 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
         try
         {
+            if (!forceRefresh && _selectionDelay > TimeSpan.Zero)
+                await Task.Delay(_selectionDelay, requestCts.Token);
+
             var snapshot = await _progressService
                 .GetProgressAsync(gameId, forceRefresh, requestCts.Token);
             if (!IsCurrentRequest(requestCts, item, gameId))

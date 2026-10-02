@@ -21,6 +21,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- debounce desktop RetroAchievements progress requests while rapidly changing the selected item
 - stop TheGamesDB bulk scraping cleanly when the provider reports an exhausted request allowance
 - stop ScreenScraper bulk scraping cleanly when the provider reports an exhausted request allowance
 - keep authors, subtitles, release years and issue names from weakening automatic book and comic title matching

@@ -329,14 +329,15 @@ the report never mutates JSON or deletes files.
   gameplay; when a refresh encounters a temporary API failure, the last memory or disk snapshot is returned with
   its original timestamp and an explicit fallback flag
 - `RetroAchievementsProgressViewModel` owns the cancelable selection-driven loading state for the desktop media
-  details. Identified games show achievement and hardcore summaries plus the ordered achievement definitions with
-  points, description, casual/hardcore state, and unlock time. The view exposes an explicit refresh action and
-  labels persisted fallback data when the service is temporarily unavailable. After a regular tracked game
-  session, the still-selected game's progress is refreshed automatically; test launches and untracked launcher
-  handoffs do not trigger that refresh. Badge paths are loaded lazily when the detailed achievement list is first
-  expanded, use bounded concurrency, and are cancelled when the selected game changes; unavailable images leave
-  the remaining achievement card intact. The detailed achievement-card list is collapsed by default, retains its
-  state across refreshes of the same game, and collapses again when the selected game changes
+  details. Desktop selections are briefly debounced so rapidly skipped games do not start short-lived HTTP requests;
+  explicit refreshes remain immediate. Identified games show achievement and hardcore summaries plus the ordered
+  achievement definitions with points, description, casual/hardcore state, and unlock time. The view exposes an
+  explicit refresh action and labels persisted fallback data when the service is temporarily unavailable. After a
+  regular tracked game session, the still-selected game's progress is refreshed automatically; test launches and
+  untracked launcher handoffs do not trigger that refresh. Badge paths are loaded lazily when the detailed
+  achievement list is first expanded, use bounded concurrency, and are cancelled when the selected game changes;
+  unavailable images leave the remaining achievement card intact. The detailed achievement-card list is collapsed
+  by default, retains its state across refreshes of the same game, and collapses again when the selected game changes
 - BigMode owns a separate `RetroAchievementsProgressViewModel` so its selection cannot overwrite desktop detail
   state. Identified selections are debounced before loading, stale progress is cleared immediately, and Attract
   Mode never starts progress requests. Themes consume the compact summary through

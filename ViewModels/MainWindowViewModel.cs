@@ -447,7 +447,8 @@ public partial class MainWindowViewModel : ViewModelBase
         RetroAchievementsProgress = new RetroAchievementsProgressViewModel(
             _currentSettings,
             _retroAchievementsProgressService,
-            _retroAchievementsBadgeService);
+            _retroAchievementsBadgeService,
+            selectionDelay: TimeSpan.FromMilliseconds(300));
         if (_settingsService.HasLoadFailure)
         {
             SettingsLoadErrorMessage = T(

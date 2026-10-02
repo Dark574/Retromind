@@ -362,6 +362,29 @@ public sealed class RetroAchievementsProgressViewModelTests
     }
 
     [Fact]
+    public async Task SelectItemAsync_DebouncesProgressRequestsWhileSelectionChanges()
+    {
+        var requestedGameIds = new List<int>();
+        using var viewModel = CreateViewModel(
+            (gameId, forceRefresh, cancellationToken) =>
+            {
+                requestedGameIds.Add(gameId);
+                return Task.FromResult(CreateSnapshot(gameId));
+            },
+            selectionDelay: TimeSpan.FromMilliseconds(50));
+
+        var firstLoad = viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 123));
+        var secondLoad = viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 456));
+
+        await Task.WhenAll(firstLoad, secondLoad);
+
+        Assert.Equal([456], requestedGameIds);
+        Assert.Equal(456, viewModel.Snapshot?.Progress.GameId);
+        Assert.False(viewModel.IsLoading);
+        Assert.False(viewModel.ShowStatus);
+    }
+
+    [Fact]
     public async Task SelectItemAsync_HidesExistingProgressWhenIntegrationIsDisabled()
     {
         var settings = CreateSettings();
@@ -411,14 +434,16 @@ public sealed class RetroAchievementsProgressViewModelTests
     private static RetroAchievementsProgressViewModel CreateViewModel(
         Func<int, bool, CancellationToken, Task<RetroAchievementsProgressSnapshot>> getProgress,
         Func<string?, bool, CancellationToken, Task<string?>>? getBadge = null,
-        AppSettings? settings = null)
+        AppSettings? settings = null,
+        TimeSpan selectionDelay = default)
     {
         settings ??= CreateSettings();
         return new RetroAchievementsProgressViewModel(
             settings,
             new StubProgressService(getProgress),
             new StubBadgeService(getBadge ?? ((badgeName, isUnlocked, cancellationToken) =>
-                Task.FromResult<string?>(null))));
+                Task.FromResult<string?>(null))),
+            selectionDelay);
     }
 
     private static AppSettings CreateSettings() =>
