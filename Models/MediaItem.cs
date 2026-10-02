@@ -177,6 +177,7 @@ public partial class MediaItem : ObservableObject
     /// Returns all manual/document assets associated with this item.
     /// Each entry is a MediaAsset with Type = Manual and a library-relative path
     /// </summary>
+    [JsonIgnore]
     public IReadOnlyList<MediaAsset> ManualAssets =>
         Assets.Where(a => a.Type == AssetType.Manual).ToList();
 
