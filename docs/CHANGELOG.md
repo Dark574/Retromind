@@ -23,6 +23,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Fixed
 - debounce desktop RetroAchievements progress requests while rapidly changing the selected item
 - avoid recording cancelled process tracking as a completed play session
+- prevent concurrent Retromind instances from overwriting the same portable data
 - recheck TheGamesDB availability after its reported allowance refresh timer expires
 - stop TheGamesDB bulk scraping cleanly when the provider reports an exhausted request allowance
 - stop ScreenScraper bulk scraping cleanly when the provider reports an exhausted request allowance

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using Avalonia;
 using LibVLCSharp.Shared;
@@ -17,6 +18,30 @@ internal sealed class Program
         bool isBigModeOnly = args.Contains("--bigmode");
         bool useWayland = ConfigureLinuxDisplayBackend(args);
 
+        ApplicationInstanceLock applicationInstanceLock;
+        try
+        {
+            applicationInstanceLock = ApplicationInstanceLock.Acquire(AppPaths.DataRoot);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine(
+                "[Startup] Retromind is already running for this data directory, " +
+                "or the exclusive instance lock is unavailable.");
+            Console.Error.WriteLine($"[Startup] Data directory: {AppPaths.DataRoot}");
+            Console.Error.WriteLine($"[Startup] Lock error: {ex.Message}");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        using (applicationInstanceLock)
+        {
+            RunApplication(args, isBigModeOnly, useWayland);
+        }
+    }
+
+    private static void RunApplication(string[] args, bool isBigModeOnly, bool useWayland)
+    {
         // AppImage portability: redirect XDG dirs into a local "Home" folder.
         // Safe to call before Avalonia initialization.
         PortableEnvironment.ApplyPortableXdgPaths();
