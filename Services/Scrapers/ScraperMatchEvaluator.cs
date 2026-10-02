@@ -31,6 +31,82 @@ public static class ScraperMatchEvaluator
     private const double MinimumLeadOverRunnerUp = 0.06;
     private const int ShortTitleLength = 4;
 
+    private static readonly char[] PlatformSeparators = [',', '/', ';', '|', '&'];
+
+    private static readonly HashSet<string> PlatformVendorPrefixes = new(StringComparer.Ordinal)
+    {
+        "atari",
+        "bandai",
+        "commodore",
+        "mattel",
+        "microsoft",
+        "nec",
+        "nintendo",
+        "sega",
+        "snk",
+        "sony"
+    };
+
+    // Only unambiguous full-name aliases belong here. Platform matching is a
+    // confidence bonus, so an unknown spelling is safer than a false match.
+    private static readonly Dictionary<string, string> PlatformAliases = new(StringComparer.Ordinal)
+    {
+        ["pc"] = "pc",
+        ["windows"] = "pc",
+        ["microsoft windows"] = "pc",
+        ["pc windows"] = "pc",
+        ["pc microsoft windows"] = "pc",
+        ["dos"] = "dos",
+        ["ms dos"] = "dos",
+        ["pc dos"] = "dos",
+        ["pc ms dos"] = "dos",
+        ["mac"] = "macos",
+        ["mac os"] = "macos",
+        ["macos"] = "macos",
+        ["os x"] = "macos",
+        ["playstation"] = "playstation",
+        ["playstation 1"] = "playstation",
+        ["ps1"] = "playstation",
+        ["psx"] = "playstation",
+        ["playstation 2"] = "playstation 2",
+        ["ps2"] = "playstation 2",
+        ["playstation portable"] = "playstation portable",
+        ["psp"] = "playstation portable",
+        ["nintendo entertainment system"] = "nes",
+        ["nintendo entertainment system nes"] = "nes",
+        ["entertainment system"] = "nes",
+        ["nes"] = "nes",
+        ["super nintendo"] = "snes",
+        ["super nintendo entertainment system"] = "snes",
+        ["super nintendo snes"] = "snes",
+        ["super famicom"] = "snes",
+        ["snes"] = "snes",
+        ["nintendo 64"] = "nintendo 64",
+        ["n64"] = "nintendo 64",
+        ["nintendo ds"] = "nintendo ds",
+        ["nds"] = "nintendo ds",
+        ["ds"] = "nintendo ds",
+        ["game boy"] = "game boy",
+        ["gb"] = "game boy",
+        ["game boy color"] = "game boy color",
+        ["gbc"] = "game boy color",
+        ["game boy advance"] = "game boy advance",
+        ["gba"] = "game boy advance",
+        ["gamecube"] = "gamecube",
+        ["mega drive"] = "mega drive",
+        ["genesis"] = "mega drive",
+        ["sega cd"] = "mega cd",
+        ["mega cd"] = "mega cd",
+        ["pc engine"] = "pc engine",
+        ["turbografx 16"] = "pc engine",
+        ["pc engine cd"] = "pc engine cd",
+        ["turbografx cd"] = "pc engine cd",
+        ["commodore 64"] = "c64",
+        ["c64"] = "c64",
+        ["mame"] = "arcade",
+        ["arcade mame"] = "arcade"
+    };
+
     private static readonly string[] EditionSuffixes =
     [
         " game of the year edition",
@@ -318,13 +394,41 @@ public static class ScraperMatchEvaluator
         if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
             return false;
 
-        var leftTokens = NormalizeTitle(left).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var rightTokens = NormalizeTitle(right).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (leftTokens.Length == 0 || rightTokens.Length == 0)
+        var leftNames = NormalizePlatformNames(left);
+        if (leftNames.Count == 0)
             return false;
 
-        var leftSet = new HashSet<string>(leftTokens, StringComparer.Ordinal);
-        return rightTokens.Any(leftSet.Contains);
+        return NormalizePlatformNames(right).Any(leftNames.Contains);
+    }
+
+    private static HashSet<string> NormalizePlatformNames(string value)
+    {
+        return value
+            .Split(PlatformSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(NormalizePlatformName)
+            .Where(name => name.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private static string NormalizePlatformName(string value)
+    {
+        var normalized = NormalizeTitle(value);
+        if (PlatformAliases.TryGetValue(normalized, out var alias))
+            return alias;
+
+        var tokens = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length > 1 && PlatformVendorPrefixes.Contains(tokens[0]))
+        {
+            var withoutVendor = string.Join(' ', tokens.Skip(1));
+            // Keep numeric-only platform names qualified (for example Atari
+            // 2600), since a bare number is not a reliable platform identity.
+            if (withoutVendor.Any(char.IsLetter))
+                normalized = withoutVendor;
+        }
+
+        return PlatformAliases.TryGetValue(normalized, out alias)
+            ? alias
+            : normalized;
     }
 
     private sealed record ScoredResult(ScraperSearchResult Result, double Score, int ProviderOrder);

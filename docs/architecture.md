@@ -373,8 +373,9 @@ the report never mutates JSON or deletes files.
 - the manual metadata dialog presents changed fields individually; artwork imports are additive and never
   silently replace existing files
 - `ScraperMatchEvaluator` gates automatic bulk imports by normalized title similarity, optional platform/year
-  signals, a minimum confidence, and a lead over the runner-up; ambiguous or unsafe results are logged but
-  not imported
+  signals, a minimum confidence, and a lead over the runner-up. Platform bonuses require equal canonical names or
+  explicit unambiguous aliases; sharing a vendor or family word is insufficient. Ambiguous or unsafe results are
+  logged but not imported
 
 For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 
