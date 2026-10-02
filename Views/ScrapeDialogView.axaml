@@ -20,6 +20,7 @@
             <ComboBox Grid.Row="1" Grid.Column="0"
                       ItemsSource="{Binding AvailableScrapers}"
                       SelectedItem="{Binding SelectedScraper}"
+                      IsEnabled="{Binding !IsBusy}"
                       HorizontalAlignment="Stretch">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>

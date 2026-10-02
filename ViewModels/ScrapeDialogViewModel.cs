@@ -137,7 +137,8 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         if (_disposed)
             return;
 
-        if (SelectedScraper == null || string.IsNullOrWhiteSpace(SearchQuery))
+        var selectedScraper = SelectedScraper;
+        if (selectedScraper == null || string.IsNullOrWhiteSpace(SearchQuery))
             return;
 
         // Cancel previous search (avoid out-of-order results + unnecessary traffic).
@@ -151,7 +152,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
 
         try
         {
-            var provider = await _metadataService.GetProviderAsync(SelectedScraper.Id, token);
+            var provider = await _metadataService.GetProviderAsync(selectedScraper.Id, token);
             if (provider == null)
             {
                 StatusMessage = Strings.Metadata_Error_ProviderNotAvailable;
@@ -213,11 +214,9 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedScraperChanged(ScraperConfig? value)
     {
+        _searchCts?.Cancel();
         CancelPreviewEnrichment();
-        _enrichedResults.Clear();
-        MetadataChoices.Clear();
-        ArtworkChoices.Clear();
-        RefreshChoiceCommandStates();
+        ClearSearchResultState();
         IsPreviewBusy = false;
     }
 
