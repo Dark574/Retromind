@@ -274,6 +274,36 @@ public partial class BigModeViewModel
         UpdateCircularItems();
     }
 
+    private void RememberCurrentItemSelection()
+    {
+        if (IsHomeActive ||
+            !IsGameListActive ||
+            CurrentNode == null ||
+            SelectedItem == null ||
+            !Items.Contains(SelectedItem))
+        {
+            return;
+        }
+
+        _lastSelectedItemIdByNodeId[CurrentNode.Id] = SelectedItem.Id;
+    }
+
+    private MediaItem? RestoreRememberedItemSelection(
+        MediaNode node,
+        ObservableCollection<MediaItem> visibleItems)
+    {
+        if (_lastSelectedItemIdByNodeId.TryGetValue(node.Id, out var itemId))
+        {
+            var rememberedItem = visibleItems.FirstOrDefault(item => item.Id == itemId);
+            if (rememberedItem != null)
+                return rememberedItem;
+
+            _lastSelectedItemIdByNodeId.Remove(node.Id);
+        }
+
+        return visibleItems.FirstOrDefault();
+    }
+
 
     /// <summary>
     /// Builds a root-to-node path for a target node id (used for CoreApp -> BigMode fallback).

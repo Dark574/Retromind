@@ -404,6 +404,7 @@ public partial class BigModeViewModel
 
     private async Task OpenHomeLibraryNodeAsync(MediaNode node)
     {
+        RememberCurrentItemSelection();
         ResetToRootState();
 
         if (!TryBuildNavigationPathFromNodeId(node.Id, out var path))

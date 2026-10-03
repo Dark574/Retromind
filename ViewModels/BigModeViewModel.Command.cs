@@ -452,7 +452,7 @@ public partial class BigModeViewModel
                 // Theme context is also the leaf node.
                 ThemeContextNode = node;
 
-                SelectedItem = Items.FirstOrDefault();
+                SelectedItem = RestoreRememberedItemSelection(node, Items);
 
                 TriggerPreviewPlaybackWithDebounce();
             }
@@ -499,6 +499,7 @@ public partial class BigModeViewModel
         // If we are currently in the game list, go back to category view first.
         if (IsGameListActive)
         {
+            RememberCurrentItemSelection();
             IsGameListActive = false;
 
             // Clear item list in category view.

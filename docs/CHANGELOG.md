@@ -22,6 +22,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- restore each category's last selected game when revisiting it during a BigMode session
 - wait for actual dispatcher render passes before starting or transitioning BigMode video playback
 - stop an active BigMode attract-mode spin as soon as the user provides input
 - persist left navigation pane resizing through the existing debounced settings save

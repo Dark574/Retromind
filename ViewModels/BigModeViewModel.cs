@@ -42,6 +42,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private readonly Stack<ObservableCollection<MediaNode>> _navigationStack = new();
     private readonly Stack<string> _titleStack = new();
     private readonly Stack<MediaNode> _navigationPath = new();
+    private readonly Dictionary<string, string> _lastSelectedItemIdByNodeId = new();
 
     private bool _isLaunching;
     private bool _isCloseRequestInProgress;
