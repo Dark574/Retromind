@@ -20,6 +20,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - support quota-conscious ScreenScraper bulk scraping with exact ROM identification and safe title fallback
 
 ### Changed
+- virtualize the Default BigMode theme's category and game lists for large libraries
 - group the GOG media action directly behind the regular add-media action in main-view context menus
 - guard manually cloned library snapshots with an exhaustive persistence contract test
 - continue first-run guidance into empty categories and open setup directly on the emulator tab
