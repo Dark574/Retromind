@@ -14,6 +14,7 @@ public partial class BigModeViewModel
     private DispatcherTimer? _attractTimer;
     private DateTime _lastUserInputUtc;
     private int _attractStepsExecuted;
+    private int _attractAnimationGeneration;
     private bool _isAttractAnimating;
 
     // Minimum delay between visual attract-mode steps so that users can
@@ -29,6 +30,8 @@ public partial class BigModeViewModel
 
     private void StopAttractModeTimer()
     {
+        Interlocked.Increment(ref _attractAnimationGeneration);
+
         try
         {
             if (_attractTimer != null)
@@ -141,12 +144,14 @@ public partial class BigModeViewModel
             return;
 
         _isAttractAnimating = true;
+        var generation = Interlocked.Increment(ref _attractAnimationGeneration);
 
         try
         {
             await UiThreadHelper.InvokeAsync(() =>
             {
-                if (Volatile.Read(ref _disposed) == 1)
+                if (Volatile.Read(ref _disposed) == 1 ||
+                    generation != Volatile.Read(ref _attractAnimationGeneration))
                     return;
 
                 IsInAttractMode = true;
@@ -156,6 +161,9 @@ public partial class BigModeViewModel
                 // the on-screen content do not show mismatched titles.
                 StopVideo();
             }, DispatcherPriority.Background);
+
+            if (generation != Volatile.Read(ref _attractAnimationGeneration))
+                return;
 
             // Optional attract-mode sound (best effort).
             if (!string.IsNullOrWhiteSpace(_theme.AttractModeSoundPath))
@@ -178,7 +186,8 @@ public partial class BigModeViewModel
 
             for (int i = 0; i < steps; i++)
             {
-                if (Volatile.Read(ref _disposed) == 1)
+                if (Volatile.Read(ref _disposed) == 1 ||
+                    generation != Volatile.Read(ref _attractAnimationGeneration))
                     break;
 
                 if (!IsGameListActive || Items.Count == 0 || _isLaunching)
@@ -199,7 +208,8 @@ public partial class BigModeViewModel
             }
 
             // Finally jump to a random title.
-            if (IsGameListActive && Items is { Count: > 0 } && !_isLaunching)
+            if (generation == Volatile.Read(ref _attractAnimationGeneration) &&
+                IsGameListActive && Items is { Count: > 0 } && !_isLaunching)
             {
                 var currentIndex = SelectedItemIndex >= 0 && SelectedItemIndex < Items.Count
                     ? SelectedItemIndex
@@ -212,7 +222,8 @@ public partial class BigModeViewModel
 
                 await UiThreadHelper.InvokeAsync(() =>
                 {
-                    if (Volatile.Read(ref _disposed) == 1)
+                    if (Volatile.Read(ref _disposed) == 1 ||
+                        generation != Volatile.Read(ref _attractAnimationGeneration))
                         return;
 
                     if (!IsGameListActive || Items.Count == 0)
@@ -251,7 +262,8 @@ public partial class BigModeViewModel
             {
                 await UiThreadHelper.InvokeAsync(() =>
                 {
-                    if (Volatile.Read(ref _disposed) == 1)
+                    if (Volatile.Read(ref _disposed) == 1 ||
+                        generation != Volatile.Read(ref _attractAnimationGeneration))
                         return;
 
                     IsInAttractMode = false;
@@ -271,7 +283,12 @@ public partial class BigModeViewModel
     /// </summary>
     private void ResetAttractIdleTimer()
     {
+        Interlocked.Increment(ref _attractAnimationGeneration);
         _lastUserInputUtc = DateTime.UtcNow;
         _attractStepsExecuted = 0;
+
+        // A real input must take ownership immediately. The running spin observes
+        // the generation change before its next step and skips its final random pick.
+        IsInAttractMode = false;
     }
 }

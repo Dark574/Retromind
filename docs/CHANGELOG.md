@@ -22,6 +22,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- stop an active BigMode attract-mode spin as soon as the user provides input
 - persist left navigation pane resizing through the existing debounced settings save
 - reject structurally invalid library JSON before it can bypass backup recovery or overwrite valid data
 - keep derived absolute paths and other computed asset properties out of saved library data
