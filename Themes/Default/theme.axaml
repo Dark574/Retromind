@@ -58,6 +58,7 @@
                             Url="{Binding ActiveWallpaperPath}"
                             DecodeWidth="1920"
                             DisableCache="True"
+                            FadeDurationMs="700"
                             Stretch="UniformToFill"
                             Opacity="0.30"
                             HorizontalAlignment="Center"
@@ -163,6 +164,8 @@
                              BorderThickness="0"
                              Padding="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ext:ThemeProperties.FadeDurationMs="220"
+                             ext:ThemeProperties.MoveDurationMs="220"
                              helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              IsVisible="{Binding IsCategorySelectionActive}">
                         <ListBox.ItemsPanel>
@@ -190,6 +193,8 @@
                              BorderThickness="0"
                              Padding="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ext:ThemeProperties.FadeDurationMs="220"
+                             ext:ThemeProperties.MoveDurationMs="220"
                              helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              IsVisible="{Binding IsGameListActive}">
                         <ListBox.ItemsPanel>
