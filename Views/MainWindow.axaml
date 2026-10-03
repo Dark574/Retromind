@@ -249,11 +249,11 @@
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
                                                              CommandParameter="{Binding .}"
                                                              FontWeight="Bold" />
-                                                   <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddEmpty}"
-                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddEmptyMediaCommand}"
-                                                             CommandParameter="{Binding .}" />
                                                    <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogMediaMenuText}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddGogMediaCommand}"
+                                                             CommandParameter="{Binding .}" />
+                                                   <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddEmpty}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddEmptyMediaCommand}"
                                                              CommandParameter="{Binding .}" />
 
                                                    <Separator />
