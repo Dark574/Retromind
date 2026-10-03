@@ -110,7 +110,7 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- TAB 2: CONTROLLER -->
+            <!-- TAB 2: CONTROLS -->
             <TabItem Header="{Binding SettingsTabControllerTitle}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="16" Margin="10,10,20,20">
@@ -170,6 +170,37 @@
 
                         <Button Content="{Binding ResetControllerBindingsText}"
                                 Command="{Binding ResetControllerBindingsCommand}"
+                                HorizontalAlignment="Left" />
+
+                        <Border Classes="section">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="{Binding KeyboardActionsTitle}"
+                                           FontWeight="Bold"
+                                           FontSize="16" />
+                                <TextBlock Text="{Binding KeyboardCaptureHint}"
+                                           Opacity="0.65"
+                                           TextWrapping="Wrap" />
+                                <ItemsControl ItemsSource="{Binding KeyboardBindings}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:KeyboardBindingRowViewModel">
+                                            <Grid ColumnDefinitions="220,*" Margin="0,3">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Label}"
+                                                           VerticalAlignment="Center" />
+                                                <Button Grid.Column="1"
+                                                        Content="{Binding KeyText}"
+                                                        Command="{Binding CaptureCommand}"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Left" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Button Content="{Binding ResetKeyboardBindingsText}"
+                                Command="{Binding ResetKeyboardBindingsCommand}"
                                 HorizontalAlignment="Left" />
                     </StackPanel>
                 </ScrollViewer>

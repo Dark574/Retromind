@@ -439,6 +439,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     {
         _rootNodes = rootNodes ?? throw new ArgumentNullException(nameof(rootNodes));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _settings.KeyboardBindings ??= new KeyboardBindingSettings();
         _theme = theme ?? throw new ArgumentNullException(nameof(theme));
         _soundEffectService = soundEffectService ?? throw new ArgumentNullException(nameof(soundEffectService));
         _gamepadService = gamepadService ?? throw new ArgumentNullException(nameof(gamepadService));

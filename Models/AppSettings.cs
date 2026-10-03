@@ -99,6 +99,11 @@ public class AppSettings
     public ControllerBindingSettings ControllerBindings { get; set; } = new();
 
     /// <summary>
+    /// User-configurable keyboard actions for BigMode.
+    /// </summary>
+    public KeyboardBindingSettings KeyboardBindings { get; set; } = new();
+
+    /// <summary>
     /// Master switch for event-driven metadata backups. Manual backups remain available.
     /// </summary>
     public bool EnableAutomaticMetadataBackups { get; set; } = true;

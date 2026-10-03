@@ -317,6 +317,7 @@ public partial class SettingsViewModel
         _targetSettings.RootBigModeThemePath = committed.RootBigModeThemePath;
         _targetSettings.EnableBigModeHomeScreen = committed.EnableBigModeHomeScreen;
         _targetSettings.ControllerBindings = committed.ControllerBindings;
+        _targetSettings.KeyboardBindings = committed.KeyboardBindings;
         _targetSettings.EnableAutomaticMetadataBackups = committed.EnableAutomaticMetadataBackups;
         _targetSettings.BackupBeforeBulkEdit = committed.BackupBeforeBulkEdit;
         _targetSettings.BackupBeforeBulkScrape = committed.BackupBeforeBulkScrape;
@@ -656,6 +657,7 @@ public partial class SettingsViewModel
         _disposed = true;
         _geReleaseDownloadCts?.Cancel();
         DisposeControllerBindings();
+        DisposeKeyboardBindings();
 
         if (!IsSaved && IgnoreLeadingArticlesInSort != _originalIgnoreLeadingArticlesInSort)
         {

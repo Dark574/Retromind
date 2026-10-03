@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Input;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -30,9 +31,12 @@ public partial class BigModeViewModel
 
     public string HomeTitle => "RETROMIND";
     public string HomeLabel => T("BigMode.Home.Title", "Home");
-    public string HomeHintText => T(
-        "BigMode.Home.Hint",
-        "Y / Triangle / Home · Library    A / Cross / Enter · Open");
+    public string HomeHintText => string.Format(
+        T("BigMode.Home.Hint", "{0} / {1} · Library    {2} / {3} · Open"),
+        ControllerButtonDisplayHelper.Format(_settings.ControllerBindings.Home),
+        KeyboardBindingHelper.Format(_settings.KeyboardBindings.Home, Key.Home),
+        ControllerButtonDisplayHelper.Format(_settings.ControllerBindings.Select),
+        KeyboardBindingHelper.Format(_settings.KeyboardBindings.Select, Key.Enter));
 
     [ObservableProperty]
     private bool _isHomeActive;

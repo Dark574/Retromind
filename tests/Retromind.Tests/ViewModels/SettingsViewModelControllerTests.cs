@@ -1,4 +1,5 @@
 using System.Net;
+using Avalonia.Input;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
@@ -96,6 +97,58 @@ public sealed class SettingsViewModelControllerTests
 
         Assert.Equal(ControllerButton.LeftTrigger, targetSettings.ControllerBindings.PreviousPage);
         Assert.Equal(ControllerButton.RightShoulder, targetSettings.ControllerBindings.NextPage);
+    }
+
+    [Fact]
+    public async Task CapturingUsedKeyboardKey_SwapsBindingsAndPersistsOnSave()
+    {
+        var targetSettings = new AppSettings();
+        using var viewModel = CreateViewModel(targetSettings);
+        var systemMenu = Assert.Single(viewModel.KeyboardBindings, row =>
+            row.Target == KeyboardBindingTarget.SystemMenu);
+        var nextPage = Assert.Single(viewModel.KeyboardBindings, row =>
+            row.Target == KeyboardBindingTarget.NextPage);
+
+        viewModel.CompleteKeyboardCapture(systemMenu, Key.PageDown);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(Key.PageDown, systemMenu.Key);
+        Assert.Equal(Key.F10, nextPage.Key);
+        Assert.Equal("PageDown", targetSettings.KeyboardBindings.SystemMenu);
+        Assert.Equal("F10", targetSettings.KeyboardBindings.NextPage);
+    }
+
+    [Fact]
+    public async Task ResetKeyboardBindings_RestoresDefaultsOnlyOnSave()
+    {
+        var targetSettings = new AppSettings
+        {
+            KeyboardBindings = new KeyboardBindingSettings { SystemMenu = "F9" }
+        };
+        using var viewModel = CreateViewModel(targetSettings);
+
+        viewModel.ResetKeyboardBindingsCommand.Execute(null);
+
+        Assert.Equal("F9", targetSettings.KeyboardBindings.SystemMenu);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+        Assert.Equal("F10", targetSettings.KeyboardBindings.SystemMenu);
+    }
+
+    [Fact]
+    public void KeyboardCapture_IgnoresModifierCombinationsAndWaitsForAPlainKey()
+    {
+        using var viewModel = CreateViewModel(new AppSettings());
+        var details = Assert.Single(viewModel.KeyboardBindings, row =>
+            row.Target == KeyboardBindingTarget.Details);
+        details.CaptureCommand.Execute(null);
+
+        Assert.True(viewModel.TryCompleteKeyboardCapture(Key.K, KeyModifiers.Control));
+        Assert.True(details.IsCapturing);
+        Assert.Equal(Key.I, details.Key);
+
+        Assert.True(viewModel.TryCompleteKeyboardCapture(Key.K, KeyModifiers.None));
+        Assert.False(details.IsCapturing);
+        Assert.Equal(Key.K, details.Key);
     }
 
     private static SettingsViewModel CreateViewModel(AppSettings targetSettings)

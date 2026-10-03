@@ -35,6 +35,21 @@
     "SessionStopFirst": 9,
     "SessionStopSecond": 10
   },
+  "KeyboardBindings": {
+    "NavigateUp": "Up",
+    "NavigateDown": "Down",
+    "NavigateLeft": "Left",
+    "NavigateRight": "Right",
+    "Select": "Enter",
+    "AlternateSelect": "Space",
+    "Back": "Back",
+    "ExitBigMode": "Escape",
+    "Details": "I",
+    "Home": "Home",
+    "SystemMenu": "F10",
+    "PreviousPage": "PageUp",
+    "NextPage": "PageDown"
+  },
 
   "LastSelectedNodeId": null,
   "LastSelectedMediaId": null,

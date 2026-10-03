@@ -838,6 +838,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         LoadAvailableRootBigModeThemes();
         SelectedRootBigModeTheme = ResolveRootBigModeThemeSelection(_appSettings.RootBigModeThemePath);
         InitializeControllerBindings();
+        InitializeKeyboardBindings();
 
         // Load existing emulators
         foreach (var emu in _appSettings.Emulators) 

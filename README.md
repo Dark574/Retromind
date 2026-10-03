@@ -91,12 +91,28 @@ Default controller layout:
 | R1 / RB | Next page |
 | Hold L1 + R1 | Request stopping the tracked game session; release and hold again to confirm a forced stop |
 
-Open **Settings → Controller** to reassign the action buttons or either button of the game-stop combination by
+Open **Settings → Controls** to reassign the action buttons or either button of the game-stop combination by
 pressing the desired button on the connected controller. Directional navigation remains fixed.
 Page navigation jumps through library and category lists in groups of ten, uses the existing Home pages, and moves
 three rows at a time in the RetroAchievements browser. Page Up and Page Down provide keyboard equivalents.
 The theme-independent system menu can resume BigMode, show the active controller layout, return to the desktop
 library, or save and exit Retromind after confirmation.
+
+Default keyboard layout:
+
+| Key | Action |
+| --- | --- |
+| Arrow keys | Navigate |
+| Enter / Space | Select, open, or start |
+| Backspace | Back one level |
+| Esc | Exit BigMode directly |
+| I | Details and RetroAchievements |
+| Home | BigMode Home screen |
+| F10 | Open the system menu |
+| Page Up / Page Down | Previous / next page |
+
+Every keyboard action can also be reassigned under **Settings → Controls**. Assignments use individual keys;
+modifier combinations such as Ctrl+Key are not supported.
 
 #### HorizontalRow theme with C64 media
 
@@ -713,9 +729,10 @@ are supported through the bundled decoder.
 
 Select an identified game to see its progress in the right-hand detail panel. The achievement list can be
 expanded to show badges, descriptions, points, unlock state, and unlock time. The Default and Prism BigMode themes
-show a compact Casual/Hardcore summary after the selection has settled. In BigMode, press **X / Square** on a
-controller or **I** on the keyboard to open the detailed achievement browser. Navigate badges with the D-pad or
-arrow keys and close it with **X / Square**, **B / Circle**, or **Esc**. Badge images are downloaded lazily when
+show a compact Casual/Hardcore summary after the selection has settled. With the default controls, press
+**X / Square** on a controller or **I** on the keyboard to open the detailed achievement browser. Navigate badges
+with the D-pad or arrow keys and close it with **X / Square**, **B / Circle**, Backspace, or **Esc**. These inputs
+follow their assignments under **Settings → Controls**. Badge images are downloaded lazily when
 the detailed view is opened. Retromind refreshes the selected game after a normally tracked play session;
 **Refresh** can also be used manually in the desktop view.
 

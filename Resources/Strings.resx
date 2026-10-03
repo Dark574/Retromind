@@ -68,7 +68,7 @@
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Main menu</value></data>
     <data name="BigMode.Home.Title" xml:space="preserve"><value>Home</value></data>
-    <data name="BigMode.Home.Hint" xml:space="preserve"><value>Y / Triangle / Home · Library    A / Cross / Enter · Open</value></data>
+    <data name="BigMode.Home.Hint" xml:space="preserve"><value>{0} / {1} · Library    {2} / {3} · Open</value></data>
     <data name="BigMode.Home.Library.Back" xml:space="preserve"><value>Back</value></data>
     <data name="BigMode.Home.Library.Open" xml:space="preserve"><value>Open</value></data>
     <data name="BigMode.Home.Library.Overview" xml:space="preserve"><value>Library overview</value></data>
@@ -504,13 +504,22 @@ This action cannot be undone.</value></data>
 
     <!-- SETTINGS -->
     <data name="Settings_TabGeneral" xml:space="preserve"><value>General</value></data>
-    <data name="Settings_ControllerTab" xml:space="preserve"><value>Controller</value></data>
-    <data name="Settings_ControllerActions" xml:space="preserve"><value>BigMode actions</value></data>
+    <data name="Settings_ControllerTab" xml:space="preserve"><value>Controls</value></data>
+    <data name="Settings_ControllerActions" xml:space="preserve"><value>Controller · BigMode actions</value></data>
     <data name="Settings_ControllerNavigationHint" xml:space="preserve"><value>The D-pad and left stick remain assigned to navigation.</value></data>
     <data name="Settings_ControllerSessionStop" xml:space="preserve"><value>Stop a running game</value></data>
     <data name="Settings_ControllerSessionStopHint" xml:space="preserve"><value>Hold both buttons for two seconds. Release and hold them again to confirm a forced stop.</value></data>
     <data name="Settings_ControllerReset" xml:space="preserve"><value>Restore defaults</value></data>
     <data name="Settings_ControllerCapturePrompt" xml:space="preserve"><value>Press a controller button …</value></data>
+    <data name="Settings_KeyboardActions" xml:space="preserve"><value>Keyboard · BigMode actions</value></data>
+    <data name="Settings_KeyboardCaptureHint" xml:space="preserve"><value>Select an assignment, then press one key. Modifier combinations are not supported.</value></data>
+    <data name="Settings_KeyboardReset" xml:space="preserve"><value>Restore keyboard defaults</value></data>
+    <data name="Settings_KeyboardCapturePrompt" xml:space="preserve"><value>Press a key …</value></data>
+    <data name="Settings_KeyboardNavigateUp" xml:space="preserve"><value>Navigate up</value></data>
+    <data name="Settings_KeyboardNavigateDown" xml:space="preserve"><value>Navigate down</value></data>
+    <data name="Settings_KeyboardNavigateLeft" xml:space="preserve"><value>Navigate left</value></data>
+    <data name="Settings_KeyboardNavigateRight" xml:space="preserve"><value>Navigate right</value></data>
+    <data name="Settings_KeyboardAlternateSelect" xml:space="preserve"><value>Select / start (alternative)</value></data>
     <data name="Settings_ControllerSelect" xml:space="preserve"><value>Select / start</value></data>
     <data name="Settings_ControllerBack" xml:space="preserve"><value>Back</value></data>
     <data name="Settings_ControllerDetails" xml:space="preserve"><value>Details / achievements</value></data>
@@ -534,10 +543,16 @@ This action cannot be undone.</value></data>
     <data name="ControllerButton_Paddle3" xml:space="preserve"><value>Paddle 3</value></data>
     <data name="ControllerButton_Paddle4" xml:space="preserve"><value>Paddle 4</value></data>
     <data name="ControllerButton_Touchpad" xml:space="preserve"><value>Touchpad click</value></data>
+    <data name="KeyboardKey_Enter" xml:space="preserve"><value>Enter</value></data>
+    <data name="KeyboardKey_Space" xml:space="preserve"><value>Space</value></data>
+    <data name="KeyboardKey_Back" xml:space="preserve"><value>Backspace</value></data>
+    <data name="KeyboardKey_Home" xml:space="preserve"><value>Home</value></data>
+    <data name="KeyboardKey_PageUp" xml:space="preserve"><value>Page Up</value></data>
+    <data name="KeyboardKey_PageDown" xml:space="preserve"><value>Page Down</value></data>
     <data name="BigMode_SystemMenuTitle" xml:space="preserve"><value>System menu</value></data>
-    <data name="BigMode_SystemMenuHintFormat" xml:space="preserve"><value>{0} · System menu</value></data>
+    <data name="BigMode_SystemMenuHintFormat" xml:space="preserve"><value>{0} / {1} · System menu</value></data>
     <data name="BigMode_ControllerBindingsTitle" xml:space="preserve"><value>Controller layout</value></data>
-    <data name="BigMode_ControllerBindingsHint" xml:space="preserve"><value>These assignments can be changed under Settings → Controller.</value></data>
+    <data name="BigMode_ControllerBindingsHint" xml:space="preserve"><value>These assignments can be changed under Settings → Controls.</value></data>
     <data name="BigMode_ExitConfirmationTitle" xml:space="preserve"><value>Exit Retromind?</value></data>
     <data name="BigMode_ExitConfirmationText" xml:space="preserve"><value>Retromind will save pending changes before closing.</value></data>
     <data name="BigMode_SystemMenuControlsFormat" xml:space="preserve"><value>{0} · Select    {1} · Back</value></data>
@@ -570,7 +585,7 @@ This action cannot be undone.</value></data>
     <data name="Settings_RootBigModeTheme" xml:space="preserve"><value>BigMode theme for the main level</value></data>
     <data name="Settings_RootBigModeTheme_Hint" xml:space="preserve"><value>Controls the top-level category view only. Main categories keep their own themes.</value></data>
     <data name="Settings_EnableBigModeHomeScreen" xml:space="preserve"><value>Use the BigMode Home screen</value></data>
-    <data name="Settings_EnableBigModeHomeScreen_Hint" xml:space="preserve"><value>Shows Home when BigMode starts without an explicit media selection and enables switching with Y / Triangle.</value></data>
+    <data name="Settings_EnableBigModeHomeScreen_Hint" xml:space="preserve"><value>Shows Home when BigMode starts without an explicit media selection and enables switching with the configured Home action.</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Choose which data is copied from scraper results. Not every provider supplies every field.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Default for existing metadata</value></data>
@@ -1118,8 +1133,8 @@ The current application settings will be kept.</value></data>
     <data name="Settings_RetroAchievementsEnable" xml:space="preserve"><value>Enable RetroAchievements integration</value></data>
     <data name="Settings_RetroAchievementsShowInBigMode" xml:space="preserve"><value>Show RetroAchievements progress in BigMode</value></data>
     <data name="BigMode_AchievementsOverlayTitle" xml:space="preserve"><value>RetroAchievements</value></data>
-    <data name="BigMode_AchievementsOverlayHint" xml:space="preserve"><value>X / Square · Achievements    I · Keyboard</value></data>
-    <data name="BigMode_AchievementsOverlayControls" xml:space="preserve"><value>D-pad · Select achievement    X / Square, B / Circle or Esc · Close</value></data>
+    <data name="BigMode_AchievementsOverlayHint" xml:space="preserve"><value>{0} / {1} · Achievements</value></data>
+    <data name="BigMode_AchievementsOverlayControls" xml:space="preserve"><value>D-pad · Select achievement    {0} / {1} / {2} · Close</value></data>
     <data name="Settings_RetroAchievementsUsername" xml:space="preserve"><value>Username</value></data>
     <data name="Settings_RetroAchievementsApiKey" xml:space="preserve"><value>Web API key</value></data>
     <data name="Settings_RetroAchievementsApiKeyHint" xml:space="preserve"><value>The key is stored in the system keyring when available and never written to Retromind settings or metadata backups. Without an available keyring, it remains available only for the current session. Leave the field empty to keep the stored key.</value></data>

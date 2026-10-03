@@ -1,8 +1,10 @@
 using System;
 using System.ComponentModel;
 using System.Linq;
+using Avalonia.Input;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
 
@@ -38,13 +40,18 @@ public partial class BigModeViewModel
         "BigMode_AchievementsOverlayTitle",
         "RetroAchievements");
 
-    public string AchievementsOverlayHintText => T(
-        "BigMode_AchievementsOverlayHint",
-        "X / Square · Achievements    I · Keyboard");
+    public string AchievementsOverlayHintText => string.Format(
+        T("BigMode_AchievementsOverlayHint", "{0} / {1} · Achievements"),
+        ControllerButtonDisplayHelper.Format(_settings.ControllerBindings.Details),
+        KeyboardBindingHelper.Format(_settings.KeyboardBindings.Details, Key.I));
 
-    public string AchievementsOverlayControlsText => T(
-        "BigMode_AchievementsOverlayControls",
-        "D-pad · Select achievement    X / Square, B / Circle or Esc · Close");
+    public string AchievementsOverlayControlsText => string.Format(
+        T(
+            "BigMode_AchievementsOverlayControls",
+            "D-pad · Select achievement    {0} / {1} / {2} · Close"),
+        ControllerButtonDisplayHelper.Format(_settings.ControllerBindings.Back),
+        KeyboardBindingHelper.Format(_settings.KeyboardBindings.Back, Key.Back),
+        KeyboardBindingHelper.Format(_settings.KeyboardBindings.ExitBigMode, Key.Escape));
 
     private void InitializeRetroAchievementsOverlay()
     {

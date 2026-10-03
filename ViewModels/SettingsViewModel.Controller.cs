@@ -74,7 +74,7 @@ public partial class SettingsViewModel
     public ObservableCollection<ControllerBindingRowViewModel> ControllerSessionStopBindings { get; } = new();
     public IRelayCommand ResetControllerBindingsCommand { get; private set; } = null!;
 
-    public string SettingsTabControllerTitle => T("Settings_ControllerTab", "Controller");
+    public string SettingsTabControllerTitle => T("Settings_ControllerTab", "Controls");
     public string ControllerActionsTitle => T("Settings_ControllerActions", "BigMode actions");
     public string ControllerNavigationHint => T(
         "Settings_ControllerNavigationHint",
@@ -147,6 +147,8 @@ public partial class SettingsViewModel
 
     private void BeginControllerCapture(ControllerBindingRowViewModel row)
     {
+        CancelKeyboardCapture();
+
         ControllerBindingRowViewModel? previous;
         var cancelCurrent = false;
         lock (_controllerCaptureGate)

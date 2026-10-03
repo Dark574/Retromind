@@ -743,77 +743,7 @@ public partial class MainWindow : Window
 
         // If we found the view model, forward the key to its commands.
         if (bigVm != null)
-        {
-            switch (e.Key)
-            {
-                case Key.F10:
-                    bigVm.ToggleSystemMenu();
-                    e.Handled = true;
-                    break;
-                case Key.PageUp:
-                    bigVm.NavigatePage(-1);
-                    e.Handled = true;
-                    break;
-                case Key.PageDown:
-                    bigVm.NavigatePage(1);
-                    e.Handled = true;
-                    break;
-                case Key.Up:
-                    if (!bigVm.IsHomeActive && !bigVm.IsAchievementsOverlayOpen && !bigVm.IsSystemMenuOpen)
-                        bigVm.NotifyKeyboardScrollStart();
-                    bigVm.NavigateFromKeyboard(GamepadService.GamepadDirection.Up);
-                    e.Handled = true;
-                    break;
-                case Key.Down:
-                    if (!bigVm.IsHomeActive && !bigVm.IsAchievementsOverlayOpen && !bigVm.IsSystemMenuOpen)
-                        bigVm.NotifyKeyboardScrollStart();
-                    bigVm.NavigateFromKeyboard(GamepadService.GamepadDirection.Down);
-                    e.Handled = true;
-                    break;
-                case Key.Left when bigVm.IsAchievementsOverlayOpen || bigVm.IsHomeActive || bigVm.IsSystemMenuOpen:
-                    bigVm.NavigateFromKeyboard(GamepadService.GamepadDirection.Left);
-                    e.Handled = true;
-                    break;
-                case Key.Right when bigVm.IsAchievementsOverlayOpen || bigVm.IsHomeActive || bigVm.IsSystemMenuOpen:
-                    bigVm.NavigateFromKeyboard(GamepadService.GamepadDirection.Right);
-                    e.Handled = true;
-                    break;
-                case Key.Home:
-                    if (!bigVm.IsSystemMenuOpen)
-                        bigVm.ToggleHomeCommand.Execute(null);
-                    e.Handled = true;
-                    break;
-                case Key.Enter:
-                    if (bigVm.IsSystemMenuOpen)
-                        bigVm.ActivateSystemMenuSelection();
-                    else if (!bigVm.IsAchievementsOverlayOpen)
-                        bigVm.PlayCurrentCommand.Execute(null);
-                    e.Handled = true;
-                    break;
-                case Key.Space:
-                    if (bigVm.IsSystemMenuOpen)
-                        bigVm.ActivateSystemMenuSelection();
-                    else if (!bigVm.IsAchievementsOverlayOpen)
-                        bigVm.PlayCurrentCommand.Execute(null);
-                    e.Handled = true;
-                    break;
-                case Key.I when e.KeyModifiers == KeyModifiers.None:
-                    if (!bigVm.IsSystemMenuOpen)
-                        bigVm.ToggleAchievementsOverlay();
-                    e.Handled = true;
-                    break;
-                case Key.Escape:
-                    if (!bigVm.HandleSystemMenuBack() && !bigVm.CloseAchievementsOverlay())
-                        bigVm.HardExitBigModeCommand.Execute(null);
-                    e.Handled = true;
-                    break;
-                case Key.Back:
-                    if (!bigVm.HandleSystemMenuBack() && !bigVm.CloseAchievementsOverlay())
-                        bigVm.ExitBigModeCommand.Execute(null);
-                    e.Handled = true;
-                    break;
-            }
-        }
+            e.Handled = bigVm.HandleKeyboardKeyDown(e.Key, e.KeyModifiers);
 
         if (e.Handled)
             return;
@@ -836,20 +766,7 @@ public partial class MainWindow : Window
         if (bigVm == null)
             return;
 
-        switch (e.Key)
-        {
-            case Key.Up:
-            case Key.Down:
-                if (!bigVm.IsHomeActive && !bigVm.IsAchievementsOverlayOpen)
-                    bigVm.NotifyKeyboardScrollEnd();
-                e.Handled = true;
-                break;
-            case Key.Left:
-            case Key.Right:
-                if (bigVm.IsAchievementsOverlayOpen)
-                    e.Handled = true;
-                break;
-        }
+        e.Handled = bigVm.HandleKeyboardKeyUp(e.Key);
     }
 
     private static BigModeViewModel? ResolveBigModeViewModel(MainWindowViewModel vm)

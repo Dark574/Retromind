@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Retromind.Resources;
 using Retromind.ViewModels;
@@ -13,6 +14,16 @@ public partial class SettingsView : Window
     public SettingsView()
     {
         InitializeComponent();
+        AddHandler(KeyDownEvent, OnKeyboardCaptureKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    private void OnKeyboardCaptureKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is SettingsViewModel vm &&
+            vm.TryCompleteKeyboardCapture(e.Key, e.KeyModifiers))
+        {
+            e.Handled = true;
+        }
     }
 
     protected override async void OnClosing(WindowClosingEventArgs e)

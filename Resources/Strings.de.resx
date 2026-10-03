@@ -68,7 +68,7 @@
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Hauptmenü</value></data>
     <data name="BigMode.Home.Title" xml:space="preserve"><value>Start</value></data>
-    <data name="BigMode.Home.Hint" xml:space="preserve"><value>Y / Dreieck / Pos1 · Bibliothek    A / Kreuz / Enter · Öffnen</value></data>
+    <data name="BigMode.Home.Hint" xml:space="preserve"><value>{0} / {1} · Bibliothek    {2} / {3} · Öffnen</value></data>
     <data name="BigMode.Home.Library.Back" xml:space="preserve"><value>Zurück</value></data>
     <data name="BigMode.Home.Library.Open" xml:space="preserve"><value>Öffnen</value></data>
     <data name="BigMode.Home.Library.Overview" xml:space="preserve"><value>Bibliotheksübersicht</value></data>
@@ -505,13 +505,22 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
 
     <!-- SETTINGS -->
     <data name="Settings_TabGeneral" xml:space="preserve"><value>Allgemein</value></data>
-    <data name="Settings_ControllerTab" xml:space="preserve"><value>Controller</value></data>
-    <data name="Settings_ControllerActions" xml:space="preserve"><value>BigMode-Aktionen</value></data>
+    <data name="Settings_ControllerTab" xml:space="preserve"><value>Steuerung</value></data>
+    <data name="Settings_ControllerActions" xml:space="preserve"><value>Controller · BigMode-Aktionen</value></data>
     <data name="Settings_ControllerNavigationHint" xml:space="preserve"><value>Steuerkreuz und linker Stick bleiben fest für die Navigation belegt.</value></data>
     <data name="Settings_ControllerSessionStop" xml:space="preserve"><value>Laufendes Spiel beenden</value></data>
     <data name="Settings_ControllerSessionStopHint" xml:space="preserve"><value>Beide Tasten zwei Sekunden halten. Loslassen und erneut halten, um eine Zwangsbeendigung zu bestätigen.</value></data>
     <data name="Settings_ControllerReset" xml:space="preserve"><value>Standardbelegung wiederherstellen</value></data>
     <data name="Settings_ControllerCapturePrompt" xml:space="preserve"><value>Controller-Taste drücken …</value></data>
+    <data name="Settings_KeyboardActions" xml:space="preserve"><value>Tastatur · BigMode-Aktionen</value></data>
+    <data name="Settings_KeyboardCaptureHint" xml:space="preserve"><value>Eine Belegung auswählen und anschließend eine einzelne Taste drücken. Tastenkombinationen werden nicht unterstützt.</value></data>
+    <data name="Settings_KeyboardReset" xml:space="preserve"><value>Tastatur-Standardbelegung wiederherstellen</value></data>
+    <data name="Settings_KeyboardCapturePrompt" xml:space="preserve"><value>Taste drücken …</value></data>
+    <data name="Settings_KeyboardNavigateUp" xml:space="preserve"><value>Nach oben navigieren</value></data>
+    <data name="Settings_KeyboardNavigateDown" xml:space="preserve"><value>Nach unten navigieren</value></data>
+    <data name="Settings_KeyboardNavigateLeft" xml:space="preserve"><value>Nach links navigieren</value></data>
+    <data name="Settings_KeyboardNavigateRight" xml:space="preserve"><value>Nach rechts navigieren</value></data>
+    <data name="Settings_KeyboardAlternateSelect" xml:space="preserve"><value>Auswählen / starten (alternativ)</value></data>
     <data name="Settings_ControllerSelect" xml:space="preserve"><value>Auswählen / starten</value></data>
     <data name="Settings_ControllerBack" xml:space="preserve"><value>Zurück</value></data>
     <data name="Settings_ControllerDetails" xml:space="preserve"><value>Details / Erfolge</value></data>
@@ -535,10 +544,16 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="ControllerButton_Paddle3" xml:space="preserve"><value>Paddle 3</value></data>
     <data name="ControllerButton_Paddle4" xml:space="preserve"><value>Paddle 4</value></data>
     <data name="ControllerButton_Touchpad" xml:space="preserve"><value>Touchpad-Klick</value></data>
+    <data name="KeyboardKey_Enter" xml:space="preserve"><value>Enter</value></data>
+    <data name="KeyboardKey_Space" xml:space="preserve"><value>Leertaste</value></data>
+    <data name="KeyboardKey_Back" xml:space="preserve"><value>Rücktaste</value></data>
+    <data name="KeyboardKey_Home" xml:space="preserve"><value>Pos1</value></data>
+    <data name="KeyboardKey_PageUp" xml:space="preserve"><value>Bild ↑</value></data>
+    <data name="KeyboardKey_PageDown" xml:space="preserve"><value>Bild ↓</value></data>
     <data name="BigMode_SystemMenuTitle" xml:space="preserve"><value>Systemmenü</value></data>
-    <data name="BigMode_SystemMenuHintFormat" xml:space="preserve"><value>{0} · Systemmenü</value></data>
+    <data name="BigMode_SystemMenuHintFormat" xml:space="preserve"><value>{0} / {1} · Systemmenü</value></data>
     <data name="BigMode_ControllerBindingsTitle" xml:space="preserve"><value>Controllerbelegung</value></data>
-    <data name="BigMode_ControllerBindingsHint" xml:space="preserve"><value>Diese Belegung kann unter Einstellungen → Controller geändert werden.</value></data>
+    <data name="BigMode_ControllerBindingsHint" xml:space="preserve"><value>Diese Belegung kann unter Einstellungen → Steuerung geändert werden.</value></data>
     <data name="BigMode_ExitConfirmationTitle" xml:space="preserve"><value>Retromind beenden?</value></data>
     <data name="BigMode_ExitConfirmationText" xml:space="preserve"><value>Retromind speichert ausstehende Änderungen vor dem Beenden.</value></data>
     <data name="BigMode_SystemMenuControlsFormat" xml:space="preserve"><value>{0} · Auswählen    {1} · Zurück</value></data>
@@ -571,7 +586,7 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_RootBigModeTheme" xml:space="preserve"><value>BigMode-Theme der Hauptebene</value></data>
     <data name="Settings_RootBigModeTheme_Hint" xml:space="preserve"><value>Gilt nur für die oberste Kategorieansicht. Die Hauptkategorien behalten ihre eigenen Themes.</value></data>
     <data name="Settings_EnableBigModeHomeScreen" xml:space="preserve"><value>BigMode-Startbildschirm verwenden</value></data>
-    <data name="Settings_EnableBigModeHomeScreen_Hint" xml:space="preserve"><value>Zeigt den Startbildschirm, wenn BigMode ohne ausgewähltes Medium startet, und aktiviert den Wechsel mit Y / Dreieck.</value></data>
+    <data name="Settings_EnableBigModeHomeScreen_Hint" xml:space="preserve"><value>Zeigt den Startbildschirm, wenn BigMode ohne ausgewähltes Medium startet, und aktiviert den Wechsel mit der konfigurierten Home-Aktion.</value></data>
     <data name="Settings_SectionScraperImport" xml:space="preserve"><value>Scraper-Import</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Lege fest, welche Daten aus Scraper-Treffern übernommen werden. Nicht jeder Anbieter liefert alle aufgeführten Inhalte.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Voreinstellung für vorhandene Metadaten</value></data>
@@ -1120,8 +1135,8 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="Settings_RetroAchievementsEnable" xml:space="preserve"><value>RetroAchievements-Integration aktivieren</value></data>
     <data name="Settings_RetroAchievementsShowInBigMode" xml:space="preserve"><value>RetroAchievements-Fortschritt im BigMode anzeigen</value></data>
     <data name="BigMode_AchievementsOverlayTitle" xml:space="preserve"><value>RetroAchievements</value></data>
-    <data name="BigMode_AchievementsOverlayHint" xml:space="preserve"><value>X / Quadrat · Achievements    I · Tastatur</value></data>
-    <data name="BigMode_AchievementsOverlayControls" xml:space="preserve"><value>Steuerkreuz · Achievement wählen    X / Quadrat, B / Kreis oder Esc · Schließen</value></data>
+    <data name="BigMode_AchievementsOverlayHint" xml:space="preserve"><value>{0} / {1} · Achievements</value></data>
+    <data name="BigMode_AchievementsOverlayControls" xml:space="preserve"><value>Steuerkreuz · Achievement wählen    {0} / {1} / {2} · Schließen</value></data>
     <data name="Settings_RetroAchievementsUsername" xml:space="preserve"><value>Benutzername</value></data>
     <data name="Settings_RetroAchievementsApiKey" xml:space="preserve"><value>Web-API-Key</value></data>
     <data name="Settings_RetroAchievementsApiKeyHint" xml:space="preserve"><value>Der Key wird nach Möglichkeit im System-Schlüsselbund gespeichert und nie in die Retromind-Einstellungen oder Metadaten-Backups geschrieben. Ohne verfügbaren Schlüsselbund bleibt er nur für die laufende Sitzung verfügbar. Lass das Feld leer, um den gespeicherten Key beizubehalten.</value></data>
