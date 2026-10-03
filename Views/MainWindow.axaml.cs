@@ -103,7 +103,10 @@ public partial class MainWindow : Window
     private void OnWindowDeactivated(object? sender, EventArgs e)
     {
         if (DataContext is MainWindowViewModel vm)
+        {
             vm.SetGamepadUiInputEnabled(false);
+            ResolveBigModeViewModel(vm)?.NotifyKeyboardScrollEnd();
+        }
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
