@@ -931,6 +931,11 @@ Ungespeicherte Änderungen bleiben im Arbeitsspeicher erhalten. Bitte prüfe den
 
 Die vorhandenen Bibliotheksdateien werden nicht überschrieben. Beende Retromind und prüfe retromind_tree.json, das Backup und die Dateiberechtigungen.</value>
     </data>
+    <data name="Persistence.InitializationFailed" xml:space="preserve">
+        <value>Retromind konnte die Medienbibliothek nicht sicher initialisieren.
+
+Vorhandene Bibliotheksdateien werden in dieser Sitzung nicht überschrieben. Beende Retromind und prüfe das Anwendungsprotokoll sowie die Bibliotheksdateien.</value>
+    </data>
     <data name="Persistence.SettingsLoadFailed" xml:space="preserve">
         <value>Retromind konnte die Anwendungseinstellungen nicht laden. Die Primärdatei und das Backup sind nicht lesbar oder ungültig.
 

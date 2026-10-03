@@ -609,6 +609,11 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
+            _libraryLoadFailed = true;
+            LibraryLoadErrorMessage = T(
+                "Persistence.InitializationFailed",
+                "Retromind could not safely initialize the media library. Existing library files will not be overwritten during this session. Close Retromind and check the application log and library files.");
+            NotifyNodeCommandsCanExecuteChanged();
             Debug.WriteLine($"[ViewModel] LoadData Error: {ex}");
         }
         finally

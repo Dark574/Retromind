@@ -21,6 +21,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- reject structurally invalid library JSON before it can bypass backup recovery or overwrite valid data
 - keep derived absolute paths and other computed asset properties out of saved library data
 - debounce desktop RetroAchievements progress requests while rapidly changing the selected item
 - avoid recording cancelled process tracking as a completed play session

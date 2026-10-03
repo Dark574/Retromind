@@ -157,6 +157,45 @@ public sealed class MediaDataServiceLoadTests
         Assert.True(Directory.Exists(temp.GetPath("retromind_tree.bak")));
     }
 
+    [Theory]
+    [InlineData("[null]", "$[0]")]
+    [InlineData("[{\"Name\":\"Node\",\"Items\":null}]", "$[0].Items")]
+    public void ValidateSerializedLibrary_RejectsNullStructuralMembers(
+        string json,
+        string expectedPath)
+    {
+        var exception = Assert.Throws<JsonException>(
+            () => MediaDataService.ValidateSerializedLibrary(json));
+
+        Assert.Contains(expectedPath, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_UsesBackupWhenPrimaryIsSemanticallyInvalid()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+        var service = new MediaDataService();
+        var backupJson = service.Serialize(
+            new ObservableCollection<MediaNode>
+            {
+                new() { Name = "Recovered" }
+            });
+        File.WriteAllText(
+            temp.GetPath("retromind_tree.json"),
+            "[{\"Name\":\"Broken\",\"Items\":null}]");
+        File.WriteAllText(temp.GetPath("retromind_tree.bak"), backupJson);
+
+        var roots = await service.LoadAsync();
+
+        Assert.Equal("Recovered", Assert.Single(roots).Name);
+        Assert.False(File.Exists(temp.GetPath("retromind_tree.json")));
+        Assert.Single(Directory.EnumerateFiles(
+            temp.RootPath,
+            "retromind_tree.json.corrupt-*",
+            SearchOption.TopDirectoryOnly));
+    }
+
     [Fact]
     public async Task LoadAsync_UsesBackupWhenPrimaryIsCorrupt()
     {
@@ -197,6 +236,26 @@ public sealed class MediaDataServiceLoadTests
         Assert.IsType<JsonException>(exception.BackupError);
         Assert.False(File.Exists(temp.GetPath("retromind_tree.json")));
         Assert.Equal("{ invalid backup", File.ReadAllText(backupPath));
+    }
+
+    [Fact]
+    public async Task LoadAsync_ThrowsWhenPrimaryAndBackupAreSemanticallyInvalid()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+        var backupPath = temp.GetPath("retromind_tree.bak");
+        File.WriteAllText(temp.GetPath("retromind_tree.json"), "[null]");
+        File.WriteAllText(backupPath, "[{\"Name\":\"Broken backup\",\"Children\":null}]");
+
+        var exception = await Assert.ThrowsAsync<LibraryLoadException>(
+            () => new MediaDataService().LoadAsync());
+
+        Assert.IsType<JsonException>(exception.PrimaryError);
+        Assert.IsType<JsonException>(exception.BackupError);
+        Assert.False(File.Exists(temp.GetPath("retromind_tree.json")));
+        Assert.Equal(
+            "[{\"Name\":\"Broken backup\",\"Children\":null}]",
+            File.ReadAllText(backupPath));
     }
 
     [Fact]

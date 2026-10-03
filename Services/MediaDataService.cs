@@ -138,8 +138,10 @@ public class MediaDataService
         if (string.IsNullOrWhiteSpace(json))
             throw new JsonException("The serialized library is empty.");
 
-        _ = JsonSerializer.Deserialize<ObservableCollection<MediaNode>>(json)
+        var roots = JsonSerializer.Deserialize<ObservableCollection<MediaNode>>(json)
             ?? throw new JsonException("The serialized library contains null instead of a media tree.");
+
+        ValidateLibraryStructure(roots);
     }
 
     /// <summary>
@@ -251,10 +253,120 @@ public class MediaDataService
     private static async Task<ObservableCollection<MediaNode>> LoadFromFileAsync(string path)
     {
         using var stream = File.OpenRead(path);
-        return await JsonSerializer.DeserializeAsync<ObservableCollection<MediaNode>>(stream)
-                   .ConfigureAwait(false)
-               ?? throw new JsonException($"Library file '{path}' contains null instead of a media tree.");
+        var roots = await JsonSerializer.DeserializeAsync<ObservableCollection<MediaNode>>(stream)
+                        .ConfigureAwait(false)
+                    ?? throw new JsonException($"Library file '{path}' contains null instead of a media tree.");
+
+        ValidateLibraryStructure(roots);
+        return roots;
     }
+
+    private static void ValidateLibraryStructure(ObservableCollection<MediaNode> roots)
+    {
+        for (var nodeIndex = 0; nodeIndex < roots.Count; nodeIndex++)
+            ValidateNode(roots[nodeIndex], $"$[{nodeIndex}]");
+    }
+
+    private static void ValidateNode(MediaNode? node, string path)
+    {
+        if (node == null)
+            throw InvalidNull(path);
+
+        if (node.Assets == null)
+            throw InvalidNull($"{path}.Assets");
+        for (var assetIndex = 0; assetIndex < node.Assets.Count; assetIndex++)
+        {
+            if (node.Assets[assetIndex] == null)
+                throw InvalidNull($"{path}.Assets[{assetIndex}]");
+        }
+
+        if (node.Items == null)
+            throw InvalidNull($"{path}.Items");
+        for (var itemIndex = 0; itemIndex < node.Items.Count; itemIndex++)
+            ValidateItem(node.Items[itemIndex], $"{path}.Items[{itemIndex}]");
+
+        if (node.Children == null)
+            throw InvalidNull($"{path}.Children");
+        for (var childIndex = 0; childIndex < node.Children.Count; childIndex++)
+            ValidateNode(node.Children[childIndex], $"{path}.Children[{childIndex}]");
+
+        ValidateDictionaryValues(node.EnvironmentOverrides, $"{path}.EnvironmentOverrides");
+        ValidateOptionalList(node.NativeWrappersOverride, $"{path}.NativeWrappersOverride");
+    }
+
+    private static void ValidateItem(MediaItem? item, string path)
+    {
+        if (item == null)
+            throw InvalidNull(path);
+
+        if (item.Assets == null)
+            throw InvalidNull($"{path}.Assets");
+        for (var assetIndex = 0; assetIndex < item.Assets.Count; assetIndex++)
+        {
+            if (item.Assets[assetIndex] == null)
+                throw InvalidNull($"{path}.Assets[{assetIndex}]");
+        }
+
+        if (item.Files == null)
+            throw InvalidNull($"{path}.Files");
+        for (var fileIndex = 0; fileIndex < item.Files.Count; fileIndex++)
+        {
+            var file = item.Files[fileIndex];
+            if (file == null)
+                throw InvalidNull($"{path}.Files[{fileIndex}]");
+            if (file.Path == null)
+                throw InvalidNull($"{path}.Files[{fileIndex}].Path");
+        }
+
+        if (item.Tags == null)
+            throw InvalidNull($"{path}.Tags");
+        for (var tagIndex = 0; tagIndex < item.Tags.Count; tagIndex++)
+        {
+            if (item.Tags[tagIndex] == null)
+                throw InvalidNull($"{path}.Tags[{tagIndex}]");
+        }
+
+        if (item.CustomFields == null)
+            throw InvalidNull($"{path}.CustomFields");
+        ValidateDictionaryValues(item.CustomFields, $"{path}.CustomFields");
+
+        if (item.EnvironmentOverrides == null)
+            throw InvalidNull($"{path}.EnvironmentOverrides");
+        ValidateDictionaryValues(item.EnvironmentOverrides, $"{path}.EnvironmentOverrides");
+
+        ValidateOptionalList(item.NativeWrappersOverride, $"{path}.NativeWrappersOverride");
+        ValidateOptionalList(item.GogDlcInstallations, $"{path}.GogDlcInstallations");
+    }
+
+    private static void ValidateDictionaryValues(
+        Dictionary<string, string>? values,
+        string path)
+    {
+        if (values == null)
+            return;
+
+        foreach (var pair in values)
+        {
+            if (pair.Value == null)
+                throw InvalidNull($"{path}[{JsonSerializer.Serialize(pair.Key)}]");
+        }
+    }
+
+    private static void ValidateOptionalList<T>(IReadOnlyList<T>? values, string path)
+        where T : class
+    {
+        if (values == null)
+            return;
+
+        for (var index = 0; index < values.Count; index++)
+        {
+            if (values[index] == null)
+                throw InvalidNull($"{path}[{index}]");
+        }
+    }
+
+    private static JsonException InvalidNull(string path) =>
+        new($"Library member '{path}' must not be null.");
 
     private static bool PathEntryExists(string path)
     {

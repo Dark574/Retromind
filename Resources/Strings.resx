@@ -929,6 +929,11 @@ Unsaved changes remain in memory. Please check free disk space and write permiss
 
 Existing library files will not be overwritten. Close Retromind and check retromind_tree.json, its backup, and file permissions.</value>
     </data>
+    <data name="Persistence.InitializationFailed" xml:space="preserve">
+        <value>Retromind could not safely initialize the media library.
+
+Existing library files will not be overwritten during this session. Close Retromind and check the application log and library files.</value>
+    </data>
     <data name="Persistence.SettingsLoadFailed" xml:space="preserve">
         <value>Retromind could not load the application settings. The primary file and its backup are unreadable or invalid.
 
