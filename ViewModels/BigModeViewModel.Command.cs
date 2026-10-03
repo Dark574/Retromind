@@ -477,6 +477,7 @@ public partial class BigModeViewModel
         finally
         {
             _isLaunching = false;
+            ResetAttractIdleTimer();
 
             // Resume preview once the game returns (or if launch failed).
             TriggerPreviewPlaybackWithDebounce();
