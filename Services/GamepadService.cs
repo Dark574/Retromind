@@ -362,6 +362,9 @@ public sealed class GamepadService : IDisposable
 
             case GameControllerButton.B:
                 OnBack?.Invoke();
+                break;
+
+            case GameControllerButton.Back:
                 _lastBackPressedUtc = DateTime.UtcNow;
 
                 if (DateTime.UtcNow - _lastStartPressedUtc <= GuideComboWindow)
