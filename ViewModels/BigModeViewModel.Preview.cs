@@ -105,6 +105,11 @@ public partial class BigModeViewModel
     // ----------------------------
     // Entry points (host API)
     // ----------------------------
+
+    partial void OnCanShowVideoChanged(bool value)
+    {
+        TriggerPreviewPlaybackWithDebounce();
+    }
     
     /// <summary>
     /// Must be called by the host once the theme view is fully loaded/layouted.

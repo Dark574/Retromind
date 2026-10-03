@@ -718,10 +718,9 @@ public partial class BigModeHostView : UserControl
         // a secondary video slot name (e.g. via SecondaryVideoSlotName)
         AttachSecondaryVideoToSlot(subView);
 
-        // Update the VM flag so higher-level logic knows whether video can be shown.
-        // For system view we allow video when either the outer host theme or the
-        // per-system subtheme enables the primary channel.
-        vm.CanShowVideo = vm.CanShowVideo || systemTheme.PrimaryVideoEnabled;
+        // The active system subtheme owns the primary video slot and therefore
+        // determines whether the shared preview channel may be used.
+        vm.CanShowVideo = systemTheme.PrimaryVideoEnabled;
         vm.VideoFadeDurationMs = ThemeProperties.GetVideoFadeDurationMs(subView);
         _primaryVideoControl.RetainPreviousSurfaceDuringFade =
             ThemeProperties.GetVideoRetainPreviousFrameDuringFade(subView);
