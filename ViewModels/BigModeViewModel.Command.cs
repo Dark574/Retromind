@@ -545,12 +545,14 @@ public partial class BigModeViewModel
             var previousList = _navigationStack.Pop();
             var previousTitle = _titleStack.Count > 0 ? _titleStack.Pop() : Strings.BigMode_MainMenu;
 
-            if (_navigationPath.Count > 0) _navigationPath.Pop();
+            var exitedNode = _navigationPath.Count > 0 ? _navigationPath.Pop() : null;
 
             CategoryTitle = previousTitle;
             CurrentCategories = previousList;
 
-            SelectedCategory = CurrentCategories.FirstOrDefault();
+            SelectedCategory = exitedNode != null && CurrentCategories.Contains(exitedNode)
+                ? exitedNode
+                : CurrentCategories.FirstOrDefault();
 
             ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
 

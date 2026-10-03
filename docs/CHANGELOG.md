@@ -22,6 +22,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- keep the previously opened category selected when navigating back in BigMode
 - restart the BigMode attract-mode idle interval after returning from a game
 - stop BigMode's secondary background-video decoder while a game session is running
 - restore each category's last selected game when revisiting it during a BigMode session
