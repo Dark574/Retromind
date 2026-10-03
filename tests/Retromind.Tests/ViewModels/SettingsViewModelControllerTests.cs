@@ -63,6 +63,8 @@ public sealed class SettingsViewModelControllerTests
         await viewModel.SaveCommand.ExecuteAsync(null);
         Assert.Equal(ControllerButton.South, targetSettings.ControllerBindings.Select);
         Assert.Equal(ControllerButton.Start, targetSettings.ControllerBindings.SystemMenu);
+        Assert.Equal(ControllerButton.LeftShoulder, targetSettings.ControllerBindings.PreviousPage);
+        Assert.Equal(ControllerButton.RightShoulder, targetSettings.ControllerBindings.NextPage);
         Assert.Equal(ControllerButton.LeftShoulder, targetSettings.ControllerBindings.SessionStopFirst);
         Assert.Equal(ControllerButton.RightShoulder, targetSettings.ControllerBindings.SessionStopSecond);
     }
@@ -79,6 +81,21 @@ public sealed class SettingsViewModelControllerTests
         await viewModel.SaveCommand.ExecuteAsync(null);
 
         Assert.Equal(ControllerButton.RightStick, targetSettings.ControllerBindings.SystemMenu);
+    }
+
+    [Fact]
+    public async Task CapturedPageButton_IsCommittedWithOtherControllerBindings()
+    {
+        var targetSettings = new AppSettings();
+        using var viewModel = CreateViewModel(targetSettings);
+        var previousPage = Assert.Single(viewModel.ControllerActionBindings, row =>
+            row.Target == ControllerBindingTarget.PreviousPage);
+
+        viewModel.CompleteControllerCapture(previousPage, ControllerButton.LeftTrigger);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(ControllerButton.LeftTrigger, targetSettings.ControllerBindings.PreviousPage);
+        Assert.Equal(ControllerButton.RightShoulder, targetSettings.ControllerBindings.NextPage);
     }
 
     private static SettingsViewModel CreateViewModel(AppSettings targetSettings)

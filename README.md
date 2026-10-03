@@ -87,10 +87,14 @@ Default controller layout:
 | Y / Triangle | BigMode Home screen |
 | Guide / Home / PS | Exit BigMode |
 | Start / Menu / Options | Open the system menu |
+| L1 / LB | Previous page |
+| R1 / RB | Next page |
 | Hold L1 + R1 | Request stopping the tracked game session; release and hold again to confirm a forced stop |
 
 Open **Settings → Controller** to reassign the action buttons or either button of the game-stop combination by
 pressing the desired button on the connected controller. Directional navigation remains fixed.
+Page navigation jumps through library and category lists in groups of ten, uses the existing Home pages, and moves
+three rows at a time in the RetroAchievements browser. Page Up and Page Down provide keyboard equivalents.
 The theme-independent system menu can resume BigMode, show the active controller layout, return to the desktop
 library, or save and exit Retromind after confirmation.
 

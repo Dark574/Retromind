@@ -750,6 +750,14 @@ public partial class MainWindow : Window
                     bigVm.ToggleSystemMenu();
                     e.Handled = true;
                     break;
+                case Key.PageUp:
+                    bigVm.NavigatePage(-1);
+                    e.Handled = true;
+                    break;
+                case Key.PageDown:
+                    bigVm.NavigatePage(1);
+                    e.Handled = true;
+                    break;
                 case Key.Up:
                     if (!bigVm.IsHomeActive && !bigVm.IsAchievementsOverlayOpen && !bigVm.IsSystemMenuOpen)
                         bigVm.NotifyKeyboardScrollStart();

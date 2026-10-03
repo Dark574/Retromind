@@ -268,6 +268,8 @@ public partial class BigModeViewModel
         ControllerBindingOverview.Add(new BigModeControllerBindingInfoViewModel(
             T("BigMode_ControllerNavigate", "Navigate"),
             T("BigMode_ControllerNavigateInput", "D-pad / left stick")));
+        Add(T("Settings_ControllerPreviousPage", "Previous page"), bindings.PreviousPage);
+        Add(T("Settings_ControllerNextPage", "Next page"), bindings.NextPage);
         Add(T("Settings_ControllerSelect", "Select / start"), bindings.Select);
         Add(T("Settings_ControllerBack", "Back"), bindings.Back);
         Add(T("Settings_ControllerDetails", "Details / achievements"), bindings.Details);

@@ -202,6 +202,8 @@ BigMode is an overlay workflow with clear host/VM split:
 - navigation state (categories/items), selection memory, and robust restore from persisted settings
 - receives semantic controller actions from `GamepadService`; action-button assignments and the two-button
   tracked-session stop gesture live in `AppSettings.ControllerBindings`, while D-pad/left-stick navigation stays fixed
+- page-navigation actions jump bounded chunks in library lists and the achievement grid, while Home reuses its
+  native page model where available; reaching a list boundary precedes wrap-around so uneven final pages remain predictable
 - owns system-menu state and selection; application shutdown is requested through an event so the main window retains
   its normal final-save and close-failure workflow
 - the virtual library root uses `AppSettings.RootBigModeThemePath`; its selected top-level node remains

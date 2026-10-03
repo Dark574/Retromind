@@ -29,6 +29,8 @@ public sealed class GamepadService : IDisposable
     public event Action? OnHome;
     public event Action? OnExitBigMode;
     public event Action? OnSystemMenu;
+    public event Action? OnPreviousPage;
+    public event Action? OnNextPage;
     public event Action? OnSessionExitRequested;
     public event Action<ControllerButton>? OnButtonPressed;
     public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
@@ -510,6 +512,10 @@ public sealed class GamepadService : IDisposable
             OnExitBigMode?.Invoke();
         else if (button == bindings.SystemMenu)
             OnSystemMenu?.Invoke();
+        else if (button == bindings.PreviousPage)
+            OnPreviousPage?.Invoke();
+        else if (button == bindings.NextPage)
+            OnNextPage?.Invoke();
     }
 
     private void UpdateSessionExitHoldState(int instanceId, ControllerButton button, bool isPressed)

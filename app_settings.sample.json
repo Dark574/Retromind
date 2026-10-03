@@ -30,6 +30,8 @@
     "Home": 3,
     "ExitBigMode": 5,
     "SystemMenu": 6,
+    "PreviousPage": 9,
+    "NextPage": 10,
     "SessionStopFirst": 9,
     "SessionStopSecond": 10
   },

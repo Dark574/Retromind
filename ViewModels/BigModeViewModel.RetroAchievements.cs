@@ -10,6 +10,8 @@ namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
+    private const int AchievementColumnCount = 6;
+
     private static readonly TimeSpan RetroAchievementsSelectionDelay =
         TimeSpan.FromMilliseconds(450);
 
@@ -153,7 +155,6 @@ public partial class BigModeViewModel
         if (achievements.Count == 0)
             return;
 
-        const int columns = 6;
         var currentIndex = -1;
         if (SelectedAchievement != null)
         {
@@ -175,8 +176,8 @@ public partial class BigModeViewModel
                 (currentIndex - 1 + achievements.Count) % achievements.Count,
             GamepadService.GamepadDirection.Right =>
                 (currentIndex + 1) % achievements.Count,
-            GamepadService.GamepadDirection.Up => Math.Max(0, currentIndex - columns),
-            GamepadService.GamepadDirection.Down => Math.Min(achievements.Count - 1, currentIndex + columns),
+            GamepadService.GamepadDirection.Up => Math.Max(0, currentIndex - AchievementColumnCount),
+            GamepadService.GamepadDirection.Down => Math.Min(achievements.Count - 1, currentIndex + AchievementColumnCount),
             _ => currentIndex
         };
 

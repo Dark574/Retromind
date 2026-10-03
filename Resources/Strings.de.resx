@@ -518,6 +518,8 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_ControllerHome" xml:space="preserve"><value>Home-Menü</value></data>
     <data name="Settings_ControllerExitBigMode" xml:space="preserve"><value>BigMode verlassen</value></data>
     <data name="Settings_ControllerSystemMenu" xml:space="preserve"><value>Systemmenü</value></data>
+    <data name="Settings_ControllerPreviousPage" xml:space="preserve"><value>Vorherige Seite</value></data>
+    <data name="Settings_ControllerNextPage" xml:space="preserve"><value>Nächste Seite</value></data>
     <data name="Settings_ControllerSessionStopFirst" xml:space="preserve"><value>Erste Taste</value></data>
     <data name="Settings_ControllerSessionStopSecond" xml:space="preserve"><value>Zweite Taste</value></data>
     <data name="ControllerButton_South" xml:space="preserve"><value>A / Kreuz (unten)</value></data>

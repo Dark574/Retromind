@@ -17,6 +17,8 @@ internal enum ControllerBindingTarget
     Home,
     ExitBigMode,
     SystemMenu,
+    PreviousPage,
+    NextPage,
     SessionStopFirst,
     SessionStopSecond
 }
@@ -112,6 +114,8 @@ public partial class SettingsViewModel
         AddActionRow(ControllerBindingTarget.Home, T("Settings_ControllerHome", "Home screen"), bindings.Home);
         AddActionRow(ControllerBindingTarget.ExitBigMode, T("Settings_ControllerExitBigMode", "Exit BigMode"), bindings.ExitBigMode);
         AddActionRow(ControllerBindingTarget.SystemMenu, T("Settings_ControllerSystemMenu", "System menu"), bindings.SystemMenu);
+        AddActionRow(ControllerBindingTarget.PreviousPage, T("Settings_ControllerPreviousPage", "Previous page"), bindings.PreviousPage);
+        AddActionRow(ControllerBindingTarget.NextPage, T("Settings_ControllerNextPage", "Next page"), bindings.NextPage);
 
         ControllerSessionStopBindings.Add(CreateRow(
             ControllerBindingTarget.SessionStopFirst,
@@ -235,6 +239,12 @@ public partial class SettingsViewModel
                     break;
                 case ControllerBindingTarget.SystemMenu:
                     bindings.SystemMenu = row.Button;
+                    break;
+                case ControllerBindingTarget.PreviousPage:
+                    bindings.PreviousPage = row.Button;
+                    break;
+                case ControllerBindingTarget.NextPage:
+                    bindings.NextPage = row.Button;
                     break;
                 case ControllerBindingTarget.SessionStopFirst:
                     bindings.SessionStopFirst = row.Button;

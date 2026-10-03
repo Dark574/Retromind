@@ -517,6 +517,8 @@ This action cannot be undone.</value></data>
     <data name="Settings_ControllerHome" xml:space="preserve"><value>Home screen</value></data>
     <data name="Settings_ControllerExitBigMode" xml:space="preserve"><value>Exit BigMode</value></data>
     <data name="Settings_ControllerSystemMenu" xml:space="preserve"><value>System menu</value></data>
+    <data name="Settings_ControllerPreviousPage" xml:space="preserve"><value>Previous page</value></data>
+    <data name="Settings_ControllerNextPage" xml:space="preserve"><value>Next page</value></data>
     <data name="Settings_ControllerSessionStopFirst" xml:space="preserve"><value>First button</value></data>
     <data name="Settings_ControllerSessionStopSecond" xml:space="preserve"><value>Second button</value></data>
     <data name="ControllerButton_South" xml:space="preserve"><value>A / Cross (bottom)</value></data>
