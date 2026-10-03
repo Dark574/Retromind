@@ -53,11 +53,25 @@
     
     <!-- Background layer + actual content -->
     <Grid>
+        <!-- Use a screenshot only when the current game has no wallpaper. -->
+        <ext:CrossfadeImage Url="{Binding ActiveScreenshotFallbackPath}"
+                            DecodeWidth="1920"
+                            DisableCache="True"
+                            LoadDelayMs="220"
+                            FadeDurationMs="700"
+                            Stretch="UniformToFill"
+                            Opacity="0.30"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding ActiveScreenshotFallbackPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
+                            IsHitTestVisible="False" />
+
         <!-- Very transparent wallpaper from the current item -->
         <ext:CrossfadeImage x:Name="BackgroundVisual"
                             Url="{Binding ActiveWallpaperPath}"
                             DecodeWidth="1920"
                             DisableCache="True"
+                            LoadDelayMs="220"
                             FadeDurationMs="700"
                             Stretch="UniformToFill"
                             Opacity="0.30"
