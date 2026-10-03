@@ -86,10 +86,13 @@ Default controller layout:
 | X / Square | Details and RetroAchievements |
 | Y / Triangle | BigMode Home screen |
 | Guide / Home / PS | Exit BigMode |
+| Start / Menu / Options | Open the system menu |
 | Hold L1 + R1 | Request stopping the tracked game session; release and hold again to confirm a forced stop |
 
 Open **Settings → Controller** to reassign the action buttons or either button of the game-stop combination by
 pressing the desired button on the connected controller. Directional navigation remains fixed.
+The theme-independent system menu can resume BigMode, show the active controller layout, return to the desktop
+library, or save and exit Retromind after confirmation.
 
 #### HorizontalRow theme with C64 media
 

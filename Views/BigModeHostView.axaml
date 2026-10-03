@@ -29,6 +29,25 @@
             <Setter Property="BorderBrush" Value="#7BA3FF" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>
+        <Style Selector="ListBox.system-menu">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox.system-menu ListBoxItem">
+            <Setter Property="Margin" Value="0,4" />
+            <Setter Property="Padding" Value="18,13" />
+            <Setter Property="Background" Value="#50161C28" />
+            <Setter Property="BorderBrush" Value="#28FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.system-menu ListBoxItem:selected">
+            <Setter Property="Background" Value="#70305E91" />
+            <Setter Property="BorderBrush" Value="#7BA3FF" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
     </UserControl.Styles>
 
     <Grid>
@@ -52,6 +71,22 @@
                 IsHitTestVisible="False"
                 IsVisible="{Binding CanOpenAchievementsOverlay}">
             <TextBlock Text="{Binding AchievementsOverlayHintText}"
+                       Foreground="#E4ECF8"
+                       FontSize="12"
+                       FontWeight="SemiBold" />
+        </Border>
+
+        <Border HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Margin="34,0,0,28"
+                Padding="12,7"
+                Background="#C0181D27"
+                BorderBrush="#447BA3FF"
+                BorderThickness="1"
+                CornerRadius="8"
+                IsHitTestVisible="False"
+                IsVisible="{Binding !IsSystemMenuOpen}">
+            <TextBlock Text="{Binding SystemMenuHintText}"
                        Foreground="#E4ECF8"
                        FontSize="12"
                        FontWeight="SemiBold" />
@@ -216,6 +251,108 @@
                                    FontSize="12"
                                    HorizontalAlignment="Right" />
                     </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Theme-independent system menu. -->
+        <Grid Background="#E8070910"
+              IsVisible="{Binding IsSystemMenuOpen}">
+            <Border Width="900"
+                    MaxHeight="900"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="#FA0F141E"
+                    BorderBrush="#667BA3FF"
+                    BorderThickness="1"
+                    CornerRadius="18"
+                    Padding="32">
+                <Grid RowDefinitions="Auto,*,Auto"
+                      RowSpacing="22">
+                    <TextBlock Grid.Row="0"
+                               Text="{Binding SystemMenuTitle}"
+                               Foreground="White"
+                               FontSize="32"
+                               FontWeight="Bold" />
+
+                    <ListBox Grid.Row="1"
+                             Classes="system-menu"
+                             ItemsSource="{Binding SystemMenuEntries}"
+                             SelectedItem="{Binding SelectedSystemMenuEntry, Mode=TwoWay}"
+                             IsVisible="{Binding IsSystemMenuMainPage}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:BigModeSystemMenuEntryViewModel">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding Title}"
+                                               Foreground="White"
+                                               FontSize="19"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Description}"
+                                               Foreground="#AFC2DD"
+                                               FontSize="13" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel Grid.Row="1"
+                                Spacing="16"
+                                IsVisible="{Binding IsControllerBindingsPage}">
+                        <TextBlock Text="{Binding ControllerBindingsTitle}"
+                                   Foreground="White"
+                                   FontSize="24"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ControllerBindingsHint}"
+                                   Foreground="#AFC2DD"
+                                   FontSize="13"
+                                   TextWrapping="Wrap" />
+                        <ItemsControl ItemsSource="{Binding ControllerBindingOverview}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:BigModeControllerBindingInfoViewModel">
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          Margin="0,5">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding Action}"
+                                                   Foreground="#DCE5F2"
+                                                   FontSize="16" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Input}"
+                                                   Foreground="#7BA3FF"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1"
+                                Spacing="22"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding IsExitConfirmationPage}">
+                        <TextBlock Text="{Binding ExitConfirmationTitle}"
+                                   Foreground="White"
+                                   FontSize="27"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding ExitConfirmationText}"
+                                   Foreground="#BFCBE0"
+                                   FontSize="15"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   HorizontalAlignment="Center" />
+                        <ListBox Classes="system-menu"
+                                 ItemsSource="{Binding ExitConfirmationOptions}"
+                                 SelectedIndex="{Binding SelectedExitConfirmationIndex, Mode=TwoWay}"
+                                 Width="430"
+                                 HorizontalAlignment="Center" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="2"
+                               Text="{Binding SystemMenuControlsText}"
+                               Foreground="#BFCBE0"
+                               FontSize="12"
+                               HorizontalAlignment="Right" />
                 </Grid>
             </Border>
         </Grid>

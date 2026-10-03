@@ -29,6 +29,7 @@
     "Details": 2,
     "Home": 3,
     "ExitBigMode": 5,
+    "SystemMenu": 6,
     "SessionStopFirst": 9,
     "SessionStopSecond": 10
   },

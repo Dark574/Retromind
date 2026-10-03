@@ -16,6 +16,7 @@ internal enum ControllerBindingTarget
     Details,
     Home,
     ExitBigMode,
+    SystemMenu,
     SessionStopFirst,
     SessionStopSecond
 }
@@ -110,6 +111,7 @@ public partial class SettingsViewModel
         AddActionRow(ControllerBindingTarget.Details, T("Settings_ControllerDetails", "Details / achievements"), bindings.Details);
         AddActionRow(ControllerBindingTarget.Home, T("Settings_ControllerHome", "Home screen"), bindings.Home);
         AddActionRow(ControllerBindingTarget.ExitBigMode, T("Settings_ControllerExitBigMode", "Exit BigMode"), bindings.ExitBigMode);
+        AddActionRow(ControllerBindingTarget.SystemMenu, T("Settings_ControllerSystemMenu", "System menu"), bindings.SystemMenu);
 
         ControllerSessionStopBindings.Add(CreateRow(
             ControllerBindingTarget.SessionStopFirst,
@@ -231,6 +233,9 @@ public partial class SettingsViewModel
                 case ControllerBindingTarget.ExitBigMode:
                     bindings.ExitBigMode = row.Button;
                     break;
+                case ControllerBindingTarget.SystemMenu:
+                    bindings.SystemMenu = row.Button;
+                    break;
                 case ControllerBindingTarget.SessionStopFirst:
                     bindings.SessionStopFirst = row.Button;
                     break;
@@ -261,27 +266,6 @@ public partial class SettingsViewModel
             _gamepadService.OnButtonPressed -= OnControllerButtonPressed;
     }
 
-    private string FormatControllerButton(ControllerButton button) => button switch
-    {
-        ControllerButton.South => T("ControllerButton_South", "A / Cross (bottom)"),
-        ControllerButton.East => T("ControllerButton_East", "B / Circle (right)"),
-        ControllerButton.West => T("ControllerButton_West", "X / Square (left)"),
-        ControllerButton.North => T("ControllerButton_North", "Y / Triangle (top)"),
-        ControllerButton.Back => T("ControllerButton_Back", "Select / View / Share"),
-        ControllerButton.Guide => T("ControllerButton_Guide", "Guide / Home / PS"),
-        ControllerButton.Start => T("ControllerButton_Start", "Start / Menu / Options"),
-        ControllerButton.LeftStick => "L3",
-        ControllerButton.RightStick => "R3",
-        ControllerButton.LeftShoulder => "L1 / LB",
-        ControllerButton.RightShoulder => "R1 / RB",
-        ControllerButton.LeftTrigger => "L2 / LT",
-        ControllerButton.RightTrigger => "R2 / RT",
-        ControllerButton.Misc => T("ControllerButton_Misc", "Share / Capture / Misc"),
-        ControllerButton.Paddle1 => T("ControllerButton_Paddle1", "Paddle 1"),
-        ControllerButton.Paddle2 => T("ControllerButton_Paddle2", "Paddle 2"),
-        ControllerButton.Paddle3 => T("ControllerButton_Paddle3", "Paddle 3"),
-        ControllerButton.Paddle4 => T("ControllerButton_Paddle4", "Paddle 4"),
-        ControllerButton.Touchpad => T("ControllerButton_Touchpad", "Touchpad click"),
-        _ => button.ToString()
-    };
+    private static string FormatControllerButton(ControllerButton button) =>
+        ControllerButtonDisplayHelper.Format(button);
 }

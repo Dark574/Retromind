@@ -13,6 +13,7 @@ public sealed class ControllerBindingSettingsTests
         Assert.Equal(ControllerButton.South, settings.ControllerBindings.Select);
         Assert.Equal(ControllerButton.East, settings.ControllerBindings.Back);
         Assert.Equal(ControllerButton.Guide, settings.ControllerBindings.ExitBigMode);
+        Assert.Equal(ControllerButton.Start, settings.ControllerBindings.SystemMenu);
         Assert.Equal(ControllerButton.LeftShoulder, settings.ControllerBindings.SessionStopFirst);
         Assert.Equal(ControllerButton.RightShoulder, settings.ControllerBindings.SessionStopSecond);
     }

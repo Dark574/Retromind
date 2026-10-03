@@ -389,6 +389,7 @@ public partial class BigModeViewModel
         _gamepadService.OnBack -= OnGamepadBack;
         _gamepadService.OnDetails -= OnGamepadDetails;
         _gamepadService.OnHome -= OnGamepadHome;
+        _gamepadService.OnSystemMenu -= OnGamepadSystemMenu;
         DisposeHome();
         DisposeRetroAchievementsProgress();
 

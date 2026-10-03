@@ -265,6 +265,12 @@ public partial class BigModeViewModel
         if (_isLaunching)
             return;
 
+        if (IsSystemMenuOpen)
+        {
+            NavigateSystemMenu(direction);
+            return;
+        }
+
         if (IsAchievementsOverlayOpen)
         {
             NavigateAchievementsOverlay(direction);

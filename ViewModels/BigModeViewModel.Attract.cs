@@ -88,7 +88,7 @@ public partial class BigModeViewModel
         if (!_theme.AttractModeEnabled || _theme.AttractModeIdleInterval is null)
             return;
 
-        if (_isLaunching)
+        if (_isLaunching || IsSystemMenuOpen)
             return;
 
         // Attract mode only makes sense while the game list is active.

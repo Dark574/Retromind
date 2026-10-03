@@ -189,6 +189,7 @@ BigMode is an overlay workflow with clear host/VM split:
 - theme root attachment/swapping (`SetThemeContent`)
 - shared, theme-independent Home presentation for every opted-in root theme
 - shared video control attachment to theme-defined slots
+- theme-independent system menu presentation, including the live controller-binding overview and application-exit confirmation
 - system-host mode with per-system subtheme loading (`Themes/System/<id>/theme.axaml`)
 - each subtheme instance receives a fixed `SystemPreviewNode`, keeping the outgoing
   theme's node-specific bindings stable throughout the crossfade
@@ -201,6 +202,8 @@ BigMode is an overlay workflow with clear host/VM split:
 - navigation state (categories/items), selection memory, and robust restore from persisted settings
 - receives semantic controller actions from `GamepadService`; action-button assignments and the two-button
   tracked-session stop gesture live in `AppSettings.ControllerBindings`, while D-pad/left-stick navigation stays fixed
+- owns system-menu state and selection; application shutdown is requested through an event so the main window retains
+  its normal final-save and close-failure workflow
 - the virtual library root uses `AppSettings.RootBigModeThemePath`; its selected top-level node remains
   preview content only, so the root theme is never inherited into that node
 - node-aware artwork resolution and fallback overrides (logo/marquee etc.)

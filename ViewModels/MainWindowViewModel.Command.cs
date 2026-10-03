@@ -496,6 +496,8 @@ public partial class MainWindowViewModel
         // focus after an untracked protocol launch could steal it from a game
         // which is still starting through Steam or Heroic.
         bigVm.RequestPlay += item => PlayMediaFromBigModeAsync(item, bigVm, host);
+        bigVm.RequestApplicationExit += () =>
+            UiThreadHelper.InvokeAsync(() => CurrentWindow?.Close());
 
         // Attach the host while hidden so fullscreen sizing, virtualized carousel
         // realization and initial artwork loading can settle without a visible rebuild.

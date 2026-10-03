@@ -516,6 +516,7 @@ This action cannot be undone.</value></data>
     <data name="Settings_ControllerDetails" xml:space="preserve"><value>Details / achievements</value></data>
     <data name="Settings_ControllerHome" xml:space="preserve"><value>Home screen</value></data>
     <data name="Settings_ControllerExitBigMode" xml:space="preserve"><value>Exit BigMode</value></data>
+    <data name="Settings_ControllerSystemMenu" xml:space="preserve"><value>System menu</value></data>
     <data name="Settings_ControllerSessionStopFirst" xml:space="preserve"><value>First button</value></data>
     <data name="Settings_ControllerSessionStopSecond" xml:space="preserve"><value>Second button</value></data>
     <data name="ControllerButton_South" xml:space="preserve"><value>A / Cross (bottom)</value></data>
@@ -531,6 +532,25 @@ This action cannot be undone.</value></data>
     <data name="ControllerButton_Paddle3" xml:space="preserve"><value>Paddle 3</value></data>
     <data name="ControllerButton_Paddle4" xml:space="preserve"><value>Paddle 4</value></data>
     <data name="ControllerButton_Touchpad" xml:space="preserve"><value>Touchpad click</value></data>
+    <data name="BigMode_SystemMenuTitle" xml:space="preserve"><value>System menu</value></data>
+    <data name="BigMode_SystemMenuHintFormat" xml:space="preserve"><value>{0} · System menu</value></data>
+    <data name="BigMode_ControllerBindingsTitle" xml:space="preserve"><value>Controller layout</value></data>
+    <data name="BigMode_ControllerBindingsHint" xml:space="preserve"><value>These assignments can be changed under Settings → Controller.</value></data>
+    <data name="BigMode_ExitConfirmationTitle" xml:space="preserve"><value>Exit Retromind?</value></data>
+    <data name="BigMode_ExitConfirmationText" xml:space="preserve"><value>Retromind will save pending changes before closing.</value></data>
+    <data name="BigMode_SystemMenuControlsFormat" xml:space="preserve"><value>{0} · Select    {1} · Back</value></data>
+    <data name="BigMode_SystemMenuResume" xml:space="preserve"><value>Resume</value></data>
+    <data name="BigMode_SystemMenuResumeHint" xml:space="preserve"><value>Return to BigMode</value></data>
+    <data name="BigMode_SystemMenuController" xml:space="preserve"><value>Controller layout</value></data>
+    <data name="BigMode_SystemMenuControllerHint" xml:space="preserve"><value>Show the current assignments</value></data>
+    <data name="BigMode_SystemMenuExitBigMode" xml:space="preserve"><value>Exit BigMode</value></data>
+    <data name="BigMode_SystemMenuExitBigModeHint" xml:space="preserve"><value>Return to the desktop library</value></data>
+    <data name="BigMode_SystemMenuExitApplication" xml:space="preserve"><value>Exit Retromind</value></data>
+    <data name="BigMode_SystemMenuExitApplicationHint" xml:space="preserve"><value>Save and close the application</value></data>
+    <data name="BigMode_ExitConfirmationCancel" xml:space="preserve"><value>Cancel</value></data>
+    <data name="BigMode_ExitConfirmationConfirm" xml:space="preserve"><value>Exit Retromind</value></data>
+    <data name="BigMode_ControllerNavigate" xml:space="preserve"><value>Navigate</value></data>
+    <data name="BigMode_ControllerNavigateInput" xml:space="preserve"><value>D-pad / left stick</value></data>
     <data name="Settings_TabEmulators" xml:space="preserve"><value>Emulators</value></data>
     <data name="Settings_TabMetadataAndScrapers" xml:space="preserve"><value>Metadata</value></data>
     <data name="Settings_TabLaunchCompatibility" xml:space="preserve"><value>Launch</value></data>

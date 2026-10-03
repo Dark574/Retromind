@@ -62,8 +62,23 @@ public sealed class SettingsViewModelControllerTests
         Assert.Equal(ControllerButton.RightStick, targetSettings.ControllerBindings.Select);
         await viewModel.SaveCommand.ExecuteAsync(null);
         Assert.Equal(ControllerButton.South, targetSettings.ControllerBindings.Select);
+        Assert.Equal(ControllerButton.Start, targetSettings.ControllerBindings.SystemMenu);
         Assert.Equal(ControllerButton.LeftShoulder, targetSettings.ControllerBindings.SessionStopFirst);
         Assert.Equal(ControllerButton.RightShoulder, targetSettings.ControllerBindings.SessionStopSecond);
+    }
+
+    [Fact]
+    public async Task CapturedSystemMenuButton_IsCommittedWithOtherControllerBindings()
+    {
+        var targetSettings = new AppSettings();
+        using var viewModel = CreateViewModel(targetSettings);
+        var systemMenu = Assert.Single(viewModel.ControllerActionBindings, row =>
+            row.Target == ControllerBindingTarget.SystemMenu);
+
+        viewModel.CompleteControllerCapture(systemMenu, ControllerButton.RightStick);
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(ControllerButton.RightStick, targetSettings.ControllerBindings.SystemMenu);
     }
 
     private static SettingsViewModel CreateViewModel(AppSettings targetSettings)

@@ -31,6 +31,15 @@ public partial class BigModeViewModel
                 return;
             }
 
+            if (IsSystemMenuOpen)
+            {
+                if (isPressed)
+                    NavigateSystemMenu(direction);
+                else
+                    StopGamepadRepeat(direction);
+                return;
+            }
+
             if (isPressed)
             {
                 if (_gamepadRepeatDirection == direction && _gamepadRepeatTimer?.IsEnabled == true)
@@ -54,6 +63,12 @@ public partial class BigModeViewModel
 
             ResetAttractIdleTimer();
 
+            if (IsSystemMenuOpen)
+            {
+                ActivateSystemMenuSelection();
+                return;
+            }
+
             if (IsAchievementsOverlayOpen)
                 return;
 
@@ -68,6 +83,9 @@ public partial class BigModeViewModel
                 return;
 
             ResetAttractIdleTimer();
+
+            if (HandleSystemMenuBack())
+                return;
 
             if (CloseAchievementsOverlay())
             {
@@ -85,6 +103,9 @@ public partial class BigModeViewModel
             if (_isLaunching)
                 return;
 
+            if (IsSystemMenuOpen)
+                return;
+
             ResetAttractIdleTimer();
             ToggleAchievementsOverlay();
         });
@@ -93,6 +114,9 @@ public partial class BigModeViewModel
         => DispatchGamepadAction(() =>
         {
             if (_isLaunching)
+                return;
+
+            if (IsSystemMenuOpen)
                 return;
 
             _ = ToggleHomeAsync();

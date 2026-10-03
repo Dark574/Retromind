@@ -38,6 +38,7 @@ public sealed class ControllerBindingSettings
     public ControllerButton Details { get; set; } = ControllerButton.West;
     public ControllerButton Home { get; set; } = ControllerButton.North;
     public ControllerButton ExitBigMode { get; set; } = ControllerButton.Guide;
+    public ControllerButton SystemMenu { get; set; } = ControllerButton.Start;
     public ControllerButton SessionStopFirst { get; set; } = ControllerButton.LeftShoulder;
     public ControllerButton SessionStopSecond { get; set; } = ControllerButton.RightShoulder;
 }
