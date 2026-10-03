@@ -167,7 +167,7 @@ public partial class BigModeViewModel
         }
 
         // One render tick to let Avalonia process detach/layout before the root view swap.
-        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        await UiThreadHelper.YieldToDispatcherAsync(DispatcherPriority.Render);
     }
 
     // ----------------------------
@@ -1065,7 +1065,7 @@ public partial class BigModeViewModel
 
     private async Task StartPlaybackAfterRenderAsync(string videoPath, int generation, int targetIndex, int oldIndex)
     {
-        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        await UiThreadHelper.YieldToDispatcherAsync(DispatcherPriority.Render);
 
         await Task.Delay(VideoStartSettleDelay).ConfigureAwait(false);
 

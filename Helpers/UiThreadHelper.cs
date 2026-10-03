@@ -50,6 +50,17 @@ public static class UiThreadHelper
     public static Task InvokeAsync(Func<Task> func)
         => InvokeAsync(func, DispatcherPriority.Normal);
 
+    /// <summary>
+    /// Always yields to a later dispatcher pass, even when called from the UI thread.
+    /// Use this when layout or rendering must get a chance to process queued work.
+    /// </summary>
+    public static Task YieldToDispatcherAsync(DispatcherPriority priority)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Dispatcher.UIThread.Post(() => completion.TrySetResult(), priority);
+        return completion.Task;
+    }
+
     public static async Task InvokeAsync(Func<Task> func, DispatcherPriority priority)
     {
         if (func is null) throw new ArgumentNullException(nameof(func));

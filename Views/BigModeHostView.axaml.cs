@@ -54,6 +54,7 @@ public partial class BigModeHostView : UserControl
     private const int InitialPresentationFadeMs = 120;
     private int _systemLayoutTransitionGeneration;
     private int _initialPresentationGeneration;
+    private int _viewReadyGeneration;
     private int _waitingSystemVideoGeneration;
     private int _waitingSystemVideoFrameRevision;
     private bool _waitingForSystemVideoFrame;
@@ -151,6 +152,7 @@ public partial class BigModeHostView : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _initialPresentationGeneration++;
+        _viewReadyGeneration++;
         StopMouseCursorAutoHide();
         CancelDynamicAccentUpdates();
         base.OnDetachedFromVisualTree(e);
@@ -367,6 +369,7 @@ public partial class BigModeHostView : UserControl
     
     public void SetThemeContent(Control themeRoot, Theme theme)
     {
+        var viewReadyGeneration = ++_viewReadyGeneration;
         UnhookThemeTuning();
         _activeTheme = theme;
 
@@ -448,8 +451,9 @@ public partial class BigModeHostView : UserControl
             SetPrimaryVideoPresentationVisible(visible: true, animate: false);
         }
         
-        // Layout settles asynchronously; schedule VM "view ready" after render ticks
-        NotifyViewReadyAfterRender(DataContext!);
+        // Layout settles asynchronously; schedule VM "view ready" after render ticks.
+        if (vm != null)
+            _ = NotifyViewReadyAfterRenderAsync(vm, themeRoot, viewReadyGeneration);
 
     }
 
@@ -1208,16 +1212,33 @@ public partial class BigModeHostView : UserControl
         }
     }
 
-    public async void NotifyViewReadyAfterRender(object viewModel)
+    private async Task NotifyViewReadyAfterRenderAsync(
+        Retromind.ViewModels.BigModeViewModel viewModel,
+        Control themeRoot,
+        int generation)
     {
-        // Wait a few render ticks so the theme is fully built
-        // before LibVLC starts playback.
-        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
-        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
-        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        try
+        {
+            // Wait a few real dispatcher passes so the theme is fully built
+            // before LibVLC starts playback.
+            await UiThreadHelper.YieldToDispatcherAsync(DispatcherPriority.Render);
+            await UiThreadHelper.YieldToDispatcherAsync(DispatcherPriority.Render);
+            await UiThreadHelper.YieldToDispatcherAsync(DispatcherPriority.Render);
 
-        if (viewModel is Retromind.ViewModels.BigModeViewModel vm)
-            vm.NotifyViewReady();
+            if (generation != _viewReadyGeneration ||
+                !this.IsAttachedToVisualTree() ||
+                !ReferenceEquals(DataContext, viewModel) ||
+                !ReferenceEquals(_themePresenter.Content, themeRoot))
+            {
+                return;
+            }
+
+            viewModel.NotifyViewReady();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[BigModeHost] View-ready scheduling failed: {ex.Message}");
+        }
     }
 
     private static IBrush ResolveUnselectedRowBackground(ListBox listBox)

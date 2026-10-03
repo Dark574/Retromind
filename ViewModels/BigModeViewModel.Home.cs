@@ -148,7 +148,7 @@ public partial class BigModeViewModel
             ApplyHomeEntry(SelectedHomeEntry);
         }
 
-        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        await UiThreadHelper.YieldToDispatcherAsync(DispatcherPriority.Render);
         if (generation != Volatile.Read(ref _homeTransitionGeneration))
             return;
 
@@ -172,7 +172,7 @@ public partial class BigModeViewModel
         }
 
         SecondaryVideoIsPlaying = false;
-        await UiThreadHelper.InvokeAsync(static () => { }, DispatcherPriority.Render);
+        await UiThreadHelper.YieldToDispatcherAsync(DispatcherPriority.Render);
     }
 
     private void CaptureLibraryViewState()
