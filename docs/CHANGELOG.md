@@ -11,6 +11,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Added
 - allow holding L1 + R1 on a controller to request and explicitly confirm stopping a tracked game session
+- add freely assignable BigMode action buttons and game-stop combination with live controller capture and default reset
 - add the first ScreenScraper integration stage with embedded application access, optional encrypted user credentials, localized title search, metadata and artwork
 - identify supported ROM files in ScreenScraper from their game system, size, CRC32, MD5 and SHA-1 checksums
 - support quota-conscious ScreenScraper bulk scraping with exact ROM identification and safe title fallback
@@ -23,7 +24,6 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
-- use Start + Select/Back instead of Start + B/Circle for the controller Guide fallback
 - apply each BigMode system subtheme's video capability when switching systems
 - resume BigMode video previews when keyboard scrolling is interrupted by window deactivation
 - keep the previously opened category selected when navigating back in BigMode

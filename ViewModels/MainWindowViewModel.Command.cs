@@ -1539,7 +1539,7 @@ public partial class MainWindowViewModel
         => OpenSettingsAsync(initialTabIndex: null);
 
     private Task OpenSetupSettingsAsync()
-        => OpenSettingsAsync(initialTabIndex: 1);
+        => OpenSettingsAsync(initialTabIndex: 2);
 
     private async Task OpenSettingsAsync(int? initialTabIndex)
     {
@@ -1551,7 +1551,8 @@ public partial class MainWindowViewModel
             _settingsService,
             _retroAchievementsAccountService,
             _runnerVersionService,
-            RootItems);
+            RootItems,
+            _gamepadService);
         if (initialTabIndex.HasValue)
             settingsVm.SelectedSettingsTabIndex = initialTabIndex.Value;
 

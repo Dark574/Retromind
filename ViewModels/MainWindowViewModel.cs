@@ -136,7 +136,7 @@ public partial class MainWindowViewModel : ViewModelBase
     // Command to open per-item manuals/documents with the system viewer.
     public IRelayCommand<MediaAsset?> OpenManualCommand { get; private set; } = null!;
 
-    private DateTime _lastGuideHandledUtc = DateTime.MinValue;
+    private DateTime _lastControllerExitHandledUtc = DateTime.MinValue;
 
     // Debounced Settings Save
     private CancellationTokenSource? _saveSettingsCts;
@@ -161,7 +161,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private int _cleanupOnce;
 
     public bool ShouldIgnoreBackKeyTemporarily()
-        => (DateTime.UtcNow - _lastGuideHandledUtc) < TimeSpan.FromMilliseconds(600);
+        => (DateTime.UtcNow - _lastControllerExitHandledUtc) < TimeSpan.FromMilliseconds(600);
     
     // Helper to access the current window for dialogs
     private Window? CurrentWindow => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
@@ -390,7 +390,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ? new SolidColorBrush(Color.Parse("#252526"))
         : new SolidColorBrush(Color.Parse("#D6D6D6"));
 
-    private readonly Action _onGuidePressed;
+    private readonly Action _onControllerExitRequested;
     private readonly Action _onSessionExitRequested;
     
     // --- Constructor (Dependency Injection) ---
@@ -505,17 +505,17 @@ public partial class MainWindowViewModel : ViewModelBase
         Environment.SetEnvironmentVariable("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1");
         Environment.SetEnvironmentVariable("SDL_LINUX_JOYSTICK_DEADZONES", "1");
 
-        // Gamepad service (hot-plug + guide routing)
-        _gamepadService = new GamepadService();
+        // Gamepad service (hot-plug + configurable action routing)
+        _gamepadService = new GamepadService(_currentSettings);
         _gamepadService.StartMonitoring();
     
-        // Route Guide/Home globally: only act if BigMode is actually active.
-        _onGuidePressed = () =>
+        // Route the configured exit action globally: only act if BigMode is actually active.
+        _onControllerExitRequested = () =>
         {
             // SDL callback thread -> always marshal to UI thread
             UiThreadHelper.Post(() =>
             {
-                _lastGuideHandledUtc = DateTime.UtcNow;
+                _lastControllerExitHandledUtc = DateTime.UtcNow;
 
                 if (FullScreenContent == null) return;
 
@@ -530,7 +530,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 }
             });
         };
-        _gamepadService.OnGuide += _onGuidePressed;
+        _gamepadService.OnExitBigMode += _onControllerExitRequested;
 
         _onSessionExitRequested = () => _ = HandleSessionExitRequestAsync();
         _gamepadService.OnSessionExitRequested += _onSessionExitRequested;
@@ -1126,7 +1126,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         StopGogUpdateBackgroundLoop();
         
-        _gamepadService.OnGuide -= _onGuidePressed;
+        _gamepadService.OnExitBigMode -= _onControllerExitRequested;
         _gamepadService.OnSessionExitRequested -= _onSessionExitRequested;
         _gamepadService.StopMonitoring();
     }

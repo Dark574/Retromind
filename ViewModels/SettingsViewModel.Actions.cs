@@ -316,6 +316,7 @@ public partial class SettingsViewModel
         _targetSettings.ShowStoreBadges = committed.ShowStoreBadges;
         _targetSettings.RootBigModeThemePath = committed.RootBigModeThemePath;
         _targetSettings.EnableBigModeHomeScreen = committed.EnableBigModeHomeScreen;
+        _targetSettings.ControllerBindings = committed.ControllerBindings;
         _targetSettings.EnableAutomaticMetadataBackups = committed.EnableAutomaticMetadataBackups;
         _targetSettings.BackupBeforeBulkEdit = committed.BackupBeforeBulkEdit;
         _targetSettings.BackupBeforeBulkScrape = committed.BackupBeforeBulkScrape;
@@ -654,6 +655,7 @@ public partial class SettingsViewModel
 
         _disposed = true;
         _geReleaseDownloadCts?.Cancel();
+        DisposeControllerBindings();
 
         if (!IsSaved && IgnoreLeadingArticlesInSort != _originalIgnoreLeadingArticlesInSort)
         {

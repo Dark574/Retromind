@@ -109,8 +109,73 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
+            <!-- TAB 2: CONTROLLER -->
+            <TabItem Header="{Binding SettingsTabControllerTitle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="16" Margin="10,10,20,20">
+                        <Border Classes="section">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="{Binding ControllerActionsTitle}"
+                                           FontWeight="Bold"
+                                           FontSize="16" />
+                                <TextBlock Text="{Binding ControllerNavigationHint}"
+                                           Opacity="0.65"
+                                           TextWrapping="Wrap" />
+                                <ItemsControl ItemsSource="{Binding ControllerActionBindings}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:ControllerBindingRowViewModel">
+                                            <Grid ColumnDefinitions="220,*" Margin="0,3">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Label}"
+                                                           VerticalAlignment="Center" />
+                                                <Button Grid.Column="1"
+                                                        Content="{Binding ButtonText}"
+                                                        Command="{Binding CaptureCommand}"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Left" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="section">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="{Binding ControllerSessionStopTitle}"
+                                           FontWeight="Bold"
+                                           FontSize="16" />
+                                <TextBlock Text="{Binding ControllerSessionStopHint}"
+                                           Opacity="0.65"
+                                           TextWrapping="Wrap" />
+                                <ItemsControl ItemsSource="{Binding ControllerSessionStopBindings}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:ControllerBindingRowViewModel">
+                                            <Grid ColumnDefinitions="220,*" Margin="0,3">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Label}"
+                                                           VerticalAlignment="Center" />
+                                                <Button Grid.Column="1"
+                                                        Content="{Binding ButtonText}"
+                                                        Command="{Binding CaptureCommand}"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Left" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Button Content="{Binding ResetControllerBindingsText}"
+                                Command="{Binding ResetControllerBindingsCommand}"
+                                HorizontalAlignment="Left" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
             
-            <!-- TAB 2: EMULATORS -->
+            <!-- TAB 3: EMULATORS -->
             <TabItem>
                 <TabItem.Header>
                     <TextBlock Text="{Binding SettingsTabEmulatorsTitle}" />
@@ -350,7 +415,7 @@
                 </Grid>
             </TabItem>
             
-            <!-- TAB 3: METADATA (SCRAPER) -->
+            <!-- TAB 4: METADATA (SCRAPER) -->
             <TabItem>
                 <TabItem.Header>
                     <TextBlock Text="{Binding SettingsTabMetadataTitle}" />
@@ -607,7 +672,7 @@
                 </TabControl>
             </TabItem>
 
-            <!-- TAB 4: LAUNCH AND COMPATIBILITY -->
+            <!-- TAB 5: LAUNCH AND COMPATIBILITY -->
             <TabItem>
                 <TabItem.Header>
                     <TextBlock Text="{Binding SettingsTabLaunchCompatibilityTitle}" />
@@ -754,7 +819,7 @@
                 </Grid>
             </TabItem>
 
-            <!-- TAB 5: INTEGRATIONS -->
+            <!-- TAB 6: INTEGRATIONS -->
             <TabItem Header="{Binding SettingsTabIntegrationsTitle}">
                 <TabControl Margin="0,4,0,0">
                     <TabItem Header="{Binding RetroAchievementsTabTitle}">
@@ -868,7 +933,7 @@
                 </TabControl>
             </TabItem>
 
-            <!-- TAB 6: DATA -->
+            <!-- TAB 7: DATA -->
             <TabItem Header="{Binding SettingsTabBackupsTitle}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="10,10,20,20" Spacing="16">
@@ -920,7 +985,7 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- TAB 7: HELP -->
+            <!-- TAB 8: HELP -->
             <TabItem Header="{Binding SettingsTabHelpTitle}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="16" Margin="10,10,20,20" MaxWidth="760">

@@ -821,12 +821,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         SettingsService settingsService,
         RetroAchievementsAccountService retroAchievementsAccountService,
         RunnerVersionService runnerVersionService,
-        ObservableCollection<MediaNode>? rootNodes = null)
+        ObservableCollection<MediaNode>? rootNodes = null,
+        GamepadService? gamepadService = null)
     {
         _targetSettings = settings ?? throw new ArgumentNullException(nameof(settings));
         _appSettings = CreateWorkingCopy(_targetSettings);
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _runnerVersionService = runnerVersionService ?? throw new ArgumentNullException(nameof(runnerVersionService));
+        _gamepadService = gamepadService;
         _retroAchievementsAccountService = retroAchievementsAccountService ??
             throw new ArgumentNullException(nameof(retroAchievementsAccountService));
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
@@ -835,6 +837,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(_appSettings.IgnoreLeadingArticlesInSort);
         LoadAvailableRootBigModeThemes();
         SelectedRootBigModeTheme = ResolveRootBigModeThemeSelection(_appSettings.RootBigModeThemePath);
+        InitializeControllerBindings();
 
         // Load existing emulators
         foreach (var emu in _appSettings.Emulators) 
@@ -1173,9 +1176,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     partial void OnSelectedSettingsTabIndexChanged(int value)
     {
         // Tab order in SettingsView:
-        // 0 = General, 1 = Emulators, 2 = Metadata,
-        // 3 = Launch/compatibility, 4 = Integrations, 5 = Backups.
-        if (value != 3)
+        // 0 = General, 1 = Controller, 2 = Emulators, 3 = Metadata,
+        // 4 = Launch/compatibility, 5 = Integrations, 6 = Backups, 7 = Help.
+        if (value != 4)
             return;
 
         if (_hasAutoLoadedGeReleases || IsGeReleaseBusy || GeProtonReleases.Count > 0)

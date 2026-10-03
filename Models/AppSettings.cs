@@ -94,6 +94,11 @@ public class AppSettings
     public bool EnableBigModeHomeScreen { get; set; } = true;
 
     /// <summary>
+    /// User-configurable controller actions for BigMode and tracked-session stopping.
+    /// </summary>
+    public ControllerBindingSettings ControllerBindings { get; set; } = new();
+
+    /// <summary>
     /// Master switch for event-driven metadata backups. Manual backups remain available.
     /// </summary>
     public bool EnableAutomaticMetadataBackups { get; set; } = true;

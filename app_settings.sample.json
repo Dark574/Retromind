@@ -23,6 +23,15 @@
   "DetailColumnWidth": 380,
   "ItemWidth": 200.0,
   "IsDarkTheme": true,
+  "ControllerBindings": {
+    "Select": 0,
+    "Back": 1,
+    "Details": 2,
+    "Home": 3,
+    "ExitBigMode": 5,
+    "SessionStopFirst": 9,
+    "SessionStopSecond": 10
+  },
 
   "LastSelectedNodeId": null,
   "LastSelectedMediaId": null,

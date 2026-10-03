@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Retromind.Models;
 using Silk.NET.SDL;
 
 namespace Retromind.Services;
@@ -22,14 +23,16 @@ public sealed class GamepadService : IDisposable
     }
 
     // Events (raised on the SDL polling thread; subscribers should marshal to UI thread if needed).
-    public event Action? OnSelect;   // A / Cross
-    public event Action? OnBack;     // B / Circle
-    public event Action? OnDetails;  // X / Square
-    public event Action? OnHome;     // Y / Triangle
-    public event Action? OnGuide;    // Guide / Home
-    public event Action? OnSessionExitRequested; // Hold L1 + R1 while Retromind is in the background
+    public event Action? OnSelect;
+    public event Action? OnBack;
+    public event Action? OnDetails;
+    public event Action? OnHome;
+    public event Action? OnExitBigMode;
+    public event Action? OnSessionExitRequested;
+    public event Action<ControllerButton>? OnButtonPressed;
     public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
 
+    private readonly AppSettings _settings;
     private readonly Sdl _sdl;
     private readonly bool _isSdlAvailable;
     private bool _sdlUnavailableLogged;
@@ -44,21 +47,25 @@ public sealed class GamepadService : IDisposable
     // SDL axis range is roughly -32768..32767; this filters small drift.
     private const int DeadZone = 15000;
 
-    // Some controllers do not report GUIDE reliably; fallback: Start+Back within a short window.
-    private DateTime _lastBackPressedUtc = DateTime.MinValue;
-    private DateTime _lastStartPressedUtc = DateTime.MinValue;
-    private static readonly TimeSpan GuideComboWindow = TimeSpan.FromMilliseconds(350);
     private static readonly TimeSpan SessionExitHoldDuration = TimeSpan.FromSeconds(2);
 
     private sealed class SessionExitHoldState
     {
-        public bool LeftShoulderPressed { get; set; }
-        public bool RightShoulderPressed { get; set; }
+        public bool FirstPressed { get; set; }
+        public bool SecondPressed { get; set; }
         public long? HeldSinceTimestamp { get; set; }
         public bool WasRaised { get; set; }
     }
 
     private readonly Dictionary<int, SessionExitHoldState> _sessionExitHoldStates = new();
+
+    private sealed class TriggerState
+    {
+        public bool LeftPressed { get; set; }
+        public bool RightPressed { get; set; }
+    }
+
+    private readonly Dictionary<int, TriggerState> _triggerStates = new();
 
     // Simple axis edge detection to prevent event spam.
     // 0 = center, -1 = negative, 1 = positive
@@ -67,8 +74,11 @@ public sealed class GamepadService : IDisposable
     private readonly object _uiInputGate = new();
     private bool _uiInputEnabled = true;
 
-    public GamepadService()
+    public GamepadService(AppSettings? settings = null)
     {
+        _settings = settings ?? new AppSettings();
+        _settings.ControllerBindings ??= new ControllerBindingSettings();
+
         try
         {
             _sdl = Sdl.GetApi();
@@ -162,6 +172,7 @@ public sealed class GamepadService : IDisposable
 
         _activeControllers.Clear();
         _sessionExitHoldStates.Clear();
+        _triggerStates.Clear();
 
         cts?.Dispose();
 
@@ -184,9 +195,8 @@ public sealed class GamepadService : IDisposable
                 return;
 
             _uiInputEnabled = enabled;
-            _lastBackPressedUtc = DateTime.MinValue;
-            _lastStartPressedUtc = DateTime.MinValue;
             _sessionExitHoldStates.Clear();
+            _triggerStates.Clear();
 
             if (enabled)
                 return;
@@ -327,7 +337,26 @@ public sealed class GamepadService : IDisposable
     {
         lock (_uiInputGate)
         {
-            UpdateSessionExitHoldState(sdlEvent);
+            var eventType = (EventType)sdlEvent.Type;
+            if (eventType is EventType.Controllerbuttondown or EventType.Controllerbuttonup &&
+                TryMapButton((GameControllerButton)sdlEvent.Cbutton.Button, out var button))
+            {
+                var isPressed = eventType == EventType.Controllerbuttondown;
+                UpdateSessionExitHoldState(sdlEvent.Cbutton.Which, button, isPressed);
+                if (isPressed)
+                    OnButtonPressed?.Invoke(button);
+            }
+            else if (eventType == EventType.Controlleraxismotion &&
+                     TryUpdateTriggerState(sdlEvent.Caxis, out var trigger, out var isPressed))
+            {
+                UpdateSessionExitHoldState(sdlEvent.Caxis.Which, trigger, isPressed);
+                if (isPressed)
+                {
+                    OnButtonPressed?.Invoke(trigger);
+                    if (_uiInputEnabled)
+                        RaiseMappedAction(trigger);
+                }
+            }
 
             if (!_uiInputEnabled)
                 return;
@@ -366,7 +395,10 @@ public sealed class GamepadService : IDisposable
         _activeControllers.Remove(instanceId);
 
         lock (_uiInputGate)
+        {
             _sessionExitHoldStates.Remove(instanceId);
+            _triggerStates.Remove(instanceId);
+        }
 
         Debug.WriteLine($"[SDL] Controller disconnected (ID: {instanceId})");
     }
@@ -378,56 +410,25 @@ public sealed class GamepadService : IDisposable
 
         switch (button)
         {
-            case GameControllerButton.A:
-                OnSelect?.Invoke();
-                break;
-
-            case GameControllerButton.B:
-                OnBack?.Invoke();
-                break;
-
-            case GameControllerButton.Back:
-                _lastBackPressedUtc = DateTime.UtcNow;
-
-                if (DateTime.UtcNow - _lastStartPressedUtc <= GuideComboWindow)
-                    OnGuide?.Invoke();
-                break;
-
-            case GameControllerButton.X:
-                OnDetails?.Invoke();
-                break;
-
-            case GameControllerButton.Y:
-                OnHome?.Invoke();
-                break;
-
-            case GameControllerButton.Start:
-                _lastStartPressedUtc = DateTime.UtcNow;
-
-                if (DateTime.UtcNow - _lastBackPressedUtc <= GuideComboWindow)
-                    OnGuide?.Invoke();
-                break;
-
-            case GameControllerButton.Guide:
-                OnGuide?.Invoke();
-                break;
-
             case GameControllerButton.DpadUp:
                 RaiseDirectionState(GamepadDirection.Up, true);
-                break;
+                return;
 
             case GameControllerButton.DpadDown:
                 RaiseDirectionState(GamepadDirection.Down, true);
-                break;
+                return;
 
             case GameControllerButton.DpadLeft:
                 RaiseDirectionState(GamepadDirection.Left, true);
-                break;
+                return;
 
             case GameControllerButton.DpadRight:
                 RaiseDirectionState(GamepadDirection.Right, true);
-                break;
+                return;
         }
+
+        if (TryMapButton(button, out var mappedButton))
+            RaiseMappedAction(mappedButton);
     }
 
     private void HandleButtonUp(ControllerButtonEvent e)
@@ -493,30 +494,42 @@ public sealed class GamepadService : IDisposable
     private void RaiseDirectionState(GamepadDirection direction, bool isPressed) =>
         OnDirectionStateChanged?.Invoke(direction, isPressed);
 
-    private void UpdateSessionExitHoldState(Event sdlEvent)
+    private void RaiseMappedAction(ControllerButton button)
     {
-        var eventType = (EventType)sdlEvent.Type;
-        if (eventType is not (EventType.Controllerbuttondown or EventType.Controllerbuttonup))
+        var bindings = _settings.ControllerBindings;
+        if (button == bindings.Select)
+            OnSelect?.Invoke();
+        else if (button == bindings.Back)
+            OnBack?.Invoke();
+        else if (button == bindings.Details)
+            OnDetails?.Invoke();
+        else if (button == bindings.Home)
+            OnHome?.Invoke();
+        else if (button == bindings.ExitBigMode)
+            OnExitBigMode?.Invoke();
+    }
+
+    private void UpdateSessionExitHoldState(int instanceId, ControllerButton button, bool isPressed)
+    {
+        var bindings = _settings.ControllerBindings;
+        if (bindings.SessionStopFirst == bindings.SessionStopSecond)
             return;
 
-        var buttonEvent = sdlEvent.Cbutton;
-        var button = (GameControllerButton)buttonEvent.Button;
-        if (button is not (GameControllerButton.Leftshoulder or GameControllerButton.Rightshoulder))
+        if (button != bindings.SessionStopFirst && button != bindings.SessionStopSecond)
             return;
 
-        if (!_sessionExitHoldStates.TryGetValue(buttonEvent.Which, out var state))
+        if (!_sessionExitHoldStates.TryGetValue(instanceId, out var state))
         {
             state = new SessionExitHoldState();
-            _sessionExitHoldStates[buttonEvent.Which] = state;
+            _sessionExitHoldStates[instanceId] = state;
         }
 
-        var isPressed = eventType == EventType.Controllerbuttondown;
-        if (button == GameControllerButton.Leftshoulder)
-            state.LeftShoulderPressed = isPressed;
-        else
-            state.RightShoulderPressed = isPressed;
+        if (button == bindings.SessionStopFirst)
+            state.FirstPressed = isPressed;
+        if (button == bindings.SessionStopSecond)
+            state.SecondPressed = isPressed;
 
-        if (state.LeftShoulderPressed && state.RightShoulderPressed)
+        if (state.FirstPressed && state.SecondPressed)
         {
             state.HeldSinceTimestamp ??= Stopwatch.GetTimestamp();
             return;
@@ -524,6 +537,104 @@ public sealed class GamepadService : IDisposable
 
         state.HeldSinceTimestamp = null;
         state.WasRaised = false;
+    }
+
+    private bool TryUpdateTriggerState(
+        ControllerAxisEvent axisEvent,
+        out ControllerButton trigger,
+        out bool isPressed)
+    {
+        var axis = (GameControllerAxis)axisEvent.Axis;
+        if (axis is not (GameControllerAxis.Triggerleft or GameControllerAxis.Triggerright))
+        {
+            trigger = default;
+            isPressed = false;
+            return false;
+        }
+
+        if (!_triggerStates.TryGetValue(axisEvent.Which, out var state))
+        {
+            state = new TriggerState();
+            _triggerStates[axisEvent.Which] = state;
+        }
+
+        trigger = axis == GameControllerAxis.Triggerleft
+            ? ControllerButton.LeftTrigger
+            : ControllerButton.RightTrigger;
+        isPressed = axisEvent.Value > DeadZone;
+        var wasPressed = axis == GameControllerAxis.Triggerleft
+            ? state.LeftPressed
+            : state.RightPressed;
+        if (isPressed == wasPressed)
+            return false;
+
+        if (axis == GameControllerAxis.Triggerleft)
+            state.LeftPressed = isPressed;
+        else
+            state.RightPressed = isPressed;
+
+        return true;
+    }
+
+    internal static bool TryMapButton(GameControllerButton button, out ControllerButton mappedButton)
+    {
+        switch (button)
+        {
+            case GameControllerButton.A:
+                mappedButton = ControllerButton.South;
+                return true;
+            case GameControllerButton.B:
+                mappedButton = ControllerButton.East;
+                return true;
+            case GameControllerButton.X:
+                mappedButton = ControllerButton.West;
+                return true;
+            case GameControllerButton.Y:
+                mappedButton = ControllerButton.North;
+                return true;
+            case GameControllerButton.Back:
+                mappedButton = ControllerButton.Back;
+                return true;
+            case GameControllerButton.Guide:
+                mappedButton = ControllerButton.Guide;
+                return true;
+            case GameControllerButton.Start:
+                mappedButton = ControllerButton.Start;
+                return true;
+            case GameControllerButton.Leftstick:
+                mappedButton = ControllerButton.LeftStick;
+                return true;
+            case GameControllerButton.Rightstick:
+                mappedButton = ControllerButton.RightStick;
+                return true;
+            case GameControllerButton.Leftshoulder:
+                mappedButton = ControllerButton.LeftShoulder;
+                return true;
+            case GameControllerButton.Rightshoulder:
+                mappedButton = ControllerButton.RightShoulder;
+                return true;
+            case GameControllerButton.Misc1:
+                mappedButton = ControllerButton.Misc;
+                return true;
+            case GameControllerButton.Paddle1:
+                mappedButton = ControllerButton.Paddle1;
+                return true;
+            case GameControllerButton.Paddle2:
+                mappedButton = ControllerButton.Paddle2;
+                return true;
+            case GameControllerButton.Paddle3:
+                mappedButton = ControllerButton.Paddle3;
+                return true;
+            case GameControllerButton.Paddle4:
+                mappedButton = ControllerButton.Paddle4;
+                return true;
+            case GameControllerButton.Touchpad:
+                mappedButton = ControllerButton.Touchpad;
+                return true;
+            default:
+                mappedButton = default;
+                return false;
+        }
     }
 
     private bool TryConsumeSessionExitHold()

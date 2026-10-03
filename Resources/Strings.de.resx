@@ -505,6 +505,33 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
 
     <!-- SETTINGS -->
     <data name="Settings_TabGeneral" xml:space="preserve"><value>Allgemein</value></data>
+    <data name="Settings_ControllerTab" xml:space="preserve"><value>Controller</value></data>
+    <data name="Settings_ControllerActions" xml:space="preserve"><value>BigMode-Aktionen</value></data>
+    <data name="Settings_ControllerNavigationHint" xml:space="preserve"><value>Steuerkreuz und linker Stick bleiben fest für die Navigation belegt.</value></data>
+    <data name="Settings_ControllerSessionStop" xml:space="preserve"><value>Laufendes Spiel beenden</value></data>
+    <data name="Settings_ControllerSessionStopHint" xml:space="preserve"><value>Beide Tasten zwei Sekunden halten. Loslassen und erneut halten, um eine Zwangsbeendigung zu bestätigen.</value></data>
+    <data name="Settings_ControllerReset" xml:space="preserve"><value>Standardbelegung wiederherstellen</value></data>
+    <data name="Settings_ControllerCapturePrompt" xml:space="preserve"><value>Controller-Taste drücken …</value></data>
+    <data name="Settings_ControllerSelect" xml:space="preserve"><value>Auswählen / starten</value></data>
+    <data name="Settings_ControllerBack" xml:space="preserve"><value>Zurück</value></data>
+    <data name="Settings_ControllerDetails" xml:space="preserve"><value>Details / Erfolge</value></data>
+    <data name="Settings_ControllerHome" xml:space="preserve"><value>Home-Menü</value></data>
+    <data name="Settings_ControllerExitBigMode" xml:space="preserve"><value>BigMode verlassen</value></data>
+    <data name="Settings_ControllerSessionStopFirst" xml:space="preserve"><value>Erste Taste</value></data>
+    <data name="Settings_ControllerSessionStopSecond" xml:space="preserve"><value>Zweite Taste</value></data>
+    <data name="ControllerButton_South" xml:space="preserve"><value>A / Kreuz (unten)</value></data>
+    <data name="ControllerButton_East" xml:space="preserve"><value>B / Kreis (rechts)</value></data>
+    <data name="ControllerButton_West" xml:space="preserve"><value>X / Quadrat (links)</value></data>
+    <data name="ControllerButton_North" xml:space="preserve"><value>Y / Dreieck (oben)</value></data>
+    <data name="ControllerButton_Back" xml:space="preserve"><value>Select / View / Share</value></data>
+    <data name="ControllerButton_Guide" xml:space="preserve"><value>Guide / Home / PS</value></data>
+    <data name="ControllerButton_Start" xml:space="preserve"><value>Start / Menü / Options</value></data>
+    <data name="ControllerButton_Misc" xml:space="preserve"><value>Share / Aufnahme / Sonstige</value></data>
+    <data name="ControllerButton_Paddle1" xml:space="preserve"><value>Paddle 1</value></data>
+    <data name="ControllerButton_Paddle2" xml:space="preserve"><value>Paddle 2</value></data>
+    <data name="ControllerButton_Paddle3" xml:space="preserve"><value>Paddle 3</value></data>
+    <data name="ControllerButton_Paddle4" xml:space="preserve"><value>Paddle 4</value></data>
+    <data name="ControllerButton_Touchpad" xml:space="preserve"><value>Touchpad-Klick</value></data>
     <data name="Settings_TabEmulators" xml:space="preserve"><value>Emulatoren</value></data>
     <data name="Settings_TabMetadataAndScrapers" xml:space="preserve"><value>Metadaten</value></data>
     <data name="Settings_TabLaunchCompatibility" xml:space="preserve"><value>Start</value></data>

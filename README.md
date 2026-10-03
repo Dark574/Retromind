@@ -73,8 +73,23 @@ especially before installing a new release.
 ### BigMode (controller-friendly UI)
 
 - Large, readable layout for couch / TV usage
-- Gamepad input support
+- Gamepad input support with freely assignable BigMode action buttons
 - Design and add your own themes through AXAML files
+
+Default controller layout:
+
+| Input | Action |
+| --- | --- |
+| D-pad / left stick | Navigate |
+| A / Cross | Select, open, or start |
+| B / Circle | Back |
+| X / Square | Details and RetroAchievements |
+| Y / Triangle | BigMode Home screen |
+| Guide / Home / PS | Exit BigMode |
+| Hold L1 + R1 | Request stopping the tracked game session; release and hold again to confirm a forced stop |
+
+Open **Settings → Controller** to reassign the action buttons or either button of the game-stop combination by
+pressing the desired button on the connected controller. Directional navigation remains fixed.
 
 #### HorizontalRow theme with C64 media
 
