@@ -469,6 +469,7 @@ public partial class BigModeViewModel
         try
         {
             StopVideo();
+            StopSecondaryBackgroundVideo();
 
             if (RequestPlay != null)
                 await RequestPlay(SelectedItem);
@@ -479,6 +480,7 @@ public partial class BigModeViewModel
 
             // Resume preview once the game returns (or if launch failed).
             TriggerPreviewPlaybackWithDebounce();
+            EnsureSecondaryBackgroundPlayingIfReady();
         }
     }
 

@@ -726,15 +726,31 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private void StopSecondaryBackgroundVideo()
+    {
+        try
+        {
+            // Keep the prepared Media assigned so playback can resume cheaply
+            // after Home transitions or a tracked game session.
+            _secondaryPlayer?.Stop();
+        }
+        catch
+        {
+            // Background playback is best effort and must not block navigation or launching.
+        }
+
+        SecondaryVideoIsPlaying = false;
+    }
+
     private void OnSecondaryBackgroundEndReached(object? sender, EventArgs e)
     {
         // Loop the background video indefinitely
-        if (IsHomeActive || !SecondaryVideoHasContent || _secondaryPlayer == null)
+        if (_isLaunching || IsHomeActive || !SecondaryVideoHasContent || _secondaryPlayer == null)
             return;
 
         UiThreadHelper.Post(() =>
         {
-            if (IsHomeActive || !SecondaryVideoHasContent || _secondaryPlayer == null)
+            if (_isLaunching || IsHomeActive || !SecondaryVideoHasContent || _secondaryPlayer == null)
                 return;
 
             try

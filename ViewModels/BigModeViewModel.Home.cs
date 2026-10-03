@@ -160,18 +160,7 @@ public partial class BigModeViewModel
     {
         CancelPreviewDebounce();
         StopVideo();
-
-        try
-        {
-            if (_secondaryPlayer is { IsPlaying: true })
-                _secondaryPlayer.Stop();
-        }
-        catch
-        {
-            // Preview transitions are best effort and must not block navigation.
-        }
-
-        SecondaryVideoIsPlaying = false;
+        StopSecondaryBackgroundVideo();
         await UiThreadHelper.YieldToDispatcherAsync(DispatcherPriority.Render);
     }
 
