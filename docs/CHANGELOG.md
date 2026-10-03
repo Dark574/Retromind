@@ -15,6 +15,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - support quota-conscious ScreenScraper bulk scraping with exact ROM identification and safe title fallback
 
 ### Changed
+- guard manually cloned library snapshots with an exhaustive persistence contract test
 - continue first-run guidance into empty categories and open setup directly on the emulator tab
 - reduce TheGamesDB bulk-scraping API usage through single-page searches, deferred enrichment and cached name lookups
 - pace IGDB, OpenLibrary and TMDB requests according to their provider limits during bulk scraping
