@@ -322,7 +322,14 @@ public partial class MainWindowViewModel : ViewModelBase
     public GridLength TreePaneWidth
     {
         get => _treePaneWidth;
-        set { if (SetProperty(ref _treePaneWidth, value)) _currentSettings.TreeColumnWidth = value.Value; }
+        set
+        {
+            if (SetProperty(ref _treePaneWidth, value))
+            {
+                _currentSettings.TreeColumnWidth = value.Value;
+                SaveSettingsOnly();
+            }
+        }
     }
 
     public GridLength DetailPaneWidth
