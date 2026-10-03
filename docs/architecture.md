@@ -397,7 +397,10 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 - `ProtonPrefixRelocationService` repairs only broken Proton-runtime links after a portable data-root move before
   a game launch or a later GOG installer accesses the existing prefix
 - `LaunchProcessService` owns operating-system process startup, bounded stdout/stderr capture, delegated-command
-  observation, and configured watch-process tracking
+  observation, configured watch-process tracking, and the active tracked-session stop boundary. A background
+  L1 + R1 hold first requests an orderly window close; a second hold within the confirmation window
+  may force-stop only the directly launched process tree or the exact process instances newly detected by a
+  configured watch process. A same-named process that was already running is never adopted into the session
 - `LauncherService` retains launch orchestration and business decisions: working-directory selection, runtime
   classification, launch-result evaluation, logging, and session-statistics updates
 - explicit test launches use the same launch plan while suppressing play count, last-played, and playtime updates

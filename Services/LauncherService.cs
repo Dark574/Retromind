@@ -49,6 +49,10 @@ public sealed class LauncherService
                                          new ProtonPrefixRelocationService(libraryRootPath, settings);
     }
 
+    internal Task<LaunchSessionStopRequestResult> RequestActiveSessionStopAsync(
+        CancellationToken cancellationToken = default) =>
+        _launchProcessService.RequestActiveSessionStopAsync(cancellationToken);
+
     public async Task<LaunchResult> LaunchAsync(
         MediaItem item,
         EmulatorConfig? inheritedConfig = null,
@@ -68,6 +72,7 @@ public sealed class LauncherService
             nativeWrappers,
             recordStatistics);
         Process? process = null;
+        ActiveLaunchSessionRegistration? activeSession = null;
         LaunchProcessOutputCapture? outputCapture = null;
         Task initialLogWriteTask = Task.CompletedTask;
         var stopwatch = Stopwatch.StartNew();
@@ -82,6 +87,7 @@ public sealed class LauncherService
         string? consoleOutput = null;
         TimeSpan? processStartedAt = null;
         var elapsed = TimeSpan.Zero;
+        var wasStoppedByUser = false;
 
         if (watchedProcessName != null)
         {
@@ -108,6 +114,14 @@ public sealed class LauncherService
                     environmentOverrides,
                     launchLog);
             processStartedAt = stopwatch.Elapsed;
+
+            if (watchedProcessName == null &&
+                !isDelegatedCommand &&
+                process is { HasExited: false })
+            {
+                activeSession = _launchProcessService.BeginDirectSession(process);
+            }
+
             outputCapture = _launchProcessService.StartOutputCapture(process);
             initialLogWriteTask = _launchLogService.TryWriteAsync(
                 item.Id,
@@ -116,6 +130,8 @@ public sealed class LauncherService
         catch (Exception ex)
         {
             stopwatch.Stop();
+            if (activeSession is { } registration)
+                _launchProcessService.EndActiveSession(registration);
             process?.Dispose();
             Debug.WriteLine($"[Launcher] Failed to launch: {ex.Message}");
             var failedResult = LaunchResult.Failed(ex.Message);
@@ -140,7 +156,20 @@ public sealed class LauncherService
                 var watchOutcome = await _launchProcessService.WatchProcessByNameAsync(
                         watchedProcessName,
                         watchedProcessWasAlreadyRunning,
-                        cancellationToken)
+                        cancellationToken,
+                        onProcessesDetected: processIds =>
+                        {
+                            if (activeSession is { } registration)
+                            {
+                                _launchProcessService.UpdateWatchedSession(registration, processIds);
+                            }
+                            else
+                            {
+                                activeSession = _launchProcessService.BeginWatchedSession(
+                                    watchedProcessName,
+                                    processIds);
+                            }
+                        })
                     .ConfigureAwait(false);
                 shouldRecordSession = watchOutcome == ProcessWatchOutcome.Tracked;
                 if (watchOutcome == ProcessWatchOutcome.NotFound)
@@ -185,6 +214,12 @@ public sealed class LauncherService
             stopwatch.Stop();
             elapsed = stopwatch.Elapsed;
 
+            if (activeSession is { } registration)
+            {
+                wasStoppedByUser = _launchProcessService.WasStopRequested(registration);
+                _launchProcessService.EndActiveSession(registration);
+            }
+
             if (outputCapture != null)
             {
                 try
@@ -226,6 +261,10 @@ public sealed class LauncherService
         if (!string.IsNullOrWhiteSpace(missingWatchedProcessName))
         {
             result = LaunchResult.WatchedProcessNotFound(missingWatchedProcessName, consoleOutput);
+        }
+        else if (shouldRecordSession && wasStoppedByUser)
+        {
+            result = LaunchResult.TrackedSessionStoppedByUser;
         }
         else if (exitCode is not null and not 0 &&
                  processStartedAt is { } startedAt &&
@@ -426,6 +465,7 @@ public sealed class LauncherService
 
     private static string DescribeLaunchOutcome(LaunchResult result) => result.Outcome switch
     {
+        _ when result.WasStoppedByUser => "Tracked session stopped by user",
         LaunchOutcome.ExitedEarly => "Process started and exited early with an error",
         LaunchOutcome.WatchedProcessNotFound => "Launcher started, but the configured game process was not found",
         LaunchOutcome.StartFailed => "Process could not be started",

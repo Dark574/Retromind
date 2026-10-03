@@ -27,6 +27,7 @@ public sealed class GamepadService : IDisposable
     public event Action? OnDetails;  // X / Square
     public event Action? OnHome;     // Y / Triangle
     public event Action? OnGuide;    // Guide / Home
+    public event Action? OnSessionExitRequested; // Hold L1 + R1 while Retromind is in the background
     public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
 
     private readonly Sdl _sdl;
@@ -47,6 +48,17 @@ public sealed class GamepadService : IDisposable
     private DateTime _lastBackPressedUtc = DateTime.MinValue;
     private DateTime _lastStartPressedUtc = DateTime.MinValue;
     private static readonly TimeSpan GuideComboWindow = TimeSpan.FromMilliseconds(350);
+    private static readonly TimeSpan SessionExitHoldDuration = TimeSpan.FromSeconds(2);
+
+    private sealed class SessionExitHoldState
+    {
+        public bool LeftShoulderPressed { get; set; }
+        public bool RightShoulderPressed { get; set; }
+        public long? HeldSinceTimestamp { get; set; }
+        public bool WasRaised { get; set; }
+    }
+
+    private readonly Dictionary<int, SessionExitHoldState> _sessionExitHoldStates = new();
 
     // Simple axis edge detection to prevent event spam.
     // 0 = center, -1 = negative, 1 = positive
@@ -149,6 +161,7 @@ public sealed class GamepadService : IDisposable
         }
 
         _activeControllers.Clear();
+        _sessionExitHoldStates.Clear();
 
         cts?.Dispose();
 
@@ -173,6 +186,7 @@ public sealed class GamepadService : IDisposable
             _uiInputEnabled = enabled;
             _lastBackPressedUtc = DateTime.MinValue;
             _lastStartPressedUtc = DateTime.MinValue;
+            _sessionExitHoldStates.Clear();
 
             if (enabled)
                 return;
@@ -227,6 +241,9 @@ public sealed class GamepadService : IDisposable
             {
                 ProcessEvent(sdlEvent);
             }
+
+            if (TryConsumeSessionExitHold())
+                OnSessionExitRequested?.Invoke();
 
             try
             {
@@ -310,6 +327,8 @@ public sealed class GamepadService : IDisposable
     {
         lock (_uiInputGate)
         {
+            UpdateSessionExitHoldState(sdlEvent);
+
             if (!_uiInputEnabled)
                 return;
 
@@ -345,6 +364,9 @@ public sealed class GamepadService : IDisposable
 
         _sdl.GameControllerClose((GameController*)ptr);
         _activeControllers.Remove(instanceId);
+
+        lock (_uiInputGate)
+            _sessionExitHoldStates.Remove(instanceId);
 
         Debug.WriteLine($"[SDL] Controller disconnected (ID: {instanceId})");
     }
@@ -470,6 +492,62 @@ public sealed class GamepadService : IDisposable
 
     private void RaiseDirectionState(GamepadDirection direction, bool isPressed) =>
         OnDirectionStateChanged?.Invoke(direction, isPressed);
+
+    private void UpdateSessionExitHoldState(Event sdlEvent)
+    {
+        var eventType = (EventType)sdlEvent.Type;
+        if (eventType is not (EventType.Controllerbuttondown or EventType.Controllerbuttonup))
+            return;
+
+        var buttonEvent = sdlEvent.Cbutton;
+        var button = (GameControllerButton)buttonEvent.Button;
+        if (button is not (GameControllerButton.Leftshoulder or GameControllerButton.Rightshoulder))
+            return;
+
+        if (!_sessionExitHoldStates.TryGetValue(buttonEvent.Which, out var state))
+        {
+            state = new SessionExitHoldState();
+            _sessionExitHoldStates[buttonEvent.Which] = state;
+        }
+
+        var isPressed = eventType == EventType.Controllerbuttondown;
+        if (button == GameControllerButton.Leftshoulder)
+            state.LeftShoulderPressed = isPressed;
+        else
+            state.RightShoulderPressed = isPressed;
+
+        if (state.LeftShoulderPressed && state.RightShoulderPressed)
+        {
+            state.HeldSinceTimestamp ??= Stopwatch.GetTimestamp();
+            return;
+        }
+
+        state.HeldSinceTimestamp = null;
+        state.WasRaised = false;
+    }
+
+    private bool TryConsumeSessionExitHold()
+    {
+        lock (_uiInputGate)
+        {
+            if (_uiInputEnabled)
+                return false;
+
+            foreach (var state in _sessionExitHoldStates.Values)
+            {
+                if (state.WasRaised || state.HeldSinceTimestamp is not { } heldSince)
+                    continue;
+
+                if (Stopwatch.GetElapsedTime(heldSince) < SessionExitHoldDuration)
+                    continue;
+
+                state.WasRaised = true;
+                return true;
+            }
+
+            return false;
+        }
+    }
 
     public void Dispose()
     {

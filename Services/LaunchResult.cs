@@ -19,10 +19,19 @@ public sealed record LaunchResult(
     /// </summary>
     public bool WasSessionTracked { get; init; }
 
+    public bool WasStoppedByUser { get; init; }
+
     public static LaunchResult Started { get; } = new(LaunchOutcome.Started, null, null, null, null);
 
     public static LaunchResult TrackedSessionCompleted { get; } =
         new(LaunchOutcome.Started, null, null, null, null) { WasSessionTracked = true };
+
+    public static LaunchResult TrackedSessionStoppedByUser { get; } =
+        new(LaunchOutcome.Started, null, null, null, null)
+        {
+            WasSessionTracked = true,
+            WasStoppedByUser = true
+        };
 
     public static LaunchResult Failed(string errorMessage) =>
         new(LaunchOutcome.StartFailed, errorMessage, null, null, null);

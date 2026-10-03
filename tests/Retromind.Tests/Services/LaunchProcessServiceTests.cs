@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Retromind.Services;
+using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services;
 
@@ -79,5 +80,87 @@ public sealed class LaunchProcessServiceTests
 
         Assert.Contains("Command: \"/retromind/missing executable\"", exception.Message);
         Assert.Contains("Working directory: /retromind/missing working directory", exception.Message);
+    }
+
+    [Fact]
+    public async Task SessionStop_RequiresASecondRequestBeforeForceKillingDirectProcess()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        var service = new LaunchProcessService();
+        using var process = Process.Start("/bin/sleep", "30");
+        Assert.NotNull(process);
+        var registration = service.BeginDirectSession(process);
+
+        try
+        {
+            var first = await service.RequestActiveSessionStopAsync(
+                TimeSpan.Zero,
+                TimeSpan.FromSeconds(30));
+
+            Assert.Equal(LaunchSessionStopRequestResult.ForceStopArmed, first);
+            Assert.False(process.HasExited);
+            Assert.False(service.WasStopRequested(registration));
+
+            var second = await service.RequestActiveSessionStopAsync(
+                TimeSpan.Zero,
+                TimeSpan.FromSeconds(30));
+
+            Assert.Equal(LaunchSessionStopRequestResult.ForceStopRequested, second);
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.True(service.WasStopRequested(registration));
+        }
+        finally
+        {
+            service.EndActiveSession(registration);
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+        }
+    }
+
+    [Fact]
+    public async Task SessionStop_OnlyForceKillsRegisteredWatchedProcessIds()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var processName = "rtm" + Guid.NewGuid().ToString("N")[..8];
+        var executablePath = temp.GetPath(processName);
+        File.Copy("/bin/sleep", executablePath);
+        File.SetUnixFileMode(
+            executablePath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        using var process = Process.Start(executablePath, "30");
+        using var unrelatedProcess = Process.Start(executablePath, "30");
+        Assert.NotNull(process);
+        Assert.NotNull(unrelatedProcess);
+
+        var service = new LaunchProcessService();
+        var registration = service.BeginWatchedSession(processName, [process.Id]);
+        try
+        {
+            Assert.Equal(
+                LaunchSessionStopRequestResult.ForceStopArmed,
+                await service.RequestActiveSessionStopAsync(TimeSpan.Zero, TimeSpan.FromSeconds(30)));
+            Assert.False(process.HasExited);
+
+            Assert.Equal(
+                LaunchSessionStopRequestResult.ForceStopRequested,
+                await service.RequestActiveSessionStopAsync(TimeSpan.Zero, TimeSpan.FromSeconds(30)));
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.True(service.WasStopRequested(registration));
+            Assert.False(unrelatedProcess.HasExited);
+        }
+        finally
+        {
+            service.EndActiveSession(registration);
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+            if (!unrelatedProcess.HasExited)
+                unrelatedProcess.Kill(entireProcessTree: true);
+        }
     }
 }

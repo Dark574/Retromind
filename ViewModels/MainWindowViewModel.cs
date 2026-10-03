@@ -391,6 +391,7 @@ public partial class MainWindowViewModel : ViewModelBase
         : new SolidColorBrush(Color.Parse("#D6D6D6"));
 
     private readonly Action _onGuidePressed;
+    private readonly Action _onSessionExitRequested;
     
     // --- Constructor (Dependency Injection) ---
     public MainWindowViewModel(
@@ -530,6 +531,9 @@ public partial class MainWindowViewModel : ViewModelBase
             });
         };
         _gamepadService.OnGuide += _onGuidePressed;
+
+        _onSessionExitRequested = () => _ = HandleSessionExitRequestAsync();
+        _gamepadService.OnSessionExitRequested += _onSessionExitRequested;
         
         InitializeCommands();
         Debug.WriteLine("[DEBUG] Konstruktor finished. BigModeOnly = " + (App.Current?.IsBigModeOnly == true));
@@ -537,6 +541,19 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public void SetGamepadUiInputEnabled(bool enabled) =>
         _gamepadService.SetUiInputEnabled(enabled);
+
+    private async Task HandleSessionExitRequestAsync()
+    {
+        try
+        {
+            var result = await _launcherService.RequestActiveSessionStopAsync().ConfigureAwait(false);
+            Debug.WriteLine($"[Launcher] Controller session-stop request: {result}");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Launcher] Controller session-stop request failed: {ex.Message}");
+        }
+    }
 
     // --- Persistence & Lifecycle ---
 
@@ -1110,6 +1127,7 @@ public partial class MainWindowViewModel : ViewModelBase
         StopGogUpdateBackgroundLoop();
         
         _gamepadService.OnGuide -= _onGuidePressed;
+        _gamepadService.OnSessionExitRequested -= _onSessionExitRequested;
         _gamepadService.StopMonitoring();
     }
 

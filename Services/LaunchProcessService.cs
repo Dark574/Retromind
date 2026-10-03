@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,17 @@ internal enum ProcessWatchOutcome
     NotFound
 }
 
+internal enum LaunchSessionStopRequestResult
+{
+    NotAvailable,
+    GracefulCloseRequested,
+    ForceStopArmed,
+    ForceStopRequested,
+    AlreadyExited
+}
+
+internal readonly record struct ActiveLaunchSessionRegistration(long Id);
+
 /// <summary>
 /// Owns the operating-system process lifecycle used by media launches.
 /// </summary>
@@ -24,6 +36,23 @@ public sealed class LaunchProcessService
     private static readonly TimeSpan WatchProcessStartupTimeout = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan WatchProcessStartupPollInterval = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan DelegatedCommandObservationTimeout = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan ForceStopGracePeriod = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan ForceStopConfirmationWindow = TimeSpan.FromSeconds(20);
+
+    private sealed class ActiveLaunchSession
+    {
+        public required long Id { get; init; }
+        public int? RootProcessId { get; init; }
+        public string? WatchedProcessName { get; init; }
+        public HashSet<int>? WatchedProcessIds { get; init; }
+        public DateTime? FirstStopRequestUtc { get; set; }
+        public bool WasStopRequested { get; set; }
+    }
+
+    private readonly object _activeSessionGate = new();
+    private readonly SemaphoreSlim _activeSessionStopGate = new(1, 1);
+    private ActiveLaunchSession? _activeSession;
+    private long _nextActiveSessionId;
 
     public Process? Start(ProcessStartInfo startInfo)
     {
@@ -62,16 +91,265 @@ public sealed class LaunchProcessService
         LaunchProcessOutputCapture.TryStart(process);
 
     internal bool IsProcessRunning(string processName)
+        => GetProcessIds(processName).Count > 0;
+
+    internal IReadOnlyCollection<int> GetProcessIds(string processName)
     {
         var cleanName = GetWatchProcessName(processName);
         var processes = Process.GetProcessesByName(cleanName);
         try
         {
-            return processes.Length > 0;
+            return processes.Select(process => process.Id).ToArray();
         }
         finally
         {
             foreach (var process in processes)
+                process.Dispose();
+        }
+    }
+
+    internal ActiveLaunchSessionRegistration BeginDirectSession(Process process)
+    {
+        ArgumentNullException.ThrowIfNull(process);
+        return SetActiveSession(
+            rootProcessId: process.Id,
+            watchedProcessName: null,
+            watchedProcessIds: null);
+    }
+
+    internal ActiveLaunchSessionRegistration BeginWatchedSession(
+        string processName,
+        IEnumerable<int> processIds)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(processName);
+        ArgumentNullException.ThrowIfNull(processIds);
+        return SetActiveSession(
+            rootProcessId: null,
+            watchedProcessName: GetWatchProcessName(processName),
+            watchedProcessIds: processIds);
+    }
+
+    internal void UpdateWatchedSession(
+        ActiveLaunchSessionRegistration registration,
+        IEnumerable<int> processIds)
+    {
+        ArgumentNullException.ThrowIfNull(processIds);
+        lock (_activeSessionGate)
+        {
+            if (_activeSession is not { } session || session.Id != registration.Id)
+                return;
+
+            session.WatchedProcessIds?.UnionWith(processIds);
+        }
+    }
+
+    internal void EndActiveSession(ActiveLaunchSessionRegistration registration)
+    {
+        lock (_activeSessionGate)
+        {
+            if (_activeSession?.Id == registration.Id)
+                _activeSession = null;
+        }
+    }
+
+    internal bool WasStopRequested(ActiveLaunchSessionRegistration registration)
+    {
+        lock (_activeSessionGate)
+            return _activeSession is { } session &&
+                   session.Id == registration.Id &&
+                   session.WasStopRequested;
+    }
+
+    internal Task<LaunchSessionStopRequestResult> RequestActiveSessionStopAsync(
+        CancellationToken cancellationToken = default) =>
+        RequestActiveSessionStopAsync(
+            ForceStopGracePeriod,
+            ForceStopConfirmationWindow,
+            cancellationToken);
+
+    internal async Task<LaunchSessionStopRequestResult> RequestActiveSessionStopAsync(
+        TimeSpan gracePeriod,
+        TimeSpan confirmationWindow,
+        CancellationToken cancellationToken = default)
+    {
+        await _activeSessionStopGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ActiveLaunchSession? session;
+            var now = DateTime.UtcNow;
+            var isConfirmation = false;
+            lock (_activeSessionGate)
+            {
+                session = _activeSession;
+                if (session == null)
+                    return LaunchSessionStopRequestResult.NotAvailable;
+
+                if (session.FirstStopRequestUtc is not { } firstRequest ||
+                    now - firstRequest > confirmationWindow)
+                {
+                    session.FirstStopRequestUtc = now;
+                }
+                else
+                {
+                    session.WasStopRequested = true;
+                    isConfirmation = true;
+                }
+            }
+
+            if (!isConfirmation)
+            {
+                using var targets = ResolveActiveSessionProcesses(session);
+                if (targets.Count == 0)
+                    return LaunchSessionStopRequestResult.AlreadyExited;
+
+                var closeRequested = false;
+                foreach (var process in targets.Processes)
+                {
+                    try
+                    {
+                        closeRequested |= process.CloseMainWindow();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[Launcher] Graceful session close failed for PID {process.Id}: {ex.Message}");
+                    }
+                }
+
+                if (closeRequested)
+                {
+                    lock (_activeSessionGate)
+                    {
+                        if (_activeSession?.Id == session.Id)
+                            session.WasStopRequested = true;
+                    }
+
+                    return LaunchSessionStopRequestResult.GracefulCloseRequested;
+                }
+
+                return LaunchSessionStopRequestResult.ForceStopArmed;
+            }
+
+            var firstStopRequestUtc = session.FirstStopRequestUtc ?? now;
+            var remainingGracePeriod = gracePeriod - (now - firstStopRequestUtc);
+            if (remainingGracePeriod > TimeSpan.Zero)
+                await Task.Delay(remainingGracePeriod, cancellationToken).ConfigureAwait(false);
+
+            lock (_activeSessionGate)
+            {
+                if (_activeSession?.Id != session.Id)
+                    return LaunchSessionStopRequestResult.AlreadyExited;
+            }
+
+            using var forceTargets = ResolveActiveSessionProcesses(session);
+            if (forceTargets.Count == 0)
+                return LaunchSessionStopRequestResult.AlreadyExited;
+
+            foreach (var process in forceTargets.Processes)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(entireProcessTree: true);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Launcher] Forced session stop failed for PID {process.Id}: {ex.Message}");
+                }
+            }
+
+            return LaunchSessionStopRequestResult.ForceStopRequested;
+        }
+        finally
+        {
+            _activeSessionStopGate.Release();
+        }
+    }
+
+    private ActiveLaunchSessionRegistration SetActiveSession(
+        int? rootProcessId,
+        string? watchedProcessName,
+        IEnumerable<int>? watchedProcessIds)
+    {
+        var id = Interlocked.Increment(ref _nextActiveSessionId);
+        lock (_activeSessionGate)
+        {
+            _activeSession = new ActiveLaunchSession
+            {
+                Id = id,
+                RootProcessId = rootProcessId,
+                WatchedProcessName = watchedProcessName,
+                WatchedProcessIds = watchedProcessIds?.ToHashSet()
+            };
+        }
+
+        return new ActiveLaunchSessionRegistration(id);
+    }
+
+    private ProcessCollection ResolveActiveSessionProcesses(ActiveLaunchSession session)
+    {
+        if (session.RootProcessId is { } rootProcessId)
+        {
+            try
+            {
+                var process = Process.GetProcessById(rootProcessId);
+                if (process.HasExited)
+                {
+                    process.Dispose();
+                    return new ProcessCollection([]);
+                }
+
+                return new ProcessCollection([process]);
+            }
+            catch (ArgumentException)
+            {
+                return new ProcessCollection([]);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(session.WatchedProcessName))
+        {
+            int[] processIds;
+            lock (_activeSessionGate)
+                processIds = session.WatchedProcessIds?.ToArray() ?? [];
+
+            var processes = new List<Process>();
+            foreach (var processId in processIds)
+            {
+                try
+                {
+                    var process = Process.GetProcessById(processId);
+                    if (process.HasExited ||
+                        !string.Equals(
+                            process.ProcessName,
+                            session.WatchedProcessName,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        process.Dispose();
+                        continue;
+                    }
+
+                    processes.Add(process);
+                }
+                catch (ArgumentException)
+                {
+                    // The observed process has already exited.
+                }
+            }
+
+            return new ProcessCollection(processes.ToArray());
+        }
+
+        return new ProcessCollection([]);
+    }
+
+    private sealed class ProcessCollection(Process[] processes) : IDisposable
+    {
+        public Process[] Processes { get; } = processes;
+        public int Count => Processes.Length;
+
+        public void Dispose()
+        {
+            foreach (var process in Processes)
                 process.Dispose();
         }
     }
@@ -100,20 +378,23 @@ public sealed class LaunchProcessService
     internal Task<ProcessWatchOutcome> WatchProcessByNameAsync(
         string processName,
         bool wasRunningBeforeLaunch,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        Action<IReadOnlyCollection<int>>? onProcessesDetected = null) =>
         WatchProcessByNameAsync(
             processName,
             wasRunningBeforeLaunch,
             WatchProcessStartupTimeout,
             WatchProcessStartupPollInterval,
-            cancellationToken);
+            cancellationToken,
+            onProcessesDetected);
 
     internal async Task<ProcessWatchOutcome> WatchProcessByNameAsync(
         string processName,
         bool wasRunningBeforeLaunch,
         TimeSpan startupTimeout,
         TimeSpan startupPollInterval,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<IReadOnlyCollection<int>>? onProcessesDetected = null)
     {
         var cleanName = GetWatchProcessName(processName);
         var startWatch = Stopwatch.StartNew();
@@ -128,8 +409,12 @@ public sealed class LaunchProcessService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (IsProcessRunning(cleanName))
+            var detectedProcessIds = GetProcessIds(cleanName);
+            if (detectedProcessIds.Count > 0)
+            {
+                onProcessesDetected?.Invoke(detectedProcessIds);
                 break;
+            }
 
             var remaining = startupTimeout - startWatch.Elapsed;
             if (remaining <= TimeSpan.Zero)
@@ -148,8 +433,11 @@ public sealed class LaunchProcessService
 
             await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
 
-            if (!IsProcessRunning(cleanName))
+            var observedProcessIds = GetProcessIds(cleanName);
+            if (observedProcessIds.Count == 0)
                 break;
+
+            onProcessesDetected?.Invoke(observedProcessIds);
         }
 
         return ProcessWatchOutcome.Tracked;
