@@ -2,113 +2,213 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
-             xmlns:video="using:Retromind.Helpers.Video"
              xmlns:helpers="using:Retromind.Helpers"
              xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
              x:Name="ThemeRoot"
-             Background="#101010"
+             Background="Transparent"
 
              ext:ThemeProperties.Name="Default System Layout"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.Version="0.2.0"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
              ext:ThemeProperties.VideoFadeDurationMs="600"
              ext:ThemeProperties.SecondaryVideoEnabled="False">
 
-    <!-- Very simple, neutral system layout:
-         - large system title on the left
-         - centered "monitor" with VideoSlot
-         - basic stats at the bottom -->
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="AccentBrush" Color="#7BA3FF" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#C8D2E5" />
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#38FFFFFF" />
+        <SolidColorBrush x:Key="PreviewBorderBrush" Color="#667BA3FF" />
+        <SolidColorBrush x:Key="PreviewSurfaceBrush" Color="#E00B0E15" />
 
-    <Grid RowDefinitions="*,Auto"
-          ColumnDefinitions="*,2.3*"
-          Margin="40">
+        <LinearGradientBrush x:Key="BackgroundWash" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#C3070910" Offset="0" />
+            <GradientStop Color="#70152236" Offset="0.52" />
+            <GradientStop Color="#D9070910" Offset="1" />
+        </LinearGradientBrush>
 
-        <!-- LEFT: system title and short info -->
-        <StackPanel Grid.Row="0"
-                    Grid.Column="0"
-                    VerticalAlignment="Center"
-                    Spacing="8">
-            <!-- Each subtheme instance keeps its own node while themes crossfade. -->
-            <Image helpers:AsyncImageHelper.Url="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath}"
-                   Height="80"
-                   Stretch="Uniform"
-                   HorizontalAlignment="Center"
-                   IsVisible="{Binding ElementName=ThemeRoot,
-                                           Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
-                                                   Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+    </UserControl.Resources>
 
-            <!-- Fallback: text title if no logo -->
-            <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Name}"
-                       FontSize="40"
-                       FontWeight="Bold"
-                       Foreground="White"
-                       TextTrimming="CharacterEllipsis"
-                       MaxWidth="260"
-                       IsVisible="{Binding ElementName=ThemeRoot,
-                                           Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+    <Border Background="#0B0E15"
+            CornerRadius="8"
+            ClipToBounds="True">
+        <Grid>
+            <Rectangle Fill="{StaticResource BackgroundWash}"
+                       IsHitTestVisible="False" />
+
+            <!-- Match the shared system-subtheme structure: identity and details
+                 on the left, system presentation on the right. -->
+            <Grid ColumnDefinitions="0.82*,1.48*"
+                  Margin="44,34,38,30">
+
+                <Grid Grid.Column="0"
+                      RowDefinitions="Auto,Auto,*,Auto"
+                      Margin="0,12,36,10">
+                    <Grid Grid.Row="0" Height="112">
+                        <ext:CrossfadeImage Url="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath}"
+                                            DecodeWidth="640"
+                                            LoadDelayMs="180"
+                                            FadeDurationMs="500"
+                                            RetainCurrentImageUntilLoaded="False"
+                                            MaxWidth="390"
+                                            MaxHeight="108"
+                                            Stretch="Uniform"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding ElementName=ThemeRoot,
+                                                                Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+                                                                Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Name}"
+                                   FontSize="44"
+                                   LineHeight="48"
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   TextWrapping="Wrap"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxLines="2"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding ElementName=ThemeRoot,
+                                                       Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
                                                        Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
-        </StackPanel>
+                    </Grid>
 
-        <!-- RIGHT: simple "monitor" reserved for the secondary video channel -->
-        <Grid Grid.Row="0"
-              Grid.Column="1"
-              HorizontalAlignment="Center"
-              VerticalAlignment="Center"
-              MinWidth="720"
-              MinHeight="360">
-            <!-- Outer frame -->
-            <Border Background="#181818"
-                    CornerRadius="16"
-                    Padding="24"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Stretch">
-                <!-- Split into: left = logo/name, right = screen -->
-                <Grid ColumnDefinitions="Auto,*"
-                      RowDefinitions="*">
-                    <!-- RIGHT SIDE: monitor with secondary video slot -->
-                    <Grid Grid.Column="1"
-                          RowDefinitions="*,Auto">
-                        <!-- "Screen" area with video + fallback text -->
-                        <Border x:Name="SystemPrimaryVideoSlot"
-                                Grid.Row="0"
-                                Width="640"
-                                Height="360"
-                                Background="#181818"
-                                CornerRadius="8"
-                                Padding="0"
-                                Margin="0,0,0,12"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center">
+                    <Grid Grid.Row="1" Margin="0,14,0,20">
+                        <Border Height="3"
+                                Width="124"
+                                Background="{StaticResource AccentBrush}"
+                                HorizontalAlignment="Left"
+                                CornerRadius="2" />
+                        <Border Height="3"
+                                Width="42"
+                                Margin="124,0,0,0"
+                                Background="#7AFFFFFF"
+                                HorizontalAlignment="Left"
+                                CornerRadius="2" />
+                    </Grid>
+
+                    <Border Grid.Row="2"
+                            BorderBrush="#557BA3FF"
+                            BorderThickness="1,0,0,0"
+                            Padding="18,2,4,4"
+                            ClipToBounds="True">
+                        <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      IsHitTestVisible="False"
+                                      Background="Transparent"
+                                      helpers:ScrollViewerBehaviors.AutoVerticalScroll="True"
+                                      helpers:ScrollViewerBehaviors.AutoVerticalScrollSpeed="4.2"
+                                      helpers:ScrollViewerBehaviors.AutoVerticalScrollStartDelayMs="6500"
+                                      helpers:ScrollViewerBehaviors.AutoVerticalScrollEndPauseMs="1500"
+                                      helpers:ScrollViewerBehaviors.AutoVerticalScrollRestartToken="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Description}">
+                            <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Description}"
+                                       FontSize="18"
+                                       LineHeight="27"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       TextWrapping="Wrap" />
+                        </ScrollViewer>
+                    </Border>
+
+                    <Border Grid.Row="3"
+                            Margin="0,22,0,0"
+                            Padding="14,8"
+                            Background="#76101620"
+                            BorderBrush="{StaticResource PanelBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="12"
+                            HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Items.Count}"
+                                       Foreground="White"
+                                       FontSize="20"
+                                       FontWeight="Bold" />
+                            <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       FontSize="16"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Responsive 16:9 preview stage. -->
+                <Viewbox Grid.Column="1"
+                         Stretch="Uniform"
+                         StretchDirection="Both"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         MaxWidth="840"
+                         MaxHeight="473">
+                    <Grid Width="960" Height="540">
+                        <!-- Artwork remains visible until the first video frame is ready. -->
+                        <Border Background="{StaticResource PreviewSurfaceBrush}"
+                                BorderBrush="{StaticResource PreviewBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="16"
+                                ClipToBounds="True">
                             <Grid>
-                                <TextBlock Text="{x:Static resources:ThemeStrings.NoSystemVideo}"
+                                <ext:CrossfadeImage Url="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryWallpaperAbsolutePath}"
+                                                    DecodeWidth="1280"
+                                                    LoadDelayMs="220"
+                                                    FadeDurationMs="700"
+                                                    RetainCurrentImageUntilLoaded="False"
+                                                    Stretch="UniformToFill" />
+
+                                <Rectangle Fill="#24000000" />
+
+                                <ext:CrossfadeImage Url="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath}"
+                                                    DecodeWidth="720"
+                                                    LoadDelayMs="180"
+                                                    FadeDurationMs="500"
+                                                    RetainCurrentImageUntilLoaded="False"
+                                                    Margin="140,90"
+                                                    Opacity="0.82"
+                                                    Stretch="Uniform"
+                                                    IsVisible="{Binding ElementName=ThemeRoot,
+                                                                        Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryWallpaperAbsolutePath,
+                                                                        Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+
+                                <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Name}"
+                                           Foreground="White"
+                                           FontSize="46"
+                                           FontWeight="Bold"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           Margin="120"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
-                                           Foreground="#505050"
-                                           FontSize="18" />
+                                           IsVisible="{Binding ElementName=ThemeRoot,
+                                                               Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+                                                               Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+
+                                <Border Background="#D0141822"
+                                        BorderBrush="{StaticResource PanelBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="18,10"
+                                        Margin="0,0,0,24"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Bottom"
+                                        IsVisible="{Binding !MainVideoHasContent}">
+                                    <TextBlock Text="{x:Static resources:ThemeStrings.NoSystemVideo}"
+                                               Foreground="{StaticResource MutedTextBrush}"
+                                               FontSize="18" />
+                                </Border>
                             </Grid>
                         </Border>
 
-                        <!-- Basic stats below the screen -->
-                        <StackPanel Grid.Row="1"
-                                    Orientation="Horizontal"
-                                    HorizontalAlignment="Right"
-                                    Spacing="12">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
-                                           Foreground="#AAAAAA"
-                                           FontSize="14" />
-                                <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Items.Count}"
-                                           Foreground="#FFFFFF"
-                                           FontSize="14" />
-                            </StackPanel>
-                        </StackPanel>
+                        <!-- The host replaces this slot's content with the shared VLC surface. -->
+                        <Border x:Name="SystemPrimaryVideoSlot"
+                                Background="{StaticResource PreviewSurfaceBrush}"
+                                BorderBrush="{StaticResource PreviewBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="16"
+                                ClipToBounds="True"
+                                IsVisible="{Binding IsVideoVisible}" />
                     </Grid>
-                </Grid>
-            </Border>
+                </Viewbox>
+            </Grid>
         </Grid>
-        
-    </Grid>
+    </Border>
 </UserControl>

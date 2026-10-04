@@ -3,109 +3,115 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
              xmlns:helpers="using:Retromind.Helpers"
-             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
              x:DataType="vm:BigModeViewModel"
-             Background="#111319"
+             Background="#090B11"
 
              ext:ThemeProperties.Name="System Host"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.2.0"
+             ext:ThemeProperties.Version="0.3.0"
              ext:ThemeProperties.SupportsHome="True"
              ext:ThemeProperties.VideoFadeDurationMs="600">
-             <!-- ext:ThemeProperties.PrimaryVideoEnabled="True"
-             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"> -->
+
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="PreviewBorderBrush" Color="#467BA3FF" />
+
+        <LinearGradientBrush x:Key="PanelBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#E01B202C" Offset="0" />
+            <GradientStop Color="#C811151E" Offset="1" />
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="BackgroundWash" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FF070910" Offset="0" />
+            <GradientStop Color="#D5121A2A" Offset="0.52" />
+            <GradientStop Color="#FF070910" Offset="1" />
+        </LinearGradientBrush>
+    </UserControl.Resources>
 
     <UserControl.Styles>
         <Style Selector="ListBox.bm-nav-list ListBoxItem">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="8,2" />
-            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="CornerRadius" Value="6" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Focusable" Value="False" />
         </Style>
     </UserControl.Styles>
 
     <Grid>
-        <Grid ColumnDefinitions="0.20*,0.80*"
-              Margin="40,30">
+        <Rectangle Fill="{StaticResource BackgroundWash}"
+                   IsHitTestVisible="False" />
 
-        <!-- LEFT COLUMN: match Default theme styling -->
-        <Border Grid.Column="0"
-                Background="#20232A"
-                CornerRadius="8"
-                Padding="28,32,24,28">
-            <Grid RowDefinitions="Auto,*">
-                <!-- Category / context label -->
-                <TextBlock Grid.Row="0"
-                           Text="{Binding CategoryTitle}"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           Foreground="#7BA3FF"
-                           Margin="0,0,0,12"
-                           TextTrimming="CharacterEllipsis" />
+        <Grid ColumnDefinitions="0.24*,0.76*"
+              Margin="32,24">
 
-                <!-- System list -->
-                <ListBox Grid.Row="1"
-                         Classes="bm-nav-list"
-                         ItemsSource="{Binding CurrentCategories}"
-                         SelectedItem="{Binding SelectedCategory}"
-                         Background="#6620232A"
-                         BorderThickness="0"
-                         Padding="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel />
-                        </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Name}"
-                                       FontSize="16"
-                                       Margin="0,3"
-                                       Foreground="White"
-                                       TextTrimming="CharacterEllipsis" />
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
-        </Border>
+            <!-- LEFT COLUMN: match Default theme styling -->
+            <Border Grid.Column="0"
+                    Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource PreviewBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="24,28,20,24">
+                <Grid RowDefinitions="Auto,*">
+                    <!-- Category / context label -->
+                    <TextBlock Grid.Row="0"
+                               Text="{Binding CategoryTitle}"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               Foreground="#7BA3FF"
+                               Margin="0,0,0,20"
+                               TextTrimming="CharacterEllipsis" />
 
-        <!-- RIGHT: host layout + primary system preview -->
-        <Border Grid.Column="1"
-                Background="#181A20"
-                Margin="28,0,0,0"
-                CornerRadius="8"
-                Padding="16">
-            <Grid>
-                <!-- System-specific sublayout (Default/C64/...) -->
-                <ContentControl x:Name="SystemLayoutHost"
-                                HorizontalAlignment="Stretch"
-                                VerticalAlignment="Stretch" />
+                    <!-- System list -->
+                    <ListBox Grid.Row="1"
+                             Classes="bm-nav-list"
+                             ItemsSource="{Binding CurrentCategories}"
+                             SelectedItem="{Binding SelectedCategory}"
+                             Background="#44101620"
+                             BorderThickness="0"
+                             Padding="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ext:ThemeProperties.FadeDurationMs="220"
+                             ext:ThemeProperties.MoveDurationMs="220"
+                             ext:ThemeProperties.AccentColor="#7BA3FF"
+                             ext:ThemeProperties.SelectedScale="1.02"
+                             ext:ThemeProperties.UnselectedOpacity="0.78"
+                             ext:ThemeProperties.SelectedGlowOpacity="0.30"
+                             ext:ThemeProperties.SelectedGlowRadius="14"
+                             helpers:ListBoxBehaviors.CenterSelectedItem="True">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"
+                                           FontSize="18"
+                                           Foreground="White"
+                                           TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
 
-                <!-- Primary system preview (shared primary video channel).
-                     BigModeHostView will attach _primaryVideoControl here.
-                     Size/position matches the monitor in Default System Layout. -->
-                <!-- <Border x:Name="SystemPrimaryVideoSlot"
-                        Width="640"
-                        Height="360"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Background="#181818"
-                        CornerRadius="8">
-                    <Grid>
-                        <TextBlock Text="{x:Static resources:ThemeStrings.SystemPreviewVideo}"
-                                   Foreground="#505050"
-                                   FontSize="18"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center" />
-                    </Grid>
-                </Border>-->
-            </Grid>
-        </Border>
+            <!-- RIGHT: system-specific sublayout -->
+            <Border Grid.Column="1"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Margin="28,0,0,0"
+                    Padding="0"
+                    ClipToBounds="True">
+                <Grid>
+                    <ContentControl x:Name="SystemLayoutHost"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch" />
+                </Grid>
+            </Border>
         </Grid>
-
     </Grid>
 </UserControl>

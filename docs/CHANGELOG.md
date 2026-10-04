@@ -20,6 +20,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - support quota-conscious ScreenScraper bulk scraping with exact ROM identification and safe title fallback
 
 ### Changed
+- modernize the System host and Default system subtheme with matching navigation, responsive artwork/video presentation and auto-scrolling descriptions
 - inset the BigMode system-menu shortcut hint slightly farther from the left edge
 - modernize the Default BigMode visual shell with layered backgrounds, lightweight framed panels and more room for details
 - improve Default BigMode couch readability with wider navigation, larger rows, consistent selection accents and a game counter
