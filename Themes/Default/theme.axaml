@@ -44,8 +44,10 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="8,2" />
-            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="CornerRadius" Value="6" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Focusable" Value="False" />
         </Style>
@@ -81,20 +83,20 @@
                             IsHitTestVisible="False" />
 
         <!-- Two-column layout: navigation on the left, video + details on the right -->
-        <Grid ColumnDefinitions="0.20*,0.80*"
+        <Grid ColumnDefinitions="0.24*,0.76*"
               Margin="32,24">
 
             <!-- LEFT COLUMN: category, big title, list -->
             <Border Grid.Column="0"
                     Background="#CC20232A"
                     CornerRadius="8"
-                    Padding="28,32,24,28">
-                <Grid RowDefinitions="Auto,Auto,*">
+                    Padding="24,28,20,24">
+                <Grid RowDefinitions="Auto,Auto,*,Auto">
 
                     <!-- Category label -->
                     <TextBlock Grid.Row="0"
                                Text="{Binding CategoryTitle}"
-                               FontSize="18"
+                               FontSize="20"
                                FontWeight="SemiBold"
                                Foreground="#7BA3FF"
                                Margin="0,0,0,12"
@@ -150,7 +152,7 @@
                                 </ext:CrossfadeImage>
 
                                 <TextBlock Text="{Binding SelectedItem.Title}"
-                                           FontSize="18"
+                                           FontSize="20"
                                            FontWeight="Bold"
                                            Foreground="White"
                                            VerticalAlignment="Center"
@@ -182,7 +184,7 @@
                                                     IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
                                 <TextBlock Text="{Binding SelectedCategory.Name}"
-                                           FontSize="20"
+                                           FontSize="22"
                                            FontWeight="Bold"
                                            Foreground="White"
                                            VerticalAlignment="Center"
@@ -208,6 +210,11 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ext:ThemeProperties.FadeDurationMs="220"
                              ext:ThemeProperties.MoveDurationMs="220"
+                             ext:ThemeProperties.AccentColor="#7BA3FF"
+                             ext:ThemeProperties.SelectedScale="1.02"
+                             ext:ThemeProperties.UnselectedOpacity="0.78"
+                             ext:ThemeProperties.SelectedGlowOpacity="0.30"
+                             ext:ThemeProperties.SelectedGlowRadius="14"
                              helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              IsVisible="{Binding IsCategorySelectionActive}">
                         <ListBox.ItemsPanel>
@@ -218,8 +225,7 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding Name}"
-                                           FontSize="16"
-                                           Margin="0,3"
+                                           FontSize="18"
                                            Foreground="White"
                                            TextTrimming="CharacterEllipsis" />
                             </DataTemplate>
@@ -237,6 +243,11 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ext:ThemeProperties.FadeDurationMs="220"
                              ext:ThemeProperties.MoveDurationMs="220"
+                             ext:ThemeProperties.AccentColor="#7BA3FF"
+                             ext:ThemeProperties.SelectedScale="1.02"
+                             ext:ThemeProperties.UnselectedOpacity="0.78"
+                             ext:ThemeProperties.SelectedGlowOpacity="0.30"
+                             ext:ThemeProperties.SelectedGlowRadius="14"
                              helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              IsVisible="{Binding IsGameListActive}">
                         <ListBox.ItemsPanel>
@@ -247,13 +258,29 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding Title}"
-                                           FontSize="16"
-                                           Margin="0,3"
+                                           FontSize="18"
                                            Foreground="White"
                                            TextTrimming="CharacterEllipsis" />
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+
+                    <StackPanel Grid.Row="3"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                Margin="0,12,4,0"
+                                IsVisible="{Binding IsGameListActive}">
+                        <TextBlock Text="{Binding CurrentGameNumber}"
+                                   Foreground="White"
+                                   FontSize="16"
+                                   FontWeight="Bold" />
+                        <TextBlock Text=" / "
+                                   Foreground="#80FFFFFF"
+                                   FontSize="16" />
+                        <TextBlock Text="{Binding TotalGames}"
+                                   Foreground="#C8D2E5"
+                                   FontSize="16" />
+                    </StackPanel>
                 </Grid>
             </Border>
 
