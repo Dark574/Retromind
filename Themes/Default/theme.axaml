@@ -270,21 +270,54 @@
                     <Grid RowDefinitions="2*,*">
                         <!-- VIDEO AREA -->
                         <Grid Grid.Row="0">
-                            <Border x:Name="VideoSlot"
-                                    Background="#181A20"
+                            <!-- Stable artwork layer shown underneath the video surface. -->
+                            <Border Background="#181A20"
                                     CornerRadius="6"
                                     ClipToBounds="True"
                                     HorizontalAlignment="Stretch"
                                     VerticalAlignment="Stretch">
                                 <Grid>
-                                    <!-- Optional fallback text while no video is playing -->
-                                    <TextBlock Text="{x:Static resources:ThemeStrings.NoPreviewVideo}"
-                                               Foreground="#606060"
-                                               FontSize="18"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center" />
+                                    <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryScreenshotPath}"
+                                                        DecodeWidth="1280"
+                                                        DisableCache="True"
+                                                        LoadDelayMs="220"
+                                                        FadeDurationMs="700"
+                                                        RetainCurrentImageUntilLoaded="False"
+                                                        Stretch="UniformToFill"
+                                                        IsVisible="{Binding IsGameListActive}" />
+
+                                    <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
+                                                        DecodeWidth="1280"
+                                                        DisableCache="True"
+                                                        LoadDelayMs="220"
+                                                        FadeDurationMs="700"
+                                                        RetainCurrentImageUntilLoaded="False"
+                                                        Stretch="UniformToFill"
+                                                        IsVisible="{Binding IsCategorySelectionActive}" />
+
+                                    <Rectangle Fill="#26000000" />
+
+                                    <Border Background="#B0181A20"
+                                            CornerRadius="12"
+                                            Padding="16,9"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding !MainVideoHasContent}">
+                                        <TextBlock Text="{x:Static resources:ThemeStrings.NoPreviewVideo}"
+                                                   Foreground="#C8D2E5"
+                                                   FontSize="16" />
+                                    </Border>
                                 </Grid>
                             </Border>
+
+                            <!-- The host replaces this slot's content with the VLC surface. -->
+                            <Border x:Name="VideoSlot"
+                                    Background="#181A20"
+                                    CornerRadius="6"
+                                    ClipToBounds="True"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch"
+                                    IsVisible="{Binding IsVideoVisible}" />
 
                             <!-- Cover overlay -->
                             <Border x:Name="CoverPanel"
