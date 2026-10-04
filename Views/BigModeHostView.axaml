@@ -78,7 +78,7 @@
 
         <Border HorizontalAlignment="Left"
                 VerticalAlignment="Bottom"
-                Margin="34,0,0,28"
+                Margin="42,0,0,28"
                 Padding="12,7"
                 Background="#C0181D27"
                 BorderBrush="#447BA3FF"

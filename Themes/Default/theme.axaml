@@ -6,11 +6,11 @@
              xmlns:resources="using:Retromind.Resources"
              xmlns:video="using:Retromind.Helpers.Video"
              x:DataType="vm:BigModeViewModel"
-             Background="#111319"
+             Background="#090B11"
              
              ext:ThemeProperties.Name="Default"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.4.0"
+             ext:ThemeProperties.Version="0.5.0"
              ext:ThemeProperties.SupportsHome="True"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
@@ -26,6 +26,24 @@
 
     <UserControl.Resources>
         <x:Double x:Key="LogoHeight">80</x:Double>
+
+        <SolidColorBrush x:Key="AccentBrush" Color="#7BA3FF" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#C8D2E5" />
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#38FFFFFF" />
+        <SolidColorBrush x:Key="PreviewBorderBrush" Color="#467BA3FF" />
+        <SolidColorBrush x:Key="DetailPanelBrush" Color="#E0131721" />
+        <SolidColorBrush x:Key="PreviewSurfaceBrush" Color="#E00B0E15" />
+
+        <LinearGradientBrush x:Key="PanelBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#E01B202C" Offset="0" />
+            <GradientStop Color="#C811151E" Offset="1" />
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="BackgroundWash" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#E8070910" Offset="0" />
+            <GradientStop Color="#94121A2A" Offset="0.52" />
+            <GradientStop Color="#DB070910" Offset="1" />
+        </LinearGradientBrush>
 
         <!-- Soft slide+fade animation for the main title -->
         <Transitions x:Key="TitleTransitions">
@@ -62,13 +80,13 @@
                             LoadDelayMs="220"
                             FadeDurationMs="700"
                             Stretch="UniformToFill"
-                            Opacity="0.30"
+                            Opacity="0.38"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             IsVisible="{Binding ActiveScreenshotFallbackPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
                             IsHitTestVisible="False" />
 
-        <!-- Very transparent wallpaper from the current item -->
+        <!-- Soft wallpaper from the current item -->
         <ext:CrossfadeImage x:Name="BackgroundVisual"
                             Url="{Binding ActiveWallpaperPath}"
                             DecodeWidth="1920"
@@ -76,11 +94,14 @@
                             LoadDelayMs="220"
                             FadeDurationMs="700"
                             Stretch="UniformToFill"
-                            Opacity="0.30"
+                            Opacity="0.42"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"
                             IsHitTestVisible="False" />
+
+        <Rectangle Fill="{StaticResource BackgroundWash}"
+                   IsHitTestVisible="False" />
 
         <!-- Two-column layout: navigation on the left, video + details on the right -->
         <Grid ColumnDefinitions="0.24*,0.76*"
@@ -88,8 +109,10 @@
 
             <!-- LEFT COLUMN: category, big title, list -->
             <Border Grid.Column="0"
-                    Background="#CC20232A"
-                    CornerRadius="8"
+                    Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource PreviewBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16"
                     Padding="24,28,20,24">
                 <Grid RowDefinitions="Auto,Auto,*,Auto">
 
@@ -98,7 +121,7 @@
                                Text="{Binding CategoryTitle}"
                                FontSize="20"
                                FontWeight="SemiBold"
-                               Foreground="#7BA3FF"
+                               Foreground="{StaticResource AccentBrush}"
                                Margin="0,0,0,12"
                                TextTrimming="CharacterEllipsis" />
 
@@ -204,7 +227,7 @@
                              Classes="bm-nav-list"
                              ItemsSource="{Binding CurrentCategories}"
                              SelectedItem="{Binding SelectedCategory}"
-                             Background="#6620232A"
+                             Background="#44101620"
                              BorderThickness="0"
                              Padding="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -237,7 +260,7 @@
                              Classes="bm-nav-list"
                              ItemsSource="{Binding Items}"
                              SelectedItem="{Binding SelectedItem}"
-                             Background="#6620232A"
+                             Background="#44101620"
                              BorderThickness="0"
                              Padding="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -278,7 +301,7 @@
                                    Foreground="#80FFFFFF"
                                    FontSize="16" />
                         <TextBlock Text="{Binding TotalGames}"
-                                   Foreground="#C8D2E5"
+                                   Foreground="{StaticResource MutedTextBrush}"
                                    FontSize="16" />
                     </StackPanel>
                 </Grid>
@@ -287,19 +310,23 @@
             <!-- RIGHT COLUMN: big video on top + details below -->
             <Grid Grid.Column="1"
                   Margin="28,0,0,0">
-                <Border Background="#CC181A20"
-                        CornerRadius="8"
+                <Border Background="{StaticResource PanelBrush}"
+                        BorderBrush="{StaticResource PanelBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="16"
                         Padding="16"
                         HorizontalAlignment="Stretch"
                         VerticalAlignment="Stretch">
 
                     <!-- Single container grid for video (top) and details (bottom) -->
-                    <Grid RowDefinitions="2*,*">
+                    <Grid RowDefinitions="3*,2*">
                         <!-- VIDEO AREA -->
                         <Grid Grid.Row="0">
                             <!-- Stable artwork layer shown underneath the video surface. -->
-                            <Border Background="#181A20"
-                                    CornerRadius="6"
+                            <Border Background="{StaticResource PreviewSurfaceBrush}"
+                                    BorderBrush="{StaticResource PreviewBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
                                     ClipToBounds="True"
                                     HorizontalAlignment="Stretch"
                                     VerticalAlignment="Stretch">
@@ -324,14 +351,16 @@
 
                                     <Rectangle Fill="#26000000" />
 
-                                    <Border Background="#B0181A20"
+                                    <Border Background="#D0141822"
+                                            BorderBrush="{StaticResource PanelBorderBrush}"
+                                            BorderThickness="1"
                                             CornerRadius="12"
                                             Padding="16,9"
                                             HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
                                             IsVisible="{Binding !MainVideoHasContent}">
                                         <TextBlock Text="{x:Static resources:ThemeStrings.NoPreviewVideo}"
-                                                   Foreground="#C8D2E5"
+                                                   Foreground="{StaticResource MutedTextBrush}"
                                                    FontSize="16" />
                                     </Border>
                                 </Grid>
@@ -339,8 +368,10 @@
 
                             <!-- The host replaces this slot's content with the VLC surface. -->
                             <Border x:Name="VideoSlot"
-                                    Background="#181A20"
-                                    CornerRadius="6"
+                                    Background="{StaticResource PreviewSurfaceBrush}"
+                                    BorderBrush="{StaticResource PreviewBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
                                     ClipToBounds="True"
                                     HorizontalAlignment="Stretch"
                                     VerticalAlignment="Stretch"
@@ -353,7 +384,7 @@
                                     HorizontalAlignment="Left"
                                     VerticalAlignment="Top"
                                     Margin="-58,28,0,0"
-                                    CornerRadius="8"
+                                    CornerRadius="10"
                                     ClipToBounds="True"
                                     Background="#00000000"
                                     IsHitTestVisible="False">
@@ -380,9 +411,11 @@
                         <!-- DETAILS: always fill the available width of the right column -->
                         <Border Grid.Row="1"
                                 Margin="0,14,0,0"
-                                Background="#E020232A"
-                                CornerRadius="6"
-                                Padding="14"
+                                Background="{StaticResource DetailPanelBrush}"
+                                BorderBrush="{StaticResource PanelBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="18"
                                 HorizontalAlignment="Stretch"
                                 VerticalAlignment="Stretch">
                             <ScrollViewer VerticalScrollBarVisibility="Auto"
@@ -398,17 +431,17 @@
                                     <!-- Compact RetroAchievements summary -->
                                     <Border Grid.Row="0"
                                             Grid.ColumnSpan="2"
-                                            Background="#6620232A"
+                                            Background="#52101620"
                                             BorderBrush="#557BA3FF"
                                             BorderThickness="1"
-                                            CornerRadius="6"
+                                            CornerRadius="10"
                                             Padding="10,8"
                                             IsVisible="{Binding RetroAchievementsProgress.IsVisible}">
                                         <StackPanel Spacing="5">
                                             <Grid ColumnDefinitions="Auto,16,*">
                                                 <TextBlock Grid.Column="0"
                                                            Text="RETROACHIEVEMENTS"
-                                                           Foreground="#7BA3FF"
+                                                           Foreground="{StaticResource AccentBrush}"
                                                            FontSize="12"
                                                            FontWeight="SemiBold" />
                                                 <TextBlock Grid.Column="2"
@@ -422,17 +455,17 @@
                                                          Maximum="{Binding RetroAchievementsProgress.ProgressMaximum}"
                                                          Value="{Binding RetroAchievementsProgress.ProgressValue}"
                                                          Height="5"
-                                                         Foreground="#7BA3FF"
+                                                         Foreground="{StaticResource AccentBrush}"
                                                          IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
                                             <ProgressBar IsIndeterminate="{Binding RetroAchievementsProgress.IsLoading}"
                                                          Height="4"
                                                          IsVisible="{Binding RetroAchievementsProgress.IsLoading}" />
                                             <TextBlock Text="{Binding RetroAchievementsProgress.HardcoreSummaryText}"
-                                                       Foreground="#C8D2E5"
+                                                       Foreground="{StaticResource MutedTextBrush}"
                                                        FontSize="11"
                                                        IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
                                             <TextBlock Text="{Binding RetroAchievementsProgress.StatusText}"
-                                                       Foreground="#C8D2E5"
+                                                       Foreground="{StaticResource MutedTextBrush}"
                                                        FontSize="11"
                                                        TextWrapping="Wrap"
                                                        IsVisible="{Binding RetroAchievementsProgress.ShowStatus}" />
@@ -444,7 +477,7 @@
                                                 Grid.ColumnSpan="2"
                                                 Spacing="6">
                                         <TextBlock Text="{x:Static resources:Strings.Common_Description}"
-                                                   Foreground="#7BA3FF"
+                                                   Foreground="{StaticResource AccentBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
 
@@ -456,7 +489,7 @@
                                     <!-- Release date -->
                                     <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
                                         <TextBlock Text="{x:Static resources:Strings.Common_ReleaseDate}"
-                                                   Foreground="#7BA3FF"
+                                                   Foreground="{StaticResource AccentBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
                                         <TextBlock Text="{Binding SelectedItem.ReleaseDate, StringFormat={}{0:yyyy-MM-dd}}"
@@ -466,7 +499,7 @@
                                     <!-- Developer -->
                                     <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
                                         <TextBlock Text="{x:Static resources:Strings.Common_Developer}"
-                                                   Foreground="#7BA3FF"
+                                                   Foreground="{StaticResource AccentBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
                                         <TextBlock Text="{Binding SelectedDeveloper}"
@@ -477,7 +510,7 @@
                                     <!-- Played count -->
                                     <StackPanel Grid.Row="3" Grid.Column="0" Spacing="4">
                                         <TextBlock Text="{x:Static resources:Strings.Media_PlayCount}"
-                                                   Foreground="#7BA3FF"
+                                                   Foreground="{StaticResource AccentBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
                                         <TextBlock Text="{Binding SelectedItem.PlayCount}"
@@ -487,7 +520,7 @@
                                     <!-- Last played -->
                                     <StackPanel Grid.Row="3" Grid.Column="1" Spacing="4">
                                         <TextBlock Text="{x:Static resources:Strings.Media_LastPlayed}"
-                                                   Foreground="#7BA3FF"
+                                                   Foreground="{StaticResource AccentBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
                                         <TextBlock Text="{Binding SelectedItem.LastPlayed, StringFormat={}{0:yyyy-MM-dd HH:mm}}"
@@ -497,7 +530,7 @@
                                     <!-- Play time -->
                                     <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
                                         <TextBlock Text="{x:Static resources:Strings.Media_PlayTime}"
-                                                   Foreground="#7BA3FF"
+                                                   Foreground="{StaticResource AccentBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
                                         <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
@@ -508,7 +541,7 @@
                                     <StackPanel Spacing="6"
                                                 IsVisible="{Binding IsCategorySelectionActive}">
                                         <TextBlock Text="{x:Static resources:Strings.Common_Description}"
-                                                   Foreground="#7BA3FF"
+                                                   Foreground="{StaticResource AccentBrush}"
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
                                         <TextBlock Text="{Binding SelectedCategory.Description}"
