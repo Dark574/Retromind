@@ -322,6 +322,7 @@ public partial class BigModeViewModel
         // Selection changed -> update counters before triggering preview logic.
         UpdateGameCounters();
         UpdateCircularItems();
+        UpdateWheelItems();
         
         // Notify dependent computed properties used by themes.
         OnPropertyChanged(nameof(SelectedYear));
@@ -353,6 +354,8 @@ public partial class BigModeViewModel
             SelectedCategoryIndex = CurrentCategories.IndexOf(value);
         }
 
+        UpdateWheelCategories();
+
         // Stop preview only when the target video actually changes.
         var targetVideoPath = ResolvePreviewVideoPath();
         StopVideoIfPreviewPathChanged(targetVideoPath);
@@ -371,6 +374,8 @@ public partial class BigModeViewModel
         // View mode changed (categories vs. games) -> counters may need to reset.
         UpdateGameCounters();
         UpdateCircularItems();
+        UpdateWheelItems();
+        UpdateWheelCategories();
 
         OnPropertyChanged(nameof(ActiveLogoPath));
         OnPropertyChanged(nameof(HasDisplayLogo));

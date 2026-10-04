@@ -38,10 +38,21 @@ public class WheelPanel : Panel
     public static double GetOffsetX(Control element) => element.GetValue(OffsetXProperty);
     public static void SetOffsetX(Control element, double value) => element.SetValue(OffsetXProperty, value);
 
+    public static readonly AttachedProperty<double> SelectedScaleProperty =
+        AvaloniaProperty.RegisterAttached<WheelPanel, Control, double>("SelectedScale", 1.0);
+
+    public static double GetSelectedScale(Control element) => element.GetValue(SelectedScaleProperty);
+    public static void SetSelectedScale(Control element, double value) => element.SetValue(SelectedScaleProperty, value);
+
     static WheelPanel()
     {
         // Whenever our custom properties change, we need to re-arrange the layout.
-        AffectsArrange<WheelPanel>(SelectedItemIndexProperty, WheelRadiusProperty, ItemSpacingAngleProperty, OffsetXProperty);
+        AffectsArrange<WheelPanel>(
+            SelectedItemIndexProperty,
+            WheelRadiusProperty,
+            ItemSpacingAngleProperty,
+            OffsetXProperty,
+            SelectedScaleProperty);
     }
 
     protected override Size ArrangeOverride(Size finalSize)
@@ -53,6 +64,7 @@ public class WheelPanel : Panel
         var radius = GetWheelRadius(this);
         var spacingAngle = GetItemSpacingAngle(this);
         var offsetX = GetOffsetX(this);
+        var selectedScale = Math.Clamp(GetSelectedScale(this), 0.1, 2.0);
         
         // Center of the wheel
         // Y axis is centered.
@@ -92,7 +104,7 @@ public class WheelPanel : Panel
             // The selected item should be fully opaque and on top
             if (i == selectedIndex)
             {
-                scale = 1.0;
+                scale = selectedScale;
                 opacity = 1.0;
                 child.ZIndex = 100; // Bring to front
             }

@@ -249,6 +249,7 @@ public partial class BigModeViewModel
         // The selected node can stay the same when returning from its item list.
         // Recompute its index even when SelectedCategory's setter does not fire.
         SelectedCategoryIndex = SelectedCategory != null ? value.IndexOf(SelectedCategory) : -1;
+        UpdateWheelCategories();
     }
 
     partial void OnItemsChanging(ObservableCollection<MediaItem> value)
@@ -272,6 +273,7 @@ public partial class BigModeViewModel
         // Keep game counters in sync with the new item collection.
         UpdateGameCounters();
         UpdateCircularItems();
+        UpdateWheelItems();
     }
 
     private void RememberCurrentItemSelection()

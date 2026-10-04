@@ -13,6 +13,62 @@ namespace Retromind.Extensions;
 public static class CircularWindowHelper
 {
     /// <summary>
+    /// Updates a selected-centered window which repeats its source at the edges.
+    /// Sources smaller than <paramref name="minimumSourceCount"/> remain finite so
+    /// very small collections do not appear to contain duplicate entries.
+    /// Returns the selected index inside the resulting window.
+    /// </summary>
+    public static int SynchronizeRepeatingCircularWindow<T>(
+        IList<T> source,
+        T? selected,
+        int windowSize,
+        int minimumSourceCount,
+        RangeObservableCollection<T> target)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+
+        var selectedSourceIndex = selected == null ? -1 : source.IndexOf(selected);
+        if (selectedSourceIndex < 0 && source.Count > 0)
+            selectedSourceIndex = 0;
+
+        if (source.Count == 0)
+        {
+            SynchronizeTarget(target, Array.Empty<T>());
+            return -1;
+        }
+
+        if (source.Count < minimumSourceCount || windowSize <= 0)
+        {
+            SynchronizeTarget(target, source);
+            return selectedSourceIndex;
+        }
+
+        if (windowSize % 2 == 0)
+            windowSize -= 1;
+
+        if (windowSize <= 0)
+        {
+            SynchronizeTarget(target, source);
+            return selectedSourceIndex;
+        }
+
+        var desired = new List<T>(windowSize);
+        var half = windowSize / 2;
+        for (var offset = -half; offset <= half; offset++)
+        {
+            var sourceIndex = (selectedSourceIndex + offset) % source.Count;
+            if (sourceIndex < 0)
+                sourceIndex += source.Count;
+
+            desired.Add(source[sourceIndex]);
+        }
+
+        SynchronizeTarget(target, desired);
+        return half;
+    }
+
+    /// <summary>
     /// Updates a circular window while retaining the existing item containers for
     /// ordinary one-step navigation. This avoids rebuilding every visible card in
     /// carousel themes when only the item entering at one edge has changed.
@@ -27,6 +83,13 @@ public static class CircularWindowHelper
 
         var desired = new List<T>();
         BuildCircularWindow(source, selected, windowSize, desired);
+
+        SynchronizeTarget(target, desired);
+    }
+
+    private static void SynchronizeTarget<T>(RangeObservableCollection<T> target, IEnumerable<T> desiredItems)
+    {
+        var desired = desiredItems as IList<T> ?? desiredItems.ToList();
 
         if (target.SequenceEqual(desired))
             return;

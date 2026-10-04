@@ -94,10 +94,21 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private ObservableCollection<MediaItem> _items = new();
 
     private const int DefaultCircularWindowSize = 9;
+    private const int MinimumRepeatingWheelItemCount = 5;
     private int _circularWindowSize = DefaultCircularWindowSize;
     private readonly RangeObservableCollection<MediaItem> _circularItems = new();
+    private readonly RangeObservableCollection<MediaItem> _wheelItems = new();
+    private readonly RangeObservableCollection<MediaNode> _wheelCategories = new();
 
     public ObservableCollection<MediaItem> CircularItems => _circularItems;
+    public ObservableCollection<MediaItem> WheelItems => _wheelItems;
+    public ObservableCollection<MediaNode> WheelCategories => _wheelCategories;
+
+    [ObservableProperty]
+    private int _wheelSelectedItemIndex = -1;
+
+    [ObservableProperty]
+    private int _wheelSelectedCategoryIndex = -1;
 
     public int CircularWindowSize
     {
@@ -109,7 +120,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
                 normalized = 0;
 
             if (SetProperty(ref _circularWindowSize, normalized))
+            {
                 UpdateCircularItems();
+                UpdateWheelItems();
+                UpdateWheelCategories();
+            }
         }
     }
 
@@ -811,6 +826,36 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             SelectedItem,
             _circularWindowSize,
             _circularItems);
+    }
+
+    private void UpdateWheelItems()
+    {
+        var selectedIndex = CircularWindowHelper.SynchronizeRepeatingCircularWindow(
+            Items,
+            SelectedItem,
+            _circularWindowSize,
+            MinimumRepeatingWheelItemCount,
+            _wheelItems);
+
+        if (WheelSelectedItemIndex == selectedIndex)
+            OnPropertyChanged(nameof(WheelSelectedItemIndex));
+        else
+            WheelSelectedItemIndex = selectedIndex;
+    }
+
+    private void UpdateWheelCategories()
+    {
+        var selectedIndex = CircularWindowHelper.SynchronizeRepeatingCircularWindow(
+            CurrentCategories,
+            SelectedCategory,
+            _circularWindowSize,
+            MinimumRepeatingWheelItemCount,
+            _wheelCategories);
+
+        if (WheelSelectedCategoryIndex == selectedIndex)
+            OnPropertyChanged(nameof(WheelSelectedCategoryIndex));
+        else
+            WheelSelectedCategoryIndex = selectedIndex;
     }
     
     /// <summary>
