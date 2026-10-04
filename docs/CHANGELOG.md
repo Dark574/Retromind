@@ -36,6 +36,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- play a selected category's own preview video without requiring it as a fallback for contained games
 - apply each BigMode system subtheme's video capability when switching systems
 - resume BigMode video previews when keyboard scrolling is interrupted by window deactivation
 - keep the previously opened category selected when navigating back in BigMode

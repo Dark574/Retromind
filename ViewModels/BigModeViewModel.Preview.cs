@@ -877,9 +877,7 @@ public partial class BigModeViewModel
             ? ResolveItemVideoPath(SelectedItem, node)
             : SelectedCategory == null
                 ? null
-                : IsSystemViewActive || SelectedCategory.IsFallbackEnabled(AssetType.Video)
-                    ? ResolveNodeVideoPath(SelectedCategory)
-                    : null;
+                : ResolveNodeVideoPath(SelectedCategory);
     }
 
     /// <summary>
