@@ -100,11 +100,13 @@
                                Margin="0,0,0,12"
                                TextTrimming="CharacterEllipsis" />
 
-                    <!-- Big title (selected game) -->
+                    <!-- Selected game or category identity -->
                     <Border Grid.Row="1"
                             MinHeight="{StaticResource LogoHeight}"
                             Margin="0,0,0,24">
-                        <StackPanel Spacing="6">
+                        <Grid>
+                            <StackPanel Spacing="6"
+                                        IsVisible="{Binding IsGameListActive}">
                             <!-- Item logo only -->
                             <Grid MinHeight="{StaticResource LogoHeight}"
                                   IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
@@ -164,7 +166,33 @@
                                     </TextBlock.Transitions>
                                 </TextBlock>
                             </StackPanel>
-                        </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Spacing="6"
+                                        IsVisible="{Binding IsCategorySelectionActive}">
+                                <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+                                                    DecodeWidth="512"
+                                                    DisableCache="True"
+                                                    LoadDelayMs="220"
+                                                    FadeDurationMs="1000"
+                                                    MaxHeight="{StaticResource LogoHeight}"
+                                                    Stretch="Uniform"
+                                                    HorizontalAlignment="Stretch"
+                                                    VerticalAlignment="Center"
+                                                    IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                                <TextBlock Text="{Binding SelectedCategory.Name}"
+                                           FontSize="20"
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Left"
+                                           TextWrapping="Wrap"
+                                           MaxLines="2"
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!-- Row 2: categories OR games depending on view mode -->
@@ -268,15 +296,24 @@
                                     CornerRadius="8"
                                     ClipToBounds="True"
                                     Background="#00000000"
-                                    IsHitTestVisible="False"
-                                    IsVisible="{Binding SelectedItem.PrimaryCoverPath,
-                                                        Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
-                                <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
-                                       helpers:AsyncImageHelper.DecodeWidth="600"
-                                       helpers:AsyncImageHelper.DisableCache="True"
-                                       Stretch="Uniform"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center" />
+                                    IsHitTestVisible="False">
+                                <Grid>
+                                    <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
+                                           helpers:AsyncImageHelper.DecodeWidth="600"
+                                           helpers:AsyncImageHelper.DisableCache="True"
+                                           Stretch="Uniform"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IsVisible="{Binding IsGameListActive}" />
+
+                                    <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryCoverAbsolutePath}"
+                                           helpers:AsyncImageHelper.DecodeWidth="600"
+                                           helpers:AsyncImageHelper.DisableCache="True"
+                                           Stretch="Uniform"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IsVisible="{Binding IsCategorySelectionActive}" />
+                                </Grid>
                             </Border>
                         </Grid>
 
@@ -292,10 +329,12 @@
                                           HorizontalScrollBarVisibility="Disabled"
                                           HorizontalAlignment="Stretch"
                                           HorizontalContentAlignment="Stretch">
-                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto"
-                                      ColumnDefinitions="*,*"
-                                      ColumnSpacing="16"
-                                      RowSpacing="10">
+                                <StackPanel>
+                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                          ColumnDefinitions="*,*"
+                                          ColumnSpacing="16"
+                                          RowSpacing="10"
+                                          IsVisible="{Binding IsGameListActive}">
                                     <!-- Compact RetroAchievements summary -->
                                     <Border Grid.Row="0"
                                             Grid.ColumnSpan="2"
@@ -349,17 +388,9 @@
                                                    FontWeight="SemiBold"
                                                    FontSize="14" />
 
-                                        <!-- Description in category mode -->
-                                        <TextBlock Text="{Binding SelectedCategory.Description}"
-                                                   Foreground="#DDFFFFFF"
-                                                   TextWrapping="Wrap"
-                                                   IsVisible="{Binding IsCategorySelectionActive}" />
-
-                                        <!-- Description in game mode -->
                                         <TextBlock Text="{Binding SelectedItem.Description}"
                                                    Foreground="#DDFFFFFF"
-                                                   TextWrapping="Wrap"
-                                                   IsVisible="{Binding IsGameListActive}" />
+                                                   TextWrapping="Wrap" />
                                     </StackPanel>
 
                                     <!-- Release date -->
@@ -412,7 +443,19 @@
                                         <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
                                                    Foreground="White" />
                                     </StackPanel>
-                                </Grid>
+                                    </Grid>
+
+                                    <StackPanel Spacing="6"
+                                                IsVisible="{Binding IsCategorySelectionActive}">
+                                        <TextBlock Text="{x:Static resources:Strings.Common_Description}"
+                                                   Foreground="#7BA3FF"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="14" />
+                                        <TextBlock Text="{Binding SelectedCategory.Description}"
+                                                   Foreground="#DDFFFFFF"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </StackPanel>
                             </ScrollViewer>
                         </Border>
                     </Grid>

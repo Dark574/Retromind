@@ -20,6 +20,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - support quota-conscious ScreenScraper bulk scraping with exact ROM identification and safe title fallback
 
 ### Changed
+- give categories a dedicated Default BigMode presentation without stale game metadata or required cover artwork
 - debounce Default BigMode background loading and fall back to screenshots when games have no wallpaper
 - make Default BigMode list and wallpaper transitions responsive while preserving its slow cover fly-in
 - virtualize the Default BigMode theme's category and game lists for large libraries
