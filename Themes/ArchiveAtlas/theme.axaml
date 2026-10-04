@@ -9,11 +9,13 @@
 
              ext:ThemeProperties.Name="Archive Atlas"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.Version="0.2.0"
              ext:ThemeProperties.SupportsHome="True"
+             ext:ThemeProperties.ProvidesSystemMenuHint="True"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
              ext:ThemeProperties.VideoFadeDurationMs="600"
+             ext:ThemeProperties.VideoStretchMode="Uniform"
              ext:ThemeProperties.SecondaryVideoEnabled="True"
              ext:ThemeProperties.SecondaryVideoSlotName="BackgroundVideoSlot"
              ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/background_loop.mp4"
@@ -87,7 +89,7 @@
                     Value="{Binding RelativeSource={RelativeSource AncestorType=UserControl},
                                     Path=(ext:ThemeProperties.MonoFontFamily),
                                     Converter={StaticResource ThemeFontConverter}}" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="LetterSpacing" Value="1.2" />
         </Style>
 
@@ -104,6 +106,8 @@
             <Setter Property="Margin" Value="0" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Focusable" Value="False" />
         </Style>
 
         <Style Selector="ListBoxItem:selected Border#ItemFrame">
@@ -131,15 +135,31 @@
 
             <!-- Low-opacity wallpaper for item or category -->
             <ext:CrossfadeImage Url="{Binding ActiveWallpaperPath}"
-                                DecodeWidth="1280"
+                                DecodeWidth="1600"
                                 DisableCache="True"
+                                LoadDelayMs="220"
+                                FadeDurationMs="650"
+                                RetainCurrentImageUntilLoaded="False"
                                 Stretch="UniformToFill"
                                 Opacity="0.10"
                                 IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
-            <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
-                                DecodeWidth="1280"
+            <ext:CrossfadeImage Url="{Binding ActiveScreenshotFallbackPath}"
+                                DecodeWidth="1600"
                                 DisableCache="True"
+                                LoadDelayMs="220"
+                                FadeDurationMs="650"
+                                RetainCurrentImageUntilLoaded="False"
+                                Stretch="UniformToFill"
+                                Opacity="0.10"
+                                IsVisible="{Binding ActiveScreenshotFallbackPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+            <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
+                                DecodeWidth="1600"
+                                DisableCache="True"
+                                LoadDelayMs="220"
+                                FadeDurationMs="650"
+                                RetainCurrentImageUntilLoaded="False"
                                 Stretch="UniformToFill"
                                 Opacity="0.08"
                                 IsVisible="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
@@ -156,7 +176,7 @@
                     BorderThickness="1"
                     CornerRadius="16"
                     Padding="18,20">
-                <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="10">
+                <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" RowSpacing="10">
                     <TextBlock Grid.Row="0"
                                Classes="Mono"
                                Text="{x:Static resources:ThemeStrings.ArchiveIndex}" />
@@ -181,15 +201,21 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Hidden"
                              ext:ThemeProperties.UseHostSelectionEffects="False"
+                             helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              IsVisible="{Binding IsCategorySelectionActive}">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border x:Name="ItemFrame"
                                         CornerRadius="10"
-                                        Padding="8,6"
+                                        Padding="10,7"
                                         Margin="0,3">
                                     <TextBlock Text="{Binding Name}"
-                                               FontSize="15"
+                                               FontSize="17"
                                                TextTrimming="CharacterEllipsis" />
                                 </Border>
                             </DataTemplate>
@@ -207,14 +233,19 @@
                              IsVisible="{Binding IsGameListActive}"
                              helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              ext:ThemeProperties.UseHostSelectionEffects="False">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border x:Name="ItemFrame"
                                         CornerRadius="10"
-                                        Padding="8,6"
+                                        Padding="10,7"
                                         Margin="0,3">
                                     <TextBlock Text="{Binding Title}"
-                                               FontSize="15"
+                                               FontSize="17"
                                                TextTrimming="CharacterEllipsis" />
                                 </Border>
                             </DataTemplate>
@@ -223,7 +254,8 @@
 
                     <TextBlock Grid.Row="4"
                                Classes="Mono"
-                               Foreground="{DynamicResource MutedInkBrush}">
+                               Foreground="{DynamicResource MutedInkBrush}"
+                               IsVisible="{Binding IsGameListActive}">
                         <Run Text="{x:Static resources:ThemeStrings.ArchiveItem}" />
                         <Run Text=" " />
                         <Run Text="{Binding CurrentGameNumber}" />
@@ -232,49 +264,93 @@
                         <Run Text=" " />
                         <Run Text="{Binding TotalGames}" />
                     </TextBlock>
+
+                    <StackPanel Grid.Row="4"
+                                Orientation="Horizontal"
+                                Spacing="6"
+                                IsVisible="{Binding IsCategorySelectionActive}">
+                        <TextBlock Text="{Binding SelectedCategory.Items.Count}"
+                                   Classes="Mono"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}" />
+                        <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
+                                   Classes="Mono"
+                                   Foreground="{DynamicResource MutedInkBrush}" />
+                    </StackPanel>
+
+                    <Border Grid.Row="5"
+                            BorderBrush="#D8CBB9"
+                            BorderThickness="0,1,0,0"
+                            Padding="0,9,0,0"
+                            IsVisible="{Binding !IsSystemMenuOpen}">
+                        <TextBlock Text="{Binding SystemMenuHintText}"
+                                   Classes="Mono"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource MutedInkBrush}"
+                                   TextTrimming="CharacterEllipsis" />
+                    </Border>
                 </Grid>
             </Border>
 
             <!-- Center column: Preview + cover -->
             <Grid Grid.Column="1" Margin="20,0">
                 <Grid RowDefinitions="Auto,*,Auto">
-                    <StackPanel Grid.Row="0" Spacing="6">
-                        <!-- Item header (logo + fallback title) -->
-                        <StackPanel Spacing="4" IsVisible="{Binding IsGameListActive}">
-                            <!-- Item logo (preferred) -->
-                            <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryLogoPath}"
-                                   helpers:AsyncImageHelper.DecodeWidth="384"
-                                   Height="36"
-                                   Stretch="Uniform"
-                                   HorizontalAlignment="Left"
-                                   IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                    <Grid Grid.Row="0" MinHeight="66">
+                        <StackPanel Spacing="5" IsVisible="{Binding IsGameListActive}">
+                            <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryLogoPath}"
+                                                DecodeWidth="512"
+                                                DisableCache="True"
+                                                LoadDelayMs="150"
+                                                FadeDurationMs="350"
+                                                RetainCurrentImageUntilLoaded="False"
+                                                Height="42"
+                                                Stretch="Uniform"
+                                                HorizontalAlignment="Left"
+                                                IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
-                            <!-- Fallback logo (node-level) -->
-                            <Image helpers:AsyncImageHelper.Url="{Binding ActiveLogoPath}"
-                                   helpers:AsyncImageHelper.DecodeWidth="256"
-                                   Height="24"
-                                   Stretch="Uniform"
-                                   HorizontalAlignment="Left"
-                                   IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                            <ext:CrossfadeImage Url="{Binding ActiveLogoPath}"
+                                                DecodeWidth="384"
+                                                DisableCache="True"
+                                                LoadDelayMs="150"
+                                                FadeDurationMs="350"
+                                                RetainCurrentImageUntilLoaded="False"
+                                                Height="26"
+                                                Stretch="Uniform"
+                                                HorizontalAlignment="Left"
+                                                IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
 
-                            <!-- Fallback title when no item logo -->
                             <TextBlock Classes="Title"
-                                       FontSize="20"
+                                       FontSize="22"
                                        Text="{Binding SelectedItem.Title}"
                                        TextWrapping="Wrap"
                                        MaxLines="2"
+                                       TextTrimming="CharacterEllipsis"
                                        IsVisible="{Binding SelectedItem.ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
                         </StackPanel>
 
-                        <TextBlock FontSize="18"
-                                   FontWeight="SemiBold"
-                                   Foreground="{DynamicResource AccentBrush}"
-                                   Text="{Binding SelectedCategory.Name}"
-                                   IsVisible="{Binding IsCategorySelectionActive}" />
-                    </StackPanel>
+                        <StackPanel Spacing="6" IsVisible="{Binding IsCategorySelectionActive}">
+                            <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+                                                DecodeWidth="512"
+                                                DisableCache="True"
+                                                LoadDelayMs="150"
+                                                FadeDurationMs="350"
+                                                RetainCurrentImageUntilLoaded="False"
+                                                Height="34"
+                                                Stretch="Uniform"
+                                                HorizontalAlignment="Left"
+                                                IsVisible="{Binding SelectedCategory.PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                            <TextBlock Classes="Title"
+                                       FontSize="24"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       Text="{Binding SelectedCategory.Name}"
+                                       TextWrapping="Wrap"
+                                       MaxLines="2"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
 
                     <Border Grid.Row="1"
-                            x:Name="VideoSlot"
                             Background="#EDE4D7"
                             BorderBrush="#D8CBB9"
                             BorderThickness="1"
@@ -282,54 +358,165 @@
                             ClipToBounds="True"
                             Margin="0,12,0,0">
                         <Grid>
-                            <TextBlock Text="{x:Static resources:ThemeStrings.NoPreviewVideo}"
-                                       Classes="Muted"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center" />
+                            <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryScreenshotPath}"
+                                                DecodeWidth="1280"
+                                                DisableCache="True"
+                                                LoadDelayMs="200"
+                                                FadeDurationMs="550"
+                                                RetainCurrentImageUntilLoaded="False"
+                                                Stretch="UniformToFill"
+                                                IsVisible="{Binding IsGameListActive}" />
+
+                            <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
+                                                DecodeWidth="1280"
+                                                DisableCache="True"
+                                                LoadDelayMs="200"
+                                                FadeDurationMs="550"
+                                                RetainCurrentImageUntilLoaded="False"
+                                                Stretch="UniformToFill"
+                                                IsVisible="{Binding IsCategorySelectionActive}" />
+
+                            <Border Background="#DDF8F2E7"
+                                    BorderBrush="#80D8CBB9"
+                                    BorderThickness="1"
+                                    CornerRadius="9"
+                                    Padding="14,8"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    IsVisible="{Binding !MainVideoHasContent}">
+                                <TextBlock Text="{x:Static resources:ThemeStrings.NoPreviewVideo}"
+                                           Classes="Muted"
+                                           FontSize="15" />
+                            </Border>
+
+                            <!-- The host places the shared video presentation in this layer. -->
+                            <Border x:Name="VideoSlot"
+                                    Background="Transparent"
+                                    CornerRadius="18"
+                                    ClipToBounds="True"
+                                    IsVisible="{Binding IsVideoVisible}" />
                         </Grid>
                     </Border>
 
-                    <!-- Cover card overlay -->
+                    <!-- Cover card overlay, with logo/title fallback for missing covers. -->
                     <Border Grid.Row="1"
                             x:Name="CoverCard"
-                            Width="210"
-                            Height="320"
-                            Background="Transparent"
-                            BorderThickness="0"
+                            Width="230"
+                            Height="345"
+                            Background="{DynamicResource CardBackgroundBrush}"
+                            BorderBrush="{DynamicResource CardBorderBrush}"
+                            BorderThickness="1"
                             CornerRadius="14"
-                            Margin="-40,40,0,0"
+                            Padding="8"
+                            Margin="-36,42,0,0"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Top"
-                            ClipToBounds="True"
-                            IsVisible="{Binding SelectedItem.PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
-                        <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryCoverPath}"
-                                            DecodeWidth="420"
-                                            Stretch="Uniform" />
+                            ClipToBounds="True">
+                        <Grid>
+                            <Panel IsVisible="{Binding IsGameListActive}">
+                                <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryCoverPath}"
+                                                    DecodeWidth="420"
+                                                    DisableCache="True"
+                                                    LoadDelayMs="160"
+                                                    FadeDurationMs="420"
+                                                    RetainCurrentImageUntilLoaded="False"
+                                                    Stretch="Uniform" />
+                                <StackPanel Spacing="12"
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding SelectedItem.PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
+                                    <ext:CrossfadeImage Url="{Binding ActiveLogoPath}"
+                                                        DecodeWidth="320"
+                                                        DisableCache="True"
+                                                        LoadDelayMs="160"
+                                                        FadeDurationMs="420"
+                                                        RetainCurrentImageUntilLoaded="False"
+                                                        MaxHeight="100"
+                                                        Stretch="Uniform" />
+                                    <TextBlock Text="{Binding SelectedItem.Title}"
+                                               Classes="Title"
+                                               FontSize="20"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               MaxLines="4"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Panel>
+
+                            <Panel IsVisible="{Binding IsCategorySelectionActive}">
+                                <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryCoverAbsolutePath}"
+                                                    DecodeWidth="420"
+                                                    DisableCache="True"
+                                                    LoadDelayMs="160"
+                                                    FadeDurationMs="420"
+                                                    RetainCurrentImageUntilLoaded="False"
+                                                    Stretch="Uniform" />
+                                <StackPanel Spacing="12"
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding SelectedCategory.PrimaryCoverAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
+                                    <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryLogoAbsolutePath}"
+                                                        DecodeWidth="320"
+                                                        DisableCache="True"
+                                                        LoadDelayMs="160"
+                                                        FadeDurationMs="420"
+                                                        RetainCurrentImageUntilLoaded="False"
+                                                        MaxHeight="100"
+                                                        Stretch="Uniform" />
+                                    <TextBlock Text="{Binding SelectedCategory.Name}"
+                                               Classes="Title"
+                                               FontSize="20"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               MaxLines="4"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Panel>
+                        </Grid>
                     </Border>
 
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
-                        <Border Background="{DynamicResource AccentBrush}" CornerRadius="6" Padding="8,4">
+                    <StackPanel Grid.Row="2"
+                                Orientation="Horizontal"
+                                Spacing="10"
+                                Margin="0,12,0,0"
+                                IsVisible="{Binding IsGameListActive}">
+                        <Border Background="{DynamicResource AccentBrush}"
+                                CornerRadius="6"
+                                Padding="9,5"
+                                IsVisible="{Binding SelectedYear, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
                             <TextBlock Foreground="#F7F2E8"
-                                       FontSize="12"
-                                       FontWeight="SemiBold">
-                                <Run Text="{x:Static resources:ThemeStrings.ArchiveYear}" />
-                                <Run Text=" " />
-                                <Run Text="{Binding SelectedYear}" />
-                            </TextBlock>
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding SelectedYear}" />
                         </Border>
                         <Border Background="#1F1A17"
                                 CornerRadius="6"
-                                Padding="8,4"
+                                Padding="9,5"
                                 IsVisible="{Binding SelectedDeveloper, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
                             <TextBlock Foreground="#E8DFC9"
-                                       FontSize="12"
-                                       FontWeight="SemiBold">
-                                <Run Text="{x:Static resources:ThemeStrings.ArchiveBy}" />
-                                <Run Text=" " />
-                                <Run Text="{Binding SelectedDeveloper}" />
-                            </TextBlock>
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding SelectedDeveloper}" />
                         </Border>
                     </StackPanel>
+
+                    <Border Grid.Row="2"
+                            HorizontalAlignment="Left"
+                            Margin="0,12,0,0"
+                            Background="{DynamicResource AccentSoftBrush}"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="9,5"
+                            IsVisible="{Binding IsCategorySelectionActive}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding SelectedCategory.Items.Count}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource MutedInkBrush}" />
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Grid>
 
@@ -341,62 +528,127 @@
                     CornerRadius="16"
                     Padding="18,20"
                     Margin="10,0,0,0">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="{x:Static resources:ThemeStrings.ArchiveDetails}" Classes="Mono" />
+                <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                    <TextBlock Grid.Row="0"
+                               Text="{x:Static resources:ThemeStrings.ArchiveDetails}"
+                               Classes="Mono" />
 
-                    <StackPanel IsVisible="{Binding IsGameListActive}" Spacing="8">
-                        <TextBlock Classes="Title"
-                                   FontSize="28"
-                                   Text="{Binding SelectedItem.Title}"
-                                   TextWrapping="Wrap" />
+                    <Grid Grid.Row="1">
+                        <Grid RowDefinitions="Auto,*,Auto,Auto"
+                              RowSpacing="14"
+                              IsVisible="{Binding IsGameListActive}">
+                            <TextBlock Grid.Row="0"
+                                       Classes="Title"
+                                       FontSize="30"
+                                       Text="{Binding SelectedItem.Title}"
+                                       TextWrapping="Wrap"
+                                       MaxLines="3"
+                                       TextTrimming="CharacterEllipsis" />
 
-                        <TextBlock Text="{Binding SelectedItem.Description}"
-                                   Classes="Muted"
-                                   FontSize="13"
-                                   TextWrapping="Wrap"
-                                   MaxHeight="180" />
+                            <Border Grid.Row="1"
+                                    Background="#72FFFFFF"
+                                    BorderBrush="#A8D8CBB9"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="12"
+                                    ClipToBounds="True">
+                                <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              IsHitTestVisible="False"
+                                              helpers:ScrollViewerBehaviors.AutoVerticalScroll="True"
+                                              helpers:ScrollViewerBehaviors.AutoVerticalScrollSpeed="4.5"
+                                              helpers:ScrollViewerBehaviors.AutoVerticalScrollStartDelayMs="7000"
+                                              helpers:ScrollViewerBehaviors.AutoVerticalScrollEndPauseMs="1400"
+                                              helpers:ScrollViewerBehaviors.AutoVerticalScrollRestartToken="{Binding SelectedItem.Description}">
+                                    <TextBlock Text="{Binding SelectedItem.Description}"
+                                               Classes="Muted"
+                                               FontSize="16"
+                                               LineHeight="24"
+                                               TextWrapping="Wrap" />
+                                </ScrollViewer>
+                            </Border>
 
-                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="6">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveGenre}" />
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedItem.Genre}" />
+                            <Grid Grid.Row="2"
+                                  ColumnDefinitions="Auto,*"
+                                  RowDefinitions="Auto,Auto,Auto,Auto"
+                                  ColumnSpacing="12"
+                                  RowSpacing="7">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveGenre}" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" FontSize="15" Text="{Binding SelectedItem.Genre}" TextTrimming="CharacterEllipsis" />
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchivePlayers}" />
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedItem.MaxPlayers}" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchivePlayers}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" FontSize="15" Text="{Binding SelectedItem.MaxPlayers}" />
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveRating}" />
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedItem.Rating}" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveRating}" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" FontSize="15" Text="{Binding SelectedItem.Rating}" />
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveStatus}" />
-                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedItem.Status}" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveStatus}" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" FontSize="15" Text="{Binding SelectedItem.Status}" TextTrimming="CharacterEllipsis" />
+                            </Grid>
+
+                            <Border Grid.Row="3"
+                                    BorderBrush="#D8CBB9"
+                                    BorderThickness="0,1,0,0"
+                                    Padding="0,12,0,0">
+                                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                                    <StackPanel Grid.Column="0" Spacing="4">
+                                        <TextBlock Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchivePlayCount}" />
+                                        <TextBlock FontSize="15" Text="{Binding SelectedItem.PlayCount}" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveLastPlayed}" />
+                                        <TextBlock FontSize="15"
+                                                   Text="{Binding SelectedItem.LastPlayed, StringFormat={}{0:yyyy-MM-dd}}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2" Spacing="4">
+                                        <TextBlock Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveTotalPlayTime}" />
+                                        <TextBlock FontSize="15"
+                                                   Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
                         </Grid>
-                    </StackPanel>
 
-                    <StackPanel IsVisible="{Binding IsCategorySelectionActive}" Spacing="8">
-                        <TextBlock Classes="Title"
-                                   FontSize="28"
-                                   Text="{Binding SelectedCategory.Name}"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding SelectedCategory.Description}"
-                                   Classes="Muted"
-                                   FontSize="13"
-                                   TextWrapping="Wrap" />
-                    </StackPanel>
+                        <Grid RowDefinitions="Auto,*"
+                              RowSpacing="14"
+                              IsVisible="{Binding IsCategorySelectionActive}">
+                            <TextBlock Grid.Row="0"
+                                       Classes="Title"
+                                       FontSize="30"
+                                       Text="{Binding SelectedCategory.Name}"
+                                       TextWrapping="Wrap"
+                                       MaxLines="3"
+                                       TextTrimming="CharacterEllipsis" />
 
-                    <Border Height="1" Background="#D8CBB9" Margin="0,6" IsVisible="{Binding IsGameListActive}" />
-
-                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6" IsVisible="{Binding IsGameListActive}">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchivePlayCount}" />
-                        <TextBlock Grid.Row="0" Grid.Column="1" Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveLastPlayed}" />
-
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding SelectedItem.PlayCount}" />
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedItem.LastPlayed}" />
+                            <Border Grid.Row="1"
+                                    Background="#72FFFFFF"
+                                    BorderBrush="#A8D8CBB9"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="12"
+                                    ClipToBounds="True">
+                                <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              IsHitTestVisible="False"
+                                              helpers:ScrollViewerBehaviors.AutoVerticalScroll="True"
+                                              helpers:ScrollViewerBehaviors.AutoVerticalScrollSpeed="4.5"
+                                              helpers:ScrollViewerBehaviors.AutoVerticalScrollStartDelayMs="7000"
+                                              helpers:ScrollViewerBehaviors.AutoVerticalScrollEndPauseMs="1400"
+                                              helpers:ScrollViewerBehaviors.AutoVerticalScrollRestartToken="{Binding SelectedCategory.Description}">
+                                    <TextBlock Text="{Binding SelectedCategory.Description}"
+                                               Classes="Muted"
+                                               FontSize="16"
+                                               LineHeight="24"
+                                               TextWrapping="Wrap" />
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
                     </Grid>
-
-                    <StackPanel Spacing="4" IsVisible="{Binding IsGameListActive}">
-                        <TextBlock Classes="Mono" Text="{x:Static resources:ThemeStrings.ArchiveTotalPlayTime}" />
-                        <TextBlock Text="{Binding SelectedItem.TotalPlayTime, Converter={StaticResource TimeConverter}}" />
-                    </StackPanel>
-                </StackPanel>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

@@ -20,6 +20,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - support quota-conscious ScreenScraper bulk scraping with exact ROM identification and safe title fallback
 
 ### Changed
+- modernize Archive Atlas with explicit list virtualization, media fallbacks, mode-aware information and couch-readable scrolling details
 - modernize the Wheel theme with continuous bounded carousels, stronger selected artwork and a unified media/detail presentation
 - align the Default system subtheme with the colored system layouts and place its game count below the preview
 - refine the HorizontalRow BigMode theme with debounced artwork loading, screenshot fallback, clearer carousel selection and improved text readability

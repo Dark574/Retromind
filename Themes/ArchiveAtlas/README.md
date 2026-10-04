@@ -7,8 +7,9 @@ films, books, and other media types.
 ## Highlights
 - Warm paper background with subtle atlas glow and dotted texture
 - Serif display title + clean sans body + mono labels
-- Large preview frame with a floating cover card
-- Catalog-style details panel on the right
+- Large video, screenshot, or category preview with a floating cover card
+- Catalog-style details panel with couch-readable, auto-scrolling descriptions
+- Virtualized index navigation for large libraries
 
 ## Fonts
 This theme currently ships with:
@@ -27,5 +28,5 @@ The theme already points to that path.
 ## Customization
 You can tweak colors and sizes in `theme.axaml`:
 - `PaperGradient`, `AtlasGlow` for background mood
-- `AccentBrush` and `RustBrush` for highlights
+- `AccentBrush` and `AccentSoftBrush` for highlights
 - `Title` and `Mono` styles for typography
