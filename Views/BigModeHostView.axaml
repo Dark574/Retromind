@@ -76,7 +76,8 @@
                        FontWeight="SemiBold" />
         </Border>
 
-        <Border HorizontalAlignment="Left"
+        <Border x:Name="SystemMenuHint"
+                HorizontalAlignment="Left"
                 VerticalAlignment="Bottom"
                 Margin="42,0,0,28"
                 Padding="12,7"
@@ -84,8 +85,7 @@
                 BorderBrush="#447BA3FF"
                 BorderThickness="1"
                 CornerRadius="8"
-                IsHitTestVisible="False"
-                IsVisible="{Binding !IsSystemMenuOpen}">
+                IsHitTestVisible="False">
             <TextBlock Text="{Binding SystemMenuHintText}"
                        Foreground="#E4ECF8"
                        FontSize="12"

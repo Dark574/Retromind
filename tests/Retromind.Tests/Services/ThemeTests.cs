@@ -36,6 +36,18 @@ public sealed class ThemeTests
         Assert.True(homeTheme.SupportsHome);
     }
 
+    [Fact]
+    public void ProvidesSystemMenuHint_IsOptIn()
+    {
+        var hostHintTheme = new Border();
+        var customHintTheme = new Border();
+
+        ThemeProperties.SetProvidesSystemMenuHint(customHintTheme, true);
+
+        Assert.False(ThemeProperties.GetProvidesSystemMenuHint(hostHintTheme));
+        Assert.True(ThemeProperties.GetProvidesSystemMenuHint(customHintTheme));
+    }
+
     [Theory]
     [InlineData("Arcade/theme.axaml")]
     [InlineData("ArchiveAtlas/theme.axaml")]

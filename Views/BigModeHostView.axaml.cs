@@ -30,6 +30,8 @@ public partial class BigModeHostView : UserControl
 {
     private ContentPresenter _themePresenter = null!;
     private BigModeHomeView _homeView = null!;
+    private Border _systemMenuHint = null!;
+    private bool _themeProvidesSystemMenuHint;
     
     // When the active theme is a "system host" theme, this points to its
     // right-hand content placeholder (SystemLayoutHost).
@@ -89,6 +91,8 @@ public partial class BigModeHostView : UserControl
                           ?? throw new InvalidOperationException("ThemePresenter control not found in BigModeHostView.");
         _homeView = this.FindControl<BigModeHomeView>("HomeView")
                     ?? throw new InvalidOperationException("HomeView control not found in BigModeHostView.");
+        _systemMenuHint = this.FindControl<Border>("SystemMenuHint")
+                          ?? throw new InvalidOperationException("SystemMenuHint control not found in BigModeHostView.");
 
         // Shared primary video control: main preview channel
         _primaryVideoControl = new CrossfadeVideoSurfaceControl
@@ -147,6 +151,8 @@ public partial class BigModeHostView : UserControl
 
         if (_vmNotifications != null)
             _vmNotifications.PropertyChanged += OnViewModelPropertyChanged;
+
+        UpdateSystemMenuHintVisibility();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -287,6 +293,12 @@ public partial class BigModeHostView : UserControl
         var isCategoryChange = e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedCategory);
         var vm = DataContext as Retromind.ViewModels.BigModeViewModel;
 
+        if (e.PropertyName is nameof(Retromind.ViewModels.BigModeViewModel.IsHomeActive)
+            or nameof(Retromind.ViewModels.BigModeViewModel.IsSystemMenuOpen))
+        {
+            UpdateSystemMenuHintVisibility();
+        }
+
         if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.IsHomeActive) &&
             _themePresenter.Content is Control activeThemeRoot &&
             _activeTheme != null)
@@ -377,6 +389,9 @@ public partial class BigModeHostView : UserControl
         themeRoot.DataContext = DataContext;
         themeRoot.UseLayoutRounding = true;
 
+        _themeProvidesSystemMenuHint = ThemeProperties.GetProvidesSystemMenuHint(themeRoot);
+        UpdateSystemMenuHintVisibility();
+
         _themePresenter.Content = themeRoot;
         InitializeDynamicAccent(themeRoot);
 
@@ -455,6 +470,16 @@ public partial class BigModeHostView : UserControl
         if (vm != null)
             _ = NotifyViewReadyAfterRenderAsync(vm, themeRoot, viewReadyGeneration);
 
+    }
+
+    private void UpdateSystemMenuHintVisibility()
+    {
+        if (_systemMenuHint is null)
+            return;
+
+        _systemMenuHint.IsVisible = DataContext is Retromind.ViewModels.BigModeViewModel vm &&
+                                    !vm.IsSystemMenuOpen &&
+                                    (vm.IsHomeActive || !_themeProvidesSystemMenuHint);
     }
 
     /// <summary>

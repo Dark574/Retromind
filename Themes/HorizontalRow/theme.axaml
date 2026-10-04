@@ -9,7 +9,7 @@
 
              ext:ThemeProperties.Name="Horizontal Row"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.Version="0.2.0"
              ext:ThemeProperties.SupportsHome="True"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
@@ -20,9 +20,9 @@
              ext:ThemeProperties.SelectedGlowOpacity="0.35"
              ext:ThemeProperties.SelectedGlowRadius="30"
              ext:ThemeProperties.AccentColor="#4BA3FF"
+             ext:ThemeProperties.ProvidesSystemMenuHint="True"
              ext:ThemeProperties.SecondaryVisualElementName="LogoVisual"
-             ext:ThemeProperties.SecondaryVisualEnterMode="SlideFromLeft"
-             ext:ThemeProperties.SecondaryVisualEnterOffsetX="-32"
+             ext:ThemeProperties.SecondaryVisualEnterMode="None"
              ext:ThemeProperties.BackgroundVisualElementName="BackgroundVisual"
              ext:ThemeProperties.BackgroundVisualEnterMode="None"
              ext:ThemeProperties.FadeDurationMs="700"
@@ -35,13 +35,31 @@
         <x:Double x:Key="CoverHeight">245</x:Double>
         <CornerRadius x:Key="CoverRadius">12</CornerRadius>
 
-        <SolidColorBrush x:Key="ChipBackground" Color="#3A3A3A" />
-        <SolidColorBrush x:Key="ChipBorder" Color="#6A6A6A" />
-        <SolidColorBrush x:Key="CoverStripBackground" Color="#98000000" />
+        <helpers:BoolToScaleConverter x:Key="CardScaleConverter"
+                                      NormalScale="1.0"
+                                      SelectedScale="1.10" />
+        <helpers:BoolToOpacityConverter x:Key="SelectedTitleOpacityConverter"
+                                        TrueOpacity="1.0"
+                                        FalseOpacity="0.0" />
+
+        <SolidColorBrush x:Key="ChipBackground" Color="#A8121822" />
+        <SolidColorBrush x:Key="ChipBorder" Color="#557BA3FF" />
 
         <LinearGradientBrush x:Key="TopFade" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#CC000000" Offset="0" />
             <GradientStop Color="#00000000" Offset="1" />
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="LeftReadabilityFade" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#E0000000" Offset="0" />
+            <GradientStop Color="#A6000000" Offset="0.38" />
+            <GradientStop Color="#00000000" Offset="0.78" />
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="CoverStripBackground" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#18000000" Offset="0" />
+            <GradientStop Color="#C4000000" Offset="0.28" />
+            <GradientStop Color="#F0000000" Offset="1" />
         </LinearGradientBrush>
 
         <SolidColorBrush x:Key="BackgroundShade" Color="#06000000" />
@@ -74,8 +92,8 @@
         </Style>
 
         <Style Selector="ListBoxItem:selected Border#CoverFrame">
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="#D64BA3FF" />
+            <Setter Property="BorderThickness" Value="2" />
             <Setter Property="CornerRadius" Value="{StaticResource CoverRadius}" />
             <Setter Property="Effect" Value="{x:Null}" />
         </Style>
@@ -84,9 +102,22 @@
     <Grid RowDefinitions="*,Auto">
         <!-- BACKGROUND: wallpaper fallback remains fullscreen -->
         <Grid x:Name="BackgroundVisual" Grid.RowSpan="2">
+            <ext:CrossfadeImage Url="{Binding ActiveScreenshotFallbackPath}"
+                                DecodeWidth="1920"
+                                DisableCache="True"
+                                LoadDelayMs="220"
+                                FadeDurationMs="700"
+                                RetainCurrentImageUntilLoaded="False"
+                                Stretch="UniformToFill"
+                                Opacity="0.55"
+                                IsVisible="{Binding ActiveScreenshotFallbackPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
             <ext:CrossfadeImage Url="{Binding ActiveWallpaperPath}"
                                 DecodeWidth="1920"
                                 DisableCache="True"
+                                LoadDelayMs="220"
+                                FadeDurationMs="700"
+                                RetainCurrentImageUntilLoaded="False"
                                 Stretch="UniformToFill"
                                 Opacity="0.55"
                                 IsVisible="{Binding ActiveWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
@@ -94,6 +125,9 @@
             <ext:CrossfadeImage Url="{Binding ActiveCategoryWallpaperPath}"
                                 DecodeWidth="1920"
                                 DisableCache="True"
+                                LoadDelayMs="220"
+                                FadeDurationMs="700"
+                                RetainCurrentImageUntilLoaded="False"
                                 Stretch="UniformToFill"
                                 Opacity="0.55"
                                 IsVisible="{Binding ActiveCategoryWallpaperPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
@@ -108,6 +142,7 @@
 
         <Rectangle Grid.Row="0" Fill="{StaticResource BackgroundShade}" />
         <Rectangle Grid.Row="0" Fill="{StaticResource TopFade}" VerticalAlignment="Top" Height="220" />
+        <Rectangle Grid.Row="0" Fill="{StaticResource LeftReadabilityFade}" />
 
         <!-- TOP FOREGROUND CONTENT -->
         <Grid Grid.Row="0" Margin="48,32,48,0">
@@ -118,8 +153,10 @@
                     <ext:CrossfadeImage Url="{Binding ActiveLogoPath}"
                                         DecodeWidth="600"
                                         DisableCache="True"
+                                        LoadDelayMs="160"
+                                        RetainCurrentImageUntilLoaded="False"
                                         Stretch="Uniform"
-                                        FadeDurationMs="170"
+                                        FadeDurationMs="300"
                                         HorizontalAlignment="Left"
                                         VerticalAlignment="Top"
                                         MaxWidth="{StaticResource LogoWidth}"
@@ -143,8 +180,10 @@
                     <ext:CrossfadeImage Url="{Binding ActiveCategoryLogoPath}"
                                         DecodeWidth="600"
                                         DisableCache="True"
+                                        LoadDelayMs="160"
+                                        RetainCurrentImageUntilLoaded="False"
                                         Stretch="Uniform"
-                                        FadeDurationMs="170"
+                                        FadeDurationMs="300"
                                         HorizontalAlignment="Left"
                                         VerticalAlignment="Top"
                                         MaxWidth="{StaticResource LogoWidth}"
@@ -178,7 +217,8 @@
                                   helpers:ScrollViewerBehaviors.AutoVerticalScrollEndPauseMs="1400"
                                   helpers:ScrollViewerBehaviors.AutoVerticalScrollRestartToken="{Binding SelectedItem.Description}">
                         <TextBlock Text="{Binding SelectedItem.Description}"
-                                   FontSize="16"
+                                   FontSize="18"
+                                   LineHeight="27"
                                    Foreground="#DDFFFFFF"
                                    TextWrapping="Wrap"
                                    TextAlignment="Left"
@@ -201,7 +241,8 @@
                                   helpers:ScrollViewerBehaviors.AutoVerticalScrollEndPauseMs="1400"
                                   helpers:ScrollViewerBehaviors.AutoVerticalScrollRestartToken="{Binding SelectedCategory.Description}">
                         <TextBlock Text="{Binding SelectedCategory.Description}"
-                                   FontSize="16"
+                                   FontSize="18"
+                                   LineHeight="27"
                                    Foreground="#DDFFFFFF"
                                    TextWrapping="Wrap"
                                    TextAlignment="Left"
@@ -220,8 +261,8 @@
                 <Border Background="{StaticResource ChipBackground}"
                         BorderBrush="{StaticResource ChipBorder}"
                         BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="8,4"
+                        CornerRadius="10"
+                        Padding="10,5"
                         IsVisible="{Binding SelectedYear, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
                     <TextBlock Text="{Binding SelectedYear}"
                                FontSize="13"
@@ -231,8 +272,8 @@
                 <Border Background="{StaticResource ChipBackground}"
                         BorderBrush="{StaticResource ChipBorder}"
                         BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="8,4"
+                        CornerRadius="10"
+                        Padding="10,5"
                         IsVisible="{Binding SelectedDeveloper, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
                     <TextBlock Text="{Binding SelectedDeveloper}"
                                FontSize="13"
@@ -243,8 +284,8 @@
                 <Border Background="{StaticResource ChipBackground}"
                         BorderBrush="{StaticResource ChipBorder}"
                         BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="8,4"
+                        CornerRadius="10"
+                        Padding="10,5"
                         IsVisible="{Binding SelectedItem.Genre, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
                     <TextBlock Text="{Binding SelectedItem.Genre}"
                                FontSize="13"
@@ -255,13 +296,30 @@
                 <Border Background="{StaticResource ChipBackground}"
                         BorderBrush="{StaticResource ChipBorder}"
                         BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="8,4">
+                        CornerRadius="10"
+                        Padding="10,5">
                     <TextBlock Text="{Binding SelectedItem.Status}"
                                FontSize="13"
                                Foreground="#E0E0E0" />
                 </Border>
             </StackPanel>
+
+            <!-- Keep the system-menu shortcut clear of the cover carousel. -->
+            <Border HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,0,10"
+                    Padding="10,5"
+                    Background="{StaticResource ChipBackground}"
+                    BorderBrush="{StaticResource ChipBorder}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    IsHitTestVisible="False"
+                    IsVisible="{Binding !IsSystemMenuOpen}">
+                <TextBlock Text="{Binding SystemMenuHintText}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="#E0E0E0" />
+            </Border>
 
         </Grid>
 
@@ -287,6 +345,7 @@
                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
                          helpers:ListBoxBehaviors.CenterSelectedItemHorizontally="True"
                          helpers:ListBoxBehaviors.CenterSelectedItemHorizontallyOnceOnFirstSelection="True"
+                         helpers:ListBoxBehaviors.HorizontalCenterAnimationDurationMs="110"
                          ext:ThemeProperties.UseHostSelectionEffects="False">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -296,40 +355,58 @@
 
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="12,12" ClipToBounds="False">
-                                <Border x:Name="CoverFrame"
-                                        Width="{StaticResource CoverWidth}"
-                                        Height="{StaticResource CoverHeight}"
-                                        CornerRadius="{StaticResource CoverRadius}">
-                                    <Border.BoxShadow>
-                                        <MultiBinding Converter="{x:Static helpers:ObjectConverters.SelectedCoverGlow}">
-                                            <Binding RelativeSource="{RelativeSource AncestorType=ListBoxItem}" Path="IsSelected" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowOpacity)" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowRadius)" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.AccentColor)" />
-                                        </MultiBinding>
-                                    </Border.BoxShadow>
-                                    <Border CornerRadius="{StaticResource CoverRadius}"
-                                            Background="#1A1A1A"
-                                            ClipToBounds="True">
-                                        <Grid>
-                                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
-                                                   helpers:AsyncImageHelper.DecodeWidth="400"
-                                                   Stretch="UniformToFill"
-                                                   IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                            <Border Margin="12,18"
+                                    ClipToBounds="False"
+                                    RenderTransformOrigin="50%,50%">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleX="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardScaleConverter}}"
+                                                    ScaleY="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardScaleConverter}}" />
+                                </Border.RenderTransform>
+                                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                    <Border x:Name="CoverFrame"
+                                            Width="{StaticResource CoverWidth}"
+                                            Height="{StaticResource CoverHeight}"
+                                            CornerRadius="{StaticResource CoverRadius}">
+                                        <Border.BoxShadow>
+                                            <MultiBinding Converter="{x:Static helpers:ObjectConverters.SelectedCoverGlow}">
+                                                <Binding RelativeSource="{RelativeSource AncestorType=ListBoxItem}" Path="IsSelected" />
+                                                <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowOpacity)" />
+                                                <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowRadius)" />
+                                                <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.AccentColor)" />
+                                            </MultiBinding>
+                                        </Border.BoxShadow>
+                                        <Border CornerRadius="{StaticResource CoverRadius}"
+                                                Background="#1A1A1A"
+                                                ClipToBounds="True">
+                                            <Grid>
+                                                <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
+                                                       helpers:AsyncImageHelper.DecodeWidth="400"
+                                                       Stretch="UniformToFill"
+                                                       IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
-                                            <TextBlock Text="{Binding Title}"
-                                                       FontSize="14"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="#E0E0E0"
-                                                       TextWrapping="Wrap"
-                                                       TextAlignment="Center"
-                                                       Margin="8"
-                                                       IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
-                                        </Grid>
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontSize="14"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#E0E0E0"
+                                                           TextWrapping="Wrap"
+                                                           TextAlignment="Center"
+                                                           Margin="8"
+                                                           IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                                            </Grid>
+                                        </Border>
                                     </Border>
-                                </Border>
-                            </Grid>
+
+                                    <TextBlock Text="{Binding Title}"
+                                               Width="{StaticResource CoverWidth}"
+                                               Height="22"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="White"
+                                               TextAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Opacity="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource SelectedTitleOpacityConverter}}" />
+                                </StackPanel>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
@@ -347,6 +424,7 @@
                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
                          helpers:ListBoxBehaviors.CenterSelectedItemHorizontally="True"
                          helpers:ListBoxBehaviors.CenterSelectedItemHorizontallyOnceOnFirstSelection="True"
+                         helpers:ListBoxBehaviors.HorizontalCenterAnimationDurationMs="110"
                          ext:ThemeProperties.UseHostSelectionEffects="False">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -356,46 +434,64 @@
 
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="12,12" ClipToBounds="False">
-                                <Border x:Name="CoverFrame"
-                                        Width="{StaticResource CoverWidth}"
-                                        Height="{StaticResource CoverHeight}"
-                                        CornerRadius="{StaticResource CoverRadius}">
-                                    <Border.BoxShadow>
-                                        <MultiBinding Converter="{x:Static helpers:ObjectConverters.SelectedCoverGlow}">
-                                            <Binding RelativeSource="{RelativeSource AncestorType=ListBoxItem}" Path="IsSelected" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowOpacity)" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowRadius)" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.AccentColor)" />
-                                        </MultiBinding>
-                                    </Border.BoxShadow>
-                                    <Border CornerRadius="{StaticResource CoverRadius}"
-                                            Background="#1A1A1A"
-                                            ClipToBounds="True">
-                                        <Grid>
-                                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverAbsolutePath}"
-                                                   helpers:AsyncImageHelper.DecodeWidth="400"
-                                                   Stretch="UniformToFill"
-                                                   IsVisible="{Binding PrimaryCoverAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                            <Border Margin="12,18"
+                                    ClipToBounds="False"
+                                    RenderTransformOrigin="50%,50%">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleX="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardScaleConverter}}"
+                                                    ScaleY="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardScaleConverter}}" />
+                                </Border.RenderTransform>
+                                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                    <Border x:Name="CoverFrame"
+                                            Width="{StaticResource CoverWidth}"
+                                            Height="{StaticResource CoverHeight}"
+                                            CornerRadius="{StaticResource CoverRadius}">
+                                        <Border.BoxShadow>
+                                            <MultiBinding Converter="{x:Static helpers:ObjectConverters.SelectedCoverGlow}">
+                                                <Binding RelativeSource="{RelativeSource AncestorType=ListBoxItem}" Path="IsSelected" />
+                                                <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowOpacity)" />
+                                                <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowRadius)" />
+                                                <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.AccentColor)" />
+                                            </MultiBinding>
+                                        </Border.BoxShadow>
+                                        <Border CornerRadius="{StaticResource CoverRadius}"
+                                                Background="#1A1A1A"
+                                                ClipToBounds="True">
+                                            <Grid>
+                                                <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverAbsolutePath}"
+                                                       helpers:AsyncImageHelper.DecodeWidth="400"
+                                                       Stretch="UniformToFill"
+                                                       IsVisible="{Binding PrimaryCoverAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
 
-                                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoAbsolutePath}"
-                                                   helpers:AsyncImageHelper.DecodeWidth="400"
-                                                   Stretch="Uniform"
-                                                   Margin="10"
-                                                   IsVisible="{Binding PrimaryCoverAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                                                <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoAbsolutePath}"
+                                                       helpers:AsyncImageHelper.DecodeWidth="400"
+                                                       Stretch="Uniform"
+                                                       Margin="10"
+                                                       IsVisible="{Binding PrimaryCoverAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
 
-                                            <TextBlock Text="{Binding Name}"
-                                                       FontSize="16"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="#E0E0E0"
-                                                       TextWrapping="Wrap"
-                                                       TextAlignment="Center"
-                                                       Margin="8"
-                                                       IsVisible="{Binding PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
-                                        </Grid>
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontSize="16"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#E0E0E0"
+                                                           TextWrapping="Wrap"
+                                                           TextAlignment="Center"
+                                                           Margin="8"
+                                                           IsVisible="{Binding PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                                            </Grid>
+                                        </Border>
                                     </Border>
-                                </Border>
-                            </Grid>
+
+                                    <TextBlock Text="{Binding Name}"
+                                               Width="{StaticResource CoverWidth}"
+                                               Height="22"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="White"
+                                               TextAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Opacity="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource SelectedTitleOpacityConverter}}" />
+                                </StackPanel>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

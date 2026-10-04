@@ -131,4 +131,19 @@ public partial class ThemeProperties
 
     public static void SetPanelBackgroundOpacity(AvaloniaObject element, double value) =>
         element.SetValue(PanelBackgroundOpacityProperty, value);
+
+    /// <summary>
+    /// Indicates that a theme renders the system-menu shortcut in its own layout.
+    /// The host keeps its generic hint for Home and for themes that do not opt in.
+    /// </summary>
+    public static readonly AttachedProperty<bool> ProvidesSystemMenuHintProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "ProvidesSystemMenuHint",
+            defaultValue: false);
+
+    public static bool GetProvidesSystemMenuHint(AvaloniaObject element) =>
+        element.GetValue(ProvidesSystemMenuHintProperty);
+
+    public static void SetProvidesSystemMenuHint(AvaloniaObject element, bool value) =>
+        element.SetValue(ProvidesSystemMenuHintProperty, value);
 }
