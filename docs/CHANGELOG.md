@@ -40,6 +40,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- keep the LivingRoom system-menu shortcut from covering the selected movie title
 - prevent the Default BigMode theme from briefly showing the previous game's video frame during preview changes
 - play a selected category's own preview video without requiring it as a fallback for contained games
 - apply each BigMode system subtheme's video capability when switching systems
