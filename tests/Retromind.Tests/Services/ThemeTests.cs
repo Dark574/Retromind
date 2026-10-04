@@ -56,6 +56,20 @@ public sealed class ThemeTests
     }
 
     [Fact]
+    public void DefaultTheme_DoesNotRetainPreviousVideoFrameDuringFade()
+    {
+        var filePath = Path.Combine(AppContext.BaseDirectory, "Themes", "Default", "theme.axaml");
+        var root = XDocument.Load(filePath).Root;
+        var retainPreviousFrame = root?.Attributes().FirstOrDefault(attribute =>
+            string.Equals(
+                attribute.Name.LocalName,
+                "ThemeProperties.VideoRetainPreviousFrameDuringFade",
+                StringComparison.Ordinal));
+
+        Assert.Equal("False", retainPreviousFrame?.Value);
+    }
+
+    [Fact]
     public void GetThemeFilePath_UsesTheSuppliedViewScope()
     {
         var arcadeView = new Border();
