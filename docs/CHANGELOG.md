@@ -40,6 +40,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- keep the Arcade system-menu shortcut from covering year and developer metadata
 - keep the LivingRoom system-menu shortcut from covering the selected movie title
 - prevent the Default BigMode theme from briefly showing the previous game's video frame during preview changes
 - play a selected category's own preview video without requiring it as a fallback for contained games
