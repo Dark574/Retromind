@@ -41,6 +41,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- apply the GOG access-token refresh buffer consistently instead of reusing tokens with 30 seconds or less remaining
 - quote nested launch-wrapper paths and preserve whitespace inside quoted paths during runtime composition and editor preview
 - validate GOG offline-installer downloads with GOG-provided size and MD5 metadata before promoting or reusing staged files
 - publish shipped theme installs and updates through validated staging with backup recovery instead of deleting the active theme first

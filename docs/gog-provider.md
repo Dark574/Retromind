@@ -1,6 +1,6 @@
 # GOG Provider Implementation (Native, no gogdl)
 
-Last updated: 2026-09-28
+Last updated: 2026-10-05
 
 This document tracks the current state and target architecture of Retromind's native GOG integration.
 It must be updated whenever implementation details, contracts, or security behavior change.
@@ -32,6 +32,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - fallback: system browser + manual callback URL input when embedded OAuth runtime is unavailable
   - `state` validation and PKCE challenge generation
   - token exchange + refresh against `https://auth.gog.com/token`
+  - access tokens with 30 seconds or less remaining are refreshed before API use
   - refresh-token persistence via `ISecretStore`
   - account probe via `https://embed.gog.com/userData.json`
   - loopback login timeout handling (prevents hanging command state when callback never arrives)
@@ -244,6 +245,7 @@ Required behavior for native GOG auth:
 - Validate authorize endpoint before opening auth UI (`https://auth.gog.com/auth`).
 - Validate `state` on callback.
 - Use PKCE where supported.
+- Refresh access tokens before API use when their remaining lifetime is 30 seconds or less.
 - Never write OAuth tokens to `app_settings.json`, library JSON, or logs.
 - Prefer Secret Service for persistent refresh token storage.
 - Secret Service execution path is constrained to trusted host executable locations (and bundled fallback in AppImage).

@@ -24,6 +24,7 @@ public sealed class GogAuthService
     private const string AllowedWebRedirectHost = "embed.gog.com";
     private const string AllowedWebRedirectPath = "/on_login_success";
     private static readonly TimeSpan LoopbackAuthTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan AccessTokenRefreshBuffer = TimeSpan.FromSeconds(30);
 
     private static readonly SecretKey GogRefreshTokenKey = new("retromind:gog", "default");
 
@@ -57,11 +58,9 @@ public sealed class GogAuthService
 
     public async Task<string?> GetValidAccessTokenAsync(CancellationToken ct = default)
     {
-        if (_currentToken is { AccessToken: { Length: > 0 } accessToken, AccessTokenExpiresAtUtc: var expiry } &&
-            expiry > DateTimeOffset.UtcNow.AddSeconds(30))
-        {
-            return accessToken;
-        }
+        var currentToken = _currentToken;
+        if (HasUsableAccessToken(currentToken, DateTimeOffset.UtcNow))
+            return currentToken!.AccessToken;
 
         var refreshed = await TryRefreshSessionAsync(ct).ConfigureAwait(false);
         if (!refreshed)
@@ -79,7 +78,7 @@ public sealed class GogAuthService
 
     public async Task<bool> TryRefreshSessionAsync(CancellationToken ct = default)
     {
-        if (_currentToken is { AccessTokenExpiresAtUtc: var expiry } && expiry > DateTimeOffset.UtcNow)
+        if (HasUsableAccessToken(_currentToken, DateTimeOffset.UtcNow))
             return true;
 
         var refreshToken = await _secretStore.GetAsync(GogRefreshTokenKey, ct).ConfigureAwait(false);
@@ -105,6 +104,12 @@ public sealed class GogAuthService
             Debug.WriteLine($"[GOG] Refresh failed ({ex.GetType().Name}).");
             return false;
         }
+    }
+
+    internal static bool HasUsableAccessToken(GogTokenSet? token, DateTimeOffset utcNow)
+    {
+        return token is { AccessToken: { Length: > 0 }, AccessTokenExpiresAtUtc: var expiry } &&
+               expiry > utcNow.Add(AccessTokenRefreshBuffer);
     }
 
     public async Task SignOutAsync(bool forgetPersistentToken, CancellationToken ct = default)
