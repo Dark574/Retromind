@@ -86,7 +86,7 @@ RetroAchievements Web API key) are stored through `ISecretStore`, not in `DataRo
 - same atomic temp/backup strategy with serialized IO
 - debounced saves carry cancellation through the write gate; once a write starts, its atomic
   temp/backup/replace transaction completes before a restore can proceed
-- corrupt settings are quarantined and fallback restore from `.bak` is attempted
+- corrupt or structurally unusable settings are quarantined and fallback restore from `.bak` is attempted
 - save failures propagate to the caller and are surfaced to the user
 - sensitive scraper secrets are encrypted/decrypted via `SecurityHelper`
 - the settings dialog edits a detached working copy; **Save** commits it, while Cancel or closing the

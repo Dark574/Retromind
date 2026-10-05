@@ -107,6 +107,63 @@ public sealed class SettingsServiceLoadTests
     }
 
     [Fact]
+    public async Task LoadAsync_UsesBackupWhenPrimarySettingsAreStructurallyInvalid()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+        var service = new SettingsService();
+        File.WriteAllText(
+            temp.GetPath("app_settings.json"),
+            """
+            {
+              "Emulators": null,
+              "Scrapers": []
+            }
+            """);
+        File.WriteAllText(
+            temp.GetPath("app_settings.json.bak"),
+            service.Serialize(new AppSettings { ItemWidth = 222 }));
+
+        var settings = await service.LoadAsync();
+
+        Assert.Equal(222, settings.ItemWidth);
+        Assert.False(service.HasLoadFailure);
+        Assert.Single(Directory.EnumerateFiles(
+            temp.RootPath,
+            "app_settings.json.corrupt_*",
+            SearchOption.TopDirectoryOnly));
+    }
+
+    [Fact]
+    public void ValidateSerializedSettings_AcceptsSparseSettingsObject()
+    {
+        SettingsService.ValidateSerializedSettings("{}");
+    }
+
+    [Theory]
+    [InlineData("{\"SavedSearchTerms\":null}", "$.SavedSearchTerms")]
+    [InlineData("{\"LastBigModeNavigationPath\":[null]}", "$.LastBigModeNavigationPath[0]")]
+    [InlineData("{\"ControllerBindings\":null}", "$.ControllerBindings")]
+    [InlineData("{\"KeyboardBindings\":null}", "$.KeyboardBindings")]
+    [InlineData("{\"ScraperImport\":null}", "$.ScraperImport")]
+    [InlineData("{\"RetroAchievements\":null}", "$.RetroAchievements")]
+    [InlineData("{\"Emulators\":null}", "$.Emulators")]
+    [InlineData("{\"Emulators\":[null]}", "$.Emulators[0]")]
+    [InlineData("{\"Emulators\":[{\"EnvironmentOverrides\":null}]}", "$.Emulators[0].EnvironmentOverrides")]
+    [InlineData("{\"Emulators\":[{\"NativeWrappersOverride\":[null]}]}", "$.Emulators[0].NativeWrappersOverride[0]")]
+    [InlineData("{\"Scrapers\":[null]}", "$.Scrapers[0]")]
+    [InlineData("{\"RunnerVersions\":[null]}", "$.RunnerVersions[0]")]
+    public void ValidateSerializedSettings_RejectsNullStructuralMembers(
+        string json,
+        string expectedPath)
+    {
+        var exception = Assert.Throws<JsonException>(
+            () => SettingsService.ValidateSerializedSettings(json));
+
+        Assert.Contains(expectedPath, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task LoadAsync_ThrowsAndBlocksWritesWhenBothFilesAreCorrupt()
     {
         using var temp = new TemporaryDirectory();

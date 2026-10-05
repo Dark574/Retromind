@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -205,6 +206,7 @@ public class SettingsService
         var settings = await JsonSerializer.DeserializeAsync<AppSettings>(stream).ConfigureAwait(false)
                        ?? throw new JsonException($"Settings file '{path}' contains null instead of settings.");
 
+        ValidateSettingsStructure(settings);
         UnprotectSensitiveData(settings);
         return settings;
     }
@@ -250,9 +252,84 @@ public class SettingsService
         if (string.IsNullOrWhiteSpace(json))
             throw new JsonException("The serialized settings are empty.");
 
-        _ = JsonSerializer.Deserialize<AppSettings>(json)
-            ?? throw new JsonException("The serialized settings contain null instead of application settings.");
+        var settings = JsonSerializer.Deserialize<AppSettings>(json)
+                       ?? throw new JsonException(
+                           "The serialized settings contain null instead of application settings.");
+        ValidateSettingsStructure(settings);
     }
+
+    private static void ValidateSettingsStructure(AppSettings settings)
+    {
+        ValidateRequiredList(settings.SavedSearchTerms, "$.SavedSearchTerms");
+        if (settings.SavedSearchOnlyFavorites == null)
+            throw InvalidNull("$.SavedSearchOnlyFavorites");
+        ValidateRequiredList(settings.SteamLibraryPaths, "$.SteamLibraryPaths");
+        ValidateRequiredList(settings.HeroicEpicConfigPaths, "$.HeroicEpicConfigPaths");
+        ValidateOptionalList(settings.LastBigModeNavigationPath, "$.LastBigModeNavigationPath");
+
+        if (settings.ControllerBindings == null)
+            throw InvalidNull("$.ControllerBindings");
+        if (settings.KeyboardBindings == null)
+            throw InvalidNull("$.KeyboardBindings");
+        if (settings.ScraperImport == null)
+            throw InvalidNull("$.ScraperImport");
+        if (settings.RetroAchievements == null)
+            throw InvalidNull("$.RetroAchievements");
+
+        ValidateRequiredList(settings.Emulators, "$.Emulators");
+        for (var index = 0; index < settings.Emulators.Count; index++)
+        {
+            var emulator = settings.Emulators[index]!;
+            if (emulator.EnvironmentOverrides == null)
+                throw InvalidNull($"$.Emulators[{index}].EnvironmentOverrides");
+
+            ValidateDictionaryValues(
+                emulator.EnvironmentOverrides,
+                $"$.Emulators[{index}].EnvironmentOverrides");
+            ValidateOptionalList(
+                emulator.NativeWrappersOverride,
+                $"$.Emulators[{index}].NativeWrappersOverride");
+        }
+
+        ValidateRequiredList(settings.Scrapers, "$.Scrapers");
+        ValidateRequiredList(settings.RunnerVersions, "$.RunnerVersions");
+    }
+
+    private static void ValidateRequiredList<T>(IReadOnlyList<T>? values, string path)
+        where T : class
+    {
+        if (values == null)
+            throw InvalidNull(path);
+
+        ValidateOptionalList(values, path);
+    }
+
+    private static void ValidateOptionalList<T>(IReadOnlyList<T>? values, string path)
+        where T : class
+    {
+        if (values == null)
+            return;
+
+        for (var index = 0; index < values.Count; index++)
+        {
+            if (values[index] == null)
+                throw InvalidNull($"{path}[{index}]");
+        }
+    }
+
+    private static void ValidateDictionaryValues(
+        IReadOnlyDictionary<string, string> values,
+        string path)
+    {
+        foreach (var pair in values)
+        {
+            if (pair.Value == null)
+                throw InvalidNull($"{path}[{JsonSerializer.Serialize(pair.Key)}]");
+        }
+    }
+
+    private static JsonException InvalidNull(string path) =>
+        new($"Settings member '{path}' must not be null.");
 
     private async Task SaveJsonCoreAsync(
         string json,
