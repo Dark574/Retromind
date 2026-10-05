@@ -392,10 +392,15 @@ public partial class EditMediaViewModel
                 ? templateArgs.Replace("{file}", current, StringComparison.Ordinal)
                 : $"{templateArgs} {current}";
 
-            current = $"{wrapper.Path} {expandedArgs}".Trim();
+            var quotedWrapperPath = QuoteForShell(wrapper.Path.Trim());
+            current = string.IsNullOrWhiteSpace(expandedArgs)
+                ? quotedWrapperPath
+                : $"{quotedWrapperPath} {expandedArgs.Trim()}";
         }
 
-        return LaunchArgumentHelper.NormalizeWhitespace(current);
+        // Keep the preview byte-for-byte faithful to quoted paths. Collapsing
+        // whitespace here would change paths that contain consecutive spaces.
+        return current.Trim();
     }
 
     private static string BuildNativeArgumentsForPreview(string? templateArgs)

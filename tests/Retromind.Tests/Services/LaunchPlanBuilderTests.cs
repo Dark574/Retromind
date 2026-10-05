@@ -100,6 +100,49 @@ public sealed class LaunchPlanBuilderTests
     }
 
     [Fact]
+    public void Build_QuotesNestedWrapperPathContainingSpaces()
+    {
+        var item = new MediaItem("Wrapped game");
+        LaunchWrapper[] wrappers =
+        [
+            new() { Path = "/usr/bin/gamemoderun" },
+            new() { Path = "/opt/Mango Hud/mangohud", Args = "--dlsym {file}" }
+        ];
+
+        var plan = LaunchPlanBuilder.Build(
+            item,
+            inheritedConfig: null,
+            wrappers,
+            "/games/game.sh");
+
+        Assert.Equal("/usr/bin/gamemoderun", plan.FileName);
+        Assert.Equal(
+            "\"/opt/Mango Hud/mangohud\" --dlsym /games/game.sh",
+            plan.Arguments);
+    }
+
+    [Fact]
+    public void Build_PreservesConsecutiveSpacesInsideNestedCommandPaths()
+    {
+        var item = new MediaItem("Wrapped game");
+        LaunchWrapper[] wrappers =
+        [
+            new() { Path = "/usr/bin/gamemoderun" },
+            new() { Path = "/opt/Inner  Wrapper/wrapper.sh" }
+        ];
+
+        var plan = LaunchPlanBuilder.Build(
+            item,
+            inheritedConfig: null,
+            wrappers,
+            "/games/My  Game/game.sh");
+
+        Assert.Equal(
+            "\"/opt/Inner  Wrapper/wrapper.sh\" \"/games/My  Game/game.sh\"",
+            plan.Arguments);
+    }
+
+    [Fact]
     public void Build_RemovesFileMarkerFromDirectNativeArguments()
     {
         var item = new MediaItem("Native game")

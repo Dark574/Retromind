@@ -119,10 +119,12 @@ internal static class LaunchPlanBuilder
                 continue;
 
             outerFileName = resolvedPath;
-            outerArguments = LaunchArgumentHelper.NormalizeWhitespace(argumentsWithChild);
-            current = string.IsNullOrWhiteSpace(outerArguments)
-                ? outerFileName
-                : $"{outerFileName} {outerArguments}";
+            // Once a wrapper becomes the child of another wrapper, its path is
+            // part of the parent's argument string and must be quoted there.
+            // Only trim the composed arguments: normalizing whitespace would
+            // also alter valid quoted paths containing consecutive spaces.
+            outerArguments = argumentsWithChild.Trim();
+            current = BuildInnerCommand(outerFileName, outerArguments);
         }
 
         if (string.IsNullOrWhiteSpace(outerFileName))

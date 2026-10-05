@@ -7,6 +7,60 @@ namespace Retromind.Tests.Services;
 public sealed class LauncherServiceTests
 {
     [Fact]
+    public async Task LaunchAsync_RunsNestedWrapperWhosePathContainsSpaces()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var outerWrapperPath = temp.CreateFile(
+            "outer-wrapper.sh",
+            "#!/bin/sh\nexec \"$@\"\n");
+        var innerWrapperPath = temp.CreateFile(
+            Path.Combine("Inner  Wrapper", "inner-wrapper.sh"),
+            "#!/bin/sh\nexec \"$@\"\n");
+        var gamePath = temp.CreateFile(
+            Path.Combine("Game  Files", "game.sh"),
+            "#!/bin/sh\nprintf 'nested-wrapper-ok\\n'\nexit 23\n");
+        foreach (var executablePath in new[] { outerWrapperPath, innerWrapperPath, gamePath })
+        {
+            File.SetUnixFileMode(
+                executablePath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        var item = new MediaItem("Nested wrappers")
+        {
+            MediaType = MediaType.Native,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = gamePath
+                }
+            ]
+        };
+        LaunchWrapper[] wrappers =
+        [
+            new() { Path = outerWrapperPath },
+            new() { Path = innerWrapperPath }
+        ];
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")));
+
+        var result = await service.LaunchAsync(
+            item,
+            nativeWrappers: wrappers,
+            recordStatistics: false);
+
+        Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.Contains("nested-wrapper-ok", result.ConsoleOutput);
+    }
+
+    [Fact]
     public async Task LaunchAsync_NormalizesExplicitRelativePrefixBeforeSettingEnvironment()
     {
         if (!OperatingSystem.IsLinux())
