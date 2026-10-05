@@ -95,14 +95,15 @@ public static class AppPaths
         }
     }
 
-    private static void EnsurePortableThemeDirectory(string shippedDir, string targetDir)
+    internal static void EnsurePortableThemeDirectory(string shippedDir, string targetDir)
     {
         try
         {
+            RecoverInterruptedThemeUpdate(targetDir);
+
             if (!Directory.Exists(targetDir))
             {
-                CopyDirectoryRecursive(shippedDir, targetDir);
-                WriteThemeManifest(targetDir, shippedDir);
+                PublishPortableThemeDirectory(shippedDir, targetDir);
                 return;
             }
 
@@ -126,14 +127,128 @@ public static class AppPaths
             if (string.Equals(shippedHash, verifiedManifest.SourceHash, StringComparison.OrdinalIgnoreCase))
                 return; // No shipped updates.
 
-            Directory.Delete(targetDir, recursive: true);
-            CopyDirectoryRecursive(shippedDir, targetDir);
-            WriteThemeManifest(targetDir, shippedDir);
+            PublishPortableThemeDirectory(shippedDir, targetDir);
         }
         catch
         {
             // best-effort; never break startup due to theme sync
         }
+    }
+
+    internal static (string TransactionDirectory, string StagingDirectory, string BackupDirectory)
+        GetThemeUpdatePaths(string targetDir)
+    {
+        var normalizedTarget = Path.GetFullPath(targetDir);
+        var keyBytes = SHA256.HashData(Encoding.UTF8.GetBytes(normalizedTarget));
+        var key = Convert.ToHexString(keyBytes).ToLowerInvariant();
+        var transactionDirectory = Path.Combine(ThemesRoot, ".retromind-theme-updates", key);
+        return (
+            transactionDirectory,
+            Path.Combine(transactionDirectory, "staging"),
+            Path.Combine(transactionDirectory, "backup"));
+    }
+
+    private static void PublishPortableThemeDirectory(string shippedDir, string targetDir)
+    {
+        var paths = GetThemeUpdatePaths(targetDir);
+        Directory.CreateDirectory(paths.TransactionDirectory);
+
+        if (Directory.Exists(paths.StagingDirectory))
+            Directory.Delete(paths.StagingDirectory, recursive: true);
+
+        CopyDirectoryRecursive(shippedDir, paths.StagingDirectory);
+        WriteThemeManifestOrThrow(paths.StagingDirectory, shippedDir);
+        ValidatePreparedThemeOrThrow(paths.StagingDirectory, shippedDir);
+
+        var movedExistingTheme = false;
+        try
+        {
+            if (Directory.Exists(targetDir))
+            {
+                if (Directory.Exists(paths.BackupDirectory))
+                    throw new IOException("A previous theme update backup is still present.");
+
+                Directory.Move(targetDir, paths.BackupDirectory);
+                movedExistingTheme = true;
+            }
+
+            var targetParent = Path.GetDirectoryName(targetDir);
+            if (!string.IsNullOrWhiteSpace(targetParent))
+                Directory.CreateDirectory(targetParent);
+
+            Directory.Move(paths.StagingDirectory, targetDir);
+        }
+        catch
+        {
+            if (movedExistingTheme &&
+                !Directory.Exists(targetDir) &&
+                Directory.Exists(paths.BackupDirectory))
+            {
+                Directory.Move(paths.BackupDirectory, targetDir);
+            }
+
+            throw;
+        }
+
+        if (Directory.Exists(paths.BackupDirectory))
+            Directory.Delete(paths.BackupDirectory, recursive: true);
+
+        CleanupThemeUpdateDirectory(paths.TransactionDirectory);
+    }
+
+    private static void RecoverInterruptedThemeUpdate(string targetDir)
+    {
+        var paths = GetThemeUpdatePaths(targetDir);
+
+        if (!Directory.Exists(targetDir) && Directory.Exists(paths.BackupDirectory))
+        {
+            var targetParent = Path.GetDirectoryName(targetDir);
+            if (!string.IsNullOrWhiteSpace(targetParent))
+                Directory.CreateDirectory(targetParent);
+
+            Directory.Move(paths.BackupDirectory, targetDir);
+        }
+        else if (Directory.Exists(targetDir) && Directory.Exists(paths.BackupDirectory))
+        {
+            // The staging directory was already published before the previous process stopped.
+            Directory.Delete(paths.BackupDirectory, recursive: true);
+        }
+
+        if (Directory.Exists(paths.StagingDirectory))
+            Directory.Delete(paths.StagingDirectory, recursive: true);
+
+        CleanupThemeUpdateDirectory(paths.TransactionDirectory);
+    }
+
+    private static void CleanupThemeUpdateDirectory(string transactionDirectory)
+    {
+        if (Directory.Exists(transactionDirectory) &&
+            !Directory.EnumerateFileSystemEntries(transactionDirectory).Any())
+        {
+            Directory.Delete(transactionDirectory);
+        }
+
+        var transactionRoot = Path.GetDirectoryName(transactionDirectory);
+        if (!string.IsNullOrWhiteSpace(transactionRoot) &&
+            Directory.Exists(transactionRoot) &&
+            !Directory.EnumerateFileSystemEntries(transactionRoot).Any())
+        {
+            Directory.Delete(transactionRoot);
+        }
+    }
+
+    private static void ValidatePreparedThemeOrThrow(string stagingDir, string shippedDir)
+    {
+        if (!AreDirectoryContentsEquivalent(stagingDir, shippedDir))
+            throw new IOException("Prepared theme content does not match the shipped theme.");
+
+        var manifest = TryReadThemeManifest(stagingDir);
+        if (!IsThemeManifestUsable(manifest))
+            throw new IOException("Prepared theme manifest is missing or invalid.");
+
+        var installedHash = ComputeDirectoryHash(stagingDir);
+        if (!string.Equals(installedHash, manifest!.InstalledHash, StringComparison.OrdinalIgnoreCase))
+            throw new IOException("Prepared theme manifest does not match its content.");
     }
 
     private static bool IsThemeManifestUsable(ThemeManifest? manifest)
@@ -265,28 +380,33 @@ public static class AppPaths
     {
         try
         {
-            var shippedHash = ComputeDirectoryHash(shippedDir);
-            var installedHash = ComputeDirectoryHash(themeDir);
-
-            var manifest = new ThemeManifest
-            {
-                SourceHash = shippedHash,
-                InstalledHash = installedHash,
-                InstalledUtc = DateTime.UtcNow
-            };
-
-            var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-
-            var manifestPath = Path.Combine(themeDir, ThemeManifestFileName);
-            File.WriteAllText(manifestPath, json);
+            WriteThemeManifestOrThrow(themeDir, shippedDir);
         }
         catch
         {
             // best-effort
         }
+    }
+
+    private static void WriteThemeManifestOrThrow(string themeDir, string shippedDir)
+    {
+        var shippedHash = ComputeDirectoryHash(shippedDir);
+        var installedHash = ComputeDirectoryHash(themeDir);
+
+        var manifest = new ThemeManifest
+        {
+            SourceHash = shippedHash,
+            InstalledHash = installedHash,
+            InstalledUtc = DateTime.UtcNow
+        };
+
+        var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
+        {
+            WriteIndented = true
+        });
+
+        var manifestPath = Path.Combine(themeDir, ThemeManifestFileName);
+        File.WriteAllText(manifestPath, json);
     }
 
     private static string ComputeDirectoryHash(string directory)

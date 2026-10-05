@@ -41,6 +41,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- publish shipped theme installs and updates through validated staging with backup recovery instead of deleting the active theme first
 - keep media and node artwork edits staged until Save, with rollback-safe file deletion and no changes on Cancel
 - keep the Arcade system-menu shortcut from covering year and developer metadata
 - keep the LivingRoom system-menu shortcut from covering the selected movie title

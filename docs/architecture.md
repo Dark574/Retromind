@@ -174,6 +174,8 @@ Themes are external runtime XAML loaded through `ThemeLoader`:
 `AppPaths.EnsurePortableThemes()` implements best-effort shipped-theme sync:
 - first-time copy of missing top-level themes
 - manifest-based update gate via `.retromind-theme.json`
+- validated staging and same-filesystem directory swaps keep the active theme intact until a complete replacement is ready;
+  an interrupted swap restores its backup before the next synchronization attempt
 - manifest recovery when file is missing/corrupt but theme content still matches shipped version
 - restoration of missing theme directories (any directory containing `theme.axaml`)
 - local theme modifications are preserved (no forced overwrite when hashes differ)
