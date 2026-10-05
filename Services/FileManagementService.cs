@@ -131,13 +131,17 @@ public partial class FileManagementService
             MediaNode node => SanitizeForFilename(node.Name),
             _ => "Unknown"
         };
-        string nodeFolder = ResolveNodeFolder(nodePathStack);
-
-        string extension = Path.GetExtension(sourceFilePath);
-        string fullDestPath = GetNextAssetFileName(nodeFolder, assetPrefix, type, extension, prefixIsSanitized: true);
-        
         try
         {
+            string nodeFolder = RequireSafeAssetMutationPath(ResolveNodeFolder(nodePathStack));
+            string extension = Path.GetExtension(sourceFilePath);
+            string fullDestPath = GetNextAssetFileName(
+                nodeFolder,
+                assetPrefix,
+                type,
+                extension,
+                prefixIsSanitized: true);
+
             string? dir = Path.GetDirectoryName(fullDestPath);
             if (dir != null && !Directory.Exists(dir))
             {
@@ -174,7 +178,7 @@ public partial class FileManagementService
         if (string.IsNullOrWhiteSpace(asset.RelativePath))
             return;
 
-        if (!AppPaths.TryResolveDataPathInsideRoot(asset.RelativePath, out var fullPath))
+        if (!AppPaths.TryResolveDataPathForMutation(asset.RelativePath, out var fullPath))
             return;
 
         Helpers.AsyncImageHelper.InvalidateCache(fullPath);
@@ -205,7 +209,17 @@ public partial class FileManagementService
         if (string.Equals(oldPrefix, newPrefix, StringComparison.OrdinalIgnoreCase))
             return false;
 
-        var nodeFolder = ResolveNodeFolder(nodePathStack);
+        string nodeFolder;
+        try
+        {
+            nodeFolder = RequireSafeAssetMutationPath(ResolveNodeFolder(nodePathStack));
+        }
+        catch (IOException ex)
+        {
+            Console.WriteLine($"Error renaming assets: {ex.Message}");
+            return false;
+        }
+
         if (!Directory.Exists(nodeFolder))
             return false;
 
@@ -217,7 +231,7 @@ public partial class FileManagementService
             if (asset == null || string.IsNullOrWhiteSpace(asset.RelativePath))
                 continue;
 
-            if (!AppPaths.TryResolveDataPathInsideRoot(asset.RelativePath, out var fullPath))
+            if (!AppPaths.TryResolveDataPathForMutation(asset.RelativePath, out var fullPath))
                 continue;
 
             if (!File.Exists(fullPath))
@@ -244,6 +258,9 @@ public partial class FileManagementService
 
             var targetFolder = Path.Combine(nodeFolder, asset.Type.ToString());
             var targetFullPath = Path.Combine(targetFolder, targetFileName);
+
+            if (!AppPaths.TryResolveDataPathForMutation(targetFullPath, out targetFullPath))
+                continue;
 
             if (string.Equals(fullPath, targetFullPath, StringComparison.OrdinalIgnoreCase))
                 continue;
@@ -322,6 +339,14 @@ public partial class FileManagementService
     private string ResolveNodeFolder(List<string> nodePathStack)
         => PathHelper.ResolveNodeFolder(nodePathStack, libraryRootPath);
 
+    private static string RequireSafeAssetMutationPath(string path)
+    {
+        if (!AppPaths.TryResolveDataPathForMutation(path, out var safePath))
+            throw new IOException($"Asset path contains an unsafe symbolic link or escapes the data root: '{path}'.");
+
+        return safePath;
+    }
+
     /// <summary>
     /// Determines the next available filename according to convention: Prefix_Type_XX.ext
     /// </summary>
@@ -332,7 +357,7 @@ public partial class FileManagementService
         string extension,
         bool prefixIsSanitized = false)
     {
-        string typeFolder = Path.Combine(nodeBaseFolder, type.ToString());
+        string typeFolder = RequireSafeAssetMutationPath(Path.Combine(nodeBaseFolder, type.ToString()));
     
         if (!Directory.Exists(typeFolder))
             Directory.CreateDirectory(typeFolder);
@@ -351,7 +376,7 @@ public partial class FileManagementService
         string number = nextCounter.ToString("D2");
         string fileName = $"{cleanTitle}_{suffix}_{number}{extension}";
 
-        return Path.Combine(typeFolder, fileName);
+        return RequireSafeAssetMutationPath(Path.Combine(typeFolder, fileName));
     }
 
     /// <summary>

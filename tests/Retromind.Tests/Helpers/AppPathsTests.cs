@@ -56,6 +56,50 @@ public sealed class AppPathsTests
     }
 
     [Fact]
+    public void TryResolveDataPathForMutation_AcceptsSafeExistingAndMissingPaths()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+        var existingPath = temp.CreateFile("Library/Games/Cover/existing.png");
+        var missingPath = temp.GetPath("Library", "Games", "Manual", "missing.pdf");
+
+        Assert.True(AppPaths.TryResolveDataPathForMutation(existingPath, out var resolvedExisting));
+        Assert.Equal(existingPath, resolvedExisting);
+        Assert.True(AppPaths.TryResolveDataPathForMutation(missingPath, out var resolvedMissing));
+        Assert.Equal(missingPath, resolvedMissing);
+    }
+
+    [Fact]
+    public void TryResolveDataPathForMutation_RejectsSymbolicLinkInAncestorPath()
+    {
+        using var dataRoot = new TemporaryDirectory();
+        using var externalRoot = new TemporaryDirectory();
+        using var environment = UseDataRoot(dataRoot.RootPath);
+        var libraryRoot = dataRoot.CreateDirectory("Library");
+        var linkPath = Path.Combine(libraryRoot, "linked-node");
+        Directory.CreateSymbolicLink(linkPath, externalRoot.RootPath);
+
+        var candidate = Path.Combine(linkPath, "Cover", "outside.png");
+
+        Assert.False(AppPaths.TryResolveDataPathForMutation(candidate, out _));
+        Assert.True(AppPaths.TryResolveDataPathInsideRoot(candidate, out _));
+    }
+
+    [Fact]
+    public void TryResolveDataPathForMutation_RejectsFinalSymbolicLink()
+    {
+        using var dataRoot = new TemporaryDirectory();
+        using var externalRoot = new TemporaryDirectory();
+        using var environment = UseDataRoot(dataRoot.RootPath);
+        var assetFolder = dataRoot.CreateDirectory("Library", "Games", "Cover");
+        var externalFile = externalRoot.CreateFile("outside.png");
+        var linkPath = Path.Combine(assetFolder, "linked.png");
+        File.CreateSymbolicLink(linkPath, externalFile);
+
+        Assert.False(AppPaths.TryResolveDataPathForMutation(linkPath, out _));
+    }
+
+    [Fact]
     public void LibraryRelativeMediaPath_RebindsWhenPortableRootMoves()
     {
         using var firstRoot = new TemporaryDirectory();

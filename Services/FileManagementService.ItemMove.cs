@@ -37,8 +37,18 @@ public partial class FileManagementService
         ArgumentNullException.ThrowIfNull(targetNodePath);
         ArgumentNullException.ThrowIfNull(allItems);
 
-        var sourceNodeFolder = ResolveNodeFolder(sourceNodePath.ToList());
-        var targetNodeFolder = ResolveNodeFolder(targetNodePath.ToList());
+        string sourceNodeFolder;
+        string targetNodeFolder;
+        try
+        {
+            sourceNodeFolder = RequireSafeAssetMutationPath(ResolveNodeFolder(sourceNodePath.ToList()));
+            targetNodeFolder = RequireSafeAssetMutationPath(ResolveNodeFolder(targetNodePath.ToList()));
+        }
+        catch (IOException ex)
+        {
+            return new ItemAssetMoveResult(false, 0, 0, ex.Message);
+        }
+
         if (string.Equals(sourceNodeFolder, targetNodeFolder, StringComparison.Ordinal))
             return new ItemAssetMoveResult(true, 0, 0);
 
@@ -104,13 +114,16 @@ public partial class FileManagementService
 
         try
         {
+            stagingRoot = RequireSafeAssetMutationPath(stagingRoot);
             Directory.CreateDirectory(stagingRoot);
 
             for (var index = 0; index < transfers.Count; index++)
             {
                 var transfer = transfers[index];
+                RequireSafeAssetMutationPath(transfer.SourcePath);
                 var extension = Path.GetExtension(transfer.SourcePath);
                 var stagingPath = Path.Combine(stagingRoot, $"{index:D6}{extension}");
+                stagingPath = RequireSafeAssetMutationPath(stagingPath);
 
                 if (transfer.CopySource)
                     File.Copy(transfer.SourcePath, stagingPath, overwrite: false);
@@ -127,6 +140,7 @@ public partial class FileManagementService
                     throw new InvalidOperationException("Staging path missing for an item asset move.");
 
                 var targetDirectory = Path.GetDirectoryName(transfer.TargetPath);
+                RequireSafeAssetMutationPath(transfer.TargetPath);
                 if (!string.IsNullOrWhiteSpace(targetDirectory))
                     Directory.CreateDirectory(targetDirectory);
 
@@ -233,7 +247,7 @@ public partial class FileManagementService
         if (asset == null || string.IsNullOrWhiteSpace(asset.RelativePath))
             return false;
 
-        if (!AppPaths.TryResolveDataPathInsideRoot(asset.RelativePath, out var resolved))
+        if (!AppPaths.TryResolveDataPathForMutation(asset.RelativePath, out var resolved))
             return false;
 
         fullPath = Path.GetFullPath(resolved);
@@ -296,6 +310,8 @@ public partial class FileManagementService
                 if (!File.Exists(transfer.TargetPath))
                     continue;
 
+                RequireSafeAssetMutationPath(transfer.TargetPath);
+
                 if (transfer.CopySource)
                 {
                     File.Delete(transfer.TargetPath);
@@ -303,6 +319,7 @@ public partial class FileManagementService
                 }
 
                 var sourceDirectory = Path.GetDirectoryName(transfer.SourcePath);
+                RequireSafeAssetMutationPath(transfer.SourcePath);
                 if (!string.IsNullOrWhiteSpace(sourceDirectory))
                     Directory.CreateDirectory(sourceDirectory);
 
@@ -323,6 +340,8 @@ public partial class FileManagementService
                 if (string.IsNullOrWhiteSpace(transfer.StagingPath) || !File.Exists(transfer.StagingPath))
                     continue;
 
+                RequireSafeAssetMutationPath(transfer.StagingPath);
+
                 if (transfer.CopySource)
                 {
                     File.Delete(transfer.StagingPath);
@@ -330,6 +349,7 @@ public partial class FileManagementService
                 }
 
                 var sourceDirectory = Path.GetDirectoryName(transfer.SourcePath);
+                RequireSafeAssetMutationPath(transfer.SourcePath);
                 if (!string.IsNullOrWhiteSpace(sourceDirectory))
                     Directory.CreateDirectory(sourceDirectory);
 

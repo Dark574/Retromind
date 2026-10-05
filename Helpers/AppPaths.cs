@@ -495,6 +495,60 @@ public static class AppPaths
     }
 
     /// <summary>
+    /// Resolves a path below <see cref="DataRoot"/> for a filesystem mutation.
+    /// In addition to lexical containment, every existing component below the
+    /// trusted data root must be a real filesystem entry rather than a symbolic
+    /// link or other reparse point.
+    /// </summary>
+    public static bool TryResolveDataPathForMutation(string? path, out string fullPath)
+    {
+        fullPath = string.Empty;
+        if (!TryResolveDataPathInsideRoot(path, out var candidate))
+            return false;
+
+        try
+        {
+            var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(DataRoot));
+            var relativePath = Path.GetRelativePath(normalizedRoot, candidate);
+            if (relativePath == ".")
+            {
+                fullPath = candidate;
+                return true;
+            }
+
+            var currentPath = normalizedRoot;
+            foreach (var component in relativePath.Split(
+                         [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                         StringSplitOptions.RemoveEmptyEntries))
+            {
+                currentPath = Path.Combine(currentPath, component);
+
+                try
+                {
+                    if ((File.GetAttributes(currentPath) & FileAttributes.ReparsePoint) != 0)
+                        return false;
+                }
+                catch (FileNotFoundException)
+                {
+                    // A missing component means that no deeper component can exist yet.
+                    break;
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    break;
+                }
+            }
+
+            fullPath = candidate;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Resolves a path like <see cref="TryResolveDataPathInsideRoot"/> and returns
     /// an empty string when resolution fails or escapes <see cref="DataRoot"/>.
     /// </summary>

@@ -108,13 +108,14 @@ public static partial class NodeAssetFolderHelper
     {
         try
         {
-            if (!Directory.Exists(path))
+            if (!AppPaths.TryResolveDataPathForMutation(path, out var safePath) ||
+                !Directory.Exists(safePath))
                 return;
 
-            if (Directory.EnumerateFileSystemEntries(path).Any())
+            if (Directory.EnumerateFileSystemEntries(safePath).Any())
                 return;
 
-            Directory.Delete(path);
+            Directory.Delete(safePath);
         }
         catch
         {

@@ -72,18 +72,29 @@ public static partial class NodeAssetFolderHelper
         Dictionary<string, TargetFolderReservation> reservationsByFolder)
     {
         var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
+        if (!AppPaths.TryResolveDataPathForMutation(oldFolder, out oldFolder))
+            return false;
+
         if (!Directory.Exists(oldFolder))
             return true;
 
         var newFolder = PathHelper.ResolveNodeFolder(newSegments, AppPaths.LibraryRoot);
+        if (!AppPaths.TryResolveDataPathForMutation(newFolder, out newFolder))
+            return false;
 
         foreach (var type in AssetFolderTypes)
         {
             var oldTypeFolder = Path.Combine(oldFolder, type.ToString());
+            if (!AppPaths.TryResolveDataPathForMutation(oldTypeFolder, out oldTypeFolder))
+                return false;
+
             if (!Directory.Exists(oldTypeFolder))
                 continue;
 
             var newTypeFolder = Path.Combine(newFolder, type.ToString());
+            if (!AppPaths.TryResolveDataPathForMutation(newTypeFolder, out newTypeFolder))
+                return false;
+
             if (string.Equals(oldTypeFolder, newTypeFolder, StringComparison.Ordinal))
                 continue;
 
@@ -150,16 +161,24 @@ public static partial class NodeAssetFolderHelper
 
         try
         {
+            if (!AppPaths.TryResolveDataPathForMutation(stagingRoot, out stagingRoot))
+                throw new IOException($"Unsafe asset staging path: '{stagingRoot}'.");
+
             Directory.CreateDirectory(stagingRoot);
 
             for (var i = 0; i < plannedMoves.Count; i++)
             {
                 var move = plannedMoves[i];
+                if (!AppPaths.TryResolveDataPathForMutation(move.SourcePath, out _))
+                    throw new IOException($"Unsafe asset source path: '{move.SourcePath}'.");
+
                 if (!File.Exists(move.SourcePath))
                     throw new FileNotFoundException("Source file does not exist for planned asset move.", move.SourcePath);
 
                 var extension = Path.GetExtension(move.SourcePath);
                 var stagePath = Path.Combine(stagingRoot, $"{i:D6}{extension}");
+                if (!AppPaths.TryResolveDataPathForMutation(stagePath, out stagePath))
+                    throw new IOException($"Unsafe asset staging path: '{stagePath}'.");
 
                 File.Move(move.SourcePath, stagePath);
                 move.StagingPath = stagePath;
@@ -172,6 +191,9 @@ public static partial class NodeAssetFolderHelper
                     throw new InvalidOperationException($"Staging path missing for planned move '{move.SourcePath}'.");
 
                 var targetDirectory = Path.GetDirectoryName(move.TargetPath);
+                if (!AppPaths.TryResolveDataPathForMutation(move.TargetPath, out _))
+                    throw new IOException($"Unsafe asset target path: '{move.TargetPath}'.");
+
                 if (!string.IsNullOrWhiteSpace(targetDirectory) && !Directory.Exists(targetDirectory))
                     Directory.CreateDirectory(targetDirectory);
 
@@ -224,6 +246,12 @@ public static partial class NodeAssetFolderHelper
                 if (!File.Exists(move.TargetPath))
                     continue;
 
+                if (!AppPaths.TryResolveDataPathForMutation(move.TargetPath, out _) ||
+                    !AppPaths.TryResolveDataPathForMutation(move.SourcePath, out _))
+                {
+                    continue;
+                }
+
                 var sourceDirectory = Path.GetDirectoryName(move.SourcePath);
                 if (!string.IsNullOrWhiteSpace(sourceDirectory) && !Directory.Exists(sourceDirectory))
                     Directory.CreateDirectory(sourceDirectory);
@@ -250,6 +278,12 @@ public static partial class NodeAssetFolderHelper
             {
                 if (string.IsNullOrWhiteSpace(move.StagingPath) || !File.Exists(move.StagingPath))
                     continue;
+
+                if (!AppPaths.TryResolveDataPathForMutation(move.StagingPath, out _) ||
+                    !AppPaths.TryResolveDataPathForMutation(move.SourcePath, out _))
+                {
+                    continue;
+                }
 
                 var sourceDirectory = Path.GetDirectoryName(move.SourcePath);
                 if (!string.IsNullOrWhiteSpace(sourceDirectory) && !Directory.Exists(sourceDirectory))

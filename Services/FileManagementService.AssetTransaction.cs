@@ -68,6 +68,9 @@ public partial class FileManagementService
                     if (!File.Exists(quarantinePath))
                         continue;
 
+                    RequireSafeAssetMutationPath(quarantinePath);
+                    RequireSafeAssetMutationPath(originalPath);
+
                     var originalDirectory = Path.GetDirectoryName(originalPath);
                     if (!string.IsNullOrWhiteSpace(originalDirectory))
                         Directory.CreateDirectory(originalDirectory);
@@ -85,7 +88,7 @@ public partial class FileManagementService
             {
                 try
                 {
-                    if (!AppPaths.TryResolveDataPathInsideRoot(asset.RelativePath, out var createdPath))
+                    if (!AppPaths.TryResolveDataPathForMutation(asset.RelativePath, out var createdPath))
                         continue;
 
                     TryInvalidateImageCache(createdPath);
@@ -124,10 +127,13 @@ public partial class FileManagementService
         {
             try
             {
-                if (Directory.Exists(_quarantineDirectory))
-                    Directory.Delete(_quarantineDirectory, recursive: true);
+                if (!AppPaths.TryResolveDataPathForMutation(_quarantineDirectory, out var safeQuarantineDirectory))
+                    return;
 
-                var parent = Path.GetDirectoryName(_quarantineDirectory);
+                if (Directory.Exists(safeQuarantineDirectory))
+                    Directory.Delete(safeQuarantineDirectory, recursive: true);
+
+                var parent = Path.GetDirectoryName(safeQuarantineDirectory);
                 if (!string.IsNullOrWhiteSpace(parent) &&
                     Directory.Exists(parent) &&
                     !Directory.EnumerateFileSystemEntries(parent).Any())
@@ -174,7 +180,7 @@ public partial class FileManagementService
                     _ => "Unknown"
                 };
 
-                var nodeFolder = ResolveNodeFolder(nodePathStack.ToList());
+                var nodeFolder = RequireSafeAssetMutationPath(ResolveNodeFolder(nodePathStack.ToList()));
                 var extension = Path.GetExtension(import.SourceFilePath);
                 var destinationPath = GetNextAssetFileName(
                     nodeFolder,
@@ -203,16 +209,18 @@ public partial class FileManagementService
                 if (asset == null || string.IsNullOrWhiteSpace(asset.RelativePath))
                     continue;
 
-                if (!AppPaths.TryResolveDataPathInsideRoot(asset.RelativePath, out var originalPath))
+                if (!AppPaths.TryResolveDataPathForMutation(asset.RelativePath, out var originalPath))
                     throw new IOException($"Asset path cannot be deleted safely: {asset.RelativePath}");
 
                 if (!seenDeletionPaths.Add(originalPath) || !File.Exists(originalPath))
                     continue;
 
-                Directory.CreateDirectory(transaction.QuarantineDirectory);
+                var quarantineDirectory = RequireSafeAssetMutationPath(transaction.QuarantineDirectory);
+                Directory.CreateDirectory(quarantineDirectory);
                 var quarantinePath = Path.Combine(
-                    transaction.QuarantineDirectory,
+                    quarantineDirectory,
                     $"{Guid.NewGuid():N}_{Path.GetFileName(originalPath)}");
+                quarantinePath = RequireSafeAssetMutationPath(quarantinePath);
 
                 TryInvalidateImageCache(originalPath);
                 File.Move(originalPath, quarantinePath, overwrite: false);
