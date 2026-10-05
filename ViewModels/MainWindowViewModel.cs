@@ -1211,11 +1211,8 @@ public partial class MainWindowViewModel : ViewModelBase
         // before it reached the UI thread.
         var activeMusicPath = item.GetPrimaryAssetPath(AssetType.Music);
         var activeFullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(activeMusicPath);
-        var pathComparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
         if (string.IsNullOrWhiteSpace(activeFullPath) ||
-            !string.Equals(activeFullPath, endedFilePath, pathComparison))
+            !FileSystemPathIdentity.Equals(activeFullPath, endedFilePath))
         {
             return;
         }
@@ -1345,7 +1342,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(current))
         {
             candidates = musicAssets
-                .Where(path => !string.Equals(path, current, StringComparison.OrdinalIgnoreCase))
+                .Where(path => !FileSystemPathIdentity.Equals(path, current))
                 .ToList();
         }
 

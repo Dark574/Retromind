@@ -170,6 +170,30 @@ public sealed class WinePrefixServiceTests
         Assert.False(Directory.Exists(Path.Combine(libraryRoot, "Games")));
     }
 
+    [Fact]
+    public void Prepare_OnLinuxDoesNotTreatDifferentlyCasedSiblingAsInternalPrefix()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var libraryRoot = temp.CreateDirectory("Library");
+        var externalPrefix = temp.GetPath("library", "Prefixes", "External");
+        var item = new MediaItem("External")
+        {
+            PrefixPath = externalPrefix
+        };
+        var service = new WinePrefixService(
+            libraryRoot,
+            new AppSettings { PreferPortableLaunchPaths = true });
+
+        service.Prepare(item, new ProcessStartInfo(), WinePrefixRuntime.Wine);
+
+        Assert.Equal(externalPrefix, item.PrefixPath);
+        Assert.False(Directory.Exists(Path.Combine(externalPrefix, "dosdevices", "d:")));
+        Assert.False(Directory.Exists(Path.Combine(libraryRoot, "Games")));
+    }
+
     private static void AssertMappingTargets(string mappingPath, string expectedTarget)
     {
         var linkTarget = new DirectoryInfo(mappingPath).LinkTarget;

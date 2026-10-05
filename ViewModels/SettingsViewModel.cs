@@ -1147,12 +1147,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private string? ResolveRootBigModeThemeSelection(string? configuredPath)
     {
         var selected = AvailableRootBigModeThemes.FirstOrDefault(path =>
-            string.Equals(path, configuredPath, StringComparison.OrdinalIgnoreCase));
+            FileSystemPathIdentity.Equals(path, configuredPath));
         if (selected != null)
             return selected;
 
         return AvailableRootBigModeThemes.FirstOrDefault(path =>
-            string.Equals(path, "Default/theme.axaml", StringComparison.OrdinalIgnoreCase));
+            FileSystemPathIdentity.Equals(path, "Default/theme.axaml"));
     }
 
     partial void OnSelectedRootBigModeThemeChanged(string? value)

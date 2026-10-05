@@ -975,7 +975,7 @@ public partial class MainWindowViewModel
                 // Do not inherit the System Host theme from parent nodes.
                 // It should only be applied to the node where it is explicitly set.
                 if (!ReferenceEquals(node, startNode) &&
-                    string.Equals(fullPathNormalized, systemHostThemeFullPath, StringComparison.OrdinalIgnoreCase))
+                    FileSystemPathIdentity.Equals(fullPathNormalized, systemHostThemeFullPath))
                 {
                     // Skip this assignment and continue searching upwards.
                     Debug.WriteLine($"[Theme] Skipping inherited System Host theme from node '{node.Name}'.");

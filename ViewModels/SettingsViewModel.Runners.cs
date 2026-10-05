@@ -297,7 +297,7 @@ public partial class SettingsViewModel
                 replaceExisting);
 
             var existing = RunnerVersions.FirstOrDefault(r =>
-                string.Equals(r.Path, relativePath, StringComparison.OrdinalIgnoreCase));
+                FileSystemPathIdentity.Equals(r.Path, relativePath));
 
             if (existing != null)
             {
@@ -454,7 +454,7 @@ public partial class SettingsViewModel
     private async Task PersistDownloadedRunnerRegistrationAsync(string relativePath)
     {
         var runner = RunnerVersions.FirstOrDefault(r =>
-            string.Equals(r.Path, relativePath, StringComparison.OrdinalIgnoreCase));
+            FileSystemPathIdentity.Equals(r.Path, relativePath));
         if (runner == null)
             throw new InvalidOperationException("The downloaded runner could not be registered.");
 
@@ -512,7 +512,7 @@ public partial class SettingsViewModel
     {
         var existingIndex = runners.FindIndex(existing =>
             string.Equals(existing.Id, runner.Id, StringComparison.Ordinal) ||
-            string.Equals(existing.Path, runner.Path, StringComparison.OrdinalIgnoreCase));
+            FileSystemPathIdentity.Equals(existing.Path, runner.Path));
 
         if (existingIndex >= 0)
             runners[existingIndex] = runner;
@@ -524,7 +524,7 @@ public partial class SettingsViewModel
     {
         runners.RemoveAll(runner =>
             string.Equals(runner.Id, removed.Id, StringComparison.Ordinal) ||
-            string.Equals(runner.Path, removed.Path, StringComparison.OrdinalIgnoreCase));
+            FileSystemPathIdentity.Equals(runner.Path, removed.Path));
     }
 
     private void RebuildSelectedEmulatorRunnerVersionOptions()

@@ -427,12 +427,7 @@ public sealed partial class GogInstallerExecutionService
     }
 
     private static bool PathsEqual(string pathA, string pathB)
-    {
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        return string.Equals(Path.GetFullPath(pathA), Path.GetFullPath(pathB), comparison);
-    }
+        => FileSystemPathIdentity.Equals(Path.GetFullPath(pathA), Path.GetFullPath(pathB));
 
     private static void EnsureInstalledExecutablePermissionsBestEffort(string installRoot)
     {
@@ -520,7 +515,7 @@ public sealed partial class GogInstallerExecutionService
     }
 
     private static bool IsInsideInstallerStaging(string path)
-        => path.IndexOf(".retromind-gog-installers", StringComparison.OrdinalIgnoreCase) >= 0;
+        => path.IndexOf(".retromind-gog-installers", FileSystemPathIdentity.Comparison) >= 0;
 
     private sealed record LinuxInstallerArgumentProfile(string Name, IReadOnlyList<string> Arguments);
 }

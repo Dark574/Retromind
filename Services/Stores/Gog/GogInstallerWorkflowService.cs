@@ -139,7 +139,7 @@ public sealed class GogInstallerWorkflowService
         }
 
         var marker = $"{Path.DirectorySeparatorChar}.retromind-gog-installers{Path.DirectorySeparatorChar}";
-        if (fullStagingPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase) < 0)
+        if (fullStagingPath.IndexOf(marker, FileSystemPathIdentity.Comparison) < 0)
             return;
 
         try
@@ -509,12 +509,7 @@ public sealed class GogInstallerWorkflowService
     }
 
     private static bool PathsEqual(string pathA, string pathB)
-    {
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        return string.Equals(Path.GetFullPath(pathA), Path.GetFullPath(pathB), comparison);
-    }
+        => FileSystemPathIdentity.Equals(Path.GetFullPath(pathA), Path.GetFullPath(pathB));
 
     private static bool IsSubPathOfOrEqual(string path, string potentialParentPath)
     {
@@ -523,17 +518,13 @@ public sealed class GogInstallerWorkflowService
 
         var fullPath = Path.GetFullPath(path);
         var fullParent = Path.GetFullPath(potentialParentPath);
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-
-        if (string.Equals(fullPath, fullParent, comparison))
+        if (FileSystemPathIdentity.Equals(fullPath, fullParent))
             return true;
 
         var parentWithSeparator = fullParent.EndsWith(Path.DirectorySeparatorChar)
             ? fullParent
             : fullParent + Path.DirectorySeparatorChar;
-        return fullPath.StartsWith(parentWithSeparator, comparison);
+        return fullPath.StartsWith(parentWithSeparator, FileSystemPathIdentity.Comparison);
     }
 
     private static void InitializeInstallerLogFile(

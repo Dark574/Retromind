@@ -575,7 +575,7 @@ public partial class SettingsViewModel
         var trimmed = path.Trim();
         var normalized = NormalizePathSafe(trimmed);
 
-        if (SteamLibraryPaths.Any(p => string.Equals(p, normalized, StringComparison.OrdinalIgnoreCase)))
+        if (SteamLibraryPaths.Any(path => FileSystemPathIdentity.Equals(path, normalized)))
         {
             SteamLibraryPathInput = string.Empty;
             return;
@@ -605,7 +605,7 @@ public partial class SettingsViewModel
         var trimmed = path.Trim();
         var normalized = NormalizePathSafe(trimmed);
 
-        if (HeroicEpicConfigPaths.Any(p => string.Equals(p, normalized, StringComparison.OrdinalIgnoreCase)))
+        if (HeroicEpicConfigPaths.Any(path => FileSystemPathIdentity.Equals(path, normalized)))
         {
             HeroicEpicPathInput = string.Empty;
             return;

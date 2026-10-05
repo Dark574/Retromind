@@ -624,7 +624,7 @@ public partial class MainWindowViewModel
                     return false;
 
                 return !targetNode.Items.Any(existing =>
-                    string.Equals(existing.GetPrimaryLaunchPath(), incoming, StringComparison.OrdinalIgnoreCase));
+                    FileSystemPathIdentity.Equals(existing.GetPrimaryLaunchPath(), incoming));
             })
             .ToList();
 
@@ -803,7 +803,9 @@ public partial class MainWindowViewModel
 
         _currentSettings.HeroicEpicConfigPaths ??= new List<string>();
 
-        var existing = new HashSet<string>(_currentSettings.HeroicEpicConfigPaths, StringComparer.OrdinalIgnoreCase);
+        var existing = new HashSet<string>(
+            _currentSettings.HeroicEpicConfigPaths,
+            FileSystemPathIdentity.Comparer);
         var changed = false;
 
         foreach (var path in configPaths)
@@ -846,7 +848,9 @@ public partial class MainWindowViewModel
 
         _currentSettings.SteamLibraryPaths ??= new List<string>();
 
-        var existing = new HashSet<string>(_currentSettings.SteamLibraryPaths, StringComparer.OrdinalIgnoreCase);
+        var existing = new HashSet<string>(
+            _currentSettings.SteamLibraryPaths,
+            FileSystemPathIdentity.Comparer);
         var changed = false;
 
         foreach (var path in steamAppsPaths)

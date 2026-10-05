@@ -55,7 +55,7 @@ public sealed class WinePrefixService
 
         // UMU owns <compat-root>/pfx. Only scaffold its compat root until umu-run creates that link/folder.
         var scaffoldPrefixPath = runtime == WinePrefixRuntime.Umu &&
-                                 !string.Equals(winePrefixPath, prefixRoot, StringComparison.OrdinalIgnoreCase)
+                                 !FileSystemPathIdentity.Equals(winePrefixPath, prefixRoot)
             ? prefixRoot
             : winePrefixPath;
         Directory.CreateDirectory(scaffoldPrefixPath);
@@ -65,8 +65,8 @@ public sealed class WinePrefixService
 
         var isUmuCompatRootScaffold =
             runtime == WinePrefixRuntime.Umu &&
-            string.Equals(scaffoldPrefixPath, prefixRoot, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(winePrefixPath, prefixRoot, StringComparison.OrdinalIgnoreCase);
+            FileSystemPathIdentity.Equals(scaffoldPrefixPath, prefixRoot) &&
+            !FileSystemPathIdentity.Equals(winePrefixPath, prefixRoot);
 
         if (!isUmuCompatRootScaffold)
         {
@@ -165,8 +165,8 @@ public sealed class WinePrefixService
             : libraryRoot + Path.DirectorySeparatorChar;
 
         var isPrefixInsideLibrary =
-            prefixFullPath.StartsWith(libraryRootWithSeparator, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(prefixFullPath, libraryRoot, StringComparison.OrdinalIgnoreCase);
+            prefixFullPath.StartsWith(libraryRootWithSeparator, FileSystemPathIdentity.Comparison) ||
+            FileSystemPathIdentity.Equals(prefixFullPath, libraryRoot);
         if (!isPrefixInsideLibrary)
             return;
 

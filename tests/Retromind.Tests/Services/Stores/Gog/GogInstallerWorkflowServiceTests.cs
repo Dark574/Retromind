@@ -156,6 +156,23 @@ public sealed class GogInstallerWorkflowServiceTests
         Assert.Equal(GogInstallerWorkflowFailureStage.Cancelled, result.FailureStage);
     }
 
+    [Fact]
+    public void DeleteStagingDirectoryBestEffort_OnLinuxRejectsDifferentlyCasedMarker()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temporaryDirectory = new TemporaryDirectory();
+        var stagingPath = temporaryDirectory.CreateDirectory(
+            "game",
+            ".RETROMIND-GOG-INSTALLERS",
+            "123");
+
+        GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(stagingPath);
+
+        Assert.True(Directory.Exists(stagingPath));
+    }
+
     private static string CreateInstallerScript(string stagingPath)
     {
         var path = Path.Combine(stagingPath, "installer.sh");

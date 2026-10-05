@@ -24,9 +24,9 @@ public static class ThemeLoader
     private const int MaxXamlCacheEntries = 40;
 
     private static readonly Dictionary<string, CachedXaml> XamlCache =
-        new(StringComparer.OrdinalIgnoreCase);
+        new(FileSystemPathIdentity.Comparer);
     private static readonly Dictionary<string, LinkedListNode<string>> XamlCacheNodes =
-        new(StringComparer.OrdinalIgnoreCase);
+        new(FileSystemPathIdentity.Comparer);
     private static readonly LinkedList<string> XamlLruList = new();
     private static readonly object XamlCacheLock = new();
 

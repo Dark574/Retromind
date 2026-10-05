@@ -21,4 +21,34 @@ public sealed class GogInstallPayloadTrackerTests
 
         Assert.True(GogInstallPayloadTracker.HasChanged(installPath, baseline));
     }
+
+    [Fact]
+    public void Capture_OnLinuxDoesNotIgnoreDifferentlyCasedStagingDirectory()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temporaryDirectory = new TemporaryDirectory();
+        var installPath = temporaryDirectory.CreateDirectory("game");
+        var baseline = GogInstallPayloadTracker.Capture(installPath);
+
+        temporaryDirectory.CreateFile("game/.RETROMIND-GOG-INSTALLERS/payload.bin");
+
+        Assert.True(GogInstallPayloadTracker.HasChanged(installPath, baseline));
+    }
+
+    [Fact]
+    public void Capture_OnLinuxDoesNotIgnoreDifferentlyCasedMojoDirectory()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temporaryDirectory = new TemporaryDirectory();
+        var installPath = temporaryDirectory.CreateDirectory("game");
+        var baseline = GogInstallPayloadTracker.Capture(installPath);
+
+        temporaryDirectory.CreateFile("game/.MOJOSETUP/payload.bin");
+
+        Assert.True(GogInstallPayloadTracker.HasChanged(installPath, baseline));
+    }
 }

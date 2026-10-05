@@ -126,8 +126,8 @@ public class ImportService
 
     private static HashSet<string> FindReferencedCuePayloads(IReadOnlyCollection<string> selectedFiles)
     {
-        var selectedPaths = selectedFiles.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var referencedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var selectedPaths = selectedFiles.ToHashSet(FileSystemPathIdentity.Comparer);
+        var referencedPaths = new HashSet<string>(FileSystemPathIdentity.Comparer);
 
         foreach (var cuePath in selectedFiles.Where(path =>
                      path.EndsWith(".cue", StringComparison.OrdinalIgnoreCase)))

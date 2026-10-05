@@ -34,7 +34,7 @@ public sealed class ThemeAssetToBitmapConverter : IValueConverter
     }
 
     private static readonly Dictionary<string, CacheEntry> Cache =
-        new(StringComparer.OrdinalIgnoreCase);
+        new(FileSystemPathIdentity.Comparer);
     private static readonly LinkedList<string> LruList = new();
     private static readonly object CacheLock = new();
 

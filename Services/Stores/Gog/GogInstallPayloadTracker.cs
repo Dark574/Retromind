@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 
 namespace Retromind.Services.Stores.Gog;
 
@@ -28,7 +29,9 @@ internal static class GogInstallPayloadTracker
             {
                 var relativePath = Path.GetRelativePath(installPath, file);
                 if (IsInsideInstallerStaging(file) ||
-                    relativePath.StartsWith($".mojosetup{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+                    relativePath.StartsWith(
+                        $".mojosetup{Path.DirectorySeparatorChar}",
+                        FileSystemPathIdentity.Comparison))
                 {
                     continue;
                 }
@@ -108,5 +111,5 @@ internal static class GogInstallPayloadTracker
     }
 
     private static bool IsInsideInstallerStaging(string path)
-        => path.IndexOf(".retromind-gog-installers", StringComparison.OrdinalIgnoreCase) >= 0;
+        => path.IndexOf(".retromind-gog-installers", FileSystemPathIdentity.Comparison) >= 0;
 }

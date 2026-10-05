@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using Retromind.Helpers;
 
 namespace Retromind.Services.Stores.Gog;
 
@@ -471,16 +472,13 @@ public sealed class GogLaunchDetectionService
 
     private static bool IsSubPathOfOrEqual(string path, string potentialParentPath)
     {
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        if (string.Equals(path, potentialParentPath, comparison))
+        if (FileSystemPathIdentity.Equals(path, potentialParentPath))
             return true;
 
         var parentWithSeparator = Path.EndsInDirectorySeparator(potentialParentPath)
             ? potentialParentPath
             : potentialParentPath + Path.DirectorySeparatorChar;
-        return path.StartsWith(parentWithSeparator, comparison);
+        return path.StartsWith(parentWithSeparator, FileSystemPathIdentity.Comparison);
     }
 
     private static IEnumerable<string> EnumerateFilesSafe(string root, string pattern)
@@ -503,7 +501,7 @@ public sealed class GogLaunchDetectionService
     }
 
     private static bool IsInsideInstallerStaging(string path)
-        => path.IndexOf(".retromind-gog-installers", StringComparison.OrdinalIgnoreCase) >= 0;
+        => path.IndexOf(".retromind-gog-installers", FileSystemPathIdentity.Comparison) >= 0;
 
     private static string NormalizeForComparison(string? value)
     {

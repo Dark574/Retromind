@@ -206,7 +206,7 @@ public partial class FileManagementService
 
         var oldPrefix = BuildItemAssetPrefix(oldTitle, item.Id);
         var newPrefix = BuildItemAssetPrefix(newTitle, item.Id);
-        if (string.Equals(oldPrefix, newPrefix, StringComparison.OrdinalIgnoreCase))
+        if (FileSystemPathIdentity.Equals(oldPrefix, newPrefix))
             return false;
 
         string nodeFolder;
@@ -262,7 +262,7 @@ public partial class FileManagementService
             if (!AppPaths.TryResolveDataPathForMutation(targetFullPath, out targetFullPath))
                 continue;
 
-            if (string.Equals(fullPath, targetFullPath, StringComparison.OrdinalIgnoreCase))
+            if (FileSystemPathIdentity.Equals(fullPath, targetFullPath))
                 continue;
 
             if (File.Exists(targetFullPath))

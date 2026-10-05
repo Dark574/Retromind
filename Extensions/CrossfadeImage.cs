@@ -206,7 +206,7 @@ public class CrossfadeImage : Grid
 
     private void StartCrossfadeToUrl(string? url, bool forceReload)
     {
-        var urlChanged = !string.Equals(_currentUrl, url, StringComparison.OrdinalIgnoreCase);
+        var urlChanged = !string.Equals(_currentUrl, url, StringComparison.Ordinal);
         if (!forceReload && !urlChanged)
             return;
 
@@ -254,7 +254,7 @@ public class CrossfadeImage : Grid
         UiThreadHelper.Post(() =>
         {
             if (generation != _loadGeneration ||
-                !string.Equals(_currentUrl, url, StringComparison.OrdinalIgnoreCase))
+                !string.Equals(_currentUrl, url, StringComparison.Ordinal))
             {
                 return;
             }
@@ -286,7 +286,7 @@ public class CrossfadeImage : Grid
         ApplyImageSettings(target);
 
         if (!forceReload &&
-            string.Equals(AsyncImageHelper.GetUrl(target), url, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(AsyncImageHelper.GetUrl(target), url, StringComparison.Ordinal) &&
             AsyncImageHelper.GetIsLoaded(target))
         {
             // Target image already has the correct URL loaded: still crossfade for consistency.

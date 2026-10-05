@@ -402,7 +402,7 @@ public partial class BigModeViewModel
 
     private void StopVideoIfPreviewPathChanged(string? targetVideoPath)
     {
-        if (string.Equals(_currentPreviewVideoPath, targetVideoPath, StringComparison.OrdinalIgnoreCase))
+        if (FileSystemPathIdentity.Equals(_currentPreviewVideoPath, targetVideoPath))
             return;
 
         // The frame currently presented belongs to the previous selection. Themes
@@ -553,10 +553,7 @@ public partial class BigModeViewModel
         var targetVideoPath = CanShowVideo ? ResolvePreviewVideoPath() : null;
 
         if (!string.IsNullOrWhiteSpace(targetVideoPath) &&
-            !string.Equals(
-                _presentedPreviewVideoPath,
-                targetVideoPath,
-                StringComparison.OrdinalIgnoreCase))
+            !FileSystemPathIdentity.Equals(_presentedPreviewVideoPath, targetVideoPath))
         {
             _pendingBezelPath = bezelPath;
             _pendingBezelVideoPath = targetVideoPath;
@@ -570,10 +567,7 @@ public partial class BigModeViewModel
     private void PresentPendingBezelForVideo(string? presentedVideoPath)
     {
         if (string.IsNullOrWhiteSpace(_pendingBezelVideoPath) ||
-            !string.Equals(
-                _pendingBezelVideoPath,
-                presentedVideoPath,
-                StringComparison.OrdinalIgnoreCase))
+            !FileSystemPathIdentity.Equals(_pendingBezelVideoPath, presentedVideoPath))
         {
             return;
         }
@@ -620,7 +614,7 @@ public partial class BigModeViewModel
 
     private void SetActiveBezelPathResolved(string? value)
     {
-        if (string.Equals(ActiveBezelPath, value, StringComparison.OrdinalIgnoreCase))
+        if (FileSystemPathIdentity.Equals(ActiveBezelPath, value))
             return;
 
         ActiveBezelPath = value;
@@ -902,7 +896,7 @@ public partial class BigModeViewModel
 
         var canReuseCurrentFrame =
             !string.IsNullOrWhiteSpace(targetPath) &&
-            string.Equals(_presentedPreviewVideoPath, targetPath, StringComparison.OrdinalIgnoreCase) &&
+            FileSystemPathIdentity.Equals(_presentedPreviewVideoPath, targetPath) &&
             activeSurfaceHasFrame;
 
         return new PreviewPresentationState(
@@ -1039,10 +1033,10 @@ public partial class BigModeViewModel
             return;
         }
 
-        if (string.Equals(_currentPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase))
+        if (FileSystemPathIdentity.Equals(_currentPreviewVideoPath, videoPath))
         {
             if ((_mainVideoIsPlayingA || _mainVideoIsPlayingB) ||
-                string.Equals(_pendingPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase))
+                FileSystemPathIdentity.Equals(_pendingPreviewVideoPath, videoPath))
                 return;
         }
 
@@ -1108,7 +1102,7 @@ public partial class BigModeViewModel
             return;
         }
 
-        if (!string.Equals(_currentPreviewVideoPath, videoPath, StringComparison.OrdinalIgnoreCase))
+        if (!FileSystemPathIdentity.Equals(_currentPreviewVideoPath, videoPath))
         {
             ClearPendingPreviewStart(generation);
             return;
@@ -1275,7 +1269,7 @@ public partial class BigModeViewModel
         var targetVideoPath = ResolvePreviewVideoPath();
         if (string.IsNullOrEmpty(targetVideoPath) ||
             string.IsNullOrEmpty(_pausedPreviewVideoPath) ||
-            !string.Equals(targetVideoPath, _pausedPreviewVideoPath, StringComparison.OrdinalIgnoreCase))
+            !FileSystemPathIdentity.Equals(targetVideoPath, _pausedPreviewVideoPath))
         {
             ClearPausedPreviewState();
             return false;

@@ -277,15 +277,15 @@ public static class AppPaths
     private static bool AreDirectoryContentsEquivalent(string leftDir, string rightDir)
     {
         var leftFiles = Directory.GetFiles(leftDir, "*", SearchOption.AllDirectories)
-            .Where(path => !string.Equals(Path.GetFileName(path), ThemeManifestFileName, StringComparison.OrdinalIgnoreCase))
+            .Where(path => !FileSystemPathIdentity.Equals(Path.GetFileName(path), ThemeManifestFileName))
             .Select(path => Path.GetRelativePath(leftDir, path).Replace('\\', '/'))
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, FileSystemPathIdentity.Comparer)
             .ToArray();
 
         var rightFiles = Directory.GetFiles(rightDir, "*", SearchOption.AllDirectories)
-            .Where(path => !string.Equals(Path.GetFileName(path), ThemeManifestFileName, StringComparison.OrdinalIgnoreCase))
+            .Where(path => !FileSystemPathIdentity.Equals(Path.GetFileName(path), ThemeManifestFileName))
             .Select(path => Path.GetRelativePath(rightDir, path).Replace('\\', '/'))
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, FileSystemPathIdentity.Comparer)
             .ToArray();
 
         if (leftFiles.Length != rightFiles.Length)
@@ -293,7 +293,7 @@ public static class AppPaths
 
         for (var i = 0; i < leftFiles.Length; i++)
         {
-            if (!string.Equals(leftFiles[i], rightFiles[i], StringComparison.OrdinalIgnoreCase))
+            if (!FileSystemPathIdentity.Equals(leftFiles[i], rightFiles[i]))
                 return false;
 
             var leftPath = Path.Combine(leftDir, leftFiles[i]);
@@ -414,12 +414,12 @@ public static class AppPaths
         using var sha = SHA256.Create();
         var separator = new byte[] { 0 };
         var files = Directory.GetFiles(directory, "*", SearchOption.AllDirectories);
-        Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+        Array.Sort(files, FileSystemPathIdentity.Comparer);
 
         // Use file metadata to avoid hashing large theme assets at startup.
         foreach (var file in files)
         {
-            if (string.Equals(Path.GetFileName(file), ThemeManifestFileName, StringComparison.OrdinalIgnoreCase))
+            if (FileSystemPathIdentity.Equals(Path.GetFileName(file), ThemeManifestFileName))
                 continue;
 
             var relative = Path.GetRelativePath(directory, file).Replace('\\', '/');
@@ -577,12 +577,8 @@ public static class AppPaths
                 ? normalizedRoot
                 : normalizedRoot + Path.DirectorySeparatorChar;
 
-            var comparison = OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
-
-            return string.Equals(normalizedCandidate, normalizedRoot, comparison) ||
-                   normalizedCandidate.StartsWith(rootWithSeparator, comparison);
+            return FileSystemPathIdentity.Equals(normalizedCandidate, normalizedRoot) ||
+                   normalizedCandidate.StartsWith(rootWithSeparator, FileSystemPathIdentity.Comparison);
         }
         catch
         {

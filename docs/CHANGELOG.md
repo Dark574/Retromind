@@ -41,6 +41,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
 
 ### Fixed
+- compare host filesystem paths case-sensitively on Linux across imports, runners, themes, media previews, and Wine-prefix containment
 - reject structurally unusable settings JSON and recover from the last valid settings backup
 - apply the GOG access-token refresh buffer consistently instead of reusing tokens with 30 seconds or less remaining
 - quote nested launch-wrapper paths and preserve whitespace inside quoted paths during runtime composition and editor preview

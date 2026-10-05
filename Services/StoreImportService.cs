@@ -100,7 +100,7 @@ public class StoreImportService
 
     private async Task<List<string>> GetSteamLibraryPathsAsync(string? manualLibraryPath)
     {
-        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var paths = new HashSet<string>(FileSystemPathIdentity.Comparer);
 
         var manualSteamApps = ResolveSteamAppsPath(manualLibraryPath);
         if (!string.IsNullOrWhiteSpace(manualSteamApps) && Directory.Exists(manualSteamApps))
@@ -211,7 +211,7 @@ public class StoreImportService
         if (string.IsNullOrWhiteSpace(realHome))
             yield break;
 
-        if (!string.Equals(currentHome, realHome, StringComparison.OrdinalIgnoreCase))
+        if (!FileSystemPathIdentity.Equals(currentHome, realHome))
             yield return realHome;
     }
 
@@ -252,7 +252,7 @@ public class StoreImportService
             }
         }
 
-        return results.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return results.Distinct(FileSystemPathIdentity.Comparer).ToList();
     }
 
     private static string UnescapeVdfValue(string value)
@@ -388,7 +388,7 @@ public class StoreImportService
 
     private List<string> GetHeroicEpicConfigPaths(string? manualConfigPath)
     {
-        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var paths = new HashSet<string>(FileSystemPathIdentity.Comparer);
 
         var manualResolved = ResolveHeroicEpicConfigPath(manualConfigPath);
         if (!string.IsNullOrWhiteSpace(manualResolved) && File.Exists(manualResolved))

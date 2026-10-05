@@ -63,6 +63,24 @@ public sealed class ImportServiceTests : IDisposable
         Assert.EndsWith(".bin", game.Files[0].Path, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task ImportFromFolderAsync_OnLinuxKeepsCaseDistinctCuePayloadPath()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        Directory.CreateDirectory(_root);
+        WriteFile("Game.cue", "FILE \"Track.bin\" BINARY\n");
+        WriteFile("Track.bin");
+        WriteFile("track.bin");
+
+        var result = await _service.ImportFromFolderAsync(_root, ["cue", "bin"]);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, item => item.Files.Single().Path.EndsWith("Game.cue", StringComparison.Ordinal));
+        Assert.Contains(result, item => item.Files.Single().Path.EndsWith("track.bin", StringComparison.Ordinal));
+    }
+
     private void WriteFile(string relativePath, string content = "data")
     {
         File.WriteAllText(Path.Combine(_root, relativePath), content);
