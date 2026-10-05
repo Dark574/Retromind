@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Helpers;
 
@@ -54,6 +55,23 @@ public partial class MediaAsset : ObservableObject
     public AssetType Type { get; set; }
     
     private string? _absolutePath; // Cache for computed absolute path
+    private string? _transientPreviewPath;
+
+    /// <summary>
+    /// Optional non-persisted source path used while an asset import is still staged in an editor.
+    /// </summary>
+    [JsonIgnore]
+    public string? TransientPreviewPath
+    {
+        get => _transientPreviewPath;
+        set
+        {
+            if (!SetProperty(ref _transientPreviewPath, value))
+                return;
+
+            OnPropertyChanged(nameof(AbsolutePath));
+        }
+    }
     
     /// <summary>
     /// Gets the absolute path by combining the app's base directory with the relative path.
@@ -63,6 +81,9 @@ public partial class MediaAsset : ObservableObject
     {
         get
         {
+            if (!string.IsNullOrWhiteSpace(TransientPreviewPath))
+                return TransientPreviewPath;
+
             if (_absolutePath == null)
             {
                 _absolutePath = AppPaths.ResolveDataPathInsideRootOrEmpty(RelativePath);

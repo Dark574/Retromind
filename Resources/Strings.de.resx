@@ -295,6 +295,7 @@
     <data name="EditMedia.Manuals" xml:space="preserve"><value>Handbücher</value></data>
     <data name="EditMedia.SelectAssetToDelete" xml:space="preserve"><value>Zum Löschen ein Asset auswählen</value></data>
     <data name="EditMedia.DeleteAssetLabel" xml:space="preserve"><value>Löschen:</value></data>
+    <data name="AssetEdit.SaveFailed" xml:space="preserve"><value>Die Medienänderungen konnten nicht gespeichert werden. Bestehende Dateien und Zuordnungen wurden beibehalten.</value></data>
 
     <!-- FILETYPE -->
     <data name="FileType_Videos" xml:space="preserve"><value>Videos</value></data>

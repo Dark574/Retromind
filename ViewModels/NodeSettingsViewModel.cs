@@ -38,7 +38,22 @@ public partial class NodeSettingsViewModel : ViewModelBase
     /// </summary>
     private readonly FileManagementService _fileService;
     private readonly Func<string, Task<bool>>? _confirmDialogAsync;
+    private readonly Dictionary<AssetType, string?> _initialNodeAssetPaths = new();
+    private readonly Dictionary<AssetType, string> _pendingNodeImports = new();
     private bool _isInitializing = true;
+
+    private enum NodeAssetEditKind
+    {
+        Preserve,
+        Clear,
+        Reference,
+        Import
+    }
+
+    private sealed record NodeAssetEdit(
+        AssetType Type,
+        NodeAssetEditKind Kind,
+        string? Value);
 
     /// <summary>
     /// Logical path from the root node down to this node.
@@ -67,6 +82,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private string? _saveErrorMessage;
 
     public bool HasSaveError => !string.IsNullOrWhiteSpace(SaveErrorMessage);
+
+    [ObservableProperty]
+    private bool _isSaving;
 
     [ObservableProperty] private string _nameValidationMessage = string.Empty;
     [ObservableProperty] private string _nameSuggestion = string.Empty;
@@ -144,9 +162,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
     [ObservableProperty] private bool _parentalProtectionEnabled;
     private bool _initialParentalProtectionEnabled;
 
-    public string? NodeLogoPreviewPath => ResolvePreviewPath(NodeLogoPath);
-    public string? NodeWallpaperPreviewPath => ResolvePreviewPath(NodeWallpaperPath);
-    public string? NodeMarqueePreviewPath => ResolvePreviewPath(NodeMarqueePath);
+    public string? NodeLogoPreviewPath => ResolvePreviewPath(AssetType.Logo, NodeLogoPath);
+    public string? NodeWallpaperPreviewPath => ResolvePreviewPath(AssetType.Wallpaper, NodeWallpaperPath);
+    public string? NodeMarqueePreviewPath => ResolvePreviewPath(AssetType.Marquee, NodeMarqueePath);
     public string ParentalProtectionSectionTitle => T("NodeSettings_Parental_Title", "Parental control");
     public string ParentalProtectionHint => T("NodeSettings_Parental_Hint", "If enabled, all items in this node and child nodes are protected.");
     public string ParentalProtectionToggleText =>
@@ -400,17 +418,16 @@ public partial class NodeSettingsViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Imports a node-level asset (Logo/Wallpaper/Video) into the library using the same
-    /// naming and folder conventions as media item assets.
-    /// Returns the DataRoot-relative path to be stored on the node, or null on failure.
+    /// Stages a node-level asset (Logo/Wallpaper/Video) for import on Save.
+    /// Returns its source path for immediate preview, or null when the source is unavailable.
     /// </summary>
-    public async Task<string?> ImportNodeAssetAsync(string sourceFilePath, AssetType type)
+    public Task<string?> ImportNodeAssetAsync(string sourceFilePath, AssetType type)
     {
-        if (string.IsNullOrWhiteSpace(sourceFilePath))
-            return null;
+        if (string.IsNullOrWhiteSpace(sourceFilePath) || !File.Exists(sourceFilePath))
+            return Task.FromResult<string?>(null);
 
-        var asset = await _fileService.ImportAssetAsync(sourceFilePath, _node, _nodePath, type);
-        return asset?.RelativePath;
+        _pendingNodeImports[type] = sourceFilePath;
+        return Task.FromResult<string?>(sourceFilePath);
     }
     
     private void LoadSystemThemes()
@@ -715,6 +732,11 @@ public partial class NodeSettingsViewModel : ViewModelBase
         NodeVideoPath = _node.PrimaryVideoPath;
         NodeMarqueePath = _node.PrimaryMarqueePath;
 
+        _initialNodeAssetPaths[AssetType.Logo] = NodeLogoPath;
+        _initialNodeAssetPaths[AssetType.Wallpaper] = NodeWallpaperPath;
+        _initialNodeAssetPaths[AssetType.Video] = NodeVideoPath;
+        _initialNodeAssetPaths[AssetType.Marquee] = NodeMarqueePath;
+
         NodeLogoFallbackEnabled = _node.LogoFallbackEnabled;
         NodeWallpaperFallbackEnabled = _node.WallpaperFallbackEnabled;
         NodeVideoFallbackEnabled = _node.VideoFallbackEnabled;
@@ -888,16 +910,114 @@ public partial class NodeSettingsViewModel : ViewModelBase
             AvailableThemes.Add(themePath);
     }
 
-    private static string? ResolvePreviewPath(string? path)
+    private string? ResolvePreviewPath(AssetType type, string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
+        if (_pendingNodeImports.TryGetValue(type, out var pendingSource) &&
+            string.Equals(path, pendingSource, StringComparison.Ordinal) &&
+            File.Exists(pendingSource))
+        {
+            return pendingSource;
+        }
+
         var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(path);
         return string.IsNullOrWhiteSpace(fullPath) ? null : fullPath;
     }
+
+    private List<NodeAssetEdit> CaptureNodeAssetEdits()
+    {
+        return new List<NodeAssetEdit>
+        {
+            CaptureNodeAssetEdit(AssetType.Logo, NodeLogoPath),
+            CaptureNodeAssetEdit(AssetType.Wallpaper, NodeWallpaperPath),
+            CaptureNodeAssetEdit(AssetType.Video, NodeVideoPath),
+            CaptureNodeAssetEdit(AssetType.Marquee, NodeMarqueePath)
+        };
+    }
+
+    private NodeAssetEdit CaptureNodeAssetEdit(AssetType type, string? currentPath)
+    {
+        if (_pendingNodeImports.TryGetValue(type, out var pendingSource) &&
+            string.Equals(currentPath, pendingSource, StringComparison.Ordinal))
+        {
+            return new NodeAssetEdit(type, NodeAssetEditKind.Import, pendingSource);
+        }
+
+        _initialNodeAssetPaths.TryGetValue(type, out var initialPath);
+        if (string.Equals(currentPath, initialPath, StringComparison.Ordinal))
+            return new NodeAssetEdit(type, NodeAssetEditKind.Preserve, initialPath);
+
+        if (string.IsNullOrWhiteSpace(currentPath))
+            return new NodeAssetEdit(type, NodeAssetEditKind.Clear, null);
+
+        return new NodeAssetEdit(type, NodeAssetEditKind.Reference, currentPath.Trim());
+    }
+
+    private void ApplyPreparedNodeAssetEdits(
+        IReadOnlyList<NodeAssetEdit> edits,
+        IReadOnlyList<MediaAsset> importedAssets)
+    {
+        var importedQueue = new Queue<MediaAsset>(importedAssets);
+
+        foreach (var edit in edits)
+        {
+            switch (edit.Kind)
+            {
+                case NodeAssetEditKind.Preserve:
+                    break;
+
+                case NodeAssetEditKind.Clear:
+                    UpdateNodeAsset(edit.Type, null);
+                    break;
+
+                case NodeAssetEditKind.Reference:
+                    UpdateNodeAsset(edit.Type, edit.Value);
+                    break;
+
+                case NodeAssetEditKind.Import:
+                    UpdateNodeAsset(edit.Type, importedQueue.Dequeue().RelativePath);
+                    break;
+            }
+        }
+    }
+
+    private void RestoreNodeAssets(IReadOnlyList<MediaAsset> originalAssets)
+    {
+        _node.Assets.Clear();
+        foreach (var asset in originalAssets)
+            _node.Assets.Add(asset);
+
+        _pendingNodeImports.Clear();
+        RefreshNodeAssetPathsFromModel();
+    }
+
+    private void RefreshNodeAssetPathsFromModel()
+    {
+        NodeLogoPath = _node.PrimaryLogoPath;
+        NodeWallpaperPath = _node.PrimaryWallpaperPath;
+        NodeVideoPath = _node.PrimaryVideoPath;
+        NodeMarqueePath = _node.PrimaryMarqueePath;
+    }
     
     private async Task SaveAsync()
+    {
+        if (IsSaving)
+            return;
+
+        IsSaving = true;
+        try
+        {
+            await SaveCoreAsync();
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task SaveCoreAsync()
     {
         if (string.IsNullOrWhiteSpace(Name))
             return;
@@ -905,18 +1025,102 @@ public partial class NodeSettingsViewModel : ViewModelBase
         if (!IsNameValid)
             return;
 
+        var eligibleItemsForDefaultEmulator = new List<MediaItem>();
+        if (ApplyDefaultEmulatorToExistingItems)
+        {
+            ApplyDefaultEmulatorMessage = null;
+
+            if (!CanApplyDefaultEmulator)
+            {
+                ApplyDefaultEmulatorMessage = Strings.NodeSettings_ApplyEmulatorNoDefault;
+                return;
+            }
+
+            eligibleItemsForDefaultEmulator = CollectEligibleItemsForDefaultEmulator(
+                _node,
+                includeChildren: ApplyDefaultEmulatorIncludeChildren);
+
+            if (eligibleItemsForDefaultEmulator.Count == 0)
+            {
+                ApplyDefaultEmulatorMessage = Strings.NodeSettings_ApplyEmulatorNoItems;
+                return;
+            }
+
+            if (_confirmDialogAsync != null)
+            {
+                var scopeSuffix = ApplyDefaultEmulatorIncludeChildren
+                    ? Strings.NodeSettings_ApplyEmulatorScopeChildren
+                    : string.Empty;
+                var confirmMessage = string.Format(
+                    Strings.NodeSettings_ApplyEmulatorConfirmFormat,
+                    eligibleItemsForDefaultEmulator.Count,
+                    scopeSuffix);
+
+                if (!await _confirmDialogAsync(confirmMessage))
+                    eligibleItemsForDefaultEmulator.Clear();
+            }
+        }
+
         var oldName = _node.Name;
         var newName = Name.Trim();
+        var assetEdits = CaptureNodeAssetEdits();
+        var originalNodeAssets = _node.Assets.ToList();
+        FileManagementService.PreparedAssetTransaction? assetTransaction = null;
+
+        try
+        {
+            var importRequests = assetEdits
+                .Where(edit => edit.Kind == NodeAssetEditKind.Import)
+                .Select(edit => new FileManagementService.AssetImportRequest(edit.Value!, edit.Type))
+                .ToList();
+
+            assetTransaction = await _fileService.PrepareAssetTransactionAsync(
+                _node,
+                _nodePath,
+                importRequests,
+                Array.Empty<MediaAsset>());
+
+            ApplyPreparedNodeAssetEdits(assetEdits, assetTransaction.ImportedAssets);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error preparing node asset changes: {ex}");
+            RestoreNodeAssets(originalNodeAssets);
+            assetTransaction?.Dispose();
+            SaveErrorMessage = T(
+                "AssetEdit.SaveFailed",
+                "Media changes could not be saved. Existing files and assignments were preserved.");
+            return;
+        }
 
         var (renamed, canceled) = await TryRenameNodeFolderIfNeededAsync(oldName, newName);
         if (!renamed)
         {
+            RestoreNodeAssets(originalNodeAssets);
+            try
+            {
+                assetTransaction.Rollback();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error rolling back node asset changes: {ex}");
+            }
+            finally
+            {
+                assetTransaction.Dispose();
+            }
+
             newName = oldName;
             Name = oldName;
             if (!canceled)
                 SaveErrorMessage = Strings.NodeSettings_RenameFailed;
             return;
         }
+
+        assetTransaction.Commit();
+        assetTransaction.Dispose();
+        _pendingNodeImports.Clear();
+        RefreshNodeAssetPathsFromModel();
 
         SaveErrorMessage = null;
         _node.Name = newName;
@@ -949,51 +1153,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
             _initialParentalProtectionEnabled = ParentalProtectionEnabled;
         }
 
-        if (ApplyDefaultEmulatorToExistingItems)
-        {
-            ApplyDefaultEmulatorMessage = null;
-
-            if (!CanApplyDefaultEmulator)
-            {
-                ApplyDefaultEmulatorMessage = Strings.NodeSettings_ApplyEmulatorNoDefault;
-                return;
-            }
-
-            var eligibleItems = CollectEligibleItemsForDefaultEmulator(
-                _node,
-                includeChildren: ApplyDefaultEmulatorIncludeChildren);
-
-            if (eligibleItems.Count == 0)
-            {
-                ApplyDefaultEmulatorMessage = Strings.NodeSettings_ApplyEmulatorNoItems;
-                return;
-            }
-
-            if (_confirmDialogAsync != null)
-            {
-                var scopeSuffix = ApplyDefaultEmulatorIncludeChildren
-                    ? Strings.NodeSettings_ApplyEmulatorScopeChildren
-                    : string.Empty;
-                var confirmMessage = string.Format(
-                    Strings.NodeSettings_ApplyEmulatorConfirmFormat,
-                    eligibleItems.Count,
-                    scopeSuffix);
-
-                var confirmed = await _confirmDialogAsync(confirmMessage);
-                if (!confirmed)
-                    eligibleItems.Clear();
-            }
-
-            foreach (var item in eligibleItems)
-                ApplyDefaultEmulatorToItem(item);
-        }
+        foreach (var item in eligibleItemsForDefaultEmulator)
+            ApplyDefaultEmulatorToItem(item);
         
-        // Persist node-level artwork (Logo / Wallpaper / Video)
-        UpdateNodeAsset(AssetType.Logo, NodeLogoPath);
-        UpdateNodeAsset(AssetType.Wallpaper, NodeWallpaperPath);
-        UpdateNodeAsset(AssetType.Video, NodeVideoPath);
-        UpdateNodeAsset(AssetType.Marquee, NodeMarqueePath);
-
         _node.LogoFallbackEnabled = NodeLogoFallbackEnabled;
         _node.WallpaperFallbackEnabled = NodeWallpaperFallbackEnabled;
         _node.VideoFallbackEnabled = NodeVideoFallbackEnabled;
@@ -1047,6 +1209,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
                 break;
         }
 
+        IsSaving = false;
         RequestClose?.Invoke(true);
     }
 

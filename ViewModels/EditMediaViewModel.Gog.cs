@@ -48,6 +48,7 @@ public partial class EditMediaViewModel
             GogUpdateCommand.NotifyCanExecuteChanged();
             GogUninstallCommand.NotifyCanExecuteChanged();
             GogManageDlcsCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(IsEditorBusy));
         }
     }
 

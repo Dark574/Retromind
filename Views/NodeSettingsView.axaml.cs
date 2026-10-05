@@ -17,6 +17,14 @@ public partial class NodeSettingsView : Window
         InitializeComponent();
     }
 
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        if (DataContext is NodeSettingsViewModel { IsSaving: true })
+            e.Cancel = true;
+
+        base.OnClosing(e);
+    }
+
     /// <summary>
     /// Opens a file picker and imports a logo image as a node-level asset
     /// using the same convention as media assets.

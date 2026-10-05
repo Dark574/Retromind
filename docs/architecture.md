@@ -155,6 +155,9 @@ RetroAchievements Web API key) are stored through `ISecretStore`, not in `DataRo
 - moving an item between nodes transfers its referenced assets through a staging transaction; failures roll
   files and the collection assignment back, while assets shared with another item or node are copied instead
   of removing the shared source
+- media-editor and node-settings artwork changes remain detached until Save; imports are copied first and
+  item deletions are quarantined until the model update succeeds, so Cancel and failed file operations leave
+  the original files and assignments intact
 - synchronized store nodes accept only items with the matching provider identity and reject duplicate store
   game IDs; moving an item out remains possible but warns that a later full store sync may add it again
 

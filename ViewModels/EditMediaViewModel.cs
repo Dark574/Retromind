@@ -26,6 +26,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     private string? _resolvedInheritedEmulatorSource;
     private readonly MediaItem _originalItem;
     private readonly List<MediaFileRef> _editedFiles;
+    private readonly ObservableCollection<MediaAsset> _editedAssets = new();
+    private readonly Dictionary<Guid, string> _pendingAssetImports = new();
     private readonly FileManagementService _fileService;
     private readonly WinetricksService _winetricksService;
     private readonly List<string> _nodePath;
@@ -508,9 +510,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     
     // --- Asset Management ---
     
-    // We bind directly to the item's Assets collection.
-    // Since FileService updates the list live, the UI immediately reflects all changes.
-    public ObservableCollection<MediaAsset> Assets => _originalItem.Assets;
+    // Asset edits stay detached until Save, matching the behavior of the other editor fields.
+    public ObservableCollection<MediaAsset> Assets => _editedAssets;
 
     public string AssetFilePrefix => FileManagementService.BuildItemAssetPrefix(Title, _originalItem.Id);
 
@@ -548,13 +549,27 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     public IRelayCommand ApplyXdgBaseCommand { get; }
     public IRelayCommand ApplyPortableXdgPresetCommand { get; }
     public IRelayCommand ApplyPortableXdgAndHomePresetCommand { get; }
-    public IRelayCommand<Window?> SaveAndCloseCommand { get; }
+    public IAsyncRelayCommand<Window?> SaveAndCloseCommand { get; }
     public IRelayCommand<Window?> CancelAndCloseCommand { get; }
 
 
     public IStorageProvider? StorageProvider { get; set; }
     
     public bool HasAssetChanges { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSaveError))]
+    private string? _saveErrorMessage;
+
+    public bool HasSaveError => !string.IsNullOrWhiteSpace(SaveErrorMessage);
+
+    [ObservableProperty]
+    private bool _isSavingAssetChanges;
+
+    public bool IsEditorBusy => IsGogOperationRunning || IsSavingAssetChanges;
+
+    partial void OnIsSavingAssetChangesChanged(bool value)
+        => OnPropertyChanged(nameof(IsEditorBusy));
 
     // --- UI Lists ---
     public ObservableCollection<EmulatorProfileOption> AvailableEmulators { get; } = new();
@@ -599,6 +614,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     {
         _originalItem = item;
         _editedFiles = CloneFiles(item.Files);
+        ResetEditedAssetsFromOriginal();
         _fileService = fileService;
         _winetricksService = winetricksService ?? throw new ArgumentNullException(nameof(winetricksService));
         _nodePath = nodePath; 
@@ -612,7 +628,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         InitializeGogManagement(gogInstallOrReinstall, gogCheckUpdates, gogUpdate, gogUninstall, gogManageDlcs);
         _metadataSuggestionService = new MetadataSuggestionService(_rootNodes, _parentNode);
         _assetsChangedHandler = (_, _) => ScheduleSortAssets();
-        _originalItem.Assets.CollectionChanged += _assetsChangedHandler;
+        _editedAssets.CollectionChanged += _assetsChangedHandler;
 
         // Prefix commands
         GeneratePrefixCommand = new RelayCommand(GeneratePrefix);
@@ -708,18 +724,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         };
         
         // Dialog closes itself (less window manager / modal noise)
-        SaveAndCloseCommand = new RelayCommand<Window?>(win =>
-        {
-            try
-            {
-                Save();
-            }
-            finally
-            {
-                DetachAssetHandlers();
-                win?.Close(true);
-            }
-        });
+        SaveAndCloseCommand = new AsyncRelayCommand<Window?>(SaveAndCloseAsync);
 
         CancelAndCloseCommand = new RelayCommand<Window?>(win =>
         {
@@ -836,9 +841,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         // Arguments: load exactly what is stored on the item
         LauncherArgs = _originalItem.LauncherArgs ?? string.Empty;
         
-        // Assets do not need to be loaded separately because we bind directly to _originalItem.Assets
-        // The FileService should ensure the assets list is up to date before opening this dialog
-        // (via something like RefreshItemAssets)
+        // Assets are loaded into a detached working collection in the constructor.
     }
 
     private void InitializeGameSystemSelection()
@@ -1044,8 +1047,140 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         if (_assetsChangedHandler == null)
             return;
 
-        _originalItem.Assets.CollectionChanged -= _assetsChangedHandler;
+        _editedAssets.CollectionChanged -= _assetsChangedHandler;
         _assetsChangedHandler = null;
+    }
+
+    private void ResetEditedAssetsFromOriginal()
+    {
+        _pendingAssetImports.Clear();
+        _editedAssets.Clear();
+
+        foreach (var asset in _originalItem.Assets)
+        {
+            _editedAssets.Add(new MediaAsset
+            {
+                Id = asset.Id,
+                Type = asset.Type,
+                RelativePath = asset.RelativePath
+            });
+        }
+
+        SelectedAsset = null;
+        HasAssetChanges = false;
+    }
+
+    private async Task SaveAndCloseAsync(Window? window)
+    {
+        if (IsSavingAssetChanges)
+            return;
+
+        IsSavingAssetChanges = true;
+        try
+        {
+            await SaveAndCloseCoreAsync(window);
+        }
+        finally
+        {
+            IsSavingAssetChanges = false;
+        }
+    }
+
+    private async Task SaveAndCloseCoreAsync(Window? window)
+    {
+        SaveErrorMessage = null;
+
+        if (!HasAssetChanges)
+        {
+            try
+            {
+                Save();
+                DetachAssetHandlers();
+                IsSavingAssetChanges = false;
+                window?.Close(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving media changes: {ex}");
+                SaveErrorMessage = T(
+                    "AssetEdit.SaveFailed",
+                    "Media changes could not be saved. Existing files and assignments were preserved.");
+            }
+
+            return;
+        }
+
+        var originalAssets = _originalItem.Assets.ToList();
+        var retainedIds = _editedAssets
+            .Where(asset => !_pendingAssetImports.ContainsKey(asset.Id))
+            .Select(asset => asset.Id)
+            .ToHashSet();
+        var deletedAssets = originalAssets
+            .Where(asset => !retainedIds.Contains(asset.Id))
+            .ToList();
+        var importRequests = _editedAssets
+            .Where(asset => _pendingAssetImports.ContainsKey(asset.Id))
+            .Select(asset => new FileManagementService.AssetImportRequest(
+                _pendingAssetImports[asset.Id],
+                asset.Type))
+            .ToList();
+
+        try
+        {
+            using var transaction = await _fileService.PrepareAssetTransactionAsync(
+                _originalItem,
+                _nodePath,
+                importRequests,
+                deletedAssets);
+
+            var retainedById = originalAssets.ToDictionary(asset => asset.Id);
+            var importedAssets = new Queue<MediaAsset>(transaction.ImportedAssets);
+            var committedAssets = new List<MediaAsset>(_editedAssets.Count);
+
+            foreach (var editedAsset in _editedAssets)
+            {
+                if (_pendingAssetImports.ContainsKey(editedAsset.Id))
+                {
+                    committedAssets.Add(importedAssets.Dequeue());
+                }
+                else if (retainedById.TryGetValue(editedAsset.Id, out var retainedAsset))
+                {
+                    committedAssets.Add(retainedAsset);
+                }
+            }
+
+            try
+            {
+                _originalItem.Assets.Clear();
+                foreach (var asset in committedAssets)
+                    _originalItem.Assets.Add(asset);
+
+                Save();
+                transaction.Commit();
+            }
+            catch
+            {
+                _originalItem.Assets.Clear();
+                foreach (var asset in originalAssets)
+                    _originalItem.Assets.Add(asset);
+
+                transaction.Rollback();
+                throw;
+            }
+
+            HasAssetChanges = false;
+            DetachAssetHandlers();
+            IsSavingAssetChanges = false;
+            window?.Close(true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving staged asset changes: {ex}");
+            ResetEditedAssetsFromOriginal();
+            SaveErrorMessage = T(
+                "AssetEdit.SaveFailed",
+                "Media changes could not be saved. Existing files and assignments were preserved.");
+        }
     }
 
     public void Dispose()
@@ -1096,14 +1231,14 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         _isSortingAssets = true;
         try
         {
-            if (_originalItem.Assets.Count <= 1)
+            if (_editedAssets.Count <= 1)
                 return;
 
             var orderMap = new Dictionary<AssetType, int>(AssetTypeOrder.Length);
             for (var i = 0; i < AssetTypeOrder.Length; i++)
                 orderMap[AssetTypeOrder[i]] = i;
 
-            var indexed = _originalItem.Assets
+            var indexed = _editedAssets
                 .Select((asset, index) => new { asset, index })
                 .ToList();
 
@@ -1116,9 +1251,9 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             for (var i = 0; i < sorted.Count; i++)
             {
                 var asset = sorted[i];
-                var oldIndex = _originalItem.Assets.IndexOf(asset);
+                var oldIndex = _editedAssets.IndexOf(asset);
                 if (oldIndex != i)
-                    _originalItem.Assets.Move(oldIndex, i);
+                    _editedAssets.Move(oldIndex, i);
             }
         }
         finally
@@ -1389,40 +1524,34 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         foreach (var file in result)
         {
-            // The FileManagementService handles copying, renaming, and adding the asset to the list
-            var imported = await _fileService.ImportAssetAsync(file.Path.LocalPath, _originalItem, _nodePath, type);
-            if (imported != null)
+            var sourcePath = file.Path.LocalPath;
+            if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+                continue;
+
+            var stagedAsset = new MediaAsset
             {
-                await UiThreadHelper.InvokeAsync(() => _originalItem.Assets.Add(imported));
-                HasAssetChanges = true;
-            }
+                Type = type,
+                RelativePath = Path.GetFileName(sourcePath),
+                TransientPreviewPath = sourcePath
+            };
+
+            _pendingAssetImports[stagedAsset.Id] = sourcePath;
+            _editedAssets.Add(stagedAsset);
+            HasAssetChanges = true;
         }
     }
 
-    private async Task DeleteSelectedAssetAsync()
+    private Task DeleteSelectedAssetAsync()
     {
         if (SelectedAsset == null) 
-            return;
+            return Task.CompletedTask;
 
         var asset = SelectedAsset;
-
-        // 1) Remove from collection on UI thread (immediate UI feedback)
-        await UiThreadHelper.InvokeAsync(() => _originalItem.Assets.Remove(asset));
-
-        try
-        {
-            // 2) Delete file (IO-bound)
-            _fileService.DeleteAssetFile(asset);
-            HasAssetChanges = true;
-
-            // Clear selection so the delete button hides/updates correctly
-            SelectedAsset = null;
-        }
-        catch
-        {
-            // 3) Rollback in collection if delete failed
-            await UiThreadHelper.InvokeAsync(() => _originalItem.Assets.Add(asset));
-        }
+        _editedAssets.Remove(asset);
+        _pendingAssetImports.Remove(asset.Id);
+        HasAssetChanges = true;
+        SelectedAsset = null;
+        return Task.CompletedTask;
     }
 
     private async Task ChangePrimaryFileAsync()

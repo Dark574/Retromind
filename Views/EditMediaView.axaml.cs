@@ -13,7 +13,7 @@ public partial class EditMediaView : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        if (DataContext is EditMediaViewModel { IsGogOperationRunning: true })
+        if (DataContext is EditMediaViewModel { IsEditorBusy: true })
             e.Cancel = true;
 
         base.OnClosing(e);
