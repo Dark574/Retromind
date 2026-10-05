@@ -10,6 +10,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Linq;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.Stores.Gog.Auth;
@@ -25,7 +27,16 @@ public enum GogInstallPlatform
 public sealed record GogInstallerDownloadFile(
     string Url,
     string FileName,
-    long? Size);
+    long? Size,
+    string? ChecksumUrl = null);
+
+internal sealed record GogResolvedDownloadLink(
+    string DownloadUrl,
+    string? ChecksumUrl);
+
+internal sealed record GogDownloadChecksum(
+    long? TotalSize,
+    string? Md5);
 
 public sealed record GogInstallerPackage(
     string GameId,
@@ -84,22 +95,28 @@ public sealed class GogInstallService
     private readonly HttpClient _httpClient;
     private readonly HttpClient _downloadHttpClient;
 
-    public GogInstallService(GogAuthService authService, HttpClient httpClient)
+    public GogInstallService(
+        GogAuthService authService,
+        HttpClient httpClient,
+        HttpClient? downloadHttpClient = null)
     {
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _downloadHttpClient = new HttpClient
+        _downloadHttpClient = downloadHttpClient ?? new HttpClient
         {
             Timeout = TimeSpan.FromHours(2)
         };
-        if (_httpClient.DefaultRequestHeaders.UserAgent.Count > 0)
+        if (downloadHttpClient == null)
         {
-            foreach (var userAgent in _httpClient.DefaultRequestHeaders.UserAgent)
-                _downloadHttpClient.DefaultRequestHeaders.UserAgent.Add(userAgent);
-        }
-        else
-        {
-            _downloadHttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Retromind/1.0 (Linux Portable Media Manager)");
+            if (_httpClient.DefaultRequestHeaders.UserAgent.Count > 0)
+            {
+                foreach (var userAgent in _httpClient.DefaultRequestHeaders.UserAgent)
+                    _downloadHttpClient.DefaultRequestHeaders.UserAgent.Add(userAgent);
+            }
+            else
+            {
+                _downloadHttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Retromind/1.0 (Linux Portable Media Manager)");
+            }
         }
     }
 
@@ -145,15 +162,19 @@ public sealed class GogInstallService
             if (string.IsNullOrWhiteSpace(downlinkEndpoint))
                 continue;
 
-            var downloadUrl = await ResolveDownlinkAsync(downlinkEndpoint, accessToken, ct).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(downloadUrl))
+            var resolvedLink = await ResolveDownlinkAsync(downlinkEndpoint, accessToken, ct).ConfigureAwait(false);
+            if (resolvedLink == null)
                 continue;
 
             var fallbackName = $"installer_part_{index:D2}";
-            var fileName = ResolveFileName(downloadUrl, fallbackName);
+            var fileName = ResolveFileName(resolvedLink.DownloadUrl, fallbackName);
             var size = GetLong(file, "size");
 
-            resolvedFiles.Add(new GogInstallerDownloadFile(downloadUrl, fileName, size));
+            resolvedFiles.Add(new GogInstallerDownloadFile(
+                resolvedLink.DownloadUrl,
+                fileName,
+                size,
+                resolvedLink.ChecksumUrl));
         }
 
         if (resolvedFiles.Count == 0)
@@ -563,7 +584,10 @@ public sealed class GogInstallService
         return GogPlayTaskParser.Parse(playTasks);
     }
 
-    private async Task<string?> ResolveDownlinkAsync(string downlinkEndpoint, string accessToken, CancellationToken ct)
+    private async Task<GogResolvedDownloadLink?> ResolveDownlinkAsync(
+        string downlinkEndpoint,
+        string accessToken,
+        CancellationToken ct)
     {
         if (!Uri.TryCreate(downlinkEndpoint, UriKind.Absolute, out var downlinkUri))
             return null;
@@ -580,25 +604,46 @@ public sealed class GogInstallService
         var looksLikeJson = mediaType.IndexOf("json", StringComparison.OrdinalIgnoreCase) >= 0;
 
         if (!looksLikeJson)
-            return response.RequestMessage?.RequestUri?.ToString();
+        {
+            var redirectedUrl = response.RequestMessage?.RequestUri?.ToString();
+            return string.IsNullOrWhiteSpace(redirectedUrl)
+                ? null
+                : new GogResolvedDownloadLink(redirectedUrl, null);
+        }
 
         var payload = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(payload))
-            return response.RequestMessage?.RequestUri?.ToString();
+            return null;
+
+        return ParseResolvedDownlink(payload);
+    }
+
+    internal static GogResolvedDownloadLink? ParseResolvedDownlink(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+            return null;
 
         using var json = JsonDocument.Parse(payload);
         var root = json.RootElement;
 
         if (TryGetString(root, out var direct))
-            return direct;
+            return new GogResolvedDownloadLink(direct, null);
 
         if (root.ValueKind == JsonValueKind.Object)
         {
-            if (root.TryGetProperty("downlink", out var downlink) && TryGetString(downlink, out var downlinkUrl))
-                return downlinkUrl;
+            var checksumUrl = root.TryGetProperty("checksum", out var checksum) &&
+                              TryGetString(checksum, out var parsedChecksumUrl)
+                ? parsedChecksumUrl
+                : null;
+
+            if (root.TryGetProperty("downlink", out var downlink) &&
+                TryGetString(downlink, out var downlinkUrl))
+            {
+                return new GogResolvedDownloadLink(downlinkUrl, checksumUrl);
+            }
 
             if (root.TryGetProperty("url", out var url) && TryGetString(url, out var directUrl))
-                return directUrl;
+                return new GogResolvedDownloadLink(directUrl, checksumUrl);
 
             if (root.TryGetProperty("urls", out var urls))
             {
@@ -607,24 +652,24 @@ public sealed class GogInstallService
                     foreach (var candidate in urls.EnumerateArray())
                     {
                         if (TryGetString(candidate, out var candidateUrl))
-                            return candidateUrl;
+                            return new GogResolvedDownloadLink(candidateUrl, checksumUrl);
 
                         if (candidate.ValueKind == JsonValueKind.Object &&
                             candidate.TryGetProperty("url", out var nestedUrl) &&
                             TryGetString(nestedUrl, out candidateUrl))
                         {
-                            return candidateUrl;
+                            return new GogResolvedDownloadLink(candidateUrl, checksumUrl);
                         }
                     }
                 }
                 else if (TryGetString(urls, out var urlsValue))
                 {
-                    return urlsValue;
+                    return new GogResolvedDownloadLink(urlsValue, checksumUrl);
                 }
             }
         }
 
-        return response.RequestMessage?.RequestUri?.ToString();
+        return null;
     }
 
     private async Task DownloadFileWithResumeAsync(
@@ -633,14 +678,21 @@ public sealed class GogInstallService
         Action<long>? reportProgress,
         CancellationToken ct)
     {
-        var expectedSize = file.Size.GetValueOrDefault(0);
-        var hasExpectedSize = file.Size.HasValue && expectedSize > 0;
+        var hasChecksumReference = !string.IsNullOrWhiteSpace(file.ChecksumUrl);
+        var checksum = await TryGetDownloadChecksumAsync(file.ChecksumUrl, ct).ConfigureAwait(false);
+        var catalogSize = file.Size is > 0 ? file.Size : null;
+        var expectedSize = checksum != null ? checksum.TotalSize : catalogSize;
+        var expectedMd5 = checksum?.Md5;
 
         if (File.Exists(targetPath))
         {
             var finalLength = new FileInfo(targetPath).Length;
-            if ((hasExpectedSize && (finalLength == expectedSize || !IsObviouslyInvalidDownload(finalLength, expectedSize))) ||
-                (!hasExpectedSize && finalLength > 0))
+            if ((!hasChecksumReference || checksum != null) &&
+                await IsDownloadedFileValidAsync(
+                    targetPath,
+                    expectedSize,
+                    expectedMd5,
+                    ct).ConfigureAwait(false))
             {
                 reportProgress?.Invoke(finalLength);
                 return;
@@ -655,14 +707,21 @@ public sealed class GogInstallService
         if (File.Exists(partPath))
         {
             var partialLength = new FileInfo(partPath).Length;
-            if (hasExpectedSize && (partialLength == expectedSize || !IsObviouslyInvalidDownload(partialLength, expectedSize)))
+            var checksumTotalSize = checksum?.TotalSize;
+            if (checksum != null &&
+                await IsDownloadedFileValidAsync(
+                    partPath,
+                    checksum.TotalSize,
+                    checksum.Md5,
+                    ct).ConfigureAwait(false))
             {
                 File.Move(partPath, targetPath, overwrite: true);
                 reportProgress?.Invoke(partialLength);
                 return;
             }
 
-            if (partialLength > 0 && (!hasExpectedSize || partialLength < expectedSize))
+            if (partialLength > 0 &&
+                (!checksumTotalSize.HasValue || partialLength < checksumTotalSize.Value))
             {
                 resumeOffset = partialLength;
             }
@@ -683,15 +742,55 @@ public sealed class GogInstallService
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct)
                 .ConfigureAwait(false);
 
-            // If server ignores range and returns full content, restart from scratch.
-            var append = response.StatusCode == System.Net.HttpStatusCode.PartialContent && resumeOffset > 0;
-            if (!append && resumeOffset > 0 && File.Exists(partPath))
-                File.Delete(partPath);
+            if (resumeOffset > 0 &&
+                response.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
+            {
+                if (!attemptedFreshRetryAfterMismatch)
+                {
+                    attemptedFreshRetryAfterMismatch = true;
+                    resumeOffset = 0;
+                    if (File.Exists(partPath))
+                        File.Delete(partPath);
+                    continue;
+                }
+            }
 
             response.EnsureSuccessStatusCode();
 
+            // If the server honors Range, it must return the exact requested start.
+            var append = response.StatusCode == System.Net.HttpStatusCode.PartialContent && resumeOffset > 0;
+            if (append && response.Content.Headers.ContentRange?.From != resumeOffset)
+            {
+                if (!attemptedFreshRetryAfterMismatch)
+                {
+                    attemptedFreshRetryAfterMismatch = true;
+                    resumeOffset = 0;
+                    if (File.Exists(partPath))
+                        File.Delete(partPath);
+                    continue;
+                }
+
+                throw new InvalidOperationException(
+                    $"GOG returned an invalid resume range for '{file.FileName}'.");
+            }
+
+            // A successful full response means the server ignored Range. Restart cleanly.
+            if (!append && resumeOffset > 0 && File.Exists(partPath))
+            {
+                File.Delete(partPath);
+                resumeOffset = 0;
+            }
+
+            var responseStart = append ? resumeOffset : 0L;
+            var responseLength = response.Content.Headers.ContentLength;
+            long? responseTotalSize = response.StatusCode == System.Net.HttpStatusCode.PartialContent
+                ? response.Content.Headers.ContentRange?.Length
+                : responseLength;
+            if (!responseTotalSize.HasValue && responseLength.HasValue)
+                responseTotalSize = responseStart + responseLength.Value;
+
             await using var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            var bytesWritten = append ? resumeOffset : 0L;
+            var bytesWritten = responseStart;
             reportProgress?.Invoke(bytesWritten);
 
             await using (var destination = new FileStream(
@@ -713,30 +812,33 @@ public sealed class GogInstallService
                 }
             }
 
-            if (hasExpectedSize)
+            var responseBytesRead = bytesWritten - responseStart;
+            var transferLengthMatches = !responseLength.HasValue || responseBytesRead == responseLength.Value;
+            var validationSize = checksum != null
+                ? checksum.TotalSize
+                : responseTotalSize ?? catalogSize;
+            var downloadIsValid = transferLengthMatches &&
+                                  await IsDownloadedFileValidAsync(
+                                      partPath,
+                                      validationSize,
+                                      expectedMd5,
+                                      ct).ConfigureAwait(false);
+            if (!downloadIsValid)
             {
-                var finalSize = new FileInfo(partPath).Length;
-                if (finalSize != expectedSize)
+                if (!attemptedFreshRetryAfterMismatch)
                 {
-                    if (!IsObviouslyInvalidDownload(finalSize, expectedSize))
-                    {
-                        Debug.WriteLine(
-                            $"[GOG] Installer size mismatch tolerated for '{file.FileName}' ({finalSize} != {expectedSize}).");
-                    }
-                    else if (!attemptedFreshRetryAfterMismatch)
-                    {
-                        attemptedFreshRetryAfterMismatch = true;
-                        resumeOffset = 0;
-                        if (File.Exists(partPath))
-                            File.Delete(partPath);
-                        continue;
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException(
-                            $"Downloaded installer part has unexpected size ({finalSize} != {expectedSize}).");
-                    }
+                    attemptedFreshRetryAfterMismatch = true;
+                    resumeOffset = 0;
+                    if (File.Exists(partPath))
+                        File.Delete(partPath);
+                    continue;
                 }
+
+                if (File.Exists(partPath))
+                    File.Delete(partPath);
+
+                throw new InvalidOperationException(
+                    $"Downloaded installer file '{file.FileName}' failed its integrity check.");
             }
 
             File.Move(partPath, targetPath, overwrite: true);
@@ -744,17 +846,132 @@ public sealed class GogInstallService
         }
     }
 
-    private static bool IsObviouslyInvalidDownload(long actualSize, long expectedSize)
+    private async Task<GogDownloadChecksum?> TryGetDownloadChecksumAsync(
+        string? checksumUrl,
+        CancellationToken ct)
     {
-        if (actualSize <= 0)
-            return true;
+        if (string.IsNullOrWhiteSpace(checksumUrl) ||
+            !Uri.TryCreate(checksumUrl, UriKind.Absolute, out var checksumUri))
+        {
+            return null;
+        }
 
-        var absoluteDelta = Math.Abs(actualSize - expectedSize);
-        if (absoluteDelta <= 64L * 1024 * 1024)
+        try
+        {
+            using var response = await _downloadHttpClient.GetAsync(
+                    checksumUri,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    ct)
+                .ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var xml = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            return TryParseDownloadChecksum(xml, out var checksum) ? checksum : null;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] Installer checksum metadata could not be loaded: {ex.Message}");
+            return null;
+        }
+    }
+
+    internal static bool TryParseDownloadChecksum(string? xml, out GogDownloadChecksum checksum)
+    {
+        checksum = new GogDownloadChecksum(null, null);
+        if (string.IsNullOrWhiteSpace(xml))
             return false;
 
-        var relativeDelta = expectedSize > 0 ? absoluteDelta / (double)expectedSize : 1d;
-        return relativeDelta > 0.2d;
+        try
+        {
+            var settings = new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                MaxCharactersInDocument = 2 * 1024 * 1024
+            };
+            using var stringReader = new StringReader(xml);
+            using var reader = XmlReader.Create(stringReader, settings);
+            var root = XDocument.Load(reader, LoadOptions.None).Root;
+            if (root == null || !root.Name.LocalName.Equals("file", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (string.Equals(root.Attribute("available")?.Value, "0", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(root.Attribute("available")?.Value, "false", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            long? totalSize = null;
+            if (long.TryParse(
+                    root.Attribute("total_size")?.Value,
+                    System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var parsedSize) &&
+                parsedSize > 0)
+            {
+                totalSize = parsedSize;
+            }
+
+            var md5 = NormalizeMd5(root.Attribute("md5")?.Value);
+            if (!totalSize.HasValue && md5 == null)
+                return false;
+
+            checksum = new GogDownloadChecksum(totalSize, md5);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static async Task<bool> IsDownloadedFileValidAsync(
+        string path,
+        long? expectedSize,
+        string? expectedMd5,
+        CancellationToken ct)
+    {
+        if (!File.Exists(path))
+            return false;
+
+        var actualSize = new FileInfo(path).Length;
+        if (actualSize <= 0 || (expectedSize.HasValue && actualSize != expectedSize.Value))
+            return false;
+
+        var normalizedExpectedMd5 = NormalizeMd5(expectedMd5);
+        if (normalizedExpectedMd5 == null)
+            return true;
+
+        await using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 128 * 1024,
+            useAsync: true);
+        using var md5 = MD5.Create();
+        var actualHash = await md5.ComputeHashAsync(stream, ct).ConfigureAwait(false);
+        return string.Equals(
+            Convert.ToHexString(actualHash),
+            normalizedExpectedMd5,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? NormalizeMd5(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var normalized = value.Trim();
+        if (normalized.Length != 32 || normalized.Any(character => !Uri.IsHexDigit(character)))
+            return null;
+
+        return normalized.ToUpperInvariant();
     }
 
     private static HttpRequestMessage CreateAuthorizedRequest(Uri uri, string accessToken)

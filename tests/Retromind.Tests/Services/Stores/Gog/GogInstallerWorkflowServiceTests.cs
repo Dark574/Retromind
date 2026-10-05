@@ -59,7 +59,7 @@ public sealed class GogInstallerWorkflowServiceTests
         Assert.NotNull(result.DownloadedPackage);
         Assert.True(File.Exists(Path.Combine(installPath, "game.x86_64")));
         Assert.True(File.Exists(Path.Combine(stagingPath, "retromind-install.log")));
-        Assert.Contains(output, line => line.Contains("Reusing 1/1", StringComparison.Ordinal));
+        Assert.Contains(output, line => line.Contains("Validating 1/1", StringComparison.Ordinal));
         Assert.Contains(output, line => line.StartsWith("Detailed log file:", StringComparison.Ordinal));
     }
 

@@ -79,6 +79,9 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - completed installer files are reused
     - partial downloads are persisted as `.part` files and resumed with HTTP Range when supported
     - fallback to full redownload if Range is not honored by the server
+    - GOG checksum XML metadata is resolved alongside each installer downlink
+    - completed and resumed files are validated against GOG's exact `total_size` and whole-file MD5 before promotion
+    - invalid cached files are redownloaded once; downloads without checksum metadata use the completed HTTP response length
   - installer execution now opens a process log window (stdout/stderr + exit code)
   - Windows installer robustness hardening:
     - fresh Windows installer execution uses system Wine resolution (`wine`/`wine64`) through `EmulatorResolverHelper`
@@ -262,8 +265,8 @@ Required behavior for native GOG auth:
    - token refresh
    - owned games fetch
 2. V2 install/update:
-   - installer flow and path integration
-   - checksums, resume strategy, and user cancellation support
+   - installer flow and path integration (implemented baseline)
+   - checksums, resume strategy, and user cancellation support (implemented baseline)
 3. V3 parity/comfort:
    - updates/patches
    - optional cloud/achievement features (if API feasibility is confirmed)

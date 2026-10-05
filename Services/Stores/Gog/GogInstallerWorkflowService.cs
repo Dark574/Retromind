@@ -78,7 +78,7 @@ public sealed class GogInstallerWorkflowService
         if (reusableStagingFiles > 0)
         {
             appendLog(
-                $"[Download] Reusing {reusableStagingFiles}/{request.InstallerPackage.Files.Count} staged installer file(s).");
+                $"[Download] Validating {reusableStagingFiles}/{request.InstallerPackage.Files.Count} staged installer file(s) for reuse.");
         }
 
         GogDownloadedInstallerPackage downloadedPackage;
