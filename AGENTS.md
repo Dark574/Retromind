@@ -57,6 +57,12 @@ Important:
 - Follow current style conventions and nullable behavior (`<Nullable>enable</Nullable>`).
 - Do not add new third-party dependencies unless explicitly requested.
 
+## Changelog
+- Changelog entries must describe user-visible changes, not implementation details.
+- Do not add entries for refactoring, tests, internal architecture, or implementation details unless they change observable behavior.
+- Combine multiple technical changes that produce the same user-visible improvement into a single entry.
+- Write changelog entries from the user's perspective, not the developer's perspective.
+
 ## Portability and filesystem constraints
 - Treat relative path behavior as critical (USB/AppImage portable usage).
 - Do not silently convert portable-relative paths to absolute paths.

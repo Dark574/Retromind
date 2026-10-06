@@ -10,67 +10,43 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.1-alpha] - unreleased
 
 ### Added
-- allow holding L1 + R1 on a controller to request and explicitly confirm stopping a tracked game session
-- add freely assignable BigMode action buttons and game-stop combination with live controller capture and default reset
-- add a controller-operated, theme-independent BigMode system menu with binding overview and safe application exit
-- add freely assignable previous/next-page navigation for BigMode lists, Home rows and achievements
-- add freely assignable single-key BigMode keyboard controls alongside controller settings
-- add the first ScreenScraper integration stage with embedded application access, optional encrypted user credentials, localized title search, metadata and artwork
-- identify supported ROM files in ScreenScraper from their game system, size, CRC32, MD5 and SHA-1 checksums
-- support quota-conscious ScreenScraper bulk scraping with exact ROM identification and safe title fallback
+- customize BigMode controller and keyboard bindings, including page navigation and a confirmation-protected shortcut for stopping running games
+- open a controller-operated system menu from any BigMode theme to review bindings or safely exit Retromind
+- scrape ROM metadata and artwork with ScreenScraper using optional securely stored account credentials, exact file identification, localized title fallback and quota-aware bulk processing
 
 ### Changed
-- modernize Archive Atlas with explicit list virtualization, media fallbacks, mode-aware information and couch-readable scrolling details
-- modernize the Wheel theme with continuous bounded carousels, stronger selected artwork and a unified media/detail presentation
-- align the Default system subtheme with the colored system layouts and place its game count below the preview
-- refine the HorizontalRow BigMode theme with debounced artwork loading, screenshot fallback, clearer carousel selection and improved text readability
-- modernize the System host and Default system subtheme with matching navigation, responsive artwork/video presentation and auto-scrolling descriptions
-- inset the BigMode system-menu shortcut hint slightly farther from the left edge
-- modernize the Default BigMode visual shell with layered backgrounds, lightweight framed panels and more room for details
-- improve Default BigMode couch readability with wider navigation, larger rows, consistent selection accents and a game counter
-- keep Default BigMode artwork visible beneath video previews and provide a reliable no-video state
-- give categories a dedicated Default BigMode presentation without stale game metadata or required cover artwork
-- debounce Default BigMode background loading and fall back to screenshots when games have no wallpaper
-- make Default BigMode list and wallpaper transitions responsive while preserving its slow cover fly-in
-- virtualize the Default BigMode theme's category and game lists for large libraries
+- improve Archive Atlas browsing in large libraries with smoother scrolling, clearer mode-specific details, readable long descriptions and better media fallbacks
+- improve the Wheel theme with continuous carousels, stronger selected artwork and a unified media and detail presentation
+- improve HorizontalRow with smoother artwork changes, screenshot fallbacks, clearer selection and more readable text
+- give the System host and Default system subtheme consistent navigation, responsive artwork and video, scrolling descriptions and clearer game counts
+- refresh the Default BigMode theme with better couch readability, distinct category and game views, reliable artwork and video fallbacks, smoother transitions and faster large-library browsing
 - group the GOG media action directly behind the regular add-media action in main-view context menus
-- guard manually cloned library snapshots with an exhaustive persistence contract test
 - continue first-run guidance into empty categories and open setup directly on the emulator tab
-- reduce TheGamesDB bulk-scraping API usage through single-page searches, deferred enrichment and cached name lookups
-- pace IGDB, OpenLibrary and TMDB requests according to their provider limits during bulk scraping
-- avoid supplemental TheGamesDB and SteamGridDB requests for metadata or artwork excluded from bulk import
+- make bulk scraping faster and more reliable by requesting only selected content and avoiding unnecessary use of provider quotas
 
 ### Fixed
-- compare host filesystem paths case-sensitively on Linux across imports, runners, themes, media previews, and Wine-prefix containment
-- reject structurally unusable settings JSON and recover from the last valid settings backup
-- apply the GOG access-token refresh buffer consistently instead of reusing tokens with 30 seconds or less remaining
-- quote nested launch-wrapper paths and preserve whitespace inside quoted paths during runtime composition and editor preview
-- validate GOG offline-installer downloads with GOG-provided size and MD5 metadata before promoting or reusing staged files
-- publish shipped theme installs and updates through validated staging with backup recovery instead of deleting the active theme first
-- keep media and node artwork edits staged until Save, with rollback-safe file deletion and no changes on Cancel
-- keep the Arcade system-menu shortcut from covering year and developer metadata
-- keep the LivingRoom system-menu shortcut from covering the selected movie title
-- prevent the Default BigMode theme from briefly showing the previous game's video frame during preview changes
-- play a selected category's own preview video without requiring it as a fallback for contained games
-- apply each BigMode system subtheme's video capability when switching systems
-- resume BigMode video previews when keyboard scrolling is interrupted by window deactivation
-- keep the previously opened category selected when navigating back in BigMode
-- restart the BigMode attract-mode idle interval after returning from a game
-- stop BigMode's secondary background-video decoder while a game session is running
-- restore each category's last selected game when revisiting it during a BigMode session
-- wait for actual dispatcher render passes before starting or transitioning BigMode video playback
-- stop an active BigMode attract-mode spin as soon as the user provides input
-- persist left navigation pane resizing through the existing debounced settings save
-- reject structurally invalid library JSON before it can bypass backup recovery or overwrite valid data
-- keep derived absolute paths and other computed asset properties out of saved library data
-- debounce desktop RetroAchievements progress requests while rapidly changing the selected item
-- avoid recording cancelled process tracking as a completed play session
-- prevent concurrent Retromind instances from overwriting the same portable data
-- recheck TheGamesDB availability after its reported allowance refresh timer expires
-- stop TheGamesDB bulk scraping cleanly when the provider reports an exhausted request allowance
-- stop ScreenScraper bulk scraping cleanly when the provider reports an exhausted request allowance
-- keep authors, subtitles, release years and issue names from weakening automatic book and comic title matching
-- avoid platform-confidence bonuses between related but distinct systems during bulk metadata matching
+- keep Linux files and directories that differ only by letter case distinct during imports, runner and store configuration, theme and media loading, and Wine-prefix handling
+- recover the last valid settings backup when the current settings file contains unusable data
+- prevent GOG operations from unexpectedly losing authorization when the current sign-in is about to expire
+- launch nested wrappers correctly when their executable paths or arguments contain spaces
+- reject incomplete or damaged GOG offline-installer downloads instead of reusing them as complete files
+- preserve the active theme when installing or updating a shipped theme fails
+- leave media and node artwork unchanged when editing is cancelled
+- keep the BigMode system-menu shortcut hint from obscuring metadata in the Arcade and LivingRoom themes
+- prevent stale BigMode video frames and reliably start or resume previews when changing games, switching systems or returning from interrupted navigation
+- play a selected category's own preview video independently of its contained games
+- remember the previously selected category and each category's last selected game while navigating BigMode
+- stop attract mode immediately on user input and restart its idle timer after returning from a game
+- pause secondary BigMode background videos while a game is running
+- remember the left navigation pane width between sessions
+- recover the last valid library backup when the current library file contains unusable data
+- keep saved libraries portable by excluding generated absolute asset paths
+- show the correct RetroAchievements progress when rapidly changing the selected game
+- avoid counting a cancelled game launch as a completed play session
+- prevent simultaneous Retromind instances from overwriting the same portable library
+- handle scraper quota exhaustion and recovery cleanly for TheGamesDB and ScreenScraper
+- improve automatic book and comic matching when titles contain authors, subtitles, release years or issue names
+- avoid incorrect automatic matches between related but distinct platforms
 
 ---
 
