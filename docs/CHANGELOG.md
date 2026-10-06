@@ -23,6 +23,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - group the GOG media action directly behind the regular add-media action in main-view context menus
 - continue first-run guidance into empty categories and open setup directly on the emulator tab
 - make bulk scraping faster and more reliable by requesting only selected content and avoiding unnecessary use of provider quotas
+- make large ROM-folder imports faster, show live scanning progress and allow cancellation before the library is changed
 
 ### Fixed
 - keep Linux files and directories that differ only by letter case distinct during imports, runner and store configuration, theme and media loading, and Wine-prefix handling

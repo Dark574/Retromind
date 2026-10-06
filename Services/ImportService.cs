@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -27,9 +28,13 @@ public class ImportService
     /// <param name="sourceFolder">The root directory path to scan.</param>
     /// <param name="extensions">List of file extensions to include (e.g., ".iso", "rom").</param>
     /// <returns>A list of created <see cref="MediaItem"/> objects.</returns>
-    public async Task<List<MediaItem>> ImportFromFolderAsync(string sourceFolder, string[] extensions)
+    public Task<List<MediaItem>> ImportFromFolderAsync(
+        string sourceFolder,
+        string[] extensions,
+        IProgress<FolderImportProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
-        return await Task.Run(() =>
+        return Task.Run(() =>
         {
             var results = new List<MediaItem>();
 
@@ -47,22 +52,51 @@ public class ImportService
 
             try
             {
-                var files = Directory.EnumerateFiles(sourceFolder, "*.*", enumOptions)
-                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                var selectedFiles = new List<string>();
+                long filesScanned = 0;
+                foreach (var file in Directory.EnumerateFiles(sourceFolder, "*.*", enumOptions))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    filesScanned++;
 
-                var selectedFiles = files
-                    .Where(file => validExtensions.Contains(Path.GetExtension(file)))
-                    .ToList();
-                var referencedCuePayloads = FindReferencedCuePayloads(selectedFiles);
+                    if (validExtensions.Contains(Path.GetExtension(file)))
+                        selectedFiles.Add(file);
+
+                    if (filesScanned == 1 || filesScanned % 256 == 0)
+                    {
+                        progress?.Report(new FolderImportProgress(
+                            FolderImportStage.ScanningFiles,
+                            filesScanned,
+                            selectedFiles.Count));
+                    }
+                }
+
+                progress?.Report(new FolderImportProgress(
+                    FolderImportStage.ScanningFiles,
+                    filesScanned,
+                    selectedFiles.Count));
+                cancellationToken.ThrowIfCancellationRequested();
+
+                selectedFiles.Sort(static (left, right) =>
+                {
+                    var comparison = StringComparer.OrdinalIgnoreCase.Compare(left, right);
+                    return comparison != 0 ? comparison : StringComparer.Ordinal.Compare(left, right);
+                });
+
+                var referencedCuePayloads = FindReferencedCuePayloads(
+                    selectedFiles,
+                    progress,
+                    cancellationToken);
 
                 // Step 1: collect launchable candidates and compute grouping keys + disc metadata.
                 // A CUE file is the launch descriptor; referenced BIN/IMG track files are payload only.
                 var candidates = new List<(string GroupingKey, string CleanTitle, string FullPath, int? Index, string? Label)>(
                     capacity: Math.Min(selectedFiles.Count, 4096));
 
-                foreach (var file in selectedFiles)
+                for (var fileIndex = 0; fileIndex < selectedFiles.Count; fileIndex++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var file = selectedFiles[fileIndex];
                     if (referencedCuePayloads.Contains(file))
                         continue;
 
@@ -72,7 +106,25 @@ public class ImportService
                     var groupingKey = MultiDiscFileNameHelper.GetGroupingKey(cleanTitle);
 
                     candidates.Add((groupingKey, cleanTitle, file, discIndex, discLabel));
+
+                    if (fileIndex == 0 || (fileIndex + 1) % 256 == 0)
+                    {
+                        progress?.Report(new FolderImportProgress(
+                            FolderImportStage.PreparingItems,
+                            filesScanned,
+                            selectedFiles.Count,
+                            fileIndex + 1,
+                            selectedFiles.Count));
+                    }
                 }
+
+                progress?.Report(new FolderImportProgress(
+                    FolderImportStage.PreparingItems,
+                    filesScanned,
+                    selectedFiles.Count,
+                    selectedFiles.Count,
+                    selectedFiles.Count));
+                cancellationToken.ThrowIfCancellationRequested();
 
                 // Step 2: group by clean title -> one MediaItem per game
                 var groups = candidates
@@ -81,6 +133,7 @@ public class ImportService
 
                 foreach (var g in groups)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var orderedFiles = g
                         .OrderBy(c => c.Index ?? int.MaxValue)
                         .ThenBy(c => c.Label, StringComparer.OrdinalIgnoreCase)
@@ -115,28 +168,40 @@ public class ImportService
                     results.Add(item);
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[ImportService] Error importing from '{sourceFolder}': {ex.Message}");
             }
 
             return results;
-        });
+        }, cancellationToken);
     }
 
-    private static HashSet<string> FindReferencedCuePayloads(IReadOnlyCollection<string> selectedFiles)
+    private static HashSet<string> FindReferencedCuePayloads(
+        IReadOnlyCollection<string> selectedFiles,
+        IProgress<FolderImportProgress>? progress,
+        CancellationToken cancellationToken)
     {
         var selectedPaths = selectedFiles.ToHashSet(FileSystemPathIdentity.Comparer);
         var referencedPaths = new HashSet<string>(FileSystemPathIdentity.Comparer);
+        var cueCount = selectedFiles.Count(path =>
+            path.EndsWith(".cue", StringComparison.OrdinalIgnoreCase));
+        var processedCueCount = 0;
 
         foreach (var cuePath in selectedFiles.Where(path =>
                      path.EndsWith(".cue", StringComparison.OrdinalIgnoreCase)))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 var cueDirectory = Path.GetDirectoryName(cuePath) ?? string.Empty;
                 foreach (var line in File.ReadLines(cuePath))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var match = CueFileReferenceRegex.Match(line);
                     if (!match.Success)
                         continue;
@@ -153,10 +218,21 @@ public class ImportService
                         referencedPaths.Add(referencedPath);
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch
             {
                 // A malformed or unreadable CUE must not abort the remaining bulk import.
             }
+
+            processedCueCount++;
+            progress?.Report(new FolderImportProgress(
+                FolderImportStage.ReadingCueFiles,
+                MatchingFileCount: selectedFiles.Count,
+                CompletedCount: processedCueCount,
+                TotalCount: cueCount));
         }
 
         return referencedPaths;

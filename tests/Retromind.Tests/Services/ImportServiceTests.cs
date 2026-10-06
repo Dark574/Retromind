@@ -81,6 +81,36 @@ public sealed class ImportServiceTests : IDisposable
         Assert.Contains(result, item => item.Files.Single().Path.EndsWith("track.bin", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task ImportFromFolderAsync_ReportsScannedAndMatchingFileCounts()
+    {
+        Directory.CreateDirectory(_root);
+        WriteFile("Game.rom");
+        WriteFile("Manual.pdf");
+        WriteFile("Notes.txt");
+        var progress = new RecordingProgress();
+
+        var result = await _service.ImportFromFolderAsync(_root, ["rom"], progress);
+
+        Assert.Single(result);
+        var scan = progress.Values.Last(value => value.Stage == FolderImportStage.ScanningFiles);
+        Assert.Equal(3, scan.FilesScanned);
+        Assert.Equal(1, scan.MatchingFileCount);
+    }
+
+    [Fact]
+    public async Task ImportFromFolderAsync_CanCancelDuringFolderScan()
+    {
+        Directory.CreateDirectory(_root);
+        WriteFile("Game.rom");
+        WriteFile("Other.rom");
+        using var cancellation = new CancellationTokenSource();
+        var progress = new CancelOnFirstProgress(cancellation);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _service.ImportFromFolderAsync(_root, ["rom"], progress, cancellation.Token));
+    }
+
     private void WriteFile(string relativePath, string content = "data")
     {
         File.WriteAllText(Path.Combine(_root, relativePath), content);
@@ -90,5 +120,22 @@ public sealed class ImportServiceTests : IDisposable
     {
         if (Directory.Exists(_root))
             Directory.Delete(_root, recursive: true);
+    }
+
+    private sealed class RecordingProgress : IProgress<FolderImportProgress>
+    {
+        public List<FolderImportProgress> Values { get; } = new();
+
+        public void Report(FolderImportProgress value) => Values.Add(value);
+    }
+
+    private sealed class CancelOnFirstProgress(CancellationTokenSource cancellation)
+        : IProgress<FolderImportProgress>
+    {
+        public void Report(FolderImportProgress value)
+        {
+            if (value.Stage == FolderImportStage.ScanningFiles)
+                cancellation.Cancel();
+        }
     }
 }

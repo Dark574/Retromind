@@ -240,6 +240,18 @@
     <data name="Dialog.SelectXdgStateFolder" xml:space="preserve"><value>Select XDG state folder</value></data>
     <data name="Dialog.SelectXdgBaseFolder" xml:space="preserve"><value>Select XDG base folder</value></data>
     <data name="Dialog_FileExtensionsPrompt" xml:space="preserve"><value>File extensions (comma separated):</value></data>
+    <data name="FolderImport.Title" xml:space="preserve"><value>Import ROM folder</value></data>
+    <data name="FolderImport.Description" xml:space="preserve"><value>Retromind is finding matching files and existing media. Nothing is added until this step finishes.</value></data>
+    <data name="FolderImport.Scanning" xml:space="preserve"><value>Scanning the selected folder...</value></data>
+    <data name="FolderImport.ScanningFormat" xml:space="preserve"><value>{0:N0} files checked, {1:N0} matching files found.</value></data>
+    <data name="FolderImport.ReadingCue" xml:space="preserve"><value>Reading CUE files...</value></data>
+    <data name="FolderImport.ReadingCueFormat" xml:space="preserve"><value>{0:N0} of {1:N0} CUE files read.</value></data>
+    <data name="FolderImport.Preparing" xml:space="preserve"><value>Preparing imported items...</value></data>
+    <data name="FolderImport.PreparingFormat" xml:space="preserve"><value>{0:N0} of {1:N0} matching files prepared.</value></data>
+    <data name="FolderImport.MatchingAssets" xml:space="preserve"><value>Matching existing media...</value></data>
+    <data name="FolderImport.MatchingAssetsFormat" xml:space="preserve"><value>{0:N0} media files checked, {1:N0} assigned.</value></data>
+    <data name="FolderImport.Cancelling" xml:space="preserve"><value>Cancelling import...</value></data>
+    <data name="FolderImport.CancellingDescription" xml:space="preserve"><value>The library will remain unchanged.</value></data>
     <data name="Dialog_NoSteamGamesFound" xml:space="preserve"><value>No Steam games found.</value></data>
     <data name="Dialog_NoSteamGamesFound_SelectPath" xml:space="preserve"><value>No Steam games found. Select your Steam library folder manually? (Choose the folder that contains 'steamapps' or the 'steamapps' folder itself.)</value></data>
     <data name="Dialog_SelectSteamLibraryFolder" xml:space="preserve"><value>Select Steam library folder (contains steamapps)</value></data>

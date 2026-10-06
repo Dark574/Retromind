@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Retromind.ViewModels"
+        x:Class="Retromind.Views.FolderImportProgressView"
+        x:DataType="vm:FolderImportProgressViewModel"
+        Title="{Binding Title}"
+        Width="520"
+        Height="230"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        CanResize="False"
+        CanMaximize="False">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="20" RowSpacing="12">
+        <TextBlock Grid.Row="0"
+                   Text="{Binding Title}"
+                   FontSize="21"
+                   FontWeight="SemiBold" />
+
+        <TextBlock Grid.Row="1"
+                   Text="{Binding Description}"
+                   TextWrapping="Wrap"
+                   Opacity="0.7" />
+
+        <ProgressBar Grid.Row="2"
+                     Height="6"
+                     IsIndeterminate="{Binding IsRunning}" />
+
+        <StackPanel Grid.Row="3" Spacing="4">
+            <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding DetailText}" Opacity="0.7" />
+        </StackPanel>
+
+        <Button Grid.Row="4"
+                Content="{Binding CancelText}"
+                Command="{Binding CancelCommand}"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                MinWidth="100" />
+    </Grid>
+</Window>

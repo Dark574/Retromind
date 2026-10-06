@@ -241,6 +241,18 @@
     <data name="Dialog.SelectXdgStateFolder" xml:space="preserve"><value>XDG-State-Ordner auswählen</value></data>
     <data name="Dialog.SelectXdgBaseFolder" xml:space="preserve"><value>XDG-Basisordner auswählen</value></data>
     <data name="Dialog_FileExtensionsPrompt" xml:space="preserve"><value>Dateiendungen (kommagetrennt):</value></data>
+    <data name="FolderImport.Title" xml:space="preserve"><value>ROM-Ordner importieren</value></data>
+    <data name="FolderImport.Description" xml:space="preserve"><value>Retromind sucht nach passenden Dateien und vorhandenen Medien. Bis zum Abschluss dieses Schritts wird nichts hinzugefügt.</value></data>
+    <data name="FolderImport.Scanning" xml:space="preserve"><value>Der ausgewählte Ordner wird durchsucht...</value></data>
+    <data name="FolderImport.ScanningFormat" xml:space="preserve"><value>{0:N0} Dateien geprüft, {1:N0} passende Dateien gefunden.</value></data>
+    <data name="FolderImport.ReadingCue" xml:space="preserve"><value>CUE-Dateien werden gelesen...</value></data>
+    <data name="FolderImport.ReadingCueFormat" xml:space="preserve"><value>{0:N0} von {1:N0} CUE-Dateien gelesen.</value></data>
+    <data name="FolderImport.Preparing" xml:space="preserve"><value>Importierte Einträge werden vorbereitet...</value></data>
+    <data name="FolderImport.PreparingFormat" xml:space="preserve"><value>{0:N0} von {1:N0} passenden Dateien vorbereitet.</value></data>
+    <data name="FolderImport.MatchingAssets" xml:space="preserve"><value>Vorhandene Medien werden zugeordnet...</value></data>
+    <data name="FolderImport.MatchingAssetsFormat" xml:space="preserve"><value>{0:N0} Mediendateien geprüft, {1:N0} zugeordnet.</value></data>
+    <data name="FolderImport.Cancelling" xml:space="preserve"><value>Import wird abgebrochen...</value></data>
+    <data name="FolderImport.CancellingDescription" xml:space="preserve"><value>Die Bibliothek bleibt unverändert.</value></data>
     <data name="Dialog_NoSteamGamesFound" xml:space="preserve"><value>Keine Steam-Spiele gefunden.</value></data>
     <data name="Dialog_NoSteamGamesFound_SelectPath" xml:space="preserve"><value>Keine Steam-Spiele gefunden. Steam-Bibliotheksordner manuell auswählen? (Bitte den Ordner wählen, der 'steamapps' enthält, oder direkt den Ordner 'steamapps'.)</value></data>
     <data name="Dialog_SelectSteamLibraryFolder" xml:space="preserve"><value>Steam-Bibliotheksordner auswählen (enthält steamapps)</value></data>

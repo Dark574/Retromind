@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -86,17 +87,6 @@ public partial class FileManagementService
             display = "Unknown";
 
         return AssetNameHelper.BuildDisplayPrefix(display, basePrefix);
-    }
-
-    private static bool MatchesItemAssetPrefix(string filePrefix, AssetType type, string itemPrefix)
-    {
-        if (!AssetNameHelper.RequiresDisplayPrefix(type))
-            return string.Equals(filePrefix, itemPrefix, StringComparison.OrdinalIgnoreCase);
-
-        if (AssetNameHelper.TrySplitDisplayPrefix(filePrefix, out _, out var suffix))
-            return string.Equals(suffix, itemPrefix, StringComparison.OrdinalIgnoreCase);
-
-        return false;
     }
 
     private static string GetItemIdToken(string? itemId)
@@ -298,40 +288,113 @@ public partial class FileManagementService
     /// </summary>
     public List<MediaAsset> ScanItemAssets(MediaItem item, List<string> nodePathStack)
     {
-        var results = new List<MediaAsset>();
-        if (item == null) return results;
+        if (item == null)
+            return new List<MediaAsset>();
 
-        string nodeFolder = ResolveNodeFolder(nodePathStack);
-        if (!Directory.Exists(nodeFolder)) return results;
+        return ScanItemsAssets([item], nodePathStack)[0].Assets;
+    }
 
-        var assetPrefix = BuildItemAssetPrefix(item);
+    /// <summary>
+    /// Scans every managed asset folder once and maps matching files to all supplied items.
+    /// This method does NOT modify any ObservableCollections (safe to run off the UI thread).
+    /// </summary>
+    public List<(MediaItem Item, List<MediaAsset> Assets)> ScanItemsAssets(
+        IReadOnlyList<MediaItem> items,
+        List<string> nodePathStack,
+        IProgress<FolderImportProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var results = items
+            .Select(item => (Item: item, Assets: new List<MediaAsset>()))
+            .ToList();
+        if (items.Count == 0)
+            return results;
 
-        foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
+        var nodeFolder = ResolveNodeFolder(nodePathStack);
+        if (!Directory.Exists(nodeFolder))
         {
-            if (type == AssetType.Unknown) continue;
+            progress?.Report(new FolderImportProgress(FolderImportStage.MatchingAssets));
+            return results;
+        }
 
-            string typeFolder = Path.Combine(nodeFolder, type.ToString());
-            if (!Directory.Exists(typeFolder)) continue;
-
-            var files = Directory.EnumerateFiles(typeFolder)
-                .Where(file => AssetRegex.IsMatch(Path.GetFileName(file)));
-
-            foreach (var file in files)
+        var itemIndexesByPrefix = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < items.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var prefix = BuildItemAssetPrefix(items[index]);
+            if (!itemIndexesByPrefix.TryGetValue(prefix, out var matchingIndexes))
             {
-                var match = AssetRegex.Match(Path.GetFileName(file));
-                if (match.Success &&
-                    MatchesItemAssetPrefix(match.Groups[1].Value, type, assetPrefix) &&
-                    match.Groups[2].Value.Equals(type.ToString(), StringComparison.OrdinalIgnoreCase))
+                matchingIndexes = new List<int>();
+                itemIndexesByPrefix[prefix] = matchingIndexes;
+            }
+
+            matchingIndexes.Add(index);
+        }
+
+        long filesScanned = 0;
+        var matchingFileCount = 0;
+        progress?.Report(new FolderImportProgress(FolderImportStage.MatchingAssets));
+        foreach (var type in Enum.GetValues<AssetType>())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (type == AssetType.Unknown)
+                continue;
+
+            var typeFolder = Path.Combine(nodeFolder, type.ToString());
+            if (!Directory.Exists(typeFolder))
+                continue;
+
+            foreach (var file in Directory.EnumerateFiles(typeFolder))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                filesScanned++;
+                if (filesScanned % 256 == 0)
                 {
-                    results.Add(new MediaAsset
+                    progress?.Report(new FolderImportProgress(
+                        FolderImportStage.MatchingAssets,
+                        filesScanned,
+                        matchingFileCount));
+                }
+
+                var match = AssetRegex.Match(Path.GetFileName(file));
+                if (!match.Success ||
+                    !match.Groups[2].Value.Equals(type.ToString(), StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var filePrefix = match.Groups[1].Value;
+                if (AssetNameHelper.RequiresDisplayPrefix(type))
+                {
+                    if (!AssetNameHelper.TrySplitDisplayPrefix(filePrefix, out _, out var suffix))
+                        continue;
+
+                    filePrefix = suffix;
+                }
+
+                if (!itemIndexesByPrefix.TryGetValue(filePrefix, out var itemIndexes))
+                    continue;
+
+                matchingFileCount++;
+                var relativePath = Path.GetRelativePath(AppPaths.DataRoot, file);
+                foreach (var itemIndex in itemIndexes)
+                {
+                    results[itemIndex].Assets.Add(new MediaAsset
                     {
                         Type = type,
-                        RelativePath = Path.GetRelativePath(AppPaths.DataRoot, file)
+                        RelativePath = relativePath
                     });
                 }
+
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(new FolderImportProgress(
+            FolderImportStage.MatchingAssets,
+            filesScanned,
+            matchingFileCount));
         return results;
     }
 

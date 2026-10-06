@@ -602,12 +602,7 @@ public partial class MainWindowViewModel
         if (string.IsNullOrWhiteSpace(extensionsStr)) return;
 
         var extensions = extensionsStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        
-        // Run heavy import logic
-        var importedItems = await _importService.ImportFromFolderAsync(sourcePath, extensions);
 
-        if (!importedItems.Any()) return;
-        
         // Snapshot node path once (stable, avoids repeated computation)
         var nodePath = PathHelper.GetNodePath(targetNode, RootItems);
         var effectiveDefaultEmulatorId = ResolveEffectiveDefaultEmulatorId(targetNode);
@@ -615,49 +610,79 @@ public partial class MainWindowViewModel
             ? MediaType.Native
             : MediaType.Emulator;
 
-        // 1) Decide what to add (no UI mutations)
-        var itemsToAdd = importedItems
-            .Where(item =>
-            {
-                var incoming = item.GetPrimaryLaunchPath();
-                if (string.IsNullOrWhiteSpace(incoming))
-                    return false;
-
-                return !targetNode.Items.Any(existing =>
-                    FileSystemPathIdentity.Equals(existing.GetPrimaryLaunchPath(), incoming));
-            })
-            .ToList();
-
-        if (itemsToAdd.Count == 0) return;
-
-        if (defaultMediaType == MediaType.Emulator)
+        List<MediaItem> itemsToAdd = [];
+        List<(MediaItem Item, List<MediaAsset> Assets)> scanned = [];
+        using (var progressViewModel = new FolderImportProgressViewModel())
         {
-            foreach (var item in itemsToAdd)
-                item.MediaType = MediaType.Emulator;
-        }
+            var progressDialog = new FolderImportProgressView
+            {
+                DataContext = progressViewModel
+            };
+            var dialogTask = progressDialog.ShowDialog(owner);
+            var progress = new Progress<FolderImportProgress>(progressViewModel.Report);
 
-        ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
+            try
+            {
+                var importedItems = await _importService.ImportFromFolderAsync(
+                    sourcePath,
+                    extensions,
+                    progress,
+                    progressViewModel.Token);
+
+                if (importedItems.Count == 0)
+                    return;
+
+                // Decide what to add without changing bound collections.
+                itemsToAdd = importedItems
+                    .Where(item =>
+                    {
+                        var incoming = item.GetPrimaryLaunchPath();
+                        if (string.IsNullOrWhiteSpace(incoming))
+                            return false;
+
+                        return !targetNode.Items.Any(existing =>
+                            FileSystemPathIdentity.Equals(existing.GetPrimaryLaunchPath(), incoming));
+                    })
+                    .ToList();
+
+                if (itemsToAdd.Count == 0)
+                    return;
+
+                if (defaultMediaType == MediaType.Emulator)
+                {
+                    foreach (var item in itemsToAdd)
+                        item.MediaType = MediaType.Emulator;
+                }
+
+                ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
+
+                scanned = await Task.Run(
+                    () => _fileService.ScanItemsAssets(
+                        itemsToAdd,
+                        nodePath,
+                        progress,
+                        progressViewModel.Token),
+                    progressViewModel.Token);
+                progressViewModel.Token.ThrowIfCancellationRequested();
+            }
+            catch (OperationCanceledException) when (progressViewModel.Token.IsCancellationRequested)
+            {
+                return;
+            }
+            finally
+            {
+                progressViewModel.MarkFinished();
+                progressDialog.CompleteAndClose();
+                await dialogTask;
+            }
+        }
 
         // A configured game system makes imported ROMs immediately eligible for
         // RetroAchievements identification. Cancellation only stops identification;
         // the selected files are still imported normally.
         await IdentifyImportedRomsWithRetroAchievementsAsync(owner, targetNode, itemsToAdd);
 
-        // 2) Scan assets off the UI thread (filesystem only)
-        var scanned = await Task.Run(() =>
-        {
-            var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(itemsToAdd.Count);
-
-            foreach (MediaItem item in itemsToAdd)
-            {
-                var assets = _fileService.ScanItemAssets(item, nodePath);
-                list.Add((Item: item, Assets: assets));
-            }
-
-            return list;
-        });
-
-        // 3) Apply everything on UI thread (Items/Assets/Sort)
+        // Apply everything on the UI thread only after scanning completed.
         await UiThreadHelper.InvokeAsync(() =>
         {
             var newItems = scanned.Select(entry => entry.Item).ToList();
