@@ -151,7 +151,7 @@ public partial class MainWindowViewModel
         if (item == null || IsLaunchInProgress)
             return false;
 
-        return GogMediaItemStateHelper.IsInstalled(item) &&
+        return GogMediaItemStateHelper.CanCheckUpdates(item) &&
                !GogMediaItemStateHelper.HasAnyUpdateAvailable(item);
     }
 

@@ -484,6 +484,14 @@ This will delete:
 
 This action cannot be undone.</value></data>
     <data name="Gog.Uninstall.Success" xml:space="preserve"><value>Game uninstalled successfully.</value></data>
+    <data name="Gog.Uninstall.ConfirmSharedPrefixFormat" xml:space="preserve"><value>Uninstall "{0}"?
+
+The game files will be deleted. Its Wine/Proton prefix is also used by another item and will be preserved.
+
+This action cannot be undone.</value></data>
+    <data name="Gog.Uninstall.SuccessSharedPrefix" xml:space="preserve"><value>Game uninstalled successfully. The shared Wine/Proton prefix was preserved.</value></data>
+    <data name="Gog.Uninstall.SharedInstallDirectoryFormat" xml:space="preserve"><value>The game folder is also used by another library item and will not be deleted:
+{0}</value></data>
     <data name="Gog.Uninstall.FailedWithMessage" xml:space="preserve"><value>Uninstallation failed: {0}</value></data>
 
     <!-- STATISTICS -->
@@ -1215,4 +1223,22 @@ The current application settings will be kept.</value></data>
     <data name="RetroAchievements_BulkCancelled" xml:space="preserve"><value>Identification was canceled. Completed matches were retained.</value></data>
     <data name="RetroAchievements_BulkSaveFailed" xml:space="preserve"><value>The identified games were changed in memory, but the library could not be saved.</value></data>
     <data name="RetroAchievements_BulkUnexpectedFailureFormat" xml:space="preserve"><value>Identification failed unexpectedly: {0}</value></data>
+    <data name="Store.Link.Title" xml:space="preserve"><value>Store link</value></data>
+    <data name="Store.Link.NotLinked" xml:space="preserve"><value>Not linked to a store</value></data>
+    <data name="Store.Link.Hint" xml:space="preserve"><value>Link this existing item to a game from your GOG library. Media and metadata are preserved.</value></data>
+    <data name="Gog.Link.Button" xml:space="preserve"><value>Link to GOG game...</value></data>
+    <data name="Gog.Link.DialogTitle" xml:space="preserve"><value>Link GOG game</value></data>
+    <data name="Gog.Link.Header" xml:space="preserve"><value>Select the matching game from your GOG library</value></data>
+    <data name="Gog.Link.Apply" xml:space="preserve"><value>Link game</value></data>
+    <data name="Gog.Link.AdoptConfirmFormat" xml:space="preserve"><value>Retromind found an existing GOG offline installation for this item:
+{0}
+
+Link it to '{1}' and manage this game folder from now on? A later clean reinstall may permanently delete everything inside this folder; a GOG uninstall may also remove its separate Wine/Proton prefix. Media and item metadata are preserved.</value></data>
+    <data name="Gog.Link.IdentityOnlyConfirmFormat" xml:space="preserve"><value>Retromind could not safely identify the existing game folder as a GOG offline installation for '{0}'.
+
+Link only the GOG identity? The current files and launch settings remain unchanged, but updates and uninstallation cannot be managed until the game is installed through Retromind.</value></data>
+    <data name="Gog.Link.FailedFormat" xml:space="preserve"><value>The item could not be linked to GOG: {0}</value></data>
+    <data name="Gog.Install.DirectorySharedFormat" xml:space="preserve"><value>The selected install directory is also used by another library item and cannot be managed safely:
+{0}</value></data>
+    <data name="EditMedia.GogInstalledVersionFormat" xml:space="preserve"><value>Installed version: {0}</value></data>
 </root>

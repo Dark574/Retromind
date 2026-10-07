@@ -1,3 +1,4 @@
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.Stores.Gog;
 using Retromind.Tests.TestInfrastructure;
@@ -91,6 +92,111 @@ public sealed class GogLaunchConfigurationHelperTests
             configuredPath);
 
         Assert.Null(resolved);
+    }
+
+    [Fact]
+    public void ResolvePreferredRunnerVersionId_UsesInheritedRunnerForLegacyItem()
+    {
+        var item = new MediaItem("GOG game");
+        var emulator = new EmulatorConfig { DefaultRunnerVersionId = "proton-11" };
+
+        var resolved = GogLaunchConfigurationHelper.ResolvePreferredRunnerVersionId(item, emulator);
+
+        Assert.Equal("proton-11", resolved);
+        Assert.True(GogLaunchConfigurationHelper.ShouldPreserveRunnerInheritance(
+            item,
+            emulator,
+            resolved));
+    }
+
+    [Fact]
+    public void ResolvePreferredRunnerVersionId_PrefersExistingGogInstallRunner()
+    {
+        var item = new MediaItem("GOG game")
+        {
+            RunnerVersionId = "item-runner"
+        };
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallRunnerVersionId] = "installed-runner";
+        var emulator = new EmulatorConfig { DefaultRunnerVersionId = "inherited-runner" };
+
+        var resolved = GogLaunchConfigurationHelper.ResolvePreferredRunnerVersionId(item, emulator);
+
+        Assert.Equal("installed-runner", resolved);
+        Assert.False(GogLaunchConfigurationHelper.ShouldPreserveRunnerInheritance(
+            item,
+            emulator,
+            resolved));
+    }
+
+    [Fact]
+    public void ShouldPreserveRunnerInheritance_DifferentSelectionCreatesOverride()
+    {
+        var item = new MediaItem("GOG game");
+        var emulator = new EmulatorConfig { DefaultRunnerVersionId = "proton-11" };
+
+        var preserve = GogLaunchConfigurationHelper.ShouldPreserveRunnerInheritance(
+            item,
+            emulator,
+            "ge-proton");
+
+        Assert.False(preserve);
+    }
+
+    [Fact]
+    public void InferLegacyInstallPlatform_ExeWithManagedInstallPath_ReturnsWindows()
+    {
+        var item = new MediaItem("GOG game")
+        {
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = "/games/test/game.exe",
+                    Index = 1
+                }
+            ]
+        };
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = "/games/test";
+
+        var platform = GogLaunchConfigurationHelper.InferLegacyInstallPlatform(item);
+
+        Assert.Equal(GogInstallPlatform.Windows, platform);
+    }
+
+    [Fact]
+    public void InferLegacyInstallPlatform_NativeLaunchWithManagedInstallPath_ReturnsLinux()
+    {
+        var item = new MediaItem("GOG game")
+        {
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = "/games/test/start.sh",
+                    Index = 1
+                }
+            ]
+        };
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = "/games/test";
+
+        var platform = GogLaunchConfigurationHelper.InferLegacyInstallPlatform(item);
+
+        Assert.Equal(GogInstallPlatform.Linux, platform);
+    }
+
+    [Fact]
+    public void InferLegacyInstallPlatform_WithoutManagedInstallPath_ReturnsNull()
+    {
+        var item = new MediaItem("GOG game")
+        {
+            PrefixPath = "Prefixes/test"
+        };
+
+        var platform = GogLaunchConfigurationHelper.InferLegacyInstallPlatform(item);
+
+        Assert.Null(platform);
     }
 
     [Theory]

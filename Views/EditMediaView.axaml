@@ -42,6 +42,37 @@
             <TabItem Header="{x:Static p:Strings.EditMedia_Tab_General}" FontSize="16">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="10,10,20,50">
+                        <Border IsVisible="{Binding IsStoreLinkingVisible}"
+                                BorderBrush="Gray"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="12"
+                                Margin="0,0,0,15">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding StoreLinkTitle}"
+                                               FontWeight="Bold"
+                                               FontSize="16" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding StoreLinkStatusText}"
+                                               Opacity="0.7"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                                <TextBlock Text="{Binding StoreLinkHint}"
+                                           FontSize="11"
+                                           Opacity="0.7"
+                                           TextWrapping="Wrap" />
+                                <Button Content="{Binding GogLinkText}"
+                                        Command="{Binding GogLinkCommand}"
+                                        CommandParameter="{Binding $parent[Window]}"
+                                        HorizontalAlignment="Left" />
+                                <ProgressBar IsVisible="{Binding IsGogOperationRunning}"
+                                             IsIndeterminate="{Binding IsGogOperationRunning}"
+                                             Height="3" />
+                            </StackPanel>
+                        </Border>
+
                         <Border IsVisible="{Binding IsGogManagementVisible}"
                                 BorderBrush="Gray"
                                 BorderThickness="1"
@@ -63,6 +94,11 @@
                                 <TextBlock Text="{Binding GogManagementHint}"
                                            FontSize="11"
                                            Opacity="0.7"
+                                           TextWrapping="Wrap" />
+
+                                <TextBlock Text="{Binding GogInstalledVersionText}"
+                                           IsVisible="{Binding ShowGogInstalledVersion}"
+                                           FontWeight="SemiBold"
                                            TextWrapping="Wrap" />
 
                                 <WrapPanel Orientation="Horizontal">

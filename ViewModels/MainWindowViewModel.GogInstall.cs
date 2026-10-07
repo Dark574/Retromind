@@ -105,7 +105,10 @@ public partial class MainWindowViewModel
 
         var defaultInstallPath = ResolveDefaultGogInstallPath(item, storeGameId);
         var preferredPlatform = GetPreferredInstalledGogPlatform(item);
-        var preferredRunnerId = GetPreferredInstalledGogRunnerVersionId(item);
+        var inheritedEmulator = FindInheritedEmulator(item);
+        var preferredRunnerId = GogLaunchConfigurationHelper.ResolvePreferredRunnerVersionId(
+            item,
+            inheritedEmulator);
         var preferredWindowsInstallerPreference = GetPreferredInstalledWindowsInstallerPreference(item);
         var dialogVm = new GogInstallDialogViewModel(
             item.Title,
@@ -298,7 +301,16 @@ public partial class MainWindowViewModel
                 }
             }
 
-            var applied = ApplyDetectedGogLaunchConfiguration(item, storeGameId, installRequest, launchInfo);
+            var preserveRunnerInheritance = GogLaunchConfigurationHelper.ShouldPreserveRunnerInheritance(
+                item,
+                inheritedEmulator,
+                installRequest.Runner?.Id);
+            var applied = ApplyDetectedGogLaunchConfiguration(
+                item,
+                storeGameId,
+                installRequest,
+                launchInfo,
+                preserveRunnerInheritance);
             if (!applied)
             {
                 AppendProcessLog(
@@ -422,6 +434,18 @@ public partial class MainWindowViewModel
             };
 
             await ShowInfoDialog(owner, message);
+            return false;
+        }
+
+        if (IsInstallDirectoryUsedByAnotherItem(assessment.FullPath, item))
+        {
+            await ShowInfoDialog(
+                owner,
+                string.Format(
+                    T(
+                        "Gog.Install.DirectorySharedFormat",
+                        "The selected install directory is also used by another library item and cannot be managed safely:\n{0}"),
+                    assessment.FullPath));
             return false;
         }
 
@@ -565,7 +589,7 @@ public partial class MainWindowViewModel
         if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPlatform, out var raw) ||
             string.IsNullOrWhiteSpace(raw))
         {
-            return null;
+            return GogLaunchConfigurationHelper.InferLegacyInstallPlatform(item);
         }
 
         return raw.Trim().ToLowerInvariant() switch
@@ -574,17 +598,6 @@ public partial class MainWindowViewModel
             "windows" => GogInstallPlatform.Windows,
             _ => null
         };
-    }
-
-    private static string? GetPreferredInstalledGogRunnerVersionId(MediaItem item)
-    {
-        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallRunnerVersionId, out var runnerId) ||
-            string.IsNullOrWhiteSpace(runnerId))
-        {
-            return null;
-        }
-
-        return runnerId.Trim();
     }
 
     private static GogWindowsInstallerPreference? GetPreferredInstalledWindowsInstallerPreference(MediaItem item)
@@ -696,7 +709,8 @@ public partial class MainWindowViewModel
         MediaItem item,
         string storeGameId,
         GogInstallDialogViewModel.GogInstallDialogResult request,
-        GogDetectedLaunchInfo launchInfo)
+        GogDetectedLaunchInfo launchInfo,
+        bool preserveRunnerInheritance)
     {
         if (string.IsNullOrWhiteSpace(launchInfo.ExecutablePath))
             return false;
@@ -727,7 +741,7 @@ public partial class MainWindowViewModel
             launcherArgs = string.IsNullOrWhiteSpace(launchInfo.LaunchArguments)
                 ? "{file}"
                 : LaunchArgumentHelper.NormalizeWhitespace($"{{file}} {launchInfo.LaunchArguments}");
-            runnerVersionId = runner.Id;
+            runnerVersionId = preserveRunnerInheritance ? null : runner.Id;
 
             prefixPath = item.PrefixPath;
             if (string.IsNullOrWhiteSpace(prefixPath))

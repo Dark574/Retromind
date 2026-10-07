@@ -239,6 +239,86 @@ public sealed class GogInstallDirectorySafetyTests
         Assert.Equal("outside remains", File.ReadAllText(externalSentinel));
     }
 
+    [Fact]
+    public void CanAdoptLegacyInstall_MatchingGogMetadataAndLaunchFile_ReturnsTrue()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("legacy-install");
+        var launchPath = temp.CreateFile("legacy-install/bin/game.exe");
+        temp.CreateFile(
+            "legacy-install/goggame-12345.info",
+            """{"gameId":"12345","name":"Test game"}""");
+        var item = CreateGogItemWithLaunchFile(launchPath, "12345");
+
+        var result = GogInstallDirectorySafety.CanAdoptLegacyInstall(
+            installPath,
+            item,
+            "12345");
+
+        Assert.True(result);
+        Assert.False(File.Exists(Path.Combine(installPath, GogInstallDirectorySafety.MarkerFileName)));
+    }
+
+    [Fact]
+    public void CanAdoptLegacyInstall_DifferentGogGameId_ReturnsFalse()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("legacy-install");
+        var launchPath = temp.CreateFile("legacy-install/game.exe");
+        temp.CreateFile(
+            "legacy-install/goggame-99999.info",
+            """{"gameId":"99999","name":"Other game"}""");
+        var item = CreateGogItemWithLaunchFile(launchPath, "12345");
+
+        var result = GogInstallDirectorySafety.CanAdoptLegacyInstall(
+            installPath,
+            item,
+            "12345");
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void CanAdoptLegacyInstall_LaunchFileOutsideDirectory_ReturnsFalse()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("legacy-install");
+        var launchPath = temp.CreateFile("other/game.exe");
+        temp.CreateFile(
+            "legacy-install/goggame-12345.info",
+            """{"gameId":"12345","name":"Test game"}""");
+        var item = CreateGogItemWithLaunchFile(launchPath, "12345");
+
+        var result = GogInstallDirectorySafety.CanAdoptLegacyInstall(
+            installPath,
+            item,
+            "12345");
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void CanAdoptLegacyInstall_PreExistingRetromindMarker_ReturnsFalse()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("legacy-install");
+        var launchPath = temp.CreateFile("legacy-install/game.exe");
+        temp.CreateFile(
+            "legacy-install/goggame-12345.info",
+            """{"gameId":"12345","name":"Test game"}""");
+        GogInstallDirectorySafety.WriteMarker(
+            installPath,
+            CreateGogItem(mediaItemId: "another-item", storeGameId: "12345"));
+        var item = CreateGogItemWithLaunchFile(launchPath, "12345");
+
+        var result = GogInstallDirectorySafety.CanAdoptLegacyInstall(
+            installPath,
+            item,
+            "12345");
+
+        Assert.False(result);
+    }
+
     public static TheoryData<string> RetromindRootPaths => new()
     {
         AppPaths.DataRoot,
@@ -255,6 +335,21 @@ public sealed class GogInstallDirectorySafetyTests
             Title = "Test game"
         };
         item.CustomFields["Store.GameId"] = storeGameId;
+        return item;
+    }
+
+    private static MediaItem CreateGogItemWithLaunchFile(string launchPath, string storeGameId)
+    {
+        var item = CreateGogItem(storeGameId: storeGameId);
+        item.Files =
+        [
+            new MediaFileRef
+            {
+                Kind = MediaFileKind.Absolute,
+                Path = launchPath,
+                Index = 1
+            }
+        ];
         return item;
     }
 }

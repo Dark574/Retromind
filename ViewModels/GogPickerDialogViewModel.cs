@@ -15,6 +15,7 @@ namespace Retromind.ViewModels;
 public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
 {
     private readonly IReadOnlyList<GogPickerGameEntry> _allEntries;
+    private readonly bool _singleSelection;
     private CancellationTokenSource? _filterCts;
     private int _selectedCount;
     private bool _disposed;
@@ -27,15 +28,23 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
 
     public RangeObservableCollection<GogPickerGameEntry> FilteredGames { get; } = new();
 
-    public string DialogTitleText => T("Gog.Picker.DialogTitle", "Select GOG media");
-    public string HeaderText => T("Gog.Picker.Header", "GOG library");
+    public string DialogTitleText => _singleSelection
+        ? T("Gog.Link.DialogTitle", "Link GOG game")
+        : T("Gog.Picker.DialogTitle", "Select GOG media");
+    public string HeaderText => _singleSelection
+        ? T("Gog.Link.Header", "Select the matching game from your GOG library")
+        : T("Gog.Picker.Header", "GOG library");
     public string OnlyNewInNodeText => T("Gog.Picker.OnlyNewInNode", "Only new in this node");
     public string SearchPlaceholderText => T("Gog.Picker.SearchPlaceholder", "Search by title, GOG ID, or platform...");
     public string SelectAllFilteredText => T("Gog.Picker.SelectAllFiltered", "Select all filtered");
     public string ClearFilteredSelectionText => T("Gog.Picker.ClearSelection", "Clear selection");
     public string EmptyStateText => T("Gog.Picker.EmptyState", "No matches for the current filter.");
-    public string AddSelectionText => T("Gog.Picker.AddSelection", "Add selection");
+    public string AddSelectionText => _singleSelection
+        ? T("Gog.Link.Apply", "Link game")
+        : T("Gog.Picker.AddSelection", "Add selection");
     public string CancelText => Strings.Button_Cancel;
+    public bool ShowOnlyNewInNodeFilter => !_singleSelection;
+    public bool ShowBulkSelectionActions => !_singleSelection;
 
     public int TotalCount => _allEntries.Count;
     public int FilteredCount => FilteredGames.Count;
@@ -58,9 +67,15 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
     public GogPickerDialogViewModel(
         IEnumerable<StoreGameRecord> games,
         IReadOnlySet<string> existingInTargetNode,
-        IReadOnlyDictionary<string, int> usageByGameId)
+        IReadOnlyDictionary<string, int> usageByGameId,
+        bool singleSelection = false,
+        string? initialSearchText = null)
     {
         if (games == null) throw new ArgumentNullException(nameof(games));
+
+        _singleSelection = singleSelection;
+        _onlyNewInNode = !singleSelection;
+        _searchText = initialSearchText?.Trim() ?? string.Empty;
 
         var existingIds = existingInTargetNode ?? new HashSet<string>(StringComparer.Ordinal);
         var usage = usageByGameId ?? new Dictionary<string, int>(StringComparer.Ordinal);
@@ -113,6 +128,15 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
 
     private void OnEntrySelectionChanged(GogPickerGameEntry entry)
     {
+        if (_singleSelection && entry.IsSelected)
+        {
+            foreach (var other in _allEntries)
+            {
+                if (!ReferenceEquals(other, entry) && other.IsSelected)
+                    other.IsSelected = false;
+            }
+        }
+
         if (entry.IsSelected)
             _selectedCount++;
         else if (_selectedCount > 0)

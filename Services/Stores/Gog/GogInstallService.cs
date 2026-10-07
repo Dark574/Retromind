@@ -309,7 +309,8 @@ public sealed class GogInstallService
 
     public async Task UninstallGogGameAsync(
         MediaItem item,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool deletePrefix = true)
     {
         if (item == null)
             throw new ArgumentNullException(nameof(item));
@@ -329,6 +330,12 @@ public sealed class GogInstallService
         
         var prefixPath = item.PrefixPath;
         bool prefixSkippedForSafety = false;
+
+        if (!deletePrefix && !string.IsNullOrWhiteSpace(prefixPath))
+        {
+            prefixPath = null;
+            prefixSkippedForSafety = true;
+        }
         
         if (!string.IsNullOrWhiteSpace(prefixPath))
         {
@@ -349,13 +356,13 @@ public sealed class GogInstallService
                 Path.Combine(libraryRoot, "Games")
             };
             var isProtectedLibraryDirectory = protectedLibraryDirectories.Any(path =>
-                string.Equals(resolvedPrefix, path, StringComparison.Ordinal));
+                FileSystemPathIdentity.Equals(resolvedPrefix, path));
 
             // CRITICAL: resolvedPrefix must be a STRICT subdirectory of LibraryRoot.
             // Never allow deleting LibraryRoot itself or shared library roots such as Prefixes/Games.
             var isSafePrefix =
                 !isProtectedLibraryDirectory &&
-                resolvedPrefix.StartsWith(libraryRootWithSep, StringComparison.Ordinal);
+                resolvedPrefix.StartsWith(libraryRootWithSep, FileSystemPathIdentity.Comparison);
 
             if (isSafePrefix)
             {

@@ -485,6 +485,14 @@ Dies löscht:
 
 Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Gog.Uninstall.Success" xml:space="preserve"><value>Spiel erfolgreich deinstalliert.</value></data>
+    <data name="Gog.Uninstall.ConfirmSharedPrefixFormat" xml:space="preserve"><value>„{0}“ deinstallieren?
+
+Die Spieldateien werden gelöscht. Der Wine-/Proton-Prefix wird auch von einem anderen Item verwendet und deshalb beibehalten.
+
+Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
+    <data name="Gog.Uninstall.SuccessSharedPrefix" xml:space="preserve"><value>Spiel erfolgreich deinstalliert. Der gemeinsam verwendete Wine-/Proton-Prefix wurde beibehalten.</value></data>
+    <data name="Gog.Uninstall.SharedInstallDirectoryFormat" xml:space="preserve"><value>Der Spieleordner wird auch von einem anderen Bibliotheks-Item verwendet und deshalb nicht gelöscht:
+{0}</value></data>
     <data name="Gog.Uninstall.FailedWithMessage" xml:space="preserve"><value>Deinstallation fehlgeschlagen: {0}</value></data>
 
     <!-- STATISTICS -->
@@ -1217,4 +1225,22 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="RetroAchievements_BulkCancelled" xml:space="preserve"><value>Die Erkennung wurde abgebrochen. Bereits ermittelte Treffer wurden übernommen.</value></data>
     <data name="RetroAchievements_BulkSaveFailed" xml:space="preserve"><value>Die erkannten Spiele wurden im Arbeitsspeicher geändert, die Bibliothek konnte jedoch nicht gespeichert werden.</value></data>
     <data name="RetroAchievements_BulkUnexpectedFailureFormat" xml:space="preserve"><value>Die Erkennung ist unerwartet fehlgeschlagen: {0}</value></data>
+    <data name="Store.Link.Title" xml:space="preserve"><value>Store-Verknüpfung</value></data>
+    <data name="Store.Link.NotLinked" xml:space="preserve"><value>Mit keinem Store verknüpft</value></data>
+    <data name="Store.Link.Hint" xml:space="preserve"><value>Verknüpfe dieses bestehende Item mit einem Spiel aus deiner GOG-Bibliothek. Medien und Metadaten bleiben erhalten.</value></data>
+    <data name="Gog.Link.Button" xml:space="preserve"><value>Mit GOG-Spiel verknüpfen...</value></data>
+    <data name="Gog.Link.DialogTitle" xml:space="preserve"><value>GOG-Spiel verknüpfen</value></data>
+    <data name="Gog.Link.Header" xml:space="preserve"><value>Wähle das passende Spiel aus deiner GOG-Bibliothek</value></data>
+    <data name="Gog.Link.Apply" xml:space="preserve"><value>Spiel verknüpfen</value></data>
+    <data name="Gog.Link.AdoptConfirmFormat" xml:space="preserve"><value>Retromind hat für dieses Item eine vorhandene GOG-Offline-Installation gefunden:
+{0}
+
+Mit „{1}“ verknüpfen und diesen Spieleordner künftig durch Retromind verwalten? Eine spätere saubere Neuinstallation kann den gesamten Inhalt dieses Ordners dauerhaft löschen; eine GOG-Deinstallation kann zusätzlich den zugehörigen Wine-/Proton-Prefix entfernen. Medien und Item-Metadaten bleiben erhalten.</value></data>
+    <data name="Gog.Link.IdentityOnlyConfirmFormat" xml:space="preserve"><value>Retromind konnte den vorhandenen Spieleordner für „{0}“ nicht sicher als GOG-Offline-Installation erkennen.
+
+Nur die GOG-Identität verknüpfen? Die vorhandenen Dateien und Starteinstellungen bleiben unverändert, Updates und Deinstallation können aber erst verwaltet werden, nachdem das Spiel über Retromind installiert wurde.</value></data>
+    <data name="Gog.Link.FailedFormat" xml:space="preserve"><value>Das Item konnte nicht mit GOG verknüpft werden: {0}</value></data>
+    <data name="Gog.Install.DirectorySharedFormat" xml:space="preserve"><value>Der ausgewählte Installationsordner wird auch von einem anderen Bibliotheks-Item verwendet und kann nicht sicher verwaltet werden:
+{0}</value></data>
+    <data name="EditMedia.GogInstalledVersionFormat" xml:space="preserve"><value>Installierte Version: {0}</value></data>
 </root>

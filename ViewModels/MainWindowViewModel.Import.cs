@@ -1204,6 +1204,7 @@ public partial class MainWindowViewModel
             inherited,
             RootItems,
             parentNode,
+            gogLink: dialogOwner => LinkMediaItemToGogAsync(item, dialogOwner),
             gogInstallOrReinstall: dialogOwner =>
                 RunGogInstallFromEditorAsync(item, dialogOwner, requireAvailableUpdate: false),
             gogCheckUpdates: dialogOwner => CheckGogUpdatesNowAsync(item, dialogOwner),

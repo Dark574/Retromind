@@ -149,6 +149,10 @@ RetroAchievements Web API key) are stored through `ISecretStore`, not in `DataRo
 - destructive store operations have an additional ownership boundary: GOG install directories must not
   be dangerous roots, must not traverse symbolic links, and must contain a matching
   `.retromind-install.json` marker before recursive deletion
+- the explicit legacy GOG linking workflow may establish that marker for an unmarked offline installation
+  only when its `goggame-<id>.info` matches the selected owned game, the item's launch file is contained in
+  that directory, and no other item references the same install root; linking itself preserves item assets
+  and metadata
 - GOG uninstall removes a separate prefix only when it is a non-shared subdirectory inside `LibraryRoot`
   without symbolic-link traversal; external prefixes and the shared `Library/Prefixes` or `Library/Games`
   roots are preserved together with their metadata for manual cleanup

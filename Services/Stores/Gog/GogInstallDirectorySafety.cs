@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -166,6 +167,84 @@ internal static class GogInstallDirectorySafety
         var markerPath = Path.Combine(fullPath, MarkerFileName);
         var json = JsonSerializer.Serialize(marker, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(markerPath, json, Encoding.UTF8);
+    }
+
+    /// <summary>
+    /// Verifies that a non-managed directory is an existing GOG offline installation
+    /// for the selected game and that the item's current launch file belongs to it.
+    /// This is the ownership evidence used by the explicit legacy-link workflow.
+    /// </summary>
+    public static bool CanAdoptLegacyInstall(
+        string installPath,
+        MediaItem item,
+        string storeGameId)
+    {
+        if (string.IsNullOrWhiteSpace(installPath) ||
+            item == null ||
+            string.IsNullOrWhiteSpace(storeGameId))
+        {
+            return false;
+        }
+
+        var launchPath = item.GetPrimaryLaunchPath();
+        if (string.IsNullOrWhiteSpace(launchPath) || !File.Exists(launchPath))
+            return false;
+
+        string fullInstallPath;
+        string fullLaunchPath;
+        try
+        {
+            fullInstallPath = Path.GetFullPath(installPath);
+            fullLaunchPath = Path.GetFullPath(launchPath);
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (!IsPathEqualToOrBelow(fullLaunchPath, fullInstallPath))
+            return false;
+
+        // A pre-existing marker is ownership evidence for another managed state.
+        // The legacy workflow may claim only genuinely unmarked offline installs.
+        if (File.Exists(Path.Combine(fullInstallPath, MarkerFileName)))
+            return false;
+
+        var expectedFileName = $"goggame-{storeGameId.Trim()}.info";
+        string? metadataPath;
+        try
+        {
+            metadataPath = Directory.EnumerateFiles(fullInstallPath, "goggame-*.info", SearchOption.TopDirectoryOnly)
+                .FirstOrDefault(path => string.Equals(
+                    Path.GetFileName(path),
+                    expectedFileName,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (metadataPath == null)
+            return false;
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(metadataPath));
+            if (!document.RootElement.TryGetProperty("gameId", out var gameIdElement) ||
+                gameIdElement.ValueKind != JsonValueKind.String ||
+                !string.Equals(gameIdElement.GetString(), storeGameId.Trim(), StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+
+        var assessment = Assess(fullInstallPath, item, rejectSymbolicLinks: true);
+        return assessment.Status == GogInstallDirectoryStatus.UnownedDirectory;
     }
 
     public static bool IsDangerousPath(string fullPath)

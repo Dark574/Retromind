@@ -15,6 +15,7 @@ using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.Stores.Gog;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -1345,9 +1346,30 @@ public partial class MainWindowViewModel
         if (!CanUninstallGogMedia(item))
             return false;
 
-        var confirmMessage = string.Format(
-            Strings.Gog_Uninstall_ConfirmMessage,
-            item.Title);
+        if (item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var storedInstallPath) &&
+            GogInstallPathHelper.TryResolveStoredPath(storedInstallPath, out var installPath) &&
+            IsInstallDirectoryUsedByAnotherItem(installPath, item))
+        {
+            await ShowInfoDialog(
+                owner,
+                string.Format(
+                    T(
+                        "Gog.Uninstall.SharedInstallDirectoryFormat",
+                        "The game folder is also used by another library item and will not be deleted:\n{0}"),
+                    installPath));
+            return false;
+        }
+
+        var preserveSharedPrefix = IsPrefixUsedByAnotherItem(item.PrefixPath, item);
+        var confirmMessage = preserveSharedPrefix
+            ? string.Format(
+                T(
+                    "Gog.Uninstall.ConfirmSharedPrefixFormat",
+                    "Uninstall \"{0}\"?\n\nThe game files will be deleted. Its Wine/Proton prefix is also used by another item and will be preserved.\n\nThis action cannot be undone."),
+                item.Title)
+            : string.Format(
+                Strings.Gog_Uninstall_ConfirmMessage,
+                item.Title);
 
         var confirmed = await ShowConfirmDialog(owner, confirmMessage);
         if (!confirmed)
@@ -1356,14 +1378,22 @@ public partial class MainWindowViewModel
         IsLaunchInProgress = true;
         try
         {
-            await _gogInstallService.UninstallGogGameAsync(item);
+            await _gogInstallService.UninstallGogGameAsync(
+                item,
+                deletePrefix: !preserveSharedPrefix);
 
             // after successfull deinstall: reload the library
             _libraryTracker.MarkDirty();
             await SaveData();
             NotifyPlayAvailabilityChanged();
 
-            await ShowInfoDialog(owner, Strings.Gog_Uninstall_Success);
+            await ShowInfoDialog(
+                owner,
+                preserveSharedPrefix
+                    ? T(
+                        "Gog.Uninstall.SuccessSharedPrefix",
+                        "Game uninstalled successfully. The shared Wine/Proton prefix was preserved.")
+                    : Strings.Gog_Uninstall_Success);
             return true;
         }
         catch (Exception ex)

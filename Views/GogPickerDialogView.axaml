@@ -22,6 +22,7 @@
                       Grid.Column="1"
                       Margin="14,0,0,0"
                       VerticalAlignment="Center"
+                      IsVisible="{Binding ShowOnlyNewInNodeFilter}"
                       IsChecked="{Binding OnlyNewInNode}"
                       Content="{Binding OnlyNewInNodeText}"/>
 
@@ -41,11 +42,13 @@
                        Text="{Binding CounterText}"/>
 
             <Button Grid.Column="1"
+                    IsVisible="{Binding ShowBulkSelectionActions}"
                     Content="{Binding SelectAllFilteredText}"
                     Command="{Binding SelectAllFilteredCommand}"
                     Padding="10,4"/>
 
             <Button Grid.Column="2"
+                    IsVisible="{Binding ShowBulkSelectionActions}"
                     Margin="10,0,0,0"
                     Content="{Binding ClearFilteredSelectionText}"
                     Command="{Binding ClearFilteredSelectionCommand}"

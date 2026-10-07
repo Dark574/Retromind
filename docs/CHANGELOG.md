@@ -13,8 +13,11 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - customize BigMode controller and keyboard bindings, including page navigation and a confirmation-protected shortcut for stopping running games
 - open a controller-operated system menu from any BigMode theme to review bindings or safely exit Retromind
 - scrape ROM metadata and artwork with ScreenScraper using optional securely stored account credentials, exact file identification, localized title fallback and quota-aware bulk processing
+- link existing library items to owned GOG games and safely bring recognized offline installations under Retromind management without losing their media or metadata
 
 ### Changed
+- protect game folders and Wine/Proton prefixes shared with other library items from destructive GOG operations
+- show the installed GOG version in the media editor when it is known
 - improve Archive Atlas browsing in large libraries with smoother scrolling, clearer mode-specific details, readable long descriptions and better media fallbacks
 - improve the Wheel theme with continuous carousels, stronger selected artwork and a unified media and detail presentation
 - improve HorizontalRow with smoother artwork changes, screenshot fallbacks, clearer selection and more readable text

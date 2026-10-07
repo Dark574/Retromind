@@ -7,6 +7,43 @@ namespace Retromind.Tests.Helpers;
 public sealed class GogMediaItemStateHelperTests
 {
     [Fact]
+    public void CanCheckUpdates_RequiresManagedInstallPath()
+    {
+        using var temp = new TemporaryDirectory();
+        var executable = temp.CreateFile("game.exe", "binary");
+        var item = CreateGogItem();
+        item.Files =
+        [
+            new MediaFileRef
+            {
+                Kind = MediaFileKind.Absolute,
+                Path = executable,
+                Index = 1
+            }
+        ];
+
+        Assert.True(GogMediaItemStateHelper.IsInstalled(item));
+        Assert.False(GogMediaItemStateHelper.CanCheckUpdates(item));
+
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = temp.RootPath;
+
+        Assert.True(GogMediaItemStateHelper.CanCheckUpdates(item));
+    }
+
+    [Theory]
+    [InlineData("1.2.3", "1.2.3")]
+    [InlineData("  build 42  ", "build 42")]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    public void TryGetInstalledVersion_ReturnsOnlyKnownVersion(string storedVersion, string? expected)
+    {
+        var item = CreateGogItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstalledVersion] = storedVersion;
+
+        Assert.Equal(expected, GogMediaItemStateHelper.TryGetInstalledVersion(item));
+    }
+
+    [Fact]
     public void InstallState_RequiresGogIdentityAndPlayableLaunchConfiguration()
     {
         using var temp = new TemporaryDirectory();

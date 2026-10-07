@@ -5,6 +5,15 @@ namespace Retromind.Tests.Helpers;
 
 public sealed class StoreProviderBadgeHelperTests
 {
+    [Fact]
+    public void HasStoreAssociation_UnknownStoredProvider_ReturnsTrue()
+    {
+        var item = new MediaItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreProviderId] = "itchio";
+
+        Assert.True(StoreProviderBadgeHelper.HasStoreAssociation(item));
+    }
+
     [Theory]
     [InlineData("gog", "GOG")]
     [InlineData("STEAM", "STEAM")]

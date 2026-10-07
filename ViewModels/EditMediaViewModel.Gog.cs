@@ -10,6 +10,7 @@ namespace Retromind.ViewModels;
 
 public partial class EditMediaViewModel
 {
+    private Func<Window, Task<bool>>? _gogLink;
     private Func<Window, Task<bool>>? _gogInstallOrReinstall;
     private Func<Window, Task>? _gogCheckUpdates;
     private Func<Window, Task<bool>>? _gogUpdate;
@@ -17,6 +18,7 @@ public partial class EditMediaViewModel
     private Func<Window, Task>? _gogManageDlcs;
     private bool _isGogOperationRunning;
 
+    public IAsyncRelayCommand<Window?> GogLinkCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> GogInstallOrReinstallCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> GogCheckUpdatesCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> GogUpdateCommand { get; private set; } = null!;
@@ -26,14 +28,25 @@ public partial class EditMediaViewModel
     public bool IsGogManagementVisible =>
         GogMediaItemStateHelper.TryGetGameId(_originalItem) != null;
 
+    public bool IsStoreLinkingVisible =>
+        !StoreProviderBadgeHelper.HasStoreAssociation(_originalItem) &&
+        (string.IsNullOrWhiteSpace(_parentNode?.StoreProviderId) ||
+         string.Equals(
+             _parentNode.StoreProviderId.Trim(),
+             StoreProviderBadgeHelper.GogProviderId,
+             StringComparison.OrdinalIgnoreCase));
+
     public bool ShowGogUpdateAction =>
         GogMediaItemStateHelper.HasUpdateAvailable(_originalItem);
 
     public bool ShowGogCheckUpdatesAction =>
-        GogMediaItemStateHelper.IsInstalled(_originalItem);
+        GogMediaItemStateHelper.CanCheckUpdates(_originalItem);
 
     public bool ShowGogUninstallAction =>
         GogMediaItemStateHelper.CanUninstall(_originalItem);
+
+    public bool ShowGogInstalledVersion =>
+        GogMediaItemStateHelper.TryGetInstalledVersion(_originalItem) != null;
 
     public bool IsGogOperationRunning
     {
@@ -43,6 +56,7 @@ public partial class EditMediaViewModel
             if (!SetProperty(ref _isGogOperationRunning, value))
                 return;
 
+            GogLinkCommand.NotifyCanExecuteChanged();
             GogInstallOrReinstallCommand.NotifyCanExecuteChanged();
             GogCheckUpdatesCommand.NotifyCanExecuteChanged();
             GogUpdateCommand.NotifyCanExecuteChanged();
@@ -52,6 +66,12 @@ public partial class EditMediaViewModel
         }
     }
 
+    public string StoreLinkTitle => T("Store.Link.Title", "Store link");
+    public string StoreLinkStatusText => T("Store.Link.NotLinked", "Not linked to a store");
+    public string StoreLinkHint => T(
+        "Store.Link.Hint",
+        "Link this existing item to a game from your GOG library. Media and metadata are preserved.");
+    public string GogLinkText => T("Gog.Link.Button", "Link to GOG game...");
     public string GogManagementTitle => "GOG";
 
     public string GogManagementHint => T(
@@ -65,6 +85,18 @@ public partial class EditMediaViewModel
     public string GogUpdateText => Strings.Button_Update;
     public string GogCheckUpdatesText => T("Gog.Update.CheckNow", "Check for GOG updates");
     public string GogUninstallText => Strings.Gog_Uninstall_ContextMenu;
+    public string GogInstalledVersionText
+    {
+        get
+        {
+            var version = GogMediaItemStateHelper.TryGetInstalledVersion(_originalItem);
+            return version == null
+                ? string.Empty
+                : string.Format(
+                    T("EditMedia.GogInstalledVersionFormat", "Installed version: {0}"),
+                    version);
+        }
+    }
     public string GogDlcTitle => T("EditMedia.GogDlcTitle", "DLCs");
     public string GogDlcHint => T(
         "EditMedia.GogDlcHint",
@@ -89,18 +121,23 @@ public partial class EditMediaViewModel
     }
 
     private void InitializeGogManagement(
+        Func<Window, Task<bool>>? link,
         Func<Window, Task<bool>>? installOrReinstall,
         Func<Window, Task>? checkUpdates,
         Func<Window, Task<bool>>? update,
         Func<Window, Task<bool>>? uninstall,
         Func<Window, Task>? manageDlcs)
     {
+        _gogLink = link;
         _gogInstallOrReinstall = installOrReinstall;
         _gogCheckUpdates = checkUpdates;
         _gogUpdate = update;
         _gogUninstall = uninstall;
         _gogManageDlcs = manageDlcs;
 
+        GogLinkCommand = new AsyncRelayCommand<Window?>(
+            RunStoreLinkAsync,
+            owner => CanRunStoreLink(owner));
         GogInstallOrReinstallCommand = new AsyncRelayCommand<Window?>(
             owner => RunGogActionAsync(owner, _gogInstallOrReinstall),
             owner => CanRunGogAction(owner, _gogInstallOrReinstall));
@@ -126,6 +163,12 @@ public partial class EditMediaViewModel
         IsGogManagementVisible &&
         !IsGogOperationRunning;
 
+    private bool CanRunStoreLink(Window? owner) =>
+        owner != null &&
+        _gogLink != null &&
+        IsStoreLinkingVisible &&
+        !IsGogOperationRunning;
+
     private bool CanRunGogDlcDialog(Window? owner) =>
         owner != null &&
         _gogManageDlcs != null &&
@@ -138,6 +181,28 @@ public partial class EditMediaViewModel
         ShowGogCheckUpdatesAction &&
         !GogMediaItemStateHelper.HasAnyUpdateAvailable(_originalItem) &&
         !IsGogOperationRunning;
+
+    private async Task RunStoreLinkAsync(Window? owner)
+    {
+        if (!CanRunStoreLink(owner) || owner == null || _gogLink == null)
+            return;
+
+        IsGogOperationRunning = true;
+        try
+        {
+            if (await _gogLink(owner))
+                ReloadLaunchConfigurationFromOriginalItem();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] Store linking failed: {ex.Message}");
+        }
+        finally
+        {
+            IsGogOperationRunning = false;
+            RefreshGogManagementState();
+        }
+    }
 
     private async Task RunGogUpdateCheckAsync(Window? owner)
     {
@@ -207,11 +272,15 @@ public partial class EditMediaViewModel
     private void RefreshGogManagementState()
     {
         OnPropertyChanged(nameof(IsGogManagementVisible));
+        OnPropertyChanged(nameof(IsStoreLinkingVisible));
         OnPropertyChanged(nameof(ShowGogCheckUpdatesAction));
         OnPropertyChanged(nameof(ShowGogUpdateAction));
         OnPropertyChanged(nameof(ShowGogUninstallAction));
+        OnPropertyChanged(nameof(ShowGogInstalledVersion));
+        OnPropertyChanged(nameof(GogInstalledVersionText));
         OnPropertyChanged(nameof(GogInstallOrReinstallText));
         OnPropertyChanged(nameof(GogManagementStatusText));
+        GogLinkCommand.NotifyCanExecuteChanged();
         GogInstallOrReinstallCommand.NotifyCanExecuteChanged();
         GogCheckUpdatesCommand.NotifyCanExecuteChanged();
         GogUpdateCommand.NotifyCanExecuteChanged();

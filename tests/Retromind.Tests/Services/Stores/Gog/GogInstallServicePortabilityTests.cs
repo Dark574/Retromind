@@ -54,6 +54,31 @@ public sealed class GogInstallServicePortabilityTests
         Assert.Equal(externalPrefix + "//", item.PrefixPath);
     }
 
+    [Fact]
+    public async Task Uninstall_WhenPrefixDeletionIsDisabled_PreservesPrefixAndMetadata()
+    {
+        using var portableRoot = new TemporaryDirectory();
+        var installPath = portableRoot.CreateDirectory("Library", "Games", "GOG", "Shared Prefix Game");
+        var prefixPath = portableRoot.CreateDirectory("Library", "Prefixes", "Shared Prefix");
+        var prefixSentinel = portableRoot.CreateFile(
+            "Library/Prefixes/Shared Prefix/must-remain.txt",
+            "shared prefix data");
+        var item = CreateInstalledItem(Path.Combine("Library", "Games", "GOG", "Shared Prefix Game"));
+        item.PrefixPath = "Prefixes/Shared Prefix";
+        GogInstallDirectorySafety.WriteMarker(installPath, item);
+
+        using (UseDataRoot(portableRoot.RootPath))
+        {
+            await CreateInstallService().UninstallGogGameAsync(item, deletePrefix: false);
+        }
+
+        Assert.False(Directory.Exists(installPath));
+        Assert.True(Directory.Exists(prefixPath));
+        Assert.True(File.Exists(prefixSentinel));
+        Assert.Equal("Prefixes/Shared Prefix", item.PrefixPath);
+        Assert.False(item.CustomFields.ContainsKey(CustomFieldKeyHelper.StoreInstallPath));
+    }
+
     [Theory]
     [InlineData("Prefixes")]
     [InlineData("Games")]
