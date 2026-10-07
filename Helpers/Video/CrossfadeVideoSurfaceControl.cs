@@ -38,7 +38,7 @@ public sealed class CrossfadeVideoSurfaceControl : Grid
     public static readonly StyledProperty<bool> RetainPreviousSurfaceDuringFadeProperty =
         AvaloniaProperty.Register<CrossfadeVideoSurfaceControl, bool>(
             nameof(RetainPreviousSurfaceDuringFade),
-            defaultValue: true);
+            defaultValue: false);
 
     private readonly VideoSurfaceControl _surfaceControlA;
     private readonly VideoSurfaceControl _surfaceControlB;

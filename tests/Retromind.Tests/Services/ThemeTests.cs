@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using System.Xml.Linq;
 using Retromind.Extensions;
 using Retromind.Helpers;
+using Retromind.Helpers.Video;
 using Retromind.Models;
 using Retromind.Services;
 
@@ -79,6 +80,16 @@ public sealed class ThemeTests
                 StringComparison.Ordinal));
 
         Assert.Equal("False", retainPreviousFrame?.Value);
+    }
+
+    [Fact]
+    public void VideoPreview_DoesNotRetainPreviousFrameByDefault()
+    {
+        var themeRoot = new Border();
+        var videoControl = new CrossfadeVideoSurfaceControl();
+
+        Assert.False(ThemeProperties.GetVideoRetainPreviousFrameDuringFade(themeRoot));
+        Assert.False(videoControl.RetainPreviousSurfaceDuringFade);
     }
 
     [Fact]

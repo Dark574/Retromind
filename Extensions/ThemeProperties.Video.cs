@@ -109,13 +109,14 @@ public partial class ThemeProperties
         element.SetValue(VideoFadeDurationMsProperty, value);
 
     /// <summary>
-    /// When false, the previous video surface is cleared before the next first
-    /// frame fades in. This avoids presenting frames from the previous selection.
+    /// When true, the previous video surface remains visible while the next first
+    /// frame fades in. Themes must opt in because this can present frames from the
+    /// previous selection underneath already updated metadata.
     /// </summary>
     public static readonly AttachedProperty<bool> VideoRetainPreviousFrameDuringFadeProperty =
         AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
             "VideoRetainPreviousFrameDuringFade",
-            defaultValue: true);
+            defaultValue: false);
 
     public static bool GetVideoRetainPreviousFrameDuringFade(AvaloniaObject element) =>
         element.GetValue(VideoRetainPreviousFrameDuringFadeProperty);

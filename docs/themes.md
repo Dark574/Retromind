@@ -388,10 +388,10 @@ Example:
   Slot name for the secondary channel if you want to place it explicitly in the layout.
 - `ThemeProperties.VideoFadeDurationMs` (int, default: `250`)  
   Crossfade duration for the **main** preview channel (video + audio).
-- `ThemeProperties.VideoRetainPreviousFrameDuringFade` (bool, default: `true`)
+- `ThemeProperties.VideoRetainPreviousFrameDuringFade` (bool, default: `false`)
   When `false`, clears the old video surface immediately and fades in only the
-  new first frame. This is useful when stale frames must not remain visible
-  underneath selection-specific fallback artwork.
+  new first frame. Set it to `true` only when the theme intentionally crossfades
+  from the previous selection's video.
 - `ThemeProperties.SecondaryBackgroundVideoPath` (string?, optional)  
   Theme-local relative path to a background video for the secondary channel.  
   Example: "Videos/NameOfVideo.mp4" → resolved as Path.Combine(BasePath, "Videos/NameOfVideo.mp4").
