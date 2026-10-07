@@ -644,6 +644,9 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_RunnerVersionRemoveManagedConfirmFormat" xml:space="preserve"><value>{0} aus Retromind entfernen und die heruntergeladenen Dateien endgültig löschen?</value></data>
     <data name="Settings_RunnerVersionRemoveExternalConfirmFormat" xml:space="preserve"><value>{0} aus Retromind entfernen? Die Dateien am externen Pfad bleiben erhalten.</value></data>
     <data name="Settings_RunnerVersionRemoveInvalidPath" xml:space="preserve"><value>Der verwaltete Runner-Pfad ist ungültig. Es wurde nichts entfernt.</value></data>
+    <data name="Settings_RunnerVersionRemoveSaveFailed" xml:space="preserve"><value>Die Runner-Zuordnungen konnten nicht gespeichert werden. Der Runner und seine Dateien wurden nicht entfernt.</value></data>
+    <data name="Settings_RunnerVersionRemoveFilesInvalidPath" xml:space="preserve"><value>Die Runner-Konfiguration wurde entfernt, aber die verwalteten Dateien konnten wegen eines ungültigen Pfads nicht gelöscht werden.</value></data>
+    <data name="Settings_RunnerVersionRemoveFilesFailedFormat" xml:space="preserve"><value>Die Runner-Konfiguration wurde entfernt, aber die verwalteten Dateien konnten nicht gelöscht werden: {0}</value></data>
     <data name="Settings_RunnerVersionRemoveManagedSuccess" xml:space="preserve"><value>Runner-Dateien und Konfiguration wurden entfernt.</value></data>
     <data name="Settings_RunnerVersionRemoveExternalSuccess" xml:space="preserve"><value>Runner-Konfiguration wurde entfernt. Die Dateien am externen Pfad bleiben erhalten.</value></data>
     <data name="Settings_RunnerVersionRemoveFailedFormat" xml:space="preserve"><value>Runner konnte nicht entfernt werden: {0}</value></data>

@@ -154,20 +154,40 @@ public partial class SettingsViewModel
         IsRemovingRunnerVersion = true;
         RunnerVersionStatusText = string.Empty;
 
+        var isManaged = removed.SourceType == RunnerVersionSourceType.ManagedDownload;
+        if (isManaged && !_runnerVersionService.IsManagedRunnerPath(removed.Path))
+        {
+            RunnerVersionStatusText = T(
+                "Settings_RunnerVersionRemoveInvalidPath",
+                "The managed runner path is invalid. Nothing was removed.");
+            IsRemovingRunnerVersion = false;
+            return;
+        }
+
         try
         {
-            if (removed.SourceType == RunnerVersionSourceType.ManagedDownload)
+            var libraryAssignmentsChanged = RemapRunnerAssignmentsInWorkingState(removedId, replacementId);
+
+            // Persist references first while the runner registration and managed
+            // files are still available. A failed save must never leave a
+            // persisted assignment pointing at files that were already deleted.
+            RemapEmulatorRunnerDefaults(_targetSettings.Emulators, removedId, replacementId);
+
+            RecomputeRunnerUsageCounts();
+            RebuildSelectedEmulatorRunnerVersionOptions();
+            RebuildRunnerReplacementOptions();
+
+            var persistence = RequestRunnerVersionAssignmentPersistence;
+            if ((persistence == null && libraryAssignmentsChanged) ||
+                (persistence != null && !await persistence()))
             {
-                if (!await _runnerVersionService.DeleteManagedRunnerAsync(removed.Path))
-                {
-                    RunnerVersionStatusText = T(
-                        "Settings_RunnerVersionRemoveInvalidPath",
-                        "The managed runner path is invalid. Nothing was removed.");
-                    return;
-                }
+                RunnerVersionStatusText = T(
+                    "Settings_RunnerVersionRemoveSaveFailed",
+                    "Runner assignments could not be saved. The runner and its files were not removed.");
+                return;
             }
 
-            RemapRunnerAssignmentsInWorkingState(removedId, replacementId);
+            await PersistRunnerRemovalAsync(removed, replacementId);
 
             RunnerVersions.Remove(removed);
             SelectedRunnerVersion = RunnerVersions.FirstOrDefault();
@@ -177,8 +197,30 @@ public partial class SettingsViewModel
             RebuildRunnerReplacementOptions();
             RefreshGeProtonReleaseInstallStates();
 
-            await PersistRunnerRemovalAsync(removed, replacementId);
-            RunnerVersionStatusText = removed.SourceType == RunnerVersionSourceType.ManagedDownload
+            if (isManaged)
+            {
+                try
+                {
+                    if (!await _runnerVersionService.DeleteManagedRunnerAsync(removed.Path))
+                    {
+                        RunnerVersionStatusText = T(
+                            "Settings_RunnerVersionRemoveFilesInvalidPath",
+                            "The runner configuration was removed, but its managed files could not be deleted because the path is invalid.");
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    RunnerVersionStatusText = string.Format(
+                        T(
+                            "Settings_RunnerVersionRemoveFilesFailedFormat",
+                            "The runner configuration was removed, but its managed files could not be deleted: {0}"),
+                        ex.Message);
+                    return;
+                }
+            }
+
+            RunnerVersionStatusText = isManaged
                 ? T("Settings_RunnerVersionRemoveManagedSuccess", "Runner files and configuration removed.")
                 : T("Settings_RunnerVersionRemoveExternalSuccess", "Runner configuration removed. External files were kept.");
         }
@@ -470,15 +512,16 @@ public partial class SettingsViewModel
 
     private async Task PersistRunnerRemovalAsync(RunnerVersionRow removed, string? replacementId)
     {
-        RemoveRunnerVersion(_targetSettings.RunnerVersions, removed);
-        RemapEmulatorRunnerDefaults(_targetSettings.Emulators, removed.Id, replacementId);
-
         // Save a disk snapshot so this completed removal is retained without
         // persisting unrelated edits that are still open in the dialog.
         var persistedSettings = await _settingsService.LoadAsync().ConfigureAwait(false);
         RemoveRunnerVersion(persistedSettings.RunnerVersions, removed);
         RemapEmulatorRunnerDefaults(persistedSettings.Emulators, removed.Id, replacementId);
         await _settingsService.SaveAsync(persistedSettings).ConfigureAwait(false);
+
+        // Publish the removal to the live settings only after it is durable.
+        RemoveRunnerVersion(_targetSettings.RunnerVersions, removed);
+        RemapEmulatorRunnerDefaults(_targetSettings.Emulators, removed.Id, replacementId);
     }
 
     private static void RemapEmulatorRunnerDefaults(
@@ -493,7 +536,7 @@ public partial class SettingsViewModel
         }
     }
 
-    private void RemapRunnerAssignmentsInWorkingState(string sourceId, string? replacementId)
+    private bool RemapRunnerAssignmentsInWorkingState(string sourceId, string? replacementId)
     {
         RemapEmulatorRunnerDefaults(Emulators, sourceId, replacementId);
 
@@ -506,6 +549,8 @@ public partial class SettingsViewModel
 
         if (libraryChanged)
             LibraryModified = true;
+
+        return libraryChanged;
     }
 
     private static void UpsertRunnerVersion(List<RunnerVersionConfig> runners, RunnerVersionConfig runner)

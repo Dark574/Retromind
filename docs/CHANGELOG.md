@@ -29,6 +29,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - make large ROM-folder imports faster, show live scanning progress and allow cancellation before the library is changed
 
 ### Fixed
+- keep managed Wine/Proton runner files intact when updated game assignments cannot be saved during removal
 - keep Linux files and directories that differ only by letter case distinct during imports, runner and store configuration, theme and media loading, and Wine-prefix handling
 - recover the last valid settings backup when the current settings file contains unusable data
 - prevent GOG operations from unexpectedly losing authorization when the current sign-in is about to expire

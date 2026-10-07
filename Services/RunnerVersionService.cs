@@ -247,6 +247,9 @@ public sealed class RunnerVersionService : IDisposable
         return true;
     }
 
+    public bool IsManagedRunnerPath(string storedPath)
+        => TryResolveManagedRunnerDirectory(storedPath, out _);
+
     public RunnerVersionKind DetectRunnerKind(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
