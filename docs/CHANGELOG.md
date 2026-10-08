@@ -7,7 +7,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
-## [0.2.1-alpha] - unreleased
+## [0.2.1-alpha] - 2026-10-08
 
 ### Added
 - customize BigMode controller and keyboard bindings, including page navigation and a confirmation-protected shortcut for stopping running games
@@ -459,7 +459,8 @@ also a lot of small fixes and changes
 
 ---
 
-[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.2.0-alpha...HEAD
+[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.2.1-alpha...HEAD
+[0.2.1-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.1-alpha
 [0.2.0-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.0-alpha
 [0.1.9-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.9-alpha
 [0.1.8-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.8-alpha
