@@ -15,7 +15,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
@@ -1474,7 +1473,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
                 // Build a lightweight description of what we want to display:
                 // - the flat item list for this node (including children)
-                // - and the randomization plan for cover/wallpaper/music.
+                // - and the randomization plan for cover/wallpaper/video/music.
                 var (allItems, randomizationPlan) =
                     await BuildDisplayItemsWithRandomizationAsync(nodeToLoad, token, filterProtected);
 
@@ -1593,7 +1592,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private sealed record AssetSnapshot(AssetType Type, string RelativePath);
 
     private async Task<(List<MediaItem> Items,
-            List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)> RandomizationPlan)>
+            List<(MediaItem Item, string? Cover, string? Wallpaper, string? Video, string? Music)> RandomizationPlan)>
         BuildDisplayItemsWithRandomizationAsync(MediaNode node, CancellationToken token, bool filterProtected)
     {
         // 1. Collect items (recursive) using UI-thread snapshots for safety.
@@ -1606,7 +1605,7 @@ public partial class MainWindowViewModel : ViewModelBase
         // keep a user-defined series order across subcategories.
         itemList.Sort(MediaSortHelper.DisplayOrderComparer);
 
-        // 2. Randomization logic (covers/wallpapers/music)
+        // 2. Randomization logic (covers/wallpapers/videos/music)
         bool randomizeMusic = false;
         bool randomizeCovers = false;
 
@@ -1631,14 +1630,14 @@ public partial class MainWindowViewModel : ViewModelBase
         });
 
         var randomizationPlan =
-            new List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)>(
+            new List<(MediaItem Item, string? Cover, string? Wallpaper, string? Video, string? Music)>(
                 capacity: itemList.Count);
 
         if (!randomizeCovers && !randomizeMusic)
         {
             // Ensure any previous randomization overrides are cleared.
             for (int i = 0; i < itemList.Count; i++)
-                randomizationPlan.Add((itemList[i], null, null, null));
+                randomizationPlan.Add((itemList[i], null, null, null, null));
 
             return (itemList, randomizationPlan);
         }
@@ -1652,6 +1651,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
             List<AssetSnapshot>? covers = null;
             List<AssetSnapshot>? wallpapers = null;
+            List<AssetSnapshot>? videos = null;
             List<AssetSnapshot>? music = null;
 
             foreach (var asset in assets)
@@ -1662,6 +1662,8 @@ public partial class MainWindowViewModel : ViewModelBase
                         (covers ??= new()).Add(asset);
                     else if (asset.Type == AssetType.Wallpaper)
                         (wallpapers ??= new()).Add(asset);
+                    else if (asset.Type == AssetType.Video)
+                        (videos ??= new()).Add(asset);
                 }
 
                 if (randomizeMusic && asset.Type == AssetType.Music)
@@ -1670,6 +1672,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
             string? coverWinner = null;
             string? wallpaperWinner = null;
+            string? videoWinner = null;
             string? musicWinner = null;
 
             if (randomizeCovers)
@@ -1679,12 +1682,15 @@ public partial class MainWindowViewModel : ViewModelBase
 
                 if (wallpapers is { Count: > 1 })
                     wallpaperWinner = RandomHelper.PickRandom(wallpapers)?.RelativePath;
+
+                if (videos is { Count: > 1 })
+                    videoWinner = RandomHelper.PickRandom(videos)?.RelativePath;
             }
 
             if (randomizeMusic && music is { Count: > 1 })
                 musicWinner = RandomHelper.PickRandom(music)?.RelativePath;
 
-            randomizationPlan.Add((item, coverWinner, wallpaperWinner, musicWinner));
+            randomizationPlan.Add((item, coverWinner, wallpaperWinner, videoWinner, musicWinner));
         }
 
         return (itemList, randomizationPlan);
@@ -1725,7 +1731,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// that are bound directly into the view.
     /// </summary>
     private static void ApplyRandomizationPlan(
-        List<(MediaItem Item, string? Cover, string? Wallpaper, string? Music)> randomizationPlan)
+        List<(MediaItem Item, string? Cover, string? Wallpaper, string? Video, string? Music)> randomizationPlan)
     {
         foreach (var plan in randomizationPlan)
         {
@@ -1736,6 +1742,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
             if (!string.IsNullOrEmpty(plan.Wallpaper))
                 plan.Item.SetActiveAsset(AssetType.Wallpaper, plan.Wallpaper);
+
+            if (!string.IsNullOrEmpty(plan.Video))
+                plan.Item.SetActiveAsset(AssetType.Video, plan.Video);
 
             if (!string.IsNullOrEmpty(plan.Music))
                 plan.Item.SetActiveAsset(AssetType.Music, plan.Music);

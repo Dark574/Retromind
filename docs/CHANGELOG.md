@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Added
 - ScreenScraper now supports video asset downloads
+- multiple videos are now also played random if the selection is active
 
 ### Changed
 - improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews

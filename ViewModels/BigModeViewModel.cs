@@ -610,11 +610,69 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     private ObservableCollection<MediaItem> BuildVisibleItems(MediaNode node)
     {
-        if (!_parentalFilterActive)
-            return node.Items;
+        var visibleItems = !_parentalFilterActive
+            ? node.Items
+            : new ObservableCollection<MediaItem>(
+                node.Items.Where(item => !item.IsProtected));
 
-        var visible = node.Items.Where(item => !item.IsProtected).ToList();
-        return new ObservableCollection<MediaItem>(visible);
+        ApplyRandomizedMedia(node, visibleItems);
+        return visibleItems;
+    }
+
+    private void ApplyRandomizedMedia(
+        MediaNode node,
+        IEnumerable<MediaItem> items)
+    {
+        var randomizeMedia = IsRandomizeMediaActive(node);
+
+        foreach (var item in items)
+        {
+            ApplyRandomizedAsset(item, AssetType.Cover, randomizeMedia);
+            ApplyRandomizedAsset(item, AssetType.Wallpaper, randomizeMedia);
+            ApplyRandomizedAsset(item, AssetType.Video, randomizeMedia);
+        }
+    }
+
+    private bool IsRandomizeMediaActive(MediaNode targetNode)
+    {
+        // Die Einstellung wird vom nächstgelegenen übergeordneten
+        // Ordner geerbt, sofern sie dort nicht explizit gesetzt ist.
+        var chain = PathHelper.GetNodeChain(
+            targetNode,
+            _rootNodes,
+            matchById: true);
+
+        chain.Reverse();
+
+        return chain
+            .FirstOrDefault(node => node.RandomizeCovers.HasValue)?
+            .RandomizeCovers ?? false;
+    }
+
+    private static void ApplyRandomizedAsset(
+        MediaItem item,
+        AssetType type,
+        bool randomize)
+    {
+        // Eine möglicherweise ältere Auswahl aus Desktop oder BigMode entfernen.
+        item.ClearActiveAsset(type);
+
+        if (!randomize)
+            return;
+
+        var candidates = item.Assets
+            .Where(asset =>
+                asset.Type == type &&
+                !string.IsNullOrWhiteSpace(asset.RelativePath))
+            .ToList();
+
+        // Bei null oder nur einer Variante ist kein Override erforderlich.
+        if (candidates.Count <= 1)
+            return;
+
+        var selected = RandomHelper.PickRandom(candidates);
+        if (selected != null)
+            item.SetActiveAsset(type, selected.RelativePath);
     }
 
     private bool ShouldShowNode(MediaNode node)

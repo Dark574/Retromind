@@ -804,8 +804,8 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="NodeSettings_ModeOverride" xml:space="preserve"><value>Überschreiben</value></data>
     <data name="NodeSettings_SystemThemeTitle" xml:space="preserve"><value>System-Theme (System-Auswahl)</value></data>
     <data name="NodeSettings_PresentationAndAssets" xml:space="preserve"><value>Darstellung &amp; Assets</value></data>
-    <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Zufällige Grafiken in diesem Ordner anzeigen</value></data>
-    <data name="NodeSettings_RandomizeCoversHint" xml:space="preserve"><value>Vererbt (blaues Kästchen) · Aus (leeres Kästchen) · An (Häkchen)</value></data>
+    <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Zufällige Medien in Retromind darstellen</value></data>
+    <data name="NodeSettings_RandomizeCoversHint" xml:space="preserve"><value>Wählt bei mehreren Covern, Wallpapern oder Videos zufällig eine Variante aus. Vererbt (blaues Kästchen) · Aus (leeres Kästchen) · An (Häkchen)</value></data>
     <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Zufällige Musik aus diesem Ordner abspielen</value></data>
     <data name="NodeSettings_RandomizeMusicHint" xml:space="preserve"><value>Vererbt (blaues Kästchen) · Aus (leeres Kästchen) · An (Häkchen)</value></data>
     <data name="NodeSettings_InheritedWrappersNone" xml:space="preserve"><value>Keine vererbten Wrapper</value></data>

@@ -803,8 +803,8 @@ This action cannot be undone.</value></data>
     <data name="NodeSettings_ModeOverride" xml:space="preserve"><value>Override</value></data>
     <data name="NodeSettings_SystemThemeTitle" xml:space="preserve"><value>System theme (system selection)</value></data>
     <data name="NodeSettings_PresentationAndAssets" xml:space="preserve"><value>Presentation &amp; assets</value></data>
-    <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Show random images in this folder</value></data>
-    <data name="NodeSettings_RandomizeCoversHint" xml:space="preserve"><value>Inherit (blue box) · Off (empty box) · On (checkmark)</value></data>
+    <data name="NodeSettings_RandomizeCovers" xml:space="preserve"><value>Show random media in Retromind</value></data>
+    <data name="NodeSettings_RandomizeCoversHint" xml:space="preserve"><value>Randomly selects among multiple covers, wallpapers, or videos. Inherit (blue box) · Off (empty box) · On (checkmark)</value></data>
     <data name="NodeSettings_RandomizeMusic" xml:space="preserve"><value>Play random music from this folder</value></data>
     <data name="NodeSettings_RandomizeMusicHint" xml:space="preserve"><value>Inherit (blue box) · Off (empty box) · On (checkmark)</value></data>
     <data name="NodeSettings_InheritedWrappersNone" xml:space="preserve"><value>No inherited wrappers</value></data>
