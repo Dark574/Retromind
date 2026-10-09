@@ -756,11 +756,13 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="ScrapeDialog.SelectAll" xml:space="preserve"><value>Alle auswählen</value></data>
     <data name="ScrapeDialog.ClearSelection" xml:space="preserve"><value>Auswahl aufheben</value></data>
     <data name="ScrapeDialog.ArtworkExistingStatus" xml:space="preserve"><value>Vorhandene Medien bleiben erhalten; diese Datei wird hinzugefügt.</value></data>
-    <data name="ScrapeDialog.ArtworkMissingStatus" xml:space="preserve"><value>Von diesem Typ ist noch kein Medium vorhanden.</value></data>
+    <data name="ScrapeDialog.ArtworkMissingStatus" xml:space="preserve"><value>In Retromind ist noch kein Medium dieses Typs gespeichert.</value></data>
+    <data name="ScrapeDialog.VideoAvailableStatus" xml:space="preserve"><value>Beim Scraper ist ein Video verfügbar; für Videos wird keine Vorschau angezeigt.</value></data>
     <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping-Bereich</value></data>
     <data name="Metadata.SearchMetadata" xml:space="preserve"><value>Metadaten suchen</value></data>
     <data name="Metadata.SearchMetadataAll" xml:space="preserve"><value>Metadaten suchen (alle)...</value></data>
     <data name="Metadata.Search.InProgress" xml:space="preserve"><value>Suche läuft...</value></data>
+    <data name="Metadata.Search.TimedOut" xml:space="preserve"><value>Die Suche hat zu lange gedauert. Bitte versuche es erneut.</value></data>
     <data name="Metadata.Source" xml:space="preserve"><value>Quelle</value></data>
     <data name="Metadata.Type" xml:space="preserve"><value>Typ / Dienst</value></data>
     <data name="Metadata.Error.ProviderNotAvailable" xml:space="preserve"><value>Fehler: Der Dienstanbieter wurde nicht gefunden oder ist nicht verfügbar.</value></data>

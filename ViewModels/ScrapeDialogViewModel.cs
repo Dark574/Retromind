@@ -182,9 +182,15 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
             token.ThrowIfCancellationRequested();
             await UiThreadHelper.InvokeAsync(() => SearchResults.ReplaceAll(limited));
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             // Expected when the user searches again quickly; keep UI quiet.
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = T(
+                "Metadata.Search.TimedOut",
+                "The search timed out. Please try again.");
         }
         catch (Exception ex)
         {
@@ -507,6 +513,15 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         var status = hasExisting
             ? T("ScrapeDialog.ArtworkExistingStatus", "Existing media is retained; this file will be added.")
             : T("ScrapeDialog.ArtworkMissingStatus", "No media of this type exists yet.");
+
+        if (type == AssetType.Video)
+        {
+            var videoStatus = T(
+                "ScrapeDialog.VideoAvailableStatus",
+                "A video is available from the scraper; video previews are not displayed.");
+
+            status = $"{videoStatus} {status}";
+        }
 
         ArtworkChoices.Add(new ScrapeArtworkChoice(
             type,

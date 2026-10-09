@@ -755,11 +755,13 @@ This action cannot be undone.</value></data>
     <data name="ScrapeDialog.SelectAll" xml:space="preserve"><value>Select all</value></data>
     <data name="ScrapeDialog.ClearSelection" xml:space="preserve"><value>Clear selection</value></data>
     <data name="ScrapeDialog.ArtworkExistingStatus" xml:space="preserve"><value>Existing media is retained; this file will be added.</value></data>
-    <data name="ScrapeDialog.ArtworkMissingStatus" xml:space="preserve"><value>No media of this type exists yet.</value></data>
+    <data name="ScrapeDialog.ArtworkMissingStatus" xml:space="preserve"><value>No media of this type is currently stored in Retromind.</value></data>
+    <data name="ScrapeDialog.VideoAvailableStatus" xml:space="preserve"><value>A video is available from the scraper; video previews are not displayed.</value></data>
     <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping area</value></data>
     <data name="Metadata.SearchMetadata" xml:space="preserve"><value>Search metadata</value></data>
     <data name="Metadata.SearchMetadataAll" xml:space="preserve"><value>Search metadata (All)...</value></data>
     <data name="Metadata.Search.InProgress" xml:space="preserve"><value>Search is ongoing...</value></data>
+    <data name="Metadata.Search.TimedOut" xml:space="preserve"><value>The search timed out. Please try again.</value></data>
     <data name="Metadata.Source" xml:space="preserve"><value>Source</value></data>
     <data name="Metadata.Type" xml:space="preserve"><value>Type / Service</value></data>
     <data name="Metadata.Error.ProviderNotAvailable" xml:space="preserve"><value>Error: Service provider not found or not available.</value></data>
