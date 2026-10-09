@@ -299,13 +299,8 @@
                         BorderBrush="#3DFFFFFF"
                         BorderThickness="1"
                         CornerRadius="20"
-                        Padding="18">
-                    <Border.Effect>
-                        <DropShadowEffect Color="#000000"
-                                          BlurRadius="42"
-                                          OffsetY="18"
-                                          Opacity="0.62" />
-                    </Border.Effect>
+                        Padding="18"
+                        BoxShadow="0 18 28 0 #9E000000">
                     <Grid RowDefinitions="292,Auto,*" RowSpacing="16">
                         <Border x:Name="HomeVideoSlot"
                                 Grid.Row="0"

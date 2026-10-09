@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -20,6 +21,8 @@ public class VideoSurfaceControl : Control
             defaultValue: Stretch.Fill);
 
     private WriteableBitmap? _bitmap;
+    private int _latestFrameRevision;
+    private int _frameCopyPending;
 
     public IVideoSurface? Surface
     {
@@ -89,8 +92,36 @@ public class VideoSurfaceControl : Control
     private void OnFrameReady()
     {
         // Likely called from a background thread (timer, LibVLC, ...).
-        // The actual work MUST run on the UI thread.
-        Dispatcher.UIThread.Post(CopyFrameAndInvalidate);
+        // The actual work MUST run on the UI thread. Coalesce frames while the
+        // UI thread is busy so old video frames cannot build up behind input and
+        // render work. A newer frame is copied after the current pass finishes.
+        Interlocked.Increment(ref _latestFrameRevision);
+        QueueLatestFrameCopy();
+    }
+
+    private void QueueLatestFrameCopy()
+    {
+        if (Interlocked.CompareExchange(ref _frameCopyPending, 1, 0) != 0)
+            return;
+
+        Dispatcher.UIThread.Post(ProcessLatestFrame, DispatcherPriority.Render);
+    }
+
+    private void ProcessLatestFrame()
+    {
+        var processedRevision = Volatile.Read(ref _latestFrameRevision);
+
+        try
+        {
+            CopyFrameAndInvalidate();
+        }
+        finally
+        {
+            Volatile.Write(ref _frameCopyPending, 0);
+
+            if (processedRevision != Volatile.Read(ref _latestFrameRevision))
+                QueueLatestFrameCopy();
+        }
     }
 
     private void CopyFrameAndInvalidate()

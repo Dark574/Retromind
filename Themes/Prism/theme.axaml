@@ -490,14 +490,8 @@
                         BorderBrush="{StaticResource PanelBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="20"
-                        Padding="8">
-                    <Border.Effect>
-                        <DropShadowEffect Color="#000000"
-                                          BlurRadius="42"
-                                          OffsetX="0"
-                                          OffsetY="18"
-                                          Opacity="0.72" />
-                    </Border.Effect>
+                        Padding="8"
+                        BoxShadow="0 18 28 0 #B8000000">
 
                     <Grid MinHeight="320">
                         <Border Background="#D0080B14"
@@ -612,7 +606,8 @@
                      ext:ThemeProperties.UseHostSelectionEffects="False">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <VirtualizingStackPanel Orientation="Horizontal" />
+                        <VirtualizingStackPanel Orientation="Horizontal"
+                                                CacheLength="0.5" />
                     </ItemsPanelTemplate>
                 </ListBox.ItemsPanel>
 
@@ -695,7 +690,8 @@
                      ext:ThemeProperties.UseHostSelectionEffects="False">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <VirtualizingStackPanel Orientation="Horizontal" />
+                        <VirtualizingStackPanel Orientation="Horizontal"
+                                                CacheLength="0.5" />
                     </ItemsPanelTemplate>
                 </ListBox.ItemsPanel>
 

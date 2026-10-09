@@ -23,6 +23,12 @@ public class AsyncImageHelper : AvaloniaObject
 
     private const int MaxCacheSize = 200;
 
+    // Skia bitmap decoding and resizing is CPU-heavy and cannot be interrupted
+    // once it has entered the native codec. Serializing that short section keeps
+    // rapid carousel navigation responsive: superseded requests can be cancelled
+    // while waiting instead of decoding several obsolete images in parallel.
+    private static readonly SemaphoreSlim DecodeGate = new(1, 1);
+
     // Shared HttpClient to prevent socket exhaustion (used only if DI is not available)
     private static readonly HttpClient FallbackHttpClient = new();
 
@@ -38,6 +44,7 @@ public class AsyncImageHelper : AvaloniaObject
     // --- Cache State ---
     private static readonly Dictionary<string, (Bitmap Bitmap, LinkedListNode<string> Node)> Cache = new();
     private static readonly Dictionary<string, int> CacheRefCounts = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, Task> PreloadTasks = new(StringComparer.Ordinal);
     private static readonly HashSet<string> InvalidatedKeys = new(StringComparer.Ordinal);
     private static readonly LinkedList<string> LruList = new();
     private static readonly object CacheLock = new();
@@ -172,25 +179,20 @@ public class AsyncImageHelper : AvaloniaObject
         if (!disableCache)
         {
             cacheKey = decodeWidth.HasValue ? $"{url}_{decodeWidth}" : url;
-            var cachedLease = TryAcquireFromCache(cacheKey);
-
-            if (cachedLease != null)
-            {
-                UiThreadHelper.Post(() =>
-                {
-                    try
-                    {
-                        if (image.GetValue(CurrentLoadCtsProperty) != cts)
-                            return;
-
-                        AssignImageSource(image, cachedLease.Bitmap, cacheKey, disableCache: false);
-                    }
-                    finally
-                    {
-                        cachedLease.Dispose();
-                    }
-                });
+            if (TryAssignFromCache(image, cts, cacheKey))
                 return;
+
+            // A theme may already be warming this exact image just outside its
+            // visible carousel window. Reuse that decode instead of starting a
+            // duplicate one when the item becomes visible.
+            var preloadTask = TryGetPreloadTask(cacheKey);
+            if (preloadTask != null)
+            {
+                await preloadTask.ConfigureAwait(false);
+                if (cts.IsCancellationRequested)
+                    return;
+                if (TryAssignFromCache(image, cts, cacheKey))
+                    return;
             }
         }
 
@@ -216,7 +218,11 @@ public class AsyncImageHelper : AvaloniaObject
                         await using var networkStream = await response.Content.ReadAsStreamAsync(token);
                         using var bufferedStream = new MemoryStream();
                         await networkStream.CopyToAsync(bufferedStream, token);
-                        return DecodeBitmapUnlessCancelled(bufferedStream, decodeWidth, token);
+                        return await DecodeBitmapUnlessCancelledAsync(
+                                bufferedStream,
+                                decodeWidth,
+                                token)
+                            .ConfigureAwait(false);
                     }
 
                     if (!File.Exists(url)) return null;
@@ -228,7 +234,11 @@ public class AsyncImageHelper : AvaloniaObject
                         FileShare.Read,
                         bufferSize: 64 * 1024,
                         FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    return DecodeBitmapUnlessCancelled(fileStream, decodeWidth, token);
+                    return await DecodeBitmapUnlessCancelledAsync(
+                            fileStream,
+                            decodeWidth,
+                            token)
+                        .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -287,6 +297,111 @@ public class AsyncImageHelper : AvaloniaObject
         }
     }
 
+    /// <summary>
+    /// Warms the shared cache for local artwork without creating a visual. Calls
+    /// for the same cache key share one decode operation.
+    /// </summary>
+    public static Task PreloadLocalAsync(string? path, int? decodeWidth = null)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return Task.CompletedTask;
+
+        var cacheKey = decodeWidth.HasValue ? $"{path}_{decodeWidth}" : path;
+        lock (CacheLock)
+        {
+            if (Cache.ContainsKey(cacheKey) && !InvalidatedKeys.Contains(cacheKey))
+                return Task.CompletedTask;
+
+            if (PreloadTasks.TryGetValue(cacheKey, out var existingTask))
+                return existingTask;
+
+            var preloadTask = Task.Run(() => PreloadLocalCoreAsync(path, cacheKey, decodeWidth));
+            PreloadTasks[cacheKey] = preloadTask;
+            _ = preloadTask.ContinueWith(
+                completedTask =>
+                {
+                    lock (CacheLock)
+                    {
+                        if (PreloadTasks.TryGetValue(cacheKey, out var currentTask) &&
+                            ReferenceEquals(currentTask, completedTask))
+                        {
+                            PreloadTasks.Remove(cacheKey);
+                        }
+                    }
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
+            return preloadTask;
+        }
+    }
+
+    private static async Task PreloadLocalCoreAsync(string path, string cacheKey, int? decodeWidth)
+    {
+        try
+        {
+            if (!File.Exists(path))
+                return;
+
+            await using var fileStream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 64 * 1024,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            var bitmap = await DecodeBitmapUnlessCancelledAsync(
+                    fileStream,
+                    decodeWidth,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            if (bitmap == null)
+                return;
+
+            var cacheResult = AddToCache(cacheKey, bitmap);
+            cacheResult.AssignmentLease?.Dispose();
+            if (!cacheResult.IsCached)
+                cacheResult.Bitmap.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AsyncImageHelper] Preload error: {ex.Message}");
+        }
+    }
+
+    private static Task? TryGetPreloadTask(string cacheKey)
+    {
+        lock (CacheLock)
+            return PreloadTasks.TryGetValue(cacheKey, out var task) ? task : null;
+    }
+
+    private static bool TryAssignFromCache(
+        Image image,
+        CancellationTokenSource cts,
+        string cacheKey)
+    {
+        var cachedLease = TryAcquireFromCache(cacheKey);
+        if (cachedLease == null)
+            return false;
+
+        UiThreadHelper.Post(() =>
+        {
+            try
+            {
+                if (image.GetValue(CurrentLoadCtsProperty) != cts)
+                    return;
+
+                AssignImageSource(image, cachedLease.Bitmap, cacheKey, disableCache: false);
+            }
+            finally
+            {
+                cachedLease.Dispose();
+            }
+        });
+        return true;
+    }
+
     private static Bitmap DecodeBitmap(Stream stream, int? decodeWidth)
     {
         stream.Position = 0;
@@ -308,6 +423,23 @@ public class AsyncImageHelper : AvaloniaObject
 
         bitmap.Dispose();
         return null;
+    }
+
+    private static async Task<Bitmap?> DecodeBitmapUnlessCancelledAsync(
+        Stream stream,
+        int? decodeWidth,
+        CancellationToken cancellationToken)
+    {
+        await DecodeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return DecodeBitmapUnlessCancelled(stream, decodeWidth, cancellationToken);
+        }
+        finally
+        {
+            DecodeGate.Release();
+        }
     }
     
     private static IImage CreatePlaceholderImage()

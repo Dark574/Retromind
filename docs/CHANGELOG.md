@@ -11,8 +11,12 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Added
 
 ### Changed
+- improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews
+- make the Default BigMode cover transition smoother while preserving its clearly visible entrance
 
 ### Fixed
+- prevent the Arcade theme from crashing while creating its logo rail and keep the layout stable while artwork is loading
+- prevent the previous system's fallback artwork from flashing while switching BigMode system themes
 
 ---
 

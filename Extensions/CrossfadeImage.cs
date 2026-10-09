@@ -41,6 +41,11 @@ public class CrossfadeImage : Grid
             nameof(RetainCurrentImageUntilLoaded),
             defaultValue: true);
 
+    public static readonly DirectProperty<CrossfadeImage, bool> IsCurrentImageReadyProperty =
+        AvaloniaProperty.RegisterDirect<CrossfadeImage, bool>(
+            nameof(IsCurrentImageReady),
+            image => image.IsCurrentImageReady);
+
     private readonly Image _imageA;
     private readonly Image _imageB;
     private int _activeIndex;
@@ -48,6 +53,7 @@ public class CrossfadeImage : Grid
     private int _imageAGeneration;
     private int _imageBGeneration;
     private string? _currentUrl;
+    private bool _isCurrentImageReady = true;
     private static readonly TimeSpan LoadHoldDelay = TimeSpan.FromMilliseconds(140);
 
     static CrossfadeImage()
@@ -151,6 +157,16 @@ public class CrossfadeImage : Grid
         set => SetValue(RetainCurrentImageUntilLoadedProperty, value);
     }
 
+    /// <summary>
+    /// Indicates that the image for the current URL has been decoded and applied.
+    /// Empty URLs are considered ready because there is no image to wait for.
+    /// </summary>
+    public bool IsCurrentImageReady
+    {
+        get => _isCurrentImageReady;
+        private set => SetAndRaise(IsCurrentImageReadyProperty, ref _isCurrentImageReady, value);
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         _imageA.Measure(availableSize);
@@ -212,6 +228,7 @@ public class CrossfadeImage : Grid
 
         _currentUrl = url;
         var generation = ++_loadGeneration;
+        IsCurrentImageReady = string.IsNullOrWhiteSpace(url);
 
         if (urlChanged &&
             !string.IsNullOrWhiteSpace(url) &&
@@ -428,6 +445,7 @@ public class CrossfadeImage : Grid
             other.Opacity = 0;
 
             _activeIndex = targetIndex;
+            IsCurrentImageReady = true;
             ScheduleDeactivateInactiveImage(generation, targetIndex);
             InvalidateMeasure();
         });

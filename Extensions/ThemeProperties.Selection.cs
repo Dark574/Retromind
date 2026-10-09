@@ -97,4 +97,19 @@ public partial class ThemeProperties
 
     public static void SetCircularWindowSize(AvaloniaObject element, int value) =>
         element.SetValue(CircularWindowSizeProperty, value);
+
+    /// <summary>
+    /// Controls how many logo items immediately beyond each edge of a circular
+    /// window are prepared in the image cache. Default: 0 (disabled).
+    /// </summary>
+    public static readonly AttachedProperty<int> CircularLogoPreloadCountProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, int>(
+            "CircularLogoPreloadCount",
+            defaultValue: 0);
+
+    public static int GetCircularLogoPreloadCount(AvaloniaObject element) =>
+        element.GetValue(CircularLogoPreloadCountProperty);
+
+    public static void SetCircularLogoPreloadCount(AvaloniaObject element, int value) =>
+        element.SetValue(CircularLogoPreloadCountProperty, value);
 }

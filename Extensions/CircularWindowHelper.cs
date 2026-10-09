@@ -185,4 +185,58 @@ public static class CircularWindowHelper
             target.Add(source[idx]);
         }
     }
+
+    /// <summary>
+    /// Builds a small look-ahead set containing the items immediately beyond
+    /// both edges of a circular window. Items already inside the window are not
+    /// returned, including when a short source wraps around.
+    /// </summary>
+    public static void BuildCircularLookahead<T>(
+        IList<T> source,
+        T? selected,
+        int windowSize,
+        int lookaheadCount,
+        ICollection<T> target)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+
+        target.Clear();
+        if (source.Count == 0 || lookaheadCount <= 0 || windowSize <= 0)
+            return;
+
+        if (windowSize % 2 == 0)
+            windowSize -= 1;
+
+        if (windowSize <= 0 || windowSize >= source.Count)
+            return;
+
+        var selectedIndex = selected == null ? -1 : source.IndexOf(selected);
+        if (selectedIndex < 0)
+            selectedIndex = 0;
+
+        var half = windowSize / 2;
+        var includedIndices = new HashSet<int>();
+        for (var offset = -half; offset <= half; offset++)
+            includedIndices.Add(WrapIndex(selectedIndex + offset, source.Count));
+
+        for (var distance = 1; distance <= lookaheadCount; distance++)
+        {
+            AddIfOutsideWindow(selectedIndex + half + distance);
+            AddIfOutsideWindow(selectedIndex - half - distance);
+        }
+
+        void AddIfOutsideWindow(int index)
+        {
+            var wrappedIndex = WrapIndex(index, source.Count);
+            if (includedIndices.Add(wrappedIndex))
+                target.Add(source[wrappedIndex]);
+        }
+    }
+
+    private static int WrapIndex(int index, int count)
+    {
+        var wrappedIndex = index % count;
+        return wrappedIndex < 0 ? wrappedIndex + count : wrappedIndex;
+    }
 }

@@ -111,4 +111,26 @@ public sealed class CircularWindowHelperTests
         Assert.Empty(target);
         Assert.Equal(-1, selectedIndex);
     }
+
+    [Fact]
+    public void BuildCircularLookahead_ReturnsItemsBeyondBothWindowEdges()
+    {
+        string[] source = ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
+        var lookahead = new List<string>();
+
+        CircularWindowHelper.BuildCircularLookahead(source, "E", 5, 2, lookahead);
+
+        Assert.Equal(["H", "B", "I", "A"], lookahead);
+    }
+
+    [Fact]
+    public void BuildCircularLookahead_DoesNotRepeatItemsFromWrappedWindow()
+    {
+        string[] source = ["A", "B", "C", "D", "E", "F"];
+        var lookahead = new List<string>();
+
+        CircularWindowHelper.BuildCircularLookahead(source, "A", 5, 2, lookahead);
+
+        Assert.Equal(["D"], lookahead);
+    }
 }

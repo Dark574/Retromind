@@ -16,11 +16,11 @@
              ext:ThemeProperties.VideoSlotName="VideoSlot"
              ext:ThemeProperties.VideoFadeDurationMs="600"
              ext:ThemeProperties.VideoRetainPreviousFrameDuringFade="False"
-             ext:ThemeProperties.FadeDurationMs="4000"
+             ext:ThemeProperties.FadeDurationMs="320"
              ext:ThemeProperties.MoveDurationMs="1100"
              ext:ThemeProperties.PrimaryVisualElementName="CoverPanel"
              ext:ThemeProperties.PrimaryVisualEnterMode="SlideFromLeft"
-             ext:ThemeProperties.PrimaryVisualEnterOffsetX="-420"
+             ext:ThemeProperties.PrimaryVisualEnterOffsetX="-220"
              ext:ThemeProperties.PrimaryVisualEnterOffsetY="0"
              ext:ThemeProperties.BackgroundVisualElementName="BackgroundVisual"
              ext:ThemeProperties.BackgroundVisualEnterMode="None">
@@ -76,6 +76,7 @@
     <Grid>
         <!-- Use a screenshot only when the current game has no wallpaper. -->
         <ext:CrossfadeImage Url="{Binding ActiveScreenshotFallbackPath}"
+                            ext:ThemeProperties.ContributesToPreviewMediaReadiness="True"
                             DecodeWidth="1920"
                             DisableCache="True"
                             LoadDelayMs="220"
@@ -89,6 +90,7 @@
 
         <!-- Soft wallpaper from the current item -->
         <ext:CrossfadeImage x:Name="BackgroundVisual"
+                            ext:ThemeProperties.ContributesToPreviewMediaReadiness="True"
                             Url="{Binding ActiveWallpaperPath}"
                             DecodeWidth="1920"
                             DisableCache="True"
@@ -333,6 +335,7 @@
                                     VerticalAlignment="Stretch">
                                 <Grid>
                                     <ext:CrossfadeImage Url="{Binding SelectedItem.PrimaryScreenshotPath}"
+                                                        ext:ThemeProperties.ContributesToPreviewMediaReadiness="True"
                                                         DecodeWidth="1280"
                                                         DisableCache="True"
                                                         LoadDelayMs="220"
@@ -342,6 +345,7 @@
                                                         IsVisible="{Binding IsGameListActive}" />
 
                                     <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}"
+                                                        ext:ThemeProperties.ContributesToPreviewMediaReadiness="True"
                                                         DecodeWidth="1280"
                                                         DisableCache="True"
                                                         LoadDelayMs="220"
@@ -388,19 +392,20 @@
                                     CornerRadius="10"
                                     ClipToBounds="True"
                                     Background="#00000000"
-                                    IsHitTestVisible="False">
+                                    IsHitTestVisible="False"
+                                    ext:ThemeProperties.WaitForAsyncImageBeforeEnter="True"
+                                    ext:ThemeProperties.WaitForPreviewMediaBeforeEnter="True"
+                                    ext:ThemeProperties.UseCompositorEnterAnimation="True">
                                 <Grid>
                                     <Image helpers:AsyncImageHelper.Url="{Binding SelectedItem.PrimaryCoverPath}"
-                                           helpers:AsyncImageHelper.DecodeWidth="600"
-                                           helpers:AsyncImageHelper.DisableCache="True"
+                                           helpers:AsyncImageHelper.DecodeWidth="256"
                                            Stretch="Uniform"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
                                            IsVisible="{Binding IsGameListActive}" />
 
                                     <Image helpers:AsyncImageHelper.Url="{Binding SelectedCategory.PrimaryCoverAbsolutePath}"
-                                           helpers:AsyncImageHelper.DecodeWidth="600"
-                                           helpers:AsyncImageHelper.DisableCache="True"
+                                           helpers:AsyncImageHelper.DecodeWidth="256"
                                            Stretch="Uniform"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"

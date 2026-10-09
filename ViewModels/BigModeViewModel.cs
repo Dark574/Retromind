@@ -96,6 +96,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private const int DefaultCircularWindowSize = 9;
     private const int MinimumRepeatingWheelItemCount = 5;
     private int _circularWindowSize = DefaultCircularWindowSize;
+    private int _circularLogoPreloadCount;
     private readonly RangeObservableCollection<MediaItem> _circularItems = new();
     private readonly RangeObservableCollection<MediaItem> _wheelItems = new();
     private readonly RangeObservableCollection<MediaNode> _wheelCategories = new();
@@ -125,6 +126,17 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
                 UpdateWheelItems();
                 UpdateWheelCategories();
             }
+        }
+    }
+
+    public int CircularLogoPreloadCount
+    {
+        get => _circularLogoPreloadCount;
+        set
+        {
+            var normalized = Math.Max(0, value);
+            if (SetProperty(ref _circularLogoPreloadCount, normalized))
+                PreloadCircularLogos();
         }
     }
 
@@ -821,11 +833,33 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        // Begin decoding the next edge logos before the collection change makes
+        // a new item visible. Arcade can opt into this without adding background
+        // image work to themes that do not use the circular logo rail.
+        PreloadCircularLogos();
+
         CircularWindowHelper.SynchronizeCircularWindow(
             Items,
             SelectedItem,
             _circularWindowSize,
             _circularItems);
+    }
+
+    private void PreloadCircularLogos()
+    {
+        if (_circularLogoPreloadCount <= 0 || !IsGameListActive || Items.Count == 0)
+            return;
+
+        var lookaheadItems = new List<MediaItem>(_circularLogoPreloadCount * 2);
+        CircularWindowHelper.BuildCircularLookahead(
+            Items,
+            SelectedItem,
+            _circularWindowSize,
+            _circularLogoPreloadCount,
+            lookaheadItems);
+
+        foreach (var item in lookaheadItems)
+            _ = AsyncImageHelper.PreloadLocalAsync(item.PrimaryLogoPath, decodeWidth: 256);
     }
 
     private void UpdateWheelItems()

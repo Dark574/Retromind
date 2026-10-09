@@ -200,6 +200,81 @@ public partial class ThemeProperties
         element.SetValue(BackgroundVisualEnterOffsetYProperty, value);
 
     /// <summary>
+    /// Delays an enter animation until a visible descendant managed by
+    /// AsyncImageHelper has finished loading. Intended for artwork containers
+    /// whose movement should not begin with an empty placeholder.
+    /// </summary>
+    public static readonly AttachedProperty<bool> WaitForAsyncImageBeforeEnterProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "WaitForAsyncImageBeforeEnter",
+            defaultValue: false);
+
+    public static bool GetWaitForAsyncImageBeforeEnter(AvaloniaObject element) =>
+        element.GetValue(WaitForAsyncImageBeforeEnterProperty);
+
+    public static void SetWaitForAsyncImageBeforeEnter(AvaloniaObject element, bool value) =>
+        element.SetValue(WaitForAsyncImageBeforeEnterProperty, value);
+
+    /// <summary>
+    /// Delays the primary visual until the theme's preview artwork and, when
+    /// applicable, the first video frame are ready.
+    /// </summary>
+    public static readonly AttachedProperty<bool> WaitForPreviewMediaBeforeEnterProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "WaitForPreviewMediaBeforeEnter",
+            defaultValue: false);
+
+    public static bool GetWaitForPreviewMediaBeforeEnter(AvaloniaObject element) =>
+        element.GetValue(WaitForPreviewMediaBeforeEnterProperty);
+
+    public static void SetWaitForPreviewMediaBeforeEnter(AvaloniaObject element, bool value) =>
+        element.SetValue(WaitForPreviewMediaBeforeEnterProperty, value);
+
+    /// <summary>
+    /// Marks a CrossfadeImage as artwork that must be ready before an opted-in
+    /// primary visual starts its enter animation.
+    /// </summary>
+    public static readonly AttachedProperty<bool> ContributesToPreviewMediaReadinessProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "ContributesToPreviewMediaReadiness",
+            defaultValue: false);
+
+    public static bool GetContributesToPreviewMediaReadiness(AvaloniaObject element) =>
+        element.GetValue(ContributesToPreviewMediaReadinessProperty);
+
+    public static void SetContributesToPreviewMediaReadiness(AvaloniaObject element, bool value) =>
+        element.SetValue(ContributesToPreviewMediaReadinessProperty, value);
+
+    /// <summary>
+    /// Host-managed readiness gate consumed by ThemeTransitionHelper.
+    /// </summary>
+    public static readonly AttachedProperty<bool> PreviewMediaReadyProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "PreviewMediaReady",
+            defaultValue: true);
+
+    public static bool GetPreviewMediaReady(AvaloniaObject element) =>
+        element.GetValue(PreviewMediaReadyProperty);
+
+    public static void SetPreviewMediaReady(AvaloniaObject element, bool value) =>
+        element.SetValue(PreviewMediaReadyProperty, value);
+
+    /// <summary>
+    /// Runs supported enter animations directly on Avalonia's compositor instead
+    /// of updating their transform on the UI thread. Default: false.
+    /// </summary>
+    public static readonly AttachedProperty<bool> UseCompositorEnterAnimationProperty =
+        AvaloniaProperty.RegisterAttached<ThemeProperties, AvaloniaObject, bool>(
+            "UseCompositorEnterAnimation",
+            defaultValue: false);
+
+    public static bool GetUseCompositorEnterAnimation(AvaloniaObject element) =>
+        element.GetValue(UseCompositorEnterAnimationProperty);
+
+    public static void SetUseCompositorEnterAnimation(AvaloniaObject element, bool value) =>
+        element.SetValue(UseCompositorEnterAnimationProperty, value);
+
+    /// <summary>
     /// Internal helper: stores the original margin of a visual slot so that
     /// repeated enter-animations can always return to the same base position.
     /// </summary>

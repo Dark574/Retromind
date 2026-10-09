@@ -54,12 +54,20 @@ public partial class BigModeHostView : UserControl
     private const int SystemVideoRevealFadeMs = 220;
     private const int InitialPresentationDelayMs = 250;
     private const int InitialPresentationFadeMs = 120;
+    private const int PrimaryMediaSettleDelayMs = 90;
+    private const int PrimaryMediaGateTimeoutMs = 2500;
     private int _systemLayoutTransitionGeneration;
     private int _initialPresentationGeneration;
     private int _viewReadyGeneration;
     private int _waitingSystemVideoGeneration;
     private int _waitingSystemVideoFrameRevision;
     private bool _waitingForSystemVideoFrame;
+    private readonly List<CrossfadeImage> _primaryMediaGateImages = new();
+    private Control? _primaryMediaGateRoot;
+    private Retromind.ViewModels.BigModeViewModel? _primaryMediaGateViewModel;
+    private int _primaryMediaGateGeneration;
+    private bool _primaryMediaGateWaiting;
+    private bool _primaryMediaGateCompletionScheduled;
 
     // Shared primary video control for the main preview channel.
     private readonly CrossfadeVideoSurfaceControl _primaryVideoControl;
@@ -144,6 +152,8 @@ public partial class BigModeHostView : UserControl
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
+        CancelPrimaryMediaGate();
+
         if (_vmNotifications != null)
             _vmNotifications.PropertyChanged -= OnViewModelPropertyChanged;
 
@@ -316,7 +326,10 @@ public partial class BigModeHostView : UserControl
         }
 
         if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.MainVideoFrameRevision))
+        {
             TryRevealSystemVideoAfterFrameReady();
+            TryCompletePrimaryMediaGate();
+        }
 
         // SystemHost theme only: refresh the system layout on category change
         if (_isSystemHostTheme && isCategoryChange && vm?.IsHomeActive != true)
@@ -332,6 +345,9 @@ public partial class BigModeHostView : UserControl
 
         if (_themePresenter.Content is Control currentThemeRoot)
         {
+            if (vm != null)
+                StartPrimaryMediaGate(currentThemeRoot, vm);
+
             AnimateVisualSlots(currentThemeRoot);
             RequestSelectionArtifactRepaint(currentThemeRoot);
             RequestDynamicAccentUpdate(currentThemeRoot);
@@ -352,13 +368,187 @@ public partial class BigModeHostView : UserControl
         ThemeTransitionHelper.AnimateBackgroundVisual(themeRoot);
     }
 
+    private void StartPrimaryMediaGate(
+        Control themeRoot,
+        Retromind.ViewModels.BigModeViewModel viewModel)
+    {
+        CancelPrimaryMediaGate(releaseWaitingAnimation: false);
+
+        var primaryName = ThemeProperties.GetPrimaryVisualElementName(themeRoot);
+        var primaryVisual = themeRoot.FindControl<Control>(primaryName);
+        if (primaryVisual == null ||
+            !ThemeProperties.GetWaitForPreviewMediaBeforeEnter(primaryVisual))
+        {
+            ThemeProperties.SetPreviewMediaReady(themeRoot, true);
+            return;
+        }
+
+        var generation = _primaryMediaGateGeneration;
+        _primaryMediaGateRoot = themeRoot;
+        _primaryMediaGateViewModel = viewModel;
+        _primaryMediaGateWaiting = true;
+        ThemeProperties.SetPreviewMediaReady(themeRoot, false);
+
+        Dispatcher.UIThread.Post(
+            () => InitializePrimaryMediaGate(generation),
+            DispatcherPriority.Render);
+        _ = ReleasePrimaryMediaGateAfterTimeoutAsync(generation);
+    }
+
+    private void InitializePrimaryMediaGate(int generation)
+    {
+        if (!IsPrimaryMediaGateCurrent(generation) || _primaryMediaGateRoot == null)
+            return;
+
+        foreach (var image in _primaryMediaGateRoot
+                     .GetVisualDescendants()
+                     .OfType<CrossfadeImage>()
+                     .Where(ThemeProperties.GetContributesToPreviewMediaReadiness))
+        {
+            image.PropertyChanged += OnPrimaryMediaGateImagePropertyChanged;
+            _primaryMediaGateImages.Add(image);
+        }
+
+        TryCompletePrimaryMediaGate();
+    }
+
+    private void OnPrimaryMediaGateImagePropertyChanged(
+        object? sender,
+        AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == CrossfadeImage.IsCurrentImageReadyProperty ||
+            e.Property == CrossfadeImage.UrlProperty ||
+            e.Property == IsVisibleProperty)
+        {
+            TryCompletePrimaryMediaGate();
+        }
+    }
+
+    private void TryCompletePrimaryMediaGate()
+    {
+        if (!_primaryMediaGateWaiting ||
+            _primaryMediaGateCompletionScheduled ||
+            _primaryMediaGateRoot == null ||
+            _primaryMediaGateViewModel == null)
+        {
+            return;
+        }
+
+        var artworkReady = _primaryMediaGateImages
+            .Where(image => image.IsEffectivelyVisible && !string.IsNullOrWhiteSpace(image.Url))
+            .All(image => image.IsCurrentImageReady);
+        var videoState = _primaryMediaGateViewModel.GetPreviewPresentationState();
+        var videoReady = !videoState.HasTargetVideo || videoState.CanReuseCurrentFrame;
+
+        if (!artworkReady || !videoReady)
+            return;
+
+        _primaryMediaGateCompletionScheduled = true;
+        var generation = _primaryMediaGateGeneration;
+        _ = CompletePrimaryMediaGateAfterSettleAsync(generation);
+    }
+
+    private async Task CompletePrimaryMediaGateAfterSettleAsync(int generation)
+    {
+        await Task.Delay(PrimaryMediaSettleDelayMs).ConfigureAwait(false);
+        UiThreadHelper.Post(() =>
+        {
+            if (!IsPrimaryMediaGateCurrent(generation))
+                return;
+
+            _primaryMediaGateCompletionScheduled = false;
+            TryCompletePrimaryMediaGateNow();
+        }, DispatcherPriority.Render);
+    }
+
+    private void TryCompletePrimaryMediaGateNow()
+    {
+        if (!_primaryMediaGateWaiting ||
+            _primaryMediaGateRoot == null ||
+            _primaryMediaGateViewModel == null)
+        {
+            return;
+        }
+
+        var artworkReady = _primaryMediaGateImages
+            .Where(image => image.IsEffectivelyVisible && !string.IsNullOrWhiteSpace(image.Url))
+            .All(image => image.IsCurrentImageReady);
+        var videoState = _primaryMediaGateViewModel.GetPreviewPresentationState();
+        if (!artworkReady || (videoState.HasTargetVideo && !videoState.CanReuseCurrentFrame))
+            return;
+
+        ReleasePrimaryMediaGate();
+    }
+
+    private async Task ReleasePrimaryMediaGateAfterTimeoutAsync(int generation)
+    {
+        await Task.Delay(PrimaryMediaGateTimeoutMs).ConfigureAwait(false);
+        UiThreadHelper.Post(() =>
+        {
+            if (IsPrimaryMediaGateCurrent(generation))
+                ReleasePrimaryMediaGate();
+        });
+    }
+
+    private bool IsPrimaryMediaGateCurrent(int generation) =>
+        _primaryMediaGateWaiting && generation == _primaryMediaGateGeneration;
+
+    private void ReleasePrimaryMediaGate()
+    {
+        var root = _primaryMediaGateRoot;
+        ClearPrimaryMediaGateSubscriptions();
+        _primaryMediaGateWaiting = false;
+        _primaryMediaGateCompletionScheduled = false;
+        _primaryMediaGateRoot = null;
+        _primaryMediaGateViewModel = null;
+
+        if (root != null)
+            ThemeProperties.SetPreviewMediaReady(root, true);
+    }
+
+    private void CancelPrimaryMediaGate(bool releaseWaitingAnimation = true)
+    {
+        _primaryMediaGateGeneration++;
+        var root = _primaryMediaGateRoot;
+        ClearPrimaryMediaGateSubscriptions();
+        _primaryMediaGateWaiting = false;
+        _primaryMediaGateCompletionScheduled = false;
+        _primaryMediaGateRoot = null;
+        _primaryMediaGateViewModel = null;
+
+        if (releaseWaitingAnimation && root != null)
+            ThemeProperties.SetPreviewMediaReady(root, true);
+    }
+
+    private void ClearPrimaryMediaGateSubscriptions()
+    {
+        foreach (var image in _primaryMediaGateImages)
+            image.PropertyChanged -= OnPrimaryMediaGateImagePropertyChanged;
+
+        _primaryMediaGateImages.Clear();
+    }
+
     private void RequestSelectionArtifactRepaint(Control root)
     {
+        // The extra invalidation passes are a workaround for stale compositor
+        // snapshots produced by the host-managed selection effects. Themes that
+        // render their own selection state (for example Prism) already trigger
+        // the required redraws through their bindings and must not pay for three
+        // full-tree repaint passes on every navigation step.
+        var hostManagedLists = root
+            .GetVisualDescendants()
+            .OfType<ListBox>()
+            .Where(ThemeProperties.GetUseHostSelectionEffects)
+            .ToArray();
+
+        if (hostManagedLists.Length == 0)
+            return;
+
         void InvalidatePass()
         {
             root.InvalidateVisual();
 
-            foreach (var lb in root.GetVisualDescendants().OfType<ListBox>())
+            foreach (var lb in hostManagedLists)
             {
                 lb.InvalidateVisual();
 
@@ -661,6 +851,8 @@ public partial class BigModeHostView : UserControl
         if (!_isSystemHostTheme || _systemLayoutHost is null)
             return;
 
+        PreserveOutgoingVideoSlotDuringSystemTransition(animateTransition);
+
         var node = vm.SelectedCategory;
         if (node is null)
         {
@@ -768,6 +960,23 @@ public partial class BigModeHostView : UserControl
             _systemLayoutHost.Content = subView;
             PruneDetachedTunedListBoxes();
         }
+    }
+
+    private void PreserveOutgoingVideoSlotDuringSystemTransition(bool animateTransition)
+    {
+        if (!animateTransition || _systemLayoutHost?.Content == null)
+            return;
+
+        // The Default system layout collapses its video slot as soon as the VM
+        // hides the old preview. Keep the outgoing aperture opaque until that
+        // layout has faded away, otherwise its logo/wallpaper flashes through
+        // while the shared video control is moved to the incoming subtheme.
+        if (_primaryVideoControl.Parent is not Control outgoingSlot)
+            return;
+
+        outgoingSlot.IsVisible = true;
+        if (outgoingSlot is Border border)
+            border.Background = Brushes.Black;
     }
 
     private bool TryCreateSystemSubtheme(
@@ -917,6 +1126,8 @@ public partial class BigModeHostView : UserControl
     
     private void UnhookThemeTuning()
     {
+        CancelPrimaryMediaGate();
+
         foreach (var lb in _tunedListBoxes)
         {
             lb.SelectionChanged -= OnListBoxSelectionChanged;
@@ -950,6 +1161,7 @@ public partial class BigModeHostView : UserControl
         var selectedGlowOpacity = ThemeProperties.GetSelectedGlowOpacity(themeRoot);
         var selectedGlowRadius = ThemeProperties.GetSelectedGlowRadius(themeRoot);
         var circularWindowSize = ThemeProperties.GetCircularWindowSize(themeRoot);
+        var circularLogoPreloadCount = ThemeProperties.GetCircularLogoPreloadCount(themeRoot);
 
         var fadeMs = ThemeProperties.GetFadeDurationMs(themeRoot);
         var moveMs = ThemeProperties.GetMoveDurationMs(themeRoot);
@@ -973,7 +1185,10 @@ public partial class BigModeHostView : UserControl
         var accent = ThemeProperties.GetAccentColor(themeRoot);
 
         if (DataContext is Retromind.ViewModels.BigModeViewModel vm)
+        {
+            vm.CircularLogoPreloadCount = circularLogoPreloadCount;
             vm.CircularWindowSize = circularWindowSize;
+        }
         
         // Selection UX: apply to ALL ListBoxes in the theme visual tree.
         // We use ContainerPrepared + SelectionChanged so it works with virtualization.

@@ -83,6 +83,116 @@ public sealed class ThemeTests
     }
 
     [Fact]
+    public void DefaultTheme_CoverEntryWaitsForCachedArtwork()
+    {
+        var filePath = Path.Combine(AppContext.BaseDirectory, "Themes", "Default", "theme.axaml");
+        var root = XDocument.Load(filePath).Root;
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var coverPanel = root?
+            .Descendants()
+            .FirstOrDefault(element => (string?)element.Attribute(x + "Name") == "CoverPanel");
+        var coverImages = coverPanel?
+            .Descendants()
+            .Where(element => element.Name.LocalName == "Image")
+            .ToList();
+        var deferredLargeArtwork = root?
+            .Descendants()
+            .Where(element =>
+                element.Name.LocalName == "CrossfadeImage" &&
+                element.Attribute("DecodeWidth")?.Value is "1280" or "1920")
+            .ToList();
+
+        Assert.NotNull(root);
+        Assert.NotNull(coverPanel);
+        Assert.Equal(
+            "True",
+            coverPanel.Attributes().FirstOrDefault(attribute =>
+                attribute.Name.LocalName == "ThemeProperties.WaitForAsyncImageBeforeEnter")?.Value);
+        Assert.Equal(
+            "320",
+            root.Attributes().FirstOrDefault(attribute =>
+                attribute.Name.LocalName == "ThemeProperties.FadeDurationMs")?.Value);
+        Assert.Equal(
+            "1100",
+            root.Attributes().FirstOrDefault(attribute =>
+                attribute.Name.LocalName == "ThemeProperties.MoveDurationMs")?.Value);
+        Assert.Equal(
+            "-220",
+            root.Attributes().FirstOrDefault(attribute =>
+                attribute.Name.LocalName == "ThemeProperties.PrimaryVisualEnterOffsetX")?.Value);
+        Assert.Equal(
+            "True",
+            coverPanel.Attributes().FirstOrDefault(attribute =>
+                attribute.Name.LocalName == "ThemeProperties.UseCompositorEnterAnimation")?.Value);
+        Assert.Equal(
+            "True",
+            coverPanel.Attributes().FirstOrDefault(attribute =>
+                attribute.Name.LocalName == "ThemeProperties.WaitForPreviewMediaBeforeEnter")?.Value);
+        Assert.NotNull(coverImages);
+        Assert.Equal(2, coverImages.Count);
+        Assert.All(
+            coverImages,
+            image =>
+            {
+                Assert.Equal(
+                    "256",
+                    image.Attributes().FirstOrDefault(attribute =>
+                        attribute.Name.LocalName == "AsyncImageHelper.DecodeWidth")?.Value);
+                Assert.DoesNotContain(
+                    image.Attributes(),
+                    attribute => attribute.Name.LocalName == "AsyncImageHelper.DisableCache");
+            });
+        Assert.NotNull(deferredLargeArtwork);
+        Assert.Equal(4, deferredLargeArtwork.Count);
+        Assert.All(
+            deferredLargeArtwork,
+            image => Assert.Equal(
+                "True",
+                image.Attributes().FirstOrDefault(attribute =>
+                    attribute.Name.LocalName ==
+                    "ThemeProperties.ContributesToPreviewMediaReadiness")?.Value));
+        Assert.All(
+            deferredLargeArtwork,
+            image => Assert.Equal("220", image.Attribute("LoadDelayMs")?.Value));
+    }
+
+    [Fact]
+    public void ArcadeTheme_QualifiesAsyncImageBindingWithRetromindAssembly()
+    {
+        var filePath = Path.Combine(AppContext.BaseDirectory, "Themes", "Arcade", "theme.axaml");
+        var root = XDocument.Load(filePath).Root;
+        var helpersNamespace = root?.GetNamespaceOfPrefix("helpers");
+        var isLoadedBinding = root?
+            .Descendants()
+            .Attributes()
+            .FirstOrDefault(attribute => attribute.Value.Contains(
+                "(helpers:AsyncImageHelper.IsLoaded)",
+                StringComparison.Ordinal));
+
+        Assert.Equal(
+            "clr-namespace:Retromind.Helpers;assembly=Retromind",
+            helpersNamespace?.NamespaceName);
+        Assert.NotNull(isLoadedBinding);
+    }
+
+    [Fact]
+    public void PrismTheme_CarouselsBufferItemsBeyondTheirViewports()
+    {
+        var filePath = Path.Combine(AppContext.BaseDirectory, "Themes", "Prism", "theme.axaml");
+        var root = XDocument.Load(filePath).Root;
+        var carouselPanels = root?
+            .Descendants()
+            .Where(element => element.Name.LocalName == "VirtualizingStackPanel")
+            .ToList();
+
+        Assert.NotNull(carouselPanels);
+        Assert.Equal(2, carouselPanels.Count);
+        Assert.All(
+            carouselPanels,
+            panel => Assert.Equal("0.5", panel.Attribute("CacheLength")?.Value));
+    }
+
+    [Fact]
     public void VideoPreview_DoesNotRetainPreviousFrameByDefault()
     {
         Assert.False(ThemeProperties.VideoRetainPreviousFrameDuringFadeProperty.GetDefaultValue(typeof(Border)));

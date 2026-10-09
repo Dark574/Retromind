@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
-             xmlns:helpers="clr-namespace:Retromind.Helpers"
+             xmlns:helpers="clr-namespace:Retromind.Helpers;assembly=Retromind"
              xmlns:ac="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls"
              xmlns:video="using:Retromind.Helpers.Video"
              xmlns:media="using:Avalonia.Media"
@@ -25,6 +25,7 @@
              ext:ThemeProperties.VideoFadeDurationMs="600"
              ext:ThemeProperties.SecondaryBackgroundVideoPath="Videos/bkg_anim.mp4"
              ext:ThemeProperties.CircularWindowSize="11"
+             ext:ThemeProperties.CircularLogoPreloadCount="2"
              ext:ThemeProperties.AttractModeEnabled="True"
              ext:ThemeProperties.AttractModeIdleSeconds="60"
              ext:ThemeProperties.PrimaryVisualElementName="ArcadeMarquee"
@@ -39,6 +40,9 @@
         <helpers:BoolToScaleConverter x:Key="LogoScaleConverter"
                                       NormalScale="1.0"
                                       SelectedScale="1.75" />
+        <helpers:BoolToOpacityConverter x:Key="LogoLoadedToFallbackOpacity"
+                                        TrueOpacity="0"
+                                        FalseOpacity="1" />
     </UserControl.Resources>
 
     <Grid>
@@ -236,18 +240,12 @@
                                                              Converter={StaticResource LogoScaleConverter}}"/>
                                     </ac:LayoutTransformControl.LayoutTransform>
 
-                                    <StackPanel Orientation="Vertical"
-                                                HorizontalAlignment="Center"
-                                                Spacing="2">
-                                        <!-- Logo -->
-                                        <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
-                                               helpers:AsyncImageHelper.DecodeWidth="256"
-                                               Width="150"
-                                               Stretch="Uniform"
-                                               HorizontalAlignment="Center"
-                                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
-
-                                        <!-- Fallback: Text title if no logo -->
+                                    <Grid Width="200"
+                                          Height="52"
+                                          HorizontalAlignment="Center">
+                                        <!-- Keep a fixed slot and show the title until the
+                                             asynchronously loaded logo is ready. This prevents
+                                             the circular rail from changing its layout later. -->
                                         <TextBlock Text="{Binding Title}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold"
@@ -255,8 +253,21 @@
                                                    TextAlignment="Center"
                                                    TextTrimming="CharacterEllipsis"
                                                    MaxWidth="200"
-                                                   IsVisible="{Binding ItemLogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}"/>
-                                    </StackPanel>
+                                                   VerticalAlignment="Center"
+                                                   Opacity="{Binding ElementName=ArcadeItemLogo,
+                                                                     Path=(helpers:AsyncImageHelper.IsLoaded),
+                                                                     Converter={StaticResource LogoLoadedToFallbackOpacity}}" />
+
+                                        <!-- Logo -->
+                                        <Image x:Name="ArcadeItemLogo"
+                                               helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}"
+                                               helpers:AsyncImageHelper.DecodeWidth="256"
+                                               Width="150"
+                                               Height="52"
+                                               Stretch="Uniform"
+                                               HorizontalAlignment="Center"
+                                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}"/>
+                                    </Grid>
                                 </ac:LayoutTransformControl>
                             </Border>
                         </DataTemplate>
