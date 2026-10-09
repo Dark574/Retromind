@@ -50,6 +50,7 @@ public partial class MediaItem : ObservableObject
     /// For now we primarily support Absolute paths (portable Retromind, external media)
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StoreProviderId))]
     private List<MediaFileRef> _files = new();
 
     /// <summary>
@@ -200,7 +201,11 @@ public partial class MediaItem : ObservableObject
             !CustomFieldKeyHelper.IsInternal(kv.Key) &&
             !string.IsNullOrWhiteSpace(kv.Key) &&
             !string.IsNullOrWhiteSpace(kv.Value));
-    
+
+    [JsonIgnore]
+    public string? StoreProviderId =>
+    StoreProviderBadgeHelper.GetProviderId(this);
+
     /// <summary>
     /// Sets an asset explicitly as "active" for display (used by randomization)
     /// </summary>
@@ -326,12 +331,16 @@ public partial class MediaItem : ObservableObject
     /// <summary>
     /// Custom path to the executable launcher (if not using a profile)
     /// </summary>
-    [ObservableProperty] private string? _launcherPath;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StoreProviderId))]
+    private string? _launcherPath;
 
     /// <summary>
     /// Command line arguments. Placeholder {file} is replaced by the primary launch file
     /// </summary>
-    [ObservableProperty] private string? _launcherArgs;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StoreProviderId))]
+    private string? _launcherArgs;
 
     /// <summary>
     /// Optional: Working directory override for the launched process (relative to DataRoot or absolute).
@@ -450,6 +459,7 @@ public partial class MediaItem : ObservableObject
     {
         OnPropertyChanged(nameof(VisibleCustomFields));
         OnPropertyChanged(nameof(HasCustomFields));
+        OnPropertyChanged(nameof(StoreProviderId));
     }
 }
 

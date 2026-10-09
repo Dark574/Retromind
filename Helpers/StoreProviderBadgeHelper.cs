@@ -51,21 +51,29 @@ internal static class StoreProviderBadgeHelper
         return GetProviderId(item) != null;
     }
 
-    public static string? GetBadgeText(MediaItem? item) => GetProviderId(item) switch
-    {
-        GogProviderId => "GOG",
-        SteamProviderId => "STEAM",
-        EpicProviderId => "EPIC",
-        _ => null
-    };
+    public static string? GetBadgeText(MediaItem? item) =>
+        GetBadgeText(GetProviderId(item));
 
-    public static string? GetToolTip(MediaItem? item) => GetProviderId(item) switch
-    {
-        GogProviderId => "GOG",
-        SteamProviderId => "Steam",
-        EpicProviderId => "Epic Games (via Heroic)",
-        _ => null
-    };
+    public static string? GetBadgeText(string? providerId) =>
+        NormalizeProviderId(providerId) switch
+        {
+            GogProviderId => "GOG",
+            SteamProviderId => "STEAM",
+            EpicProviderId => "EPIC",
+            _ => null
+        };
+
+    public static string? GetToolTip(MediaItem? item) =>
+        GetToolTip(GetProviderId(item));
+
+    public static string? GetToolTip(string? providerId) =>
+        NormalizeProviderId(providerId) switch
+        {
+            GogProviderId => "GOG",
+            SteamProviderId => "Steam",
+            EpicProviderId => "Epic Games (via Heroic)",
+            _ => null
+        };
 
     private static string? NormalizeProviderId(string? providerId)
     {

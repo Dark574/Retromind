@@ -425,15 +425,15 @@
                                                     Margin="8"
                                                     HorizontalAlignment="Right"
                                                     VerticalAlignment="Top"
-                                                    ToolTip.Tip="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreBadgeToolTip}}">
+                                                    ToolTip.Tip="{Binding StoreProviderId, Converter={x:Static helpers:ObjectConverters.StoreBadgeToolTip}}">
                                                 <Border.IsVisible>
                                                     <MultiBinding Converter="{x:Static helpers:ObjectConverters.StoreBadgeVisible}">
-                                                        <Binding />
+                                                        <Binding Path="StoreProviderId"/>
                                                         <Binding Path="DataContext.ShowStoreBadges"
                                                                  RelativeSource="{RelativeSource AncestorType=Window}" />
                                                     </MultiBinding>
                                                 </Border.IsVisible>
-                                                <TextBlock Text="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreBadgeText}}"
+                                                <TextBlock Text="{Binding StoreProviderId, Converter={x:Static helpers:ObjectConverters.StoreBadgeText}}"
                                                            Foreground="White"
                                                            FontSize="10"
                                                            FontWeight="Bold" />
@@ -455,15 +455,15 @@
                                                     Margin="8"
                                                     HorizontalAlignment="Right"
                                                     VerticalAlignment="Top"
-                                                    ToolTip.Tip="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreBadgeToolTip}}">
+                                                    ToolTip.Tip="{Binding StoreProviderId, Converter={x:Static helpers:ObjectConverters.StoreBadgeToolTip}}">
                                                 <Border.IsVisible>
                                                     <MultiBinding Converter="{x:Static helpers:ObjectConverters.StoreBadgeVisible}">
-                                                        <Binding />
+                                                        <Binding Path="StoreProviderId"/>
                                                         <Binding Path="DataContext.ShowStoreBadges"
                                                                  RelativeSource="{RelativeSource AncestorType=Window}" />
                                                     </MultiBinding>
                                                 </Border.IsVisible>
-                                                <TextBlock Text="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreBadgeText}}"
+                                                <TextBlock Text="{Binding StoreProviderId, Converter={x:Static helpers:ObjectConverters.StoreBadgeText}}"
                                                            Foreground="White"
                                                            FontSize="10"
                                                            FontWeight="Bold" />

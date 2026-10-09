@@ -112,17 +112,19 @@ public static class ObjectConverters
         new FuncMultiValueConverter<object?, bool>(values =>
         {
             var entries = values?.Select(UnwrapValue).ToArray() ?? Array.Empty<object?>();
+
             return entries.Length >= 2 &&
-                   entries[0] is MediaItem item &&
-                   entries[1] is true &&
-                   StoreProviderBadgeHelper.GetProviderId(item) != null;
+                entries[0] is string { Length: > 0 } &&
+                entries[1] is true;
         });
 
     public static readonly IValueConverter StoreBadgeText =
-        new FuncValueConverter<MediaItem?, string?>(StoreProviderBadgeHelper.GetBadgeText);
+        new FuncValueConverter<string?, string?>(
+            StoreProviderBadgeHelper.GetBadgeText);
 
     public static readonly IValueConverter StoreBadgeToolTip =
-        new FuncValueConverter<MediaItem?, string?>(StoreProviderBadgeHelper.GetToolTip);
+        new FuncValueConverter<string?, string?>(
+            StoreProviderBadgeHelper.GetToolTip);
 
     /// <summary>
     /// Returns true only for installed GOG-linked media items.

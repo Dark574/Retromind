@@ -19,6 +19,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Fixed
 - prevent the Arcade theme from crashing while creating its logo rail and keep the layout stable while artwork is loading
 - prevent the previous system's fallback artwork from flashing while switching BigMode system themes
+- after linking a Game to a GOG-Game the GOG-Badge is added immediately
 
 ---
 
