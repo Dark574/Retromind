@@ -33,6 +33,7 @@ public class ScraperImportSettings
     public bool ImportWallpaper { get; set; } = true;
     public bool ImportScreenshot { get; set; } = true;
     public bool ImportLogo { get; set; } = true;
+    public bool ImportVideo { get; set; } = false;
     public bool ImportMarquee { get; set; } = true;
     public bool ImportBezel { get; set; } = true;
     public bool ImportControlPanel { get; set; } = true;

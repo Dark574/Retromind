@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -1317,7 +1318,8 @@ public partial class MainWindowViewModel
         var manualImportSettings = new ScraperImportSettings
         {
             ExistingDataMode = ScraperExistingDataMode.OverwriteAlways,
-            AppendAssetsDuringBulkScrape = true
+            AppendAssetsDuringBulkScrape = true,
+            ImportVideo = true
         };
 
         var vm = new ScrapeDialogViewModel(
@@ -1601,6 +1603,9 @@ public partial class MainWindowViewModel
         if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Logo, result.LogoUrl, settings.ImportLogo, appendAssetsWhenTypeExists))
             changed = true;
 
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Video, result.VideoUrl, settings.ImportVideo, appendAssetsWhenTypeExists))
+            changed = true;
+        
         if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Marquee, result.MarqueeUrl, settings.ImportMarquee, appendAssetsWhenTypeExists))
             changed = true;
 
@@ -1758,14 +1763,65 @@ public partial class MainWindowViewModel
         return true;
     }
 
+    private static string GetScrapedAssetExtension(string url, AssetType type)
+    {
+        var path = Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            ? uri.AbsolutePath
+            : url.Split('?', '#')[0];
+
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+
+        if (type != AssetType.Video)
+            return string.IsNullOrWhiteSpace(extension) ? ".jpg" : extension;
+
+        return extension switch
+        {
+            ".mp4" or
+            ".mkv" or
+            ".avi" or
+            ".mov" or
+            ".wmv" or
+            ".webm" or
+            ".m4v" or
+            ".mpg" or
+            ".mpeg" => extension,
+
+            _ => ".mp4"
+        };
+    }
+    
+    private async Task DownloadScrapedVideoAsync(
+        string url,
+        string destinationPath)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
+        using var response = await _httpClient.GetAsync(
+            url,
+            HttpCompletionOption.ResponseHeadersRead,
+            timeout.Token);
+
+        response.EnsureSuccessStatusCode();
+
+        await using var source = await response.Content.ReadAsStreamAsync(timeout.Token);
+        await using var destination = new FileStream(
+            destinationPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 81920,
+            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+        await source.CopyToAsync(destination, timeout.Token);
+    }
+
     private async Task<bool> DownloadAndSetAsset(string url, MediaItem item, List<string> nodePath, AssetType type)
     {
         string? tempPathWithExt = null;
         try
         {
             var tempFile = Path.GetTempFileName();
-            var ext = Path.GetExtension(url).Split('?')[0];
-            if (string.IsNullOrEmpty(ext)) ext = ".jpg";
+            var ext = GetScrapedAssetExtension(url, type);
             tempPathWithExt = Path.ChangeExtension(tempFile, ext);
             
             if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
@@ -1773,7 +1829,12 @@ public partial class MainWindowViewModel
 
             bool success = false;
 
-            if (await AsyncImageHelper.SaveCachedImageAsync(url, tempPathWithExt)) 
+            if (type == AssetType.Video)
+            {
+                await DownloadScrapedVideoAsync(url, tempPathWithExt);
+                success = true;
+            }
+            else if (await AsyncImageHelper.SaveCachedImageAsync(url, tempPathWithExt))
             {
                 success = true;
             }
@@ -1786,9 +1847,9 @@ public partial class MainWindowViewModel
                     await File.WriteAllBytesAsync(tempPathWithExt, data);
                     success = true;
                 }
-                catch (Exception ex) 
-                { 
-                    Debug.WriteLine($"Download Failed: {ex.Message}"); 
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Download Failed: {ex.Message}");
                 }
             }
 

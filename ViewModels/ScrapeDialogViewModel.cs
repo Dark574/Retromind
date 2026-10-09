@@ -72,10 +72,10 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         "Select each value you want to copy. Existing values are only changed when selected.");
     public string ExistingValueText => T("ScrapeDialog.ExistingValue", "Existing");
     public string ScraperValueText => T("ScrapeDialog.ScraperValue", "Scraper");
-    public string ArtworkSelectionTitle => T("ScrapeDialog.ArtworkSelectionTitle", "Add artwork");
+    public string ArtworkSelectionTitle => T("ScrapeDialog.ArtworkSelectionTitle", "Add media");
     public string ArtworkSelectionHint => T(
         "ScrapeDialog.ArtworkSelectionHint",
-        "Selected artwork is added as another variant. Existing artwork is never replaced.");
+        "Selected media is added as another variant. Existing media is never replaced.");
     public string SelectAllText => T("ScrapeDialog.SelectAll", "Select all");
     public string ClearSelectionText => T("ScrapeDialog.ClearSelection", "Clear selection");
 
@@ -412,6 +412,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         AddArtworkChoice(AssetType.Wallpaper, T("NodeSettings_ArtworkWallpaperLabel", "Wallpaper"), result.WallpaperUrl, settings.ImportWallpaper);
         AddArtworkChoice(AssetType.Screenshot, T("Button.Screenshot", "Screenshot"), result.ScreenshotUrl, settings.ImportScreenshot);
         AddArtworkChoice(AssetType.Logo, T("Button.Logo", "Logo"), result.LogoUrl, settings.ImportLogo);
+        AddArtworkChoice(AssetType.Video, T("NodeSettings_ArtworkVideoLabel", "Video"), result.VideoUrl, settings.ImportVideo);
         AddArtworkChoice(AssetType.Marquee, T("NodeSettings_ArtworkMarqueeLabel", "Marquee"), result.MarqueeUrl, settings.ImportMarquee);
         AddArtworkChoice(AssetType.Bezel, T("Button.Bezel", "Bezel"), result.BezelUrl, settings.ImportBezel);
         AddArtworkChoice(AssetType.ControlPanel, T("Button.ControlPanel", "Control panel"), result.ControlPanelUrl, settings.ImportControlPanel);
@@ -504,8 +505,8 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
 
         var hasExisting = _targetItem.Assets.Any(asset => asset.Type == type);
         var status = hasExisting
-            ? T("ScrapeDialog.ArtworkExistingStatus", "Existing artwork is retained; this image will be added.")
-            : T("ScrapeDialog.ArtworkMissingStatus", "No artwork of this type exists yet.");
+            ? T("ScrapeDialog.ArtworkExistingStatus", "Existing media is retained; this file will be added.")
+            : T("ScrapeDialog.ArtworkMissingStatus", "No media of this type exists yet.");
 
         ArtworkChoices.Add(new ScrapeArtworkChoice(
             type,
@@ -584,6 +585,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
             WallpaperUrl = selectedArtwork.Contains(AssetType.Wallpaper) ? source.WallpaperUrl : null,
             ScreenshotUrl = selectedArtwork.Contains(AssetType.Screenshot) ? source.ScreenshotUrl : null,
             LogoUrl = selectedArtwork.Contains(AssetType.Logo) ? source.LogoUrl : null,
+            VideoUrl = selectedArtwork.Contains(AssetType.Video) ? source.VideoUrl : null,
             MarqueeUrl = selectedArtwork.Contains(AssetType.Marquee) ? source.MarqueeUrl : null,
             BezelUrl = selectedArtwork.Contains(AssetType.Bezel) ? source.BezelUrl : null,
             ControlPanelUrl = selectedArtwork.Contains(AssetType.ControlPanel) ? source.ControlPanelUrl : null

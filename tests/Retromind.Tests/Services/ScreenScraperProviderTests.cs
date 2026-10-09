@@ -184,6 +184,7 @@ public sealed class ScreenScraperProviderTests
                           { "type": "fanart", "region": "wor", "url": "https://media.example/fanart.jpg" },
                           { "type": "ss", "region": "wor", "url": "https://media.example/screenshot.png" },
                           { "type": "wheel-hd", "region": "wor", "url": "https://media.example/logo.png" },
+                          { "type": "video", "region": "wor", "url": "https://media.example/gameplay.mp4" },
                           { "type": "marquee", "region": "wor", "url": "https://media.example/marquee.png" },
                           { "type": "bezel-16-9", "region": "wor", "url": "https://media.example/bezel.png" },
                           { "type": "cpanel", "region": "wor", "url": "https://media.example/control-panel.png" }
@@ -224,6 +225,7 @@ public sealed class ScreenScraperProviderTests
         Assert.Equal("https://media.example/fanart.jpg", result.WallpaperUrl);
         Assert.Equal("https://media.example/screenshot.png", result.ScreenshotUrl);
         Assert.Equal("https://media.example/logo.png", result.LogoUrl);
+        Assert.Equal("https://media.example/gameplay.mp4", result.VideoUrl);
         Assert.Equal("https://media.example/marquee.png", result.MarqueeUrl);
         Assert.Equal("https://media.example/bezel.png", result.BezelUrl);
         Assert.Equal("https://media.example/control-panel.png", result.ControlPanelUrl);
@@ -322,6 +324,7 @@ public sealed class ScreenScraperProviderTests
                         "medias": {
                           "media_screenshot": "https://media.example/object-screenshot.png",
                           "media_fanart": "https://media.example/object-fanart.jpg",
+                          "media_video": "https://media.example/object-video.mp4",
                           "media_marquee": "https://media.example/object-marquee.png",
                           "media_wheels": {
                             "media_wheel_de": "https://media.example/object-logo.png"
@@ -364,6 +367,7 @@ public sealed class ScreenScraperProviderTests
         Assert.Equal("https://media.example/object-fanart.jpg", result.WallpaperUrl);
         Assert.Equal("https://media.example/object-screenshot.png", result.ScreenshotUrl);
         Assert.Equal("https://media.example/object-logo.png", result.LogoUrl);
+        Assert.Equal("https://media.example/object-video.mp4", result.VideoUrl);
         Assert.Equal("https://media.example/object-marquee.png", result.MarqueeUrl);
         Assert.Equal("https://media.example/object-bezel.png", result.BezelUrl);
         Assert.Equal(new[] { "/api2/ssinfraInfos.php", "/api2/jeuRecherche.php" }, requestedPaths);

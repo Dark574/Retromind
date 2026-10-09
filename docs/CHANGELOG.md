@@ -9,6 +9,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.2-alpha] - unreleased
 
 ### Added
+- ScreenScraper now supports video asset downloads
 
 ### Changed
 - improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews

@@ -29,7 +29,7 @@ Feedback and bug reports are especially welcome.
 ### Build your library
 
 - **One library for more than games.** Organize games, movies, books, comics and other media in a flexible tree, with drag-and-drop editing and smart folder imports.
-- **Rich metadata without losing control.** Scrape metadata and artwork from multiple providers, process whole categories in bulk, and decide which fields and images to keep.
+- **Rich metadata without losing control.** Scrape metadata, artwork and optional ScreenScraper preview videos, process whole categories in bulk, and decide which fields and media to keep.
 - **Find what matters.** Use global search, favorites, saved filters, missing-media filters, an optional query language, interactive statistics and a read-only library health check.
 
 ### Launch everything from one place

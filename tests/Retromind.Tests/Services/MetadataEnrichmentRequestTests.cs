@@ -13,11 +13,13 @@ public sealed class MetadataEnrichmentRequestTests
             Developer = "Existing developer"
         };
         item.Assets.Add(new MediaAsset { Type = AssetType.Cover, RelativePath = "cover.jpg" });
+        item.Assets.Add(new MediaAsset { Type = AssetType.Video, RelativePath = "video.mp4" });
         var settings = DisabledSettings();
         settings.ImportDeveloper = true;
         settings.ImportGenre = true;
         settings.ImportCover = true;
         settings.ImportLogo = true;
+        settings.ImportVideo = true;
 
         var request = MetadataEnrichmentRequest.ForBulk(item, settings);
 
@@ -25,6 +27,7 @@ public sealed class MetadataEnrichmentRequestTests
         Assert.True(request.Genre);
         Assert.False(request.Cover);
         Assert.True(request.Logo);
+        Assert.False(request.Video);
     }
 
     [Fact]
@@ -35,16 +38,19 @@ public sealed class MetadataEnrichmentRequestTests
             Developer = "Existing developer"
         };
         item.Assets.Add(new MediaAsset { Type = AssetType.Cover, RelativePath = "cover.jpg" });
+        item.Assets.Add(new MediaAsset { Type = AssetType.Video, RelativePath = "video.mp4" });
         var settings = DisabledSettings();
         settings.ExistingDataMode = ScraperExistingDataMode.OverwriteAlways;
         settings.AppendAssetsDuringBulkScrape = true;
         settings.ImportDeveloper = true;
         settings.ImportCover = true;
+        settings.ImportVideo = true;
 
         var request = MetadataEnrichmentRequest.ForBulk(item, settings);
 
         Assert.True(request.Developer);
         Assert.True(request.Cover);
+        Assert.True(request.Video);
     }
 
     private static ScraperImportSettings DisabledSettings() => new()
@@ -67,6 +73,7 @@ public sealed class MetadataEnrichmentRequestTests
         ImportWallpaper = false,
         ImportScreenshot = false,
         ImportLogo = false,
+        ImportVideo = false,
         ImportMarquee = false,
         ImportBezel = false,
         ImportControlPanel = false

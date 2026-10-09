@@ -402,6 +402,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         get => ScraperImportSettings.ImportLogo;
         set { if (ScraperImportSettings.ImportLogo != value) { ScraperImportSettings.ImportLogo = value; OnPropertyChanged(); } }
     }
+    public bool ScraperImportVideo
+    {
+        get => ScraperImportSettings.ImportVideo;
+        set { if (ScraperImportSettings.ImportVideo != value) { ScraperImportSettings.ImportVideo = value; OnPropertyChanged(); } }
+    }
     public bool ScraperImportMarquee
     {
         get => ScraperImportSettings.ImportMarquee;
@@ -474,16 +479,16 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     };
     public string ScraperArtworkModeText => T(
         "Settings_ScraperArtworkMode",
-        "Default for existing artwork");
+        "Default for existing media");
     public string ScraperArtworkModeHint => ScraperAppendAssetsDuringBulkScrape
         ? T(
             "Settings_ScraperArtworkModeAppendHint",
-            "New images are added as variants. Existing images remain unchanged.")
+            "New media is added as variants. Existing media remains unchanged.")
         : T(
             "Settings_ScraperArtworkModeOnlyMissingHint",
-            "Artwork is imported only when that artwork type is still missing.");
+            "Media is imported only when that media type is still missing.");
     public string ScraperMetadataFieldsText => T("Settings_ScraperMetadataFields", "Metadata to copy");
-    public string ScraperAssetFieldsText => T("Settings_ScraperAssetFields", "Artwork to add");
+    public string ScraperAssetFieldsText => T("Settings_ScraperAssetFields", "Media to add");
     public string ScraperProvidersTabText => T("Settings_ScraperProvidersTab", "Providers");
     public string ScraperImportTabText => T("Settings_ScraperImportTab", "Import");
 

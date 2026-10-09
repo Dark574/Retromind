@@ -37,7 +37,7 @@ especially before installing a new release.
 ### Build your library
 
 - **One library for more than games.** Organize games, movies, books, comics and other media in a flexible tree, with drag-and-drop editing and smart folder imports.
-- **Rich metadata without losing control.** Scrape metadata and artwork from multiple providers, process whole categories in bulk, and decide which fields and images to keep.
+- **Rich metadata without losing control.** Scrape metadata and artwork and optional ScreenScraper videos from multiple providers, process whole categories in bulk, and decide which fields and images to keep.
 - **Find what matters.** Use global search, favorites, saved filters, missing-media filters, an optional query language, interactive statistics and a read-only library health check.
 
 ### Launch everything from one place
@@ -597,6 +597,7 @@ Notes:
 - `CustomFields` are provider-specific key/value pairs and may vary by API response quality.
 - Missing values are normal when the upstream provider does not return that field for a specific item.
 - SteamGridDB is an artwork-focused provider and currently supplies cover, wallpaper and logo assets.
+- ScreenScraper can additionally supply preview-video assets when they are available. Preview-video imports can be enabled separately in the scraper import settings and are supported by both manual and bulk scraping.
 - ScreenScraper automatically attempts exact ROM identification during manual and bulk metadata searches when a
   supported technical game system and an existing primary game file are available. It sends the file size plus
   CRC32, MD5 and SHA-1 in one API request. A successful match avoids a separate title request; unknown ROMs fall
@@ -608,8 +609,8 @@ Notes:
 - TheGamesDB bulk searches use only the first probability-ranked result page, resolve supplemental names and artwork
   only for accepted matches, and reuse resolved names during the current session. The operation runs sequentially
   and stops when TheGamesDB reports that the configured key's request allowance has been exhausted.
-- Manual scraping lets you choose individual changed metadata fields. Existing artwork is retained and
-  selected new artwork is added instead of replacing it.
+- Manual scraping lets you choose individual changed metadata fields and media assets. Existing media is retained,
+  and selected new media is added as another variant instead of replacing it.
 - EmuMovies is currently not listed here because its API is being reworked.
 
 ### Where to get API keys

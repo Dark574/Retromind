@@ -213,6 +213,7 @@
     "ImportWallpaper": true,
     "ImportScreenshot": true,
     "ImportLogo": true,
+    "ImportVideo": false,
     "ImportMarquee": true,
     "ImportBezel": true,
     "ImportControlPanel": true,

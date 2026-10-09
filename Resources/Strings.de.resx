@@ -612,7 +612,7 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_ScraperImportHint" xml:space="preserve"><value>Lege fest, welche Daten aus Scraper-Treffern übernommen werden. Nicht jeder Anbieter liefert alle aufgeführten Inhalte.</value></data>
     <data name="Settings_ScraperExistingDataMode" xml:space="preserve"><value>Voreinstellung für vorhandene Metadaten</value></data>
     <data name="Settings_ScraperMetadataFields" xml:space="preserve"><value>Zu übernehmende Metadaten</value></data>
-    <data name="Settings_ScraperAssetFields" xml:space="preserve"><value>Hinzuzufügende Grafiken</value></data>
+    <data name="Settings_ScraperAssetFields" xml:space="preserve"><value>Hinzuzufügende Medien</value></data>
     <data name="Settings_ScraperProvidersTab" xml:space="preserve"><value>Anbieter</value></data>
     <data name="Settings_ScraperImportTab" xml:space="preserve"><value>Übernahme</value></data>
     <data name="Settings_ScraperMetadataModeOnlyMissing" xml:space="preserve"><value>Nur leere Felder ausfüllen</value></data>
@@ -621,11 +621,11 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_ScraperMetadataModeOverwriteHint" xml:space="preserve"><value>Beim manuellen Scrape sind Änderungen vorausgewählt. Der Massen-Scrape ersetzt vorhandene Werte.</value></data>
     <data name="Settings_ScraperMetadataModeManual" xml:space="preserve"><value>Manuell auswählen</value></data>
     <data name="Settings_ScraperMetadataModeManualHint" xml:space="preserve"><value>Beim manuellen Scrape wählst du jede Änderung selbst. Der Massen-Scrape behält vorhandene Werte.</value></data>
-    <data name="Settings_ScraperArtworkMode" xml:space="preserve"><value>Voreinstellung für vorhandene Grafiken</value></data>
-    <data name="Settings_ScraperArtworkModeOnlyMissing" xml:space="preserve"><value>Nur fehlende Grafiktypen ergänzen</value></data>
-    <data name="Settings_ScraperArtworkModeOnlyMissingHint" xml:space="preserve"><value>Grafiken werden nur importiert, wenn dieser Grafiktyp noch fehlt.</value></data>
+    <data name="Settings_ScraperArtworkMode" xml:space="preserve"><value>Voreinstellung für vorhandene Medien</value></data>
+    <data name="Settings_ScraperArtworkModeOnlyMissing" xml:space="preserve"><value>Nur fehlende Medientypen ergänzen</value></data>
+    <data name="Settings_ScraperArtworkModeOnlyMissingHint" xml:space="preserve"><value>Medien werden nur importiert, wenn dieser Medientyp noch fehlt.</value></data>
     <data name="Settings_ScraperArtworkModeAppend" xml:space="preserve"><value>Weitere Varianten hinzufügen</value></data>
-    <data name="Settings_ScraperArtworkModeAppendHint" xml:space="preserve"><value>Neue Grafiken werden als Varianten hinzugefügt. Vorhandene Grafiken bleiben unverändert.</value></data>
+    <data name="Settings_ScraperArtworkModeAppendHint" xml:space="preserve"><value>Neue Medien werden als Varianten hinzugefügt. Vorhandene Medien bleiben unverändert.</value></data>
     <data name="Settings_SectionParental" xml:space="preserve"><value>Jugendschutz</value></data>
     <data name="Settings_ChangeParentalPassword" xml:space="preserve"><value>Jugendschutz-Passwort ändern</value></data>
     <data name="Settings_SectionRunnerVersions" xml:space="preserve"><value>Wine/Proton-Versionen</value></data>
@@ -751,12 +751,12 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="ScrapeDialog.MetadataSelectionHint" xml:space="preserve"><value>Wähle jeden Wert aus, den du übernehmen möchtest. Vorhandene Werte werden nur bei gesetztem Häkchen geändert.</value></data>
     <data name="ScrapeDialog.ExistingValue" xml:space="preserve"><value>Vorhanden</value></data>
     <data name="ScrapeDialog.ScraperValue" xml:space="preserve"><value>Scraper</value></data>
-    <data name="ScrapeDialog.ArtworkSelectionTitle" xml:space="preserve"><value>Grafiken hinzufügen</value></data>
-    <data name="ScrapeDialog.ArtworkSelectionHint" xml:space="preserve"><value>Ausgewählte Grafiken werden als weitere Varianten hinzugefügt. Vorhandene Grafiken werden niemals ersetzt.</value></data>
+    <data name="ScrapeDialog.ArtworkSelectionTitle" xml:space="preserve"><value>Medien hinzufügen</value></data>
+    <data name="ScrapeDialog.ArtworkSelectionHint" xml:space="preserve"><value>Ausgewählte Medien werden als weitere Varianten hinzugefügt. Vorhandene Medien werden niemals ersetzt.</value></data>
     <data name="ScrapeDialog.SelectAll" xml:space="preserve"><value>Alle auswählen</value></data>
     <data name="ScrapeDialog.ClearSelection" xml:space="preserve"><value>Auswahl aufheben</value></data>
-    <data name="ScrapeDialog.ArtworkExistingStatus" xml:space="preserve"><value>Die vorhandene Grafik bleibt erhalten; dieses Bild wird hinzugefügt.</value></data>
-    <data name="ScrapeDialog.ArtworkMissingStatus" xml:space="preserve"><value>Von diesem Typ ist noch keine Grafik vorhanden.</value></data>
+    <data name="ScrapeDialog.ArtworkExistingStatus" xml:space="preserve"><value>Vorhandene Medien bleiben erhalten; diese Datei wird hinzugefügt.</value></data>
+    <data name="ScrapeDialog.ArtworkMissingStatus" xml:space="preserve"><value>Von diesem Typ ist noch kein Medium vorhanden.</value></data>
     <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping-Bereich</value></data>
     <data name="Metadata.SearchMetadata" xml:space="preserve"><value>Metadaten suchen</value></data>
     <data name="Metadata.SearchMetadataAll" xml:space="preserve"><value>Metadaten suchen (alle)...</value></data>

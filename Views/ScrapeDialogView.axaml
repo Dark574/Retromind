@@ -184,11 +184,12 @@
                                         <CheckBox IsChecked="{Binding IsSelected}"
                                                   Content="{Binding Label}"
                                                   FontWeight="Bold"/>
-                                        <Image helpers:AsyncImageHelper.Url="{Binding Url}"
+                                        <Image helpers:AsyncImageHelper.Url="{Binding ImagePreviewUrl}"
                                                helpers:AsyncImageHelper.DecodeWidth="500"
                                                Width="220"
                                                Height="150"
-                                               Stretch="Uniform"/>
+                                               Stretch="Uniform"
+                                               IsVisible="{Binding HasImagePreview}"/>
                                         <TextBlock Text="{Binding StatusText}"
                                                    Opacity="0.7"
                                                    TextWrapping="Wrap"

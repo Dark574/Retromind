@@ -394,6 +394,7 @@ public sealed class ScreenScraperProvider : IMetadataProvider, IGameFileMetadata
             WallpaperUrl = SelectMediaUrl(game["medias"], language, "fanart"),
             ScreenshotUrl = SelectMediaUrl(game["medias"], language, "ss", "sstitle"),
             LogoUrl = SelectMediaUrl(game["medias"], language, "wheel-hd", "wheel"),
+            VideoUrl = SelectMediaUrl(game["medias"], language, "video"),
             MarqueeUrl = SelectMediaUrl(game["medias"], language, "marquee", "screenmarquee"),
             BezelUrl = SelectMediaUrl(game["medias"], language, "bezel-16-9", "bezel-16-10", "bezel-4-3"),
             ControlPanelUrl = SelectMediaUrl(game["medias"], language, "cpanel", "controlpanel")
@@ -594,6 +595,7 @@ public sealed class ScreenScraperProvider : IMetadataProvider, IGameFileMetadata
             {
                 "ss" or "sstitle" => ReadText(medias["media_screenshot"]),
                 "fanart" => ReadText(medias["media_fanart"]),
+                "video" => ReadText(medias["media_video"]),
                 "marquee" => ReadText(medias["media_marquee"]),
                 "screenmarquee" => ReadText(medias["media_screenmarquee"]),
                 "wheel" or "wheel-hd" => SelectRegionalMedia(

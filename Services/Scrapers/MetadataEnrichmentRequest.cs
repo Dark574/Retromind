@@ -20,6 +20,7 @@ public sealed record MetadataEnrichmentRequest
         Wallpaper = true,
         Screenshot = true,
         Logo = true,
+        Video = true,
         Marquee = true,
         Bezel = true,
         ControlPanel = true
@@ -34,12 +35,13 @@ public sealed record MetadataEnrichmentRequest
     public bool Wallpaper { get; init; }
     public bool Screenshot { get; init; }
     public bool Logo { get; init; }
+    public bool Video { get; init; }
     public bool Marquee { get; init; }
     public bool Bezel { get; init; }
     public bool ControlPanel { get; init; }
 
     public bool HasAnyMetadata => Developer || Genre || Platform || Publisher;
-    public bool HasAnyArtwork => Cover || Wallpaper || Screenshot || Logo || Marquee || Bezel || ControlPanel;
+    public bool HasAnyArtwork => Cover || Wallpaper || Screenshot || Logo || Video || Marquee || Bezel || ControlPanel;
     public bool HasAny => HasAnyMetadata || HasAnyArtwork;
 
     public static MetadataEnrichmentRequest ForBulk(
@@ -68,6 +70,7 @@ public sealed record MetadataEnrichmentRequest
             Wallpaper = NeedsArtwork(settings.ImportWallpaper, AssetType.Wallpaper),
             Screenshot = NeedsArtwork(settings.ImportScreenshot, AssetType.Screenshot),
             Logo = NeedsArtwork(settings.ImportLogo, AssetType.Logo),
+            Video = NeedsArtwork(settings.ImportVideo, AssetType.Video),
             Marquee = NeedsArtwork(settings.ImportMarquee, AssetType.Marquee),
             Bezel = NeedsArtwork(settings.ImportBezel, AssetType.Bezel),
             ControlPanel = NeedsArtwork(settings.ImportControlPanel, AssetType.ControlPanel)

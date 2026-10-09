@@ -691,6 +691,7 @@
                                             <CheckBox Content="{x:Static p:Strings.NodeSettings_ArtworkWallpaperLabel}" IsChecked="{Binding ScraperImportWallpaper}" />
                                             <CheckBox Content="{x:Static p:Strings.Button_Screenshot}" IsChecked="{Binding ScraperImportScreenshot}" />
                                             <CheckBox Content="{x:Static p:Strings.Button_Logo}" IsChecked="{Binding ScraperImportLogo}" />
+                                            <CheckBox Content="{x:Static p:Strings.NodeSettings_ArtworkVideoLabel}" IsChecked="{Binding ScraperImportVideo}" />
                                             <CheckBox Content="{x:Static p:Strings.NodeSettings_ArtworkMarqueeLabel}" IsChecked="{Binding ScraperImportMarquee}" />
                                             <CheckBox Content="{x:Static p:Strings.Button_Bezel}" IsChecked="{Binding ScraperImportBezel}" />
                                             <CheckBox Content="{x:Static p:Strings.Button_ControlPanel}" IsChecked="{Binding ScraperImportControlPanel}" />

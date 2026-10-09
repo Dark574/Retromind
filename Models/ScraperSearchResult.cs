@@ -71,7 +71,12 @@ public class ScraperSearchResult
     /// URL to the transparent logo image (Clearlogo).
     /// </summary>
     public string? LogoUrl { get; set; }
-    
+
+    /// <summary>
+    /// URL to a gameplay preview video.
+    /// </summary>
+    public string? VideoUrl { get; set; }
+
     /// <summary>
     /// URL to the marquee artwork (typically a wide cabinet header graphic).
     /// </summary>

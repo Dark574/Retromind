@@ -70,6 +70,8 @@ public partial class ScrapeArtworkChoice : ObservableObject
     public AssetType Type { get; }
     public string Label { get; }
     public string Url { get; }
+    public string? ImagePreviewUrl => Type == AssetType.Video ? null : Url;
+    public bool HasImagePreview => !string.IsNullOrWhiteSpace(ImagePreviewUrl);
     public bool HasExistingArtwork { get; }
     public string StatusText { get; }
 
