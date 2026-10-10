@@ -91,6 +91,18 @@ public interface IGameSystemMetadataProvider
 }
 
 /// <summary>
+/// Optional capability for providers that use a reduced system-constrained
+/// search shape during bulk scraping.
+/// </summary>
+public interface IBulkGameSystemMetadataProvider : IGameSystemMetadataProvider
+{
+    Task<List<ScraperSearchResult>> SearchForBulkByGameSystemAsync(
+        string query,
+        string gameSystemId,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Optional capability for game metadata providers that can identify a ROM
 /// or disc image from its provider-neutral system assignment and file data.
 /// </summary>

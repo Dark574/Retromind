@@ -35,6 +35,66 @@ public sealed class ScrapeDialogViewModelTests
         Assert.Null(viewModel.SelectedResult);
     }
 
+    [Fact]
+    public void ScreenScraper_SelectsResolvedGameSystemAsDefaultFilter()
+    {
+        var screenScraper = new ScraperConfig
+        {
+            Type = ScraperType.ScreenScraper
+        };
+        var settings = new AppSettings
+        {
+            Scrapers = [screenScraper]
+        };
+
+        using var httpClient = new HttpClient();
+        var metadataService = new MetadataService(settings, httpClient);
+        using var viewModel = new ScrapeDialogViewModel(
+            new MediaItem("Super Mario World"),
+            settings,
+            metadataService,
+            gameSystemId: "nintendo.snes");
+
+        Assert.True(viewModel.IsGameSystemFilterAvailable);
+        Assert.Equal("nintendo.snes", viewModel.SelectedGameSystem?.Id);
+        Assert.Contains(
+            viewModel.AvailableGameSystems,
+            option => option.Id == null);
+    }
+
+    [Fact]
+    public void ProviderWithoutGameSystemSupport_HidesSystemFilter()
+    {
+        var screenScraper = new ScraperConfig
+        {
+            Type = ScraperType.ScreenScraper
+        };
+        var steamGridDb = new ScraperConfig
+        {
+            Type = ScraperType.SteamGridDB
+        };
+        var settings = new AppSettings
+        {
+            Scrapers = [screenScraper, steamGridDb]
+        };
+
+        using var httpClient = new HttpClient();
+        var metadataService = new MetadataService(settings, httpClient);
+        using var viewModel = new ScrapeDialogViewModel(
+            new MediaItem("Test Game"),
+            settings,
+            metadataService,
+            gameSystemId: "nintendo.snes");
+
+        Assert.True(viewModel.IsGameSystemFilterAvailable);
+
+        viewModel.SelectedScraper = steamGridDb;
+
+        Assert.False(viewModel.IsGameSystemFilterAvailable);
+        Assert.Empty(viewModel.AvailableGameSystems);
+        Assert.Null(viewModel.SelectedGameSystem);
+    }
+
     [Theory]
     [InlineData(true, "https://media.example/gameplay.mp4")]
     [InlineData(false, null)]

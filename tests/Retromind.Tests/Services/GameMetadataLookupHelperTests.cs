@@ -35,6 +35,37 @@ public sealed class GameMetadataLookupHelperTests
     }
 
     [Fact]
+    public async Task SearchAsync_BulkLookup_UsesSystemConstrainedBulkCapability()
+    {
+        var provider = new StubGameProvider
+        {
+            BulkSystemResults =
+            [
+                new ScraperSearchResult
+                {
+                    Id = "46",
+                    Title = "Filtered bulk result"
+                }
+            ]
+        };
+
+        var result = await GameMetadataLookupHelper.SearchAsync(
+            provider,
+            "Game title",
+            gameSystemId: "sega.mega-drive",
+            gameFilePath: null,
+            useBulkSearch: true);
+
+        Assert.Equal(
+            "Filtered bulk result",
+            Assert.Single(result.Results).Title);
+        Assert.Equal(1, provider.BulkSystemSearchCalls);
+        Assert.Equal(0, provider.SystemSearchCalls);
+        Assert.Equal(0, provider.BulkSearchCalls);
+        Assert.Equal(0, provider.GenericSearchCalls);
+    }
+
+    [Fact]
     public async Task SearchAsync_UnknownFile_UsesSystemConstrainedTitleFallback()
     {
         var filePath = Path.GetTempFileName();
@@ -115,23 +146,34 @@ public sealed class GameMetadataLookupHelperTests
         Assert.Equal(0, provider.GenericSearchCalls);
     }
 
-    private sealed class StubGameProvider : IMetadataProvider, IGameFileMetadataProvider, IBulkMetadataProvider
+    private sealed class StubGameProvider : IMetadataProvider, IGameFileMetadataProvider, IBulkMetadataProvider, IBulkGameSystemMetadataProvider
     {
         public bool SupportsSystems { get; init; } = true;
         public ScraperSearchResult? IdentifiedResult { get; init; }
         public List<ScraperSearchResult> SystemResults { get; init; } = new();
         public List<ScraperSearchResult> GenericResults { get; init; } = new();
         public List<ScraperSearchResult> BulkResults { get; init; } = new();
+        public List<ScraperSearchResult> BulkSystemResults { get; init; } = new();
 
         public int IdentifyCalls { get; private set; }
         public int SystemSearchCalls { get; private set; }
         public int GenericSearchCalls { get; private set; }
         public int BulkSearchCalls { get; private set; }
+        public int BulkSystemSearchCalls { get; private set; }
 
         public Task<bool> ConnectAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(true);
 
         public bool SupportsGameSystem(string? gameSystemId) => SupportsSystems;
+
+        public Task<List<ScraperSearchResult>> SearchForBulkByGameSystemAsync(
+            string query,
+            string gameSystemId,
+            CancellationToken cancellationToken = default)
+        {
+            BulkSystemSearchCalls++;
+            return Task.FromResult(BulkSystemResults);
+        }
 
         public Task<ScraperSearchResult?> IdentifyGameFileAsync(
             string gameSystemId,

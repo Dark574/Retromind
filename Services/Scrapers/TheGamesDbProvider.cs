@@ -18,7 +18,7 @@ namespace Retromind.Services.Scrapers;
 /// <summary>
 /// Metadata provider for TheGamesDB API (v1).
 /// </summary>
-public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMetadataResultEnricher
+public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMetadataResultEnricher, IBulkGameSystemMetadataProvider
 {
     private readonly ScraperConfig _config;
     private readonly HttpClient _httpClient;
@@ -77,19 +77,75 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
         }
     }
 
+    public bool SupportsGameSystem(string? gameSystemId) =>
+        TheGamesDbSystemCatalog.TryGetPlatformIds(gameSystemId, out _);
+
     public Task<List<ScraperSearchResult>> SearchAsync(
         string query,
         CancellationToken cancellationToken = default) =>
-        SearchCoreAsync(query, MaxManualPages, cancellationToken);
+        SearchCoreAsync(
+            query,
+            MaxManualPages,
+            platformIds: null,
+            cancellationToken);
 
     public Task<List<ScraperSearchResult>> SearchForBulkAsync(
         string query,
         CancellationToken cancellationToken = default) =>
-        SearchCoreAsync(query, MaxBulkPages, cancellationToken);
+        SearchCoreAsync(
+            query,
+            MaxBulkPages,
+            platformIds: null,
+            cancellationToken);
+
+    public Task<List<ScraperSearchResult>> SearchByGameSystemAsync(
+        string query,
+        string gameSystemId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameSystemId);
+
+        if (!TheGamesDbSystemCatalog.TryGetPlatformIds(
+                gameSystemId,
+                out var platformIds))
+        {
+            throw new NotSupportedException(
+                $"TheGamesDB does not support the game system '{gameSystemId}'.");
+        }
+
+        return SearchCoreAsync(
+            query,
+            MaxManualPages,
+            platformIds,
+            cancellationToken);
+    }
+
+    public Task<List<ScraperSearchResult>> SearchForBulkByGameSystemAsync(
+        string query,
+        string gameSystemId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameSystemId);
+
+        if (!TheGamesDbSystemCatalog.TryGetPlatformIds(
+                gameSystemId,
+                out var platformIds))
+        {
+            throw new NotSupportedException(
+                $"TheGamesDB does not support the game system '{gameSystemId}'.");
+        }
+
+        return SearchCoreAsync(
+            query,
+            MaxBulkPages,
+            platformIds,
+            cancellationToken);
+    }
 
     private async Task<List<ScraperSearchResult>> SearchCoreAsync(
         string query,
         int maxPages,
+        IReadOnlyList<int>? platformIds,
         CancellationToken cancellationToken)
     {
         var apiKey = GetApiKey();
@@ -100,6 +156,9 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
         {
             var encodedQuery = Uri.EscapeDataString(query);
             var language = LanguageCodeHelper.NormalizePrimaryCode(_config.Language);
+            var platformFilter = platformIds is { Count: > 0 }
+                ? $"&filter%5Bplatform%5D={Uri.EscapeDataString(string.Join(",", platformIds))}"
+                : string.Empty;
             var results = new List<ScraperSearchResult>(MaxSearchResults);
             var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -110,6 +169,7 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
                     "&fields=overview,genres,developers,publishers,players,platform,rating" +
                     "&include=boxart,platform" +
                     $"&filter%5Blanguage%5D={Uri.EscapeDataString(language)}" +
+                    platformFilter +
                     $"&page={page}";
 
                 var root = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);

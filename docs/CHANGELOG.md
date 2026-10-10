@@ -11,6 +11,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Added
 - ScreenScraper now supports video asset downloads
 - multiple videos are now also played random if the selection is active
+- filter game metadata searches by a selected system with ScreenScraper, IGDB and TheGamesDB
 
 ### Changed
 - improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews

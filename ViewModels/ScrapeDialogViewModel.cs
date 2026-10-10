@@ -10,6 +10,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.GameSystems;
 using Retromind.Services.Scrapers;
 
 namespace Retromind.ViewModels;
@@ -41,6 +42,12 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
     private ScraperConfig? _selectedScraper;
 
     [ObservableProperty]
+    private GameSystemSelectionOption? _selectedGameSystem;
+
+    [ObservableProperty]
+    private bool _isGameSystemFilterAvailable;
+
+    [ObservableProperty]
     private bool _isBusy;
 
     [ObservableProperty]
@@ -57,6 +64,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
     public ObservableCollection<ScraperConfig> AvailableScrapers { get; } = new();
     public ObservableCollection<ScrapeMetadataChoice> MetadataChoices { get; } = new();
     public ObservableCollection<ScrapeArtworkChoice> ArtworkChoices { get; } = new();
+    public ObservableCollection<GameSystemSelectionOption> AvailableGameSystems { get; } = new();
 
     // Bulk-update friendly collection (prevents UI stalls when a provider returns many results).
     public RangeObservableCollection<ScraperSearchResult> SearchResults { get; } = new();
@@ -77,6 +85,8 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         "ScrapeDialog.ArtworkSelectionHint",
         "Selected media is added as another variant. Existing media is never replaced.");
     public string SelectAllText => T("ScrapeDialog.SelectAll", "Select all");
+    public string GameSystemFilterText => T("ScrapeDialog.GameSystemFilter", "System");
+    public string AllGameSystemsText => T("ScrapeDialog.AllGameSystems", "All systems");
     public string ClearSelectionText => T("ScrapeDialog.ClearSelection", "Clear selection");
 
     public IAsyncRelayCommand SearchCommand { get; }
@@ -132,6 +142,40 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         SelectedScraper = AvailableScrapers.Count > 0 ? AvailableScrapers[0] : null;
     }
 
+    private void RebuildGameSystemFilter()
+    {
+        AvailableGameSystems.Clear();
+
+        if (SelectedScraper == null ||
+            _metadataService.GetProvider(SelectedScraper.Id)
+                is not IGameSystemMetadataProvider systemProvider)
+        {
+            SelectedGameSystem = null;
+            IsGameSystemFilterAvailable = false;
+            return;
+        }
+
+        AvailableGameSystems.Add(new GameSystemSelectionOption(
+            null,
+            AllGameSystemsText));
+
+        foreach (var system in GameSystemCatalog.All)
+        {
+            if (systemProvider.SupportsGameSystem(system.Id))
+            {
+                AvailableGameSystems.Add(new GameSystemSelectionOption(
+                    system.Id,
+                    system.DisplayName));
+            }
+        }
+
+        SelectedGameSystem =
+            GameSystemSelectionOption.Find(AvailableGameSystems, _gameSystemId)
+            ?? AvailableGameSystems.FirstOrDefault();
+
+        IsGameSystemFilterAvailable = AvailableGameSystems.Count > 1;
+    }
+
     private async Task SearchAsync()
     {
         if (_disposed)
@@ -162,7 +206,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
             var lookup = await GameMetadataLookupHelper.SearchAsync(
                 provider,
                 SearchQuery,
-                _gameSystemId,
+                SelectedGameSystem?.Id,
                 _gameFilePath,
                 token);
             var results = lookup.Results;
@@ -224,6 +268,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         CancelPreviewEnrichment();
         ClearSearchResultState();
         IsPreviewBusy = false;
+        RebuildGameSystemFilter();
     }
 
     partial void OnSelectedResultChanged(ScraperSearchResult? value)

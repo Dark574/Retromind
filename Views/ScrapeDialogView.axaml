@@ -15,7 +15,7 @@
     <Grid RowDefinitions="Auto, *, Auto" Margin="20">
 
         <!-- Header / Search -->
-        <Grid Grid.Row="0" RowDefinitions="Auto, Auto" ColumnDefinitions="*, 10, Auto" Margin="0,0,0,20">
+        <Grid Grid.Row="0" RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="*, 10, Auto" Margin="0,0,0,20">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static p:Strings.Dialog_ChooseSource}" Margin="0,0,0,5"/>
             <ComboBox Grid.Row="1" Grid.Column="0"
                       ItemsSource="{Binding AvailableScrapers}"
@@ -33,6 +33,23 @@
             <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Spacing="10">
                 <TextBox Text="{Binding SearchQuery}" Width="500" />
                 <Button Content="{x:Static p:Strings.Button_Search}" Command="{Binding SearchCommand}" IsDefault="True"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal"
+                        Spacing="10" Margin="0,10,0,0" IsVisible="{Binding IsGameSystemFilterAvailable}">
+                <TextBlock Text="{Binding GameSystemFilterText}"
+                        VerticalAlignment="Center"/>
+
+                <ComboBox Width="320"
+                        ItemsSource="{Binding AvailableGameSystems}"
+                        SelectedItem="{Binding SelectedGameSystem}"
+                        IsEnabled="{Binding !IsBusy}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:GameSystemSelectionOption">
+                            <TextBlock Text="{Binding DisplayName}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
             </StackPanel>
         </Grid>
 

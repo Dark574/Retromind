@@ -16,7 +16,7 @@ namespace Retromind.Services.Scrapers;
 /// IGDB metadata provider implementing IMetadataProvider.
 /// Handles authentication and search for game metadata.
 /// </summary>
-public class IgdbProvider : IMetadataProvider
+public class IgdbProvider : IMetadataProvider, IGameSystemMetadataProvider
 {
     private readonly ScraperConfig _config;
     // Use a shared static HttpClient to prevent socket exhaustion
@@ -130,11 +130,38 @@ public class IgdbProvider : IMetadataProvider
         }
     }
 
+    public bool SupportsGameSystem(string? gameSystemId) =>
+        IgdbSystemCatalog.TryGetPlatformIds(gameSystemId, out _);
+
+    public Task<List<ScraperSearchResult>> SearchAsync(
+        string query,
+        CancellationToken cancellationToken = default) =>
+        SearchCoreAsync(
+            query,
+            platformIds: null,
+            cancellationToken: cancellationToken);
+
+    public Task<List<ScraperSearchResult>> SearchByGameSystemAsync(
+        string query,
+        string gameSystemId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameSystemId);
+
+        if (!IgdbSystemCatalog.TryGetPlatformIds(gameSystemId, out var platformIds))
+        {
+            throw new NotSupportedException(
+                $"IGDB does not support the game system '{gameSystemId}'.");
+        }
+
+        return SearchCoreAsync(query, platformIds, cancellationToken);
+    }
+
     /// <summary>
     /// Searches IGDB for games matching the query.
     /// Returns up to <see cref="MaxSearchResults"/> results with metadata.
     /// </summary>
-    public async Task<List<ScraperSearchResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
+    private async Task<List<ScraperSearchResult>> SearchCoreAsync(string query, IReadOnlyList<int>? platformIds, CancellationToken cancellationToken)
     {
         // Ensure we are logged in
         var connected = await ConnectAsync(cancellationToken).ConfigureAwait(false);
@@ -146,7 +173,7 @@ public class IgdbProvider : IMetadataProvider
         try
         {
             var escapedQuery = EscapeIgdbSearchQuery(query);
-            var igdbQuery = BuildIgdbQuery(escapedQuery, IgdbExtendedFields);
+            var igdbQuery = BuildIgdbQuery(escapedQuery, IgdbExtendedFields, platformIds);
             using var response = await SendIgdbQueryAsync(igdbQuery, creds.ClientId, cancellationToken)
                 .ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -338,10 +365,16 @@ public class IgdbProvider : IMetadataProvider
         return response ?? throw new Exception("No response from IGDB.");
     }
 
-    private static string BuildIgdbQuery(string escapedQuery, IEnumerable<string> fields)
+    private static string BuildIgdbQuery(string escapedQuery, IEnumerable<string> fields, IReadOnlyList<int>? platformIds)
     {
         var fieldList = string.Join(", ", fields);
-        return $"search \"{escapedQuery}\"; fields {fieldList}; limit {MaxSearchResults};";
+        // IGDB interprets the values ​​in parentheses as OR, the game must have been released for at least one of the relevant platforms.
+        var platformFilter = platformIds is { Count: > 0 }
+            ? $" where platforms = ({string.Join(",", platformIds)});"
+            : string.Empty;
+        return
+            $"search \"{escapedQuery}\"; fields {fieldList};" +
+            $"{platformFilter} limit {MaxSearchResults};";
     }
 
     private static string EscapeIgdbSearchQuery(string value)

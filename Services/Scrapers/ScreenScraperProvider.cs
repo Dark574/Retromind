@@ -122,10 +122,33 @@ public sealed class ScreenScraperProvider : IMetadataProvider, IGameFileMetadata
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameSystemId);
-        if (!ScreenScraperSystemCatalog.TryGetSystemId(gameSystemId, out var systemId))
+        if (!ScreenScraperSystemCatalog.TryGetSystemIds(gameSystemId, out var systemIds))
             throw new NotSupportedException($"ScreenScraper does not support the game system '{gameSystemId}'.");
 
-        return await SearchCoreAsync(query, systemId, cancellationToken).ConfigureAwait(false);
+        if (systemIds.Count == 1)
+        {
+            return await SearchCoreAsync(
+                    query,
+                    systemIds[0],
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var resultSets = new List<List<ScraperSearchResult>>();
+
+        foreach (var systemId in systemIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            resultSets.Add(
+                await SearchCoreAsync(
+                        query,
+                        systemId,
+                        cancellationToken)
+                    .ConfigureAwait(false));
+        }
+
+        return MergeSystemSearchResults(resultSets);
     }
 
     private async Task<List<ScraperSearchResult>> SearchCoreAsync(
@@ -186,8 +209,39 @@ public sealed class ScreenScraperProvider : IMetadataProvider, IGameFileMetadata
         return results;
     }
 
+    private static List<ScraperSearchResult> MergeSystemSearchResults(
+        IReadOnlyList<List<ScraperSearchResult>> resultSets)
+    {
+        var merged = new List<ScraperSearchResult>();
+        var seenIds = new HashSet<string>(StringComparer.Ordinal);
+        var largestResultSet = resultSets.Count == 0
+            ? 0
+            : resultSets.Max(results => results.Count);
+
+        // Mix the result sets so that 30 DOS matches cannot displace every Windows match.
+        for (var index = 0;
+            index < largestResultSet && merged.Count < MaxSearchResults;
+            index++)
+        {
+            foreach (var resultSet in resultSets)
+            {
+                if (index >= resultSet.Count)
+                    continue;
+
+                var result = resultSet[index];
+                if (seenIds.Add(result.Id))
+                    merged.Add(result);
+
+                if (merged.Count >= MaxSearchResults)
+                    break;
+            }
+        }
+
+        return merged;
+    }
+
     public bool SupportsGameSystem(string? gameSystemId) =>
-        ScreenScraperSystemCatalog.TryGetSystemId(gameSystemId, out _);
+        ScreenScraperSystemCatalog.TryGetSystemIds(gameSystemId, out _);
 
     public async Task<ScraperSearchResult?> IdentifyGameFileAsync(
         string gameSystemId,
@@ -203,8 +257,16 @@ public sealed class ScreenScraperProvider : IMetadataProvider, IGameFileMetadata
                 "ScreenScraper application access is unavailable or the optional member credentials are incomplete.");
         }
 
-        if (!ScreenScraperSystemCatalog.TryGetSystemId(gameSystemId, out var systemId))
-            throw new NotSupportedException($"ScreenScraper does not support the game system '{gameSystemId}'.");
+        if (!ScreenScraperSystemCatalog.TryGetSystemIds(gameSystemId, out var systemIds))
+        {
+            throw new NotSupportedException(
+                $"ScreenScraper does not support the game system '{gameSystemId}'.");
+        }
+
+        if (systemIds.Count != 1)
+            return null;
+
+        var systemId = systemIds[0];
 
         var fingerprint = await _fingerprintService
             .CalculateAsync(filePath, cancellationToken)

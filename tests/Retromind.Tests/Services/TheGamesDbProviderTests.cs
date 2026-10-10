@@ -7,6 +7,27 @@ namespace Retromind.Tests.Services;
 
 public sealed class TheGamesDbProviderTests
 {
+    [Theory]
+    [InlineData("microsoft.pc", true)]
+    [InlineData("microsoft.ms-dos", false)]
+    [InlineData("microsoft.windows", false)]
+    [InlineData("nintendo.snes", true)]
+    [InlineData("unknown.system", false)]
+    [InlineData(null, false)]
+    public void SupportsGameSystem_UsesProviderSpecificMapping(
+        string? gameSystemId,
+        bool expected)
+    {
+        using var httpClient = new HttpClient(
+            new StubHandler(_ => JsonResponse("{}")));
+
+        var provider = CreateProvider(httpClient);
+
+        Assert.Equal(
+            expected,
+            provider.SupportsGameSystem(gameSystemId));
+    }
+
     [Fact]
     public async Task BulkSearch_UsesOneRankedPage_AndDefersSupplementalMetadata()
     {
@@ -27,6 +48,61 @@ public sealed class TheGamesDbProviderTests
         Assert.Null(result.Genre);
         Assert.Null(result.Developer);
         Assert.Null(result.Publisher);
+    }
+
+    [Theory]
+    [InlineData("nintendo.snes", "6")]
+    [InlineData("microsoft.pc", "1")]
+    public async Task BulkSystemSearch_UsesOnePageAndPlatformFilter(
+        string gameSystemId,
+        string expectedPlatformId)
+    {
+        var requests = new List<Uri>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            requests.Add(request.RequestUri!);
+            return JsonResponse(SearchPayload(remaining: 100));
+        }));
+        var provider = CreateProvider(client);
+
+        Assert.Single(
+            await provider.SearchForBulkByGameSystemAsync(
+                "Super Mario World",
+                gameSystemId));
+
+        var request = Assert.Single(requests);
+
+        Assert.Contains(
+            $"filter%5Bplatform%5D={expectedPlatformId}",
+            request.OriginalString,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "page=1",
+            request.Query,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SearchByGameSystemAsync_AddsMappedPlatformFilter()
+    {
+        var requests = new List<Uri>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            requests.Add(request.RequestUri!);
+            return JsonResponse(SearchPayload(remaining: 100));
+        }));
+        var provider = CreateProvider(client);
+
+        Assert.Single(
+            await provider.SearchByGameSystemAsync(
+                "Sonic",
+                "sega.mega-drive"));
+
+        Assert.NotEmpty(requests);
+        Assert.Contains(
+            "filter%5Bplatform%5D=18%2C36",
+            requests[0].OriginalString,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

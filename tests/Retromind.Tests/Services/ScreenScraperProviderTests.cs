@@ -90,6 +90,9 @@ public sealed class ScreenScraperProviderTests
     [Theory]
     [InlineData("sega.mega-drive", true)]
     [InlineData("sony.playstation-2", true)]
+    [InlineData("microsoft.pc", true)]
+    [InlineData("microsoft.ms-dos", true)]
+    [InlineData("microsoft.windows", true)]
     [InlineData("unknown.system", false)]
     [InlineData(null, false)]
     public void SupportsGameSystem_UsesProviderSpecificMapping(string? gameSystemId, bool expected)
@@ -129,6 +132,114 @@ public sealed class ScreenScraperProviderTests
         Assert.EndsWith("/jeuRecherche.php", requestedUri.AbsolutePath, StringComparison.Ordinal);
         Assert.Contains("recherche=Sonic", requestedUri.Query, StringComparison.Ordinal);
         Assert.Contains("systemeid=1", requestedUri.Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SearchByGameSystemAsync_MergesMappedPcSystems()
+    {
+        var requestedUris = new List<Uri>();
+
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            requestedUris.Add(request.RequestUri!);
+
+            if (request.RequestUri!.Query.Contains(
+                    "systemeid=135",
+                    StringComparison.Ordinal))
+            {
+                return JsonResponse(
+                    """
+                    {
+                    "response": {
+                        "jeux": [
+                        {
+                            "id": "dos-game",
+                            "nom": "DOS Game"
+                        }
+                        ]
+                    }
+                    }
+                    """);
+            }
+
+            return JsonResponse(
+                """
+                {
+                "response": {
+                    "jeux": [
+                    {
+                        "id": "windows-game",
+                        "nom": "Windows Game"
+                    }
+                    ]
+                }
+                }
+                """);
+        }));
+
+        var provider = new ScreenScraperProvider(
+            new ScraperConfig(),
+            httpClient,
+            new ScreenScraperApplicationCredentials(
+                "developer",
+                "password"));
+
+        var results = await provider.SearchByGameSystemAsync(
+            "Test Game",
+            "microsoft.pc");
+
+        Assert.Equal(2, requestedUris.Count);
+        Assert.Contains(
+            requestedUris,
+            uri => uri.Query.Contains(
+                "systemeid=135",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            requestedUris,
+            uri => uri.Query.Contains(
+                "systemeid=138",
+                StringComparison.Ordinal));
+
+        Assert.Collection(
+            results,
+            result => Assert.Equal("DOS Game", result.Title),
+            result => Assert.Equal("Windows Game", result.Title));
+    }
+
+    [Fact]
+    public async Task IdentifyGameFileAsync_AmbiguousPcSystem_SkipsFingerprint()
+    {
+        var requestCount = 0;
+
+        using var httpClient = new HttpClient(new StubHandler(_ =>
+        {
+            requestCount++;
+            return JsonResponse("{}");
+        }));
+
+        var fingerprintService = new StubFingerprintService(
+            new GameFileFingerprint(
+                1,
+                DateTime.UnixEpoch,
+                "00000000",
+                new string('0', 32),
+                new string('0', 40)));
+
+        var provider = new ScreenScraperProvider(
+            new ScraperConfig(),
+            httpClient,
+            new ScreenScraperApplicationCredentials(
+                "developer",
+                "password"),
+            fingerprintService);
+
+        var result = await provider.IdentifyGameFileAsync(
+            "microsoft.pc",
+            "/games/Test Game.exe");
+
+        Assert.Null(result);
+        Assert.Null(fingerprintService.FilePath);
+        Assert.Equal(0, requestCount);
     }
 
     [Fact]

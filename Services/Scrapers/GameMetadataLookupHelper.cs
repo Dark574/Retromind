@@ -38,9 +38,18 @@ internal static class GameMetadataLookupHelper
         }
 
         List<ScraperSearchResult> results;
-        if (provider is IGameSystemMetadataProvider systemProvider &&
-            !string.IsNullOrWhiteSpace(gameSystemId) &&
-            systemProvider.SupportsGameSystem(gameSystemId))
+        if (useBulkSearch && provider is IBulkGameSystemMetadataProvider bulkSystemProvider &&
+            !string.IsNullOrWhiteSpace(gameSystemId) && bulkSystemProvider.SupportsGameSystem(gameSystemId))
+        {
+            results = await bulkSystemProvider
+                .SearchForBulkByGameSystemAsync(
+                    query,
+                    gameSystemId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else if (provider is IGameSystemMetadataProvider systemProvider &&
+            !string.IsNullOrWhiteSpace(gameSystemId) && systemProvider.SupportsGameSystem(gameSystemId))
         {
             results = await systemProvider
                 .SearchByGameSystemAsync(query, gameSystemId, cancellationToken)
