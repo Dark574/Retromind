@@ -983,6 +983,7 @@
                                         <!-- Preview image (for image-like assets). For manuals this will usually be empty. -->
                                         <Image Grid.Row="0" 
                                                helpers:AsyncImageHelper.Url="{Binding AbsolutePath}"
+                                               helpers:AsyncImageHelper.DisableCache="{Binding HasTransientPreview}"
                                                Stretch="Uniform" Margin="5"/>
                                         
                                         <!-- Manual/document icon overlay (centered), only visible for AssetType.Manual -->

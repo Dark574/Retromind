@@ -57,6 +57,9 @@ public partial class MediaAsset : ObservableObject
     private string? _absolutePath; // Cache for computed absolute path
     private string? _transientPreviewPath;
 
+    [JsonIgnore]
+    public bool HasTransientPreview => !string.IsNullOrWhiteSpace(TransientPreviewPath);
+
     /// <summary>
     /// Optional non-persisted source path used while an asset import is still staged in an editor.
     /// </summary>
@@ -70,6 +73,7 @@ public partial class MediaAsset : ObservableObject
                 return;
 
             OnPropertyChanged(nameof(AbsolutePath));
+            OnPropertyChanged(nameof(HasTransientPreview));
         }
     }
     
