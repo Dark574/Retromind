@@ -150,6 +150,10 @@ public partial class MediaItem : ObservableObject
 
     // Temporary storage for randomization (not persisted)
     private readonly Dictionary<AssetType, string> _activeAssets = new();
+    private readonly Dictionary<AssetType, string?> _transientAssetPreviewPaths = new();
+
+    [JsonIgnore]
+    public bool HasTransientAssetPreviews => _transientAssetPreviewPaths.Count > 0;
 
     // Helper for internal logic (returns RELATIVE path)
     public string? GetPrimaryAssetPath(AssetType type)
@@ -167,11 +171,46 @@ public partial class MediaItem : ObservableObject
     // Helper for UI binding (returns ABSOLUTE path)
     private string? GetPrimaryAssetAbsolutePath(AssetType type)
     {
+        if (_transientAssetPreviewPaths.TryGetValue(type, out var previewPath))
+            return previewPath;
+
         var relPath = GetPrimaryAssetPath(type);
-        if (string.IsNullOrEmpty(relPath)) return null;
+        if (string.IsNullOrEmpty(relPath))
+            return null;
 
         var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(relPath);
         return string.IsNullOrWhiteSpace(fullPath) ? null : fullPath;
+    }
+
+    public void SetTransientAssetPreview(AssetType type, string? absolutePath)
+    {
+        var normalizedPath = string.IsNullOrWhiteSpace(absolutePath)
+            ? null
+            : absolutePath;
+
+        if (_transientAssetPreviewPaths.TryGetValue(type, out var currentPath) &&
+            string.Equals(currentPath, normalizedPath, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var wasActive = _transientAssetPreviewPaths.Count > 0;
+        _transientAssetPreviewPaths[type] = normalizedPath;
+
+        NotifyPrimaryAssetPathChanged(type);
+
+        if (!wasActive)
+            OnPropertyChanged(nameof(HasTransientAssetPreviews));
+    }
+
+    public void ClearTransientAssetPreviews()
+    {
+        if (_transientAssetPreviewPaths.Count == 0)
+            return;
+
+        _transientAssetPreviewPaths.Clear();
+        NotifyAssetPathsChanged();
+        OnPropertyChanged(nameof(HasTransientAssetPreviews));
     }
 
     /// <summary>

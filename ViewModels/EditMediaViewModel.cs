@@ -164,6 +164,29 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private void UpdateLiveAssetPreview(AssetType type)
+    {
+        if (!SupportsLiveAssetPreview(type))
+            return;
+
+        var previewPath = _editedAssets
+            .FirstOrDefault(asset => asset.Type == type)
+            ?.AbsolutePath;
+
+        _originalItem.SetTransientAssetPreview(type, previewPath);
+    }
+
+    private static bool SupportsLiveAssetPreview(AssetType type) =>
+        type is AssetType.Cover
+            or AssetType.Wallpaper
+            or AssetType.Screenshot
+            or AssetType.Logo
+            or AssetType.Video
+            or AssetType.Marquee
+            or AssetType.Banner
+            or AssetType.Bezel
+            or AssetType.ControlPanel;
+
     public sealed class EmulatorProfileOption
     {
         public enum OptionKind
@@ -729,6 +752,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         CancelAndCloseCommand = new RelayCommand<Window?>(win =>
         {
+            _originalItem.ClearTransientAssetPreviews();
             DetachAssetHandlers();
             win?.Close(false);
         });
@@ -1098,6 +1122,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 Save();
                 DetachAssetHandlers();
                 IsSavingAssetChanges = false;
+                _originalItem.ClearTransientAssetPreviews();
                 window?.Close(true);
             }
             catch (Exception ex)
@@ -1158,6 +1183,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
                 Save();
                 transaction.Commit();
+                _originalItem.ClearTransientAssetPreviews();
             }
             catch
             {
@@ -1178,6 +1204,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         {
             Console.WriteLine($"Error saving staged asset changes: {ex}");
             ResetEditedAssetsFromOriginal();
+            _originalItem.ClearTransientAssetPreviews();
             SaveErrorMessage = T(
                 "AssetEdit.SaveFailed",
                 "Media changes could not be saved. Existing files and assignments were preserved.");
@@ -1186,6 +1213,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        _originalItem.ClearTransientAssetPreviews();
         DetachAssetHandlers();
     }
 
@@ -1538,6 +1566,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
             _pendingAssetImports[stagedAsset.Id] = sourcePath;
             _editedAssets.Add(stagedAsset);
+            UpdateLiveAssetPreview(type);
             HasAssetChanges = true;
         }
     }
@@ -1548,8 +1577,10 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
             return Task.CompletedTask;
 
         var asset = SelectedAsset;
+        var type = asset.Type;
         _editedAssets.Remove(asset);
         _pendingAssetImports.Remove(asset.Id);
+        UpdateLiveAssetPreview(type);
         HasAssetChanges = true;
         SelectedAsset = null;
         return Task.CompletedTask;

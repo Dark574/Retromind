@@ -445,6 +445,7 @@
                                               IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                             <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverPath}"
                                                    helpers:AsyncImageHelper.DecodeWidth="300"
+                                                   helpers:AsyncImageHelper.DisableCache="{Binding HasTransientAssetPreviews}"
                                                    Stretch="Uniform" />
 
                                             <Border Background="#D9111827"

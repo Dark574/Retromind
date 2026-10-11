@@ -24,6 +24,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - prevent the previous system's fallback artwork from flashing while switching BigMode system themes
 - after linking a Game to a GOG-Game the GOG-Badge is added immediately
 - Fixed media previews showing an outdated image when the source file was replaced with another one
+- outdated media previews and restored live asset updates in MainView while editing
 
 ---
 
