@@ -4,6 +4,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Security;
 using Retromind.Tests.TestInfrastructure;
 using Retromind.ViewModels;
@@ -140,13 +141,23 @@ public sealed class SettingsViewModelRunnerRemovalTests
         ObservableCollection<MediaNode> roots)
     {
         var httpClient = new HttpClient(new StubHandler());
+        var secretStore = new InMemorySecretStore();
+
         var accountService = new RetroAchievementsAccountService(
             new RetroAchievementsApiClient(httpClient),
-            new InMemorySecretStore());
+            secretStore);
+        var steamAccountService = new SteamAchievementsAccountService(
+            new SteamApiClient(httpClient),
+            secretStore);
+
+        var steamDiscoveryService = new SteamAccountDiscoveryService(Array.Empty<string>());
+
         return new SettingsViewModel(
             settings,
             settingsService,
             accountService,
+            steamAccountService,
+            steamDiscoveryService,
             runnerService,
             roots);
     }

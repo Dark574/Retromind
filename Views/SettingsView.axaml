@@ -4,6 +4,7 @@
         xmlns:p="clr-namespace:Retromind.Resources"
         xmlns:models="clr-namespace:Retromind.Models"
         xmlns:helpers="clr-namespace:Retromind.Helpers"
+        xmlns:steam="clr-namespace:Retromind.Services.SteamAchievements"
         x:Class="Retromind.Views.SettingsView"
         x:DataType="vm:SettingsViewModel"
         Title="{x:Static p:Strings.Settings_Title}"
@@ -901,7 +902,7 @@
                         </ScrollViewer>
                     </TabItem>
 
-                    <TabItem Header="{Binding SettingsIntegrationLibrariesTitle}">
+                    <TabItem Header="{Binding SteamIntegrationTabTitle}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Spacing="16" Margin="10,10,20,20">
                                 <Border Classes="section">
@@ -933,6 +934,99 @@
                                 </Border>
 
                                 <Border Classes="section">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Text="{Binding SteamAchievementsSectionTitle}"
+                                                FontWeight="Bold"
+                                                FontSize="16" />
+
+                                        <TextBlock Text="{Binding SteamAchievementsHint}"
+                                                Opacity="0.65"
+                                                TextWrapping="Wrap" />
+
+                                        <CheckBox Content="{Binding SteamAchievementsEnableText}"
+                                                IsChecked="{Binding SteamAchievementsEnabled}" />
+
+                                        <CheckBox Content="{Binding SteamAchievementsShowInBigModeText}"
+                                                IsChecked="{Binding SteamAchievementsShowInBigMode}"
+                                                IsEnabled="{Binding SteamAchievementsEnabled}"
+                                                Margin="20,0,0,0" />
+
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="{Binding SteamDetectedAccountLabel}"
+                                                    FontWeight="Bold" />
+
+                                            <ComboBox ItemsSource="{Binding DetectedSteamAccounts}"
+                                                    SelectedItem="{Binding SelectedSteamAccount, Mode=TwoWay}"
+                                                    IsEnabled="{Binding !IsSteamAchievementsBusy}"
+                                                    HorizontalAlignment="Stretch">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="steam:SteamAccountInfo">
+                                                        <TextBlock Text="{Binding DisplayName}" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+
+                                            <TextBlock Text="{Binding SteamDetectedAccountHint}"
+                                                    Opacity="0.6"
+                                                    FontSize="11"
+                                                    TextWrapping="Wrap" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="{Binding SteamId64Label}"
+                                                    FontWeight="Bold" />
+
+                                            <TextBox Text="{Binding SteamAchievementsSteamId64}"
+                                                    IsEnabled="{Binding !IsSteamAchievementsBusy}" />
+
+                                            <TextBlock Text="{Binding SteamId64Hint}"
+                                                    Opacity="0.6"
+                                                    FontSize="11"
+                                                    TextWrapping="Wrap" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="{Binding SteamApiKeyLabel}"
+                                                    FontWeight="Bold" />
+
+                                            <TextBox Text="{Binding SteamAchievementsApiKey}"
+                                                    PasswordChar="*"
+                                                    IsEnabled="{Binding !IsSteamAchievementsBusy}" />
+
+                                            <TextBlock Text="{Binding SteamApiKeyHint}"
+                                                    Opacity="0.6"
+                                                    FontSize="11"
+                                                    TextWrapping="Wrap" />
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal"
+                                                    Spacing="8">
+                                            <Button Content="{Binding SteamTestConnectionText}"
+                                                    Command="{Binding TestSteamConnectionCommand}" />
+
+                                            <Button Content="{Binding SteamRemoveApiKeyText}"
+                                                    Command="{Binding RemoveSteamApiKeyCommand}" />
+                                        </StackPanel>
+
+                                        <Border BorderBrush="Gray"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="10">
+                                            <TextBlock Text="{Binding SteamAchievementsStatusText}"
+                                                    TextWrapping="Wrap" />
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="{Binding HeroicEpicIntegrationTabTitle}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="16" Margin="10,10,20,20">
+
+                                <Border Classes="section">
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="{x:Static p:Strings.Settings_SectionHeroicEpic}"
                                                    FontWeight="Bold"
@@ -959,6 +1053,7 @@
                                         </Grid>
                                     </StackPanel>
                                 </Border>
+
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>

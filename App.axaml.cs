@@ -14,6 +14,7 @@ using Retromind.Models;
 using Retromind.Services;
 using Retromind.Services.GameIdentification;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Abstractions;
 using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Auth;
@@ -321,6 +322,10 @@ public partial class App : Application
         services.AddSingleton<RetroAchievementsBulkIdentificationService>();
         services.AddSingleton<IRetroAchievementsProgressService, RetroAchievementsProgressService>();
         services.AddSingleton<IRetroAchievementsBadgeService, RetroAchievementsBadgeService>();
+        services.AddSingleton<SteamApiClient>();
+        services.AddSingleton<SteamAccountDiscoveryService>();
+        services.AddSingleton<SteamAchievementsAccountService>();
+        services.AddSingleton<ISteamAchievementsProgressService, SteamAchievementsProgressService>();
         services.AddSingleton<IGameFileFingerprintService, GameFileFingerprintService>();
 
         services.AddSingleton<MetadataService>();

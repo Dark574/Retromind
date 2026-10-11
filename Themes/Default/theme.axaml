@@ -434,7 +434,7 @@
                                           ColumnSpacing="16"
                                           RowSpacing="10"
                                           IsVisible="{Binding IsGameListActive}">
-                                    <!-- Compact RetroAchievements summary -->
+                                    <!-- Compact achievement summary -->
                                     <Border Grid.Row="0"
                                             Grid.ColumnSpan="2"
                                             Background="#52101620"
@@ -446,7 +446,7 @@
                                         <StackPanel Spacing="5">
                                             <Grid ColumnDefinitions="Auto,16,*">
                                                 <TextBlock Grid.Column="0"
-                                                           Text="RETROACHIEVEMENTS"
+                                                           Text="{Binding RetroAchievementsProgress.Title}"
                                                            Foreground="{StaticResource AccentBrush}"
                                                            FontSize="12"
                                                            FontWeight="SemiBold" />

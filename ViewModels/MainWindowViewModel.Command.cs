@@ -481,6 +481,7 @@ public partial class MainWindowViewModel
             _gamepadService,
             _retroAchievementsProgressService,
             _retroAchievementsBadgeService,
+            _steamAchievementsProgressService,
             IsParentalFilterActive,
             startOnHome);
         _activeBigModeViewModel = bigVm;
@@ -1173,13 +1174,12 @@ public partial class MainWindowViewModel
 
             if (recordStatistics &&
                 launchResult.Outcome == LaunchOutcome.Started &&
-                launchResult.WasSessionTracked &&
-                item.RetroAchievementsGame?.GameId > 0)
+                launchResult.WasSessionTracked)
             {
                 var activeBigMode = _activeBigModeViewModel;
                 if (activeBigMode != null && ReferenceEquals(activeBigMode.SelectedItem, item))
                 {
-                    activeBigMode.RefreshRetroAchievementsAfterTrackedSession(item);
+                    activeBigMode.RefreshAchievementsAfterTrackedSession(item);
                 }
                 else if (ReferenceEquals(GetCurrentSelectedItem(), item))
                 {
@@ -1582,6 +1582,8 @@ public partial class MainWindowViewModel
             _currentSettings,
             _settingsService,
             _retroAchievementsAccountService,
+            _steamAchievementsAccountService,
+            _steamAccountDiscoveryService,
             _runnerVersionService,
             RootItems,
             _gamepadService);
@@ -1589,6 +1591,7 @@ public partial class MainWindowViewModel
             settingsVm.SelectedSettingsTabIndex = initialTabIndex.Value;
 
         await settingsVm.InitializeRetroAchievementsAsync();
+        await settingsVm.InitializeSteamAchievementsAsync();
         settingsVm.RequestRunnerVersionRemovalConfirmation += runner =>
         {
             var message = runner.SourceType == RunnerVersionSourceType.ManagedDownload

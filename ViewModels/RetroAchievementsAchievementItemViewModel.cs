@@ -1,11 +1,13 @@
 using System;
 using System.Globalization;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.SteamAchievements;
 
 namespace Retromind.ViewModels;
 
 /// <summary>
-/// Read-only presentation state for one achievement in the desktop media details.
+/// Provider-neutral, read-only presentation state for one achievement.
+/// The historical type name is retained for compatibility with existing themes.
 /// </summary>
 public sealed class RetroAchievementsAchievementItemViewModel : ViewModelBase
 {
@@ -16,6 +18,7 @@ public sealed class RetroAchievementsAchievementItemViewModel : ViewModelBase
         ArgumentNullException.ThrowIfNull(achievement);
 
         AchievementId = achievement.AchievementId;
+        AchievementKey = achievement.AchievementId.ToString(CultureInfo.InvariantCulture);
         BadgeName = achievement.BadgeName;
         Title = achievement.Title;
         Description = achievement.Description;
@@ -25,6 +28,7 @@ public sealed class RetroAchievementsAchievementItemViewModel : ViewModelBase
         IsUnlocked = achievement.IsEarned || IsHardcore;
         IsCasual = IsUnlocked && !IsHardcore;
         IsLocked = !IsUnlocked;
+        ImageReference = achievement.BadgeName;
 
         PointsText = string.Format(
             CultureInfo.CurrentCulture,
@@ -49,19 +53,51 @@ public sealed class RetroAchievementsAchievementItemViewModel : ViewModelBase
             : stateText;
     }
 
+    public RetroAchievementsAchievementItemViewModel(SteamAchievement achievement)
+    {
+        ArgumentNullException.ThrowIfNull(achievement);
+
+        AchievementKey = achievement.ApiName;
+        Title = string.IsNullOrWhiteSpace(achievement.Title)
+            ? T("SteamAchievements_HiddenAchievement", "Hidden achievement")
+            : achievement.Title;
+        Description = achievement.Description;
+        IsHidden = achievement.IsHidden;
+        IsUnlocked = achievement.IsUnlocked;
+        IsLocked = !IsUnlocked;
+        ImageReference = achievement.ImageUrl;
+        PointsText = IsHidden
+            ? T("SteamAchievements_Hidden", "Hidden")
+            : string.Empty;
+
+        var stateText = IsUnlocked
+            ? T("SteamAchievements_AchievementUnlocked", "Unlocked")
+            : T("RetroAchievements_AchievementLocked", "Locked");
+        StatusText = achievement.UnlockedAtUtc.HasValue
+            ? string.Format(
+                CultureInfo.CurrentCulture,
+                T("RetroAchievements_AchievementUnlockedAtFormat", "{0} · Unlocked {1:g}"),
+                stateText,
+                achievement.UnlockedAtUtc.Value.ToLocalTime())
+            : stateText;
+    }
+
     public int AchievementId { get; }
-    public string BadgeName { get; }
-    public string Title { get; }
-    public string Description { get; }
+    public string AchievementKey { get; } = string.Empty;
+    public string BadgeName { get; } = string.Empty;
+    public string Title { get; } = string.Empty;
+    public string Description { get; } = string.Empty;
     public int DisplayOrder { get; }
     public int Points { get; }
-    public string PointsText { get; }
-    public string StatusText { get; }
+    public string PointsText { get; } = string.Empty;
+    public string StatusText { get; } = string.Empty;
     public bool IsUnlocked { get; }
     public bool IsCasual { get; }
     public bool IsHardcore { get; }
     public bool IsLocked { get; }
+    public bool IsHidden { get; }
     public double VisualOpacity => IsUnlocked ? 1.0 : 0.58;
+    internal string? ImageReference { get; }
 
     public string? BadgePath
     {

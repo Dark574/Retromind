@@ -45,7 +45,7 @@ especially before installing a new release.
 - **A flexible Linux launch pipeline.** Start native applications, scripts and emulators, or combine Wine, Proton, UMU, wrappers and environment overrides while preserving portable paths.
 - **Integrated game-library workflows.** Import Steam and Heroic titles, download GE-Proton versions, reuse emulator profiles, and manage GOG offline installations, updates and DLCs through the experimental GOG integration.
 - **Diagnostics you can actually share.** Retromind records the latest launch command, resolved runner, environment, output, runtime and exit result for easier troubleshooting.
-- **Experimental RetroAchievements support.** Identify supported ROM and disc images, view cached progress and badges, and keep Casual and Hardcore summaries separate.
+- **Experimental achievement support.** View Steam achievements for imported games, or identify supported ROM and disc images through RetroAchievements with separate Casual and Hardcore summaries.
 
 ### Made for the couch
 
@@ -83,7 +83,7 @@ Default controller layout:
 | D-pad / left stick | Navigate |
 | A / Cross | Select, open, or start |
 | B / Circle | Back |
-| X / Square | Details and RetroAchievements |
+| X / Square | Details and achievements |
 | Y / Triangle | BigMode Home screen |
 | Guide / Home / PS | Exit BigMode |
 | Start / Menu / Options | Open the system menu |
@@ -94,7 +94,7 @@ Default controller layout:
 Open **Settings → Controls** to reassign the action buttons or either button of the game-stop combination by
 pressing the desired button on the connected controller. Directional navigation remains fixed.
 Page navigation jumps through library and category lists in groups of ten, uses the existing Home pages, and moves
-three rows at a time in the RetroAchievements browser. Page Up and Page Down provide keyboard equivalents.
+three rows at a time in the achievement browser. Page Up and Page Down provide keyboard equivalents.
 The theme-independent system menu can resume BigMode, show the active controller layout, return to the desktop
 library, or save and exit Retromind after confirmation.
 
@@ -106,7 +106,7 @@ Default keyboard layout:
 | Enter / Space | Select, open, or start |
 | Backspace | Back one level |
 | Esc | Exit BigMode directly |
-| I | Details and RetroAchievements |
+| I | Details and achievements |
 | Home | BigMode Home screen |
 | F10 | Open the system menu |
 | Page Up / Page Down | Previous / next page |
@@ -666,6 +666,42 @@ You need to create your own API keys on the respective provider pages:
 
 Each user is responsible for their own API keys and must comply with the
 respective provider terms of service.
+
+## Steam Achievements (Experimental)
+
+Retromind can show the achievement progress recorded by Steam for imported Steam games. Steam remains
+responsible for unlocking and synchronizing achievements; Retromind only reads and presents the resulting
+progress. The Steam App ID stored during library import provides the game identity automatically, so no
+separate per-game identification is needed.
+
+### Connect the Steam account
+
+1. Make sure at least one Steam library path is configured under **Settings -> Integrations -> Steam**.
+2. Register a personal Steam Web API key at <https://steamcommunity.com/dev/apikey>. Steam currently requires
+   the Steam Mobile Authenticator before a personal key can be registered. If the form requests a domain for
+   this local desktop integration, the Retromind project-page host is `dark574.github.io`.
+3. Enable Steam achievements below the library paths in the same settings tab.
+4. Select one of the locally detected Steam accounts, or enter its 17-digit SteamID64 manually.
+5. Enter the Web API key, select **Test connection**, and save the settings.
+
+The profile's game details must be accessible through the Steam Web API. If progress cannot be loaded, check
+the account's Steam profile privacy settings. The API key is stored through the system keyring and is never
+written to `app_settings.json`, the library, or metadata backups. When no persistent keyring is available,
+the key remains available only for the current Retromind session.
+
+### Progress and hidden achievements
+
+Select an imported Steam game to see its completion summary in the desktop detail panel. Expand the list to
+view titles, descriptions, icons, unlock state, and unlock time. The shared BigMode achievement browser is
+available through the normal Details/Achievements control and can be disabled independently in the Steam
+settings.
+
+Locked hidden achievements reveal neither their title, description, nor icon. Retromind only shows how many
+hidden achievements remain; their real information appears after Steam reports them as unlocked. Results are
+kept in a short-lived memory cache to avoid repeated API calls while browsing. If a watch process is configured,
+Retromind refreshes the selected game's progress automatically after that process exits. Without process monitoring,
+launching through Steam remains a delegated handoff without a reliable game-exit signal; use **Refresh** in the
+desktop details after returning from the game.
 
 ## RetroAchievements (Experimental)
 

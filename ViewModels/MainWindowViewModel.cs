@@ -22,6 +22,7 @@ using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Abstractions;
 using Retromind.Services.Stores.Gog;
 
@@ -62,6 +63,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly RetroAchievementsBulkIdentificationService _retroAchievementsBulkIdentificationService;
     private readonly IRetroAchievementsProgressService _retroAchievementsProgressService;
     private readonly IRetroAchievementsBadgeService _retroAchievementsBadgeService;
+    private readonly SteamAchievementsAccountService _steamAchievementsAccountService;
+    private readonly SteamAccountDiscoveryService _steamAccountDiscoveryService;
+    private readonly ISteamAchievementsProgressService _steamAchievementsProgressService;
 
     // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
     private readonly HttpClient _httpClient;
@@ -131,6 +135,7 @@ public partial class MainWindowViewModel : ViewModelBase
     
     public IStorageProvider? StorageProvider { get; set; }
     public RetroAchievementsProgressViewModel RetroAchievementsProgress { get; }
+    public RetroAchievementsProgressViewModel AchievementProgress => RetroAchievementsProgress;
     
     // Command to open per-item manuals/documents with the system viewer.
     public IRelayCommand<MediaAsset?> OpenManualCommand { get; private set; } = null!;
@@ -421,6 +426,9 @@ public partial class MainWindowViewModel : ViewModelBase
         RetroAchievementsBulkIdentificationService retroAchievementsBulkIdentificationService,
         IRetroAchievementsProgressService retroAchievementsProgressService,
         IRetroAchievementsBadgeService retroAchievementsBadgeService,
+        SteamAchievementsAccountService steamAchievementsAccountService,
+        SteamAccountDiscoveryService steamAccountDiscoveryService,
+        ISteamAchievementsProgressService steamAchievementsProgressService,
         LibraryHealthService? libraryHealthService = null)
     {
         _audioService = audioService;
@@ -451,10 +459,14 @@ public partial class MainWindowViewModel : ViewModelBase
         _retroAchievementsBulkIdentificationService = retroAchievementsBulkIdentificationService;
         _retroAchievementsProgressService = retroAchievementsProgressService;
         _retroAchievementsBadgeService = retroAchievementsBadgeService;
+        _steamAchievementsAccountService = steamAchievementsAccountService;
+        _steamAccountDiscoveryService = steamAccountDiscoveryService;
+        _steamAchievementsProgressService = steamAchievementsProgressService;
         RetroAchievementsProgress = new RetroAchievementsProgressViewModel(
             _currentSettings,
             _retroAchievementsProgressService,
             _retroAchievementsBadgeService,
+            _steamAchievementsProgressService,
             selectionDelay: TimeSpan.FromMilliseconds(300));
         if (_settingsService.HasLoadFailure)
         {

@@ -275,6 +275,8 @@ public class SettingsService
             throw InvalidNull("$.ScraperImport");
         if (settings.RetroAchievements == null)
             throw InvalidNull("$.RetroAchievements");
+        if (settings.SteamAchievements == null)
+            throw InvalidNull("$.SteamAchievements");
 
         ValidateRequiredList(settings.Emulators, "$.Emulators");
         for (var index = 0; index < settings.Emulators.Count; index++)

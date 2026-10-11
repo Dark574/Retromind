@@ -92,7 +92,7 @@
                        FontWeight="SemiBold" />
         </Border>
 
-        <!-- Theme-independent RetroAchievements detail overlay. -->
+        <!-- Theme-independent achievement detail overlay. -->
         <Grid Background="#E6070910"
               IsVisible="{Binding IsAchievementsOverlayOpen}">
             <Border Margin="72,58"

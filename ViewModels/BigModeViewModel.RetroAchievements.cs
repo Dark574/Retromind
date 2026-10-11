@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.SteamAchievements;
 
 namespace Retromind.ViewModels;
 
@@ -27,18 +28,18 @@ public partial class BigModeViewModel
     private RetroAchievementsAchievementItemViewModel? _selectedAchievement;
 
     /// <summary>
-    /// Selection-driven RetroAchievements state exposed to BigMode themes.
+    /// Selection-driven achievement state exposed to BigMode themes. The legacy
+    /// property name remains available for third-party theme compatibility.
     /// </summary>
     public RetroAchievementsProgressViewModel RetroAchievementsProgress { get; }
+    public RetroAchievementsProgressViewModel AchievementProgress => RetroAchievementsProgress;
 
     public bool CanOpenAchievementsOverlay =>
         !IsInAttractMode &&
         RetroAchievementsProgress.IsVisible &&
         RetroAchievementsProgress.HasAchievements;
 
-    public string AchievementsOverlayTitle => T(
-        "BigMode_AchievementsOverlayTitle",
-        "RetroAchievements");
+    public string AchievementsOverlayTitle => RetroAchievementsProgress.Title;
 
     public string AchievementsOverlayHintText => string.Format(
         T("BigMode_AchievementsOverlayHint", "{0} / {1} · Achievements"),
@@ -66,10 +67,10 @@ public partial class BigModeViewModel
         // game's achievement state while the new selection is settling.
         _ = RetroAchievementsProgress.SelectItemAsync(null);
 
-        if (_settings.RetroAchievements?.ShowInBigMode != true ||
+        if (!ShouldShowAchievementsInBigMode(item) ||
             !IsGameListActive ||
             IsInAttractMode ||
-            item?.RetroAchievementsGame?.GameId is not > 0)
+            item == null)
             return;
 
         _pendingRetroAchievementsItem = item;
@@ -193,6 +194,9 @@ public partial class BigModeViewModel
 
     private void OnRetroAchievementsProgressPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(RetroAchievementsProgressViewModel.Title))
+            OnPropertyChanged(nameof(AchievementsOverlayTitle));
+
         if (e.PropertyName is not (nameof(RetroAchievementsProgressViewModel.IsVisible) or
             nameof(RetroAchievementsProgressViewModel.HasAchievements) or
             nameof(RetroAchievementsProgressViewModel.AchievementItems)))
@@ -216,15 +220,14 @@ public partial class BigModeViewModel
         }
     }
 
-    public void RefreshRetroAchievementsAfterTrackedSession(MediaItem item)
+    public void RefreshAchievementsAfterTrackedSession(MediaItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
 
         if (!IsGameListActive ||
-            _settings.RetroAchievements?.ShowInBigMode != true ||
+            !ShouldShowAchievementsInBigMode(item) ||
             IsInAttractMode ||
-            !ReferenceEquals(SelectedItem, item) ||
-            item.RetroAchievementsGame?.GameId is not > 0)
+            !ReferenceEquals(SelectedItem, item))
         {
             return;
         }
@@ -237,6 +240,26 @@ public partial class BigModeViewModel
     {
         _pendingRetroAchievementsItem = null;
         _retroAchievementsSelectionTimer?.Stop();
+    }
+
+    private bool ShouldShowAchievementsInBigMode(MediaItem? item)
+    {
+        if (item == null)
+            return false;
+
+        var steamSettings = _settings.SteamAchievements;
+        if (steamSettings != null &&
+            steamSettings.Enabled &&
+            SteamAppIdResolver.TryGetAppId(item, out _))
+        {
+            return steamSettings.ShowInBigMode;
+        }
+
+        var retroAchievementsSettings = _settings.RetroAchievements;
+        return retroAchievementsSettings != null &&
+               retroAchievementsSettings.ShowInBigMode &&
+               retroAchievementsSettings.Enabled &&
+               item.RetroAchievementsGame?.GameId is > 0;
     }
 
     private void DisposeRetroAchievementsProgress()

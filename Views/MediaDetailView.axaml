@@ -169,7 +169,7 @@
 
             <Separator Height="2" Background="Gray" Opacity="0.3" />
 
-            <!-- RetroAchievements summary for identified games -->
+            <!-- Achievement summary for the active provider -->
             <Border x:DataType="vm:RetroAchievementsProgressViewModel"
                     DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RetroAchievementsProgress}"
                     IsVisible="{Binding IsVisible}"

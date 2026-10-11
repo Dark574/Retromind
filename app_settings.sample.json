@@ -8,6 +8,17 @@
   "SavedSearchOnlyFavorites": {},
   "SteamLibraryPaths": [],
   "HeroicEpicConfigPaths": [],
+  "RetroAchievements": {
+    "Enabled": false,
+    "ShowInBigMode": true,
+    "Username": null,
+    "UserUlid": null
+  },
+  "SteamAchievements": {
+    "Enabled": false,
+    "ShowInBigMode": true,
+    "SteamId64": null
+  },
   "VlcHardwareDecodeMode": "none",
   "EnableSelectionMusicPreview": true,
   "IgnoreLeadingArticlesInSort": false,

@@ -1,5 +1,7 @@
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.SteamAchievements;
 using Retromind.ViewModels;
 
 namespace Retromind.Tests.ViewModels;
@@ -431,6 +433,89 @@ public sealed class RetroAchievementsProgressViewModelTests
         Assert.Equal(123, viewModel.Snapshot?.Progress.GameId);
     }
 
+    [Fact]
+    public async Task SelectItemAsync_ShowsSteamProgressForSteamGame()
+    {
+        var settings = CreateSettings();
+        settings.SteamAchievements = new SteamAchievementsSettings
+        {
+            Enabled = true,
+            SteamId64 = "76561198000000042"
+        };
+        var steamSnapshot = new SteamProgressSnapshot(
+            new SteamGameProgress
+            {
+                AppId = 123,
+                Title = "Steam game",
+                Achievements =
+                [
+                    new SteamAchievement
+                    {
+                        ApiName = "ACH_FIRST",
+                        Title = "First",
+                        Description = "Completed",
+                        IsUnlocked = true,
+                        UnlockedAtUtc = new DateTimeOffset(
+                            2026,
+                            10,
+                            11,
+                            8,
+                            0,
+                            0,
+                            TimeSpan.Zero),
+                        ImageUrl = "https://example.com/first.jpg"
+                    },
+                    new SteamAchievement
+                    {
+                        ApiName = "ACH_SECRET",
+                        IsHidden = true
+                    }
+                ]
+            },
+            new DateTimeOffset(2026, 10, 11, 8, 0, 0, TimeSpan.Zero),
+            UsedCachedFallback: false);
+        using var viewModel = new RetroAchievementsProgressViewModel(
+            settings,
+            new StubProgressService((gameId, forceRefresh, cancellationToken) =>
+                throw new InvalidOperationException("RetroAchievements should not be used.")),
+            new StubBadgeService((badgeName, isUnlocked, cancellationToken) =>
+                throw new InvalidOperationException("Steam images do not use the badge service.")),
+            new StubSteamProgressService((appId, forceRefresh, cancellationToken) =>
+                Task.FromResult(steamSnapshot)));
+
+        await viewModel.SelectItemAsync(CreateSteamItem(appId: 123));
+
+        Assert.True(viewModel.IsVisible);
+        Assert.True(viewModel.HasProgress);
+        Assert.Equal(2, viewModel.ProgressMaximum);
+        Assert.Equal(1, viewModel.ProgressValue);
+        Assert.Contains("Steam", viewModel.Title, StringComparison.Ordinal);
+        Assert.Contains("1", viewModel.ProviderDetailText, StringComparison.Ordinal);
+        Assert.Collection(
+            viewModel.AchievementItems,
+            achievement =>
+            {
+                Assert.Equal("First", achievement.Title);
+                Assert.True(achievement.IsUnlocked);
+                Assert.Null(achievement.BadgePath);
+            },
+            achievement =>
+            {
+                Assert.True(achievement.IsHidden);
+                Assert.True(achievement.IsLocked);
+                Assert.NotEmpty(achievement.Title);
+                Assert.Empty(achievement.Description);
+                Assert.Null(achievement.BadgePath);
+            });
+
+        viewModel.EnsureAchievementBadgesLoaded();
+
+        Assert.Equal(
+            "https://example.com/first.jpg",
+            viewModel.AchievementItems[0].BadgePath);
+        Assert.Null(viewModel.AchievementItems[1].BadgePath);
+    }
+
     private static RetroAchievementsProgressViewModel CreateViewModel(
         Func<int, bool, CancellationToken, Task<RetroAchievementsProgressSnapshot>> getProgress,
         Func<string?, bool, CancellationToken, Task<string?>>? getBadge = null,
@@ -474,6 +559,27 @@ public sealed class RetroAchievementsProgressViewModelTests
                 GameSystemId = "gb",
                 Hash = "25f9e794323b453885f5181f1b624d0b",
                 Title = "Test Game"
+            }
+        };
+
+    private static MediaItem CreateSteamItem(uint appId) =>
+        new()
+        {
+            Title = "Steam game",
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = "steam",
+                    Index = 1
+                }
+            ],
+            LauncherArgs = $"steam://rungameid/{appId}",
+            CustomFields = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [CustomFieldKeyHelper.StoreProviderId] = "steam",
+                [CustomFieldKeyHelper.StoreGameId] = appId.ToString()
             }
         };
 
@@ -521,5 +627,16 @@ public sealed class RetroAchievementsProgressViewModelTests
             bool isUnlocked,
             CancellationToken cancellationToken = default) =>
             getBadge(badgeName, isUnlocked, cancellationToken);
+    }
+
+    private sealed class StubSteamProgressService(
+        Func<uint, bool, CancellationToken, Task<SteamProgressSnapshot>> getProgress)
+        : ISteamAchievementsProgressService
+    {
+        public Task<SteamProgressSnapshot> GetProgressAsync(
+            uint appId,
+            bool forceRefresh = false,
+            CancellationToken cancellationToken = default) =>
+            getProgress(appId, forceRefresh, cancellationToken);
     }
 }

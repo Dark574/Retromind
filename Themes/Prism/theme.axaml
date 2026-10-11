@@ -403,7 +403,7 @@
                         <StackPanel Spacing="5">
                             <Grid ColumnDefinitions="Auto,18,*">
                                 <TextBlock Grid.Column="0"
-                                           Text="RETROACHIEVEMENTS"
+                                           Text="{Binding RetroAchievementsProgress.Title}"
                                            Foreground="{Binding ElementName=ThemeRoot,
                                                                 Path=(ext:ThemeProperties.DynamicAccentColor),
                                                                 Converter={StaticResource AccentBrushConverter}}"

@@ -191,4 +191,10 @@ public class AppSettings
     /// stored separately through the platform secret store.
     /// </summary>
     public RetroAchievementsSettings RetroAchievements { get; set; } = new();
+
+    /// <summary>
+    /// Non-secret Steam achievements settings. The Web API key is
+    /// stored separately through the platform secret store.
+    /// </summary>
+    public SteamAchievementsSettings SteamAchievements { get; set; } = new();
 }

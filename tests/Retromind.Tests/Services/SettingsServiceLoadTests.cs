@@ -147,6 +147,7 @@ public sealed class SettingsServiceLoadTests
     [InlineData("{\"KeyboardBindings\":null}", "$.KeyboardBindings")]
     [InlineData("{\"ScraperImport\":null}", "$.ScraperImport")]
     [InlineData("{\"RetroAchievements\":null}", "$.RetroAchievements")]
+    [InlineData("{\"SteamAchievements\":null}", "$.SteamAchievements")]
     [InlineData("{\"Emulators\":null}", "$.Emulators")]
     [InlineData("{\"Emulators\":[null]}", "$.Emulators[0]")]
     [InlineData("{\"Emulators\":[{\"EnvironmentOverrides\":null}]}", "$.Emulators[0].EnvironmentOverrides")]

@@ -15,6 +15,7 @@ using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.SteamAchievements;
 
 namespace Retromind.ViewModels;
 
@@ -461,6 +462,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         GamepadService gamepadService,
         IRetroAchievementsProgressService retroAchievementsProgressService,
         IRetroAchievementsBadgeService retroAchievementsBadgeService,
+        ISteamAchievementsProgressService steamAchievementsProgressService,
         bool parentalFilterActive = false,
         bool startOnHome = false)
     {
@@ -474,7 +476,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         RetroAchievementsProgress = new RetroAchievementsProgressViewModel(
             _settings,
             retroAchievementsProgressService,
-            retroAchievementsBadgeService);
+            retroAchievementsBadgeService,
+            steamAchievementsProgressService);
         InitializeRetroAchievementsOverlay();
         InitializeSystemMenu();
 

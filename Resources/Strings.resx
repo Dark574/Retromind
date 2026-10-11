@@ -1181,6 +1181,35 @@ The current application settings will be kept.</value></data>
     <data name="Settings_RetroAchievementsStatusUnexpectedFailure" xml:space="preserve"><value>The RetroAchievements connection test failed unexpectedly.</value></data>
     <data name="Settings_RetroAchievementsStatusRemovePending" xml:space="preserve"><value>RetroAchievements was disabled. The stored Web API key will be removed when you save the settings.</value></data>
     <data name="Settings_RetroAchievementsStatusSecretWriteFailed" xml:space="preserve"><value>The Web API key could not be stored. The settings were not saved.</value></data>
+    <data name="Settings_SteamIntegrationTabTitle" xml:space="preserve"><value>Steam</value></data>
+    <data name="Settings_HeroicEpicIntegrationTabTitle" xml:space="preserve"><value>Heroic / Epic</value></data>
+    <data name="Settings_SteamAchievementsSectionTitle" xml:space="preserve"><value>Steam achievements</value></data>
+    <data name="Settings_SteamAchievementsHint" xml:space="preserve"><value>Connect your Steam account to show achievement progress for imported Steam games.</value></data>
+    <data name="Settings_SteamAchievementsEnable" xml:space="preserve"><value>Enable Steam achievements</value></data>
+    <data name="Settings_SteamAchievementsShowInBigMode" xml:space="preserve"><value>Show Steam achievement progress in BigMode</value></data>
+    <data name="Settings_SteamDetectedAccount" xml:space="preserve"><value>Detected Steam account</value></data>
+    <data name="Settings_SteamDetectedAccountHint" xml:space="preserve"><value>Retromind reads locally signed-in accounts from Steam. Selecting an account fills in its SteamID64.</value></data>
+    <data name="Settings_SteamId64" xml:space="preserve"><value>SteamID64</value></data>
+    <data name="Settings_SteamId64Hint" xml:space="preserve"><value>The SteamID64 contains 17 digits and can also be entered manually.</value></data>
+    <data name="Settings_SteamApiKey" xml:space="preserve"><value>Web API key</value></data>
+    <data name="Settings_SteamApiKeyHint" xml:space="preserve"><value>Create a personal key at steamcommunity.com/dev/apikey. Steam currently requires the Steam Mobile Authenticator before a personal key can be registered. The key is stored in the system keyring when available and never written to Retromind settings or metadata backups. Without an available keyring, it remains available only for the current session. Leave the field empty to keep the stored key.</value></data>
+    <data name="Settings_SteamTestConnection" xml:space="preserve"><value>Test connection</value></data>
+    <data name="Settings_SteamRemoveApiKey" xml:space="preserve"><value>Remove stored key</value></data>
+    <data name="Settings_SteamAchievementsStatusChecking" xml:space="preserve"><value>Checking stored Steam account data...</value></data>
+    <data name="Settings_SteamAchievementsStatusStored" xml:space="preserve"><value>A Steam Web API key is stored. You can test the connection or enter a replacement key.</value></data>
+    <data name="Settings_SteamAchievementsStatusNotConfigured" xml:space="preserve"><value>No Steam Web API key is stored yet.</value></data>
+    <data name="Settings_SteamAchievementsStatusSecretReadFailed" xml:space="preserve"><value>The stored Steam Web API key could not be read.</value></data>
+    <data name="Settings_SteamAchievementsStatusDetectionFailed" xml:space="preserve"><value>Local Steam accounts could not be detected. You can enter the SteamID64 manually.</value></data>
+    <data name="Settings_SteamAchievementsStatusNoAccount" xml:space="preserve"><value>No local Steam account was detected. Enter the SteamID64 manually.</value></data>
+    <data name="Settings_SteamAchievementsStatusConnecting" xml:space="preserve"><value>Connecting to Steam...</value></data>
+    <data name="Settings_SteamAchievementsStatusConnectedFormat" xml:space="preserve"><value>Connected as {0}.</value></data>
+    <data name="Settings_SteamAchievementsStatusConnectedNewKeyFormat" xml:space="preserve"><value>Connected as {0}. The new key will be stored when you save the settings.</value></data>
+    <data name="Settings_SteamAchievementsStatusCanceled" xml:space="preserve"><value>The Steam connection test was canceled.</value></data>
+    <data name="Settings_SteamAchievementsStatusFailedFormat" xml:space="preserve"><value>Connection failed: {0}</value></data>
+    <data name="Settings_SteamAchievementsStatusUnauthorized" xml:space="preserve"><value>The Steam Web API key was not accepted.</value></data>
+    <data name="Settings_SteamAchievementsStatusUnexpectedFailure" xml:space="preserve"><value>The Steam connection test failed unexpectedly.</value></data>
+    <data name="Settings_SteamAchievementsStatusRemovePending" xml:space="preserve"><value>Steam achievements were disabled. The stored Web API key will be removed when you save the settings.</value></data>
+    <data name="Settings_SteamAchievementsStatusSecretWriteFailed" xml:space="preserve"><value>The Steam Web API key could not be stored. The settings were not saved.</value></data>
     <data name="GameSystem_NodeLabel" xml:space="preserve"><value>Game system for game identification</value></data>
     <data name="GameSystem_ItemLabel" xml:space="preserve"><value>Game system for game identification</value></data>
     <data name="GameSystem_Hint" xml:space="preserve"><value>Technical assignment for integrations such as RetroAchievements and ScreenScraper. It does not change Platform metadata or the configured emulator.</value></data>
@@ -1215,6 +1244,14 @@ The current application settings will be kept.</value></data>
     <data name="RetroAchievements_AchievementCasual" xml:space="preserve"><value>Casual</value></data>
     <data name="RetroAchievements_AchievementHardcore" xml:space="preserve"><value>Hardcore</value></data>
     <data name="RetroAchievements_AchievementUnlockedAtFormat" xml:space="preserve"><value>{0} · Unlocked {1:g}</value></data>
+    <data name="SteamAchievements_ProgressTitle" xml:space="preserve"><value>Steam achievement progress</value></data>
+    <data name="SteamAchievements_ProgressSummaryFormat" xml:space="preserve"><value>{0:N0} of {1:N0} achievements ({2:N1}%)</value></data>
+    <data name="SteamAchievements_LockedHiddenSummaryFormat" xml:space="preserve"><value>Hidden achievements remaining: {0:N0}</value></data>
+    <data name="SteamAchievements_ProgressCachedFallbackFormat" xml:space="preserve"><value>Steam is unavailable. Showing cached data from {0:g}.</value></data>
+    <data name="SteamAchievements_HiddenAchievement" xml:space="preserve"><value>Hidden achievement</value></data>
+    <data name="SteamAchievements_Hidden" xml:space="preserve"><value>Hidden</value></data>
+    <data name="SteamAchievements_AchievementUnlocked" xml:space="preserve"><value>Unlocked</value></data>
+    <data name="SteamAchievements_NoAchievements" xml:space="preserve"><value>This game has no Steam achievements.</value></data>
     <data name="RetroAchievements_SearchAll" xml:space="preserve"><value>Search RetroAchievements (All)...</value></data>
     <data name="RetroAchievements_AccountRequired" xml:space="preserve"><value>Configure a RetroAchievements account and Web API key in the settings before starting identification.</value></data>
     <data name="RetroAchievements_BulkTitle" xml:space="preserve"><value>RetroAchievements mass identification</value></data>

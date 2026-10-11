@@ -66,7 +66,7 @@ Main window is a layered shell:
 ## Persistence model
 Persisted app/library data is portable under `AppPaths.DataRoot` (AppImage directory or app base directory).
 Secrets that use the shared host credential abstraction (currently the GOG refresh token and the
-RetroAchievements Web API key) are stored through `ISecretStore`, not in `DataRoot`.
+RetroAchievements and Steam Web API keys) are stored through `ISecretStore`, not in `DataRoot`.
 
 ### Library (`retromind_tree.json`)
 - service: `MediaDataService`
@@ -98,7 +98,7 @@ RetroAchievements Web API key) are stored through `ISecretStore`, not in `DataRo
 - `ISecretStore` is shared by store authentication and account integrations. On Linux the composite
   implementation prefers the host Secret Service and falls back to session-only memory when persistent
   storage is unavailable
-- the GOG refresh token and RetroAchievements Web API key are excluded from `app_settings.json`,
+- the GOG refresh token and RetroAchievements and Steam Web API keys are excluded from `app_settings.json`,
   `retromind_tree.json`, metadata backups, and integration caches
 - scraper credentials follow a separate legacy contract: they are serialized only in encrypted settings
   fields through `SecurityHelper`; they do not use `ISecretStore`
@@ -367,6 +367,17 @@ the report never mutates JSON or deletes files.
   their size and PNG signature, and publishes them atomically below `RetroAchievements/Badges`. Concurrent requests
   share a bounded set of synchronization gates, failures do not affect progress data, and the persistent badge cache
   follows the existing portable-HOME cache migration
+- Steam achievement progress uses the store App ID already persisted by Steam imports. The Steam API client combines
+  the localized game schema with account-specific unlock state while keeping the personal Web API key in the request
+  header. Locked hidden achievements are stripped of title, description, and artwork before they reach presentation
+  or cache state; only their remaining count is exposed. A bounded five-minute memory cache coalesces browsing
+  requests and can provide the last in-memory result during a temporary API failure. Steam sessions with a configured
+  watch process force-refresh the still-selected game's progress after that process exits; delegated handoffs without
+  process monitoring have no reliable completion boundary and require an explicit refresh
+- the existing achievement presentation model is shared by RetroAchievements and Steam. Provider-neutral progress,
+  list expansion, refresh, and BigMode navigation remain common, while RetroAchievements adds points and Hardcore
+  state and Steam adds hidden-achievement state. Historical RetroAchievements property/type names remain available
+  so third-party runtime themes do not break
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
   (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode. New imports persist
   the provider-neutral identity fields `Store.ProviderId` and `Store.GameId` on the `MediaItem`
@@ -511,7 +522,8 @@ The suite is risk-focused rather than UI-complete. It covers persistence recover
 portable-path and prefix contracts, Winetricks prefix/command preparation, launch planning, import and multi-disc
 rules, metadata matching, search, statistics, managed runner publication/removal, GOG authentication/install
 safety, and the RetroAchievements account, hashing, catalog, progress,
-badge, cache-migration, and bulk-identification services. Destructive filesystem tests use unique
+badge, cache-migration, and bulk-identification services, plus Steam account discovery, API parsing, App-ID
+resolution, progress caching, and privacy-safe achievement presentation. Destructive filesystem tests use unique
 `/tmp/retromind-tests-<guid>` roots, validate the exact target before cleanup, and avoid following symbolic
 links. This includes dangerous system/application roots, ownership markers, symbolic links, Linux case
 sensitivity, path containment, and persisted-library relocation.

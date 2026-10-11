@@ -13,6 +13,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.SteamAchievements;
 
 namespace Retromind.ViewModels;
 
@@ -533,7 +534,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string GettingStartedRestoreDetails => T(
         "GettingStarted.Restore.Details",
         "• Open Backups and choose Manage backups to view the available archives.\n• A backup contains the library database and settings, but not games, artwork, videos, themes or portable HOME data.\n• Retromind closes after a successful restore so the restored state can be loaded cleanly on the next start.");
-    public string SettingsIntegrationLibrariesTitle => T("Settings_IntegrationLibraries", "Game libraries");
+    public string HeroicEpicIntegrationTabTitle => T("Settings_HeroicEpicIntegrationTabTitle", "Heroic / Epic");
     public string RunnerVersionsSectionTitle => T("Settings_SectionRunnerVersions", "Wine/Proton versions");
     public string RunnerVersionNameLabel => T("Settings_RunnerVersionNameLabel", "Name");
     public string RunnerVersionPathLabel => T("Settings_RunnerVersionPathLabel", "Path");
@@ -825,6 +826,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         AppSettings settings,
         SettingsService settingsService,
         RetroAchievementsAccountService retroAchievementsAccountService,
+        SteamAchievementsAccountService steamAchievementsAccountService,
+        SteamAccountDiscoveryService steamAccountDiscoveryService,
         RunnerVersionService runnerVersionService,
         ObservableCollection<MediaNode>? rootNodes = null,
         GamepadService? gamepadService = null)
@@ -836,6 +839,10 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _gamepadService = gamepadService;
         _retroAchievementsAccountService = retroAchievementsAccountService ??
             throw new ArgumentNullException(nameof(retroAchievementsAccountService));
+        _steamAchievementsAccountService = steamAchievementsAccountService ??
+            throw new ArgumentNullException(nameof(steamAchievementsAccountService));
+        _steamAccountDiscoveryService = steamAccountDiscoveryService ??
+            throw new ArgumentNullException(nameof(steamAccountDiscoveryService));
         _rootNodes = rootNodes ?? new ObservableCollection<MediaNode>();
         _originalIgnoreLeadingArticlesInSort = _targetSettings.IgnoreLeadingArticlesInSort;
 
@@ -949,11 +956,22 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         RemoveRetroAchievementsApiKeyCommand = new RelayCommand(
             RemoveRetroAchievementsApiKey,
             CanRemoveRetroAchievementsApiKey);
+        TestSteamConnectionCommand = new AsyncRelayCommand(
+            TestSteamConnectionAsync,
+            CanTestSteamConnection);
+        RemoveSteamApiKeyCommand = new RelayCommand(
+            RemoveSteamApiKey,
+            CanRemoveSteamApiKey);
 
         var retroAchievementsSettings = _appSettings.RetroAchievements ??= new RetroAchievementsSettings();
         RetroAchievementsEnabled = retroAchievementsSettings.Enabled;
         RetroAchievementsShowInBigMode = retroAchievementsSettings.ShowInBigMode;
         RetroAchievementsUsername = retroAchievementsSettings.Username ?? string.Empty;
+
+        var steamAchievementsSettings = _appSettings.SteamAchievements ??= new SteamAchievementsSettings();
+        SteamAchievementsEnabled = steamAchievementsSettings.Enabled;
+        SteamAchievementsShowInBigMode = steamAchievementsSettings.ShowInBigMode;
+        SteamAchievementsSteamId64 = steamAchievementsSettings.SteamId64 ?? string.Empty;
 
         foreach (var emulator in Emulators)
             emulator.PropertyChanged += OnAnyEmulatorPropertyChanged;

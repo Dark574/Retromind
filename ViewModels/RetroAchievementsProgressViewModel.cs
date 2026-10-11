@@ -8,29 +8,35 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Models;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.SteamAchievements;
 
 namespace Retromind.ViewModels;
 
 /// <summary>
-/// Presentation state for the RetroAchievements summary in the desktop media details.
+/// Shared presentation state for RetroAchievements and Steam achievement progress.
+/// The historical type name is retained so external BigMode themes keep working.
 /// </summary>
 public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposable
 {
     private readonly AppSettings _settings;
     private readonly IRetroAchievementsProgressService _progressService;
     private readonly IRetroAchievementsBadgeService _badgeService;
+    private readonly ISteamAchievementsProgressService? _steamProgressService;
     private readonly TimeSpan _selectionDelay;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _badgeLoadCts;
     private MediaItem? _selectedItem;
     private int _selectedGameId;
+    private uint _selectedSteamAppId;
     private string? _selectedUserIdentifier;
+    private AchievementProvider _activeProvider;
     private bool _isVisible;
     private bool _isLoading;
     private bool _isBadgeLoading;
     private bool _isAchievementsExpanded;
     private string _statusText = string.Empty;
     private RetroAchievementsProgressSnapshot? _snapshot;
+    private SteamProgressSnapshot? _steamSnapshot;
     private IReadOnlyList<RetroAchievementsAchievementItemViewModel> _achievementItems =
         Array.Empty<RetroAchievementsAchievementItemViewModel>();
     private bool _disposed;
@@ -40,6 +46,21 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         IRetroAchievementsProgressService progressService,
         IRetroAchievementsBadgeService badgeService,
         TimeSpan selectionDelay = default)
+        : this(
+            settings,
+            progressService,
+            badgeService,
+            steamProgressService: null,
+            selectionDelay)
+    {
+    }
+
+    public RetroAchievementsProgressViewModel(
+        AppSettings settings,
+        IRetroAchievementsProgressService progressService,
+        IRetroAchievementsBadgeService badgeService,
+        ISteamAchievementsProgressService? steamProgressService,
+        TimeSpan selectionDelay = default)
     {
         if (selectionDelay < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(selectionDelay));
@@ -47,6 +68,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _progressService = progressService ?? throw new ArgumentNullException(nameof(progressService));
         _badgeService = badgeService ?? throw new ArgumentNullException(nameof(badgeService));
+        _steamProgressService = steamProgressService;
         _selectionDelay = selectionDelay;
         RefreshCommand = new AsyncRelayCommand(
             () => SelectItemAsync(_selectedItem, forceRefresh: true),
@@ -57,7 +79,9 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     public IAsyncRelayCommand RefreshCommand { get; }
     public IRelayCommand ToggleAchievementsCommand { get; }
 
-    public string Title => T("RetroAchievements_ProgressTitle", "RetroAchievements progress");
+    public string Title => _activeProvider == AchievementProvider.Steam
+        ? T("SteamAchievements_ProgressTitle", "Steam achievement progress")
+        : T("RetroAchievements_ProgressTitle", "RetroAchievements progress");
     public string RefreshText => T("RetroAchievements_ProgressRefresh", "Refresh");
     public string AchievementsTitle => T("RetroAchievements_AchievementsTitle", "Achievements");
     public string AchievementsHeaderText => string.Format(
@@ -128,6 +152,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             OnPropertyChanged(nameof(ProgressValue));
             OnPropertyChanged(nameof(SummaryText));
             OnPropertyChanged(nameof(HardcoreSummaryText));
+            OnPropertyChanged(nameof(ProviderDetailText));
 
             AchievementItems = value?.Progress.Achievements
                 .OrderBy(achievement => achievement.DisplayOrder)
@@ -151,16 +176,43 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         }
     }
 
-    public bool HasProgress => Snapshot != null;
+    public bool HasProgress => _activeProvider switch
+    {
+        AchievementProvider.Steam => _steamSnapshot != null,
+        AchievementProvider.RetroAchievements => Snapshot != null,
+        _ => false
+    };
     public bool HasAchievements => AchievementItems.Count > 0;
     public bool ShowStatus => !string.IsNullOrWhiteSpace(StatusText);
-    public double ProgressMaximum => Math.Max(1, Snapshot?.Progress.AchievementCount ?? 1);
-    public double ProgressValue => Snapshot?.Progress.AwardedCount ?? 0;
+    public double ProgressMaximum => Math.Max(
+        1,
+        _activeProvider == AchievementProvider.Steam
+            ? _steamSnapshot?.Progress.AchievementCount ?? 1
+            : Snapshot?.Progress.AchievementCount ?? 1);
+    public double ProgressValue => _activeProvider == AchievementProvider.Steam
+        ? _steamSnapshot?.Progress.UnlockedCount ?? 0
+        : Snapshot?.Progress.AwardedCount ?? 0;
 
     public string SummaryText
     {
         get
         {
+            if (_activeProvider == AchievementProvider.Steam)
+            {
+                var steamProgress = _steamSnapshot?.Progress;
+                if (steamProgress == null)
+                    return string.Empty;
+
+                return string.Format(
+                    CultureInfo.CurrentCulture,
+                    T(
+                        "SteamAchievements_ProgressSummaryFormat",
+                        "{0:N0} of {1:N0} achievements ({2:N1}%)"),
+                    steamProgress.UnlockedCount,
+                    steamProgress.AchievementCount,
+                    steamProgress.CompletionPercent);
+            }
+
             var progress = Snapshot?.Progress;
             if (progress == null)
                 return string.Empty;
@@ -177,9 +229,26 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     }
 
     public string HardcoreSummaryText
+        => ProviderDetailText;
+
+    public string ProviderDetailText
     {
         get
         {
+            if (_activeProvider == AchievementProvider.Steam)
+            {
+                var steamProgress = _steamSnapshot?.Progress;
+                if (steamProgress == null || steamProgress.LockedHiddenAchievementCount == 0)
+                    return string.Empty;
+
+                return string.Format(
+                    CultureInfo.CurrentCulture,
+                    T(
+                        "SteamAchievements_LockedHiddenSummaryFormat",
+                        "Hidden achievements remaining: {0:N0}"),
+                    steamProgress.LockedHiddenAchievementCount);
+            }
+
             var progress = Snapshot?.Progress;
             if (progress == null)
                 return string.Empty;
@@ -203,36 +272,65 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
 
         var gameId = item?.RetroAchievementsGame?.GameId ?? 0;
         var retroAchievementsSettings = _settings.RetroAchievements;
-        var isVisible = retroAchievementsSettings?.Enabled == true && gameId > 0;
-        var userIdentifier = FirstNonEmpty(
-            retroAchievementsSettings?.UserUlid,
-            retroAchievementsSettings?.Username);
+        var retroAchievementsVisible =
+            retroAchievementsSettings?.Enabled == true && gameId > 0;
+        var hasSteamAppId = SteamAppIdResolver.TryGetAppId(item, out var steamAppId);
+        var steamAchievementsSettings = _settings.SteamAchievements;
+        var steamAchievementsVisible =
+            _steamProgressService != null &&
+            steamAchievementsSettings?.Enabled == true &&
+            hasSteamAppId;
+        var provider = steamAchievementsVisible
+            ? AchievementProvider.Steam
+            : retroAchievementsVisible
+                ? AchievementProvider.RetroAchievements
+                : AchievementProvider.None;
+        var isVisible = provider != AchievementProvider.None;
+        var userIdentifier = provider == AchievementProvider.Steam
+            ? steamAchievementsSettings?.SteamId64?.Trim()
+            : FirstNonEmpty(
+                retroAchievementsSettings?.UserUlid,
+                retroAchievementsSettings?.Username);
+        var hasRequestedProgress = provider switch
+        {
+            AchievementProvider.Steam =>
+                _steamSnapshot?.Progress.AppId == steamAppId,
+            AchievementProvider.RetroAchievements =>
+                Snapshot?.Progress.GameId == gameId,
+            _ => false
+        };
         if (!forceRefresh &&
             ReferenceEquals(_selectedItem, item) &&
             _selectedGameId == gameId &&
+            _selectedSteamAppId == steamAppId &&
+            _activeProvider == provider &&
             IsVisible == isVisible &&
             string.Equals(
                 _selectedUserIdentifier,
                 userIdentifier,
                 StringComparison.OrdinalIgnoreCase) &&
-            (IsLoading || Snapshot?.Progress.GameId == gameId))
+            (IsLoading || hasRequestedProgress))
         {
             return;
         }
 
         var selectedGameChanged = !ReferenceEquals(_selectedItem, item) ||
-                                  _selectedGameId != gameId;
+                                  _selectedGameId != gameId ||
+                                  _selectedSteamAppId != steamAppId ||
+                                  _activeProvider != provider;
         if (selectedGameChanged)
             IsAchievementsExpanded = false;
 
         _selectedItem = item;
         _selectedGameId = gameId;
+        _selectedSteamAppId = steamAppId;
         _selectedUserIdentifier = userIdentifier;
         CancelCurrentLoad();
+        SetActiveProvider(provider);
 
         IsVisible = isVisible;
-        if (!forceRefresh || !IsVisible)
-            Snapshot = null;
+        if (selectedGameChanged || !forceRefresh || !IsVisible)
+            ClearSnapshots();
 
         StatusText = string.Empty;
         if (!IsVisible)
@@ -244,50 +342,111 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         var requestCts = new CancellationTokenSource();
         _loadCts = requestCts;
         IsLoading = true;
-        StatusText = T("RetroAchievements_ProgressLoading", "Loading achievement progress...");
+        StatusText = T(
+            "RetroAchievements_ProgressLoading",
+            "Loading achievement progress...");
 
         try
         {
             if (!forceRefresh && _selectionDelay > TimeSpan.Zero)
                 await Task.Delay(_selectionDelay, requestCts.Token);
 
-            var snapshot = await _progressService
-                .GetProgressAsync(gameId, forceRefresh, requestCts.Token);
-            if (!IsCurrentRequest(requestCts, item, gameId))
-                return;
+            if (provider == AchievementProvider.Steam)
+            {
+                var steamSnapshot = await _steamProgressService!
+                    .GetProgressAsync(steamAppId, forceRefresh, requestCts.Token);
+                if (!IsCurrentRequest(
+                        requestCts,
+                        item,
+                        provider,
+                        gameId,
+                        steamAppId))
+                {
+                    return;
+                }
 
-            Snapshot = snapshot;
-            if (IsAchievementsExpanded)
-                StartBadgeLoading(AchievementItems, item, gameId);
-            StatusText = snapshot.UsedCachedFallback
-                ? string.Format(
-                    CultureInfo.CurrentCulture,
-                    T(
-                        "RetroAchievements_ProgressCachedFallbackFormat",
-                        "RetroAchievements is unavailable. Showing cached data from {0:g}."),
-                    snapshot.FetchedAtUtc.ToLocalTime())
-                : string.Empty;
+                SetSteamSnapshot(steamSnapshot);
+                if (IsAchievementsExpanded)
+                    StartBadgeLoading(AchievementItems, item, gameId);
+                if (steamSnapshot.Progress.AchievementCount == 0)
+                {
+                    StatusText = T(
+                        "SteamAchievements_NoAchievements",
+                        "This game has no Steam achievements.");
+                }
+                else if (steamSnapshot.UsedCachedFallback)
+                {
+                    StatusText = string.Format(
+                        CultureInfo.CurrentCulture,
+                        T(
+                            "SteamAchievements_ProgressCachedFallbackFormat",
+                            "Steam is unavailable. Showing cached data from {0:g}."),
+                        steamSnapshot.FetchedAtUtc.ToLocalTime());
+                }
+                else
+                {
+                    StatusText = string.Empty;
+                }
+            }
+            else
+            {
+                var snapshot = await _progressService
+                    .GetProgressAsync(gameId, forceRefresh, requestCts.Token);
+                if (!IsCurrentRequest(
+                        requestCts,
+                        item,
+                        provider,
+                        gameId,
+                        steamAppId))
+                {
+                    return;
+                }
+
+                Snapshot = snapshot;
+                if (IsAchievementsExpanded)
+                    StartBadgeLoading(AchievementItems, item, gameId);
+                StatusText = snapshot.UsedCachedFallback
+                    ? string.Format(
+                        CultureInfo.CurrentCulture,
+                        T(
+                            "RetroAchievements_ProgressCachedFallbackFormat",
+                            "RetroAchievements is unavailable. Showing cached data from {0:g}."),
+                        snapshot.FetchedAtUtc.ToLocalTime())
+                    : string.Empty;
+            }
         }
         catch (OperationCanceledException) when (requestCts.IsCancellationRequested)
         {
             // Selection changed or the view model is being disposed.
         }
-        catch (Exception ex) when (ex is RetroAchievementsApiException or InvalidOperationException)
+        catch (Exception ex) when (ex is RetroAchievementsApiException or
+                                      SteamApiException or
+                                      InvalidOperationException)
         {
-            if (!IsCurrentRequest(requestCts, item, gameId))
+            if (!IsCurrentRequest(
+                    requestCts,
+                    item,
+                    provider,
+                    gameId,
+                    steamAppId))
                 return;
 
-            Debug.WriteLine($"[RetroAchievements] Could not load progress: {ex.Message}");
+            Debug.WriteLine($"[Achievements] Could not load progress: {ex.Message}");
             StatusText = T(
                 "RetroAchievements_ProgressLoadFailed",
                 "Achievement progress could not be loaded.");
         }
         catch (Exception ex)
         {
-            if (!IsCurrentRequest(requestCts, item, gameId))
+            if (!IsCurrentRequest(
+                    requestCts,
+                    item,
+                    provider,
+                    gameId,
+                    steamAppId))
                 return;
 
-            Debug.WriteLine($"[RetroAchievements] Unexpected progress load failure: {ex}");
+            Debug.WriteLine($"[Achievements] Unexpected progress load failure: {ex}");
             StatusText = T(
                 "RetroAchievements_ProgressLoadFailed",
                 "Achievement progress could not be loaded.");
@@ -315,7 +474,11 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     }
 
     private bool CanRefresh() =>
-        IsVisible && !IsLoading && (_selectedItem?.RetroAchievementsGame?.GameId ?? 0) > 0;
+        IsVisible &&
+        !IsLoading &&
+        (_activeProvider == AchievementProvider.Steam
+            ? SteamAppIdResolver.TryGetAppId(_selectedItem, out _)
+            : (_selectedItem?.RetroAchievementsGame?.GameId ?? 0) > 0);
 
     private static string? FirstNonEmpty(params string?[] values)
     {
@@ -346,15 +509,71 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             StartBadgeLoading(AchievementItems, _selectedItem, _selectedGameId);
     }
 
+    private void SetActiveProvider(AchievementProvider provider)
+    {
+        if (_activeProvider == provider)
+            return;
+
+        _activeProvider = provider;
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(HasProgress));
+        OnPropertyChanged(nameof(ProgressMaximum));
+        OnPropertyChanged(nameof(ProgressValue));
+        OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(HardcoreSummaryText));
+        OnPropertyChanged(nameof(ProviderDetailText));
+    }
+
+    private void ClearSnapshots()
+    {
+        Snapshot = null;
+        SetSteamSnapshot(null);
+        AchievementItems = Array.Empty<RetroAchievementsAchievementItemViewModel>();
+    }
+
+    private void SetSteamSnapshot(SteamProgressSnapshot? value)
+    {
+        if (Equals(_steamSnapshot, value))
+            return;
+
+        _steamSnapshot = value;
+        OnPropertyChanged(nameof(HasProgress));
+        OnPropertyChanged(nameof(ProgressMaximum));
+        OnPropertyChanged(nameof(ProgressValue));
+        OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(HardcoreSummaryText));
+        OnPropertyChanged(nameof(ProviderDetailText));
+
+        if (_activeProvider != AchievementProvider.Steam)
+            return;
+
+        AchievementItems = value?.Progress.Achievements
+            .Select(achievement => new RetroAchievementsAchievementItemViewModel(achievement))
+            .ToArray()
+            ?? Array.Empty<RetroAchievementsAchievementItemViewModel>();
+    }
+
     private bool IsCurrentRequest(
         CancellationTokenSource requestCts,
         MediaItem? item,
-        int gameId)
+        AchievementProvider provider,
+        int gameId,
+        uint steamAppId)
     {
         return ReferenceEquals(_loadCts, requestCts) &&
                ReferenceEquals(_selectedItem, item) &&
                _selectedGameId == gameId &&
-               item?.RetroAchievementsGame?.GameId == gameId;
+               _selectedSteamAppId == steamAppId &&
+               _activeProvider == provider &&
+               (provider switch
+               {
+                   AchievementProvider.Steam =>
+                       SteamAppIdResolver.TryGetAppId(item, out var currentAppId) &&
+                       currentAppId == steamAppId,
+                   AchievementProvider.RetroAchievements =>
+                       item?.RetroAchievementsGame?.GameId == gameId,
+                   _ => false
+               });
     }
 
     private void CancelCurrentLoad()
@@ -378,11 +597,26 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         if (achievements.Count == 0 ||
             _badgeLoadCts != null ||
             !ReferenceEquals(_selectedItem, item) ||
-            _selectedGameId != gameId ||
-            item?.RetroAchievementsGame?.GameId != gameId)
+            _selectedGameId != gameId)
         {
             return;
         }
+
+        if (_activeProvider == AchievementProvider.Steam)
+        {
+            if (!SteamAppIdResolver.TryGetAppId(item, out var appId) ||
+                appId != _selectedSteamAppId)
+            {
+                return;
+            }
+
+            foreach (var achievement in achievements)
+                achievement.SetBadgePath(achievement.ImageReference);
+            return;
+        }
+
+        if (item?.RetroAchievementsGame?.GameId != gameId)
+            return;
 
         var missingBadges = achievements
             .Where(achievement => string.IsNullOrWhiteSpace(achievement.BadgePath))
@@ -467,5 +701,12 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             if (lockTaken)
                 concurrencyGate.Release();
         }
+    }
+
+    private enum AchievementProvider
+    {
+        None,
+        RetroAchievements,
+        Steam
     }
 }

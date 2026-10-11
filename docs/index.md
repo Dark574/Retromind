@@ -37,7 +37,7 @@ Feedback and bug reports are especially welcome.
 - **A flexible Linux launch pipeline.** Start native applications, scripts and emulators, or combine Wine, Proton, UMU, wrappers and environment overrides while preserving portable paths.
 - **Integrated game-library workflows.** Import Steam and Heroic titles, download GE-Proton versions, reuse emulator profiles, and manage GOG offline installations, updates and DLCs through the experimental GOG integration.
 - **Diagnostics you can actually share.** Retromind records the latest launch command, resolved runner, environment, output, runtime and exit result for easier troubleshooting.
-- **Experimental RetroAchievements support.** Identify supported ROM and disc images, view cached progress and badges, and keep Casual and Hardcore summaries separate.
+- **Experimental achievement support.** View Steam achievements for imported games, or identify supported ROM and disc images through RetroAchievements with separate Casual and Hardcore summaries.
 
 ### Made for the couch
 
@@ -51,8 +51,8 @@ Feedback and bug reports are especially welcome.
 
 Retromind is open source under the GPL-3.0-only license and developed in public on GitHub.
 
-RetroAchievements support has not yet been broadly tested across the many supported systems, game-file
-formats, and emulator configurations. Compatibility reports are welcome while the integration remains experimental.
+Steam and RetroAchievements support has not yet been broadly tested across all account, privacy, system,
+game-file, and emulator configurations. Compatibility reports are welcome while the integrations remain experimental.
 
 ### Portability
 

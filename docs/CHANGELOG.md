@@ -12,6 +12,8 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - ScreenScraper now supports video asset downloads
 - multiple videos are now also played random if the selection is active
 - filter game metadata searches by a selected system with ScreenScraper, IGDB and TheGamesDB
+- display Steam achievement progress, unlock times and privacy-safe hidden achievements in the desktop details and BigMode
+- Steam Achievements have been added
 
 ### Changed
 - improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews

@@ -5,6 +5,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Security;
 using Retromind.ViewModels;
 
@@ -135,10 +136,17 @@ public sealed class SettingsViewModelRetroAchievementsTests
         var accountService = new RetroAchievementsAccountService(
             new RetroAchievementsApiClient(httpClient),
             secretStore);
+        var steamAccountService = new SteamAchievementsAccountService(
+            new SteamApiClient(httpClient),
+            secretStore);
+        var steamDiscoveryService = new SteamAccountDiscoveryService(Array.Empty<string>());
+
         return new SettingsViewModel(
             targetSettings,
             new SettingsService(),
             accountService,
+            steamAccountService,
+            steamDiscoveryService,
             new RunnerVersionService(AppPaths.DataRoot));
     }
 

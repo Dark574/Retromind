@@ -21,7 +21,8 @@ public partial class SettingsViewModel
         return !IsGeReleaseDownloadActive &&
                Scrapers.All(s => s.Type != ScraperType.None) &&
                Scrapers.All(HasCompleteScreenScraperMemberCredentials) &&
-               CanSaveRetroAchievements();
+               CanSaveRetroAchievements() &&
+               CanSaveSteamAchievements();
     }
 
     private static bool HasCompleteScreenScraperMemberCredentials(ScraperConfig scraper)
@@ -241,6 +242,9 @@ public partial class SettingsViewModel
         if (!await SaveRetroAchievementsAsync())
             return;
 
+        if (!await SaveSteamAchievementsAsync())
+            return;
+
         EnsureRunnerVersionIds();
 
         // Persist emulator wrapper & env configuration from UI into the selected emulator model
@@ -330,6 +334,7 @@ public partial class SettingsViewModel
         _targetSettings.HeroicEpicConfigPaths = committed.HeroicEpicConfigPaths;
         _targetSettings.ScraperImport = committed.ScraperImport;
         _targetSettings.RetroAchievements = committed.RetroAchievements;
+        _targetSettings.SteamAchievements = committed.SteamAchievements;
     }
 
     private void EnsureRunnerVersionIds()
