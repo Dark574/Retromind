@@ -46,7 +46,7 @@ public sealed class CompositeSecretStoreTests
     }
 
     [Fact]
-    public async Task SecretOperations_PrimaryFailureStillUsesFallback()
+    public async Task SetAndGet_PrimaryFailureStillUsesFallback()
     {
         var primary = new TestSecretStore { FailOperations = true };
         var fallback = new TestSecretStore();
@@ -54,10 +54,26 @@ public sealed class CompositeSecretStoreTests
 
         await store.SetAsync(TestKey, "secret");
         var value = await store.GetAsync(TestKey);
-        await store.DeleteAsync(TestKey);
 
         Assert.Equal("fallback-secret", value);
-        Assert.Equal(3, fallback.OperationCalls);
+        Assert.Equal(2, fallback.OperationCalls);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_PrimaryFailureDeletesFallbackAndReportsFailure()
+    {
+        var primary = new TestSecretStore { FailOperations = true };
+        var fallback = new TestSecretStore();
+        var store = new CompositeSecretStore(primary, fallback);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => store.DeleteAsync(TestKey));
+
+        Assert.Contains(
+            "primary secret store",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.Equal(1, fallback.DeleteCalls);
     }
 
     [Fact]
@@ -85,6 +101,7 @@ public sealed class CompositeSecretStoreTests
         public bool FailOperations { get; init; }
         public int AvailabilityCalls { get; private set; }
         public int OperationCalls { get; private set; }
+        public int DeleteCalls { get; private set; }
 
         public Task<bool> IsAvailableAsync(CancellationToken ct = default)
         {
@@ -115,6 +132,7 @@ public sealed class CompositeSecretStoreTests
         public Task DeleteAsync(SecretKey key, CancellationToken ct = default)
         {
             OperationCalls++;
+            DeleteCalls++;
             ThrowIfConfigured(ct);
             return Task.CompletedTask;
         }

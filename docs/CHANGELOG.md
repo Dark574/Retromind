@@ -25,6 +25,8 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - after linking a Game to a GOG-Game the GOG-Badge is added immediately
 - Fixed media previews showing an outdated image when the source file was replaced with another one
 - outdated media previews and restored live asset updates in MainView while editing
+- report failures when stored achievement API keys cannot be removed from the system keyring
+- keep showing cached Steam achievement progress when downloading an updated response is interrupted
 
 ---
 

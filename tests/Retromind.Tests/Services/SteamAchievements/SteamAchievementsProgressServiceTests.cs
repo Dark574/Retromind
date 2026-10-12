@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -46,6 +47,33 @@ public sealed class SteamAchievementsProgressServiceTests
         var service = CreateService(httpClient);
         var first = await service.GetProgressAsync(123);
         failRequests = true;
+
+        var fallback = await service.GetProgressAsync(123, forceRefresh: true);
+
+        Assert.Same(first.Progress, fallback.Progress);
+        Assert.Equal(first.FetchedAtUtc, fallback.FetchedAtUtc);
+        Assert.True(fallback.UsedCachedFallback);
+    }
+
+    [Fact]
+    public async Task GetProgressAsync_UsesPreviousEntryWhenResponseBodyFails()
+    {
+        var failResponseBody = false;
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            if (failResponseBody)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new FailingReadContent()
+                };
+            }
+
+            return CreateApiResponse(request);
+        }));
+        var service = CreateService(httpClient);
+        var first = await service.GetProgressAsync(123);
+        failResponseBody = true;
 
         var fallback = await service.GetProgressAsync(123, forceRefresh: true);
 
@@ -183,6 +211,23 @@ public sealed class SteamAchievementsProgressServiceTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(responseFactory(request));
+        }
+    }
+
+    private sealed class FailingReadContent : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(
+            Stream stream,
+            TransportContext? context)
+        {
+            return Task.FromException(
+                new HttpRequestException("The response stream failed."));
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
         }
     }
 }

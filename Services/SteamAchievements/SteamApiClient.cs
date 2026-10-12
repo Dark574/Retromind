@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -257,34 +258,15 @@ public sealed class SteamApiClient
             "x-webapi-key",
             apiKey.Trim());
 
-        HttpResponseMessage response;
         try
         {
-            response = await _httpClient
+            using var response = await _httpClient
                 .SendAsync(
                     request,
                     HttpCompletionOption.ResponseHeadersRead,
                     cancellationToken)
                 .ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-            when (!cancellationToken.IsCancellationRequested)
-        {
-            throw new SteamApiException(
-                "The Steam Web API request timed out.");
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (HttpRequestException)
-        {
-            throw new SteamApiException(
-                "The Steam Web API could not be reached.");
-        }
 
-        using (response)
-        {
             var responseBody = await response.Content
                 .ReadAsStringAsync(cancellationToken)
                 .ConfigureAwait(false);
@@ -298,6 +280,28 @@ public sealed class SteamApiClient
             }
 
             return responseBody;
+        }
+        catch (OperationCanceledException)
+            when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new SteamApiException(
+                "The Steam Web API request timed out.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new SteamApiException(
+                "The Steam Web API could not be reached.",
+                ex);
+        }
+        catch (IOException ex)
+        {
+            throw new SteamApiException(
+                "The Steam Web API response could not be read.",
+                ex);
         }
     }
 

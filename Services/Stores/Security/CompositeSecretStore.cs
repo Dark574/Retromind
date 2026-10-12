@@ -72,6 +72,8 @@ public sealed class CompositeSecretStore : ISecretStore
     {
         ct.ThrowIfCancellationRequested();
 
+        Exception? primaryDeleteFailure = null;
+
         if (await IsPrimaryAvailableAsync(ct).ConfigureAwait(false))
         {
             try
@@ -81,10 +83,18 @@ public sealed class CompositeSecretStore : ISecretStore
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Debug.WriteLine($"[SecretStore] Primary delete failed. Continuing with fallback store. Reason: {ex.Message}");
+                primaryDeleteFailure = ex;
             }
         }
 
         await _fallback.DeleteAsync(key, ct).ConfigureAwait(false);
+
+        if (primaryDeleteFailure != null)
+        {
+            throw new InvalidOperationException(
+                "The secret could not be removed from the primary secret store.",
+                primaryDeleteFailure);
+        }
     }
 
     private async Task<bool> IsPrimaryAvailableAsync(CancellationToken ct)
