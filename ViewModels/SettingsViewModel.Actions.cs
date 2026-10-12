@@ -15,6 +15,16 @@ namespace Retromind.ViewModels;
 
 public partial class SettingsViewModel
 {
+    private AchievementSecretRollbackState? _achievementSecretRollbackState;
+
+    private sealed record AchievementSecretRollbackState(
+        bool RestoreRetroAchievementsKey,
+        string? RetroAchievementsApiKey,
+        bool RestoreSteamKey,
+        string? SteamApiKey,
+        RetroAchievementsSettings RetroAchievementsSettings,
+        SteamAchievementsSettings SteamAchievementsSettings);
+
     private bool CanSave()
     {
         // Prevent persisting half-configured scraper entries.
@@ -239,12 +249,6 @@ public partial class SettingsViewModel
         if (!CanSave())
             return;
 
-        if (!await SaveRetroAchievementsAsync())
-            return;
-
-        if (!await SaveSteamAchievementsAsync())
-            return;
-
         EnsureRunnerVersionIds();
 
         // Persist emulator wrapper & env configuration from UI into the selected emulator model
@@ -294,8 +298,18 @@ public partial class SettingsViewModel
         _appSettings.RunnerVersions = RunnerVersions.Select(r => r.ToModel()).ToList();
         _appSettings.SteamLibraryPaths = SteamLibraryPaths.ToList();
         _appSettings.HeroicEpicConfigPaths = HeroicEpicConfigPaths.ToList();
+        ApplyRetroAchievementsSettings();
+        ApplySteamAchievementsSettings();
 
-        ApplyWorkingCopyToTarget();
+        // Validate and clone the complete working model before changing secrets.
+        // After the secret transaction succeeds, applying this detached snapshot
+        // to the runtime settings is an in-memory operation only.
+        var committed = CreateWorkingCopy(_appSettings);
+
+        if (!await SaveAchievementSecretsAsync())
+            return;
+
+        ApplyWorkingCopyToTarget(committed);
         IsSaved = true;
         RequestClose?.Invoke();
     }
@@ -306,12 +320,8 @@ public partial class SettingsViewModel
         RequestClose?.Invoke();
     }
 
-    private void ApplyWorkingCopyToTarget()
+    private void ApplyWorkingCopyToTarget(AppSettings committed)
     {
-        // Clone again so the closed dialog cannot retain mutable objects that are
-        // now part of the application's active settings.
-        var committed = CreateWorkingCopy(_appSettings);
-
         _targetSettings.PreferPortableLaunchPaths = committed.PreferPortableLaunchPaths;
         _targetSettings.UsePortableHomeInAppImage = committed.UsePortableHomeInAppImage;
         _targetSettings.ForcePortableHomeInAppImage = committed.ForcePortableHomeInAppImage;
@@ -335,6 +345,226 @@ public partial class SettingsViewModel
         _targetSettings.ScraperImport = committed.ScraperImport;
         _targetSettings.RetroAchievements = committed.RetroAchievements;
         _targetSettings.SteamAchievements = committed.SteamAchievements;
+    }
+
+    private async Task<bool> SaveAchievementSecretsAsync()
+    {
+        var changeRetroAchievementsKey =
+            _removeRetroAchievementsApiKeyOnSave ||
+            !string.IsNullOrWhiteSpace(RetroAchievementsApiKey);
+        var changeSteamKey =
+            _removeSteamApiKeyOnSave ||
+            !string.IsNullOrWhiteSpace(SteamAchievementsApiKey);
+
+        _achievementSecretRollbackState = null;
+
+        if (!changeRetroAchievementsKey && !changeSteamKey)
+            return true;
+
+        string? previousRetroAchievementsKey = null;
+        string? previousSteamKey = null;
+
+        if (changeRetroAchievementsKey)
+        {
+            try
+            {
+                previousRetroAchievementsKey = await _retroAchievementsAccountService
+                    .GetApiKeyAsync()
+                    .ConfigureAwait(true);
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+            catch
+            {
+                SetRetroAchievementsSecretWriteFailure();
+                return false;
+            }
+        }
+
+        if (changeSteamKey)
+        {
+            try
+            {
+                previousSteamKey = await _steamAchievementsAccountService
+                    .GetApiKeyAsync()
+                    .ConfigureAwait(true);
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+            catch
+            {
+                SetSteamSecretWriteFailure();
+                return false;
+            }
+        }
+
+        var rollbackState = new AchievementSecretRollbackState(
+            changeRetroAchievementsKey,
+            previousRetroAchievementsKey,
+            changeSteamKey,
+            previousSteamKey,
+            CloneRetroAchievementsSettings(_targetSettings.RetroAchievements),
+            CloneSteamAchievementsSettings(_targetSettings.SteamAchievements));
+
+        var applyingSteamKey = false;
+        try
+        {
+            if (changeRetroAchievementsKey)
+                await ApplyRetroAchievementsSecretChangeAsync().ConfigureAwait(true);
+
+            applyingSteamKey = true;
+            if (changeSteamKey)
+                await ApplySteamAchievementsSecretChangeAsync().ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            var restored = await TryRestoreAchievementSecretsAsync(rollbackState).ConfigureAwait(true);
+            if (!restored)
+                SetAchievementSecretRollbackFailure();
+
+            return false;
+        }
+        catch
+        {
+
+            if (applyingSteamKey)
+                SetSteamSecretWriteFailure();
+            else
+                SetRetroAchievementsSecretWriteFailure();
+
+            var restored = await TryRestoreAchievementSecretsAsync(rollbackState).ConfigureAwait(true);
+            if (!restored)
+                SetAchievementSecretRollbackFailure();
+
+            return false;
+        }
+
+        _achievementSecretRollbackState = rollbackState;
+        return true;
+    }
+
+    internal async Task<bool> RollbackAchievementChangesAsync()
+    {
+        var rollbackState = _achievementSecretRollbackState;
+        if (rollbackState == null)
+            return true;
+
+        if (!await TryRestoreAchievementSecretsAsync(rollbackState).ConfigureAwait(true))
+        {
+            SetAchievementSecretRollbackFailure();
+            return false;
+        }
+
+        _targetSettings.RetroAchievements =
+            CloneRetroAchievementsSettings(rollbackState.RetroAchievementsSettings);
+        _targetSettings.SteamAchievements =
+            CloneSteamAchievementsSettings(rollbackState.SteamAchievementsSettings);
+        _achievementSecretRollbackState = null;
+        return true;
+    }
+
+    internal void CompleteAchievementSecretChanges()
+    {
+        _achievementSecretRollbackState = null;
+    }
+
+    private async Task<bool> TryRestoreAchievementSecretsAsync(
+        AchievementSecretRollbackState rollbackState)
+    {
+        var restored = true;
+
+        if (rollbackState.RestoreSteamKey)
+        {
+            try
+            {
+                await RestoreSteamApiKeyAsync(rollbackState.SteamApiKey).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Settings] Failed to restore the previous Steam API key: {ex.Message}");
+                restored = false;
+            }
+        }
+
+        if (rollbackState.RestoreRetroAchievementsKey)
+        {
+            try
+            {
+                await RestoreRetroAchievementsApiKeyAsync(rollbackState.RetroAchievementsApiKey)
+                    .ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Settings] Failed to restore the previous RetroAchievements API key: {ex.Message}");
+                restored = false;
+            }
+        }
+
+        return restored;
+    }
+
+    private Task RestoreRetroAchievementsApiKeyAsync(string? apiKey)
+    {
+        return string.IsNullOrWhiteSpace(apiKey)
+            ? _retroAchievementsAccountService.DeleteApiKeyAsync()
+            : _retroAchievementsAccountService.StoreApiKeyAsync(apiKey);
+    }
+
+    private Task RestoreSteamApiKeyAsync(string? apiKey)
+    {
+        return string.IsNullOrWhiteSpace(apiKey)
+            ? _steamAchievementsAccountService.DeleteApiKeyAsync()
+            : _steamAchievementsAccountService.StoreApiKeyAsync(apiKey);
+    }
+
+    private void SetRetroAchievementsSecretWriteFailure()
+    {
+        RetroAchievementsStatusText = T(
+            "Settings_RetroAchievementsStatusSecretWriteFailed",
+            "The Web API key could not be stored. The settings were not saved.");
+    }
+
+    private void SetSteamSecretWriteFailure()
+    {
+        SteamAchievementsStatusText = T(
+            "Settings_SteamAchievementsStatusSecretWriteFailed",
+            "The Steam Web API key could not be stored. The settings were not saved.");
+    }
+
+    private void SetAchievementSecretRollbackFailure()
+    {
+        var message = T(
+            "Settings_AchievementSecretRollbackFailed",
+            "The account key change failed and the previous keys could not be fully restored. Check both achievement integrations before saving again.");
+        RetroAchievementsStatusText = message;
+        SteamAchievementsStatusText = message;
+    }
+
+    private static RetroAchievementsSettings CloneRetroAchievementsSettings(
+        RetroAchievementsSettings? settings)
+    {
+        return new RetroAchievementsSettings
+        {
+            Enabled = settings?.Enabled ?? false,
+            ShowInBigMode = settings?.ShowInBigMode ?? true,
+            Username = settings?.Username,
+            UserUlid = settings?.UserUlid
+        };
+    }
+
+    private static SteamAchievementsSettings CloneSteamAchievementsSettings(
+        SteamAchievementsSettings? settings)
+    {
+        return new SteamAchievementsSettings
+        {
+            Enabled = settings?.Enabled ?? false,
+            ShowInBigMode = settings?.ShowInBigMode ?? true,
+            SteamId64 = settings?.SteamId64
+        };
     }
 
     private void EnsureRunnerVersionIds()

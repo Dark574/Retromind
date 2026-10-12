@@ -1212,6 +1212,7 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="Settings_SteamAchievementsStatusUnexpectedFailure" xml:space="preserve"><value>Der Steam-Verbindungstest ist unerwartet fehlgeschlagen.</value></data>
     <data name="Settings_SteamAchievementsStatusRemovePending" xml:space="preserve"><value>Steam-Achievements wurden deaktiviert. Der gespeicherte Web-API-Key wird beim Speichern der Einstellungen entfernt.</value></data>
     <data name="Settings_SteamAchievementsStatusSecretWriteFailed" xml:space="preserve"><value>Der Steam-Web-API-Key konnte nicht gespeichert werden. Die Einstellungen wurden nicht übernommen.</value></data>
+    <data name="Settings_AchievementSecretRollbackFailed" xml:space="preserve"><value>Die Änderung der Konto-Schlüssel ist fehlgeschlagen und die vorherigen Schlüssel konnten nicht vollständig wiederhergestellt werden. Prüfe beide Achievement-Integrationen, bevor du erneut speicherst.</value></data>
     <data name="GameSystem_NodeLabel" xml:space="preserve"><value>Spielsystem für die Spieleerkennung</value></data>
     <data name="GameSystem_ItemLabel" xml:space="preserve"><value>Spielsystem für die Spieleerkennung</value></data>
     <data name="GameSystem_Hint" xml:space="preserve"><value>Technische Zuordnung für Integrationen wie RetroAchievements und ScreenScraper. Sie ändert weder die Plattform-Metadaten noch den konfigurierten Emulator.</value></data>

@@ -1690,6 +1690,8 @@ public partial class MainWindowViewModel
             var settingsSaved = await SaveData();
             if (settingsSaved && !_settingsService.HasLoadFailure)
             {
+                settingsVm.CompleteAchievementSecretChanges();
+
                 var portableHomeIsEnabled = _currentSettings.UsePortableHomeInAppImage;
                 await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
                     portableHomeWasEnabled,
@@ -1699,6 +1701,15 @@ public partial class MainWindowViewModel
                 await RetroAchievementsProgress.SelectItemAsync(
                     GetCurrentSelectedItem(),
                     forceRefresh: cacheLocationChanged);
+            }
+            else
+            {
+                var secretsRestored = await settingsVm.RollbackAchievementChangesAsync();
+                if (!secretsRestored)
+                {
+                    Debug.WriteLine(
+                        "[Settings] Achievement keys could not be restored after the settings save failed.");
+                }
             }
         }
         else if (settingsVm.LibraryModified)

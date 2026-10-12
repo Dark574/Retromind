@@ -28,6 +28,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - report failures when stored achievement API keys cannot be removed from the system keyring
 - keep showing cached Steam achievement progress when downloading an updated response is interrupted
 - preselect the currently configured Wine or Proton runner when updating or reinstalling a GOG game
+- keep existing achievement account keys intact when updated integration settings cannot be saved completely
 
 ---
 

@@ -222,35 +222,20 @@ public partial class SettingsViewModel
                 HasStoredRetroAchievementsApiKey);
     }
 
-    private async Task<bool> SaveRetroAchievementsAsync()
+    private Task ApplyRetroAchievementsSecretChangeAsync()
     {
-        try
+        if (_removeRetroAchievementsApiKeyOnSave)
         {
-            if (_removeRetroAchievementsApiKeyOnSave)
-            {
-                await _retroAchievementsAccountService
-                    .DeleteApiKeyAsync()
-                    .ConfigureAwait(true);
-            }
-            else if (!string.IsNullOrWhiteSpace(RetroAchievementsApiKey))
-            {
-                await _retroAchievementsAccountService
-                    .StoreApiKeyAsync(RetroAchievementsApiKey)
-                    .ConfigureAwait(true);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            return false;
-        }
-        catch
-        {
-            RetroAchievementsStatusText = T(
-                "Settings_RetroAchievementsStatusSecretWriteFailed",
-                "The Web API key could not be stored. The settings were not saved.");
-            return false;
+            return _retroAchievementsAccountService.DeleteApiKeyAsync();
         }
 
+        return !string.IsNullOrWhiteSpace(RetroAchievementsApiKey)
+            ? _retroAchievementsAccountService.StoreApiKeyAsync(RetroAchievementsApiKey)
+            : Task.CompletedTask;
+    }
+
+    private void ApplyRetroAchievementsSettings()
+    {
         var settings = _appSettings.RetroAchievements ??= new Models.RetroAchievementsSettings();
         var username = string.IsNullOrWhiteSpace(RetroAchievementsUsername)
             ? null
@@ -275,8 +260,6 @@ public partial class SettingsViewModel
         {
             settings.UserUlid = null;
         }
-
-        return true;
     }
 
     partial void OnRetroAchievementsApiKeyChanged(string value)

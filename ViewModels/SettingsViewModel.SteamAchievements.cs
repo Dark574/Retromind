@@ -320,37 +320,20 @@ public partial class SettingsViewModel
                 HasStoredSteamApiKey);
     }
 
-    private async Task<bool> SaveSteamAchievementsAsync()
+    private Task ApplySteamAchievementsSecretChangeAsync()
     {
-        try
+        if (_removeSteamApiKeyOnSave)
         {
-            if (_removeSteamApiKeyOnSave)
-            {
-                await _steamAchievementsAccountService
-                    .DeleteApiKeyAsync()
-                    .ConfigureAwait(true);
-            }
-            else if (!string.IsNullOrWhiteSpace(
-                         SteamAchievementsApiKey))
-            {
-                await _steamAchievementsAccountService
-                    .StoreApiKeyAsync(SteamAchievementsApiKey)
-                    .ConfigureAwait(true);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            return false;
-        }
-        catch
-        {
-            SteamAchievementsStatusText = T(
-                "Settings_SteamAchievementsStatusSecretWriteFailed",
-                "The Steam Web API key could not be stored. The settings were not saved.");
-
-            return false;
+            return _steamAchievementsAccountService.DeleteApiKeyAsync();
         }
 
+        return !string.IsNullOrWhiteSpace(SteamAchievementsApiKey)
+            ? _steamAchievementsAccountService.StoreApiKeyAsync(SteamAchievementsApiKey)
+            : Task.CompletedTask;
+    }
+
+    private void ApplySteamAchievementsSettings()
+    {
         var settings = _appSettings.SteamAchievements ??=
             new SteamAchievementsSettings();
 
@@ -362,8 +345,6 @@ public partial class SettingsViewModel
                 SteamAchievementsSteamId64)
                 ? null
                 : SteamAchievementsSteamId64.Trim();
-
-        return true;
     }
 
     private static bool IsValidSteamId64(string? value)
