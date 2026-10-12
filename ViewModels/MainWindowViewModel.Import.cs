@@ -2023,11 +2023,14 @@ public partial class MainWindowViewModel
         }
     }
 
-    private async Task RescanAllAssetsAsync()
+    private async Task RescanAllAssetsAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         List<MediaNode> rootNodes = new();
         await UiThreadHelper.InvokeAsync(() =>
         {
+            cancellationToken.ThrowIfCancellationRequested();
             rootNodes = RootItems.ToList();
         });
 
@@ -2038,23 +2041,31 @@ public partial class MainWindowViewModel
         { 
             foreach (var rootNode in rootNodes) 
             {
-                if (await RescanNodeRecursive(rootNode))
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (await RescanNodeRecursive(rootNode, cancellationToken))
                     anyChanged = true;
             }
-        });
+        }, cancellationToken);
 
+        cancellationToken.ThrowIfCancellationRequested();
         if (anyChanged)
             _libraryTracker.MarkDirty();
     }
 
-    private async Task<bool> RescanNodeRecursive(MediaNode node)
+    private async Task<bool> RescanNodeRecursive(
+        MediaNode node,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         List<string> nodePath = new();
         List<MediaItem> items = new();
         List<MediaNode> children = new();
 
         await UiThreadHelper.InvokeAsync(() =>
         {
+            cancellationToken.ThrowIfCancellationRequested();
             nodePath = PathHelper.GetNodePath(node, RootItems);
             items = node.Items.ToList();
             children = node.Children.ToList();
@@ -2067,12 +2078,13 @@ public partial class MainWindowViewModel
 
             foreach (var item in items)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var assets = _fileService.ScanItemAssets(item, nodePath);
                 list.Add((item, assets));
             }
 
             return list;
-        });
+        }, cancellationToken);
 
         var changed = false;
 
@@ -2080,11 +2092,15 @@ public partial class MainWindowViewModel
         const int batchSize = 500;
         for (int i = 0; i < scanned.Count; i += batchSize)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var start = i;
             var count = Math.Min(batchSize, scanned.Count - start);
 
             await UiThreadHelper.InvokeAsync(() =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 for (int j = start; j < start + count; j++)
                 {
                     var (item, assets) = scanned[j];
@@ -2107,7 +2123,9 @@ public partial class MainWindowViewModel
         // 3) Recurse children
         foreach (var child in children)
         {
-            if (await RescanNodeRecursive(child))
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (await RescanNodeRecursive(child, cancellationToken))
                 changed = true;
         }
 

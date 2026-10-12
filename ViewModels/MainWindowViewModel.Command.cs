@@ -1806,14 +1806,18 @@ public partial class MainWindowViewModel
         }
     }
 
-    private void SortAllNodesRecursive(IEnumerable<MediaNode> nodes)
+    private void SortAllNodesRecursive(
+        IEnumerable<MediaNode> nodes,
+        CancellationToken cancellationToken)
     {
         foreach (var node in nodes)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Only sort if needed to avoid overhead on every start
             // (Assuming items are added roughly in order or user doesn't care about strict alphabetical all the time)
             SortMediaItems(node.Items);
-            SortAllNodesRecursive(node.Children);
+            SortAllNodesRecursive(node.Children, cancellationToken);
         }
     }
 

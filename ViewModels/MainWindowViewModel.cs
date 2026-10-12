@@ -150,6 +150,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private int _suppressPersistenceErrorNotice;
     private bool _libraryLoadFailed;
     private bool _closeWithoutPersistenceAfterRestore;
+    private CancellationTokenSource? _startupWarmupCts;
+    private Task? _startupWarmupTask;
 
     private readonly TaskCompletionSource<bool> _loadDataTcs =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -631,7 +633,8 @@ public partial class MainWindowViewModel : ViewModelBase
             StartGogUpdateBackgroundLoop();
 
             // Heavy startup maintenance runs in the background after first content is visible.
-            _ = RunDeferredStartupWarmupAsync();
+            _startupWarmupCts = new CancellationTokenSource();
+            _startupWarmupTask = RunDeferredStartupWarmupAsync(_startupWarmupCts.Token);
         }
         catch (LibraryLoadException ex)
         {
@@ -658,16 +661,45 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private async Task RunDeferredStartupWarmupAsync()
+    private async Task RunDeferredStartupWarmupAsync(CancellationToken cancellationToken)
     {
         try
         {
-            await RescanAllAssetsAsync().ConfigureAwait(false);
-            await UiThreadHelper.InvokeAsync(() => SortAllNodesRecursive(RootItems)).ConfigureAwait(false);
+            await RescanAllAssetsAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await UiThreadHelper.InvokeAsync(
+                    () => SortAllNodesRecursive(RootItems, cancellationToken))
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected when the application closes before startup maintenance finishes.
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[StartupWarmup] Failed: {ex.Message}");
+        }
+    }
+
+    private async Task StopStartupWarmupAsync()
+    {
+        var cancellation = _startupWarmupCts;
+        var warmupTask = _startupWarmupTask;
+        _startupWarmupCts = null;
+        _startupWarmupTask = null;
+
+        if (cancellation == null && warmupTask == null)
+            return;
+
+        try
+        {
+            cancellation?.Cancel();
+            if (warmupTask != null)
+                await warmupTask.ConfigureAwait(false);
+        }
+        finally
+        {
+            cancellation?.Dispose();
         }
     }
 
@@ -1057,6 +1089,10 @@ public partial class MainWindowViewModel : ViewModelBase
         // Stop playback immediately; saving can take a moment.
         _audioService.StopMusic();
 
+        // Startup maintenance mutates asset collections and item order. It must
+        // finish or observe cancellation before the final library snapshot is taken.
+        await StopStartupWarmupAsync().ConfigureAwait(false);
+
         if (_closeWithoutPersistenceAfterRestore)
         {
             Cleanup();
@@ -1126,6 +1162,11 @@ public partial class MainWindowViewModel : ViewModelBase
         _parentalRefreshCts?.Cancel();
         _parentalRefreshCts?.Dispose();
         _parentalRefreshCts = null;
+
+        // Exit handlers can call Cleanup without going through the awaited flush.
+        // Signal cancellation here as a best-effort fallback; the normal closing
+        // path has already awaited this task in StopStartupWarmupAsync().
+        _startupWarmupCts?.Cancel();
 
         RetroAchievementsProgress.Dispose();
 
