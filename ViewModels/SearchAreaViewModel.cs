@@ -34,7 +34,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
     private readonly IReadOnlyList<MediaNode> _rootNodesSnapshot;
     private readonly ObservableCollection<MediaNode>? _rootNodesObservable;
-    private readonly HashSet<MediaNode> _trackedRootNodes = new();
+    private readonly HashSet<MediaNode> _trackedNodes = new();
     private readonly HashSet<string> _selectedScopeNodeIds = new(StringComparer.Ordinal);
     private bool _hasExplicitScopeSelection;
     private bool _parentalFilterActive;
@@ -161,7 +161,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         {
             _rootNodesObservable.CollectionChanged += OnRootNodesChanged;
             foreach (var node in _rootNodesObservable)
-                TrackRootNode(node);
+                TrackNodeRecursive(node);
         }
 
         EnsureDefaultScopeSelection();
@@ -272,22 +272,42 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         RequestSearch();
     }
 
-    private void TrackRootNode(MediaNode node)
+    private void TrackNodeRecursive(MediaNode node)
     {
-        if (!_trackedRootNodes.Add(node))
+        if (!_trackedNodes.Add(node))
             return;
 
         node.Children.CollectionChanged += OnRootChildrenChanged;
         node.Items.CollectionChanged += OnRootItemsChanged;
+
+        foreach (var child in node.Children)
+            TrackNodeRecursive(child);
     }
 
-    private void UntrackRootNode(MediaNode node)
+    private void UntrackNodeRecursive(MediaNode node)
     {
-        if (!_trackedRootNodes.Remove(node))
+        if (!_trackedNodes.Remove(node))
             return;
 
         node.Children.CollectionChanged -= OnRootChildrenChanged;
         node.Items.CollectionChanged -= OnRootItemsChanged;
+
+        foreach (var child in node.Children)
+            UntrackNodeRecursive(child);
+    }
+
+    private void RebuildTrackedNodes()
+    {
+        foreach (var node in _trackedNodes.ToList())
+        {
+            node.Children.CollectionChanged -= OnRootChildrenChanged;
+            node.Items.CollectionChanged -= OnRootItemsChanged;
+        }
+
+        _trackedNodes.Clear();
+
+        foreach (var root in RootNodes)
+            TrackNodeRecursive(root);
     }
 
     private void OnRootNodesChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -301,14 +321,17 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         if (e.OldItems != null)
         {
             foreach (var oldItem in e.OldItems.OfType<MediaNode>())
-                UntrackRootNode(oldItem);
+                UntrackNodeRecursive(oldItem);
         }
 
         if (e.NewItems != null)
         {
             foreach (var newItem in e.NewItems.OfType<MediaNode>())
-                TrackRootNode(newItem);
+                TrackNodeRecursive(newItem);
         }
+
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+            RebuildTrackedNodes();
 
         RefreshScopesAndSearch();
     }
@@ -320,6 +343,21 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
             UiThreadHelper.Post(() => OnRootChildrenChanged(sender, e));
             return;
         }
+
+        if (e.OldItems != null)
+        {
+            foreach (var oldItem in e.OldItems.OfType<MediaNode>())
+                UntrackNodeRecursive(oldItem);
+        }
+
+        if (e.NewItems != null)
+        {
+            foreach (var newItem in e.NewItems.OfType<MediaNode>())
+                TrackNodeRecursive(newItem);
+        }
+
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+            RebuildTrackedNodes();
 
         RefreshScopesAndSearch();
     }
@@ -597,8 +635,13 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         if (_rootNodesObservable != null)
             _rootNodesObservable.CollectionChanged -= OnRootNodesChanged;
 
-        foreach (var node in _trackedRootNodes.ToList())
-            UntrackRootNode(node);
+        foreach (var node in _trackedNodes.ToList())
+        {
+            node.Children.CollectionChanged -= OnRootChildrenChanged;
+            node.Items.CollectionChanged -= OnRootItemsChanged;
+        }
+
+        _trackedNodes.Clear();
 
         ApplyNodeHitCountsToTree(RootNodes, counts: null, showCounts: false);
         ItemRows.Clear();
