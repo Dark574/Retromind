@@ -120,6 +120,21 @@ public sealed class MediaGridResizeTests
     }
 
     [Fact]
+    public void Category_RefreshDuringPendingFilterUsesRefreshedSnapshot()
+    {
+        using var vm = new MediaAreaViewModel(CreateNode(), 150) { ViewportWidth = 1200 };
+        vm.SearchText = "Replacement";
+        var replacements = Enumerable.Range(0, 3)
+            .Select(index => new MediaItem($"Replacement {index}"))
+            .ToArray();
+
+        vm.RefreshItems(replacements);
+
+        Assert.Equal(replacements, vm.FilteredItems);
+        Assert.Equal(replacements, vm.ItemRows.SelectMany(row => row.Items));
+    }
+
+    [Fact]
     public void EmptyGrids_ResizeDoesNotResetEmptyRowCollections()
     {
         using var category = new MediaAreaViewModel(new MediaNode("Empty", NodeType.Area), 150);

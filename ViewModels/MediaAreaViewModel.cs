@@ -160,7 +160,12 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
         if (hasInitialFilter)
         {
-            var initialMatches = BuildMatches(_searchText, CancellationToken.None);
+            var initialMatches = BuildMatches(
+                _allItems,
+                _searchText,
+                _onlyFavorites,
+                _selectedStatus,
+                CancellationToken.None);
             PopulateItems(initialMatches);
         }
         else
@@ -204,6 +209,11 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         if (_isDisposed)
             return;
 
+        // A pending background filter was created from the previous item state.
+        // Invalidate it before replacing the source snapshot so it cannot apply
+        // stale matches after this synchronous refresh has completed.
+        CancelPendingFilter();
+
         var refreshedItems = items.ToList();
         refreshedItems.Sort(MediaSortHelper.DisplayOrderComparer);
 
@@ -226,7 +236,12 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
                 Node.Items.Add(item);
         }
 
-        var matches = BuildMatches(SearchText, CancellationToken.None);
+        var matches = BuildMatches(
+            _allItems,
+            SearchText,
+            OnlyFavorites,
+            SelectedStatus,
+            CancellationToken.None);
         if (HaveSameItemOrder(FilteredItems, matches))
         {
             EnsureSelectionIsValid(FilteredItems);
@@ -281,11 +296,15 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
     
     private void DebouncedApplyFilter(string querySnapshot)
     {
-        _searchDebounceCts?.Cancel();
+        CancelPendingFilter();
+
         var cts = new CancellationTokenSource();
         _searchDebounceCts = cts;
 
         var token = cts.Token;
+        var itemsSnapshot = _allItems.ToArray();
+        var favoritesOnlySnapshot = OnlyFavorites;
+        var statusFilterSnapshot = SelectedStatus;
 
         _ = Task.Run(async () =>
         {
@@ -295,7 +314,12 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
                 if (token.IsCancellationRequested) return;
 
                 // 1) Compute matches off the UI thread
-                var matches = BuildMatches(querySnapshot, token);
+                var matches = BuildMatches(
+                    itemsSnapshot,
+                    querySnapshot,
+                    favoritesOnlySnapshot,
+                    statusFilterSnapshot,
+                    token);
 
                 if (token.IsCancellationRequested) return;
 
@@ -306,7 +330,11 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
                     if (!ReferenceEquals(_searchDebounceCts, cts) || token.IsCancellationRequested)
                         return;
 
-                    ApplyMatchesToUi(querySnapshot, matches);
+                    ApplyMatchesToUi(
+                        querySnapshot,
+                        favoritesOnlySnapshot,
+                        statusFilterSnapshot,
+                        matches);
                 });
             }
             catch (OperationCanceledException)
@@ -329,27 +357,28 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         OnlyFavorites = false;
     }
 
-    private List<MediaItem> BuildMatches(string querySnapshot, CancellationToken token)
+    private static List<MediaItem> BuildMatches(
+        IReadOnlyList<MediaItem> items,
+        string? querySnapshot,
+        bool favoritesOnly,
+        PlayStatus? statusFilter,
+        CancellationToken token)
     {
         var query = querySnapshot?.Trim();
-        var favoritesOnly = OnlyFavorites;
-        var statusFilter = SelectedStatus;
         var queryMatcher = SearchQueryMatcher.Create(query);
 
         if (string.IsNullOrWhiteSpace(query) && !favoritesOnly && statusFilter == null)
         {
-            // Return a copy to keep the API consistent (List<MediaItem>),
-            // while avoiding enumerating UI-bound collections in the background.
-            return new List<MediaItem>(_allItems);
+            return new List<MediaItem>(items);
         }
 
-        var matches = new List<MediaItem>(capacity: Math.Min(_allItems.Count, 256));
+        var matches = new List<MediaItem>(capacity: Math.Min(items.Count, 256));
 
-        for (int i = 0; i < _allItems.Count; i++)
+        for (int i = 0; i < items.Count; i++)
         {
             token.ThrowIfCancellationRequested();
 
-            var item = _allItems[i];
+            var item = items[i];
             
             if (favoritesOnly && !item.IsFavorite)
                 continue;
@@ -369,7 +398,11 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         return matches;
     }
 
-    private void ApplyMatchesToUi(string querySnapshot, List<MediaItem> matches)
+    private void ApplyMatchesToUi(
+        string? querySnapshot,
+        bool favoritesOnly,
+        PlayStatus? statusFilter,
+        List<MediaItem> matches)
     {
         var query = querySnapshot?.Trim();
 
@@ -379,8 +412,8 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         //  - no status filter,
         //  - and we already show all items.
         if (string.IsNullOrWhiteSpace(query) &&
-            !OnlyFavorites &&
-            SelectedStatus == null)
+            !favoritesOnly &&
+            statusFilter == null)
         {
             // Avoid unnecessary resets if we already show all items
             if (FilteredItems.Count == _allItems.Count)
@@ -388,6 +421,18 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         }
 
         PopulateItems(matches);
+    }
+
+    private void CancelPendingFilter()
+    {
+        var pending = _searchDebounceCts;
+        _searchDebounceCts = null;
+
+        if (pending == null)
+            return;
+
+        pending.Cancel();
+        pending.Dispose();
     }
 
     private void OnItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -551,9 +596,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
         _isDisposed = true;
 
-        _searchDebounceCts?.Cancel();
-        _searchDebounceCts?.Dispose();
-        _searchDebounceCts = null;
+        CancelPendingFilter();
 
         foreach (var item in _allItems)
             item.PropertyChanged -= OnItemPropertyChanged;
