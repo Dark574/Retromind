@@ -202,17 +202,20 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
                          .OrderBy(r => r.Name, MediaSortHelper.NaturalStringComparer))
             {
                 RunnerOptions.Add(new RunnerOption(
-                    runner.Id,
+                    runner.Id.Trim(),
                     runner.Name.Trim(),
                     runner.Kind,
                     runner.Path.Trim()));
             }
         }
 
-        SelectedRunner = !string.IsNullOrWhiteSpace(preferredRunnerVersionId)
-            ? RunnerOptions.FirstOrDefault(r => string.Equals(r.Id, preferredRunnerVersionId, StringComparison.Ordinal))
-              ?? RunnerOptions.FirstOrDefault()
-            : RunnerOptions.FirstOrDefault();
+        var normalizedPreferredRunnerVersionId = preferredRunnerVersionId?.Trim();
+        SelectedRunner = string.IsNullOrWhiteSpace(normalizedPreferredRunnerVersionId)
+            ? RunnerOptions.FirstOrDefault()
+            : RunnerOptions.FirstOrDefault(r => string.Equals(
+                r.Id,
+                normalizedPreferredRunnerVersionId,
+                StringComparison.Ordinal));
 
         WindowsInstallerPreferences.Add(new WindowsInstallerPreferenceOption(
             GogWindowsInstallerPreference.AutoPrefer64,

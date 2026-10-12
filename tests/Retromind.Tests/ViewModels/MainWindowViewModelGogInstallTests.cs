@@ -20,6 +20,34 @@ public sealed class MainWindowViewModelGogInstallTests
         Assert.False(viewModel.CreateStartMenuShortcuts);
     }
 
+    [Fact]
+    public void InstallDialog_SelectsPreferredRunnerInsteadOfFirstRunner()
+    {
+        var viewModel = new GogInstallDialogViewModel(
+            "Test Game",
+            "/tmp/test-game",
+            CreateRunnerConfigs(),
+            availablePlatforms: [GogInstallPlatform.Windows],
+            preferredPlatform: GogInstallPlatform.Windows,
+            preferredRunnerVersionId: "proton-11");
+
+        Assert.Equal("proton-11", viewModel.SelectedRunner?.Id);
+    }
+
+    [Fact]
+    public void InstallDialog_MissingPreferredRunnerDoesNotSelectFirstRunner()
+    {
+        var viewModel = new GogInstallDialogViewModel(
+            "Test Game",
+            "/tmp/test-game",
+            CreateRunnerConfigs(),
+            availablePlatforms: [GogInstallPlatform.Windows],
+            preferredPlatform: GogInstallPlatform.Windows,
+            preferredRunnerVersionId: "removed-runner");
+
+        Assert.Null(viewModel.SelectedRunner);
+    }
+
     [Theory]
     [InlineData(false, false, "/nodesktopshorctut,/nodesktopshortcut,/nostartmenushortcut")]
     [InlineData(false, true, "/nodesktopshorctut,/nodesktopshortcut")]
@@ -129,5 +157,23 @@ public sealed class MainWindowViewModelGogInstallTests
     [
         new() { ProductId = "1", Title = "First DLC" },
         new() { ProductId = "2", Title = "Second DLC" }
+    ];
+
+    private static RunnerVersionConfig[] CreateRunnerConfigs() =>
+    [
+        new()
+        {
+            Id = "proton-10",
+            Name = "Proton 10",
+            Kind = RunnerVersionKind.Proton,
+            Path = "/runners/proton-10"
+        },
+        new()
+        {
+            Id = "proton-11",
+            Name = "Proton 11",
+            Kind = RunnerVersionKind.Proton,
+            Path = "/runners/proton-11"
+        }
     ];
 }

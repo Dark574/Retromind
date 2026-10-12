@@ -13,18 +13,19 @@ internal static class GogLaunchConfigurationHelper
         MediaItem item,
         EmulatorConfig? inheritedEmulator)
     {
+        if (!string.IsNullOrWhiteSpace(item.RunnerVersionId))
+            return item.RunnerVersionId.Trim();
+
+        if (!string.IsNullOrWhiteSpace(inheritedEmulator?.DefaultRunnerVersionId))
+            return inheritedEmulator.DefaultRunnerVersionId.Trim();
+
         if (item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallRunnerVersionId, out var installedRunnerId) &&
             !string.IsNullOrWhiteSpace(installedRunnerId))
         {
             return installedRunnerId.Trim();
         }
 
-        if (!string.IsNullOrWhiteSpace(item.RunnerVersionId))
-            return item.RunnerVersionId.Trim();
-
-        return string.IsNullOrWhiteSpace(inheritedEmulator?.DefaultRunnerVersionId)
-            ? null
-            : inheritedEmulator.DefaultRunnerVersionId.Trim();
+        return null;
     }
 
     public static bool ShouldPreserveRunnerInheritance(

@@ -110,7 +110,7 @@ public sealed class GogLaunchConfigurationHelperTests
     }
 
     [Fact]
-    public void ResolvePreferredRunnerVersionId_PrefersExistingGogInstallRunner()
+    public void ResolvePreferredRunnerVersionId_PrefersCurrentItemRunner()
     {
         var item = new MediaItem("GOG game")
         {
@@ -121,11 +121,40 @@ public sealed class GogLaunchConfigurationHelperTests
 
         var resolved = GogLaunchConfigurationHelper.ResolvePreferredRunnerVersionId(item, emulator);
 
-        Assert.Equal("installed-runner", resolved);
+        Assert.Equal("item-runner", resolved);
         Assert.False(GogLaunchConfigurationHelper.ShouldPreserveRunnerInheritance(
             item,
             emulator,
             resolved));
+    }
+
+    [Fact]
+    public void ResolvePreferredRunnerVersionId_PrefersCurrentInheritedRunner()
+    {
+        var item = new MediaItem("GOG game");
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallRunnerVersionId] = "installed-runner";
+        var emulator = new EmulatorConfig { DefaultRunnerVersionId = "inherited-runner" };
+
+        var resolved = GogLaunchConfigurationHelper.ResolvePreferredRunnerVersionId(item, emulator);
+
+        Assert.Equal("inherited-runner", resolved);
+        Assert.True(GogLaunchConfigurationHelper.ShouldPreserveRunnerInheritance(
+            item,
+            emulator,
+            resolved));
+    }
+
+    [Fact]
+    public void ResolvePreferredRunnerVersionId_UsesInstalledRunnerAsFallback()
+    {
+        var item = new MediaItem("GOG game");
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallRunnerVersionId] = "installed-runner";
+
+        var resolved = GogLaunchConfigurationHelper.ResolvePreferredRunnerVersionId(
+            item,
+            inheritedEmulator: null);
+
+        Assert.Equal("installed-runner", resolved);
     }
 
     [Fact]
