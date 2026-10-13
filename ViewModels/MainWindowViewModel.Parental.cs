@@ -219,10 +219,10 @@ public partial class MainWindowViewModel
         }
     }
 
-    private void FinalizeProtectionMutation()
+    private void FinalizeProtectionMutation(bool refreshCurrentContent = true)
     {
         _libraryTracker.MarkDirtyAndSaveSoon();
-        RefreshParentalFilteringState();
+        RefreshParentalFilteringState(refreshCurrentContent);
     }
 
     private async Task<bool> EnsureParentalPasswordConfiguredAsync(Window owner)
@@ -407,7 +407,9 @@ public partial class MainWindowViewModel
             _isApplyingProtectionChanges = false;
         }
 
-        FinalizeProtectionMutation();
+        // IsProtected notifies the existing detail and item bindings directly.
+        // Rebuilding the entire media view would only cause avoidable flicker.
+        FinalizeProtectionMutation(refreshCurrentContent: false);
     }
 
     private async Task ToggleNodeProtectionAsync(MediaNode? node)

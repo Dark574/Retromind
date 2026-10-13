@@ -36,6 +36,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - preselect the currently configured Wine or Proton runner when updating or reinstalling a GOG game
 - keep existing achievement account keys intact when updated integration settings cannot be saved completely
 - prevent reused Linux process IDs from hiding newly started Steam games from automatic playtime tracking
+- avoid rebuilding the current library view when toggling parental protection for a single item
 
 ---
 
