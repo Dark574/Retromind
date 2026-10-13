@@ -7,6 +7,36 @@ namespace Retromind.Tests.Services;
 
 public sealed class LauncherServiceTests
 {
+    [Theory]
+    [InlineData("steam", "steam://rungameid/123", "-silent steam://rungameid/123")]
+    [InlineData("/usr/bin/steam", "steam://rungameid/123", "-silent steam://rungameid/123")]
+    [InlineData("steam", "-silent steam://rungameid/123", "-silent steam://rungameid/123")]
+    [InlineData("steam", "-SILENT steam://rungameid/123", "-SILENT steam://rungameid/123")]
+    [InlineData("heroic", "steam://rungameid/123", "steam://rungameid/123")]
+    public void BuildLinuxCommandArguments_AddsSilentOnlyToSteamGameCommands(
+        string target,
+        string arguments,
+        string expected)
+    {
+        var item = new MediaItem("Steam game")
+        {
+            LauncherArgs = arguments
+        };
+
+        Assert.Equal(expected, LauncherService.BuildLinuxCommandArguments(item, target));
+    }
+
+    [Fact]
+    public void BuildLinuxCommandArguments_DoesNotChangeUnidentifiedSteamCommand()
+    {
+        var item = new MediaItem("Steam client")
+        {
+            LauncherArgs = "-console"
+        };
+
+        Assert.Equal("-console", LauncherService.BuildLinuxCommandArguments(item, "steam"));
+    }
+
     [Fact]
     public async Task LaunchAsync_RunsNestedWrapperWhosePathContainsSpaces()
     {

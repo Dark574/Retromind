@@ -378,7 +378,9 @@ public sealed class LauncherService
         var startInfo = new ProcessStartInfo
         {
             FileName = target,
-            Arguments = item.LauncherArgs ?? string.Empty,
+            Arguments = RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
+                ? BuildLinuxCommandArguments(item, target)
+                : item.LauncherArgs ?? string.Empty,
             // In AppImage mode we force direct exec so runtime env sanitization can always apply.
             UseShellExecute = !forceDirectExec
         };
@@ -386,6 +388,23 @@ public sealed class LauncherService
         _launchEnvironmentService.PrepareCommand(startInfo, environmentOverrides);
         launchLog.CaptureProcessStart(startInfo, target, environmentOverrides);
         return _launchProcessService.Start(startInfo);
+    }
+
+    internal static string BuildLinuxCommandArguments(MediaItem item, string target)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        var arguments = item.LauncherArgs ?? string.Empty;
+        if (!IsSteamCommandToken(target) ||
+            !SteamAppIdResolver.TryGetAppId(item, out _) ||
+            HasCommandLineArgument(arguments, "-silent"))
+        {
+            return arguments;
+        }
+
+        return string.IsNullOrWhiteSpace(arguments)
+            ? "-silent"
+            : $"-silent {arguments}";
     }
 
     internal static bool IsDelegatedCommand(MediaItem item)
@@ -586,9 +605,23 @@ public sealed class LauncherService
     private static bool IsStoreCommandToken(string token)
     {
         var executable = Path.GetFileName(token.Trim('"', '\''));
-        return string.Equals(executable, "steam", StringComparison.OrdinalIgnoreCase) ||
+        return IsSteamCommandToken(executable) ||
                string.Equals(executable, "heroic", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsSteamCommandToken(string token)
+    {
+        var executable = Path.GetFileName(token.Trim('"', '\''));
+        return string.Equals(executable, "steam", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasCommandLineArgument(string arguments, string expectedArgument) =>
+        arguments
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(argument => string.Equals(
+                argument.Trim('"', '\''),
+                expectedArgument,
+                StringComparison.OrdinalIgnoreCase));
 
     private static string? TryGetFirstExecutableTokenFromEnvArgs(string? arguments)
     {

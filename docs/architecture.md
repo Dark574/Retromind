@@ -450,7 +450,9 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   but the expected game process never appears; already-running processes remain a neutral, untracked case
 - automatically tracks imported Steam commands on Linux by their stored App ID when no `OverrideWatchProcess` is
   configured, records only the detected game-process lifetime as playtime, and exposes its exit as the session
-  boundary used for achievement refreshes; a configured manual process remains authoritative
+  boundary used for achievement refreshes. Recognized Linux Steam commands receive Steam's `-silent` option so
+  starting the client for a game does not normally place its main window in front of Retromind; a configured
+  manual process remains authoritative
 - treats other Steam-unidentified, Heroic, and URI commands as delegated handoffs: a successful handoff updates
   play count and last-played once, but does not record the launcher's lifetime as game playtime or expose it as a
   reliable game-exit boundary
