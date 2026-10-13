@@ -423,17 +423,6 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Classes="section">
-                            <StackPanel Spacing="6">
-                                <CheckBox Content="{Binding GogStoreNodeText}"
-                                          IsChecked="{Binding IsGogStoreNode}"
-                                          FontWeight="Bold" />
-                                <TextBlock Text="{Binding GogStoreNodeHint}"
-                                           FontSize="11"
-                                           Opacity="0.7"
-                                           TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

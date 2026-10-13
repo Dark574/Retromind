@@ -20,7 +20,7 @@ public partial class MainWindowViewModel
         if (sourceNode == null)
             return;
 
-        var dialogViewModel = new MoveMediaDialogViewModel(RootItems, item, sourceNode);
+        var dialogViewModel = new MoveMediaDialogViewModel(RootItems, sourceNode);
         var dialog = new MoveMediaDialogView { DataContext = dialogViewModel };
         dialogViewModel.RequestClose += accepted => dialog.Close(accepted);
 
@@ -41,7 +41,7 @@ public partial class MainWindowViewModel
             return false;
 
         var sourceNode = FindParentNode(RootItems, item);
-        return sourceNode != null && MediaItemMovePolicy.Assess(item, sourceNode, targetNode).IsAllowed;
+        return sourceNode != null && MediaItemMovePolicy.Assess(sourceNode, targetNode).IsAllowed;
     }
 
     public async Task<bool> TryMoveMediaAsync(MediaItem? item, MediaNode? targetNode)
@@ -53,7 +53,7 @@ public partial class MainWindowViewModel
         if (sourceNode == null)
             return false;
 
-        var assessment = MediaItemMovePolicy.Assess(item, sourceNode, targetNode);
+        var assessment = MediaItemMovePolicy.Assess(sourceNode, targetNode);
         if (!assessment.IsAllowed)
             return false;
 
@@ -65,19 +65,12 @@ public partial class MainWindowViewModel
             sourceNode.Name,
             targetNode.Name);
 
-        if (MediaItemMovePolicy.IsLeavingSynchronizedNode(sourceNode, targetNode))
-        {
-            confirmation += Environment.NewLine + Environment.NewLine + T(
-                "MoveMedia.StoreSyncWarning",
-                "Warning: the source is a synchronized store category. A later store sync may add the item there again.");
-        }
-
         if (!await ShowConfirmDialog(owner, confirmation))
             return false;
 
         // Revalidate after the dialogs in case a collection changed in the meantime.
         if (!sourceNode.Items.Contains(item) ||
-            !MediaItemMovePolicy.Assess(item, sourceNode, targetNode).IsAllowed)
+            !MediaItemMovePolicy.Assess(sourceNode, targetNode).IsAllowed)
         {
             await ShowInfoDialog(
                 owner,

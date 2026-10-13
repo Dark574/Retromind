@@ -16,6 +16,35 @@ public sealed class MediaDataServiceSnapshotTests
     };
 
     [Fact]
+    public void LegacyNodeStoreProviderId_IsIgnoredWithoutAffectingItems()
+    {
+        const string json = """
+            {
+              "Name": "Former GOG category",
+              "StoreProviderId": "gog",
+              "Items": [
+                {
+                  "Title": "Linked game",
+                  "CustomFields": {
+                    "Store.ProviderId": "gog",
+                    "Store.GameId": "123"
+                  }
+                }
+              ]
+            }
+            """;
+
+        var node = JsonSerializer.Deserialize<MediaNode>(json);
+
+        Assert.NotNull(node);
+        Assert.Equal("Former GOG category", node.Name);
+        var item = Assert.Single(node.Items);
+        Assert.Equal("gog", item.CustomFields["Store.ProviderId"]);
+        Assert.Equal("123", item.CustomFields["Store.GameId"]);
+        Assert.DoesNotContain("StoreProviderId", JsonSerializer.Serialize(node));
+    }
+
+    [Fact]
     public void CreateSnapshot_PreservesEveryPersistedPropertyAndDeepCopiesMutableData()
     {
         var roots = CreateFullyPopulatedLibrary();
@@ -36,7 +65,6 @@ public sealed class MediaDataServiceSnapshotTests
             nameof(MediaNode.AutoProtectNewChildren),
             nameof(MediaNode.DefaultEmulatorId),
             nameof(MediaNode.GameSystemId),
-            nameof(MediaNode.StoreProviderId),
             nameof(MediaNode.ThemePath),
             nameof(MediaNode.Description),
             nameof(MediaNode.LogoFallbackEnabled),
@@ -246,7 +274,6 @@ public sealed class MediaDataServiceSnapshotTests
             AutoProtectNewChildren = true,
             DefaultEmulatorId = "default-emulator-id",
             GameSystemId = "nintendo.snes",
-            StoreProviderId = "gog",
             ThemePath = "Themes/Default/theme.axaml",
             Description = "Node description",
             LogoFallbackEnabled = true,

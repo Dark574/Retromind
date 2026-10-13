@@ -162,9 +162,6 @@ RetroAchievements and Steam Web API keys) are stored through `ISecretStore`, not
 - media-editor and node-settings artwork changes remain detached until Save; imports are copied first and
   item deletions are quarantined until the model update succeeds, so Cancel and failed file operations leave
   the original files and assignments intact
-- synchronized store nodes accept only items with the matching provider identity and reject duplicate store
-  game IDs; moving an item out remains possible but warns that a later full store sync may add it again
-
 ## Theme subsystem
 Themes are external runtime XAML loaded through `ThemeLoader`:
 - resolves relative theme paths against portable `ThemesRoot`
@@ -388,7 +385,9 @@ the report never mutates JSON or deletes files.
   Steam/Heroic items created before the fields existed, it falls back to their command and launch URI without
   mutating library data. `AppSettings.ShowStoreBadges` controls presentation only; moving an item between
   ordinary nodes retains its store identity
-- Native store-provider integration under `Services/Stores/` (GOG auth/library/install flow wired via `GogProvider`)
+- Native store-provider integration under `Services/Stores/` wires GOG authentication, owned-library lookup, and
+  installation through `GogProvider`. GOG imports use the same picker for every target category; store identity and
+  management state belong to each `MediaItem`, never to the containing node
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider

@@ -18,13 +18,8 @@ public partial class MainWindowViewModel
     private async Task<bool> LinkMediaItemToGogAsync(MediaItem item, Window owner)
     {
         var parentNode = FindParentNode(RootItems, item);
-        var parentProviderId = parentNode?.StoreProviderId?.Trim();
-        if (StoreProviderBadgeHelper.HasStoreAssociation(item) ||
-            (!string.IsNullOrWhiteSpace(parentProviderId) &&
-             !string.Equals(parentProviderId, GogProviderId, StringComparison.OrdinalIgnoreCase)))
-        {
+        if (StoreProviderBadgeHelper.HasStoreAssociation(item))
             return false;
-        }
 
         if (!await EnsureGogSignInForInstallAsync(owner))
             return false;

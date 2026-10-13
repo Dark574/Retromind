@@ -44,15 +44,14 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - Read-only library fetch:
   - owned products from `https://embed.gog.com/account/getFilteredProducts` (paged)
 - Initial UI wiring:
-  - node context menu action `GOG-Medium hinzufügen`
-    - normal node: opens scalable picker (search + filter + multi-select)
-    - node declared as GOG node: syncs full owned library into that node (adds only missing titles)
-    - newly created GOG entries now reuse existing metadata/assets from already linked items with the same `Store.GameId`
+  - node context menu action `GOG-Spiele importieren` alongside the Steam and Heroic imports
+    - every node opens the scalable picker (search + filter + multi-select)
+    - selecting all filtered titles imports the complete owned library into the chosen node
+    - games already present in the target node are not added again
+    - newly created GOG entries reuse existing metadata/assets from already linked items with the same `Store.GameId`
   - GOG-linked items expose their applicable install/reinstall, update, and uninstall actions in the media editor;
     store changes are applied immediately, while staged metadata remains untouched and changed launch settings are
     reloaded after a successful action
-  - GOG-node declaration is done in Node Settings (not via separate create action)
-    - node flag: `StoreProviderId = gog`
 - Localization:
   - all newly introduced GOG UI texts/messages are backed by `Resources/Strings.resx` and `Resources/Strings.de.resx`
 - UI dependency:
@@ -157,7 +156,6 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Models/Stores/StoreAuthState.cs`
 - `Models/Stores/StoreAccountInfo.cs`
 - `Models/Stores/StoreGameRecord.cs`
-- `Models/MediaNode.cs` (`StoreProviderId` for store-bound nodes)
 
 ### Store abstractions
 
@@ -195,7 +193,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 ### GOG UI / binding
 
 - `ViewModels/MainWindowViewModel.Import.cs`
-  - `AddGogMediaAsync` (picker flow for normal nodes, full sync for GOG-declared nodes)
+  - `ImportGogAsync` (picker flow for every target node)
   - embedded in-app OAuth callback capture with WPE availability check and system-browser fallback
 - `Views/GogAuthenticationView.axaml`
 - `Views/GogAuthenticationView.axaml.cs`
@@ -204,13 +202,9 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Views/GogBrowserCallbackView.axaml.cs`
   - fixed-size system-browser fallback dialog with callback validation, browser reopen, and integrated cancellation
 - `ViewModels/MainWindowViewModel.Command.cs`
-  - localized menu label for `GOG-Medium hinzufügen`
+  - localized menu label and command for `GOG-Spiele importieren`
 - `Views/MainWindow.axaml`
-  - context menu entry for localized `GOG-Medium hinzufügen`
-- `ViewModels/NodeSettingsViewModel.cs`
-  - `IsGogStoreNode` binding for store-node declaration (`StoreProviderId = gog`)
-- `Views/NodeSettingsView.axaml`
-  - checkbox to declare a node as GOG node
+  - GOG entry in the node's regular import submenu
 - `ViewModels/GogPickerDialogViewModel.cs`
 - `ViewModels/GogInstallDialogViewModel.cs`
 - `Views/GogPickerDialogView.axaml`
@@ -224,8 +218,6 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `ViewModels/ProcessLogViewModel.cs` (long-running process log, cancellation, and lifecycle management)
 - `Views/ProcessLogView.axaml` (installer progress/log UI with Cancel and Close handling)
 - `Views/ProcessLogView.axaml.cs`
-- `Services/MediaDataService.cs`
-  - cloning persistence updated for `MediaNode.StoreProviderId`
 
 ### DI registration
 
@@ -276,8 +268,6 @@ Required behavior for native GOG auth:
 ## Open items
 
 - Extend library mapping (genres/artwork/store URLs) and stabilization around API edge-cases.
-- Optional UX follow-up:
-- add explicit “remove titles no longer owned” sync mode for store-bound GOG nodes (current sync is additive only).
 - broaden install robustness:
   - finer-grained installer log output buffering/throttling
 - broaden update flow ergonomics:

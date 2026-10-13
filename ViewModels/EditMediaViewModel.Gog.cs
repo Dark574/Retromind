@@ -29,12 +29,7 @@ public partial class EditMediaViewModel
         GogMediaItemStateHelper.TryGetGameId(_originalItem) != null;
 
     public bool IsStoreLinkingVisible =>
-        !StoreProviderBadgeHelper.HasStoreAssociation(_originalItem) &&
-        (string.IsNullOrWhiteSpace(_parentNode?.StoreProviderId) ||
-         string.Equals(
-             _parentNode.StoreProviderId.Trim(),
-             StoreProviderBadgeHelper.GogProviderId,
-             StringComparison.OrdinalIgnoreCase));
+        !StoreProviderBadgeHelper.HasStoreAssociation(_originalItem);
 
     public bool ShowGogUpdateAction =>
         GogMediaItemStateHelper.HasUpdateAvailable(_originalItem);

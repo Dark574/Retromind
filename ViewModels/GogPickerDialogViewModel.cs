@@ -34,7 +34,7 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
     public string HeaderText => _singleSelection
         ? T("Gog.Link.Header", "Select the matching game from your GOG library")
         : T("Gog.Picker.Header", "GOG library");
-    public string OnlyNewInNodeText => T("Gog.Picker.OnlyNewInNode", "Only new in this node");
+    public string OnlyNewInNodeText => T("Gog.Picker.OnlyNewInNode", "Only new in this category");
     public string SearchPlaceholderText => T("Gog.Picker.SearchPlaceholder", "Search by title, GOG ID, or platform...");
     public string SelectAllFilteredText => T("Gog.Picker.SelectAllFiltered", "Select all filtered");
     public string ClearFilteredSelectionText => T("Gog.Picker.ClearSelection", "Clear selection");
@@ -79,7 +79,7 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
 
         var existingIds = existingInTargetNode ?? new HashSet<string>(StringComparer.Ordinal);
         var usage = usageByGameId ?? new Dictionary<string, int>(StringComparer.Ordinal);
-        var statusAlreadyInNode = T("Gog.Picker.StatusAlreadyInNode", "Already in this node");
+        var statusAlreadyInNode = T("Gog.Picker.StatusAlreadyInNode", "Already in this category");
         var statusLinkedFormat = T("Gog.Picker.StatusLinkedFormat", "Already linked {0}x");
         var statusNew = T("Gog.Picker.StatusNew", "New");
 

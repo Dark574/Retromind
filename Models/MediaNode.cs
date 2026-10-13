@@ -123,12 +123,6 @@ public partial class MediaNode : ObservableObject
     public string? GameSystemId { get; set; }
 
     /// <summary>
-    /// Optional store provider binding for this node (e.g. "gog").
-    /// If set, the node can be synchronized from that store library.
-    /// </summary>
-    public string? StoreProviderId { get; set; }
-
-    /// <summary>
     /// Theme file (.axaml) used for this node. Themes are not inherited.
     /// Null or empty legacy values resolve to the Default theme.
     /// </summary>

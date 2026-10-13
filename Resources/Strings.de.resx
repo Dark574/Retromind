@@ -39,7 +39,7 @@
 • Spielsystem und Standard-Emulator einer Kategorie werden an ihre untergeordneten Inhalte vererbt.</value></data>
     <data name="GettingStarted.Category.Action" xml:space="preserve"><value>Kategorie anlegen...</value></data>
     <data name="GettingStarted.Import.Title" xml:space="preserve"><value>Inhalte hinzufügen</value></data>
-    <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf eine Kategorie, um ROMs, Steam- oder Epic-Spiele zu importieren, GOG-Spiele hinzuzufügen oder Medien manuell anzulegen.</value></data>
+    <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf eine Kategorie, um ROMs oder Spiele aus Steam, Heroic/Epic und GOG zu importieren oder Medien manuell anzulegen.</value></data>
     <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Wähle zuerst die Kategorie, in der die neuen Einträge abgelegt werden sollen.
 • Unter Importieren findest du ROM-Ordner sowie Steam- und Epic-Bibliotheken; GOG und manuelle Medien besitzen eigene Einträge.
 • Lege vor einem ROM-Import das Spielsystem und den Standard-Emulator der Kategorie fest. So kann RetroAchievements unterstützte Spiele automatisch erkennen und die ROMs übernehmen den Emulator direkt. Bei bereits importierten ROMs lässt sich der Standard-Emulator in den Kategorieeinstellungen nachträglich auf vorhandene Einträge anwenden.</value></data>
@@ -55,7 +55,7 @@
 • Ein Backup enthält die Bibliotheksdatenbank und Einstellungen, aber keine Spiele, Bilder, Videos, Themes oder portablen HOME-Daten.
 • Nach einer erfolgreichen Wiederherstellung wird Retromind geschlossen, damit der wiederhergestellte Zustand beim nächsten Start sauber geladen wird.</value></data>
     <data name="GettingStarted.Restore.Action" xml:space="preserve"><value>Backups verwalten...</value></data>
-    <data name="GettingStarted.NextStep" xml:space="preserve"><value>Nach dem Anlegen einer Kategorie kannst du per Rechtsklick ROMs, Steam- oder Epic-Spiele importieren, GOG-Spiele hinzufügen oder Medien manuell anlegen.</value></data>
+    <data name="GettingStarted.NextStep" xml:space="preserve"><value>Nach dem Anlegen einer Kategorie kannst du per Rechtsklick ROMs oder Spiele aus Steam, Heroic/Epic und GOG importieren oder Medien manuell anlegen.</value></data>
     <data name="GettingStarted.EmptyCategory.Title" xml:space="preserve"><value>Diese Kategorie ist bereit</value></data>
     <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf diese freie Fläche oder links auf die Kategorie, um Medien hinzuzufügen, einen ROM-Ordner oder Spiele aus Steam, Epic und GOG zu importieren.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Übersicht schließen</value></data>
@@ -330,9 +330,9 @@
 
     <!-- IMPORT -->
     <data name="Import.Folder" xml:space="preserve"><value>Importieren (Ordner)...</value></data>
-    <data name="Import.Epic" xml:space="preserve"><value>Epic-Bibliothek (Heroic)</value></data>
+    <data name="Import.Epic" xml:space="preserve"><value>Epic-Spiele (Heroic) importieren...</value></data>
     <data name="Import.Roms" xml:space="preserve"><value>Lokaler Ordner (ROMs)...</value></data>
-    <data name="Import.Steam" xml:space="preserve"><value>Steam-Bibliothek</value></data>
+    <data name="Import.Steam" xml:space="preserve"><value>Steam-Spiele importieren...</value></data>
 
     <!-- GOG -->
     <data name="Gog.Dlc.DialogTitle" xml:space="preserve"><value>GOG-DLCs verwalten</value></data>
@@ -385,7 +385,7 @@
     <data name="Gog.Install.DlcSelectionHint" xml:space="preserve"><value>Nach der sauberen Neuinstallation des Hauptspiels werden nur die ausgewählten DLCs erneut installiert.</value></data>
     <data name="Gog.Install.DlcSelectAll" xml:space="preserve"><value>Alle auswählen</value></data>
     <data name="Gog.Install.DlcClearSelection" xml:space="preserve"><value>Auswahl aufheben</value></data>
-    <data name="Gog.Media.AddMenu" xml:space="preserve"><value>GOG-Medium hinzufügen</value></data>
+    <data name="Gog.Media.AddMenu" xml:space="preserve"><value>GOG-Spiele importieren...</value></data>
     <data name="Gog.AuthCheckFailed" xml:space="preserve"><value>GOG-Anmeldestatus konnte nicht geprüft werden.</value></data>
     <data name="Gog.SignInRequiredPrompt" xml:space="preserve"><value>Für GOG-Medien ist eine Anmeldung erforderlich. Jetzt sichere Anmeldung öffnen?</value></data>
     <data name="Gog.SignInRetryPrompt" xml:space="preserve"><value>Die GOG-Sitzung scheint ungültig oder abgelaufen zu sein. Jetzt erneut anmelden?</value></data>
@@ -407,18 +407,18 @@
     <data name="Gog.ReopenBrowser" xml:space="preserve"><value>Browser erneut öffnen</value></data>
     <data name="Gog.BrowserOpenFailed" xml:space="preserve"><value>Der Systembrowser konnte nicht geöffnet werden.</value></data>
     <data name="Gog.GameFallbackTitleFormat" xml:space="preserve"><value>GOG {0}</value></data>
-    <data name="Gog.Picker.NoNewForNode" xml:space="preserve"><value>Auswahl enthielt keine neuen GOG-Spiele für diesen Node.</value></data>
+    <data name="Gog.Picker.NoNewForNode" xml:space="preserve"><value>Die Auswahl enthielt keine neuen GOG-Spiele für diese Kategorie.</value></data>
     <data name="Gog.Node.SyncNoChanges" xml:space="preserve"><value>GOG-Node ist bereits aktuell.</value></data>
     <data name="Gog.Picker.DialogTitle" xml:space="preserve"><value>GOG-Medien auswählen</value></data>
     <data name="Gog.Picker.Header" xml:space="preserve"><value>GOG-Bibliothek</value></data>
-    <data name="Gog.Picker.OnlyNewInNode" xml:space="preserve"><value>Nur neue in diesem Node</value></data>
+    <data name="Gog.Picker.OnlyNewInNode" xml:space="preserve"><value>Nur neue in dieser Kategorie</value></data>
     <data name="Gog.Picker.SearchPlaceholder" xml:space="preserve"><value>Titel, GOG-ID oder Plattform suchen...</value></data>
     <data name="Gog.Picker.CounterFormat" xml:space="preserve"><value>Gefiltert: {0:N0} / {1:N0}   Ausgewählt: {2:N0}</value></data>
     <data name="Gog.Picker.SelectAllFiltered" xml:space="preserve"><value>Alle gefilterten auswählen</value></data>
     <data name="Gog.Picker.ClearSelection" xml:space="preserve"><value>Auswahl aufheben</value></data>
     <data name="Gog.Picker.EmptyState" xml:space="preserve"><value>Keine Treffer für den aktuellen Filter.</value></data>
     <data name="Gog.Picker.AddSelection" xml:space="preserve"><value>Auswahl hinzufügen</value></data>
-    <data name="Gog.Picker.StatusAlreadyInNode" xml:space="preserve"><value>Bereits in diesem Node</value></data>
+    <data name="Gog.Picker.StatusAlreadyInNode" xml:space="preserve"><value>Bereits in dieser Kategorie</value></data>
     <data name="Gog.Picker.StatusLinkedFormat" xml:space="preserve"><value>Bereits {0}x verknüpft</value></data>
     <data name="Gog.Picker.StatusNew" xml:space="preserve"><value>Neu</value></data>
     <data name="Gog.Install.DialogTitle" xml:space="preserve"><value>GOG-Spiel installieren</value></data>

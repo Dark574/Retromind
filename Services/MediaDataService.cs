@@ -398,7 +398,6 @@ public class MediaDataService
             AutoProtectNewChildren = node.AutoProtectNewChildren,
             DefaultEmulatorId = node.DefaultEmulatorId,
             GameSystemId = node.GameSystemId,
-            StoreProviderId = node.StoreProviderId,
             ThemePath = node.ThemePath,
             Description = node.Description,
             SystemPreviewThemeId = node.SystemPreviewThemeId,

@@ -36,12 +36,11 @@ public sealed partial class MoveMediaDialogViewModel : ViewModelBase
 
     public MoveMediaDialogViewModel(
         IEnumerable<MediaNode> rootNodes,
-        MediaItem item,
         MediaNode sourceNode)
     {
         foreach (var rootNode in rootNodes)
         {
-            var option = BuildOption(rootNode, item, sourceNode, isRoot: true);
+            var option = BuildOption(rootNode, sourceNode, isRoot: true);
             if (option != null)
                 RootNodes.Add(option);
         }
@@ -57,7 +56,6 @@ public sealed partial class MoveMediaDialogViewModel : ViewModelBase
 
     private static MoveMediaNodeOption? BuildOption(
         MediaNode node,
-        MediaItem item,
         MediaNode sourceNode,
         bool isRoot)
     {
@@ -66,12 +64,12 @@ public sealed partial class MoveMediaDialogViewModel : ViewModelBase
 
         var option = new MoveMediaNodeOption(
             node,
-            MediaItemMovePolicy.Assess(item, sourceNode, node));
+            MediaItemMovePolicy.Assess(sourceNode, node));
 
         var containsSource = ReferenceEquals(node, sourceNode) || node.Id == sourceNode.Id;
         foreach (var child in node.Children)
         {
-            var childOption = BuildOption(child, item, sourceNode, isRoot: false);
+            var childOption = BuildOption(child, sourceNode, isRoot: false);
             if (childOption == null)
                 continue;
 
@@ -91,12 +89,6 @@ public sealed partial class MoveMediaDialogViewModel : ViewModelBase
             MediaItemMoveTargetStatus.Allowed => string.Empty,
             MediaItemMoveTargetStatus.CurrentNode =>
                 T("MoveMedia.CurrentCategory", "The item is already in this category."),
-            MediaItemMoveTargetStatus.StoreProviderMismatch =>
-                T("MoveMedia.StoreProviderMismatch", "This synchronized store category only accepts matching store items."),
-            MediaItemMoveTargetStatus.MissingStoreIdentity =>
-                T("MoveMedia.MissingStoreIdentity", "The item does not contain the complete identity required by this store category."),
-            MediaItemMoveTargetStatus.DuplicateStoreItem =>
-                T("MoveMedia.DuplicateStoreItem", "This store item already exists in the selected category."),
             _ => T("MoveMedia.InvalidTarget", "The selected category cannot be used as a target.")
         };
     }

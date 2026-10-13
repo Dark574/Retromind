@@ -37,7 +37,6 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaNode?> AddCategoryCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> AddMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> AddEmptyMediaCommand { get; private set; } = null!;
-    public IAsyncRelayCommand<MediaNode?> AddGogMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> DeleteCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand<MediaItem?> SetCoverCommand { get; private set; } = null!;
@@ -75,6 +74,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaNode?> ImportRomsCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ImportSteamCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ImportEpicCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaNode?> ImportGogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> IdentifyNodeWithRetroAchievementsCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand<MediaItem?> ScrapeMediaCommand { get; private set; } = null!;
@@ -88,7 +88,7 @@ public partial class MainWindowViewModel
     // Command to attach new manuals/documents directly from the main grid context menu
     public IAsyncRelayCommand<MediaItem?> AddManualToMediaCommand { get; private set; } = null!;
 
-    public string GogMediaMenuText => T("Gog.Media.AddMenu", "Add GOG media");
+    public string ImportGogText => T("Gog.Media.AddMenu", "Import GOG games...");
     public string TestPlayMediaMenuText => T("Ctx.Media.TestLaunch", "Test launch (without tracking)");
     public string ViewLastLaunchLogMenuText => T("Launch.ViewLastLog", "View last launch log");
     public string MoveMediaMenuText => T("Ctx.Media.Move", "Move to category...");
@@ -110,7 +110,6 @@ public partial class MainWindowViewModel
         AddCategoryCommand = new AsyncRelayCommand<MediaNode?>(AddCategoryAsync, _ => !_libraryLoadFailed);
         AddMediaCommand = new AsyncRelayCommand<MediaNode?>(AddMediaAsync, CanOperateOnNode);
         AddEmptyMediaCommand = new AsyncRelayCommand<MediaNode?>(AddEmptyMediaAsync, CanOperateOnNode);
-        AddGogMediaCommand = new AsyncRelayCommand<MediaNode?>(AddGogMediaAsync, CanOperateOnNode);
         DeleteCommand = new AsyncRelayCommand<MediaNode?>(DeleteNodeAsync);
         
         SetCoverCommand = new AsyncRelayCommand<MediaItem?>(SetCoverAsync);
@@ -150,6 +149,7 @@ public partial class MainWindowViewModel
         ImportRomsCommand = new AsyncRelayCommand<MediaNode?>(ImportRomsAsync, CanOperateOnNode);
         ImportSteamCommand = new AsyncRelayCommand<MediaNode?>(ImportSteamAsync, CanOperateOnNode);
         ImportEpicCommand = new AsyncRelayCommand<MediaNode?>(ImportEpicAsync, CanOperateOnNode);
+        ImportGogCommand = new AsyncRelayCommand<MediaNode?>(ImportGogAsync, CanOperateOnNode);
         IdentifyNodeWithRetroAchievementsCommand = new AsyncRelayCommand<MediaNode?>(
             IdentifyNodeWithRetroAchievementsAsync,
             CanIdentifyNodeWithRetroAchievements);
@@ -810,10 +810,10 @@ public partial class MainWindowViewModel
         EnterBigModeCommand.NotifyCanExecuteChanged();
         AddMediaCommand.NotifyCanExecuteChanged();
         AddEmptyMediaCommand.NotifyCanExecuteChanged();
-        AddGogMediaCommand.NotifyCanExecuteChanged();
         ImportRomsCommand.NotifyCanExecuteChanged();
         ImportSteamCommand.NotifyCanExecuteChanged();
         ImportEpicCommand.NotifyCanExecuteChanged();
+        ImportGogCommand.NotifyCanExecuteChanged();
         ScrapeNodeCommand.NotifyCanExecuteChanged();
         IdentifyNodeWithRetroAchievementsCommand.NotifyCanExecuteChanged();
     }

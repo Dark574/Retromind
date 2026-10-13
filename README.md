@@ -870,15 +870,9 @@ Please test it carefully and expect rough edges or breaking behavior between alp
 
 ### Usage
 
-- Import full GOG library into a dedicated node:
-  1. Create a new node.
-  2. Open node settings and mark it as a GOG node (`StoreProviderId = gog`).
-  3. Run **Add GOG media** on that node.
-  4. Retromind syncs owned GOG titles additively into that node.
-
-- Add individual GOG items into any node:
-  1. Run **Add GOG media** on any target node.
-  2. Use the picker dialog and select only the titles you want to add.
+- Run **Import > GOG games** on any target node.
+- Use the picker dialog to select individual titles, or choose all filtered titles to import the complete
+  owned library. Games already present in the target node are not added again.
 
 - Install a linked title without a launch configuration by using its main **Install** action. Retromind
   downloads the selected Linux or Windows installer, supports resumable downloads, runs the installer,

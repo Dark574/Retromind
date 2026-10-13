@@ -28,12 +28,6 @@ public partial class MainWindowViewModel
     private const string GogForceBrowserLoginEnvironmentVariable = "RETROMIND_GOG_FORCE_BROWSER_LOGIN";
     private static readonly Uri GogDefaultWebAuthRedirectUri = new("https://embed.gog.com/on_login_success?origin=client");
 
-    private static bool IsGogProvider(string? providerId)
-        => string.Equals(providerId, GogProviderId, StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsGogNode(MediaNode node)
-        => IsGogProvider(node.StoreProviderId);
-
     private static bool IsStoreCustomFieldKey(string? key)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -191,12 +185,10 @@ public partial class MainWindowViewModel
     
     // --- Import Actions ---
 
-    private async Task AddGogMediaAsync(MediaNode? targetNode)
+    private async Task ImportGogAsync(MediaNode? targetNode)
     {
         if (targetNode == null) targetNode = SelectedNode;
         if (targetNode == null || CurrentWindow is not { } owner) return;
-
-        var isGogNode = IsGogNode(targetNode);
 
         StoreAuthState authState;
         try
@@ -267,8 +259,7 @@ public partial class MainWindowViewModel
                 await Task.Yield();
                 ownedGames = await _storeLibraryProvider.GetOwnedGamesAsync();
                 metadataTemplateByGameId = BuildGogMetadataTemplateByGameId();
-                if (!isGogNode)
-                    usageByGameId = BuildGogUsageCountByGameId();
+                usageByGameId = BuildGogUsageCountByGameId();
             }
         }
         catch (Exception ex)
@@ -292,36 +283,28 @@ public partial class MainWindowViewModel
                 existingStoreGameIds.Add(existingId);
         }
 
+        var pickerVm = new GogPickerDialogViewModel(ownedGames, existingStoreGameIds, usageByGameId);
+        var pickerDialog = new GogPickerDialogView { DataContext = pickerVm };
+
         IReadOnlyList<StoreGameRecord> selectedGames;
-
-        if (isGogNode)
+        try
         {
-            selectedGames = ownedGames;
+            var accepted = false;
+            pickerVm.RequestClose += result =>
+            {
+                accepted = result;
+                pickerDialog.Close(result);
+            };
+
+            await pickerDialog.ShowDialog<bool>(owner);
+            if (!accepted)
+                return;
+
+            selectedGames = pickerVm.GetSelectedGames();
         }
-        else
+        finally
         {
-            var pickerVm = new GogPickerDialogViewModel(ownedGames, existingStoreGameIds, usageByGameId);
-            var pickerDialog = new GogPickerDialogView { DataContext = pickerVm };
-
-            try
-            {
-                var accepted = false;
-                pickerVm.RequestClose += result =>
-                {
-                    accepted = result;
-                    pickerDialog.Close(result);
-                };
-
-                await pickerDialog.ShowDialog<bool>(owner);
-                if (!accepted)
-                    return;
-
-                selectedGames = pickerVm.GetSelectedGames();
-            }
-            finally
-            {
-                pickerVm.Dispose();
-            }
+            pickerVm.Dispose();
         }
 
         if (selectedGames.Count == 0)
@@ -370,9 +353,7 @@ public partial class MainWindowViewModel
         {
             await ShowConfirmDialog(
                 owner,
-                isGogNode
-                    ? T("Gog.Node.SyncNoChanges", "GOG node is already up to date.")
-                    : T("Gog.Picker.NoNewForNode", "Selection did not contain new GOG games for this node."));
+                T("Gog.Picker.NoNewForNode", "Selection did not contain new GOG games for this category."));
             return;
         }
 
@@ -383,16 +364,10 @@ public partial class MainWindowViewModel
             InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
         });
 
-        // A picker import should behave like manually adding media: select the
-        // last added item after the current node view has been rebuilt. A GOG-node
-        // sync can add the entire library and intentionally keeps its selection.
-        if (!isGogNode)
-        {
-            var lastItem = itemsToAdd[^1];
-            _currentSettings.LastSelectedMediaId = lastItem.Id;
-            RememberNodeSelection(targetNode.Id, lastItem.Id);
-            SaveSettingsOnly();
-        }
+        var lastItem = itemsToAdd[^1];
+        _currentSettings.LastSelectedMediaId = lastItem.Id;
+        RememberNodeSelection(targetNode.Id, lastItem.Id);
+        SaveSettingsOnly();
 
         if (IsNodeInCurrentView(targetNode))
             await UpdateContentAsync();

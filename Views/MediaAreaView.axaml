@@ -271,9 +271,6 @@
                     <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
                               Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
                               CommandParameter="{Binding Node}" />
-                    <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogMediaMenuText}"
-                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddGogMediaCommand}"
-                              CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}" />
                     <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddEmpty}"
                               Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddEmptyMediaCommand}"
                               CommandParameter="{Binding Node}" />
@@ -288,6 +285,9 @@
                                   CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}" />
                         <MenuItem Header="{x:Static p:Strings.Import_Epic}"
                                   Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportEpicCommand}"
+                                  CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}" />
+                        <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportGogText}"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportGogCommand}"
                                   CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}" />
                     </MenuItem>
                     <Separator />
@@ -394,9 +394,6 @@
                                             <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
                                                       CommandParameter="{Binding DataContext.Node, RelativeSource={RelativeSource AncestorType=UserControl}}" />
-                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogMediaMenuText}"
-                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddGogMediaCommand}"
-                                                      CommandParameter="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectedNode}" />
                                             <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddEmpty}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddEmptyMediaCommand}"
                                                       CommandParameter="{Binding DataContext.Node, RelativeSource={RelativeSource AncestorType=UserControl}}" />
