@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - filter game metadata searches by a selected system with ScreenScraper, IGDB and TheGamesDB
 - display Steam achievement progress, unlock times and privacy-safe hidden achievements in the desktop details and BigMode
 - Steam Achievements have been added
+- automatically track imported Steam game sessions for playtime and achievement updates without requiring a manually configured process name
 
 ### Changed
 - improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews

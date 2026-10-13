@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -44,7 +45,7 @@ public sealed class LaunchProcessService
         public required long Id { get; init; }
         public int? RootProcessId { get; init; }
         public string? WatchedProcessName { get; init; }
-        public HashSet<int>? WatchedProcessIds { get; init; }
+        public Dictionary<int, long>? WatchedProcessStartTicks { get; init; }
         public DateTime? FirstStopRequestUtc { get; set; }
         public bool WasStopRequested { get; set; }
     }
@@ -129,17 +130,31 @@ public sealed class LaunchProcessService
             watchedProcessIds: processIds);
     }
 
+    internal ActiveLaunchSessionRegistration BeginObservedSession(IEnumerable<int> processIds)
+    {
+        ArgumentNullException.ThrowIfNull(processIds);
+        return SetActiveSession(
+            rootProcessId: null,
+            watchedProcessName: null,
+            watchedProcessIds: processIds);
+    }
+
     internal void UpdateWatchedSession(
         ActiveLaunchSessionRegistration registration,
         IEnumerable<int> processIds)
     {
         ArgumentNullException.ThrowIfNull(processIds);
+        var processStartTicks = CaptureProcessStartTicks(processIds);
         lock (_activeSessionGate)
         {
             if (_activeSession is not { } session || session.Id != registration.Id)
                 return;
 
-            session.WatchedProcessIds?.UnionWith(processIds);
+            if (session.WatchedProcessStartTicks == null)
+                return;
+
+            foreach (var processIdentity in processStartTicks)
+                session.WatchedProcessStartTicks[processIdentity.Key] = processIdentity.Value;
         }
     }
 
@@ -271,6 +286,9 @@ public sealed class LaunchProcessService
         IEnumerable<int>? watchedProcessIds)
     {
         var id = Interlocked.Increment(ref _nextActiveSessionId);
+        var watchedProcessStartTicks = watchedProcessIds == null
+            ? null
+            : CaptureProcessStartTicks(watchedProcessIds);
         lock (_activeSessionGate)
         {
             _activeSession = new ActiveLaunchSession
@@ -278,7 +296,7 @@ public sealed class LaunchProcessService
                 Id = id,
                 RootProcessId = rootProcessId,
                 WatchedProcessName = watchedProcessName,
-                WatchedProcessIds = watchedProcessIds?.ToHashSet()
+                WatchedProcessStartTicks = watchedProcessStartTicks
             };
         }
 
@@ -306,23 +324,25 @@ public sealed class LaunchProcessService
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(session.WatchedProcessName))
+        if (session.WatchedProcessStartTicks != null)
         {
-            int[] processIds;
+            KeyValuePair<int, long>[] processIdentities;
             lock (_activeSessionGate)
-                processIds = session.WatchedProcessIds?.ToArray() ?? [];
+                processIdentities = session.WatchedProcessStartTicks?.ToArray() ?? [];
 
             var processes = new List<Process>();
-            foreach (var processId in processIds)
+            foreach (var processIdentity in processIdentities)
             {
                 try
                 {
-                    var process = Process.GetProcessById(processId);
+                    var process = Process.GetProcessById(processIdentity.Key);
                     if (process.HasExited ||
-                        !string.Equals(
-                            process.ProcessName,
-                            session.WatchedProcessName,
-                            StringComparison.OrdinalIgnoreCase))
+                        process.StartTime.ToUniversalTime().Ticks != processIdentity.Value ||
+                        (!string.IsNullOrWhiteSpace(session.WatchedProcessName) &&
+                         !string.Equals(
+                             process.ProcessName,
+                             session.WatchedProcessName,
+                             StringComparison.OrdinalIgnoreCase)))
                     {
                         process.Dispose();
                         continue;
@@ -330,7 +350,7 @@ public sealed class LaunchProcessService
 
                     processes.Add(process);
                 }
-                catch (ArgumentException)
+                catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or Win32Exception)
                 {
                     // The observed process has already exited.
                 }
@@ -340,6 +360,26 @@ public sealed class LaunchProcessService
         }
 
         return new ProcessCollection([]);
+    }
+
+    private static Dictionary<int, long> CaptureProcessStartTicks(IEnumerable<int> processIds)
+    {
+        var result = new Dictionary<int, long>();
+        foreach (var processId in processIds.Distinct())
+        {
+            try
+            {
+                using var process = Process.GetProcessById(processId);
+                if (!process.HasExited)
+                    result[processId] = process.StartTime.ToUniversalTime().Ticks;
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or Win32Exception)
+            {
+                // The process disappeared or cannot safely be identified.
+            }
+        }
+
+        return result;
     }
 
     private sealed class ProcessCollection(Process[] processes) : IDisposable

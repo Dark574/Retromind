@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services.SteamAchievements;
 
 namespace Retromind.Services;
 
@@ -27,6 +28,7 @@ public sealed class LauncherService
     private readonly WinePrefixService _winePrefixService;
     private readonly LaunchProcessService _launchProcessService;
     private readonly ProtonPrefixRelocationService _protonPrefixRelocationService;
+    private readonly SteamProcessTrackingService _steamProcessTrackingService;
 
     public LauncherService(
         string libraryRootPath,
@@ -36,7 +38,8 @@ public sealed class LauncherService
         LaunchEnvironmentService? launchEnvironmentService = null,
         WinePrefixService? winePrefixService = null,
         LaunchProcessService? launchProcessService = null,
-        ProtonPrefixRelocationService? protonPrefixRelocationService = null)
+        ProtonPrefixRelocationService? protonPrefixRelocationService = null,
+        SteamProcessTrackingService? steamProcessTrackingService = null)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -47,6 +50,8 @@ public sealed class LauncherService
         _launchProcessService = launchProcessService ?? new LaunchProcessService();
         _protonPrefixRelocationService = protonPrefixRelocationService ??
                                          new ProtonPrefixRelocationService(libraryRootPath, settings);
+        _steamProcessTrackingService = steamProcessTrackingService ??
+                                       new SteamProcessTrackingService();
     }
 
     internal Task<LaunchSessionStopRequestResult> RequestActiveSessionStopAsync(
@@ -83,11 +88,18 @@ public sealed class LauncherService
         var isDelegatedCommand = watchedProcessName == null && IsDelegatedCommand(item);
         string? missingWatchedProcessName = null;
         var watchedProcessWasAlreadyRunning = false;
+        var steamProcessTrackingSession = watchedProcessName == null &&
+                                          isDelegatedCommand &&
+                                          SteamAppIdResolver.TryGetAppId(item, out var steamAppId)
+            ? _steamProcessTrackingService.Prepare(steamAppId, item.Title)
+            : null;
         int? exitCode = null;
         string? consoleOutput = null;
         TimeSpan? processStartedAt = null;
+        TimeSpan? trackedSessionDuration = null;
         var elapsed = TimeSpan.Zero;
         var wasStoppedByUser = false;
+        var trackingWasCancelled = false;
 
         if (watchedProcessName != null)
         {
@@ -149,8 +161,9 @@ public sealed class LauncherService
         {
             // Tracking strategy:
             // A) If OverrideWatchProcess is set, we track by process name (for launchers like Steam).
-            // B) Store/URI commands without a watched process are only handoffs.
-            // C) Otherwise, if we have a process handle, wait for it.
+            // B) Imported Steam commands are tracked by their exact AppID on Linux.
+            // C) Other store/URI commands without a watched process are only handoffs.
+            // D) Otherwise, if we have a process handle, wait for it.
             if (watchedProcessName != null)
             {
                 var watchOutcome = await _launchProcessService.WatchProcessByNameAsync(
@@ -174,6 +187,38 @@ public sealed class LauncherService
                 shouldRecordSession = watchOutcome == ProcessWatchOutcome.Tracked;
                 if (watchOutcome == ProcessWatchOutcome.NotFound)
                     missingWatchedProcessName = watchedProcessName;
+            }
+            else if (steamProcessTrackingSession != null && process != null)
+            {
+                // First inspect the Steam handoff itself for an immediate failure.
+                // A successful handoff is then tracked by its exact Steam AppID.
+                if (await _launchProcessService.WaitForDelegatedCommandAsync(process, cancellationToken)
+                        .ConfigureAwait(false))
+                {
+                    exitCode = process.ExitCode;
+                }
+
+                if (exitCode is null or 0)
+                {
+                    var trackingResult = await _steamProcessTrackingService.TrackAsync(
+                            steamProcessTrackingSession,
+                            onGameProcessesDetected: processIds =>
+                            {
+                                if (activeSession is { } registration)
+                                {
+                                    _launchProcessService.UpdateWatchedSession(registration, processIds);
+                                }
+                                else
+                                {
+                                    activeSession = _launchProcessService.BeginObservedSession(processIds);
+                                }
+                            },
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    shouldRecordSession = trackingResult.WasTracked;
+                    if (trackingResult.WasTracked)
+                        trackedSessionDuration = trackingResult.Duration;
+                }
             }
             else if (isDelegatedCommand && process != null)
             {
@@ -203,6 +248,7 @@ public sealed class LauncherService
         {
             // App shutdown or caller cancellation: treat as "no/partial session".
             shouldRecordSession = false;
+            trackingWasCancelled = true;
         }
         catch (Exception ex)
         {
@@ -241,13 +287,15 @@ public sealed class LauncherService
             process?.Dispose();
         }
 
-        var delegatedCommandSucceeded = isDelegatedCommand && exitCode is null or 0;
+        var delegatedCommandSucceeded = !trackingWasCancelled &&
+                                        isDelegatedCommand &&
+                                        exitCode is null or 0;
         if (recordStatistics && (shouldRecordSession || delegatedCommandSucceeded))
         {
             try
             {
                 if (shouldRecordSession)
-                    await EvaluateSessionAsync(item, elapsed).ConfigureAwait(false);
+                    await EvaluateSessionAsync(item, trackedSessionDuration ?? elapsed).ConfigureAwait(false);
                 else
                     await RecordLaunchAsync(item).ConfigureAwait(false);
             }
@@ -342,9 +390,6 @@ public sealed class LauncherService
 
     internal static bool IsDelegatedCommand(MediaItem item)
     {
-        if (item.MediaType != MediaType.Command)
-            return false;
-
         var target = item.GetPrimaryLaunchPath();
         if (string.IsNullOrWhiteSpace(target))
             return false;

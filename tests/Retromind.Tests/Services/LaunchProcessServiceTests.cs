@@ -163,4 +163,41 @@ public sealed class LaunchProcessServiceTests
                 unrelatedProcess.Kill(entireProcessTree: true);
         }
     }
+
+    [Fact]
+    public async Task SessionStop_ForceKillsOnlyRegisteredObservedProcessIdentities()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var process = Process.Start("/bin/sleep", "30");
+        using var unrelatedProcess = Process.Start("/bin/sleep", "30");
+        Assert.NotNull(process);
+        Assert.NotNull(unrelatedProcess);
+
+        var service = new LaunchProcessService();
+        var registration = service.BeginObservedSession([process.Id]);
+        try
+        {
+            Assert.Equal(
+                LaunchSessionStopRequestResult.ForceStopArmed,
+                await service.RequestActiveSessionStopAsync(TimeSpan.Zero, TimeSpan.FromSeconds(30)));
+            Assert.False(process.HasExited);
+
+            Assert.Equal(
+                LaunchSessionStopRequestResult.ForceStopRequested,
+                await service.RequestActiveSessionStopAsync(TimeSpan.Zero, TimeSpan.FromSeconds(30)));
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.True(service.WasStopRequested(registration));
+            Assert.False(unrelatedProcess.HasExited);
+        }
+        finally
+        {
+            service.EndActiveSession(registration);
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+            if (!unrelatedProcess.HasExited)
+                unrelatedProcess.Kill(entireProcessTree: true);
+        }
+    }
 }

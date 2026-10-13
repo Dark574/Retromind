@@ -1,3 +1,4 @@
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
 using Retromind.Tests.TestInfrastructure;
@@ -270,17 +271,17 @@ public sealed class LauncherServiceTests
     }
 
     [Fact]
-    public async Task LaunchAsync_DoesNotTreatSteamCommandAsTrackedGameSession()
+    public async Task LaunchAsync_DoesNotTreatNonSteamStoreCommandAsTrackedGameSession()
     {
         if (!OperatingSystem.IsLinux())
             return;
 
         using var temp = new TemporaryDirectory();
-        var steamPath = temp.CreateFile("steam", "#!/bin/sh\nexit 0\n");
+        var heroicPath = temp.CreateFile("heroic", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
-            steamPath,
+            heroicPath,
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        var item = new MediaItem("Steam handoff")
+        var item = new MediaItem("Heroic handoff")
         {
             MediaType = MediaType.Command,
             Files =
@@ -288,10 +289,10 @@ public sealed class LauncherServiceTests
                 new MediaFileRef
                 {
                     Kind = MediaFileKind.Absolute,
-                    Path = steamPath
+                    Path = heroicPath
                 }
             ],
-            LauncherArgs = "steam://rungameid/123"
+            LauncherArgs = "heroic://launch/example"
         };
         var service = new LauncherService(
             temp.RootPath,
@@ -302,6 +303,97 @@ public sealed class LauncherServiceTests
 
         Assert.Equal(LaunchOutcome.Started, result.Outcome);
         Assert.False(result.WasSessionTracked);
+    }
+
+    [Theory]
+    [InlineData(MediaType.Command)]
+    [InlineData(MediaType.Native)]
+    public async Task LaunchAsync_TracksSteamAppIdAndReportsCompletedSession(MediaType mediaType)
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var steamPath = temp.CreateFile("steam", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            steamPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = new MediaItem("Tracked Steam game")
+        {
+            MediaType = mediaType,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = steamPath
+                }
+            ],
+            LauncherArgs = "steam://rungameid/123"
+        };
+        item.CustomFields[CustomFieldKeyHelper.StoreProviderId] = "steam";
+        item.CustomFields[CustomFieldKeyHelper.StoreGameId] = "123";
+        var steamTracker = new StubSteamProcessTrackingService(TimeSpan.FromSeconds(42));
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")),
+            steamProcessTrackingService: steamTracker);
+
+        var result = await service.LaunchAsync(item, recordStatistics: false);
+
+        Assert.True(result.WasSessionTracked);
+        Assert.Equal(1, steamTracker.PrepareCalls);
+        Assert.Equal(1, steamTracker.TrackCalls);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_CancelledSteamTrackingDoesNotRecordAPartialSession()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        var item = CreateSteamCommandItem(temp, "Cancelled Steam game");
+        var steamTracker = new BlockingSteamProcessTrackingService();
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")),
+            steamProcessTrackingService: steamTracker);
+
+        var result = await service.LaunchAsync(
+            item,
+            cancellationToken: cancellationTokenSource.Token);
+
+        Assert.False(result.WasSessionTracked);
+        Assert.Equal(0, item.PlayCount);
+        Assert.Equal(TimeSpan.Zero, item.TotalPlayTime);
+        Assert.Null(item.LastPlayed);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_ManualWatchProcessTakesPriorityOverSteamAppIdTracking()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        var item = CreateSteamCommandItem(temp, "Manually tracked Steam game");
+        item.OverrideWatchProcess = "retromind-process-that-does-not-exist";
+        var steamTracker = new StubSteamProcessTrackingService(TimeSpan.FromSeconds(42));
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")),
+            steamProcessTrackingService: steamTracker);
+
+        await service.LaunchAsync(item, cancellationToken: cancellationTokenSource.Token);
+
+        Assert.Equal(0, steamTracker.PrepareCalls);
+        Assert.Equal(0, steamTracker.TrackCalls);
     }
 
     [Fact]
@@ -341,15 +433,19 @@ public sealed class LauncherServiceTests
     }
 
     [Theory]
-    [InlineData("steam", "steam://rungameid/123")]
-    [InlineData("heroic", "epic://example")]
-    [InlineData("steam://rungameid/123", "")]
-    [InlineData("xdg-open", "heroic://example")]
-    public void IsDelegatedCommand_RecognizesStoreAndProtocolHandoffs(string target, string arguments)
+    [InlineData(MediaType.Command, "steam", "steam://rungameid/123")]
+    [InlineData(MediaType.Native, "steam", "steam://rungameid/123")]
+    [InlineData(MediaType.Command, "heroic", "epic://example")]
+    [InlineData(MediaType.Command, "steam://rungameid/123", "")]
+    [InlineData(MediaType.Command, "xdg-open", "heroic://example")]
+    public void IsDelegatedCommand_RecognizesStoreAndProtocolHandoffs(
+        MediaType mediaType,
+        string target,
+        string arguments)
     {
         var item = new MediaItem("Delegated command")
         {
-            MediaType = MediaType.Command,
+            MediaType = mediaType,
             Files =
             [
                 new MediaFileRef
@@ -428,6 +524,86 @@ public sealed class LauncherServiceTests
         Assert.Contains("launch-log-marker", log);
         Assert.DoesNotContain("command-secret", log);
         Assert.DoesNotContain("environment-secret", log);
+    }
+
+    private sealed class StubSteamProcessTrackingService(TimeSpan duration)
+        : SteamProcessTrackingService(
+            "/proc",
+            _ => { },
+            enabled: false,
+            observationDuration: TimeSpan.Zero,
+            initialPollInterval: TimeSpan.Zero,
+            steadyPollInterval: TimeSpan.Zero,
+            quietPeriod: TimeSpan.Zero,
+            candidateConfirmationDuration: TimeSpan.Zero)
+    {
+        internal int PrepareCalls { get; private set; }
+        internal int TrackCalls { get; private set; }
+
+        internal override SteamProcessTrackingSession? Prepare(uint appId, string? title)
+        {
+            PrepareCalls++;
+            return new SteamProcessTrackingSession(1, appId, title ?? string.Empty, new HashSet<int>());
+        }
+
+        internal override Task<SteamProcessTrackingResult> TrackAsync(
+            SteamProcessTrackingSession? session,
+            Action<IReadOnlyCollection<int>>? onGameProcessesDetected = null,
+            CancellationToken cancellationToken = default)
+        {
+            TrackCalls++;
+            return Task.FromResult(new SteamProcessTrackingResult(true, duration));
+        }
+    }
+
+    private sealed class BlockingSteamProcessTrackingService()
+        : SteamProcessTrackingService(
+            "/proc",
+            _ => { },
+            enabled: false,
+            observationDuration: TimeSpan.Zero,
+            initialPollInterval: TimeSpan.Zero,
+            steadyPollInterval: TimeSpan.Zero,
+            quietPeriod: TimeSpan.Zero,
+            candidateConfirmationDuration: TimeSpan.Zero)
+    {
+        internal override SteamProcessTrackingSession? Prepare(uint appId, string? title)
+            => new(1, appId, title ?? string.Empty, new HashSet<int>());
+
+        internal override async Task<SteamProcessTrackingResult> TrackAsync(
+            SteamProcessTrackingSession? session,
+            Action<IReadOnlyCollection<int>>? onGameProcessesDetected = null,
+            CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return SteamProcessTrackingResult.NotTracked;
+        }
+    }
+
+    private static MediaItem CreateSteamCommandItem(TemporaryDirectory temp, string title)
+    {
+        var steamPath = temp.CreateFile(
+            "steam",
+            "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            steamPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = new MediaItem(title)
+        {
+            MediaType = MediaType.Command,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = steamPath
+                }
+            ],
+            LauncherArgs = "steam://rungameid/123"
+        };
+        item.CustomFields[CustomFieldKeyHelper.StoreProviderId] = "steam";
+        item.CustomFields[CustomFieldKeyHelper.StoreGameId] = "123";
+        return item;
     }
 
 }

@@ -371,9 +371,9 @@ the report never mutates JSON or deletes files.
   the localized game schema with account-specific unlock state while keeping the personal Web API key in the request
   header. Locked hidden achievements are stripped of title, description, and artwork before they reach presentation
   or cache state; only their remaining count is exposed. A bounded five-minute memory cache coalesces browsing
-  requests and can provide the last in-memory result during a temporary API failure. Steam sessions with a configured
-  watch process force-refresh the still-selected game's progress after that process exits; delegated handoffs without
-  process monitoring have no reliable completion boundary and require an explicit refresh
+  requests and can provide the last in-memory result during a temporary API failure. Imported Steam games on Linux
+  are tracked automatically by their exact App ID unless a manual watch process is configured; after the detected
+  game processes exit, the still-selected game's progress is force-refreshed
 - the existing achievement presentation model is shared by RetroAchievements and Steam. Provider-neutral progress,
   list expansion, refresh, and BigMode navigation remain common, while RetroAchievements adds points and Hardcore
   state and Steam adds hidden-achievement state. Historical RetroAchievements property/type names remain available
@@ -430,7 +430,14 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   is in the background, holding the configured stop combination (L1 + R1 by default) first requests an orderly
   window close; a second hold within the confirmation window
   may force-stop only the directly launched process tree or the exact process instances newly detected by a
-  configured watch process. A same-named process that was already running is never adopted into the session
+  configured watch process or Steam App-ID tracking. Stored process start times prevent PID reuse from targeting
+  an unrelated process. A same-named process that was already running is never adopted into the session
+- `SteamProcessTrackingService` observes new Linux processes through `/proc`, matches Steam's exact App-ID
+  environment markers, ignores known Steam/Proton/setup helpers, and requires a likely game process to remain
+  active for five seconds before confirming a session. Initial Steam activity has a 40-second bound; observed
+  setup activity extends game discovery to five minutes so shader compilation and prerequisite installers do not
+  create a false session boundary. Optional console diagnostics are enabled through
+  `RETROMIND_STEAM_PROCESS_DIAGNOSTICS=1`
 - `LauncherService` retains launch orchestration and business decisions: working-directory selection, runtime
   classification, launch-result evaluation, logging, and session-statistics updates
 - explicit test launches use the same launch plan while suppressing play count, last-played, and playtime updates
@@ -441,16 +448,19 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
 - reports launch-plan and process-start failures to the caller for visible user feedback
 - waits up to 60 seconds for a configured `OverrideWatchProcess` and reports separately when the launcher starts
   but the expected game process never appears; already-running processes remain a neutral, untracked case
-- treats Steam, Heroic, and URI commands without `OverrideWatchProcess` as delegated handoffs: a successful
-  handoff updates play count and last-played once, but does not record the launcher's lifetime as game playtime
-  or expose it as a reliable game-exit boundary
+- automatically tracks imported Steam commands on Linux by their stored App ID when no `OverrideWatchProcess` is
+  configured, records only the detected game-process lifetime as playtime, and exposes its exit as the session
+  boundary used for achievement refreshes; a configured manual process remains authoritative
+- treats other Steam-unidentified, Heroic, and URI commands as delegated handoffs: a successful handoff updates
+  play count and last-played once, but does not record the launcher's lifetime as game playtime or expose it as a
+  reliable game-exit boundary
 - captures a bounded tail of stdout/stderr for direct process starts and includes it in missing-process or
   non-zero-exit feedback within ten seconds of process start; shell-based launches remain limited to
   operating-system start diagnostics
 - writes one atomically replaced diagnostic log per media item below `DataRoot/Logs/Launch`; an initial record
   is persisted after process handoff and finalized with outcome, runtime, exit code, and captured output, while
   likely secret environment values and command arguments are redacted
-- direct or explicitly watched game sessions update playtime and play count after launch
+- direct, explicitly watched, and automatically tracked Steam game sessions update playtime and play count after launch
 - `GogLaunchDetectionService` owns installed-game launch detection. It prefers local or account `playTasks`
   metadata and preserves its executable, arguments, and working directory before falling back to filesystem
   heuristics; metadata-derived executable and working-directory paths are constrained to the selected install

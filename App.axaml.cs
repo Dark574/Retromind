@@ -265,6 +265,7 @@ public partial class App : Application
             libraryPath,
             provider.GetRequiredService<AppSettings>()));
         services.AddSingleton<LaunchProcessService>();
+        services.AddSingleton<SteamProcessTrackingService>();
         services.AddSingleton<LauncherService>(provider =>
         {
             var settings = provider.GetRequiredService<AppSettings>();
@@ -274,6 +275,7 @@ public partial class App : Application
             var winePrefixService = provider.GetRequiredService<WinePrefixService>();
             var launchProcessService = provider.GetRequiredService<LaunchProcessService>();
             var protonPrefixRelocationService = provider.GetRequiredService<ProtonPrefixRelocationService>();
+            var steamProcessTrackingService = provider.GetRequiredService<SteamProcessTrackingService>();
             return new LauncherService(
                 libraryPath,
                 settings,
@@ -282,7 +284,8 @@ public partial class App : Application
                 launchEnvironmentService,
                 winePrefixService,
                 launchProcessService,
-                protonPrefixRelocationService);
+                protonPrefixRelocationService,
+                steamProcessTrackingService);
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();
