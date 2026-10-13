@@ -139,7 +139,7 @@ public class SteamProcessTrackingService
                 Interlocked.Increment(ref _nextAttemptId),
                 appId,
                 SanitizeForLog(title),
-                EnumerateProcessIds().ToHashSet());
+                CaptureProcessSnapshot());
         }
         catch (Exception ex)
         {
@@ -207,13 +207,13 @@ public class SteamProcessTrackingService
             $"process belonging to \"{session.Title}\" (AppID {session.AppId}).");
 
         var stopwatch = Stopwatch.StartNew();
-        var preExistingProcessIds = session.PreExistingProcessIds.ToHashSet();
+        var preExistingProcesses = session.PreExistingProcesses;
         var activeProcesses = new Dictionary<int, SteamProcessMatch>();
         var completedProcesses = new HashSet<SteamProcessIdentity>();
         var unmatchedAttempts = new Dictionary<SteamProcessIdentity, int>();
-        var ignoredProcessIds = new HashSet<int>();
+        var ignoredProcesses = new HashSet<SteamProcessIdentity>();
         TimeSpan? firstActivityAt = null;
-        TimeSpan? candidateActiveSince = null;
+        TimeSpan? candidateGroupActiveSince = null;
         TimeSpan? confirmedSessionStartedAt = null;
         TimeSpan? quietPeriodStartedAt = null;
         TimeSpan? abandonedLauncherQuietPeriodStartedAt = null;
@@ -227,7 +227,6 @@ public class SteamProcessTrackingService
             cancellationToken.ThrowIfCancellationRequested();
 
             var currentProcessIds = EnumerateProcessIds().ToHashSet();
-            preExistingProcessIds.IntersectWith(currentProcessIds);
 
             foreach (var activeProcess in activeProcesses.ToArray())
             {
@@ -246,14 +245,13 @@ public class SteamProcessTrackingService
             }
 
             RemoveExitedProcessAttempts(unmatchedAttempts, currentProcessIds);
-            ignoredProcessIds.IntersectWith(currentProcessIds);
 
             foreach (var processId in currentProcessIds)
             {
-                if (preExistingProcessIds.Contains(processId) ||
-                    ignoredProcessIds.Contains(processId) ||
-                    activeProcesses.ContainsKey(processId) ||
+                if (activeProcesses.ContainsKey(processId) ||
                     !TryReadProcessIdentity(processId, out var identity) ||
+                    preExistingProcesses.Contains(identity) ||
+                    ignoredProcesses.Contains(identity) ||
                     completedProcesses.Contains(identity))
                 {
                     continue;
@@ -284,7 +282,7 @@ public class SteamProcessTrackingService
                 if (attempts >= 4)
                 {
                     unmatchedAttempts.Remove(identity);
-                    ignoredProcessIds.Add(processId);
+                    ignoredProcesses.Add(identity);
                 }
                 else
                 {
@@ -297,19 +295,22 @@ public class SteamProcessTrackingService
             {
                 if (activeCandidateCount > 0)
                 {
-                    candidateActiveSince ??= stopwatch.Elapsed;
-                    if (stopwatch.Elapsed - candidateActiveSince >= _candidateConfirmationDuration)
+                    // Steam game starts frequently hand off between short-lived processes
+                    // (for example shell/EAC bootstrap -> game). Confirm uninterrupted
+                    // candidate-group activity rather than requiring one PID to survive.
+                    candidateGroupActiveSince ??= stopwatch.Elapsed;
+                    if (stopwatch.Elapsed - candidateGroupActiveSince >= _candidateConfirmationDuration)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         if (tryConfirm?.Invoke() ?? true)
                         {
                             isConfirmed = true;
-                            confirmedSessionStartedAt = candidateActiveSince;
+                            confirmedSessionStartedAt = candidateGroupActiveSince;
                             NotifyGameProcessesDetected(
                                 activeProcesses,
                                 onGameProcessesDetected);
                             WriteLog(
-                                $"Attempt {session.AttemptId} AppID {session.AppId}: likely game process " +
+                                $"Attempt {session.AttemptId} AppID {session.AppId}: likely game process group " +
                                 $"confirmed after {_candidateConfirmationDuration.TotalSeconds:0.#} seconds " +
                                 "of continuous activity.");
                         }
@@ -317,7 +318,7 @@ public class SteamProcessTrackingService
                 }
                 else
                 {
-                    candidateActiveSince = null;
+                    candidateGroupActiveSince = null;
                 }
 
                 if (!isConfirmed &&
@@ -599,6 +600,18 @@ public class SteamProcessTrackingService
         }
     }
 
+    private HashSet<SteamProcessIdentity> CaptureProcessSnapshot()
+    {
+        var identities = new HashSet<SteamProcessIdentity>();
+        foreach (var processId in EnumerateProcessIds())
+        {
+            if (TryReadProcessIdentity(processId, out var identity))
+                identities.Add(identity);
+        }
+
+        return identities;
+    }
+
     private void RemoveExitedProcessAttempts(
         Dictionary<SteamProcessIdentity, int> processAttempts,
         IReadOnlySet<int> currentProcessIds)
@@ -733,7 +746,7 @@ internal sealed record SteamProcessTrackingSession(
     long AttemptId,
     uint AppId,
     string Title,
-    IReadOnlySet<int> PreExistingProcessIds);
+    IReadOnlySet<SteamProcessIdentity> PreExistingProcesses);
 
 internal sealed class ActiveSteamProcessObservation(
     SteamProcessTrackingSession session,

@@ -108,7 +108,7 @@ public sealed class SteamProcessTrackingServiceTests
             1,
             457140,
             "Oxygen Not Included",
-            new HashSet<int> { 111 });
+            new HashSet<SteamProcessIdentity> { new(111, 111000) });
 
         var observation = service.ObserveAsync(session, CancellationToken.None);
         await Task.Delay(15);
@@ -134,6 +134,50 @@ public sealed class SteamProcessTrackingServiceTests
     }
 
     [Fact]
+    public async Task ObserveAsync_DetectsNewProcessWhenPreLaunchPidIsReused()
+    {
+        using var temp = new TemporaryDirectory();
+        CreateFakeProcess(temp, 111, 1, 457140, "old-process", "old-process");
+
+        var messages = new List<string>();
+        var service = new SteamProcessTrackingService(
+            temp.RootPath,
+            messages.Add,
+            enabled: true,
+            observationDuration: TimeSpan.FromMilliseconds(200),
+            initialPollInterval: TimeSpan.FromMilliseconds(5),
+            steadyPollInterval: TimeSpan.FromMilliseconds(5),
+            quietPeriod: TimeSpan.FromMilliseconds(10),
+            candidateConfirmationDuration: TimeSpan.FromMilliseconds(10));
+        var session = new SteamProcessTrackingSession(
+            2,
+            457140,
+            "Reused PID game",
+            new HashSet<SteamProcessIdentity> { new(111, 111000) });
+
+        var observation = service.ObserveAsync(session, CancellationToken.None);
+        await Task.Delay(15);
+        Directory.Delete(temp.GetPath("111"), recursive: true);
+        CreateFakeProcess(
+            temp,
+            111,
+            1,
+            457140,
+            "new-game",
+            "new-game",
+            startTime: 222000);
+        await Task.Delay(30);
+        Directory.Delete(temp.GetPath("111"), recursive: true);
+        var result = await observation.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.True(result.WasTracked);
+        Assert.Contains(messages, message =>
+            message.Contains("PID=111", StringComparison.Ordinal) &&
+            message.Contains("Name=new-game", StringComparison.Ordinal) &&
+            message.Contains("appeared", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ObserveAsync_StopsAfterDiscoveryTimeoutWhenNoProcessMatches()
     {
         using var temp = new TemporaryDirectory();
@@ -151,7 +195,7 @@ public sealed class SteamProcessTrackingServiceTests
             1,
             457140,
             "Missing game",
-            new HashSet<int>());
+            new HashSet<SteamProcessIdentity>());
 
         var result = await service.ObserveAsync(session, CancellationToken.None)
             .WaitAsync(TimeSpan.FromSeconds(2));
@@ -226,7 +270,7 @@ public sealed class SteamProcessTrackingServiceTests
             7,
             526870,
             "Satisfactory",
-            new HashSet<int>());
+            new HashSet<SteamProcessIdentity>());
 
         CreateFakeProcess(temp, 111, 1, 526870, "VC_redist.x64.e", "VC_redist.x64.exe");
         var observation = service.ObserveAsync(session, CancellationToken.None);
@@ -248,9 +292,45 @@ public sealed class SteamProcessTrackingServiceTests
         Assert.Contains(messages, message =>
             message.Contains("helper/setup process group ended", StringComparison.Ordinal));
         Assert.Contains(messages, message =>
-            message.Contains("likely game process confirmed", StringComparison.Ordinal));
+            message.Contains("likely game process group confirmed", StringComparison.Ordinal));
         Assert.Contains(messages, message =>
             message.Contains("session boundary observed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ObserveAsync_ConfirmsContinuousCandidateGroupAcrossProcessHandoff()
+    {
+        using var temp = new TemporaryDirectory();
+        CreateFakeProcess(temp, 111, 1, 457140, "game-bootstrap", "game-bootstrap");
+
+        var messages = new List<string>();
+        var service = new SteamProcessTrackingService(
+            temp.RootPath,
+            messages.Add,
+            enabled: true,
+            observationDuration: TimeSpan.FromMilliseconds(200),
+            initialPollInterval: TimeSpan.FromMilliseconds(5),
+            steadyPollInterval: TimeSpan.FromMilliseconds(5),
+            quietPeriod: TimeSpan.FromMilliseconds(10),
+            candidateConfirmationDuration: TimeSpan.FromMilliseconds(25));
+        var session = new SteamProcessTrackingSession(
+            8,
+            457140,
+            "Process handoff game",
+            new HashSet<SteamProcessIdentity>());
+
+        var observation = service.ObserveAsync(session, CancellationToken.None);
+        await Task.Delay(15);
+        CreateFakeProcess(temp, 222, 111, 457140, "actual-game", "actual-game");
+        await Task.Delay(10);
+        Directory.Delete(temp.GetPath("111"), recursive: true);
+        await Task.Delay(25);
+        Directory.Delete(temp.GetPath("222"), recursive: true);
+        var result = await observation.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.True(result.WasTracked);
+        Assert.Contains(messages, message =>
+            message.Contains("likely game process group confirmed", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -272,10 +352,10 @@ public sealed class SteamProcessTrackingServiceTests
             quietPeriod: TimeSpan.FromMilliseconds(10),
             candidateConfirmationDuration: TimeSpan.FromMilliseconds(5));
         var session = new SteamProcessTrackingSession(
-            8,
+            9,
             255710,
             "Cities: Skylines",
-            new HashSet<int>());
+            new HashSet<SteamProcessIdentity>());
 
         CreateFakeProcess(temp, 111, 1, 255710, processName, commandName);
         var observation = service.ObserveAsync(session, CancellationToken.None);
@@ -299,7 +379,8 @@ public sealed class SteamProcessTrackingServiceTests
         int parentProcessId,
         uint appId,
         string processName,
-        string commandName)
+        string commandName,
+        ulong? startTime = null)
     {
         var processDirectory = temp.CreateDirectory(processId.ToString());
         File.WriteAllBytes(
@@ -310,7 +391,7 @@ public sealed class SteamProcessTrackingServiceTests
             Path.Combine(processDirectory, "stat"),
             $"{processId} ({processName}) S {parentProcessId} " +
             string.Join(' ', Enumerable.Repeat("0", 17)) +
-            $" {(ulong)processId * 1000UL}");
+            $" {startTime ?? (ulong)processId * 1000UL}");
         File.WriteAllBytes(
             Path.Combine(processDirectory, "cmdline"),
             Encoding.UTF8.GetBytes($"/games/{commandName}\0"));

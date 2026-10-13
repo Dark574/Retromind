@@ -573,7 +573,11 @@ public sealed class LauncherServiceTests
         internal override SteamProcessTrackingSession? Prepare(uint appId, string? title)
         {
             PrepareCalls++;
-            return new SteamProcessTrackingSession(1, appId, title ?? string.Empty, new HashSet<int>());
+            return new SteamProcessTrackingSession(
+                1,
+                appId,
+                title ?? string.Empty,
+                new HashSet<SteamProcessIdentity>());
         }
 
         internal override Task<SteamProcessTrackingResult> TrackAsync(
@@ -598,7 +602,7 @@ public sealed class LauncherServiceTests
             candidateConfirmationDuration: TimeSpan.Zero)
     {
         internal override SteamProcessTrackingSession? Prepare(uint appId, string? title)
-            => new(1, appId, title ?? string.Empty, new HashSet<int>());
+            => new(1, appId, title ?? string.Empty, new HashSet<SteamProcessIdentity>());
 
         internal override async Task<SteamProcessTrackingResult> TrackAsync(
             SteamProcessTrackingSession? session,

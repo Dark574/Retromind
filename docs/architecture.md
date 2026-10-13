@@ -436,10 +436,12 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   configured watch process or Steam App-ID tracking. Stored process start times prevent PID reuse from targeting
   an unrelated process. A same-named process that was already running is never adopted into the session
 - `SteamProcessTrackingService` observes new Linux processes through `/proc`, matches Steam's exact App-ID
-  environment markers, ignores known Steam/Proton/setup helpers, and requires a likely game process to remain
-  active for five seconds before confirming a session. Initial Steam activity has a 40-second bound; observed
-  setup activity extends game discovery to five minutes so shader compilation and prerequisite installers do not
-  create a false session boundary. Optional console diagnostics are enabled through
+  environment markers, ignores known Steam/Proton/setup helpers, and requires a continuous group of likely game
+  processes to remain active for five seconds before confirming a session, allowing legitimate handoffs between
+  bootstrap, anti-cheat, and game processes. Pre-launch and active process identities combine PID with Linux start
+  time so PID reuse cannot hide or replace a tracked process. Initial Steam activity has a 40-second bound;
+  observed setup activity extends game discovery to five minutes so shader compilation and prerequisite installers
+  do not create a false session boundary. Optional console diagnostics are enabled through
   `RETROMIND_STEAM_PROCESS_DIAGNOSTICS=1`
 - `LauncherService` retains launch orchestration and business decisions: working-directory selection, runtime
   classification, launch-result evaluation, logging, and session-statistics updates
