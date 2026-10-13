@@ -926,74 +926,38 @@ public partial class MainWindowViewModel
         }
     }
 
-    private const string DefaultThemeFolderName = "Default";
-    private const string ThemeFileName = "theme.axaml";
-
     /// <summary>
     /// Resolves the effective theme file path for a navigation context. A null
     /// context represents the virtual library root and uses its dedicated setting.
-    /// Node contexts search upwards (node -> parents) for the first ThemePath
-    /// assignment, otherwise returning the default theme.
-    /// 
-    /// Special case: the System Host theme ("System/theme.axaml") is only applied
-    /// to the node on which it is explicitly set and is not inherited by child
-    /// nodes. This allows using System Host for the top-level "systems" view,
-    /// while leaf nodes (e.g. platforms) fall back to the Default theme unless
-    /// they specify their own BigMode theme.
+    /// Every real node uses only its own ThemePath; themes are never inherited.
+    /// Missing or invalid assignments fall back to the Default theme.
     /// </summary>
-    private string GetEffectiveThemePath(MediaNode? startNode)
+    private string GetEffectiveThemePath(MediaNode? startNode) =>
+        ResolveEffectiveThemePath(
+            startNode,
+            _currentSettings.RootBigModeThemePath,
+            AppPaths.ThemesRoot);
+
+    internal static string ResolveEffectiveThemePath(
+        MediaNode? node,
+        string? rootThemePath,
+        string themesRoot)
     {
-        if (startNode == null)
-        {
-            var rootThemePath = _currentSettings.RootBigModeThemePath;
-            if (!string.IsNullOrWhiteSpace(rootThemePath))
-            {
-                var rootThemeFullPath = Path.GetFullPath(Path.Combine(AppPaths.ThemesRoot, rootThemePath));
-                if (File.Exists(rootThemeFullPath))
-                    return rootThemeFullPath;
+        ArgumentException.ThrowIfNullOrWhiteSpace(themesRoot);
 
-                Debug.WriteLine($"[Theme] Assigned root theme file not found: '{rootThemeFullPath}'.");
-            }
+        var assignedThemePath = node == null ? rootThemePath : node.ThemePath;
+        if (!string.IsNullOrWhiteSpace(assignedThemePath))
+        {
+            var assignedFullPath = Path.GetFullPath(Path.Combine(themesRoot, assignedThemePath));
+            if (File.Exists(assignedFullPath))
+                return assignedFullPath;
+
+            Debug.WriteLine($"[Theme] Assigned theme file not found: '{assignedFullPath}'.");
         }
 
-        if (startNode != null)
-        {
-            // Find the chain from root to the node and search bottom-up for an assigned theme.
-            var nodeChain = PathHelper.GetNodeChain(startNode, RootItems, matchById: true);
-            nodeChain.Reverse();
-
-            // Absolute path of the System Host theme (used as a non-inheritable marker).
-            var systemHostThemeFullPath = Path.Combine(AppPaths.ThemesRoot, "System", ThemeFileName);
-            systemHostThemeFullPath = Path.GetFullPath(systemHostThemeFullPath);
-
-            foreach (var node in nodeChain)
-            {
-                if (string.IsNullOrWhiteSpace(node.ThemePath))
-                    continue;
-
-                var fullPath = Path.Combine(AppPaths.ThemesRoot, node.ThemePath);
-                var fullPathNormalized = Path.GetFullPath(fullPath);
-
-                // Do not inherit the System Host theme from parent nodes.
-                // It should only be applied to the node where it is explicitly set.
-                if (!ReferenceEquals(node, startNode) &&
-                    FileSystemPathIdentity.Equals(fullPathNormalized, systemHostThemeFullPath))
-                {
-                    // Skip this assignment and continue searching upwards.
-                    Debug.WriteLine($"[Theme] Skipping inherited System Host theme from node '{node.Name}'.");
-                    continue;
-                }
-
-                if (File.Exists(fullPathNormalized))
-                    return fullPathNormalized;
-
-                Debug.WriteLine($"[Theme] Assigned theme file not found: '{fullPathNormalized}'.");
-            }
-        }
-
-        // Fallback: default theme.
-        var fallbackThemePath = Path.Combine(AppPaths.ThemesRoot, DefaultThemeFolderName, ThemeFileName);
-        Debug.WriteLine($"[Theme] No assigned theme found, using fallback: {fallbackThemePath}");
+        var fallbackThemePath = Path.GetFullPath(
+            Path.Combine(themesRoot, ThemeDiscovery.DefaultThemePath));
+        Debug.WriteLine($"[Theme] No valid local theme assigned, using fallback: {fallbackThemePath}");
         return fallbackThemePath;
     }
 

@@ -1366,6 +1366,9 @@ If `SystemPreviewThemeId` is `null` or empty, the host falls back to `"Default"`
 
 - `Themes/System/Default/theme.axaml`
 
+Both theme selections are local to their node. Neither `ThemePath` nor `SystemPreviewThemeId` is inherited from
+a parent node; an unset normal theme likewise falls back to `Themes/Default/theme.axaml`.
+
 ### 13.4 Selecting host + subthemes in the UI
 
 In the node settings dialog:

@@ -877,7 +877,7 @@ public partial class BigModeHostView : UserControl
         // Resolve system preview theme id with a safe default
         // The id corresponds to a folder under Themes/System (e.g. "Default", "C64")
         var id = string.IsNullOrWhiteSpace(node.SystemPreviewThemeId)
-            ? "Default"
+            ? SystemThemeDiscovery.DefaultThemeId
             : node.SystemPreviewThemeId;
         
         if (!TryCreateSystemSubtheme(id, vm, out var systemTheme, out var subView))
@@ -994,7 +994,10 @@ public partial class BigModeHostView : UserControl
             }
             catch
             {
-                if (string.Equals(id, "Default", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(
+                        id,
+                        SystemThemeDiscovery.DefaultThemeId,
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     subView = null!;
                     return false;
@@ -1002,7 +1005,10 @@ public partial class BigModeHostView : UserControl
 
                 try
                 {
-                    var fallbackPath = System.IO.Path.Combine("System", "Default", "theme.axaml");
+                    var fallbackPath = System.IO.Path.Combine(
+                        "System",
+                        SystemThemeDiscovery.DefaultThemeId,
+                        "theme.axaml");
                     systemTheme = ThemeLoader.LoadTheme(fallbackPath);
                 }
                 catch

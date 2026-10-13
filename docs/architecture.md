@@ -219,6 +219,9 @@ BigMode is an overlay workflow with clear host/VM split:
   its normal final-save and close-failure workflow
 - the virtual library root uses `AppSettings.RootBigModeThemePath`; its selected top-level node remains
   preview content only, so the root theme is never inherited into that node
+- every real library node resolves only its own `ThemePath`; missing or invalid values use the Default theme and
+  never inherit a normal or System Host theme from a parent node. `SystemPreviewThemeId` follows the same local
+  rule and independently falls back to its Default system subtheme
 - node-aware artwork resolution and fallback overrides (logo/marquee etc.)
 - wallpaper-aware screenshot fallback for themes that must avoid decoding two full-screen backgrounds for one selection
 - dual preview surfaces with crossfade and defensive playback sequencing; presentation state avoids stale

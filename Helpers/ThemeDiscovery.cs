@@ -8,6 +8,8 @@ namespace Retromind.Helpers;
 
 public static class ThemeDiscovery
 {
+    public const string DefaultThemePath = "Default/theme.axaml";
+
     public static IReadOnlyList<string> GetAvailableThemePaths()
     {
         try

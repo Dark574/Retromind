@@ -21,6 +21,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - make the Default BigMode cover transition smoother while preserving its clearly visible entrance
 - use Steam's quiet system-tray mode when launching imported Steam games on Linux to reduce unwanted client windows
 - add direct contact links and privacy-conscious diagnostic information for support requests to the Help tab
+- stop inheriting BigMode themes from parent categories; new nodes use the Default normal and system themes
 
 ### Fixed
 - prevent the Arcade theme from crashing while creating its logo rail and keep the layout stable while artwork is loading

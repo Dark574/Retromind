@@ -30,11 +30,11 @@ public partial class MediaNode : ObservableObject
     public Dictionary<string, string>? EnvironmentOverrides { get; set; }
     
     /// <summary>
-    /// Optional system preview theme for this node (system selection in BigMode).
+    /// System preview theme for this node (system selection in BigMode). It is not inherited.
     /// Matches the folder name under Themes/System (e.g. "C64", "SNES").
-    /// If null/empty, the system browser uses the default layout ("Default").
+    /// Null or empty legacy values resolve to the default layout ("Default").
     /// </summary>
-    public string? SystemPreviewThemeId { get; set; }
+    public string? SystemPreviewThemeId { get; set; } = SystemThemeDiscovery.DefaultThemeId;
     
     /// <summary>
     /// Unique identifier for state persistence (e.g., remembering selection).
@@ -129,9 +129,10 @@ public partial class MediaNode : ObservableObject
     public string? StoreProviderId { get; set; }
 
     /// <summary>
-    /// Optional path to a theme file (.axaml) used for this area.
+    /// Theme file (.axaml) used for this node. Themes are not inherited.
+    /// Null or empty legacy values resolve to the Default theme.
     /// </summary>
-    public string? ThemePath { get; set; }
+    public string? ThemePath { get; set; } = ThemeDiscovery.DefaultThemePath;
     
     // --- Presentation Metadata ---
 

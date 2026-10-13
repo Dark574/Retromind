@@ -279,7 +279,7 @@
                                 <Button Content="{x:Static p:Strings.NodeSettings_ThemeAuto}"
                                         HorizontalAlignment="Left"
                                         Command="{Binding ClearThemeCommand}"
-                                        IsVisible="{Binding IsThemeExplicitlySelected}" />
+                                        IsVisible="{Binding IsNonDefaultThemeSelected}" />
                                 <TextBlock Text="{x:Static p:Strings.NodeSettings_SystemThemeTitle}"
                                            FontWeight="SemiBold"
                                            Margin="0,8,0,2" />

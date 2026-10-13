@@ -112,7 +112,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasApplyDefaultEmulatorMessage))]
     private string? _applyDefaultEmulatorMessage;
 
-    public bool IsThemeExplicitlySelected => !string.IsNullOrWhiteSpace(SelectedTheme);
+    public bool IsNonDefaultThemeSelected =>
+        !string.IsNullOrWhiteSpace(SelectedTheme) &&
+        !string.Equals(
+            SelectedTheme,
+            ThemeDiscovery.DefaultThemePath,
+            StringComparison.OrdinalIgnoreCase);
 
     private string? _inheritedEmulatorName;
     private string? _inheritedEmulatorSourceName;
@@ -178,7 +183,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
     
     partial void OnSelectedThemeChanged(string? value)
     {
-        OnPropertyChanged(nameof(IsThemeExplicitlySelected));
+        OnPropertyChanged(nameof(IsNonDefaultThemeSelected));
     }
 
     partial void OnSelectedEmulatorChanged(EmulatorConfig? value)
@@ -380,11 +385,13 @@ public partial class NodeSettingsViewModel : ViewModelBase
         LoadSystemThemes();
         InitializeSystemThemeSelection();
 
-        SelectedTheme = string.IsNullOrWhiteSpace(_node.ThemePath) ? null : _node.ThemePath;
+        SelectedTheme = string.IsNullOrWhiteSpace(_node.ThemePath)
+            ? ThemeDiscovery.DefaultThemePath
+            : _node.ThemePath;
 
         SaveCommand = new AsyncRelayCommand(SaveAsync, CanSave);
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
-        ClearThemeCommand = new RelayCommand(() => SelectedTheme = null);
+        ClearThemeCommand = new RelayCommand(() => SelectedTheme = ThemeDiscovery.DefaultThemePath);
         UseNameSuggestionCommand = new RelayCommand(ApplyNameSuggestion, () => HasNameSuggestion);
 
         AddNativeWrapperCommand = new RelayCommand(AddNativeWrapper);
@@ -447,7 +454,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(id))
         {
             SelectedSystemTheme = AvailableSystemThemes
-                .FirstOrDefault(o => string.Equals(o.Id, "Default", StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(o => string.Equals(
+                    o.Id,
+                    SystemThemeDiscovery.DefaultThemeId,
+                    StringComparison.OrdinalIgnoreCase));
             return;
         }
 
@@ -456,7 +466,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
             AvailableSystemThemes.FirstOrDefault(o =>
                 string.Equals(o.Id, id, StringComparison.OrdinalIgnoreCase))
             ?? AvailableSystemThemes.FirstOrDefault(o =>
-                string.Equals(o.Id, "Default", StringComparison.OrdinalIgnoreCase));
+                string.Equals(
+                    o.Id,
+                    SystemThemeDiscovery.DefaultThemeId,
+                    StringComparison.OrdinalIgnoreCase));
     }
     public bool IsNativeWrapperInherit
     {
@@ -1129,11 +1142,13 @@ public partial class NodeSettingsViewModel : ViewModelBase
         _node.RandomizeMusic = RandomizeMusic;
         _node.GameSystemId = GameSystemCatalog.NormalizeId(SelectedGameSystem?.Id);
 
-        _node.ThemePath = string.IsNullOrWhiteSpace(SelectedTheme) ? null : SelectedTheme;
+        _node.ThemePath = string.IsNullOrWhiteSpace(SelectedTheme)
+            ? ThemeDiscovery.DefaultThemePath
+            : SelectedTheme;
 
         // Persist selected system preview theme (used by the BigMode system browser).
         // Convention: Id matches the folder name under Themes/System (e.g. "Default", "C64").
-        _node.SystemPreviewThemeId = SelectedSystemTheme?.Id;
+        _node.SystemPreviewThemeId = SelectedSystemTheme?.Id ?? SystemThemeDiscovery.DefaultThemeId;
         
         if (SelectedEmulator != null && !string.IsNullOrWhiteSpace(SelectedEmulator.Id) && SelectedEmulator.Id != InheritEmulatorId)
         {

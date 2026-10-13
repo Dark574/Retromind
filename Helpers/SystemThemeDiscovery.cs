@@ -16,6 +16,8 @@ public sealed class SystemThemeOption
 
 public static class SystemThemeDiscovery
 {
+    public const string DefaultThemeId = "Default";
+
     public static List<SystemThemeOption> GetAvailableSystemThemes()
     {
         var result = new List<SystemThemeOption>();
@@ -62,11 +64,11 @@ public static class SystemThemeDiscovery
             .ToList();
 
         // Ensure there is always a "Default" entry at the top
-        if (result.All(r => !string.Equals(r.Id, "Default", StringComparison.OrdinalIgnoreCase)))
+        if (result.All(r => !string.Equals(r.Id, DefaultThemeId, StringComparison.OrdinalIgnoreCase)))
         {
             result.Insert(0, new SystemThemeOption
             {
-                Id = "Default",
+                Id = DefaultThemeId,
                 DisplayName = "(Standard)"
             });
         }

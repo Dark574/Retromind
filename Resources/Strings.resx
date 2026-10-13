@@ -796,7 +796,7 @@ This action cannot be undone.</value></data>
     <data name="NodeSettings_InheritedEmulatorInfoFormat" xml:space="preserve"><value>Inherited emulator: {0} (from {1})</value></data>
     <data name="NodeSettings_InheritedEmulatorNone" xml:space="preserve"><value>Inherited emulator: none</value></data>
     <data name="NodeSettings_BigModeThemeHint" xml:space="preserve"><value>BigMode theme (Themes/&lt;Theme&gt;/theme.axaml)</value></data>
-    <data name="NodeSettings_ThemeAuto" xml:space="preserve"><value>Auto (convention/default)</value></data>
+    <data name="NodeSettings_ThemeAuto" xml:space="preserve"><value>Reset to Default</value></data>
     <data name="NodeSettings_BigModeArtworkSection" xml:space="preserve"><value>BigMode Artwork (per category)</value></data>
     <data name="NodeSettings_ArtworkLogoLabel" xml:space="preserve"><value>Logo</value></data>
     <data name="NodeSettings_ArtworkWallpaperLabel" xml:space="preserve"><value>Wallpaper</value></data>
