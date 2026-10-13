@@ -1114,8 +1114,13 @@
 
             <!-- TAB 8: HELP -->
             <TabItem Header="{Binding SettingsTabHelpTitle}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Spacing="16" Margin="10,10,20,20" MaxWidth="760">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="16"
+                                Margin="10,10,20,20"
+                                MaxWidth="760"
+                                HorizontalAlignment="Stretch">
                         <StackPanel Spacing="6" Margin="4,4,4,8">
                             <TextBlock Text="{Binding GettingStartedTitle}"
                                        FontSize="24"
@@ -1126,7 +1131,8 @@
                                        TextWrapping="Wrap" />
                         </StackPanel>
 
-                        <Expander IsExpanded="True">
+                        <Expander IsExpanded="True"
+                                  HorizontalAlignment="Stretch">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="42,*" Margin="6">
                                     <Border Width="30" Height="30"
@@ -1154,7 +1160,7 @@
                                        TextWrapping="Wrap" />
                         </Expander>
 
-                        <Expander>
+                        <Expander HorizontalAlignment="Stretch">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="42,*" Margin="6">
                                     <Border Width="30" Height="30"
@@ -1182,7 +1188,7 @@
                                        TextWrapping="Wrap" />
                         </Expander>
 
-                        <Expander>
+                        <Expander HorizontalAlignment="Stretch">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="42,*" Margin="6">
                                     <Border Width="30" Height="30"
@@ -1210,7 +1216,7 @@
                                        TextWrapping="Wrap" />
                         </Expander>
 
-                        <Expander>
+                        <Expander HorizontalAlignment="Stretch">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="42,*" Margin="6">
                                     <Border Width="30" Height="30"
@@ -1237,6 +1243,46 @@
                                        LineHeight="22"
                                        TextWrapping="Wrap" />
                         </Expander>
+
+                        <Border Classes="section"
+                                Margin="0,8,0,0"
+                                HorizontalAlignment="Stretch">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="{Binding HelpContactTitle}"
+                                           FontSize="16"
+                                           FontWeight="Bold" />
+                                <TextBlock Text="{Binding HelpContactDescription}"
+                                           Opacity="0.72"
+                                           TextWrapping="Wrap" />
+                                <WrapPanel Orientation="Horizontal">
+                                    <Button Content="{Binding OpenGitHubDiscussionsText}"
+                                            Command="{Binding OpenGitHubDiscussionsCommand}"
+                                            Margin="0,0,8,8" />
+                                    <Button Content="{Binding SendContactEmailText}"
+                                            Command="{Binding SendContactEmailCommand}"
+                                            Margin="0,0,0,8" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="section"
+                                HorizontalAlignment="Stretch">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="{Binding SupportDiagnosticsTitle}"
+                                           FontSize="16"
+                                           FontWeight="Bold" />
+                                <TextBlock Text="{Binding SupportDiagnosticsDescription}"
+                                           Opacity="0.72"
+                                           TextWrapping="Wrap" />
+                                <Button Content="{Binding CopySupportDiagnosticsText}"
+                                        Command="{Binding CopySupportDiagnosticsCommand}"
+                                        HorizontalAlignment="Left" />
+                                <TextBlock Text="{Binding SupportDiagnosticStatusText}"
+                                           Opacity="0.72"
+                                           TextWrapping="Wrap"
+                                           IsVisible="{Binding SupportDiagnosticStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

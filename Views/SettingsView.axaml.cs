@@ -1,5 +1,8 @@
+using System;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Retromind.Resources;
 using Retromind.ViewModels;
@@ -10,11 +13,42 @@ public partial class SettingsView : Window
 {
     private bool _closeAfterDownloadCancellation;
     private bool _downloadCancellationForCloseInProgress;
+    private SettingsViewModel? _viewModel;
 
     public SettingsView()
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnKeyboardCaptureKeyDown, RoutingStrategies.Tunnel);
+        DataContextChanged += OnDataContextChanged;
+        Closed += OnClosed;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        DetachViewModel();
+        _viewModel = DataContext as SettingsViewModel;
+        if (_viewModel != null)
+            _viewModel.RequestCopySupportDiagnostics += CopySupportDiagnosticsAsync;
+    }
+
+    private async Task<bool> CopySupportDiagnosticsAsync(string text)
+    {
+        if (Clipboard == null)
+            return false;
+
+        await Clipboard.SetTextAsync(text);
+        return true;
+    }
+
+    private void OnClosed(object? sender, EventArgs e) => DetachViewModel();
+
+    private void DetachViewModel()
+    {
+        if (_viewModel == null)
+            return;
+
+        _viewModel.RequestCopySupportDiagnostics -= CopySupportDiagnosticsAsync;
+        _viewModel = null;
     }
 
     private void OnKeyboardCaptureKeyDown(object? sender, KeyEventArgs e)

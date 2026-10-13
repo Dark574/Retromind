@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -23,6 +24,11 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ViewModelBase, IDisposable
 {
+    private static readonly Uri GitHubDiscussionsUri =
+        new("https://github.com/Dark574/Retromind/discussions");
+    private static readonly Uri ContactEmailUri =
+        new("mailto:retromind.project@proton.me");
+
     private readonly AppSettings _targetSettings;
     private readonly AppSettings _appSettings;
     private readonly SettingsService _settingsService;
@@ -114,6 +120,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _geReleaseStatusText = string.Empty;
+
+    [ObservableProperty]
+    private string _supportDiagnosticStatusText = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGeProtonDownloadButton))]
@@ -512,21 +521,21 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         "Create a category such as Games, Movies or Books. You can add more levels at any time.");
     public string GettingStartedCategoryDetails => T(
         "GettingStarted.Category.Details",
-        "• Right-click the empty library tree to create a top-level category.\n• Right-click an existing category to create a child category.\n• Move and reorder categories in the tree using drag and drop.\n• Category settings such as game system, emulator and BigMode theme are inherited by their children.");
+        "• Right-click the empty library tree to create a top-level category.\n• Right-click an existing category to create a child category.\n• Move and reorder categories in the tree using drag and drop.\n• A category's game system and default emulator are inherited by its children.");
     public string GettingStartedImportTitle => T("GettingStarted.Import.Title", "Add content");
     public string GettingStartedImportDescription => T(
         "GettingStarted.Import.Description",
         "Right-click a category to import ROMs, Steam or Epic games, add GOG games, or create media manually.");
     public string GettingStartedImportDetails => T(
         "GettingStarted.Import.Details",
-        "• Select the category that should contain the new items.\n• Use Import for ROM folders, Steam or Epic libraries; GOG and manual media have their own entries.\n• Set the game system before importing ROMs if RetroAchievements should identify supported games automatically.");
+        "• Select the category that should contain the new items.\n• Use Import for ROM folders, Steam or Epic libraries; GOG and manual media have their own entries.\n• Set the category's game system and default emulator before importing ROMs. This lets RetroAchievements identify supported games automatically and assigns the emulator immediately. For existing ROMs, the default emulator can later be applied to existing items in the category settings.");
     public string GettingStartedSettingsTitle => T("GettingStarted.Settings.Title", "Configure integrations");
     public string GettingStartedSettingsDescription => T(
         "GettingStarted.Settings.Description",
         "Set up emulators, metadata providers, library paths and optional RetroAchievements access in the corresponding settings tabs.");
     public string GettingStartedSettingsDetails => T(
         "GettingStarted.Settings.Details",
-        "• The Emulators tab defines programs, launch arguments and inherited runner defaults.\n• Metadata & scrapers contains providers and controls which discovered data is imported.\n• Integrations contains RetroAchievements and additional Steam or Heroic library locations.");
+        "• The Emulators tab defines programs, launch arguments and inherited runner defaults.\n• Metadata & scrapers contains providers and controls which discovered data is imported.\n• Integrations contains RetroAchievements, Steam Achievements and additional Steam or Heroic library locations.");
     public string GettingStartedRestoreTitle => T("GettingStarted.Restore.Title", "Restore an existing library");
     public string GettingStartedRestoreDescription => T(
         "GettingStarted.Restore.Description",
@@ -534,6 +543,21 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string GettingStartedRestoreDetails => T(
         "GettingStarted.Restore.Details",
         "• Open Backups and choose Manage backups to view the available archives.\n• A backup contains the library database and settings, but not games, artwork, videos, themes or portable HOME data.\n• Retromind closes after a successful restore so the restored state can be loaded cleanly on the next start.");
+    public string HelpContactTitle => T("Help.Contact.Title", "Help and contact");
+    public string HelpContactDescription => T(
+        "Help.Contact.Description",
+        "Ask public questions and exchange ideas in GitHub Discussions. For private matters, contact the Retromind project by email.");
+    public string OpenGitHubDiscussionsText => T(
+        "Help.Contact.GitHubDiscussions",
+        "Open GitHub Discussions");
+    public string SendContactEmailText => T("Help.Contact.Email", "Write an email");
+    public string SupportDiagnosticsTitle => T("Help.Diagnostics.Title", "Support information");
+    public string SupportDiagnosticsDescription => T(
+        "Help.Diagnostics.Description",
+        "Copies technical environment information for support requests. Personal paths, account data and library contents are not included.");
+    public string CopySupportDiagnosticsText => T(
+        "Help.Diagnostics.Copy",
+        "Copy diagnostic information");
     public string HeroicEpicIntegrationTabTitle => T("Settings_HeroicEpicIntegrationTabTitle", "Heroic / Epic");
     public string RunnerVersionsSectionTitle => T("Settings_SectionRunnerVersions", "Wine/Proton versions");
     public string RunnerVersionNameLabel => T("Settings_RunnerVersionNameLabel", "Name");
@@ -759,6 +783,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IAsyncRelayCommand BrowseHeroicEpicPathCommand { get; }
     public IAsyncRelayCommand ConvertExistingToPortableCommand { get; }
     public IAsyncRelayCommand ChangeParentalPasswordCommand { get; }
+    public IRelayCommand OpenGitHubDiscussionsCommand { get; }
+    public IRelayCommand SendContactEmailCommand { get; }
+    public IAsyncRelayCommand CopySupportDiagnosticsCommand { get; }
 
     // Emulator wrapper editor commands
     public IRelayCommand AddEmulatorWrapperCommand { get; }
@@ -795,6 +822,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     /// The main window view model owns the parental lock flow and handles this request.
     /// </summary>
     public event Func<Task>? RequestParentalPasswordChange;
+    public event Func<string, Task<bool>>? RequestCopySupportDiagnostics;
 
     /// <summary>
     /// Raised before a configured runner is removed. The settings window owns
@@ -912,6 +940,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         // command to request migration to portable launch paths
         ConvertExistingToPortableCommand = new AsyncRelayCommand(ConvertExistingToPortableAsync);
         ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
+        OpenGitHubDiscussionsCommand = new RelayCommand(() => OpenHelpUri(GitHubDiscussionsUri));
+        SendContactEmailCommand = new RelayCommand(() => OpenHelpUri(ContactEmailUri));
+        CopySupportDiagnosticsCommand = new AsyncRelayCommand(CopySupportDiagnosticsAsync);
         
         // Emulator-wrapper commands
         AddEmulatorWrapperCommand = new RelayCommand(AddEmulatorWrapper);
@@ -980,6 +1011,41 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         RebuildSelectedEmulatorRunnerVersionOptions();
         RebuildRunnerReplacementOptions();
         GeReleaseStatusText = T("Settings_GeProtonStatusIdle", "Idle");
+    }
+
+    private static void OpenHelpUri(Uri uri)
+    {
+        if (!SystemBrowserLauncher.TryOpen(uri, out var error))
+            Debug.WriteLine($"[Settings] Could not open help link '{uri}': {error?.Message}");
+    }
+
+    private async Task CopySupportDiagnosticsAsync()
+    {
+        var copyRequest = RequestCopySupportDiagnostics;
+        if (copyRequest == null)
+        {
+            SupportDiagnosticStatusText = T(
+                "Help.Diagnostics.CopyFailed",
+                "The diagnostic information could not be copied.");
+            return;
+        }
+
+        try
+        {
+            var diagnosticInfo = SupportDiagnosticInfoBuilder.Build(
+                App.Current?.IsWaylandRequested == true,
+                _appSettings.UsePortableHomeInAppImage);
+            SupportDiagnosticStatusText = await copyRequest(diagnosticInfo)
+                ? T("Help.Diagnostics.Copied", "Diagnostic information copied.")
+                : T("Help.Diagnostics.CopyFailed", "The diagnostic information could not be copied.");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Settings] Could not copy support diagnostics: {ex.Message}");
+            SupportDiagnosticStatusText = T(
+                "Help.Diagnostics.CopyFailed",
+                "The diagnostic information could not be copied.");
+        }
     }
 
     // --- Computed Properties for UI Hints ---

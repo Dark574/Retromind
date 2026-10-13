@@ -36,18 +36,18 @@
     <data name="GettingStarted.Category.Details" xml:space="preserve"><value>• Right-click the empty library tree to create a top-level category.
 • Right-click an existing category to create a child category.
 • Move and reorder categories in the tree using drag and drop.
-• Category settings such as game system, emulator and BigMode theme are inherited by their children.</value></data>
+• A category's game system and default emulator are inherited by its children.</value></data>
     <data name="GettingStarted.Category.Action" xml:space="preserve"><value>Create category...</value></data>
     <data name="GettingStarted.Import.Title" xml:space="preserve"><value>Add content</value></data>
     <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Right-click a category to import ROMs, Steam or Epic games, add GOG games, or create media manually.</value></data>
     <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Select the category that should contain the new items.
 • Use Import for ROM folders, Steam or Epic libraries; GOG and manual media have their own entries.
-• Set the game system before importing ROMs if RetroAchievements should identify supported games automatically.</value></data>
+• Set the category's game system and default emulator before importing ROMs. This lets RetroAchievements identify supported games automatically and assigns the emulator immediately. For existing ROMs, the default emulator can later be applied to existing items in the category settings.</value></data>
     <data name="GettingStarted.Settings.Title" xml:space="preserve"><value>Configure emulators and services</value></data>
     <data name="GettingStarted.Settings.Description" xml:space="preserve"><value>Set up emulators, metadata providers, library paths and optional RetroAchievements access.</value></data>
     <data name="GettingStarted.Settings.Details" xml:space="preserve"><value>• The Emulators tab defines programs, launch arguments and inherited runner defaults.
 • Metadata &amp; scrapers contains providers and controls which discovered data is imported.
-• Integrations contains RetroAchievements and additional Steam or Heroic library locations.</value></data>
+• Integrations contains RetroAchievements, Steam Achievements and additional Steam or Heroic library locations.</value></data>
     <data name="GettingStarted.Settings.Action" xml:space="preserve"><value>Open settings...</value></data>
     <data name="GettingStarted.Restore.Title" xml:space="preserve"><value>Restore an existing library</value></data>
     <data name="GettingStarted.Restore.Description" xml:space="preserve"><value>Restore library metadata and settings from a Retromind backup stored in the current data location.</value></data>
@@ -60,6 +60,15 @@
     <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Right-click this empty area or the category on the left to add media, import a ROM folder, or import games from Steam, Epic and GOG.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Close overview</value></data>
     <data name="Settings_TabHelp" xml:space="preserve"><value>Help</value></data>
+    <data name="Help.Contact.Title" xml:space="preserve"><value>Help and contact</value></data>
+    <data name="Help.Contact.Description" xml:space="preserve"><value>Ask public questions and exchange ideas in GitHub Discussions. For private matters, contact the Retromind project by email.</value></data>
+    <data name="Help.Contact.GitHubDiscussions" xml:space="preserve"><value>Open GitHub Discussions</value></data>
+    <data name="Help.Contact.Email" xml:space="preserve"><value>Write an email</value></data>
+    <data name="Help.Diagnostics.Title" xml:space="preserve"><value>Support information</value></data>
+    <data name="Help.Diagnostics.Description" xml:space="preserve"><value>Copies technical environment information for support requests. Personal paths, account data and library contents are not included.</value></data>
+    <data name="Help.Diagnostics.Copy" xml:space="preserve"><value>Copy diagnostic information</value></data>
+    <data name="Help.Diagnostics.Copied" xml:space="preserve"><value>Diagnostic information copied.</value></data>
+    <data name="Help.Diagnostics.CopyFailed" xml:space="preserve"><value>The diagnostic information could not be copied.</value></data>
     <data name="Settings.ScreenScraper.CredentialsHint" xml:space="preserve"><value>Retromind provides the application access. Without a personal ScreenScraper account, restricted anonymous access is used and may be unavailable during high server load. Enter either both account fields or neither.</value></data>
     <data name="Settings.ScreenScraper.HashRecognitionHint" xml:space="preserve"><value>Automatic hash identification requires a game system on the category. An individual item can override the inherited system.</value></data>
     <data name="Settings.ScreenScraper.MemberUsername" xml:space="preserve"><value>ScreenScraper username (recommended)</value></data>

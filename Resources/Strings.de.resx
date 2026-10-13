@@ -36,18 +36,18 @@
     <data name="GettingStarted.Category.Details" xml:space="preserve"><value>• Klicke mit der rechten Maustaste in den leeren Bibliotheksbaum, um eine Hauptkategorie anzulegen.
 • Klicke mit der rechten Maustaste auf eine vorhandene Kategorie, um darunter eine weitere Kategorie anzulegen.
 • Kategorien lassen sich im Baum per Drag&amp;Drop verschieben, neu anordnen oder anderen Kategorien unterordnen.
-• Einstellungen einer Kategorie wie Spielsystem, Emulator und BigMode-Theme werden an ihre untergeordneten Inhalte vererbt.</value></data>
+• Spielsystem und Standard-Emulator einer Kategorie werden an ihre untergeordneten Inhalte vererbt.</value></data>
     <data name="GettingStarted.Category.Action" xml:space="preserve"><value>Kategorie anlegen...</value></data>
     <data name="GettingStarted.Import.Title" xml:space="preserve"><value>Inhalte hinzufügen</value></data>
     <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf eine Kategorie, um ROMs, Steam- oder Epic-Spiele zu importieren, GOG-Spiele hinzuzufügen oder Medien manuell anzulegen.</value></data>
     <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Wähle zuerst die Kategorie, in der die neuen Einträge abgelegt werden sollen.
 • Unter Importieren findest du ROM-Ordner sowie Steam- und Epic-Bibliotheken; GOG und manuelle Medien besitzen eigene Einträge.
-• Lege vor einem ROM-Import das Spielsystem der Kategorie fest, wenn unterstützte Spiele automatisch durch RetroAchievements erkannt werden sollen.</value></data>
+• Lege vor einem ROM-Import das Spielsystem und den Standard-Emulator der Kategorie fest. So kann RetroAchievements unterstützte Spiele automatisch erkennen und die ROMs übernehmen den Emulator direkt. Bei bereits importierten ROMs lässt sich der Standard-Emulator in den Kategorieeinstellungen nachträglich auf vorhandene Einträge anwenden.</value></data>
     <data name="GettingStarted.Settings.Title" xml:space="preserve"><value>Emulatoren und Dienste einrichten</value></data>
     <data name="GettingStarted.Settings.Description" xml:space="preserve"><value>Richte Emulatoren, Metadatenanbieter, Bibliothekspfade und optional RetroAchievements ein.</value></data>
     <data name="GettingStarted.Settings.Details" xml:space="preserve"><value>• Unter Emulatoren legst du Programme, Startargumente und vererbte Runner-Vorgaben fest.
 • Metadaten &amp; Scraper enthält die Anbieter und steuert, welche gefundenen Daten übernommen werden.
-• Integrationen enthält RetroAchievements sowie zusätzliche Bibliothekspfade für Steam und Heroic.</value></data>
+• Integrationen enthält RetroAchievements und Steam-Achievements sowie zusätzliche Bibliothekspfade für Steam und Heroic.</value></data>
     <data name="GettingStarted.Settings.Action" xml:space="preserve"><value>Einstellungen öffnen...</value></data>
     <data name="GettingStarted.Restore.Title" xml:space="preserve"><value>Vorhandene Bibliothek wiederherstellen</value></data>
     <data name="GettingStarted.Restore.Description" xml:space="preserve"><value>Stelle Bibliotheksmetadaten und Einstellungen aus einem Retromind-Backup am aktuellen Datenort wieder her.</value></data>
@@ -60,6 +60,15 @@
     <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf diese freie Fläche oder links auf die Kategorie, um Medien hinzuzufügen, einen ROM-Ordner oder Spiele aus Steam, Epic und GOG zu importieren.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Übersicht schließen</value></data>
     <data name="Settings_TabHelp" xml:space="preserve"><value>Hilfe</value></data>
+    <data name="Help.Contact.Title" xml:space="preserve"><value>Hilfe und Kontakt</value></data>
+    <data name="Help.Contact.Description" xml:space="preserve"><value>Stelle öffentliche Fragen und tausche Ideen in den GitHub Discussions aus. Für private Anliegen kannst du das Retromind-Projekt per E-Mail kontaktieren.</value></data>
+    <data name="Help.Contact.GitHubDiscussions" xml:space="preserve"><value>GitHub Discussions öffnen</value></data>
+    <data name="Help.Contact.Email" xml:space="preserve"><value>E-Mail schreiben</value></data>
+    <data name="Help.Diagnostics.Title" xml:space="preserve"><value>Supportinformationen</value></data>
+    <data name="Help.Diagnostics.Description" xml:space="preserve"><value>Kopiert technische Umgebungsinformationen für Supportanfragen. Persönliche Pfade, Kontodaten und Bibliotheksinhalte werden nicht aufgenommen.</value></data>
+    <data name="Help.Diagnostics.Copy" xml:space="preserve"><value>Diagnoseinformationen kopieren</value></data>
+    <data name="Help.Diagnostics.Copied" xml:space="preserve"><value>Diagnoseinformationen wurden kopiert.</value></data>
+    <data name="Help.Diagnostics.CopyFailed" xml:space="preserve"><value>Die Diagnoseinformationen konnten nicht kopiert werden.</value></data>
     <data name="Settings.ScreenScraper.CredentialsHint" xml:space="preserve"><value>Retromind stellt den Anwendungszugang bereit. Ohne persönliches ScreenScraper-Konto wird der eingeschränkte anonyme Zugang verwendet, der bei hoher Serverauslastung möglicherweise nicht verfügbar ist. Bitte entweder beide Kontofelder oder keines ausfüllen.</value></data>
     <data name="Settings.ScreenScraper.HashRecognitionHint" xml:space="preserve"><value>Für die automatische Hash-Erkennung muss bei der Kategorie ein Spielsystem gesetzt sein. Ein einzelnes Item kann das geerbte System überschreiben.</value></data>
     <data name="Settings.ScreenScraper.MemberUsername" xml:space="preserve"><value>ScreenScraper-Benutzername (empfohlen)</value></data>
