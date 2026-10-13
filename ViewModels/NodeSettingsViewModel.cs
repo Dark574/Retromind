@@ -127,9 +127,6 @@ public partial class NodeSettingsViewModel : ViewModelBase
     public string GameSystemLabel =>
         T("GameSystem_NodeLabel", "Game system for game identification");
 
-    public string IntegrationsTabTitle =>
-        T("NodeSettings_Integrations", "Integrations");
-
     public string LaunchOptionsTabTitle =>
         T("EditMedia.Tab_LaunchOptions", "Launch options");
 

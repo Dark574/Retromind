@@ -23,6 +23,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - add direct contact links and privacy-conscious diagnostic information for support requests to the Help tab
 - stop inheriting BigMode themes from parent categories; new nodes use the Default normal and system themes
 - import GOG games into any category through the regular picker instead of restricting categories as dedicated GOG nodes
+- show the category game-system assignment under General instead of keeping a separate Integrations tab
 
 ### Fixed
 - prevent the Arcade theme from crashing while creating its logo rail and keep the layout stable while artwork is loading

@@ -7,12 +7,12 @@
         xmlns:helpers="using:Retromind.Helpers"
         mc:Ignorable="d"
         d:DesignWidth="700"
-        d:DesignHeight="580"
+        d:DesignHeight="660"
         x:Class="Retromind.Views.NodeSettingsView"
         x:DataType="vm:NodeSettingsViewModel"
         Title="{x:Static p:Strings.NodeSettings_Title}"
         Width="700"
-        Height="580"
+        Height="660"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         CanResize="False"
@@ -70,6 +70,29 @@
                                              TextWrapping="Wrap"
                                              ScrollViewer.VerticalScrollBarVisibility="Auto" />
                                 </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="section">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{Binding GameSystemLabel}" FontWeight="Bold" FontSize="16" />
+                                <ComboBox ItemsSource="{Binding AvailableGameSystems}"
+                                          SelectedItem="{Binding SelectedGameSystem}"
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:GameSystemSelectionOption">
+                                            <TextBlock Text="{Binding DisplayName}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBlock Text="{Binding InheritedGameSystemInfo}"
+                                           IsVisible="{Binding IsGameSystemInherited}"
+                                           FontSize="11"
+                                           Opacity="0.7" />
+                                <TextBlock Text="{Binding GameSystemHint}"
+                                           FontSize="11"
+                                           Opacity="0.7"
+                                           TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
 
@@ -397,35 +420,6 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem Header="{Binding IntegrationsTabTitle}" FontSize="16">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10,10,20,20" Spacing="16">
-                        <Border Classes="section">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="{Binding GameSystemLabel}" FontWeight="Bold" FontSize="16" />
-                                <ComboBox ItemsSource="{Binding AvailableGameSystems}"
-                                          SelectedItem="{Binding SelectedGameSystem}"
-                                          HorizontalAlignment="Stretch">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:GameSystemSelectionOption">
-                                            <TextBlock Text="{Binding DisplayName}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                                <TextBlock Text="{Binding InheritedGameSystemInfo}"
-                                           IsVisible="{Binding IsGameSystemInherited}"
-                                           FontSize="11"
-                                           Opacity="0.7" />
-                                <TextBlock Text="{Binding GameSystemHint}"
-                                           FontSize="11"
-                                           Opacity="0.7"
-                                           TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
         </TabControl>
 
         <StackPanel Grid.Row="1"
