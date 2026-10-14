@@ -186,6 +186,22 @@ public partial class MainWindowViewModel
                     entry.ProductId,
                     platformFolder);
 
+                if (!await ConfirmGogInstallSpaceAsync(
+                        owner,
+                        installerPackage,
+                        stagingRoot,
+                        installPath,
+                        useTemporaryLinuxDestination: false))
+                {
+                    var failureMessage = string.Format(
+                        CultureInfo.CurrentCulture,
+                        T("Gog.Dlc.SpaceCheckDeclinedFormat", "Installation of '{0}' was skipped because the storage check was declined."),
+                        entry.Title);
+                    failureMessages.Add(failureMessage);
+                    AppendProcessLog(progressLogVm, failureMessage);
+                    continue;
+                }
+
                 var workflowResult = await _gogInstallerWorkflowService.RunAsync(
                     new GogInstallerWorkflowRequest(
                         item,
@@ -207,17 +223,24 @@ public partial class MainWindowViewModel
 
                 if (!workflowResult.Success)
                 {
-                    var failureMessage = workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Download
-                        ? string.Format(
+                    var failureMessage = workflowResult.FailureStage switch
+                    {
+                        GogInstallerWorkflowFailureStage.Storage => string.Format(
+                            CultureInfo.CurrentCulture,
+                            T("Gog.Dlc.SpaceCheckStoppedFormat", "Installation of '{0}' stopped because there is not enough free space: {1}"),
+                            entry.Title,
+                            BuildShortErrorDetail(workflowResult.ErrorMessage)),
+                        GogInstallerWorkflowFailureStage.Download => string.Format(
                             CultureInfo.CurrentCulture,
                             T("Gog.Dlc.DownloadFailedFormat", "The installer for '{0}' could not be downloaded: {1}"),
                             entry.Title,
-                            BuildShortErrorDetail(workflowResult.ErrorMessage))
-                        : string.Format(
+                            BuildShortErrorDetail(workflowResult.ErrorMessage)),
+                        _ => string.Format(
                             CultureInfo.CurrentCulture,
                             T("Gog.Dlc.RunFailedFormat", "The installer for '{0}' failed: {1}"),
                             entry.Title,
-                            workflowResult.ErrorMessage ?? T("Gog.Install.RunFailed", "Installer execution failed."));
+                            workflowResult.ErrorMessage ?? T("Gog.Install.RunFailed", "Installer execution failed."))
+                    };
                     failureMessages.Add(failureMessage);
                     AppendProcessLog(progressLogVm, failureMessage);
                     continue;

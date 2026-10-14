@@ -534,7 +534,7 @@ public sealed class GogInstallService
             ct.ThrowIfCancellationRequested();
 
             var file = package.Files[index];
-            var safeName = SanitizeFileName(file.FileName);
+            var safeName = GogInstallerStagingPathHelper.SanitizeFileName(file.FileName);
             var targetPath = Path.Combine(stagingDirectory, safeName);
             await DownloadFileWithResumeAsync(
                 file,
@@ -787,6 +787,10 @@ public sealed class GogInstallService
                 File.Delete(partPath);
                 resumeOffset = 0;
             }
+
+            GogInstallSpaceService.EnsureDownloadCanFit(
+                targetPath,
+                response.Content.Headers.ContentLength);
 
             var responseStart = append ? resumeOffset : 0L;
             var responseLength = response.Content.Headers.ContentLength;
@@ -1193,18 +1197,6 @@ public sealed class GogInstallService
             return fallback;
 
         return Uri.UnescapeDataString(name);
-    }
-
-    private static string SanitizeFileName(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-            return "installer.bin";
-
-        var sanitized = fileName;
-        foreach (var c in Path.GetInvalidFileNameChars())
-            sanitized = sanitized.Replace(c, '_');
-
-        return string.IsNullOrWhiteSpace(sanitized) ? "installer.bin" : sanitized;
     }
 
     private static string? GetString(JsonElement element, string propertyName)

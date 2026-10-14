@@ -16,7 +16,8 @@ internal enum GogInstallerWorkflowFailureStage
     None = 0,
     Download = 1,
     Execution = 2,
-    Cancelled = 3
+    Cancelled = 3,
+    Storage = 4
 }
 
 internal sealed record GogInstallerWorkflowRequest(
@@ -71,6 +72,20 @@ public sealed class GogInstallerWorkflowService
         ArgumentNullException.ThrowIfNull(appendLog);
 
         await Task.Yield();
+        var spaceAssessment = GogInstallSpaceService.Assess(
+            request.InstallerPackage,
+            request.StagingDirectory,
+            request.InstallPath);
+        if (spaceAssessment.Status == GogInstallSpaceStatus.InsufficientForDownload)
+        {
+            var message = BuildInsufficientSpaceMessage(spaceAssessment);
+            appendLog($"[Storage] {message}");
+            return new GogInstallerWorkflowResult(
+                false,
+                GogInstallerWorkflowFailureStage.Storage,
+                message);
+        }
+
         appendLog("[Download] Starting installer download...");
         var reusableStagingFiles = CountExistingStagedInstallerFiles(
             request.InstallerPackage,
@@ -98,6 +113,14 @@ public sealed class GogInstallerWorkflowService
                 false,
                 GogInstallerWorkflowFailureStage.Cancelled,
                 "Installation cancelled by user.");
+        }
+        catch (GogInsufficientDiskSpaceException ex)
+        {
+            Debug.WriteLine($"[GOG] Installer download stopped because free space is insufficient: {ex.Message}");
+            return new GogInstallerWorkflowResult(
+                false,
+                GogInstallerWorkflowFailureStage.Storage,
+                ex.Message);
         }
         catch (Exception ex)
         {
@@ -167,7 +190,7 @@ public sealed class GogInstallerWorkflowService
         var existing = 0;
         foreach (var file in package.Files)
         {
-            var fileName = SanitizeStagedInstallerFileName(file.FileName);
+            var fileName = GogInstallerStagingPathHelper.SanitizeFileName(file.FileName);
             if (File.Exists(Path.Combine(stagingDirectory, fileName)))
                 existing++;
         }
@@ -186,15 +209,15 @@ public sealed class GogInstallerWorkflowService
 
         var filePart = $"{progress.FileIndex}/{progress.FileCount} {progress.FileName}";
         var fileBytes = progress.BytesTotalCurrentFile.HasValue && progress.BytesTotalCurrentFile.Value > 0
-            ? $"{FormatByteSize(progress.BytesDownloadedCurrentFile)} / {FormatByteSize(progress.BytesTotalCurrentFile.Value)}"
-            : FormatByteSize(progress.BytesDownloadedCurrentFile);
+            ? $"{GogInstallSpaceService.FormatByteSize(progress.BytesDownloadedCurrentFile)} / {GogInstallSpaceService.FormatByteSize(progress.BytesTotalCurrentFile.Value)}"
+            : GogInstallSpaceService.FormatByteSize(progress.BytesDownloadedCurrentFile);
         var fileProgress = filePercent >= 0 ? $"{filePercent}% ({fileBytes})" : fileBytes;
 
         var overallProgress = progress.BytesTotalOverall.HasValue && progress.BytesTotalOverall.Value > 0
             ? overallPercent >= 0
-                ? $"{overallPercent}% ({FormatByteSize(progress.BytesDownloadedOverall)} / {FormatByteSize(progress.BytesTotalOverall.Value)})"
-                : $"{FormatByteSize(progress.BytesDownloadedOverall)} / {FormatByteSize(progress.BytesTotalOverall.Value)}"
-            : FormatByteSize(progress.BytesDownloadedOverall);
+                ? $"{overallPercent}% ({GogInstallSpaceService.FormatByteSize(progress.BytesDownloadedOverall)} / {GogInstallSpaceService.FormatByteSize(progress.BytesTotalOverall.Value)})"
+                : $"{GogInstallSpaceService.FormatByteSize(progress.BytesDownloadedOverall)} / {GogInstallSpaceService.FormatByteSize(progress.BytesTotalOverall.Value)}"
+            : GogInstallSpaceService.FormatByteSize(progress.BytesDownloadedOverall);
 
         return $"Download {filePart}: {fileProgress} | Overall: {overallProgress}";
     }
@@ -385,35 +408,17 @@ public sealed class GogInstallerWorkflowService
             100);
     }
 
-    private static string FormatByteSize(long bytes)
+    private static string BuildInsufficientSpaceMessage(GogInstallSpaceAssessment assessment)
     {
-        if (bytes < 0)
-            bytes = 0;
-
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        var value = (double)bytes;
-        var unitIndex = 0;
-        while (value >= 1024d && unitIndex < units.Length - 1)
-        {
-            value /= 1024d;
-            unitIndex++;
-        }
-
-        return unitIndex == 0
-            ? $"{bytes} {units[unitIndex]}"
-            : $"{value:0.0} {units[unitIndex]}";
-    }
-
-    private static string SanitizeStagedInstallerFileName(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-            return "installer.bin";
-
-        var sanitized = fileName;
-        foreach (var invalid in Path.GetInvalidFileNameChars())
-            sanitized = sanitized.Replace(invalid, '_');
-
-        return string.IsNullOrWhiteSpace(sanitized) ? "installer.bin" : sanitized;
+        var remainingBytes = assessment.RemainingDownloadBytes.GetValueOrDefault();
+        var requiredBytes = remainingBytes > long.MaxValue - GogInstallSpaceService.FreeSpaceReserveBytes
+            ? long.MaxValue
+            : remainingBytes + GogInstallSpaceService.FreeSpaceReserveBytes;
+        return $"Not enough free space on '{assessment.CheckedPath}'. " +
+               $"The remaining installer download requires " +
+               $"{GogInstallSpaceService.FormatByteSize(requiredBytes)}, " +
+               $"including the safety reserve, but only " +
+               $"{GogInstallSpaceService.FormatByteSize(assessment.AvailableBytes.GetValueOrDefault())} is available.";
     }
 
     private static bool TryPrepareCleanInstallDirectory(

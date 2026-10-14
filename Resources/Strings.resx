@@ -354,6 +354,8 @@
     <data name="Gog.Dlc.ResolveFailedFormat" xml:space="preserve"><value>The installer for '{0}' could not be loaded: {1}</value></data>
     <data name="Gog.Dlc.NoInstallerForPlatformFormat" xml:space="preserve"><value>No installer for the installed platform is currently available for '{0}'.</value></data>
     <data name="Gog.Dlc.DownloadFailedFormat" xml:space="preserve"><value>The installer for '{0}' could not be downloaded: {1}</value></data>
+    <data name="Gog.Dlc.SpaceCheckDeclinedFormat" xml:space="preserve"><value>Installation of '{0}' was skipped because the storage check was declined.</value></data>
+    <data name="Gog.Dlc.SpaceCheckStoppedFormat" xml:space="preserve"><value>Installation of '{0}' stopped because there is not enough free space: {1}</value></data>
     <data name="Gog.Dlc.RunFailedFormat" xml:space="preserve"><value>The installer for '{0}' failed: {1}</value></data>
     <data name="Gog.Dlc.LinuxMetadataRepairedFormat" xml:space="preserve"><value>Repaired {0:N0} relocated Linux installer metadata file(s).</value></data>
     <data name="Gog.Dlc.LinuxMetadataRepairFailedFormat" xml:space="preserve"><value>The Linux installation metadata could not be repaired: {0}</value></data>
@@ -465,6 +467,33 @@ Continue?</value></data>
     <data name="Gog.Install.NoInstallerForPlatformFormat" xml:space="preserve"><value>No installer found for platform: {0}.</value></data>
     <data name="Gog.Install.DownloadFailed" xml:space="preserve"><value>GOG installer download failed.</value></data>
     <data name="Gog.Install.DownloadFailedFormat" xml:space="preserve"><value>GOG installer download failed: {0}</value></data>
+    <data name="Gog.Install.SpaceDownloadInsufficientFormat" xml:space="preserve"><value>There is not enough free space for the GOG offline installer download.
+
+Remaining download: {0}
+Available: {1}
+Checked filesystem: {2}
+
+Retromind keeps an additional 1 GB free as a safety reserve.</value></data>
+    <data name="Gog.Install.SpaceEstimateWarningFormat" xml:space="preserve"><value>The installer download fits, but the complete installation may need more free space.
+
+Estimated additional peak usage: at least {0}
+Available: {1}
+Checked filesystem: {2}
+
+GOG does not provide a reliable installed size. Continue anyway?</value></data>
+    <data name="Gog.Install.SpaceUnknownWarningFormat" xml:space="preserve"><value>GOG did not provide a complete installer size. Retromind cannot reliably check whether the download and installation fit on the selected filesystem:
+{0}
+
+If the server supplies the remaining download size later, the download will still stop before using the safety reserve. Continue?</value></data>
+    <data name="Gog.Install.SpaceUnavailableWarningFormat" xml:space="preserve"><value>Retromind could not determine the available free space for:
+{0}
+
+Continue without a complete storage check?</value></data>
+    <data name="Gog.Install.SpaceTemporaryWarningFormat" xml:space="preserve"><value>Because the Linux install path contains shell-sensitive characters, the installer must first use temporary storage. It may need at least {0}, but only {1} is available in:
+{2}
+
+Continue anyway?</value></data>
+    <data name="Gog.Install.SpaceCheckStoppedFormat" xml:space="preserve"><value>Installation stopped because there is not enough free space: {0}</value></data>
     <data name="Gog.Install.ProgressLogTitleFormat" xml:space="preserve"><value>GOG install - {0}</value></data>
     <data name="Gog.Install.RunFailed" xml:space="preserve"><value>Installer execution failed.</value></data>
     <data name="Gog.Install.RunFailedFormat" xml:space="preserve"><value>Installer execution failed: {0}</value></data>

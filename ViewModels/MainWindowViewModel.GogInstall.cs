@@ -206,16 +206,25 @@ public partial class MainWindowViewModel
         }
 
         var selectedInstallerPackage = installerPackage;
-
-        if (!await PrepareGogInstallDirectoryAsync(owner, item, installRequest))
-            return false;
-
         var platformFolder = installRequest.Platform == GogInstallPlatform.Windows ? "windows" : "linux";
         var stagingRoot = Path.Combine(
             installRequest.InstallPath,
             ".retromind-gog-installers",
             storeGameId,
             platformFolder);
+
+        if (!await ConfirmGogInstallSpaceAsync(
+                owner,
+                selectedInstallerPackage,
+                stagingRoot,
+                installRequest.InstallPath,
+                useTemporaryLinuxDestination: installRequest.Platform == GogInstallPlatform.Linux))
+        {
+            return false;
+        }
+
+        if (!await PrepareGogInstallDirectoryAsync(owner, item, installRequest))
+            return false;
 
         var progressTitle = string.Format(
             T("Gog.Install.ProgressLogTitleFormat", "GOG install - {0}"),
@@ -255,6 +264,14 @@ public partial class MainWindowViewModel
                         T(
                             "Gog.Install.StagingPreserved",
                             "Staging files preserved for resume on next attempt."));
+                }
+                else if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Storage)
+                {
+                    AppendProcessLog(
+                        progressLogVm,
+                        string.Format(
+                            T("Gog.Install.SpaceCheckStoppedFormat", "Installation stopped because there is not enough free space: {0}"),
+                            BuildShortErrorDetail(workflowResult.ErrorMessage)));
                 }
                 else if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Download)
                 {

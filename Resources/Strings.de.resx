@@ -355,6 +355,8 @@
     <data name="Gog.Dlc.ResolveFailedFormat" xml:space="preserve"><value>Der Installer für „{0}“ konnte nicht geladen werden: {1}</value></data>
     <data name="Gog.Dlc.NoInstallerForPlatformFormat" xml:space="preserve"><value>Für „{0}“ ist aktuell kein Installer für die installierte Plattform verfügbar.</value></data>
     <data name="Gog.Dlc.DownloadFailedFormat" xml:space="preserve"><value>Der Installer für „{0}“ konnte nicht heruntergeladen werden: {1}</value></data>
+    <data name="Gog.Dlc.SpaceCheckDeclinedFormat" xml:space="preserve"><value>Die Installation von „{0}“ wurde übersprungen, weil die Speicherplatzprüfung abgebrochen wurde.</value></data>
+    <data name="Gog.Dlc.SpaceCheckStoppedFormat" xml:space="preserve"><value>Die Installation von „{0}“ wurde wegen unzureichenden Speicherplatzes gestoppt: {1}</value></data>
     <data name="Gog.Dlc.RunFailedFormat" xml:space="preserve"><value>Der Installer für „{0}“ ist fehlgeschlagen: {1}</value></data>
     <data name="Gog.Dlc.LinuxMetadataRepairedFormat" xml:space="preserve"><value>{0:N0} verschobene Linux-Installer-Metadatendatei(en) repariert.</value></data>
     <data name="Gog.Dlc.LinuxMetadataRepairFailedFormat" xml:space="preserve"><value>Die Metadaten der Linux-Installation konnten nicht repariert werden: {0}</value></data>
@@ -466,6 +468,33 @@ Fortfahren?</value></data>
     <data name="Gog.Install.NoInstallerForPlatformFormat" xml:space="preserve"><value>Kein Installer für Plattform {0} gefunden.</value></data>
     <data name="Gog.Install.DownloadFailed" xml:space="preserve"><value>Download des GOG-Installers fehlgeschlagen.</value></data>
     <data name="Gog.Install.DownloadFailedFormat" xml:space="preserve"><value>Download des GOG-Installers fehlgeschlagen: {0}</value></data>
+    <data name="Gog.Install.SpaceDownloadInsufficientFormat" xml:space="preserve"><value>Für den Download des GOG-Offline-Installers ist nicht genügend Speicherplatz verfügbar.
+
+Verbleibender Download: {0}
+Verfügbar: {1}
+Geprüftes Dateisystem: {2}
+
+Retromind hält zusätzlich 1 GB als Sicherheitsreserve frei.</value></data>
+    <data name="Gog.Install.SpaceEstimateWarningFormat" xml:space="preserve"><value>Der Installer-Download passt auf das Laufwerk, aber die vollständige Installation benötigt möglicherweise mehr freien Speicherplatz.
+
+Geschätzter zusätzlicher Spitzenbedarf: mindestens {0}
+Verfügbar: {1}
+Geprüftes Dateisystem: {2}
+
+GOG stellt keine verlässliche Installationsgröße bereit. Trotzdem fortfahren?</value></data>
+    <data name="Gog.Install.SpaceUnknownWarningFormat" xml:space="preserve"><value>GOG hat keine vollständige Installergröße bereitgestellt. Retromind kann deshalb nicht zuverlässig prüfen, ob Download und Installation auf das ausgewählte Dateisystem passen:
+{0}
+
+Falls der Server die verbleibende Downloadgröße später liefert, wird der Download trotzdem gestoppt, bevor er die Sicherheitsreserve unterschreitet. Fortfahren?</value></data>
+    <data name="Gog.Install.SpaceUnavailableWarningFormat" xml:space="preserve"><value>Retromind konnte den verfügbaren Speicherplatz für diesen Pfad nicht ermitteln:
+{0}
+
+Ohne vollständige Speicherplatzprüfung fortfahren?</value></data>
+    <data name="Gog.Install.SpaceTemporaryWarningFormat" xml:space="preserve"><value>Da der Linux-Installationspfad Shell-Sonderzeichen enthält, muss der Installer zunächst temporären Speicher verwenden. Er benötigt möglicherweise mindestens {0}, aber in diesem Pfad sind nur {1} verfügbar:
+{2}
+
+Trotzdem fortfahren?</value></data>
+    <data name="Gog.Install.SpaceCheckStoppedFormat" xml:space="preserve"><value>Die Installation wurde wegen unzureichenden Speicherplatzes gestoppt: {0}</value></data>
     <data name="Gog.Install.ProgressLogTitleFormat" xml:space="preserve"><value>GOG-Installation - {0}</value></data>
     <data name="Gog.Install.RunFailed" xml:space="preserve"><value>Ausführen des Installers fehlgeschlagen.</value></data>
     <data name="Gog.Install.RunFailedFormat" xml:space="preserve"><value>Ausführen des Installers fehlgeschlagen: {0}</value></data>

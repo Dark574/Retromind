@@ -73,6 +73,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - platform selection (Linux/Windows installer)
     - Wine/Proton runner selection for Windows installer mode
   - installer metadata and download are resolved via native GOG API endpoints:
+    - free space is checked before base-game, update, reinstall and DLC downloads; resumable staging data is credited and uncertain installed-size estimates require confirmation
     - `https://api.gog.com/products/{id}?expand=downloads`
     - `https://api.gog.com/products/{id}/downlink/...`
   - installer download now supports retry reuse:
@@ -179,6 +180,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Services/Stores/Gog/GogInstallerProcessService.cs` (process execution, cancellation, shims + diagnostics)
 - `Services/Stores/Gog/GogInstallerExecutionService.cs` (platform-specific installer workflows)
 - `Services/Stores/Gog/GogInstallerWorkflowService.cs` (shared download, logging, clean-install + execution orchestration)
+- `Services/Stores/Gog/GogInstallSpaceService.cs` (download-space enforcement and conservative installation-space estimates)
 - `Services/Stores/Gog/GogInstallPayloadTracker.cs` (installer payload change detection)
 - `Services/Stores/Gog/Auth/GogAuthService.cs` (interactive sign-in + refresh implemented)
 - `Services/Stores/Gog/Auth/GogOAuthClient.cs` (authorize URL + token/account HTTP flows implemented)

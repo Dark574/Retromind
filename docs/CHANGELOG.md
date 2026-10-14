@@ -17,6 +17,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - automatically track imported Steam game sessions for playtime and achievement updates without requiring a manually configured process name
 
 ### Changed
+- check available storage before downloading and installing GOG games, updates and DLCs while accounting for reusable installer files
 - improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews
 - load desktop cover grids in parallel while retaining responsive, serialized artwork loading in BigMode
 - make the Default BigMode cover transition smoother while preserving its clearly visible entrance
