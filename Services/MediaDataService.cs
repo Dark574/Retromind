@@ -391,7 +391,6 @@ public class MediaDataService
         {
             Id = node.Id,
             Name = node.Name,
-            Type = node.Type,
             IsExpanded = node.IsExpanded,
             RandomizeCovers = node.RandomizeCovers,
             RandomizeMusic = node.RandomizeMusic,

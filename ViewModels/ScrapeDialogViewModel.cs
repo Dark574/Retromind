@@ -572,7 +572,6 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
             type,
             label,
             url,
-            hasExisting,
             status,
             enabledByDefault && (!hasExisting || ImportSettings.AppendAssetsDuringBulkScrape)));
     }

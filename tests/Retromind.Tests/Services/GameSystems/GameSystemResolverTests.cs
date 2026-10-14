@@ -10,7 +10,7 @@ public sealed class GameSystemResolverTests
     public void ResolveForItem_ItemOverrideWinsOverNearestNode()
     {
         var item = new MediaItem("Game") { GameSystemId = "nintendo.game-boy-advance" };
-        var parent = new MediaNode("SNES", NodeType.Group)
+        var parent = new MediaNode("SNES")
         {
             GameSystemId = "nintendo.snes",
             Items = new ObservableCollection<MediaItem> { item }
@@ -26,16 +26,16 @@ public sealed class GameSystemResolverTests
     public void ResolveForItem_UsesNearestConfiguredNode()
     {
         var item = new MediaItem("Game");
-        var child = new MediaNode("Favorites", NodeType.Group)
+        var child = new MediaNode("Favorites")
         {
             Items = new ObservableCollection<MediaItem> { item }
         };
-        var platform = new MediaNode("PlayStation", NodeType.Group)
+        var platform = new MediaNode("PlayStation")
         {
             GameSystemId = "sony.playstation",
             Children = new ObservableCollection<MediaNode> { child }
         };
-        var root = new MediaNode("Games", NodeType.Area)
+        var root = new MediaNode("Games")
         {
             GameSystemId = "arcade",
             Children = new ObservableCollection<MediaNode> { platform }
@@ -50,7 +50,7 @@ public sealed class GameSystemResolverTests
     [Fact]
     public void ResolveForNode_PreservesUnknownFutureIdentifier()
     {
-        var node = new MediaNode("Future", NodeType.Group)
+        var node = new MediaNode("Future")
         {
             GameSystemId = "vendor.future-system"
         };

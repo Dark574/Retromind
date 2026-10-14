@@ -9,9 +9,9 @@ public sealed class SearchAreaViewModelTreeTrackingTests
     [Fact]
     public void RemovingDeeplyNestedNode_RemovesItFromExplicitSearchScope()
     {
-        var root = new MediaNode("Root", NodeType.Area);
-        var child = new MediaNode("Child", NodeType.Group);
-        var grandchild = new MediaNode("Grandchild", NodeType.Group);
+        var root = new MediaNode("Root");
+        var child = new MediaNode("Child");
+        var grandchild = new MediaNode("Grandchild");
         root.Children.Add(child);
         child.Children.Add(grandchild);
 
@@ -29,15 +29,15 @@ public sealed class SearchAreaViewModelTreeTrackingTests
     [Fact]
     public void NewlyAddedNestedSubtree_IsObservedRecursively()
     {
-        var root = new MediaNode("Root", NodeType.Area);
-        var child = new MediaNode("Child", NodeType.Group);
+        var root = new MediaNode("Root");
+        var child = new MediaNode("Child");
         root.Children.Add(child);
 
         var roots = new ObservableCollection<MediaNode> { root };
         using var viewModel = new SearchAreaViewModel(roots);
 
-        var grandchild = new MediaNode("Grandchild", NodeType.Group);
-        var greatGrandchild = new MediaNode("Great-grandchild", NodeType.Group);
+        var grandchild = new MediaNode("Grandchild");
+        var greatGrandchild = new MediaNode("Great-grandchild");
         grandchild.Children.Add(greatGrandchild);
         child.Children.Add(grandchild);
         viewModel.ApplyScopeSelection([greatGrandchild.Id]);

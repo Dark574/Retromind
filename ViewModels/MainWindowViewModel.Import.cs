@@ -1243,45 +1243,6 @@ public partial class MainWindowViewModel
         });
     }
 
-    private async Task SetMusicAsync(MediaItem? item) 
-    {
-        if (item == null || CurrentWindow is not { } owner) return;
-        
-        var parentNode = FindParentNode(RootItems, item) ?? SelectedNode;
-        if (parentNode == null) return;
-
-        var storageProvider = StorageProvider ?? owner.StorageProvider;
-        var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = Strings.Dialog_Select_Music,
-            AllowMultiple = false,
-            FileTypeFilter = new[] { RetromindFilePickerTypes.Audio }
-        });
-
-        if (result != null && result.Count == 1)
-        {
-            _audioService.StopMusic();
-            var sourceFile = result[0].Path.LocalPath;
-            var nodePath = PathHelper.GetNodePath(parentNode, RootItems);
-            
-            // Use AssetType.Music instead of a media file kind enum.
-            var asset = await _fileService.ImportAssetAsync(sourceFile, item, nodePath, AssetType.Music);
-
-            if (asset != null)
-            {
-                await UiThreadHelper.InvokeAsync(() => item.Assets.Add(asset));
-
-                _libraryTracker.MarkDirty();
-
-                var fullPath = AppPaths.ResolveDataPathInsideRootOrEmpty(asset.RelativePath);
-                if (!string.IsNullOrWhiteSpace(fullPath))
-                    _ = _audioService.PlayMusicAsync(fullPath);
-
-                await SaveData();
-            }
-        }
-    }
-
     private async Task ScrapeMediaAsync(MediaItem? item)
     {
         if (item == null || CurrentWindow is not { } owner) return;
@@ -1953,11 +1914,6 @@ public partial class MainWindowViewModel
         SelectedNode = targetNode;
     }
 
-    // Wrappers for Assets
-    private async Task SetCoverAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Cover, AssetType.Cover);
-    private async Task SetLogoAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Logo, AssetType.Logo);
-    private async Task SetWallpaperAsync(MediaItem? item) => await SetAssetAsync(item, Strings.Dialog_Select_Wallpaper, AssetType.Wallpaper);
-
     private EmulatorConfig? FindInheritedEmulator(MediaItem item)
     {
         var parentNode = FindParentNode(RootItems, item);
@@ -2129,34 +2085,4 @@ public partial class MainWindowViewModel
         return true;
     }
     
-    private async Task SetAssetAsync(MediaItem? item, string title, AssetType type)
-    {
-        if (item == null || CurrentWindow is not { } owner) return;
-        
-        var parentNode = FindParentNode(RootItems, item) ?? SelectedNode;
-        if (parentNode == null) return;
-        
-        var result = await (StorageProvider ?? owner.StorageProvider).OpenFilePickerAsync(new FilePickerOpenOptions 
-        { 
-            Title = title, 
-            AllowMultiple = false, 
-            FileTypeFilter = new[] { FilePickerFileTypes.ImageAll } 
-        });
-        
-        if (result != null && result.Count == 1)
-        {
-            var asset = await _fileService.ImportAssetAsync(
-                result[0].Path.LocalPath,
-                item,
-                PathHelper.GetNodePath(parentNode, RootItems),
-                type);
-
-            if (asset != null)
-            {
-                await UiThreadHelper.InvokeAsync(() => item.Assets.Add(asset));
-                _libraryTracker.MarkDirty();
-                await SaveData();
-            }
-        }
-    }
 }

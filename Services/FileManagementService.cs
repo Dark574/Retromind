@@ -156,37 +156,6 @@ public partial class FileManagementService
         }
     }
     
-    /// <summary>
-    /// Deletes an asset physically from disk.
-    /// NOTE: This method is UI-agnostic and does NOT remove the asset from any collections.
-    /// The caller (ViewModel) is responsible for removing/re-adding in case of failure.
-    /// </summary>
-    public void DeleteAssetFile(MediaAsset asset)
-    {
-        if (asset == null) return;
-
-        if (string.IsNullOrWhiteSpace(asset.RelativePath))
-            return;
-
-        if (!AppPaths.TryResolveDataPathForMutation(asset.RelativePath, out var fullPath))
-            return;
-
-        Helpers.AsyncImageHelper.InvalidateCache(fullPath);
-
-        try
-        {
-            if (File.Exists(fullPath))
-                File.Delete(fullPath);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error deleting asset: {ex.Message}");
-            throw;
-        }
-
-        RaiseLibraryChanged();
-    }
-
     public bool RenameItemAssets(MediaItem item, string oldTitle, string newTitle, List<string> nodePathStack)
     {
         if (item == null) return false;

@@ -121,6 +121,29 @@ public sealed class MediaDataServiceLoadTests
     }
 
     [Fact]
+    public async Task LoadAsync_IgnoresLegacyNodeType()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+        File.WriteAllText(
+            temp.GetPath("retromind_tree.json"),
+            """
+            [
+              {
+                "Name": "Legacy node",
+                "Type": 1,
+                "Children": [],
+                "Items": []
+              }
+            ]
+            """);
+
+        var roots = await new MediaDataService().LoadAsync();
+
+        Assert.Equal("Legacy node", Assert.Single(roots).Name);
+    }
+
+    [Fact]
     public async Task LoadAsync_ReturnsEmptyLibraryWhenNoPersistedFilesExist()
     {
         using var temp = new TemporaryDirectory();

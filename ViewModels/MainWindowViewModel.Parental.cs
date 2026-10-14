@@ -412,36 +412,6 @@ public partial class MainWindowViewModel
         FinalizeProtectionMutation(refreshCurrentContent: false);
     }
 
-    private async Task ToggleNodeProtectionAsync(MediaNode? node)
-    {
-        if (node == null)
-            return;
-
-        if (!await EnsureParentalUnlockedForEditingAsync())
-            return;
-
-        if (!UiThreadHelper.CheckAccess())
-        {
-            UiThreadHelper.Post(async () => await ToggleNodeProtectionAsync(node), DispatcherPriority.Background);
-            return;
-        }
-
-        var targetState = !ParentalControlHelper.IsNodeEffectivelyProtected(node);
-
-        _isApplyingProtectionChanges = true;
-        try
-        {
-            ParentalControlHelper.ApplyNodeProtectionRecursive(node, targetState);
-            RefreshAncestorAutoProtectStates(node);
-        }
-        finally
-        {
-            _isApplyingProtectionChanges = false;
-        }
-
-        FinalizeProtectionMutation();
-    }
-
     private async Task<string?> PromptForPasswordAsync(
         Window owner,
         string title,

@@ -21,14 +21,6 @@ public sealed class GogProvider : IStoreAuthProvider, IStoreLibraryProvider
         _libraryService = libraryService ?? throw new ArgumentNullException(nameof(libraryService));
     }
 
-    public string ProviderId => "gog";
-
-    public string DisplayName => "GOG";
-
-    public StoreProviderCapabilities Capabilities =>
-        StoreProviderCapabilities.Auth |
-        StoreProviderCapabilities.Library;
-
     public Task<StoreAuthState> GetAuthStateAsync(CancellationToken ct = default)
     {
         return _authService.GetAuthStateAsync(ct);

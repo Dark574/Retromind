@@ -9,7 +9,7 @@ public sealed class BulkEditMediaViewModelTests
     [Fact]
     public void MetadataRow_CompletesKnownLibraryValue()
     {
-        var root = new MediaNode("Games", NodeType.Area);
+        var root = new MediaNode("Games");
         root.Items.Add(new MediaItem("Game") { Developer = "Nintendo" });
         var viewModel = new BulkEditMediaViewModel(2, [root]);
         var developerRow = Assert.Single(

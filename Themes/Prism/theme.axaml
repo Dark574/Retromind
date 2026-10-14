@@ -622,7 +622,7 @@
                             </Border.RenderTransform>
 
                             <StackPanel Spacing="8" HorizontalAlignment="Center">
-                                <Border x:Name="PrismCoverFrame"
+                                <Border
                                         Width="{StaticResource CoverWidth}"
                                         Height="{StaticResource CoverHeight}"
                                         CornerRadius="{StaticResource CoverRadius}"

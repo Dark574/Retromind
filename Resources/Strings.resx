@@ -226,22 +226,14 @@
     <data name="MoveMedia.Apply" xml:space="preserve"><value>Move</value></data>
     <data name="MoveMedia.SelectTarget" xml:space="preserve"><value>Please select a target category.</value></data>
     <data name="MoveMedia.CurrentCategory" xml:space="preserve"><value>The item is already in this category.</value></data>
-    <data name="MoveMedia.StoreProviderMismatch" xml:space="preserve"><value>This synchronized store category only accepts matching store items.</value></data>
-    <data name="MoveMedia.MissingStoreIdentity" xml:space="preserve"><value>The item does not contain the complete identity required by this store category.</value></data>
-    <data name="MoveMedia.DuplicateStoreItem" xml:space="preserve"><value>This store item already exists in the selected category.</value></data>
     <data name="MoveMedia.InvalidTarget" xml:space="preserve"><value>The selected category cannot be used as a target.</value></data>
     <data name="MoveMedia.ConfirmFormat" xml:space="preserve"><value>Move '{0}' from '{1}' to '{2}'?&#xA;&#xA;Associated assets will be moved as well. Settings inherited from the category may change.</value></data>
-    <data name="MoveMedia.StoreSyncWarning" xml:space="preserve"><value>Warning: the source is a synchronized store category. A later store sync may add the item there again.</value></data>
     <data name="MoveMedia.TargetChanged" xml:space="preserve"><value>The source or target category changed. Please select the target again.</value></data>
     <data name="MoveMedia.AssetMoveFailedFormat" xml:space="preserve"><value>The item could not be moved because its assets could not be moved safely.&#xA;&#xA;{0}</value></data>
     <data name="MoveMedia.CollectionMoveFailed" xml:space="preserve"><value>The category assignment could not be changed.</value></data>
     <data name="Dialog.NoResult" xml:space="preserve"><value>No results found (or filters empty).</value></data>
     <data name="Dialog.SearchTerm" xml:space="preserve"><value>Search term</value></data>
     <data name="Dialog.TitleConfirm" xml:space="preserve"><value>Confirm</value></data>
-    <data name="Dialog.Select.Cover" xml:space="preserve"><value>Select Cover</value></data>
-    <data name="Dialog.Select.Logo" xml:space="preserve"><value>Select Logo</value></data>
-    <data name="Dialog.Select.Music" xml:space="preserve"><value>Select Music</value></data>
-    <data name="Dialog.Select.Wallpaper" xml:space="preserve"><value>Select Wallpaper</value></data>
     <data name="Dialog.SelectWorkingDirectory" xml:space="preserve"><value>Select working directory</value></data>
     <data name="Dialog.SelectXdgCacheFolder" xml:space="preserve"><value>Select XDG cache folder</value></data>
     <data name="Dialog.SelectXdgConfigFolder" xml:space="preserve"><value>Select XDG config folder</value></data>
@@ -328,7 +320,6 @@
     <data name="Hint.TmdbKey" xml:space="preserve"><value>(Optional)</value></data>
   
     <!-- IMPORT -->
-    <data name="Import.Folder" xml:space="preserve"><value>Import (folder)...</value></data>
     <data name="Import.Epic" xml:space="preserve"><value>Import Epic games (Heroic)...</value></data>
     <data name="Import.Roms" xml:space="preserve"><value>Local Folder (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Import Steam games...</value></data>
@@ -407,7 +398,6 @@
     <data name="Gog.BrowserOpenFailed" xml:space="preserve"><value>The system browser could not be opened.</value></data>
     <data name="Gog.GameFallbackTitleFormat" xml:space="preserve"><value>GOG {0}</value></data>
     <data name="Gog.Picker.NoNewForNode" xml:space="preserve"><value>Selection did not contain new GOG games for this category.</value></data>
-    <data name="Gog.Node.SyncNoChanges" xml:space="preserve"><value>GOG node is already up to date.</value></data>
     <data name="Gog.Picker.DialogTitle" xml:space="preserve"><value>Select GOG media</value></data>
     <data name="Gog.Picker.Header" xml:space="preserve"><value>GOG library</value></data>
     <data name="Gog.Picker.OnlyNewInNode" xml:space="preserve"><value>Only new in this category</value></data>
@@ -603,7 +593,6 @@ This action cannot be undone.</value></data>
     <data name="Settings_TabLaunchCompatibility" xml:space="preserve"><value>Launch</value></data>
     <data name="Settings_TabIntegrations" xml:space="preserve"><value>Integrations</value></data>
     <data name="Settings_TabBackups" xml:space="preserve"><value>Data</value></data>
-    <data name="Settings_IntegrationLibraries" xml:space="preserve"><value>Game libraries</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Launch paths</value></data>
     <data name="Settings_SectionSorting" xml:space="preserve"><value>Sorting</value></data>
     <data name="Settings_IgnoreLeadingArticlesInSort" xml:space="preserve"><value>Ignore leading articles in title sorting</value></data>
@@ -783,8 +772,6 @@ This action cannot be undone.</value></data>
     <data name="NodeSettings_Title" xml:space="preserve"><value>Category settings</value></data>
     <data name="NodeSettings_DescriptionForBigMode" xml:space="preserve"><value>Description (for BigMode)</value></data>
     <data name="NodeSettings_DefaultEmulatorForFolder" xml:space="preserve"><value>Default emulator (for this folder)</value></data>
-    <data name="NodeSettings_GogStoreNode" xml:space="preserve"><value>Declare this as GOG node</value></data>
-    <data name="NodeSettings_GogStoreNodeHint" xml:space="preserve"><value>If enabled, "Add GOG media" syncs this node against your complete owned GOG library (additive only).</value></data>
     <data name="NodeSettings_ApplyEmulatorToExistingItems" xml:space="preserve"><value>Apply default emulator to existing items</value></data>
     <data name="NodeSettings_ApplyEmulatorIncludeChildren" xml:space="preserve"><value>Include subcategories</value></data>
     <data name="NodeSettings_ApplyEmulatorHint" xml:space="preserve"><value>Only items currently set to Native without a custom launcher will be updated.</value></data>
@@ -1168,7 +1155,6 @@ The current application settings will be kept.</value></data>
     <data name="Settings_RetroAchievementsHint" xml:space="preserve"><value>Connect your RetroAchievements account to show achievement progress for identified games.</value></data>
     <data name="Settings_RetroAchievementsEnable" xml:space="preserve"><value>Enable RetroAchievements integration</value></data>
     <data name="Settings_RetroAchievementsShowInBigMode" xml:space="preserve"><value>Show RetroAchievements progress in BigMode</value></data>
-    <data name="BigMode_AchievementsOverlayTitle" xml:space="preserve"><value>RetroAchievements</value></data>
     <data name="BigMode_AchievementsOverlayHint" xml:space="preserve"><value>{0} / {1} · Achievements</value></data>
     <data name="BigMode_AchievementsOverlayControls" xml:space="preserve"><value>D-pad · Select achievement    {0} / {1} / {2} · Close</value></data>
     <data name="Settings_RetroAchievementsUsername" xml:space="preserve"><value>Username</value></data>

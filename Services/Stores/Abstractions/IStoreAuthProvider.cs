@@ -5,7 +5,7 @@ using System;
 
 namespace Retromind.Services.Stores.Abstractions;
 
-public interface IStoreAuthProvider : IStoreProvider
+public interface IStoreAuthProvider
 {
     Task<StoreAuthState> GetAuthStateAsync(CancellationToken ct = default);
 

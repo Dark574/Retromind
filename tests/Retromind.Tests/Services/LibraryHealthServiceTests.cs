@@ -24,7 +24,7 @@ public sealed class LibraryHealthServiceTests
                 new MediaAsset { Type = AssetType.Cover, RelativePath = Path.GetRelativePath(dataRoot, missingCover) }
             ]
         };
-        var root = new MediaNode("Games", NodeType.Area) { Items = [item] };
+        var root = new MediaNode("Games") { Items = [item] };
         var service = new LibraryHealthService(dataRoot, libraryRoot);
 
         var report = await service.ScanAsync([root]);
@@ -46,7 +46,7 @@ public sealed class LibraryHealthServiceTests
         var libraryRoot = temp.CreateDirectory("Library");
         var sharedCover = temp.CreateFile("Library/Games/Cover/Shared_Cover_01.png");
         var relative = Path.GetRelativePath(dataRoot, sharedCover);
-        var root = new MediaNode("Games", NodeType.Area)
+        var root = new MediaNode("Games")
         {
             Items =
             [
@@ -67,7 +67,7 @@ public sealed class LibraryHealthServiceTests
         var dataRoot = temp.RootPath;
         var libraryRoot = temp.CreateDirectory("Library");
         var duplicateId = Guid.NewGuid().ToString();
-        var root = new MediaNode("Games", NodeType.Area)
+        var root = new MediaNode("Games")
         {
             Items =
             [
@@ -99,7 +99,7 @@ public sealed class LibraryHealthServiceTests
             MediaType = MediaType.Command,
             Files = [new MediaFileRef { Kind = MediaFileKind.Absolute, Path = command }]
         };
-        var root = new MediaNode("Games", NodeType.Area) { Items = [item] };
+        var root = new MediaNode("Games") { Items = [item] };
 
         var report = await new LibraryHealthService(temp.RootPath, libraryRoot).ScanAsync([root]);
 
@@ -119,7 +119,7 @@ public sealed class LibraryHealthServiceTests
             LauncherArgs = "steam://rungameid/123",
             Files = [new MediaFileRef { Kind = MediaFileKind.Absolute, Path = "steam" }]
         };
-        var root = new MediaNode("Steam", NodeType.Group) { Items = [item] };
+        var root = new MediaNode("Steam") { Items = [item] };
 
         var report = await new LibraryHealthService(temp.RootPath, libraryRoot).ScanAsync([root]);
 
@@ -138,7 +138,7 @@ public sealed class LibraryHealthServiceTests
             MediaType = MediaType.Native,
             Files = [new MediaFileRef { Kind = MediaFileKind.Absolute, Path = "missing.rom" }]
         };
-        var root = new MediaNode("Games", NodeType.Area) { Items = [item] };
+        var root = new MediaNode("Games") { Items = [item] };
 
         var report = await new LibraryHealthService(temp.RootPath, libraryRoot).ScanAsync([root]);
 

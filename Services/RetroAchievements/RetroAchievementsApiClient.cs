@@ -309,10 +309,6 @@ public sealed class RetroAchievementsApiClient
                     Title = title.Trim(),
                     ConsoleId = (uint)consoleId,
                     ConsoleName = ReadOptionalString(root, "ConsoleName", "consoleName")?.Trim() ?? string.Empty,
-                    ImageIconPath = ReadOptionalString(root, "ImageIcon", "imageIcon"),
-                    ImageTitlePath = ReadOptionalString(root, "ImageTitle", "imageTitle"),
-                    ImageInGamePath = ReadOptionalString(root, "ImageIngame", "imageIngame"),
-                    ImageBoxArtPath = ReadOptionalString(root, "ImageBoxArt", "imageBoxArt"),
                     AchievementCount = ReadInt(root, "NumAchievements", "numAchievements"),
                     AwardedCount = ReadInt(root, "NumAwardedToUser", "numAwardedToUser"),
                     AwardedHardcoreCount = ReadInt(
@@ -325,11 +321,6 @@ public sealed class RetroAchievementsApiClient
                         "UserCompletionHardcore",
                         "userCompletionHardcore"),
                     UserTotalPlaytime = ReadInt(root, "UserTotalPlaytime", "userTotalPlaytime"),
-                    HighestAwardKind = ReadOptionalString(root, "HighestAwardKind", "highestAwardKind"),
-                    HighestAwardAtUtc = ReadDateTimeOffset(
-                        root,
-                        "HighestAwardDate",
-                        "highestAwardDate"),
                     Achievements = ReadAchievements(root)
                 };
             }

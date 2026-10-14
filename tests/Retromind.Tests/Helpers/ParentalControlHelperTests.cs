@@ -8,8 +8,8 @@ public sealed class ParentalControlHelperTests
     [Fact]
     public void IsNodeEffectivelyProtected_UsesAllItemsInSubtree()
     {
-        var root = new MediaNode("Root", NodeType.Group);
-        var child = new MediaNode("Child", NodeType.Group);
+        var root = new MediaNode("Root");
+        var child = new MediaNode("Child");
         root.Items.Add(new MediaItem("Protected") { IsProtected = true });
         child.Items.Add(new MediaItem("Unprotected"));
         root.Children.Add(child);
@@ -24,7 +24,7 @@ public sealed class ParentalControlHelperTests
     [Fact]
     public void IsNodeEffectivelyProtected_UsesAutoProtectStateForEmptySubtree()
     {
-        var node = new MediaNode("Empty", NodeType.Group)
+        var node = new MediaNode("Empty")
         {
             AutoProtectNewChildren = true
         };
@@ -35,8 +35,8 @@ public sealed class ParentalControlHelperTests
     [Fact]
     public void ApplyNodeProtectionRecursive_UpdatesEntireSubtree()
     {
-        var root = new MediaNode("Root", NodeType.Group);
-        var child = new MediaNode("Child", NodeType.Group);
+        var root = new MediaNode("Root");
+        var child = new MediaNode("Child");
         root.Items.Add(new MediaItem("Root item"));
         child.Items.Add(new MediaItem("Child item"));
         root.Children.Add(child);
@@ -52,9 +52,9 @@ public sealed class ParentalControlHelperTests
     [Fact]
     public void RecalculateAutoProtectStates_UpdatesNonEmptyNodesAndPreservesEmptyNodes()
     {
-        var root = new MediaNode("Root", NodeType.Group);
-        var protectedChild = new MediaNode("Protected", NodeType.Group);
-        var emptyChild = new MediaNode("Empty", NodeType.Group)
+        var root = new MediaNode("Root");
+        var protectedChild = new MediaNode("Protected");
+        var emptyChild = new MediaNode("Empty")
         {
             AutoProtectNewChildren = true
         };

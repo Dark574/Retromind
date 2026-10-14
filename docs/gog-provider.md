@@ -159,8 +159,6 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 
 ### Store abstractions
 
-- `Services/Stores/Abstractions/StoreProviderCapabilities.cs`
-- `Services/Stores/Abstractions/IStoreProvider.cs`
 - `Services/Stores/Abstractions/IStoreAuthProvider.cs`
 - `Services/Stores/Abstractions/IStoreLibraryProvider.cs`
 

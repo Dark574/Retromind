@@ -8,7 +8,7 @@ namespace Retromind.Tests.Services;
 public sealed class FileManagementServiceSymlinkSafetyTests
 {
     [Fact]
-    public void DeleteAssetFile_AncestorSymlink_PreservesExternalFile()
+    public async Task PrepareAssetTransactionAsync_AncestorSymlink_PreservesExternalFile()
     {
         using var dataRoot = new TemporaryDirectory();
         using var externalRoot = new TemporaryDirectory();
@@ -26,7 +26,11 @@ public sealed class FileManagementServiceSymlinkSafetyTests
         };
         var service = new FileManagementService(AppPaths.LibraryRoot);
 
-        service.DeleteAssetFile(asset);
+        await Assert.ThrowsAsync<IOException>(() => service.PrepareAssetTransactionAsync(
+            new MediaItem("Game"),
+            [],
+            [],
+            [asset]));
 
         Assert.Equal("must remain", File.ReadAllText(externalFile));
     }

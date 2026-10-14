@@ -160,9 +160,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private bool _mainVideoHasContent;
 
     [ObservableProperty]
-    private bool _mainVideoHasFrame;
-
-    [ObservableProperty]
     private int _mainVideoFrameRevision;
 
     [ObservableProperty]
@@ -197,9 +194,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     public bool IsCategorySelectionActive => !IsGameListActive;
     
-    [ObservableProperty]
-    private string _currentThemeDirectory = string.Empty;
-
     [ObservableProperty]
     private MediaPlayer? _mediaPlayer;
 
@@ -488,7 +482,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         ThemeContextNode = null;
 
         // Keep some theme metadata available for bindings/debug overlays
-        CurrentThemeDirectory = _theme.BasePath;
 
         // Main preview capability based on the loaded theme (the host may further restrict this).
         CanShowVideo = _theme.PrimaryVideoEnabled;
@@ -964,7 +957,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     {
         _theme = newTheme ?? throw new ArgumentNullException(nameof(newTheme));
 
-        CurrentThemeDirectory = _theme.BasePath;
 
         // When a new theme view is loaded, the VideoView attachment state becomes invalid
         // Wait for the next NotifyViewReady() call before starting preview playback

@@ -10,7 +10,7 @@ public sealed class MainWindowViewModelThemeTests
     [Fact]
     public void NewNode_UsesDefaultNormalAndSystemThemes()
     {
-        var node = new MediaNode("New category", NodeType.Group);
+        var node = new MediaNode("New category");
 
         Assert.Equal(ThemeDiscovery.DefaultThemePath, node.ThemePath);
         Assert.Equal(SystemThemeDiscovery.DefaultThemeId, node.SystemPreviewThemeId);
@@ -22,7 +22,7 @@ public sealed class MainWindowViewModelThemeTests
         using var temp = new TemporaryDirectory();
         var defaultTheme = temp.CreateFile(ThemeDiscovery.DefaultThemePath, string.Empty);
         temp.CreateFile("Arcade/theme.axaml", string.Empty);
-        var node = new MediaNode("Legacy category", NodeType.Group)
+        var node = new MediaNode("Legacy category")
         {
             ThemePath = null
         };
@@ -41,7 +41,7 @@ public sealed class MainWindowViewModelThemeTests
         using var temp = new TemporaryDirectory();
         var defaultTheme = temp.CreateFile(ThemeDiscovery.DefaultThemePath, string.Empty);
         temp.CreateFile("Arcade/theme.axaml", string.Empty);
-        var node = new MediaNode("Category", NodeType.Group)
+        var node = new MediaNode("Category")
         {
             ThemePath = "Missing/theme.axaml"
         };
@@ -60,7 +60,7 @@ public sealed class MainWindowViewModelThemeTests
         using var temp = new TemporaryDirectory();
         temp.CreateFile(ThemeDiscovery.DefaultThemePath, string.Empty);
         var arcadeTheme = temp.CreateFile("Arcade/theme.axaml", string.Empty);
-        var node = new MediaNode("Category", NodeType.Group)
+        var node = new MediaNode("Category")
         {
             ThemePath = "Arcade/theme.axaml"
         };

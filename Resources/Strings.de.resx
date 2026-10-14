@@ -227,22 +227,14 @@
     <data name="MoveMedia.Apply" xml:space="preserve"><value>Verschieben</value></data>
     <data name="MoveMedia.SelectTarget" xml:space="preserve"><value>Bitte eine Zielkategorie auswählen.</value></data>
     <data name="MoveMedia.CurrentCategory" xml:space="preserve"><value>Das Medium befindet sich bereits in dieser Kategorie.</value></data>
-    <data name="MoveMedia.StoreProviderMismatch" xml:space="preserve"><value>Diese synchronisierte Store-Kategorie akzeptiert nur passende Store-Medien.</value></data>
-    <data name="MoveMedia.MissingStoreIdentity" xml:space="preserve"><value>Dem Medium fehlt die vollständige Kennung für diese Store-Kategorie.</value></data>
-    <data name="MoveMedia.DuplicateStoreItem" xml:space="preserve"><value>Dieses Store-Medium ist in der gewählten Kategorie bereits vorhanden.</value></data>
     <data name="MoveMedia.InvalidTarget" xml:space="preserve"><value>Die gewählte Kategorie kann nicht als Ziel verwendet werden.</value></data>
     <data name="MoveMedia.ConfirmFormat" xml:space="preserve"><value>'{0}' von '{1}' nach '{2}' verschieben?&#xA;&#xA;Zugehörige Assets werden ebenfalls verschoben. Von der Kategorie geerbte Einstellungen können sich ändern.</value></data>
-    <data name="MoveMedia.StoreSyncWarning" xml:space="preserve"><value>Achtung: Die Quellkategorie wird mit einem Store synchronisiert. Bei einer späteren Synchronisierung kann das Medium dort erneut angelegt werden.</value></data>
     <data name="MoveMedia.TargetChanged" xml:space="preserve"><value>Quell- oder Zielkategorie wurde zwischenzeitlich geändert. Bitte das Ziel erneut auswählen.</value></data>
     <data name="MoveMedia.AssetMoveFailedFormat" xml:space="preserve"><value>Das Medium konnte nicht verschoben werden, weil seine Assets nicht sicher verschoben werden konnten.&#xA;&#xA;{0}</value></data>
     <data name="MoveMedia.CollectionMoveFailed" xml:space="preserve"><value>Die Kategoriezuordnung konnte nicht geändert werden.</value></data>
     <data name="Dialog.NoResult" xml:space="preserve"><value>Keine Ergebnisse gefunden (oder Filter leer).</value></data>
     <data name="Dialog.SearchTerm" xml:space="preserve"><value>Suchbegriff</value></data>
     <data name="Dialog.TitleConfirm" xml:space="preserve"><value>Bestätigung</value></data>
-    <data name="Dialog.Select.Cover" xml:space="preserve"><value>Cover auswählen</value></data>
-    <data name="Dialog.Select.Logo" xml:space="preserve"><value>Logo auswählen</value></data>
-    <data name="Dialog.Select.Music" xml:space="preserve"><value>Musik auswählen</value></data>
-    <data name="Dialog.Select.Wallpaper" xml:space="preserve"><value>Wallpaper auswählen</value></data>
     <data name="Dialog.SelectWorkingDirectory" xml:space="preserve"><value>Arbeitsverzeichnis auswählen</value></data>
     <data name="Dialog.SelectXdgCacheFolder" xml:space="preserve"><value>XDG-Cache-Ordner auswählen</value></data>
     <data name="Dialog.SelectXdgConfigFolder" xml:space="preserve"><value>XDG-Config-Ordner auswählen</value></data>
@@ -329,7 +321,6 @@
     <data name="Hint.TmdbKey" xml:space="preserve"><value>(Optional)</value></data>
 
     <!-- IMPORT -->
-    <data name="Import.Folder" xml:space="preserve"><value>Importieren (Ordner)...</value></data>
     <data name="Import.Epic" xml:space="preserve"><value>Epic-Spiele (Heroic) importieren...</value></data>
     <data name="Import.Roms" xml:space="preserve"><value>Lokaler Ordner (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Steam-Spiele importieren...</value></data>
@@ -408,7 +399,6 @@
     <data name="Gog.BrowserOpenFailed" xml:space="preserve"><value>Der Systembrowser konnte nicht geöffnet werden.</value></data>
     <data name="Gog.GameFallbackTitleFormat" xml:space="preserve"><value>GOG {0}</value></data>
     <data name="Gog.Picker.NoNewForNode" xml:space="preserve"><value>Die Auswahl enthielt keine neuen GOG-Spiele für diese Kategorie.</value></data>
-    <data name="Gog.Node.SyncNoChanges" xml:space="preserve"><value>GOG-Node ist bereits aktuell.</value></data>
     <data name="Gog.Picker.DialogTitle" xml:space="preserve"><value>GOG-Medien auswählen</value></data>
     <data name="Gog.Picker.Header" xml:space="preserve"><value>GOG-Bibliothek</value></data>
     <data name="Gog.Picker.OnlyNewInNode" xml:space="preserve"><value>Nur neue in dieser Kategorie</value></data>
@@ -604,7 +594,6 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Settings_TabLaunchCompatibility" xml:space="preserve"><value>Start</value></data>
     <data name="Settings_TabIntegrations" xml:space="preserve"><value>Integrationen</value></data>
     <data name="Settings_TabBackups" xml:space="preserve"><value>Daten</value></data>
-    <data name="Settings_IntegrationLibraries" xml:space="preserve"><value>Spielebibliotheken</value></data>
     <data name="Settings_SectionLaunchPaths" xml:space="preserve"><value>Startpfade</value></data>
     <data name="Settings_SectionSorting" xml:space="preserve"><value>Sortierung</value></data>
     <data name="Settings_IgnoreLeadingArticlesInSort" xml:space="preserve"><value>Führende Artikel bei der Titelsortierung ignorieren</value></data>
@@ -784,8 +773,6 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="NodeSettings_Title" xml:space="preserve"><value>Kategorie Einstellungen</value></data>
     <data name="NodeSettings_DescriptionForBigMode" xml:space="preserve"><value>Beschreibung (für BigMode)</value></data>
     <data name="NodeSettings_DefaultEmulatorForFolder" xml:space="preserve"><value>Standard Emulator (für diesen Ordner)</value></data>
-    <data name="NodeSettings_GogStoreNode" xml:space="preserve"><value>Diesen Node als GOG-Node deklarieren</value></data>
-    <data name="NodeSettings_GogStoreNodeHint" xml:space="preserve"><value>Wenn aktiviert, synchronisiert "GOG-Medium hinzufügen" diesen Node gegen deine komplette GOG-Bibliothek (nur additiv).</value></data>
     <data name="NodeSettings_ApplyEmulatorToExistingItems" xml:space="preserve"><value>Standard-Emulator auf vorhandene Einträge anwenden</value></data>
     <data name="NodeSettings_ApplyEmulatorIncludeChildren" xml:space="preserve"><value>Unterkategorien einbeziehen</value></data>
     <data name="NodeSettings_ApplyEmulatorHint" xml:space="preserve"><value>Nur Einträge, die aktuell als Native ohne benutzerdefinierten Launcher laufen, werden umgestellt.</value></data>
@@ -1170,7 +1157,6 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="Settings_RetroAchievementsHint" xml:space="preserve"><value>Verbinde dein RetroAchievements-Konto, um den Achievement-Fortschritt erkannter Spiele anzuzeigen.</value></data>
     <data name="Settings_RetroAchievementsEnable" xml:space="preserve"><value>RetroAchievements-Integration aktivieren</value></data>
     <data name="Settings_RetroAchievementsShowInBigMode" xml:space="preserve"><value>RetroAchievements-Fortschritt im BigMode anzeigen</value></data>
-    <data name="BigMode_AchievementsOverlayTitle" xml:space="preserve"><value>RetroAchievements</value></data>
     <data name="BigMode_AchievementsOverlayHint" xml:space="preserve"><value>{0} / {1} · Achievements</value></data>
     <data name="BigMode_AchievementsOverlayControls" xml:space="preserve"><value>Steuerkreuz · Achievement wählen    {0} / {1} / {2} · Schließen</value></data>
     <data name="Settings_RetroAchievementsUsername" xml:space="preserve"><value>Benutzername</value></data>

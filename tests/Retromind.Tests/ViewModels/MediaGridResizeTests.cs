@@ -137,7 +137,7 @@ public sealed class MediaGridResizeTests
     [Fact]
     public void EmptyGrids_ResizeDoesNotResetEmptyRowCollections()
     {
-        using var category = new MediaAreaViewModel(new MediaNode("Empty", NodeType.Area), 150);
+        using var category = new MediaAreaViewModel(new MediaNode("Empty"), 150);
         using var search = new SearchAreaViewModel([]);
 
         AssertRowsUnchanged(category.ItemRows, () => category.ViewportWidth = 1200);
@@ -147,7 +147,7 @@ public sealed class MediaGridResizeTests
     }
 
     private static MediaNode CreateNode()
-        => new("Games", NodeType.Area)
+        => new("Games")
         {
             Items = new ObservableCollection<MediaItem>(
                 Enumerable.Range(0, 11).Select(index => new MediaItem($"Item {index}")))

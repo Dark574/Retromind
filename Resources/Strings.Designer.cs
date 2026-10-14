@@ -627,30 +627,6 @@ namespace Retromind.Resources {
             }
         }
         
-        public static string Dialog_Select_Cover {
-            get {
-                return ResourceManager.GetString("Dialog.Select.Cover", resourceCulture);
-            }
-        }
-        
-        public static string Dialog_Select_Logo {
-            get {
-                return ResourceManager.GetString("Dialog.Select.Logo", resourceCulture);
-            }
-        }
-        
-        public static string Dialog_Select_Music {
-            get {
-                return ResourceManager.GetString("Dialog.Select.Music", resourceCulture);
-            }
-        }
-        
-        public static string Dialog_Select_Wallpaper {
-            get {
-                return ResourceManager.GetString("Dialog.Select.Wallpaper", resourceCulture);
-            }
-        }
-        
         public static string Dialog_SelectWorkingDirectory {
             get {
                 return ResourceManager.GetString("Dialog.SelectWorkingDirectory", resourceCulture);
@@ -855,12 +831,6 @@ namespace Retromind.Resources {
             }
         }
         
-        public static string Import_Folder {
-            get {
-                return ResourceManager.GetString("Import.Folder", resourceCulture);
-            }
-        }
-        
         public static string Import_Epic {
             get {
                 return ResourceManager.GetString("Import.Epic", resourceCulture);
@@ -972,12 +942,6 @@ namespace Retromind.Resources {
         public static string Gog_Picker_NoNewForNode {
             get {
                 return ResourceManager.GetString("Gog.Picker.NoNewForNode", resourceCulture);
-            }
-        }
-        
-        public static string Gog_Node_SyncNoChanges {
-            get {
-                return ResourceManager.GetString("Gog.Node.SyncNoChanges", resourceCulture);
             }
         }
         
@@ -1974,18 +1938,6 @@ namespace Retromind.Resources {
         public static string NodeSettings_DefaultEmulatorForFolder {
             get {
                 return ResourceManager.GetString("NodeSettings_DefaultEmulatorForFolder", resourceCulture);
-            }
-        }
-        
-        public static string NodeSettings_GogStoreNode {
-            get {
-                return ResourceManager.GetString("NodeSettings_GogStoreNode", resourceCulture);
-            }
-        }
-        
-        public static string NodeSettings_GogStoreNodeHint {
-            get {
-                return ResourceManager.GetString("NodeSettings_GogStoreNodeHint", resourceCulture);
             }
         }
         

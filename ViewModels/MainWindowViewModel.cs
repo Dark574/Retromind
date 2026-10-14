@@ -1533,7 +1533,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 if (token.IsCancellationRequested) return;
 
                 // Create the display node used by MediaAreaViewModel.
-                var displayNode = new MediaNode(nodeToLoad.Name, nodeToLoad.Type)
+                var displayNode = new MediaNode(nodeToLoad.Name)
                 {
                     Id = nodeToLoad.Id,
                     GameSystemId = nodeToLoad.GameSystemId,

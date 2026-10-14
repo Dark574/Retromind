@@ -55,14 +55,12 @@ public partial class ScrapeArtworkChoice : ObservableObject
         AssetType type,
         string label,
         string url,
-        bool hasExistingArtwork,
         string statusText,
         bool isSelected)
     {
         Type = type;
         Label = label;
         Url = url;
-        HasExistingArtwork = hasExistingArtwork;
         StatusText = statusText;
         _isSelected = isSelected;
     }
@@ -72,7 +70,6 @@ public partial class ScrapeArtworkChoice : ObservableObject
     public string Url { get; }
     public string? ImagePreviewUrl => Type == AssetType.Video ? null : Url;
     public bool HasImagePreview => !string.IsNullOrWhiteSpace(ImagePreviewUrl);
-    public bool HasExistingArtwork { get; }
     public string StatusText { get; }
 
     [ObservableProperty]

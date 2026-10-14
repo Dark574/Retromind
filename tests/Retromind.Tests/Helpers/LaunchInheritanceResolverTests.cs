@@ -12,11 +12,11 @@ public sealed class LaunchInheritanceResolverTests
         var emulatorWrapper = new LaunchWrapper { Path = "emulator-wrapper" };
         var nodeWrapper = new LaunchWrapper { Path = "node-wrapper" };
         var emulator = new EmulatorConfig { NativeWrappersOverride = [emulatorWrapper] };
-        var parent = new MediaNode("Parent", NodeType.Group)
+        var parent = new MediaNode("Parent")
         {
             NativeWrappersOverride = [nodeWrapper]
         };
-        var leaf = new MediaNode("Leaf", NodeType.Group);
+        var leaf = new MediaNode("Leaf");
         parent.Children.Add(leaf);
         var roots = new ObservableCollection<MediaNode> { parent };
 
@@ -34,11 +34,11 @@ public sealed class LaunchInheritanceResolverTests
     {
         var emulatorWrapper = new LaunchWrapper { Path = "emulator-wrapper" };
         var emulator = new EmulatorConfig { NativeWrappersOverride = [emulatorWrapper] };
-        var root = new MediaNode("Root", NodeType.Group)
+        var root = new MediaNode("Root")
         {
             NativeWrappersOverride = [new LaunchWrapper { Path = "root-wrapper" }]
         };
-        var leaf = new MediaNode("Leaf", NodeType.Group)
+        var leaf = new MediaNode("Leaf")
         {
             NativeWrappersOverride = []
         };
@@ -61,7 +61,7 @@ public sealed class LaunchInheritanceResolverTests
         {
             NativeWrappersOverride = [new LaunchWrapper { Path = "emulator-wrapper" }]
         };
-        var root = new MediaNode("Root", NodeType.Group)
+        var root = new MediaNode("Root")
         {
             NativeWrappersOverride = [new LaunchWrapper { Path = "node-wrapper" }]
         };
@@ -106,7 +106,7 @@ public sealed class LaunchInheritanceResolverTests
                 ["EMULATOR_ONLY"] = "yes"
             }
         };
-        var root = new MediaNode("Root", NodeType.Group)
+        var root = new MediaNode("Root")
         {
             EnvironmentOverrides = new Dictionary<string, string>
             {
@@ -114,7 +114,7 @@ public sealed class LaunchInheritanceResolverTests
                 ["NODE_ONLY"] = "yes"
             }
         };
-        var leaf = new MediaNode("Leaf", NodeType.Group);
+        var leaf = new MediaNode("Leaf");
         root.Children.Add(leaf);
         var roots = new ObservableCollection<MediaNode> { root };
         var itemOverrides = new Dictionary<string, string>
@@ -149,14 +149,14 @@ public sealed class LaunchInheritanceResolverTests
                 ["EMULATOR_ONLY"] = "yes"
             }
         };
-        var root = new MediaNode("Root", NodeType.Group)
+        var root = new MediaNode("Root")
         {
             EnvironmentOverrides = new Dictionary<string, string>
             {
                 ["ROOT_ONLY"] = "yes"
             }
         };
-        var leaf = new MediaNode("Leaf", NodeType.Group)
+        var leaf = new MediaNode("Leaf")
         {
             EnvironmentOverrides = new Dictionary<string, string>()
         };

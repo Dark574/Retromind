@@ -13,7 +13,7 @@ public sealed class LibraryChangeTrackerTests
         var tracker = CreateTracker();
         tracker.Initialize(roots);
 
-        roots.Add(new MediaNode("Root", NodeType.Area));
+        roots.Add(new MediaNode("Root"));
 
         Assert.True(tracker.IsDirty);
         Assert.Equal(1, tracker.DirtyVersion);
@@ -23,7 +23,7 @@ public sealed class LibraryChangeTrackerTests
     [Fact]
     public void AddingMediaItem_MarksLibraryDirty()
     {
-        var node = new MediaNode("Games", NodeType.Group);
+        var node = new MediaNode("Games");
         var roots = new ObservableCollection<MediaNode> { node };
         var tracker = CreateTracker();
         tracker.Initialize(roots);
@@ -38,12 +38,12 @@ public sealed class LibraryChangeTrackerTests
     [Fact]
     public void AddingChildNode_MarksLibraryDirty()
     {
-        var node = new MediaNode("Root", NodeType.Area);
+        var node = new MediaNode("Root");
         var roots = new ObservableCollection<MediaNode> { node };
         var tracker = CreateTracker();
         tracker.Initialize(roots);
 
-        node.Children.Add(new MediaNode("Child", NodeType.Group));
+        node.Children.Add(new MediaNode("Child"));
 
         Assert.True(tracker.IsDirty);
         Assert.Equal(1, tracker.DirtyVersion);
@@ -54,7 +54,7 @@ public sealed class LibraryChangeTrackerTests
     public void ClearingItems_UntracksRemovedItems()
     {
         var removedItem = new MediaItem("Game");
-        var node = new MediaNode("Games", NodeType.Group);
+        var node = new MediaNode("Games");
         node.Items.Add(removedItem);
         var roots = new ObservableCollection<MediaNode> { node };
         var tracker = CreateTracker();
@@ -73,8 +73,8 @@ public sealed class LibraryChangeTrackerTests
     [Fact]
     public void ClearingChildren_UntracksRemovedSubtree()
     {
-        var child = new MediaNode("Child", NodeType.Group);
-        var root = new MediaNode("Root", NodeType.Area);
+        var child = new MediaNode("Child");
+        var root = new MediaNode("Root");
         root.Children.Add(child);
         var roots = new ObservableCollection<MediaNode> { root };
         var tracker = CreateTracker();

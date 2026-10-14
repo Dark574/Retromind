@@ -88,16 +88,6 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
     public MediaMultiSelectionState MultiSelection { get; } = new();
 
-    public sealed class MediaItemRow
-    {
-        public IReadOnlyList<MediaItem> Items { get; }
-
-        public MediaItemRow(IReadOnlyList<MediaItem> items)
-        {
-            Items = items ?? throw new ArgumentNullException(nameof(items));
-        }
-    }
-
     /// <summary>
     /// Row grouping for a virtualized tile view.
     /// </summary>
@@ -217,7 +207,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         var refreshedItems = items.ToList();
         refreshedItems.Sort(MediaSortHelper.DisplayOrderComparer);
 
-        var itemOrderChanged = !HaveSameItemOrder(_allItems, refreshedItems);
+        var itemOrderChanged = !MediaGridRows.HaveSameItemOrder(_allItems, refreshedItems);
         if (itemOrderChanged)
         {
             foreach (var item in _allItems)
@@ -242,7 +232,7 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
             OnlyFavorites,
             SelectedStatus,
             CancellationToken.None);
-        if (HaveSameItemOrder(FilteredItems, matches))
+        if (MediaGridRows.HaveSameItemOrder(FilteredItems, matches))
         {
             EnsureSelectionIsValid(FilteredItems);
             PlayRandomCommand.NotifyCanExecuteChanged();
@@ -492,22 +482,12 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
     private void RebuildRows()
     {
-        if (FilteredItems.Count == 0)
+        var rows = MediaGridRows.Build(FilteredItems, _columnCount);
+        if (rows.Count == 0)
         {
             if (ItemRows.Count > 0)
                 ItemRows.Clear();
             return;
-        }
-
-        var rows = new List<MediaItemRow>();
-        for (var i = 0; i < FilteredItems.Count; i += _columnCount)
-        {
-            var rowCount = Math.Min(_columnCount, FilteredItems.Count - i);
-            var row = new List<MediaItem>(rowCount);
-            for (var j = 0; j < rowCount; j++)
-                row.Add(FilteredItems[i + j]);
-
-            rows.Add(new MediaItemRow(row));
         }
 
         ItemRows.ReplaceAll(rows);
@@ -525,31 +505,8 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
         if (selected == null)
             return;
 
-        for (var i = 0; i < items.Count; i++)
-        {
-            var item = items[i];
-            if (ReferenceEquals(item, selected) ||
-                string.Equals(item.Id, selected.Id, StringComparison.Ordinal))
-            {
-                return;
-            }
-        }
-
-        SelectedMediaItem = null;
-    }
-
-    private static bool HaveSameItemOrder(IList<MediaItem> current, IReadOnlyList<MediaItem> updated)
-    {
-        if (current.Count != updated.Count)
-            return false;
-
-        for (var i = 0; i < current.Count; i++)
-        {
-            if (!ReferenceEquals(current[i], updated[i]))
-                return false;
-        }
-
-        return true;
+        if (!MediaGridRows.Contains(items, selected))
+            SelectedMediaItem = null;
     }
 
     private bool CanPlayRandom() =>

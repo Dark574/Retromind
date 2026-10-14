@@ -237,10 +237,6 @@ public sealed class RetroAchievementsApiClientTests
         Assert.Equal(50, progress.CompletionPercent);
         Assert.Equal(50, progress.CompletionHardcorePercent);
         Assert.Equal(60, progress.UserTotalPlaytime);
-        Assert.Equal("mastered", progress.HighestAwardKind);
-        Assert.Equal(
-            new DateTimeOffset(2026, 9, 15, 12, 30, 0, TimeSpan.Zero),
-            progress.HighestAwardAtUtc);
         Assert.Collection(
             progress.Achievements,
             first =>

@@ -61,13 +61,6 @@ public partial class MediaNode : ObservableObject
             ? $"{Name} ({GlobalSearchHitCount.Value})"
             : Name;
 
-    /// <summary>
-    /// Type of the node (Root Area vs. Group).
-    /// Used for visual distinction (icons).
-    /// </summary>
-    [ObservableProperty] 
-    private NodeType _type;
-
     partial void OnNameChanged(string value) => OnPropertyChanged(nameof(TreeDisplayName));
     partial void OnGlobalSearchHitCountChanged(int? value) => OnPropertyChanged(nameof(TreeDisplayName));
     partial void OnShowGlobalSearchHitCountChanged(bool value) => OnPropertyChanged(nameof(TreeDisplayName));
@@ -271,10 +264,9 @@ public partial class MediaNode : ObservableObject
         _assets.CollectionChanged += OnAssetsChanged;
     } // For JSON Deserializer
 
-    public MediaNode(string name, NodeType type)
+    public MediaNode(string name)
     {
         Name = name;
-        Type = type;
         IsExpanded = true; // Expand new nodes by default for better UX
         _assets.CollectionChanged += OnAssetsChanged;
     }
@@ -304,19 +296,4 @@ public partial class MediaNode : ObservableObject
         OnPropertyChanged(nameof(PrimaryMarqueePath));
         OnPropertyChanged(nameof(PrimaryMarqueeAbsolutePath));
     }
-}
-
-/// <summary>
-/// Visual type of the node.
-/// </summary>
-public enum NodeType
-{
-    /// <summary>
-    /// Top-level category (e.g. "Games", "Movies").
-    /// </summary>
-    Area,
-    /// <summary>
-    /// Sub-category or platform (e.g. "SNES", "Action").
-    /// </summary>
-    Group
 }

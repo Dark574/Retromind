@@ -139,7 +139,7 @@
                                             </Grid>
                                         </Border>
 
-                                        <ext:CrossfadeImage x:Name="ArcadeBezel"
+                                        <ext:CrossfadeImage
                                                             Url="{Binding ActiveBezelPath}"
                                                             DecodeWidth="768"
                                                             Stretch="UniformToFill"

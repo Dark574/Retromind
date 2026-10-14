@@ -15,7 +15,7 @@ public sealed class BulkScrapeViewModelTests
         using var client = new HttpClient(new RecordingHttpHandler());
         var service = new MetadataService(settings, client);
         using var viewModel = new BulkScrapeViewModel(
-            new MediaNode("Games", NodeType.Area), settings, service);
+            new MediaNode("Games"), settings, service);
 
         Assert.Single(viewModel.AvailableScrapers);
         Assert.Equal(ScraperType.ScreenScraper, viewModel.AvailableScrapers[0].Type);
@@ -39,7 +39,7 @@ public sealed class BulkScrapeViewModelTests
         });
         var service = new MetadataService(settings, client);
         using var viewModel = new BulkScrapeViewModel(
-            new MediaNode("Games", NodeType.Area), settings, service);
+            new MediaNode("Games"), settings, service);
         var backupCompleted = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         viewModel.OnBeforeStartAsync = () => backupCompleted.Task;

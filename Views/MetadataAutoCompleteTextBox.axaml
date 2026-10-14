@@ -4,7 +4,7 @@
              x:Class="Retromind.Views.MetadataAutoCompleteTextBox"
              x:DataType="views:MetadataAutoCompleteTextBox">
     <Grid>
-        <TextBox x:Name="InputBox"
+        <TextBox
                  Background="Transparent"
                  Foreground="Transparent"
                  Padding="8,6"

@@ -242,8 +242,6 @@ public partial class BigModeViewModel
             if (expected != Volatile.Read(ref _previewPlayGeneration))
                 return;
 
-            UpdateMainVideoHasFrame();
-
             var oldIndex = _activePreviewIndex;
             _activePreviewIndex = index;
             MainVideoActiveSurfaceIndex = index;
@@ -792,11 +790,6 @@ public partial class BigModeViewModel
             return _activePreviewIndex == 0 ? 1 : 0;
 
         return 0;
-    }
-
-    private void UpdateMainVideoHasFrame()
-    {
-        MainVideoHasFrame = _mainVideoHasFrameA || _mainVideoHasFrameB;
     }
 
     private void UpdateMainVideoIsPlaying()
@@ -1351,7 +1344,6 @@ public partial class BigModeViewModel
         }
 
         UpdateMainVideoIsPlaying();
-        UpdateMainVideoHasFrame();
 
         if (index == _activePreviewIndex && !_mainVideoHasFrameA && !_mainVideoHasFrameB)
         {

@@ -39,11 +39,6 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaNode?> AddEmptyMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> DeleteCommand { get; private set; } = null!;
     
-    public IAsyncRelayCommand<MediaItem?> SetCoverCommand { get; private set; } = null!;
-    public IAsyncRelayCommand<MediaItem?> SetLogoCommand { get; private set; } = null!;
-    public IAsyncRelayCommand<MediaItem?> SetWallpaperCommand { get; private set; } = null!;
-    public IAsyncRelayCommand<MediaItem?> SetMusicCommand { get; private set; } = null!;
-    
     public IAsyncRelayCommand<MediaItem?> EditMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand BulkEditSelectedMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> TestPlayMediaCommand { get; private set; } = null!;
@@ -51,7 +46,6 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> MoveMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> DeleteMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> ToggleItemProtectionCommand { get; private set; } = null!;
-    public IAsyncRelayCommand<MediaNode?> ToggleNodeProtectionCommand { get; private set; } = null!;
     public IAsyncRelayCommand ToggleParentalLockCommand { get; private set; } = null!;
     public IAsyncRelayCommand ChangeParentalPasswordCommand { get; private set; } = null!;
     
@@ -112,11 +106,6 @@ public partial class MainWindowViewModel
         AddEmptyMediaCommand = new AsyncRelayCommand<MediaNode?>(AddEmptyMediaAsync, CanOperateOnNode);
         DeleteCommand = new AsyncRelayCommand<MediaNode?>(DeleteNodeAsync);
         
-        SetCoverCommand = new AsyncRelayCommand<MediaItem?>(SetCoverAsync);
-        SetLogoCommand = new AsyncRelayCommand<MediaItem?>(SetLogoAsync);
-        SetWallpaperCommand = new AsyncRelayCommand<MediaItem?>(SetWallpaperAsync);
-        SetMusicCommand = new AsyncRelayCommand<MediaItem?>(SetMusicAsync);
-        
         EditMediaCommand = new AsyncRelayCommand<MediaItem?>(EditMediaAsync);
         BulkEditSelectedMediaCommand = new AsyncRelayCommand(BulkEditSelectedMediaAsync);
         TestPlayMediaCommand = new AsyncRelayCommand<MediaItem?>(TestPlayMediaAsync, CanTestPlayMedia);
@@ -126,7 +115,6 @@ public partial class MainWindowViewModel
         MoveMediaCommand = new AsyncRelayCommand<MediaItem?>(MoveMediaAsync);
         DeleteMediaCommand = new AsyncRelayCommand<MediaItem?>(DeleteMediaAsync);
         ToggleItemProtectionCommand = new AsyncRelayCommand<MediaItem?>(ToggleItemProtectionAsync);
-        ToggleNodeProtectionCommand = new AsyncRelayCommand<MediaNode?>(ToggleNodeProtectionAsync);
         ToggleParentalLockCommand = new AsyncRelayCommand(ToggleParentalLockAsync);
         ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
         PlayCommand = new AsyncRelayCommand<MediaItem?>(item => PlayMediaAsync(item), CanPlayMedia);
@@ -831,11 +819,11 @@ public partial class MainWindowViewModel
             {
                 if (parentNode == null) 
                 {
-                    RootItems.Add(new MediaNode(name, NodeType.Area));
+                    RootItems.Add(new MediaNode(name));
                 }
                 else
                 {
-                    parentNode.Children.Add(new MediaNode(name, NodeType.Group)
+                    parentNode.Children.Add(new MediaNode(name)
                     {
                         AutoProtectNewChildren = parentNode.AutoProtectNewChildren
                     });

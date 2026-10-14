@@ -8,8 +8,8 @@ public sealed class MediaItemMovePolicyTests
     [Fact]
     public void Assess_AllowsEveryDifferentTargetNode()
     {
-        var source = new MediaNode("Source", NodeType.Group);
-        var target = new MediaNode("Target", NodeType.Group);
+        var source = new MediaNode("Source");
+        var target = new MediaNode("Target");
         Assert.Equal(
             MediaItemMoveTargetStatus.CurrentNode,
             MediaItemMovePolicy.Assess(source, source).Status);

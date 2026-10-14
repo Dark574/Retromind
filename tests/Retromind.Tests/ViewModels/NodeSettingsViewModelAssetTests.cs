@@ -15,7 +15,7 @@ public sealed class NodeSettingsViewModelAssetTests
         using var temp = new TemporaryDirectory();
         using var environment = UseDataRoot(temp.RootPath);
         var sourcePath = temp.CreateFile(Path.Combine("Incoming", "logo.png"), "logo");
-        var node = new MediaNode("Games", NodeType.Area);
+        var node = new MediaNode("Games");
         var viewModel = CreateViewModel(node);
 
         viewModel.NodeLogoPath = await viewModel.ImportNodeAssetAsync(sourcePath, AssetType.Logo);
@@ -31,7 +31,7 @@ public sealed class NodeSettingsViewModelAssetTests
         using var temp = new TemporaryDirectory();
         using var environment = UseDataRoot(temp.RootPath);
         var sourcePath = temp.CreateFile(Path.Combine("Incoming", "logo.png"), "logo");
-        var node = new MediaNode("Games", NodeType.Area);
+        var node = new MediaNode("Games");
         var viewModel = CreateViewModel(node);
 
         viewModel.NodeLogoPath = await viewModel.ImportNodeAssetAsync(sourcePath, AssetType.Logo);
