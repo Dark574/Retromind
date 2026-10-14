@@ -920,7 +920,10 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             lookaheadItems);
 
         foreach (var item in lookaheadItems)
-            _ = AsyncImageHelper.PreloadLocalAsync(item.PrimaryLogoPath, decodeWidth: 256);
+            _ = AsyncImageHelper.PreloadLocalAsync(
+                item.PrimaryLogoPath,
+                decodeWidth: 256,
+                useSerialDecode: true);
     }
 
     private void UpdateWheelItems()

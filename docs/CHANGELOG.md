@@ -18,6 +18,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Changed
 - improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews
+- load desktop cover grids in parallel while retaining responsive, serialized artwork loading in BigMode
 - make the Default BigMode cover transition smoother while preserving its clearly visible entrance
 - use Steam's quiet system-tray mode when launching imported Steam games on Linux to reduce unwanted client windows
 - add direct contact links and privacy-conscious diagnostic information for support requests to the Help tab

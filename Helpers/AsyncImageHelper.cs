@@ -23,11 +23,16 @@ public class AsyncImageHelper : AvaloniaObject
 
     private const int MaxCacheSize = 200;
 
+    private const int DesktopDecodeConcurrency = 4;
+
     // Skia bitmap decoding and resizing is CPU-heavy and cannot be interrupted
-    // once it has entered the native codec. Serializing that short section keeps
-    // rapid carousel navigation responsive: superseded requests can be cancelled
-    // while waiting instead of decoding several obsolete images in parallel.
-    private static readonly SemaphoreSlim DecodeGate = new(1, 1);
+    // once it has entered the native codec. BigMode therefore keeps its serial
+    // lane for responsive carousel navigation, while the desktop lane allows a
+    // small amount of parallelism so its initial cover grid does not fill one
+    // image at a time.
+    private static readonly SemaphoreSlim DesktopDecodeGate =
+        new(DesktopDecodeConcurrency, DesktopDecodeConcurrency);
+    private static readonly SemaphoreSlim SerialDecodeGate = new(1, 1);
 
     // Shared HttpClient to prevent socket exhaustion (used only if DI is not available)
     private static readonly HttpClient FallbackHttpClient = new();
@@ -85,7 +90,8 @@ public class AsyncImageHelper : AvaloniaObject
             var url = args.NewValue as string;
             var width = GetDecodeWidth(image);
             var disableCache = GetDisableCache(image);
-            _ = LoadImageAsync(image, url, width, disableCache);
+            var useSerialDecode = GetUseSerialDecode(image);
+            _ = LoadImageAsync(image, url, width, disableCache, useSerialDecode);
         });
 
         DecodeWidthProperty.Changed.AddClassHandler<Image>((image, args) =>
@@ -94,7 +100,8 @@ public class AsyncImageHelper : AvaloniaObject
             var url = GetUrl(image);
             var width = args.NewValue as int?;
             var disableCache = GetDisableCache(image);
-            _ = LoadImageAsync(image, url, width, disableCache);
+            var useSerialDecode = GetUseSerialDecode(image);
+            _ = LoadImageAsync(image, url, width, disableCache, useSerialDecode);
         });
 
         DisableCacheProperty.Changed.AddClassHandler<Image>((image, args) =>
@@ -103,7 +110,18 @@ public class AsyncImageHelper : AvaloniaObject
             var url = GetUrl(image);
             var width = GetDecodeWidth(image);
             var disableCache = args.NewValue is bool b && b;
-            _ = LoadImageAsync(image, url, width, disableCache);
+            var useSerialDecode = GetUseSerialDecode(image);
+            _ = LoadImageAsync(image, url, width, disableCache, useSerialDecode);
+        });
+
+        UseSerialDecodeProperty.Changed.AddClassHandler<Image>((image, args) =>
+        {
+            EnsureDetachHandler(image);
+            var url = GetUrl(image);
+            var width = GetDecodeWidth(image);
+            var disableCache = GetDisableCache(image);
+            var useSerialDecode = args.NewValue is bool b && b;
+            _ = LoadImageAsync(image, url, width, disableCache, useSerialDecode);
         });
     }
 
@@ -126,6 +144,18 @@ public class AsyncImageHelper : AvaloniaObject
 
     public static bool GetDisableCache(Image element) => element.GetValue(DisableCacheProperty);
     public static void SetDisableCache(Image element, bool value) => element.SetValue(DisableCacheProperty, value);
+
+    public static readonly AttachedProperty<bool> UseSerialDecodeProperty =
+        AvaloniaProperty.RegisterAttached<AsyncImageHelper, AvaloniaObject, bool>(
+            "UseSerialDecode",
+            defaultValue: false,
+            inherits: true);
+
+    public static bool GetUseSerialDecode(AvaloniaObject element) =>
+        element.GetValue(UseSerialDecodeProperty);
+
+    public static void SetUseSerialDecode(AvaloniaObject element, bool value) =>
+        element.SetValue(UseSerialDecodeProperty, value);
 
     public static readonly AttachedProperty<bool> IsLoadedProperty =
         AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, bool>("IsLoaded");
@@ -166,7 +196,12 @@ public class AsyncImageHelper : AvaloniaObject
         image.SetValue(CurrentLoadCtsProperty, null);
     }
     
-    private static async Task LoadImageAsync(Image image, string? url, int? decodeWidth, bool disableCache)
+    private static async Task LoadImageAsync(
+        Image image,
+        string? url,
+        int? decodeWidth,
+        bool disableCache,
+        bool useSerialDecode)
     {
         ResetImage(image);
 
@@ -221,7 +256,8 @@ public class AsyncImageHelper : AvaloniaObject
                         return await DecodeBitmapUnlessCancelledAsync(
                                 bufferedStream,
                                 decodeWidth,
-                                token)
+                                token,
+                                useSerialDecode)
                             .ConfigureAwait(false);
                     }
 
@@ -237,7 +273,8 @@ public class AsyncImageHelper : AvaloniaObject
                     return await DecodeBitmapUnlessCancelledAsync(
                             fileStream,
                             decodeWidth,
-                            token)
+                            token,
+                            useSerialDecode)
                         .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
@@ -301,7 +338,10 @@ public class AsyncImageHelper : AvaloniaObject
     /// Warms the shared cache for local artwork without creating a visual. Calls
     /// for the same cache key share one decode operation.
     /// </summary>
-    public static Task PreloadLocalAsync(string? path, int? decodeWidth = null)
+    public static Task PreloadLocalAsync(
+        string? path,
+        int? decodeWidth = null,
+        bool useSerialDecode = false)
     {
         if (string.IsNullOrWhiteSpace(path))
             return Task.CompletedTask;
@@ -315,7 +355,8 @@ public class AsyncImageHelper : AvaloniaObject
             if (PreloadTasks.TryGetValue(cacheKey, out var existingTask))
                 return existingTask;
 
-            var preloadTask = Task.Run(() => PreloadLocalCoreAsync(path, cacheKey, decodeWidth));
+            var preloadTask = Task.Run(
+                () => PreloadLocalCoreAsync(path, cacheKey, decodeWidth, useSerialDecode));
             PreloadTasks[cacheKey] = preloadTask;
             _ = preloadTask.ContinueWith(
                 completedTask =>
@@ -337,7 +378,11 @@ public class AsyncImageHelper : AvaloniaObject
         }
     }
 
-    private static async Task PreloadLocalCoreAsync(string path, string cacheKey, int? decodeWidth)
+    private static async Task PreloadLocalCoreAsync(
+        string path,
+        string cacheKey,
+        int? decodeWidth,
+        bool useSerialDecode)
     {
         try
         {
@@ -354,7 +399,8 @@ public class AsyncImageHelper : AvaloniaObject
             var bitmap = await DecodeBitmapUnlessCancelledAsync(
                     fileStream,
                     decodeWidth,
-                    CancellationToken.None)
+                    CancellationToken.None,
+                    useSerialDecode)
                 .ConfigureAwait(false);
             if (bitmap == null)
                 return;
@@ -428,9 +474,11 @@ public class AsyncImageHelper : AvaloniaObject
     private static async Task<Bitmap?> DecodeBitmapUnlessCancelledAsync(
         Stream stream,
         int? decodeWidth,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool useSerialDecode)
     {
-        await DecodeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var decodeGate = useSerialDecode ? SerialDecodeGate : DesktopDecodeGate;
+        await decodeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -438,7 +486,7 @@ public class AsyncImageHelper : AvaloniaObject
         }
         finally
         {
-            DecodeGate.Release();
+            decodeGate.Release();
         }
     }
     
@@ -723,7 +771,8 @@ public class AsyncImageHelper : AvaloniaObject
 
         var width = GetDecodeWidth(image);
         var disableCache = GetDisableCache(image);
-        _ = LoadImageAsync(image, url, width, disableCache);
+        var useSerialDecode = GetUseSerialDecode(image);
+        _ = LoadImageAsync(image, url, width, disableCache, useSerialDecode);
     }
 
     private static void OnImageDetached(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)

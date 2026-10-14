@@ -186,7 +186,9 @@ Themes are external runtime XAML loaded through `ThemeLoader`:
 `AsyncImageHelper` owns asynchronous bitmap loading, downsampling, cancellation, and its shared LRU cache.
 Cache entries are reference-counted while controls display them. The cache has a hard limit of 200 entries;
 if every cached bitmap is currently in use, a newly loaded bitmap remains control-owned and uncached instead
-of allowing the shared cache to grow beyond its limit.
+of allowing the shared cache to grow beyond its limit. Desktop views use a small bounded parallel decode lane
+so the visible grid can populate promptly, while the BigMode host opts its complete visual subtree into a
+separate serial lane that keeps rapidly superseded carousel artwork from competing for CPU time.
 
 ## BigMode architecture
 BigMode is an overlay workflow with clear host/VM split:

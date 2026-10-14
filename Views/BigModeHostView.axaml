@@ -4,7 +4,8 @@
              xmlns:helpers="using:Retromind.Helpers"
              xmlns:views="using:Retromind.Views"
              x:Class="Retromind.Views.BigModeHostView"
-             x:DataType="vm:BigModeViewModel">
+             x:DataType="vm:BigModeViewModel"
+             helpers:AsyncImageHelper.UseSerialDecode="True">
 
     <UserControl.Styles>
         <Style Selector="ListBox.ra-achievement-grid">
