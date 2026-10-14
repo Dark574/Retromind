@@ -70,10 +70,10 @@ public sealed class GogAuthService
     }
 
     public Task<StoreAccountInfo> SignInInteractiveAsync(
-        Func<Uri, CancellationToken, Task<Uri?>>? callbackUriResolver = null,
+        Func<StoreSignInChallenge, CancellationToken, Task<StoreSignInResponse?>>? challengeResolver = null,
         CancellationToken ct = default)
     {
-        return SignInInteractiveInternalAsync(callbackUriResolver, ct);
+        return SignInInteractiveInternalAsync(challengeResolver, ct);
     }
 
     public async Task<bool> TryRefreshSessionAsync(CancellationToken ct = default)
@@ -121,7 +121,7 @@ public sealed class GogAuthService
     }
 
     private async Task<StoreAccountInfo> SignInInteractiveInternalAsync(
-        Func<Uri, CancellationToken, Task<Uri?>>? callbackUriResolver,
+        Func<StoreSignInChallenge, CancellationToken, Task<StoreSignInResponse?>>? challengeResolver,
         CancellationToken ct)
     {
         var pkce = _pkceService.CreateChallenge();
@@ -154,13 +154,13 @@ public sealed class GogAuthService
         }
         else
         {
-            if (callbackUriResolver == null)
+            if (challengeResolver == null)
             {
                 throw new InvalidOperationException(
                     "Configured OAuth flow requires in-app callback handling, but no callback resolver was provided.");
             }
 
-            var callbackUri = await ResolveCallbackUriAsync(callbackUriResolver, authorizeUri, ct).ConfigureAwait(false);
+            var callbackUri = await ResolveCallbackUriAsync(challengeResolver, authorizeUri, ct).ConfigureAwait(false);
             ValidateCallbackUri(callbackUri, _redirectUri);
             callback = ParseCallbackFromUri(callbackUri);
         }
@@ -205,15 +205,19 @@ public sealed class GogAuthService
     }
 
     private static async Task<Uri> ResolveCallbackUriAsync(
-        Func<Uri, CancellationToken, Task<Uri?>>? callbackUriResolver,
+        Func<StoreSignInChallenge, CancellationToken, Task<StoreSignInResponse?>>? challengeResolver,
         Uri authorizeUri,
         CancellationToken ct)
     {
-        if (callbackUriResolver == null)
+        if (challengeResolver == null)
             throw new InvalidOperationException(
                 "Configured OAuth flow requires manual callback input, but no callback resolver was provided.");
 
-        var callbackUri = await callbackUriResolver(authorizeUri, ct).ConfigureAwait(false);
+        var response = await challengeResolver(
+                new StoreSignInChallenge(authorizeUri, StoreSignInResponseKind.CallbackUri),
+                ct)
+            .ConfigureAwait(false);
+        var callbackUri = response?.CallbackUri;
         if (callbackUri == null)
             throw new OperationCanceledException("GOG sign-in was canceled.");
 

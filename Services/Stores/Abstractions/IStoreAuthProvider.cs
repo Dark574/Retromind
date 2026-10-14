@@ -10,7 +10,7 @@ public interface IStoreAuthProvider : IStoreProvider
     Task<StoreAuthState> GetAuthStateAsync(CancellationToken ct = default);
 
     Task<StoreAccountInfo> SignInInteractiveAsync(
-        Func<Uri, CancellationToken, Task<Uri?>>? callbackUriResolver = null,
+        Func<StoreSignInChallenge, CancellationToken, Task<StoreSignInResponse?>>? challengeResolver = null,
         CancellationToken ct = default);
 
     Task<bool> TryRefreshSessionAsync(CancellationToken ct = default);

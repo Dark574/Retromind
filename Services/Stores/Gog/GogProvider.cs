@@ -41,10 +41,10 @@ public sealed class GogProvider : IStoreAuthProvider, IStoreLibraryProvider
     }
 
     public Task<StoreAccountInfo> SignInInteractiveAsync(
-        Func<Uri, CancellationToken, Task<Uri?>>? callbackUriResolver = null,
+        Func<StoreSignInChallenge, CancellationToken, Task<StoreSignInResponse?>>? challengeResolver = null,
         CancellationToken ct = default)
     {
-        return _authService.SignInInteractiveAsync(callbackUriResolver, ct);
+        return _authService.SignInInteractiveAsync(challengeResolver, ct);
     }
 
     public Task<bool> TryRefreshSessionAsync(CancellationToken ct = default)

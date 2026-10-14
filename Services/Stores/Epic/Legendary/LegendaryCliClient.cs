@@ -18,12 +18,16 @@ internal sealed record LegendaryStatus(
 
 internal sealed partial class LegendaryCliClient
 {
+    internal static readonly Uri AuthorizationUri = new("https://legendary.gl/epiclogin");
+
     private static readonly TimeSpan VersionTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan StatusTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan OnlineStatusTimeout = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan AuthenticationTimeout = TimeSpan.FromMinutes(2);
 
     private readonly ILegendaryCliProcessRunner _processRunner;
 
-    internal LegendaryCliClient(ILegendaryCliProcessRunner processRunner)
+    public LegendaryCliClient(ILegendaryCliProcessRunner processRunner)
     {
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
     }
@@ -46,8 +50,61 @@ internal sealed partial class LegendaryCliClient
 
     internal async Task<LegendaryStatus> GetStatusAsync(CancellationToken ct = default)
     {
+        return await GetStatusAsync(offline: true, ct).ConfigureAwait(false);
+    }
+
+    internal async Task<LegendaryStatus> GetValidatedStatusAsync(CancellationToken ct = default)
+    {
+        return await GetStatusAsync(offline: false, ct).ConfigureAwait(false);
+    }
+
+    internal async Task<LegendaryStatus> AuthenticateWithAuthorizationCodeAsync(
+        string authorizationCode,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authorizationCode);
+
+        await ExecuteAsync(
+                new LegendaryCliCommand(
+                    "Epic sign-in",
+                    ["auth", "--code", authorizationCode.Trim()],
+                    AuthenticationTimeout),
+                ct)
+            .ConfigureAwait(false);
+
+        // Legendary 0.21.1 can return exit code 0 even when Epic rejects the code.
+        // An online status request is therefore the authoritative success check.
+        var status = await GetValidatedStatusAsync(ct).ConfigureAwait(false);
+        if (!status.IsAuthenticated)
+        {
+            throw new LegendaryCliException(
+                "Legendary did not establish an authenticated Epic session.");
+        }
+
+        return status;
+    }
+
+    internal async Task SignOutAsync(CancellationToken ct = default)
+    {
+        await ExecuteAsync(
+                new LegendaryCliCommand(
+                    "Epic sign-out",
+                    ["auth", "--delete"],
+                    StatusTimeout),
+                ct)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<LegendaryStatus> GetStatusAsync(bool offline, CancellationToken ct)
+    {
+        var arguments = offline
+            ? new[] { "status", "--offline", "--json" }
+            : new[] { "status", "--json" };
+        var operation = offline ? "status check" : "online status check";
+        var timeout = offline ? StatusTimeout : OnlineStatusTimeout;
+
         var result = await ExecuteAsync(
-                new LegendaryCliCommand("status check", ["status", "--offline", "--json"], StatusTimeout),
+                new LegendaryCliCommand(operation, arguments, timeout),
                 ct)
             .ConfigureAwait(false);
 
@@ -76,7 +133,7 @@ internal sealed partial class LegendaryCliClient
         catch (JsonException ex)
         {
             throw new LegendaryCliException(
-                "Legendary returned an invalid response for the 'status check' operation.",
+                $"Legendary returned an invalid response for the '{operation}' operation.",
                 ex);
         }
     }

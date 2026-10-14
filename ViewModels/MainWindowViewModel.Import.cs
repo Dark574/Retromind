@@ -226,7 +226,7 @@ public partial class MainWindowViewModel
             try
             {
                 await _gogStoreAuthProvider.SignInInteractiveAsync(
-                    (authorizeUri, signInCt) => CaptureGogCallbackUriInAppAsync(owner, authorizeUri, signInCt));
+                    (challenge, signInCt) => ResolveGogSignInChallengeAsync(owner, challenge, signInCt));
             }
             catch (OperationCanceledException)
             {
@@ -497,6 +497,23 @@ public partial class MainWindowViewModel
         var redirectUri = ResolveRedirectUriFromAuthorizeUri(authorizeUri);
         var dialog = new GogBrowserCallbackView(authorizeUri, redirectUri);
         return await dialog.CaptureAsync(owner, ct);
+    }
+
+    private async Task<StoreSignInResponse?> ResolveGogSignInChallengeAsync(
+        Window owner,
+        StoreSignInChallenge challenge,
+        CancellationToken ct)
+    {
+        if (challenge.ResponseKind != StoreSignInResponseKind.CallbackUri)
+            throw new InvalidOperationException("GOG sign-in requires an OAuth callback URI.");
+
+        var callbackUri = await CaptureGogCallbackUriInAppAsync(
+            owner,
+            challenge.AuthorizationUri,
+            ct);
+        return callbackUri == null
+            ? null
+            : StoreSignInResponse.FromCallbackUri(callbackUri);
     }
 
     private static Uri ResolveRedirectUriFromAuthorizeUri(Uri authorizeUri)

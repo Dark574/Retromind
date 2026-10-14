@@ -77,6 +77,63 @@ public sealed class LegendaryCliClientTests
     }
 
     [Fact]
+    public async Task GetValidatedStatusAsync_UsesOnlineStatusCheck()
+    {
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, CreateAuthenticatedStatusJson(), string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var status = await client.GetValidatedStatusAsync();
+
+        Assert.True(status.IsAuthenticated);
+        Assert.Equal(
+            ["status", "--json"],
+            Assert.Single(runner.Commands).Arguments);
+    }
+
+    [Fact]
+    public async Task AuthenticateWithAuthorizationCodeAsync_VerifiesSessionOnline()
+    {
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, string.Empty, "Login successful"),
+            new LegendaryCliResult(0, CreateAuthenticatedStatusJson(), string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var status = await client.AuthenticateWithAuthorizationCodeAsync("  example-code  ");
+
+        Assert.True(status.IsAuthenticated);
+        Assert.Collection(
+            runner.Commands,
+            command => Assert.Equal(["auth", "--code", "example-code"], command.Arguments),
+            command => Assert.Equal(["status", "--json"], command.Arguments));
+    }
+
+    [Fact]
+    public async Task AuthenticateWithAuthorizationCodeAsync_RejectsLogicalLoginFailure()
+    {
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, string.Empty, "Login attempt failed"),
+            new LegendaryCliResult(0, CreateLoggedOutStatusJson(), string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var exception = await Assert.ThrowsAsync<LegendaryCliException>(
+            () => client.AuthenticateWithAuthorizationCodeAsync("invalid-code"));
+
+        Assert.Contains("did not establish", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SignOutAsync_DeletesLegendaryCredentials()
+    {
+        var runner = new FakeProcessRunner(new LegendaryCliResult(0, string.Empty, string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        await client.SignOutAsync();
+
+        Assert.Equal(["auth", "--delete"], Assert.Single(runner.Commands).Arguments);
+    }
+
+    [Fact]
     public async Task CommandFailure_ReportsOperationAndSanitizedError()
     {
         var client = new LegendaryCliClient(
@@ -88,6 +145,26 @@ public sealed class LegendaryCliClientTests
         Assert.Contains("exit code 7", exception.Message, StringComparison.Ordinal);
         Assert.Contains("Login required", exception.Message, StringComparison.Ordinal);
     }
+
+    private static string CreateAuthenticatedStatusJson() => """
+        {
+          "account": "Example Player",
+          "games_available": 42,
+          "games_installed": 3,
+          "egl_sync_enabled": false,
+          "config_directory": "/portable/Tools/Legendary/Data"
+        }
+        """;
+
+    private static string CreateLoggedOutStatusJson() => """
+        {
+          "account": "<not logged in>",
+          "games_available": 0,
+          "games_installed": 0,
+          "egl_sync_enabled": false,
+          "config_directory": "/portable/Tools/Legendary/Data"
+        }
+        """;
 
     private sealed class FakeProcessRunner(params LegendaryCliResult[] results) : ILegendaryCliProcessRunner
     {

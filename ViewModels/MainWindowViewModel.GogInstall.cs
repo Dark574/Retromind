@@ -543,7 +543,7 @@ public partial class MainWindowViewModel
         try
         {
             await _gogStoreAuthProvider.SignInInteractiveAsync(
-                (authorizeUri, signInCt) => CaptureGogCallbackUriInAppAsync(owner, authorizeUri, signInCt));
+                (challenge, signInCt) => ResolveGogSignInChallengeAsync(owner, challenge, signInCt));
             return true;
         }
         catch (OperationCanceledException)
