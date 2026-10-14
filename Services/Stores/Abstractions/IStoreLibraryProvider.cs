@@ -5,7 +5,7 @@ using Retromind.Models.Stores;
 
 namespace Retromind.Services.Stores.Abstractions;
 
-public interface IStoreLibraryProvider
+public interface IStoreLibraryProvider : IStoreProvider
 {
     Task<IReadOnlyList<StoreGameRecord>> GetOwnedGamesAsync(CancellationToken ct = default);
 }

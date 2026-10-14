@@ -19,10 +19,12 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Models.Stores;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
+using Retromind.Services.Stores;
 using Retromind.Services.Stores.Abstractions;
 using Retromind.Services.Stores.Gog;
 
@@ -45,8 +47,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly LauncherService _launcherService;
     private readonly LaunchLogService _launchLogService;
     private readonly StoreImportService _storeService;
-    private readonly IStoreAuthProvider _storeAuthProvider;
-    private readonly IStoreLibraryProvider _storeLibraryProvider;
+    private readonly IStoreAuthProvider _gogStoreAuthProvider;
+    private readonly IStoreLibraryProvider _gogStoreLibraryProvider;
     private readonly GogInstallService _gogInstallService;
     private readonly GogLaunchDetectionService _gogLaunchDetectionService;
     private readonly GogInstallerWorkflowService _gogInstallerWorkflowService;
@@ -410,8 +412,7 @@ public partial class MainWindowViewModel : ViewModelBase
         LauncherService launcherService,
         LaunchLogService launchLogService,
         StoreImportService storeService,
-        IStoreAuthProvider storeAuthProvider,
-        IStoreLibraryProvider storeLibraryProvider,
+        StoreProviderRegistry storeProviderRegistry,
         GogInstallService gogInstallService,
         GogLaunchDetectionService gogLaunchDetectionService,
         GogInstallerWorkflowService gogInstallerWorkflowService,
@@ -443,8 +444,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _launcherService = launcherService;
         _launchLogService = launchLogService;
         _storeService = storeService;
-        _storeAuthProvider = storeAuthProvider;
-        _storeLibraryProvider = storeLibraryProvider;
+        _gogStoreAuthProvider = storeProviderRegistry.GetRequiredCapability<IStoreAuthProvider>(StoreProviderIds.Gog);
+        _gogStoreLibraryProvider = storeProviderRegistry.GetRequiredCapability<IStoreLibraryProvider>(StoreProviderIds.Gog);
         _gogInstallService = gogInstallService;
         _gogLaunchDetectionService = gogLaunchDetectionService;
         _gogInstallerWorkflowService = gogInstallerWorkflowService;

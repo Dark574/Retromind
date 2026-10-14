@@ -77,7 +77,7 @@ public sealed class GogLibraryService
                         title = $"GOG {storeGameId}";
 
                     var platform = InferPlatform(product);
-                    records.Add(new StoreGameRecord("gog", storeGameId, title, platform, null));
+                    records.Add(new StoreGameRecord(StoreProviderIds.Gog, storeGameId, title, platform, null));
                 }
 
                 page++;

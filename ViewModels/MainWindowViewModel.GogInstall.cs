@@ -508,7 +508,7 @@ public partial class MainWindowViewModel
             StoreAuthState authState;
             try
             {
-                authState = await _storeAuthProvider.GetAuthStateAsync();
+                authState = await _gogStoreAuthProvider.GetAuthStateAsync();
             }
             catch (Exception ex)
             {
@@ -522,7 +522,7 @@ public partial class MainWindowViewModel
 
             try
             {
-                var refreshed = await _storeAuthProvider.TryRefreshSessionAsync();
+                var refreshed = await _gogStoreAuthProvider.TryRefreshSessionAsync();
                 if (refreshed)
                     return true;
             }
@@ -542,7 +542,7 @@ public partial class MainWindowViewModel
 
         try
         {
-            await _storeAuthProvider.SignInInteractiveAsync(
+            await _gogStoreAuthProvider.SignInInteractiveAsync(
                 (authorizeUri, signInCt) => CaptureGogCallbackUriInAppAsync(owner, authorizeUri, signInCt));
             return true;
         }

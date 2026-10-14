@@ -426,10 +426,10 @@ public partial class MainWindowViewModel
             var isAuthenticated = false;
             try
             {
-                var authState = await _storeAuthProvider.GetAuthStateAsync(ct).ConfigureAwait(false);
+                var authState = await _gogStoreAuthProvider.GetAuthStateAsync(ct).ConfigureAwait(false);
                 isAuthenticated = authState.IsAuthenticated;
                 if (!isAuthenticated)
-                    isAuthenticated = await _storeAuthProvider.TryRefreshSessionAsync(ct).ConfigureAwait(false);
+                    isAuthenticated = await _gogStoreAuthProvider.TryRefreshSessionAsync(ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

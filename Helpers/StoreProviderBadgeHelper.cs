@@ -1,13 +1,14 @@
 using System;
 using Retromind.Models;
+using Retromind.Models.Stores;
 
 namespace Retromind.Helpers;
 
 internal static class StoreProviderBadgeHelper
 {
-    public const string GogProviderId = "gog";
-    public const string SteamProviderId = "steam";
-    public const string EpicProviderId = "epic";
+    public const string GogProviderId = StoreProviderIds.Gog;
+    public const string SteamProviderId = StoreProviderIds.Steam;
+    public const string EpicProviderId = StoreProviderIds.Epic;
 
     public static string? GetProviderId(MediaItem? item)
     {

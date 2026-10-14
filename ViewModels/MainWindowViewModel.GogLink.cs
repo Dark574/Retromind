@@ -30,7 +30,7 @@ public partial class MainWindowViewModel
             using (BeginBusyCursor(owner))
             {
                 await Task.Yield();
-                ownedGames = await _storeLibraryProvider.GetOwnedGamesAsync();
+                ownedGames = await _gogStoreLibraryProvider.GetOwnedGamesAsync();
             }
         }
         catch (Exception ex)

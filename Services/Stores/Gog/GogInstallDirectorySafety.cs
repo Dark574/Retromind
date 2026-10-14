@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Models.Stores;
 
 namespace Retromind.Services.Stores.Gog;
 
@@ -125,7 +126,7 @@ internal static class GogInstallDirectorySafety
         }
 
         if (marker == null ||
-            !string.Equals(marker.ProviderId, "gog", StringComparison.OrdinalIgnoreCase))
+            !string.Equals(marker.ProviderId, StoreProviderIds.Gog, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -161,7 +162,7 @@ internal static class GogInstallDirectorySafety
         Directory.CreateDirectory(fullPath);
 
         var marker = new InstallMarker(
-            ProviderId: "gog",
+            ProviderId: StoreProviderIds.Gog,
             StoreGameId: gameId,
             MediaItemId: item.Id);
         var markerPath = Path.Combine(fullPath, MarkerFileName);

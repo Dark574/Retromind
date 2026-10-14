@@ -23,7 +23,7 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
-    private const string GogProviderId = "gog";
+    private const string GogProviderId = StoreProviderIds.Gog;
     private const string GogDisplayName = "GOG";
     private const string GogForceBrowserLoginEnvironmentVariable = "RETROMIND_GOG_FORCE_BROWSER_LOGIN";
     private static readonly Uri GogDefaultWebAuthRedirectUri = new("https://embed.gog.com/on_login_success?origin=client");
@@ -193,7 +193,7 @@ public partial class MainWindowViewModel
         StoreAuthState authState;
         try
         {
-            authState = await _storeAuthProvider.GetAuthStateAsync();
+            authState = await _gogStoreAuthProvider.GetAuthStateAsync();
         }
         catch (Exception ex)
         {
@@ -206,9 +206,9 @@ public partial class MainWindowViewModel
         {
             try
             {
-                var refreshed = await _storeAuthProvider.TryRefreshSessionAsync();
+                var refreshed = await _gogStoreAuthProvider.TryRefreshSessionAsync();
                 if (refreshed)
-                    authState = await _storeAuthProvider.GetAuthStateAsync();
+                    authState = await _gogStoreAuthProvider.GetAuthStateAsync();
             }
             catch (Exception ex)
             {
@@ -225,7 +225,7 @@ public partial class MainWindowViewModel
 
             try
             {
-                await _storeAuthProvider.SignInInteractiveAsync(
+                await _gogStoreAuthProvider.SignInInteractiveAsync(
                     (authorizeUri, signInCt) => CaptureGogCallbackUriInAppAsync(owner, authorizeUri, signInCt));
             }
             catch (OperationCanceledException)
@@ -257,7 +257,7 @@ public partial class MainWindowViewModel
             {
                 // Let cursor state update before potentially long store calls.
                 await Task.Yield();
-                ownedGames = await _storeLibraryProvider.GetOwnedGamesAsync();
+                ownedGames = await _gogStoreLibraryProvider.GetOwnedGamesAsync();
                 metadataTemplateByGameId = BuildGogMetadataTemplateByGameId();
                 usageByGameId = BuildGogUsageCountByGameId();
             }
@@ -316,7 +316,7 @@ public partial class MainWindowViewModel
             await Task.Yield();
             foreach (var game in selectedGames.OrderBy(g => g.Title, StringComparer.OrdinalIgnoreCase))
             {
-                if (!string.Equals(game.ProviderId, "gog", StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(game.ProviderId, StoreProviderIds.Gog, StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 if (string.IsNullOrWhiteSpace(game.StoreGameId))

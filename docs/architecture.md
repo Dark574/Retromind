@@ -387,9 +387,11 @@ the report never mutates JSON or deletes files.
   Steam/Heroic items created before the fields existed, it falls back to their command and launch URI without
   mutating library data. `AppSettings.ShowStoreBadges` controls presentation only; moving an item between
   ordinary nodes retains its store identity
-- Native store-provider integration under `Services/Stores/` wires GOG authentication, owned-library lookup, and
-  installation through `GogProvider`. GOG imports use the same picker for every target category; store identity and
-  management state belong to each `MediaItem`, never to the containing node
+- Native store-provider integration under `Services/Stores/` resolves providers through a case-insensitive
+  `StoreProviderRegistry`. Every provider exposes a stable ID, display name, and capability flags; account and
+  owned-library contracts extend that common identity so multiple providers can coexist without ambiguous DI
+  registrations. GOG currently supplies those contracts through `GogProvider`, while its installer-specific services
+  remain separate. Store identity and management state belong to each `MediaItem`, never to the containing node
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider

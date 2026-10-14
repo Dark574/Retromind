@@ -15,6 +15,7 @@ using Retromind.Services;
 using Retromind.Services.GameIdentification;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
+using Retromind.Services.Stores;
 using Retromind.Services.Stores.Abstractions;
 using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Auth;
@@ -313,8 +314,8 @@ public partial class App : Application
             AppPaths.LibraryRoot));
         services.AddSingleton<GogInstallerWorkflowService>();
         services.AddSingleton<GogProvider>();
-        services.AddSingleton<IStoreAuthProvider>(provider => provider.GetRequiredService<GogProvider>());
-        services.AddSingleton<IStoreLibraryProvider>(provider => provider.GetRequiredService<GogProvider>());
+        services.AddSingleton<IStoreProvider>(provider => provider.GetRequiredService<GogProvider>());
+        services.AddSingleton<StoreProviderRegistry>();
 
         services.AddSingleton<RetroAchievementsApiClient>();
         services.AddSingleton<RetroAchievementsAccountService>();
