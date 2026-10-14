@@ -186,11 +186,14 @@ See: `Licenses/GE-Proton.Notice.txt`
 
 **License:** GPL-3.0-or-later
 
-Retromind distributions may bundle the unmodified Legendary command-line client as the backend for native Epic
-Games account, library, installation, update, and launch integration. Legendary remains a separate executable and
-is invoked through its documented command-line interface.
+Retromind distributions may bundle Legendary as the backend for native Epic Games account, library, installation,
+update, and launch integration. The AppImage builds a standalone executable from a checksum-pinned upstream source
+revision and Legendary's own locked Python dependency graph. Legendary remains a separate executable and is invoked
+through its documented command-line interface.
 
 See `Licenses/Legendary.Notice.txt`. The complete GNU General Public License version 3 text is included in `COPYING`.
+Version-specific Python and package license files are exported during the AppImage build and shipped below
+`usr/share/doc/retromind/Licenses/Legendary-Bundle`.
 
 ---
 

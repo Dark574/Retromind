@@ -1,4 +1,70 @@
 # syntax=docker/dockerfile:1
+FROM debian:bookworm AS legendary-builder
+
+COPY build/legendary-version.env /tmp/legendary-version.env
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       binutils \
+       ca-certificates \
+       curl \
+       libpython3.11 \
+       python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN set -eu; \
+    . /tmp/legendary-version.env; \
+    legendary_archive=/tmp/legendary-source.tar.gz; \
+    uv_archive=/tmp/uv.tar.gz; \
+    curl --fail --location --retry 5 --retry-delay 2 --retry-connrefused \
+      -o "$legendary_archive" \
+      "https://github.com/legendary-gl/legendary/archive/${LEGENDARY_SOURCE_COMMIT}.tar.gz"; \
+    printf '%s  %s\n' "$LEGENDARY_SOURCE_SHA256" "$legendary_archive" | sha256sum --check --strict; \
+    mkdir -p /build/legendary; \
+    tar -xzf "$legendary_archive" -C /build/legendary --strip-components=1; \
+    test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' /build/legendary/pyproject.toml | head -n 1)" = "$LEGENDARY_VERSION"; \
+    curl --fail --location --retry 5 --retry-delay 2 --retry-connrefused \
+      -o "$uv_archive" \
+      "https://releases.astral.sh/github/uv/releases/download/${UV_VERSION}/uv-x86_64-unknown-linux-gnu.tar.gz"; \
+    printf '%s  %s\n' "$UV_X86_64_LINUX_GNU_SHA256" "$uv_archive" | sha256sum --check --strict; \
+    mkdir -p /opt/uv; \
+    tar -xzf "$uv_archive" -C /opt/uv --strip-components=1; \
+    /opt/uv/uv --version; \
+    rm -f "$legendary_archive" "$uv_archive"
+
+ENV UV_PYTHON_DOWNLOADS=never
+ENV UV_LINK_MODE=copy
+
+RUN set -eu; \
+    . /tmp/legendary-version.env; \
+    cd /build/legendary; \
+    /opt/uv/uv sync --frozen --no-dev --extra pyinstaller_build; \
+    PYTHONOPTIMIZE=1 .venv/bin/python -m PyInstaller \
+      --onefile \
+      --name legendary \
+      --strip \
+      --paths /build/legendary \
+      --copy-metadata legendary-gl \
+      legendary/cli.py; \
+    mkdir -p /out/licenses/Python /out/licenses/Python-Packages; \
+    cp dist/legendary /out/legendary; \
+    chmod +x /out/legendary; \
+    cp LICENSE /out/licenses/Legendary.GPL-3.0-or-later.txt; \
+    cp /usr/share/doc/python3.11/copyright /out/licenses/Python/Debian-copyright; \
+    site_packages="$(find .venv/lib -type d -name site-packages -print -quit)"; \
+    test -n "$site_packages"; \
+    find "$site_packages" -type f \
+      \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'NOTICE*' \) \
+      -print | while IFS= read -r license_file; do \
+        relative_path="${license_file#"$site_packages"/}"; \
+        destination="/out/licenses/Python-Packages/$relative_path"; \
+        mkdir -p "$(dirname "$destination")"; \
+        cp "$license_file" "$destination"; \
+      done; \
+    output="$(/out/legendary --version)"; \
+    printf '%s\n' "$output"; \
+    printf '%s\n' "$output" | grep -F "legendary version \"${LEGENDARY_VERSION}\""
+
 FROM debian:bookworm
 
 LABEL org.retromind.appimage-builder="true"
@@ -270,5 +336,8 @@ RUN set -eu; \
     }; \
     \
     true
+
+COPY --from=legendary-builder /out/legendary /out/tools/bin/legendary
+COPY --from=legendary-builder /out/licenses /out/legendary-licenses
 
 CMD ["bash", "-lc", "echo 'Retromind bookworm builder image ready.'"]

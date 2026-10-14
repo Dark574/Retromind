@@ -6,6 +6,7 @@ BUILD_DIR="$PROJECT_ROOT/build"
 OUT_DIR="$PROJECT_ROOT/dist"
 WORK_DIR="$PROJECT_ROOT/.build-work"
 APPDIR="$WORK_DIR/AppDir"
+LEGENDARY_VERSION_FILE="$BUILD_DIR/legendary-version.env"
 BUILDER_IMAGE="retromind-appimage-builder:bookworm"
 BUILDX_BUILDER="${RETROMIND_BUILDX_BUILDER:-retromind-appimage}"
 BUILDX_CACHE_LIMIT="${RETROMIND_BUILDX_CACHE_LIMIT:-20gb}"
@@ -13,6 +14,18 @@ BUILDER_IMAGE_LABEL="org.retromind.appimage-builder=true"
 LOCAL_BUILD_SECRETS_DIR="$PROJECT_ROOT/.build-secrets"
 CID=""
 BUILDX_CLEANUP_ENABLED=0
+
+if [ ! -f "$LEGENDARY_VERSION_FILE" ]; then
+  echo "ERROR: Legendary version file not found at '$LEGENDARY_VERSION_FILE'."
+  exit 1
+fi
+
+. "$LEGENDARY_VERSION_FILE"
+
+if [ -z "${LEGENDARY_VERSION:-}" ]; then
+  echo "ERROR: LEGENDARY_VERSION is missing from '$LEGENDARY_VERSION_FILE'."
+  exit 1
+fi
 
 load_local_build_secret() {
   secret_name="$1"
@@ -163,6 +176,7 @@ docker cp "$CID:/out/publish" "$WORK_DIR/publish"
 docker cp "$CID:/out/vlc" "$WORK_DIR/vlc"
 docker cp "$CID:/out/tools" "$WORK_DIR/tools"
 docker cp "$CID:/out/runtime-libs" "$WORK_DIR/runtime-libs"
+docker cp "$CID:/out/legendary-licenses" "$WORK_DIR/legendary-licenses"
 cleanup_container
 
 if [ ! -f "$WORK_DIR/publish/Retromind" ]; then
@@ -186,7 +200,7 @@ chmod +x "$APPDIR/AppRun"
 cp -a "$WORK_DIR/publish/." "$APPDIR/usr/bin/"
 chmod +x "$APPDIR/usr/bin/Retromind"
 
-for helper in sidplayfp ffplay secret-tool; do
+for helper in sidplayfp ffplay secret-tool legendary; do
   if [ -f "$WORK_DIR/tools/bin/$helper" ]; then
     echo "Bundling $helper from Debian bookworm builder image."
     cp "$WORK_DIR/tools/bin/$helper" "$APPDIR/usr/bin/$helper"
@@ -195,6 +209,17 @@ for helper in sidplayfp ffplay secret-tool; do
     echo "Notice: $helper not found in builder output (feature may be unavailable in AppImage)."
   fi
 done
+
+if [ ! -x "$APPDIR/usr/bin/legendary" ]; then
+  echo "ERROR: Legendary $LEGENDARY_VERSION was not exported by the builder image."
+  exit 1
+fi
+
+legendary_magic="$(head -c 4 "$APPDIR/usr/bin/legendary" | od -An -tx1 | tr -d ' \n')"
+if [ "$legendary_magic" != "7f454c46" ]; then
+  echo "ERROR: Bundled Legendary $LEGENDARY_VERSION is not an ELF executable."
+  exit 1
+fi
 
 if [ -d "$WORK_DIR/tools/lib" ]; then
   cp -a "$WORK_DIR/tools/lib/." "$APPDIR/usr/lib/" || true
@@ -266,6 +291,15 @@ fi
 if [ -d "$PROJECT_ROOT/Licenses" ]; then
   mkdir -p "$DOC_DIR/Licenses"
   cp -r "$PROJECT_ROOT/Licenses/." "$DOC_DIR/Licenses/"
+fi
+
+# Exact license material exported with the pinned Legendary/Python build.
+if [ -d "$WORK_DIR/legendary-licenses" ]; then
+  mkdir -p "$DOC_DIR/Licenses/Legendary-Bundle"
+  cp -r "$WORK_DIR/legendary-licenses/." "$DOC_DIR/Licenses/Legendary-Bundle/"
+else
+  echo "ERROR: Legendary bundle license material is missing from the builder output."
+  exit 1
 fi
 
 echo "[6/8] Download verified AppImage packaging tools..."

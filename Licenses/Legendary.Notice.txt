@@ -2,7 +2,9 @@ Legendary Notice
 ================
 
 Retromind distributions may include the Legendary command-line client as
-the backend for native Epic Games integration.
+the backend for native Epic Games integration. The AppImage builds Legendary
+from the checksum-pinned upstream source revision recorded in
+build/legendary-version.env and packages it as a standalone executable.
 
 Project:
   Legendary - a free and open-source replacement for the Epic Games Launcher
@@ -19,6 +21,11 @@ License:
 The complete GNU General Public License version 3 text is included in the
 top-level COPYING file shipped with Retromind and in
 usr/share/doc/retromind/COPYING inside the AppImage.
+
+The standalone executable also contains a Python runtime and Legendary's
+locked Python dependencies. Their exact license files and Debian copyright
+information are exported by the build and included below
+usr/share/doc/retromind/Licenses/Legendary-Bundle in the AppImage.
 
 Legendary is developed and maintained by its upstream contributors.
 Retromind is not affiliated with Epic Games, Inc. Legendary, Epic Games,
