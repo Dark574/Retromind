@@ -17,6 +17,7 @@ using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores;
 using Retromind.Services.Stores.Abstractions;
+using Retromind.Services.Stores.Epic.Legendary;
 using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Auth;
 using Retromind.Services.Stores.Security;
@@ -316,6 +317,11 @@ public partial class App : Application
         services.AddSingleton<GogProvider>();
         services.AddSingleton<IStoreProvider>(provider => provider.GetRequiredService<GogProvider>());
         services.AddSingleton<StoreProviderRegistry>();
+        services.AddSingleton(_ => new LegendaryExecutableResolver(AppPaths.DataRoot));
+        services.AddSingleton<ILegendaryCliProcessRunner>(provider => new LegendaryCliProcessRunner(
+            provider.GetRequiredService<LegendaryExecutableResolver>(),
+            LegendaryCliProcessRunner.GetDefaultConfigDirectory(AppPaths.DataRoot)));
+        services.AddSingleton<LegendaryCliClient>();
 
         services.AddSingleton<RetroAchievementsApiClient>();
         services.AddSingleton<RetroAchievementsAccountService>();

@@ -1,0 +1,26 @@
+Legendary Notice
+================
+
+Retromind distributions may include the Legendary command-line client as
+the backend for native Epic Games integration.
+
+Project:
+  Legendary - a free and open-source replacement for the Epic Games Launcher
+
+Upstream repository and corresponding source:
+  https://github.com/legendary-gl/legendary
+
+Release source archives:
+  https://github.com/legendary-gl/legendary/releases
+
+License:
+  GNU General Public License v3.0 or later (GPL-3.0-or-later)
+
+The complete GNU General Public License version 3 text is included in the
+top-level COPYING file shipped with Retromind and in
+usr/share/doc/retromind/COPYING inside the AppImage.
+
+Legendary is developed and maintained by its upstream contributors.
+Retromind is not affiliated with Epic Games, Inc. Legendary, Epic Games,
+and their respective names and trademarks remain the property of their
+owners.

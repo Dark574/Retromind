@@ -176,6 +176,24 @@ See: `Licenses/GE-Proton.Notice.txt`
 
 ---
 
+## Legendary
+
+**Component:** Legendary command-line Epic Games client
+
+**Repository and corresponding source:** https://github.com/legendary-gl/legendary
+
+**Release source archives:** https://github.com/legendary-gl/legendary/releases
+
+**License:** GPL-3.0-or-later
+
+Retromind distributions may bundle the unmodified Legendary command-line client as the backend for native Epic
+Games account, library, installation, update, and launch integration. Legendary remains a separate executable and
+is invoked through its documented command-line interface.
+
+See `Licenses/Legendary.Notice.txt`. The complete GNU General Public License version 3 text is included in `COPYING`.
+
+---
+
 ## Other NuGet Packages
 
 Retromind currently references additional NuGet packages such as:

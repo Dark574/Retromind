@@ -392,6 +392,10 @@ the report never mutates JSON or deletes files.
   owned-library contracts extend that common identity so multiple providers can coexist without ambiguous DI
   registrations. GOG currently supplies those contracts through `GogProvider`, while its installer-specific services
   remain separate. Store identity and management state belong to each `MediaItem`, never to the containing node
+- Epic's native provider boundary uses the Legendary CLI as an isolated backend. Executable discovery prefers the
+  Retromind-managed copy before AppImage and host installations, arguments are passed without a shell, and each
+  process receives a dedicated `LEGENDARY_CONFIG_PATH` below `Tools/Legendary/Data`. Legendary's account state,
+  manifests, and temporary metadata therefore remain separate from Retromind settings and metadata backups
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider
