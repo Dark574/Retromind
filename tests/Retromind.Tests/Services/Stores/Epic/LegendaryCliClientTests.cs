@@ -134,6 +134,67 @@ public sealed class LegendaryCliClientTests
     }
 
     [Fact]
+    public async Task GetGamesAsync_ParsesBaseGamesAndPrefersWindowsAsset()
+    {
+        const string json = """
+            [
+              {
+                "app_name": "ExampleGame",
+                "app_title": "Example Game",
+                "asset_infos": {
+                  "Mac": { "build_version": "mac-1" },
+                  "Windows": { "build_version": "win-2" }
+                },
+                "dlcs": [
+                  { "app_name": "IgnoredDlc", "app_title": "Ignored DLC" }
+                ]
+              },
+              {
+                "app_name": "AnotherGame",
+                "app_title": "Another Game",
+                "asset_infos": {
+                  "Windows": { "build_version": "win-1" }
+                },
+                "dlcs": []
+              }
+            ]
+            """;
+        var runner = new FakeProcessRunner(new LegendaryCliResult(0, json, string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var games = await client.GetGamesAsync();
+
+        Assert.Collection(
+            games,
+            game =>
+            {
+                Assert.Equal("AnotherGame", game.AppName);
+                Assert.Equal("Another Game", game.AppTitle);
+                Assert.Equal("Windows", game.Platform);
+                Assert.Equal("win-1", game.Version);
+            },
+            game =>
+            {
+                Assert.Equal("ExampleGame", game.AppName);
+                Assert.Equal("Example Game", game.AppTitle);
+                Assert.Equal("Windows", game.Platform);
+                Assert.Equal("win-2", game.Version);
+            });
+        Assert.Equal(["list", "--json"], Assert.Single(runner.Commands).Arguments);
+    }
+
+    [Fact]
+    public async Task GetGamesAsync_RejectsNonArrayResponse()
+    {
+        var client = new LegendaryCliClient(
+            new FakeProcessRunner(new LegendaryCliResult(0, "{}", string.Empty)));
+
+        var exception = await Assert.ThrowsAsync<LegendaryCliException>(() => client.GetGamesAsync());
+
+        Assert.Contains("library load", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task CommandFailure_ReportsOperationAndSanitizedError()
     {
         var client = new LegendaryCliClient(

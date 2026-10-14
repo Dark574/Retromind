@@ -25,6 +25,7 @@ public partial class MainWindowViewModel
 {
     private const string GogProviderId = StoreProviderIds.Gog;
     private const string GogDisplayName = "GOG";
+    private const string EpicDisplayName = "Epic Games";
     private const string GogForceBrowserLoginEnvironmentVariable = "RETROMIND_GOG_FORCE_BROWSER_LOGIN";
     private static readonly Uri GogDefaultWebAuthRedirectUri = new("https://embed.gog.com/on_login_success?origin=client");
 
@@ -539,22 +540,30 @@ public partial class MainWindowViewModel
     }
 
     private Dictionary<string, int> BuildGogUsageCountByGameId()
+        => BuildStoreUsageCountByGameId(StoreProviderIds.Gog);
+
+    private Dictionary<string, int> BuildStoreUsageCountByGameId(string providerId)
     {
         var usageByGameId = new Dictionary<string, int>(StringComparer.Ordinal);
 
         foreach (var root in RootItems)
-            CollectGogUsageRecursive(root, usageByGameId);
+            CollectStoreUsageRecursive(root, providerId, usageByGameId);
 
         return usageByGameId;
     }
 
-    private void CollectGogUsageRecursive(MediaNode node, IDictionary<string, int> usageByGameId)
+    private void CollectStoreUsageRecursive(
+        MediaNode node,
+        string providerId,
+        IDictionary<string, int> usageByGameId)
     {
         foreach (var item in node.Items)
         {
-            var storeGameId = GogMediaItemStateHelper.TryGetGameId(item);
-            if (string.IsNullOrWhiteSpace(storeGameId))
+            if (!StoreGameIdentityHelper.TryGetIdentity(item, out var itemProviderId, out var storeGameId) ||
+                !string.Equals(itemProviderId, providerId, StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
 
             if (usageByGameId.TryGetValue(storeGameId, out var existingCount))
                 usageByGameId[storeGameId] = existingCount + 1;
@@ -563,7 +572,7 @@ public partial class MainWindowViewModel
         }
 
         foreach (var child in node.Children)
-            CollectGogUsageRecursive(child, usageByGameId);
+            CollectStoreUsageRecursive(child, providerId, usageByGameId);
     }
 
     private async Task ImportRomsAsync(MediaNode? targetNode)
@@ -760,58 +769,186 @@ public partial class MainWindowViewModel
         if (targetNode == null) targetNode = SelectedNode;
         if (targetNode == null || CurrentWindow is not { } owner) return;
 
-        var discoveredHeroicConfigs = new List<string>();
-        var items = await _storeService.ImportHeroicEpicAsync(discoveredConfigPaths: discoveredHeroicConfigs);
-        if (items.Count == 0)
-        {
-            var tryManual = await ShowConfirmDialog(owner, Strings.Dialog_NoEpicInstallationsFound_SelectPath);
-            if (!tryManual) return;
-
-            var storageProvider = StorageProvider ?? owner.StorageProvider;
-            var folders = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = Strings.Dialog_SelectHeroicEpicFolder,
-                AllowMultiple = false
-            });
-
-            if (folders.Count == 0) return;
-            var manualPath = folders[0].Path.LocalPath;
-
-            discoveredHeroicConfigs.Clear();
-            items = await _storeService.ImportHeroicEpicAsync(manualPath, discoveredHeroicConfigs);
-
-            if (items.Count == 0)
-            {
-                await ShowConfirmDialog(owner, Strings.Dialog_NoEpicInstallationsFound);
-                return;
-            }
-        }
-
-        var message = string.Format(Strings.Dialog_ConfirmImportEpicFormat, items.Count);
-        if (!await ShowConfirmDialog(owner, message))
+        if (!await EnsureEpicSignInAsync(owner))
             return;
 
-        StoreHeroicEpicConfigPaths(discoveredHeroicConfigs);
+        IReadOnlyList<StoreGameRecord> ownedGames;
+        try
+        {
+            using (BeginBusyCursor(owner))
+            {
+                await Task.Yield();
+                ownedGames = await _epicStoreLibraryProvider.GetOwnedGamesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Epic] Failed to load owned games: {ex.Message}");
+            await ShowInfoDialog(
+                owner,
+                T("Epic.LibraryLoadFailed", "The Epic Games library could not be loaded."));
+            return;
+        }
 
-        var itemsToAdd = items
-            .Where(item => !targetNode.Items.Any(existing =>
-                StoreGameIdentityHelper.IsSameGame(existing, item)))
+        if (ownedGames.Count == 0)
+        {
+            await ShowInfoDialog(owner, T("Epic.LibraryEmpty", "No Epic Games titles were found."));
+            return;
+        }
+
+        var existingStoreGameIds = targetNode.Items
+            .Select(item => StoreGameIdentityHelper.TryGetIdentity(
+                item,
+                out var providerId,
+                out var gameId) &&
+                string.Equals(providerId, StoreProviderIds.Epic, StringComparison.OrdinalIgnoreCase)
+                    ? gameId
+                    : null)
+            .Where(static gameId => !string.IsNullOrWhiteSpace(gameId))
+            .Select(static gameId => gameId!)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var pickerVm = new GogPickerDialogViewModel(
+            ownedGames,
+            existingStoreGameIds,
+            BuildStoreUsageCountByGameId(StoreProviderIds.Epic),
+            providerId: StoreProviderIds.Epic,
+            providerDisplayName: EpicDisplayName);
+        var pickerDialog = new GogPickerDialogView { DataContext = pickerVm };
+
+        IReadOnlyList<StoreGameRecord> selectedGames;
+        try
+        {
+            var accepted = false;
+            pickerVm.RequestClose += result =>
+            {
+                accepted = result;
+                pickerDialog.Close(result);
+            };
+
+            await pickerDialog.ShowDialog<bool>(owner);
+            if (!accepted)
+                return;
+
+            selectedGames = pickerVm.GetSelectedGames();
+        }
+        finally
+        {
+            pickerVm.Dispose();
+        }
+
+        var itemsToAdd = selectedGames
+            .Where(game => string.Equals(
+                game.ProviderId,
+                StoreProviderIds.Epic,
+                StringComparison.OrdinalIgnoreCase))
+            .Where(game => !string.IsNullOrWhiteSpace(game.StoreGameId))
+            .Where(game => existingStoreGameIds.Add(game.StoreGameId))
+            .OrderBy(game => game.Title, StringComparer.OrdinalIgnoreCase)
+            .Select(game => new MediaItem
+            {
+                Title = string.IsNullOrWhiteSpace(game.Title)
+                    ? $"{EpicDisplayName} {game.StoreGameId}"
+                    : game.Title,
+                MediaType = MediaType.Command,
+                Source = EpicDisplayName,
+                Platform = game.Platform,
+                CustomFields = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [CustomFieldKeyHelper.StoreProviderId] = StoreProviderIds.Epic,
+                    [CustomFieldKeyHelper.StoreGameId] = game.StoreGameId
+                }
+            })
             .ToList();
 
-        if (itemsToAdd.Count == 0) return;
+        if (itemsToAdd.Count == 0)
+        {
+            await ShowInfoDialog(
+                owner,
+                T("Epic.Picker.NoNewForNode", "The selection did not contain new Epic Games titles for this category."));
+            return;
+        }
 
-        ApplyEffectiveDefaultEmulator(targetNode, itemsToAdd);
         ApplyEffectiveParentalProtection(targetNode, itemsToAdd);
 
         await UiThreadHelper.InvokeAsync(() =>
         {
             InsertMediaItemsOptimized(targetNode.Items, itemsToAdd);
-
-            if (IsNodeInCurrentView(targetNode))
-                UpdateContent();
         });
 
+        var lastItem = itemsToAdd[^1];
+        _currentSettings.LastSelectedMediaId = lastItem.Id;
+        RememberNodeSelection(targetNode.Id, lastItem.Id);
+        SaveSettingsOnly();
+
+        if (IsNodeInCurrentView(targetNode))
+            await UpdateContentAsync();
+
         await SaveData();
+    }
+
+    private async Task<bool> EnsureEpicSignInAsync(Window owner)
+    {
+        try
+        {
+            using (BeginBusyCursor(owner))
+            {
+                await Task.Yield();
+                if (await _epicStoreAuthProvider.TryRefreshSessionAsync())
+                    return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Epic] Session validation failed: {ex.Message}");
+            await ShowInfoDialog(
+                owner,
+                T("Epic.Auth.CheckFailed", "The Epic Games sign-in state could not be verified."));
+            return false;
+        }
+
+        var signIn = await ShowConfirmDialog(
+            owner,
+            T("Epic.Auth.RequiredPrompt", "Epic Games sign-in is required. Open secure sign-in in your browser now?"));
+        if (!signIn)
+            return false;
+
+        try
+        {
+            await _epicStoreAuthProvider.SignInInteractiveAsync(
+                (challenge, signInCt) => ResolveEpicSignInChallengeAsync(owner, challenge, signInCt));
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Epic] Interactive sign-in failed: {ex.Message}");
+            await ShowInfoDialog(
+                owner,
+                T("Epic.Auth.SignInFailed", "Epic Games sign-in failed. Request a new authorization code and try again."));
+            return false;
+        }
+    }
+
+    private static async Task<StoreSignInResponse?> ResolveEpicSignInChallengeAsync(
+        Window owner,
+        StoreSignInChallenge challenge,
+        CancellationToken ct)
+    {
+        if (challenge.ResponseKind != StoreSignInResponseKind.AuthorizationCode)
+            throw new InvalidOperationException("Epic sign-in requires an authorization code.");
+
+        if (!SystemBrowserLauncher.TryOpen(challenge.AuthorizationUri, out var browserError))
+            throw new InvalidOperationException("Could not open the system browser for Epic sign-in.", browserError);
+
+        var dialog = new EpicAuthorizationCodeView(challenge.AuthorizationUri);
+        var authorizationCode = await dialog.CaptureAsync(owner, ct);
+        return string.IsNullOrWhiteSpace(authorizationCode)
+            ? null
+            : StoreSignInResponse.FromAuthorizationCode(authorizationCode);
     }
 
     private void StoreHeroicEpicConfigPaths(IEnumerable<string> configPaths)

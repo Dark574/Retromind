@@ -49,6 +49,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly StoreImportService _storeService;
     private readonly IStoreAuthProvider _gogStoreAuthProvider;
     private readonly IStoreLibraryProvider _gogStoreLibraryProvider;
+    private readonly IStoreAuthProvider _epicStoreAuthProvider;
+    private readonly IStoreLibraryProvider _epicStoreLibraryProvider;
     private readonly GogInstallService _gogInstallService;
     private readonly GogLaunchDetectionService _gogLaunchDetectionService;
     private readonly GogInstallerWorkflowService _gogInstallerWorkflowService;
@@ -446,6 +448,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _storeService = storeService;
         _gogStoreAuthProvider = storeProviderRegistry.GetRequiredCapability<IStoreAuthProvider>(StoreProviderIds.Gog);
         _gogStoreLibraryProvider = storeProviderRegistry.GetRequiredCapability<IStoreLibraryProvider>(StoreProviderIds.Gog);
+        _epicStoreAuthProvider = storeProviderRegistry.GetRequiredCapability<IStoreAuthProvider>(StoreProviderIds.Epic);
+        _epicStoreLibraryProvider = storeProviderRegistry.GetRequiredCapability<IStoreLibraryProvider>(StoreProviderIds.Epic);
         _gogInstallService = gogInstallService;
         _gogLaunchDetectionService = gogLaunchDetectionService;
         _gogInstallerWorkflowService = gogInstallerWorkflowService;

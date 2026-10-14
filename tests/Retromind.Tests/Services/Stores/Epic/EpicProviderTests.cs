@@ -14,7 +14,9 @@ public sealed class EpicProviderTests
 
         Assert.Equal(StoreProviderIds.Epic, provider.ProviderId);
         Assert.Equal("Epic Games", provider.DisplayName);
-        Assert.Equal(StoreProviderCapabilities.Authentication, provider.Capabilities);
+        Assert.Equal(
+            StoreProviderCapabilities.Authentication | StoreProviderCapabilities.OwnedLibrary,
+            provider.Capabilities);
     }
 
     [Fact]
@@ -83,8 +85,11 @@ public sealed class EpicProviderTests
         await Assert.ThrowsAsync<NotSupportedException>(() => provider.SignOutAsync(false));
     }
 
-    private static EpicProvider CreateProvider(FakeProcessRunner runner) =>
-        new(new LegendaryCliClient(runner));
+    private static EpicProvider CreateProvider(FakeProcessRunner runner)
+    {
+        var client = new LegendaryCliClient(runner);
+        return new EpicProvider(client, new EpicLibraryService(client));
+    }
 
     private static LegendaryCliResult AuthenticatedStatus() => new(
         0,

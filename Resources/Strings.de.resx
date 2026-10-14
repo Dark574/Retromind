@@ -262,6 +262,17 @@
     <data name="Dialog_NoEpicInstallationsFound_SelectPath" xml:space="preserve"><value>Keine Heroic/Epic-Installationen gefunden. Heroic-Config-Ordner manuell auswählen? (Bitte den Ordner wählen, der 'epic_store/installed.json' enthält, oder direkt den Ordner 'epic_store'.)</value></data>
     <data name="Dialog_SelectHeroicEpicFolder" xml:space="preserve"><value>Heroic-Config-Ordner auswählen (enthält epic_store/installed.json)</value></data>
     <data name="Dialog_ConfirmImportEpicFormat" xml:space="preserve"><value>{0} Epic-Spiele gefunden. Importieren?</value></data>
+    <data name="Store.Link.DialogTitleFormat" xml:space="preserve"><value>{0}-Spiel verknüpfen</value></data>
+    <data name="Store.Picker.DialogTitleFormat" xml:space="preserve"><value>{0}-Medien auswählen</value></data>
+    <data name="Store.Link.HeaderFormat" xml:space="preserve"><value>Wähle das passende Spiel aus deiner {0}-Bibliothek</value></data>
+    <data name="Store.Picker.HeaderFormat" xml:space="preserve"><value>{0}-Bibliothek</value></data>
+    <data name="Store.Picker.SearchPlaceholderFormat" xml:space="preserve"><value>Nach Titel, {0}-ID oder Plattform suchen...</value></data>
+    <data name="Epic.Auth.Title" xml:space="preserve"><value>Epic-Games-Anmeldung</value></data>
+    <data name="Epic.Auth.Instructions" xml:space="preserve"><value>Melde dich im Browser bei Epic Games an. Anschließend zeigt die Seite eine JSON-Antwort an. Kopiere daraus entweder den Wert authorizationCode oder die vollständige Antwort und füge sie hier ein.</value></data>
+    <data name="Epic.Auth.CodeLabel" xml:space="preserve"><value>Autorisierungscode oder JSON-Antwort</value></data>
+    <data name="Epic.Auth.ReopenBrowser" xml:space="preserve"><value>Browser erneut öffnen</value></data>
+    <data name="Epic.Auth.InvalidCode" xml:space="preserve"><value>Füge den Wert authorizationCode oder die vollständige JSON-Antwort von Epic ein.</value></data>
+    <data name="Epic.Auth.BrowserOpenFailed" xml:space="preserve"><value>Der Systembrowser konnte nicht geöffnet werden.</value></data>
     <data name="Dialog_ConfirmCombineMultiDiscFormat" xml:space="preserve"><value>Du hast {0} Dateien ausgewählt. Soll daraus ein Multi-Disc-Eintrag erstellt werden?</value></data>
 
     <!-- EDITMEDIA -->
@@ -321,9 +332,15 @@
     <data name="Hint.TmdbKey" xml:space="preserve"><value>(Optional)</value></data>
 
     <!-- IMPORT -->
-    <data name="Import.Epic" xml:space="preserve"><value>Epic-Spiele (Heroic) importieren...</value></data>
+    <data name="Import.Epic" xml:space="preserve"><value>Epic-Spiele importieren...</value></data>
     <data name="Import.Roms" xml:space="preserve"><value>Lokaler Ordner (ROMs)...</value></data>
     <data name="Import.Steam" xml:space="preserve"><value>Steam-Spiele importieren...</value></data>
+    <data name="Epic.Auth.CheckFailed" xml:space="preserve"><value>Der Anmeldestatus von Epic Games konnte nicht geprüft werden.</value></data>
+    <data name="Epic.Auth.RequiredPrompt" xml:space="preserve"><value>Eine Anmeldung bei Epic Games ist erforderlich. Sichere Anmeldung jetzt im Browser öffnen?</value></data>
+    <data name="Epic.Auth.SignInFailed" xml:space="preserve"><value>Die Anmeldung bei Epic Games ist fehlgeschlagen. Fordere einen neuen Autorisierungscode an und versuche es erneut.</value></data>
+    <data name="Epic.LibraryLoadFailed" xml:space="preserve"><value>Die Epic-Games-Bibliothek konnte nicht geladen werden.</value></data>
+    <data name="Epic.LibraryEmpty" xml:space="preserve"><value>In deiner Epic-Games-Bibliothek wurden keine Spiele gefunden.</value></data>
+    <data name="Epic.Picker.NoNewForNode" xml:space="preserve"><value>Die Auswahl enthielt keine neuen Epic-Spiele für diese Kategorie.</value></data>
 
     <!-- GOG -->
     <data name="Gog.Dlc.DialogTitle" xml:space="preserve"><value>GOG-DLCs verwalten</value></data>

@@ -9,6 +9,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.2-alpha] - unreleased
 
 ### Added
+- import owned Epic games directly through bundled Legendary without requiring Heroic Games Launcher
 - ScreenScraper now supports video asset downloads
 - multiple videos are now also played random if the selection is active
 - filter game metadata searches by a selected system with ScreenScraper, IGDB and TheGamesDB

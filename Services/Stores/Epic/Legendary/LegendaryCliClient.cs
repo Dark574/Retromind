@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -16,6 +18,12 @@ internal sealed record LegendaryStatus(
     bool EpicLauncherSyncEnabled,
     string ConfigDirectory);
 
+internal sealed record LegendaryGame(
+    string AppName,
+    string AppTitle,
+    string? Platform,
+    string? Version);
+
 internal sealed partial class LegendaryCliClient
 {
     internal static readonly Uri AuthorizationUri = new("https://legendary.gl/epiclogin");
@@ -24,6 +32,7 @@ internal sealed partial class LegendaryCliClient
     private static readonly TimeSpan StatusTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan OnlineStatusTimeout = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan AuthenticationTimeout = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan LibraryTimeout = TimeSpan.FromMinutes(5);
 
     private readonly ILegendaryCliProcessRunner _processRunner;
 
@@ -95,6 +104,53 @@ internal sealed partial class LegendaryCliClient
             .ConfigureAwait(false);
     }
 
+    internal async Task<IReadOnlyList<LegendaryGame>> GetGamesAsync(CancellationToken ct = default)
+    {
+        var result = await ExecuteAsync(
+                new LegendaryCliCommand(
+                    "library load",
+                    ["list", "--json"],
+                    LibraryTimeout),
+                ct)
+            .ConfigureAwait(false);
+
+        try
+        {
+            using var document = JsonDocument.Parse(result.StandardOutput);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+                throw new JsonException("Legendary game list is not an array.");
+
+            var games = new Dictionary<string, LegendaryGame>(StringComparer.Ordinal);
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                var appName = ReadString(element, "app_name")?.Trim();
+                if (string.IsNullOrWhiteSpace(appName))
+                    continue;
+
+                var appTitle = ReadString(element, "app_title")?.Trim();
+                if (string.IsNullOrWhiteSpace(appTitle))
+                    appTitle = appName;
+
+                var (platform, version) = ReadPreferredAsset(element);
+                games.TryAdd(appName, new LegendaryGame(appName, appTitle, platform, version));
+            }
+
+            return games.Values
+                .OrderBy(game => game.AppTitle, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(game => game.AppName, StringComparer.Ordinal)
+                .ToArray();
+        }
+        catch (JsonException ex)
+        {
+            throw new LegendaryCliException(
+                "Legendary returned an invalid response for the 'library load' operation.",
+                ex);
+        }
+    }
+
     private async Task<LegendaryStatus> GetStatusAsync(bool offline, CancellationToken ct)
     {
         var arguments = offline
@@ -136,6 +192,34 @@ internal sealed partial class LegendaryCliClient
                 $"Legendary returned an invalid response for the '{operation}' operation.",
                 ex);
         }
+    }
+
+    private static (string? Platform, string? Version) ReadPreferredAsset(JsonElement game)
+    {
+        if (!game.TryGetProperty("asset_infos", out var assetInfos) ||
+            assetInfos.ValueKind != JsonValueKind.Object)
+        {
+            return (null, null);
+        }
+
+        if (assetInfos.TryGetProperty("Windows", out var windowsAsset))
+            return ("Windows", ReadString(windowsAsset, "build_version"));
+
+        foreach (var asset in assetInfos.EnumerateObject())
+            return (asset.Name, ReadString(asset.Value, "build_version"));
+
+        return (null, null);
+    }
+
+    private static string? ReadString(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        return property.GetString();
     }
 
     private async Task<LegendaryCliResult> ExecuteAsync(

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,20 +9,24 @@ using Retromind.Services.Stores.Epic.Legendary;
 
 namespace Retromind.Services.Stores.Epic;
 
-internal sealed class EpicProvider : IStoreAuthProvider
+internal sealed class EpicProvider : IStoreAuthProvider, IStoreLibraryProvider
 {
     private readonly LegendaryCliClient _client;
+    private readonly EpicLibraryService _libraryService;
 
-    public EpicProvider(LegendaryCliClient client)
+    public EpicProvider(LegendaryCliClient client, EpicLibraryService libraryService)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
+        _libraryService = libraryService ?? throw new ArgumentNullException(nameof(libraryService));
     }
 
     public string ProviderId => StoreProviderIds.Epic;
 
     public string DisplayName => "Epic Games";
 
-    public StoreProviderCapabilities Capabilities => StoreProviderCapabilities.Authentication;
+    public StoreProviderCapabilities Capabilities =>
+        StoreProviderCapabilities.Authentication |
+        StoreProviderCapabilities.OwnedLibrary;
 
     public async Task<StoreAuthState> GetAuthStateAsync(CancellationToken ct = default)
     {
@@ -83,5 +88,10 @@ internal sealed class EpicProvider : IStoreAuthProvider
         }
 
         return _client.SignOutAsync(ct);
+    }
+
+    public Task<IReadOnlyList<StoreGameRecord>> GetOwnedGamesAsync(CancellationToken ct = default)
+    {
+        return _libraryService.GetOwnedGamesAsync(ct);
     }
 }

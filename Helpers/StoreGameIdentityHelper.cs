@@ -20,7 +20,7 @@ internal static class StoreGameIdentityHelper
                string.Equals(leftGameId, rightGameId, StringComparison.Ordinal);
     }
 
-    private static bool TryGetIdentity(
+    internal static bool TryGetIdentity(
         MediaItem item,
         out string providerId,
         out string gameId)

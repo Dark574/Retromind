@@ -323,6 +323,7 @@ public partial class App : Application
             provider.GetRequiredService<LegendaryExecutableResolver>(),
             LegendaryCliProcessRunner.GetDefaultConfigDirectory(AppPaths.DataRoot)));
         services.AddSingleton<LegendaryCliClient>();
+        services.AddSingleton<EpicLibraryService>();
         services.AddSingleton<EpicProvider>();
         services.AddSingleton<IStoreProvider>(provider => provider.GetRequiredService<EpicProvider>());
 

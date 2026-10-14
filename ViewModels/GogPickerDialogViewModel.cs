@@ -16,6 +16,7 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
 {
     private readonly IReadOnlyList<GogPickerGameEntry> _allEntries;
     private readonly bool _singleSelection;
+    private readonly string _providerDisplayName;
     private CancellationTokenSource? _filterCts;
     private int _selectedCount;
     private bool _disposed;
@@ -29,13 +30,28 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
     public RangeObservableCollection<GogPickerGameEntry> FilteredGames { get; } = new();
 
     public string DialogTitleText => _singleSelection
-        ? T("Gog.Link.DialogTitle", "Link GOG game")
-        : T("Gog.Picker.DialogTitle", "Select GOG media");
+        ? string.Format(
+            CultureInfo.CurrentCulture,
+            T("Store.Link.DialogTitleFormat", "Link {0} game"),
+            _providerDisplayName)
+        : string.Format(
+            CultureInfo.CurrentCulture,
+            T("Store.Picker.DialogTitleFormat", "Select {0} media"),
+            _providerDisplayName);
     public string HeaderText => _singleSelection
-        ? T("Gog.Link.Header", "Select the matching game from your GOG library")
-        : T("Gog.Picker.Header", "GOG library");
+        ? string.Format(
+            CultureInfo.CurrentCulture,
+            T("Store.Link.HeaderFormat", "Select the matching game from your {0} library"),
+            _providerDisplayName)
+        : string.Format(
+            CultureInfo.CurrentCulture,
+            T("Store.Picker.HeaderFormat", "{0} library"),
+            _providerDisplayName);
     public string OnlyNewInNodeText => T("Gog.Picker.OnlyNewInNode", "Only new in this category");
-    public string SearchPlaceholderText => T("Gog.Picker.SearchPlaceholder", "Search by title, GOG ID, or platform...");
+    public string SearchPlaceholderText => string.Format(
+        CultureInfo.CurrentCulture,
+        T("Store.Picker.SearchPlaceholderFormat", "Search by title, {0} ID, or platform..."),
+        _providerDisplayName);
     public string SelectAllFilteredText => T("Gog.Picker.SelectAllFiltered", "Select all filtered");
     public string ClearFilteredSelectionText => T("Gog.Picker.ClearSelection", "Clear selection");
     public string EmptyStateText => T("Gog.Picker.EmptyState", "No matches for the current filter.");
@@ -69,11 +85,16 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
         IReadOnlySet<string> existingInTargetNode,
         IReadOnlyDictionary<string, int> usageByGameId,
         bool singleSelection = false,
-        string? initialSearchText = null)
+        string? initialSearchText = null,
+        string providerId = StoreProviderIds.Gog,
+        string providerDisplayName = "GOG")
     {
         if (games == null) throw new ArgumentNullException(nameof(games));
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerDisplayName);
 
         _singleSelection = singleSelection;
+        _providerDisplayName = providerDisplayName.Trim();
         _onlyNewInNode = !singleSelection;
         _searchText = initialSearchText?.Trim() ?? string.Empty;
 
@@ -84,7 +105,7 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
         var statusNew = T("Gog.Picker.StatusNew", "New");
 
         _allEntries = games
-            .Where(g => string.Equals(g.ProviderId, "gog", StringComparison.OrdinalIgnoreCase))
+            .Where(g => string.Equals(g.ProviderId, providerId.Trim(), StringComparison.OrdinalIgnoreCase))
             .Where(g => !string.IsNullOrWhiteSpace(g.StoreGameId))
             .GroupBy(g => g.StoreGameId, StringComparer.Ordinal)
             .Select(group =>
@@ -102,7 +123,8 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
                     usageCount,
                     statusAlreadyInNode,
                     statusLinkedFormat,
-                    statusNew);
+                    statusNew,
+                    _providerDisplayName);
             })
             .OrderBy(e => e.SortTitle, StringComparer.OrdinalIgnoreCase)
             .ThenBy(e => e.StoreGameId, StringComparer.Ordinal)
@@ -244,10 +266,13 @@ public partial class GogPickerDialogViewModel : ViewModelBase, IDisposable
 public partial class GogPickerGameEntry : ObservableObject
 {
     private readonly string _searchIndex;
+    private readonly string _providerDisplayName;
 
     public StoreGameRecord Game { get; }
     public string StoreGameId => Game.StoreGameId;
-    public string SortTitle => string.IsNullOrWhiteSpace(Game.Title) ? $"GOG {StoreGameId}" : Game.Title;
+    public string SortTitle => string.IsNullOrWhiteSpace(Game.Title)
+        ? $"{_providerDisplayName} {StoreGameId}"
+        : Game.Title;
     public string DisplayTitle => SortTitle;
     public string Platform => string.IsNullOrWhiteSpace(Game.Platform) ? "-" : Game.Platform!;
     public bool ExistsInTargetNode { get; }
@@ -266,9 +291,11 @@ public partial class GogPickerGameEntry : ObservableObject
         int existingUsageCount,
         string statusAlreadyInNode,
         string statusLinkedFormat,
-        string statusNew)
+        string statusNew,
+        string providerDisplayName)
     {
         Game = game;
+        _providerDisplayName = providerDisplayName;
         ExistsInTargetNode = existsInTargetNode;
         ExistingUsageCount = Math.Max(0, existingUsageCount);
 
