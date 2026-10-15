@@ -43,7 +43,7 @@ especially before installing a new release.
 ### Launch everything from one place
 
 - **A flexible Linux launch pipeline.** Start native applications, scripts and emulators, or combine Wine, Proton, UMU, wrappers and environment overrides while preserving portable paths.
-- **Integrated game-library workflows.** Import Steam titles, import, install, update and remove Epic Games titles through bundled Legendary, download GE-Proton versions, reuse emulator profiles, and manage GOG offline installations, updates and DLCs through the experimental GOG integration.
+- **Integrated game-library workflows.** Import Steam titles, manage Epic Games titles through the experimental bundled Legendary integration, download GE-Proton versions, reuse emulator profiles, and manage GOG offline installations, updates and DLCs through the experimental GOG integration.
 - **Diagnostics you can actually share.** Retromind records the latest launch command, resolved runner, environment, output, runtime and exit result for easier troubleshooting.
 - **Experimental achievement support.** View Steam achievements for imported games, or identify supported ROM and disc images through RetroAchievements with separate Casual and Hardcore summaries.
 
@@ -856,6 +856,33 @@ Examples:
 - `cf.rating:5`
 - `zelda AND platform:switch`
 
+## Epic Games (Experimental)
+
+The native Epic Games integration is currently **experimental**.
+Please test it carefully and expect rough edges or breaking behavior between alpha releases.
+The official Retromind AppImage includes Legendary, so neither Heroic Games Launcher nor the Epic Games
+Launcher is required.
+
+### Requirements
+
+- An Epic Games account and internet access for authentication and library operations.
+- Retromind launches Epic Games titles with its own configured Wine or Proton runner; no runner setup in
+  Heroic Games Launcher or the Epic Games Launcher is used.
+- Proton launches require `umu-run` to be available in `PATH`.
+
+### Usage
+
+- Run **Import > Epic games** on any target category. Retromind opens the Epic Games sign-in in the system
+  browser and asks for the displayed `authorizationCode` or complete JSON response when authentication is required.
+- Use the picker to import selected owned games. Existing library items can also be linked to an Epic Games title
+  without losing their media, metadata, user fields or play statistics.
+- Install linked games through Retromind and choose the installation directory and Wine/Proton runner. Downloads
+  are resumable and Retromind creates a game-specific prefix where required.
+- Installed games can be updated, repaired, uninstalled and managed together with their owned DLCs. Repair verifies
+  the installed files and downloads only missing or damaged data.
+- Retromind keeps Legendary and its configuration below `Tools/Legendary` inside the portable data root. Epic
+  authentication data is not written to Retromind's normal settings or library backups.
+
 ## GOG (Experimental)
 
 The native GOG integration is currently **experimental**.
@@ -870,7 +897,8 @@ Please test it carefully and expect rough edges or breaking behavior between alp
 - For embedded OAuth login dialogs: host WPE WebKit runtime available (Arch/CachyOS: `sudo pacman -S wpewebkit`).
   - WebKitGTK is not required for GOG authentication.
   - If WPE WebKit is unavailable, Retromind falls back to system browser login with manual callback URL input.
-  - After GOG finishes loading its final callback page, copy the URL from the browser address bar and paste it into Retromind.
+  - Only in this fallback flow: after GOG finishes loading its final callback page, copy the URL from the
+    browser address bar and paste it into Retromind.
   - Set `RETROMIND_GOG_FORCE_BROWSER_LOGIN=1` to force this fallback for testing or troubleshooting.
 
 ### Usage
