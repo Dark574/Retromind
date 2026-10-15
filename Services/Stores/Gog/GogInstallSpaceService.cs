@@ -43,7 +43,7 @@ internal sealed class GogInsufficientDiskSpaceException : IOException
 internal static class GogInstallSpaceService
 {
     // Keep enough space for filesystem metadata, installer logs and small temporary files.
-    internal const long FreeSpaceReserveBytes = 1024L * 1024L * 1024L;
+    internal const long FreeSpaceReserveBytes = StoreDiskSpaceHelper.FreeSpaceReserveBytes;
 
     internal static GogInstallSpaceAssessment Assess(
         GogInstallerPackage package,
@@ -52,7 +52,7 @@ internal static class GogInstallSpaceService
     {
         ArgumentNullException.ThrowIfNull(package);
 
-        var normalizedPath = GetNearestExistingPath(checkedPath);
+        var normalizedPath = StoreDiskSpaceHelper.GetNearestExistingPath(checkedPath);
         if (!TryGetAvailableBytes(normalizedPath, out var availableBytes))
         {
             return new GogInstallSpaceAssessment(
@@ -153,7 +153,7 @@ internal static class GogInstallSpaceService
         if (remainingResponseBytes is not > 0)
             return;
 
-        var checkedPath = GetNearestExistingPath(Path.GetDirectoryName(targetPath) ?? targetPath);
+        var checkedPath = StoreDiskSpaceHelper.GetNearestExistingPath(Path.GetDirectoryName(targetPath) ?? targetPath);
         if (!TryGetAvailableBytes(checkedPath, out var availableBytes))
             return;
 
@@ -163,79 +163,10 @@ internal static class GogInstallSpaceService
     }
 
     internal static bool TryGetAvailableBytes(string path, out long availableBytes)
-    {
-        availableBytes = 0;
-        try
-        {
-            var fullPath = Path.GetFullPath(path);
-            var drive = DriveInfo.GetDrives()
-                .Where(candidate => candidate.IsReady && IsEqualToOrBelow(fullPath, candidate.RootDirectory.FullName))
-                .OrderByDescending(candidate => candidate.RootDirectory.FullName.Length)
-                .FirstOrDefault();
-            if (drive == null)
-                return false;
-
-            availableBytes = Math.Max(0, drive.AvailableFreeSpace);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+        => StoreDiskSpaceHelper.TryGetAvailableBytes(path, out availableBytes);
 
     internal static string FormatByteSize(long bytes)
-    {
-        if (bytes < 0)
-            bytes = 0;
-
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        var value = (double)bytes;
-        var unitIndex = 0;
-        while (value >= 1024d && unitIndex < units.Length - 1)
-        {
-            value /= 1024d;
-            unitIndex++;
-        }
-
-        return unitIndex == 0
-            ? $"{bytes} {units[unitIndex]}"
-            : $"{value:0.0} {units[unitIndex]}";
-    }
-
-    private static string GetNearestExistingPath(string path)
-    {
-        try
-        {
-            var candidate = Path.GetFullPath(path);
-            while (!Directory.Exists(candidate))
-            {
-                var parent = Path.GetDirectoryName(candidate);
-                if (string.IsNullOrWhiteSpace(parent) || FileSystemPathIdentity.Equals(parent, candidate))
-                    break;
-
-                candidate = parent;
-            }
-
-            return candidate;
-        }
-        catch
-        {
-            return path;
-        }
-    }
-
-    private static bool IsEqualToOrBelow(string path, string root)
-    {
-        var fullRoot = Path.GetFullPath(root);
-        if (FileSystemPathIdentity.Equals(path, fullRoot))
-            return true;
-
-        var rootWithSeparator = Path.EndsInDirectorySeparator(fullRoot)
-            ? fullRoot
-            : fullRoot + Path.DirectorySeparatorChar;
-        return path.StartsWith(rootWithSeparator, FileSystemPathIdentity.Comparison);
-    }
+        => StoreDiskSpaceHelper.FormatByteSize(bytes);
 
     private static long TryGetFileLength(string path)
     {
@@ -250,7 +181,7 @@ internal static class GogInstallSpaceService
     }
 
     private static long SaturatingAdd(long left, long right) =>
-        left > long.MaxValue - right ? long.MaxValue : left + right;
+        StoreDiskSpaceHelper.SaturatingAdd(left, right);
 }
 
 internal static class GogInstallerStagingPathHelper

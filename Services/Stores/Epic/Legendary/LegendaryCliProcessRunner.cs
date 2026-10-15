@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
@@ -12,7 +13,18 @@ namespace Retromind.Services.Stores.Epic.Legendary;
 internal sealed record LegendaryCliCommand(
     string Operation,
     IReadOnlyList<string> Arguments,
-    TimeSpan Timeout);
+    TimeSpan Timeout,
+    Action<string>? OutputReceived = null,
+    string? StandardInput = null,
+    bool SuppressBrowserLaunch = false,
+    bool IncludeErrorDetails = true)
+{
+    public override string ToString()
+    {
+        return $"LegendaryCliCommand {{ Operation = {Operation}, ArgumentCount = {Arguments.Count}, " +
+               $"StandardInput = {(StandardInput == null ? "<none>" : "<redacted>")} }}";
+    }
+}
 
 internal sealed record LegendaryCliResult(
     int ExitCode,
@@ -51,12 +63,12 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(command);
-        if (command.Timeout <= TimeSpan.Zero)
+        if (command.Timeout != Timeout.InfiniteTimeSpan && command.Timeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(command), "The Legendary command timeout must be positive.");
 
         Directory.CreateDirectory(_configDirectory);
         var executablePath = _executableResolver.GetRequiredExecutable();
-        var startInfo = CreateStartInfo(executablePath, command.Arguments);
+        var startInfo = CreateStartInfo(executablePath, command);
 
         using var process = new Process { StartInfo = startInfo };
         try
@@ -71,10 +83,55 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
                 ex);
         }
 
-        var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-        var stderrTask = process.StandardError.ReadToEndAsync(ct);
+        if (command.StandardInput != null)
+        {
+            try
+            {
+                await process.StandardInput
+                    .WriteLineAsync(command.StandardInput.AsMemory(), ct)
+                    .ConfigureAwait(false);
+                process.StandardInput.Close();
+            }
+            catch (Exception ex) when (ex is IOException or InvalidOperationException)
+            {
+                TryKill(process);
+                throw new LegendaryCliException(
+                    $"Legendary could not receive input for the '{command.Operation}' operation.",
+                    ex);
+            }
+        }
+
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(command.Timeout);
+        if (command.Timeout != Timeout.InfiniteTimeSpan)
+            timeoutCts.CancelAfter(command.Timeout);
+
+        var outputGate = new object();
+        void ReportOutput(string line)
+        {
+            if (command.OutputReceived == null)
+                return;
+
+            lock (outputGate)
+            {
+                try
+                {
+                    command.OutputReceived(line);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Legendary] Output callback failed: {ex.Message}");
+                }
+            }
+        }
+
+        var stdoutTask = ReadOutputAsync(
+            process.StandardOutput,
+            ReportOutput,
+            timeoutCts.Token);
+        var stderrTask = ReadOutputAsync(
+            process.StandardError,
+            ReportOutput,
+            timeoutCts.Token);
 
         try
         {
@@ -100,9 +157,53 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
             await stderrTask.ConfigureAwait(false));
     }
 
+    private static async Task<string> ReadOutputAsync(
+        StreamReader reader,
+        Action<string> outputReceived,
+        CancellationToken ct)
+    {
+        var completeOutput = new StringBuilder();
+        var pendingLine = new StringBuilder();
+        var buffer = new char[2048];
+
+        while (true)
+        {
+            var read = await reader.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false);
+            if (read == 0)
+                break;
+
+            completeOutput.Append(buffer, 0, read);
+            for (var index = 0; index < read; index++)
+            {
+                var character = buffer[index];
+                if (character is '\r' or '\n')
+                {
+                    ReportPendingLine(pendingLine, outputReceived);
+                    continue;
+                }
+
+                pendingLine.Append(character);
+            }
+        }
+
+        ReportPendingLine(pendingLine, outputReceived);
+        return completeOutput.ToString();
+    }
+
+    private static void ReportPendingLine(StringBuilder pendingLine, Action<string> outputReceived)
+    {
+        if (pendingLine.Length == 0)
+            return;
+
+        var line = pendingLine.ToString().Trim();
+        pendingLine.Clear();
+        if (line.Length > 0)
+            outputReceived(line);
+    }
+
     private ProcessStartInfo CreateStartInfo(
         string executablePath,
-        IReadOnlyList<string> arguments)
+        LegendaryCliCommand command)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -110,6 +211,7 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            RedirectStandardInput = command.StandardInput != null,
             CreateNoWindow = true
         };
 
@@ -117,9 +219,15 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
         // manifests and temporary metadata inside this Retromind-owned directory.
         startInfo.Environment[ConfigPathEnvironmentVariable] = _configDirectory;
         startInfo.Environment.Remove("VLC_PLUGIN_PATH");
+        if (command.SuppressBrowserLaunch)
+        {
+            // Retromind already opened the Epic authorization page. Legendary's
+            // interactive stdin flow would otherwise open it a second time.
+            startInfo.Environment["BROWSER"] = "true";
+        }
         AppImageToolResolver.ConfigureBundledToolEnvironment(startInfo, executablePath);
 
-        foreach (var argument in arguments)
+        foreach (var argument in command.Arguments)
             startInfo.ArgumentList.Add(argument);
 
         return startInfo;

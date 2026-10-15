@@ -38,6 +38,18 @@ public sealed class LauncherServiceTests
     }
 
     [Fact]
+    public void AppendLaunchArguments_QuotesDynamicArgumentsWithoutChangingExistingPlan()
+    {
+        var result = LauncherService.AppendLaunchArguments(
+            "\"/games/Example Game.exe\" -windowed",
+            ["-AUTH_PASSWORD=abc", "value with spaces", "embedded\"quote", string.Empty]);
+
+        Assert.Equal(
+            "\"/games/Example Game.exe\" -windowed -AUTH_PASSWORD=abc \"value with spaces\" \"embedded\\\"quote\" \"\"",
+            result);
+    }
+
+    [Fact]
     public async Task LaunchAsync_RunsNestedWrapperWhosePathContainsSpaces()
     {
         if (!OperatingSystem.IsLinux())

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 
 namespace Retromind.Services.Stores.Epic.Legendary;
 
@@ -23,6 +25,24 @@ internal sealed record LegendaryGame(
     string AppTitle,
     string? Platform,
     string? Version);
+
+internal sealed record LegendaryInstallEstimate(
+    long InstalledBytes,
+    int FileCount);
+
+internal sealed record LegendaryInstalledGame(
+    string AppName,
+    string Title,
+    string InstallPath,
+    string Executable,
+    string Version,
+    string Platform,
+    long InstallSize,
+    bool IsDlc);
+
+internal sealed record LegendaryLaunchParameters(
+    IReadOnlyList<string> Arguments,
+    IReadOnlyDictionary<string, string> Environment);
 
 internal sealed partial class LegendaryCliClient
 {
@@ -72,25 +92,42 @@ internal sealed partial class LegendaryCliClient
         CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(authorizationCode);
+        var trimmedAuthorizationCode = authorizationCode.Trim();
+        if (trimmedAuthorizationCode.Contains('\r') || trimmedAuthorizationCode.Contains('\n'))
+            throw new ArgumentException("The Epic authorization code must be a single line.", nameof(authorizationCode));
 
-        await ExecuteAsync(
-                new LegendaryCliCommand(
-                    "Epic sign-in",
-                    ["auth", "--code", authorizationCode.Trim()],
-                    AuthenticationTimeout),
-                ct)
-            .ConfigureAwait(false);
-
-        // Legendary 0.21.1 can return exit code 0 even when Epic rejects the code.
-        // An online status request is therefore the authoritative success check.
-        var status = await GetValidatedStatusAsync(ct).ConfigureAwait(false);
-        if (!status.IsAuthenticated)
+        try
         {
-            throw new LegendaryCliException(
-                "Legendary did not establish an authenticated Epic session.");
-        }
+            await ExecuteAsync(
+                    new LegendaryCliCommand(
+                        "Epic sign-in",
+                        ["auth", "--disable-webview"],
+                        AuthenticationTimeout,
+                        StandardInput: trimmedAuthorizationCode,
+                        SuppressBrowserLaunch: true,
+                        IncludeErrorDetails: false),
+                    ct)
+                .ConfigureAwait(false);
 
-        return status;
+            // Legendary 0.21.1 can return exit code 0 even when Epic rejects the code.
+            // An online status request is therefore the authoritative success check.
+            var status = await GetStatusAsync(offline: false, ct, includeErrorDetails: false).ConfigureAwait(false);
+            if (!status.IsAuthenticated)
+                throw new LegendaryCliException("Epic sign-in was not accepted.");
+
+            return status;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (LegendaryCliException)
+        {
+            // Authentication output can contain credentials or tokens. Never
+            // propagate Legendary's raw output through UI errors or logs.
+            throw new LegendaryCliException(
+                "Epic sign-in failed. The authorization code may be invalid or expired.");
+        }
     }
 
     internal async Task SignOutAsync(CancellationToken ct = default)
@@ -151,7 +188,231 @@ internal sealed partial class LegendaryCliClient
         }
     }
 
-    private async Task<LegendaryStatus> GetStatusAsync(bool offline, CancellationToken ct)
+    internal async Task<LegendaryInstallEstimate> GetInstallEstimateAsync(
+        string appName,
+        string platform = "Windows",
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(appName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(platform);
+
+        var result = await ExecuteAsync(
+                new LegendaryCliCommand(
+                    "install size check",
+                    [
+                        "list-files",
+                        appName.Trim(),
+                        "--force-download",
+                        "--platform",
+                        platform.Trim(),
+                        "--json"
+                    ],
+                    LibraryTimeout),
+                ct)
+            .ConfigureAwait(false);
+
+        try
+        {
+            using var document = JsonDocument.Parse(result.StandardOutput);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+                throw new JsonException("Legendary file list is not an array.");
+
+            var installedBytes = 0L;
+            var fileCount = 0;
+            foreach (var file in document.RootElement.EnumerateArray())
+            {
+                if (file.ValueKind != JsonValueKind.Object ||
+                    !file.TryGetProperty("file_size", out var fileSize) ||
+                    fileSize.ValueKind != JsonValueKind.Number ||
+                    !fileSize.TryGetInt64(out var bytes) ||
+                    bytes < 0)
+                {
+                    throw new JsonException("Legendary file size is missing or invalid.");
+                }
+
+                installedBytes = checked(installedBytes + bytes);
+                fileCount++;
+            }
+
+            return new LegendaryInstallEstimate(installedBytes, fileCount);
+        }
+        catch (Exception ex) when (ex is JsonException or OverflowException)
+        {
+            throw new LegendaryCliException(
+                "Legendary returned an invalid response for the 'install size check' operation.",
+                ex);
+        }
+    }
+
+    internal async Task<IReadOnlyList<LegendaryInstalledGame>> GetInstalledGamesAsync(
+        CancellationToken ct = default)
+    {
+        var result = await ExecuteAsync(
+                new LegendaryCliCommand(
+                    "installed games check",
+                    ["list-installed", "--json"],
+                    StatusTimeout),
+                ct)
+            .ConfigureAwait(false);
+
+        try
+        {
+            using var document = JsonDocument.Parse(result.StandardOutput);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+                throw new JsonException("Legendary installed game list is not an array.");
+
+            var games = new List<LegendaryInstalledGame>();
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                var appName = ReadString(element, "app_name")?.Trim();
+                var installPath = ReadString(element, "install_path")?.Trim();
+                if (string.IsNullOrWhiteSpace(appName) || string.IsNullOrWhiteSpace(installPath))
+                    continue;
+
+                games.Add(new LegendaryInstalledGame(
+                    appName,
+                    ReadString(element, "title")?.Trim() ?? appName,
+                    installPath,
+                    ReadString(element, "executable")?.Trim() ?? string.Empty,
+                    ReadString(element, "version")?.Trim() ?? string.Empty,
+                    ReadString(element, "platform")?.Trim() ?? "Windows",
+                    ReadLong(element, "install_size"),
+                    ReadBool(element, "is_dlc")));
+            }
+
+            return games;
+        }
+        catch (JsonException ex)
+        {
+            throw new LegendaryCliException(
+                "Legendary returned an invalid response for the 'installed games check' operation.",
+                ex);
+        }
+    }
+
+    internal async Task<LegendaryInstalledGame> InstallAsync(
+        string appName,
+        string installPath,
+        Action<string>? outputReceived = null,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(appName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(installPath);
+
+        var fullInstallPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installPath));
+        var basePath = Path.GetDirectoryName(fullInstallPath);
+        var gameFolder = Path.GetFileName(fullInstallPath);
+        if (string.IsNullOrWhiteSpace(basePath) || string.IsNullOrWhiteSpace(gameFolder))
+            throw new ArgumentException("The Legendary install path must point to a game directory.", nameof(installPath));
+
+        Directory.CreateDirectory(basePath);
+        await ExecuteAsync(
+                new LegendaryCliCommand(
+                    "game installation",
+                    [
+                        "--yes",
+                        "install",
+                        appName.Trim(),
+                        "--base-path",
+                        basePath,
+                        "--game-folder",
+                        gameFolder,
+                        "--platform",
+                        "Windows",
+                        "--skip-sdl",
+                        "--skip-dlcs"
+                    ],
+                    Timeout.InfiniteTimeSpan,
+                    outputReceived),
+                ct)
+            .ConfigureAwait(false);
+
+        var installedGames = await GetInstalledGamesAsync(ct).ConfigureAwait(false);
+        var installedGame = installedGames.FirstOrDefault(game => string.Equals(
+            game.AppName,
+            appName.Trim(),
+            StringComparison.Ordinal));
+        if (installedGame == null)
+        {
+            throw new LegendaryCliException(
+                "Legendary finished without registering the game as installed.");
+        }
+
+        var registeredInstallPath = Path.TrimEndingDirectorySeparator(
+            Path.GetFullPath(installedGame.InstallPath));
+        if (!FileSystemPathIdentity.Equals(registeredInstallPath, fullInstallPath))
+        {
+            throw new LegendaryCliException(
+                $"Legendary registered the game at '{registeredInstallPath}' instead of the requested path '{fullInstallPath}'.");
+        }
+
+        return installedGame;
+    }
+
+    internal async Task<LegendaryLaunchParameters> GetLaunchParametersAsync(
+        string appName,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(appName);
+
+        var result = await ExecuteAsync(
+                new LegendaryCliCommand(
+                    "launch preparation",
+                    [
+                        "launch",
+                        appName.Trim(),
+                        "--json",
+                        "--no-wine",
+                        "--skip-version-check"
+                    ],
+                    OnlineStatusTimeout),
+                ct)
+            .ConfigureAwait(false);
+
+        try
+        {
+            using var document = JsonDocument.Parse(result.StandardOutput);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                throw new JsonException("Legendary launch parameters are not an object.");
+
+            var arguments = new List<string>();
+            AppendStringArray(document.RootElement, "game_parameters", arguments);
+            AppendStringArray(document.RootElement, "user_parameters", arguments);
+            AppendStringArray(document.RootElement, "egl_parameters", arguments);
+
+            var environment = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (document.RootElement.TryGetProperty("environment", out var environmentElement))
+            {
+                if (environmentElement.ValueKind != JsonValueKind.Object)
+                    throw new JsonException("Legendary launch environment is not an object.");
+
+                foreach (var property in environmentElement.EnumerateObject())
+                {
+                    if (property.Value.ValueKind == JsonValueKind.String &&
+                        !string.IsNullOrWhiteSpace(property.Name))
+                    {
+                        environment[property.Name] = property.Value.GetString() ?? string.Empty;
+                    }
+                }
+            }
+
+            return new LegendaryLaunchParameters(arguments, environment);
+        }
+        catch (JsonException ex)
+        {
+            throw new LegendaryCliException(
+                "Legendary returned an invalid response for the 'launch preparation' operation.",
+                ex);
+        }
+    }
+
+    private async Task<LegendaryStatus> GetStatusAsync(
+        bool offline,
+        CancellationToken ct,
+        bool includeErrorDetails = true)
     {
         var arguments = offline
             ? new[] { "status", "--offline", "--json" }
@@ -160,7 +421,11 @@ internal sealed partial class LegendaryCliClient
         var timeout = offline ? StatusTimeout : OnlineStatusTimeout;
 
         var result = await ExecuteAsync(
-                new LegendaryCliCommand(operation, arguments, timeout),
+                new LegendaryCliCommand(
+                    operation,
+                    arguments,
+                    timeout,
+                    IncludeErrorDetails: includeErrorDetails),
                 ct)
             .ConfigureAwait(false);
 
@@ -222,6 +487,40 @@ internal sealed partial class LegendaryCliClient
         return property.GetString();
     }
 
+    private static long ReadLong(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind == JsonValueKind.Number &&
+               property.TryGetInt64(out var value)
+            ? Math.Max(0, value)
+            : 0;
+    }
+
+    private static bool ReadBool(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind is JsonValueKind.True;
+    }
+
+    private static void AppendStringArray(
+        JsonElement element,
+        string propertyName,
+        ICollection<string> target)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+            return;
+        if (property.ValueKind != JsonValueKind.Array)
+            throw new JsonException($"Legendary property '{propertyName}' is not an array.");
+
+        foreach (var value in property.EnumerateArray())
+        {
+            if (value.ValueKind != JsonValueKind.String)
+                throw new JsonException($"Legendary property '{propertyName}' contains a non-string value.");
+
+            target.Add(value.GetString() ?? string.Empty);
+        }
+    }
+
     private async Task<LegendaryCliResult> ExecuteAsync(
         LegendaryCliCommand command,
         CancellationToken ct)
@@ -230,7 +529,9 @@ internal sealed partial class LegendaryCliClient
         if (result.ExitCode == 0)
             return result;
 
-        var detail = GetSafeErrorDetail(result.StandardError, result.StandardOutput);
+        var detail = command.IncludeErrorDetails
+            ? GetSafeErrorDetail(result.StandardError, result.StandardOutput)
+            : string.Empty;
         throw new LegendaryCliException(
             $"Legendary's '{command.Operation}' operation failed with exit code {result.ExitCode}{detail}.");
     }
@@ -251,6 +552,11 @@ internal sealed partial class LegendaryCliClient
         if (string.IsNullOrWhiteSpace(detail))
             return string.Empty;
 
+        detail = SensitiveErrorValueRegex().Replace(
+            detail,
+            match => match.Groups["prefix"].Value + "[REDACTED]");
+        detail = BearerTokenRegex().Replace(detail, "Bearer [REDACTED]");
+
         const int maxLength = 240;
         if (detail.Length > maxLength)
             detail = detail[..maxLength] + "...";
@@ -262,6 +568,16 @@ internal sealed partial class LegendaryCliClient
         "^legendary\\s+version\\s+\"(?<version>[^\"]+)\",\\s+codename\\s+\"(?<codename>[^\"]*)\"$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex VersionOutputRegex();
+
+    [GeneratedRegex(
+        "(?<prefix>[\\\"']?(?:authorization_?code|authorizationCode|access_?token|accessToken|refresh_?token|refreshToken|exchange_?(?:code|token)|exchange(?:Code|Token)|-AUTH_(?:PASSWORD|LOGIN)|code|token|sid)[\\\"']?\\s*(?:=|:)\\s*[\\\"']?)[^\\s,\\\"'}&]+",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SensitiveErrorValueRegex();
+
+    [GeneratedRegex(
+        "\\bBearer\\s+[^\\s,\\\"'}]+",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex BearerTokenRegex();
 
     private sealed class LegendaryStatusDto
     {

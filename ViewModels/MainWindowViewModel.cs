@@ -26,6 +26,7 @@ using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores;
 using Retromind.Services.Stores.Abstractions;
+using Retromind.Services.Stores.Epic;
 using Retromind.Services.Stores.Gog;
 
 namespace Retromind.ViewModels;
@@ -51,6 +52,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IStoreLibraryProvider _gogStoreLibraryProvider;
     private readonly IStoreAuthProvider _epicStoreAuthProvider;
     private readonly IStoreLibraryProvider _epicStoreLibraryProvider;
+    private readonly EpicInstallService _epicInstallService;
+    private readonly EpicLaunchService _epicLaunchService;
     private readonly GogInstallService _gogInstallService;
     private readonly GogLaunchDetectionService _gogLaunchDetectionService;
     private readonly GogInstallerWorkflowService _gogInstallerWorkflowService;
@@ -418,6 +421,8 @@ public partial class MainWindowViewModel : ViewModelBase
         GogInstallService gogInstallService,
         GogLaunchDetectionService gogLaunchDetectionService,
         GogInstallerWorkflowService gogInstallerWorkflowService,
+        EpicInstallService epicInstallService,
+        EpicLaunchService epicLaunchService,
         SettingsService settingsService,
         RunnerVersionService runnerVersionService,
         MetadataService metadataService,
@@ -450,6 +455,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _gogStoreLibraryProvider = storeProviderRegistry.GetRequiredCapability<IStoreLibraryProvider>(StoreProviderIds.Gog);
         _epicStoreAuthProvider = storeProviderRegistry.GetRequiredCapability<IStoreAuthProvider>(StoreProviderIds.Epic);
         _epicStoreLibraryProvider = storeProviderRegistry.GetRequiredCapability<IStoreLibraryProvider>(StoreProviderIds.Epic);
+        _epicInstallService = epicInstallService;
+        _epicLaunchService = epicLaunchService;
         _gogInstallService = gogInstallService;
         _gogLaunchDetectionService = gogLaunchDetectionService;
         _gogInstallerWorkflowService = gogInstallerWorkflowService;

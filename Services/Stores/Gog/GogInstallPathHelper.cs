@@ -1,7 +1,3 @@
-using System;
-using System.IO;
-using Retromind.Helpers;
-
 namespace Retromind.Services.Stores.Gog;
 
 /// <summary>
@@ -12,39 +8,8 @@ namespace Retromind.Services.Stores.Gog;
 internal static class GogInstallPathHelper
 {
     public static string ToStoredPath(string installPath, bool preferPortablePath)
-    {
-        if (string.IsNullOrWhiteSpace(installPath))
-            return string.Empty;
-
-        var trimmed = installPath.Trim();
-        if (!preferPortablePath)
-            return trimmed;
-
-        return PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(trimmed)
-               ?? trimmed;
-    }
+        => StoreInstallPathHelper.ToStoredPath(installPath, preferPortablePath);
 
     public static bool TryResolveStoredPath(string? storedPath, out string fullPath)
-    {
-        fullPath = string.Empty;
-        if (string.IsNullOrWhiteSpace(storedPath))
-            return false;
-
-        var trimmed = storedPath.Trim();
-        try
-        {
-            if (Path.IsPathRooted(trimmed))
-            {
-                fullPath = Path.GetFullPath(trimmed);
-                return true;
-            }
-
-            return AppPaths.TryResolveDataPathInsideRoot(trimmed, out fullPath);
-        }
-        catch
-        {
-            fullPath = string.Empty;
-            return false;
-        }
-    }
+        => StoreInstallPathHelper.TryResolveStoredPath(storedPath, out fullPath);
 }

@@ -142,8 +142,8 @@ RetroAchievements and Steam Web API keys) are stored through `ISecretStore`, not
 - this boundary is central for portable use and for avoiding accidental absolute-path drift
 - provider-specific Windows metadata may use a case-insensitive, segment-by-segment fallback only after
   containment in the selected install root has been established
-- GOG `Store.InstallPath` values inside DataRoot are stored DataRoot-relative when portable paths are
-  enabled; the shared GOG resolver also supports legacy and intentionally external absolute paths
+- GOG and Epic `Store.InstallPath` values inside DataRoot are stored DataRoot-relative when portable paths are
+  enabled; the shared resolver also supports legacy and intentionally external absolute paths
 - Wine/Proton prefix paths are resolved centrally against `LibraryRoot`; relative and absolute inputs are
   canonicalized before launcher, GOG, or Winetricks operations consume them
 - destructive store operations have an additional ownership boundary: GOG install directories must not
@@ -380,9 +380,10 @@ the report never mutates JSON or deletes files.
   list expansion, refresh, and BigMode navigation remain common, while RetroAchievements adds points and Hardcore
   state and Steam adds hidden-achievement state. Historical RetroAchievements property/type names remain available
   so third-party runtime themes do not break
-- `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) + Heroic Epic discovery
-  (`installed.json`) with auto/manual paths and portable-home awareness in AppImage mode. New imports persist
-  the provider-neutral identity fields `Store.ProviderId` and `Store.GameId` on the `MediaItem`
+- `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) plus legacy Heroic Epic
+  discovery (`installed.json`) for existing compatibility paths. The normal Epic import loads the owned library
+  through the native Legendary provider. New imports persist the provider-neutral identity fields
+  `Store.ProviderId` and `Store.GameId` on the `MediaItem`
 - `StoreProviderBadgeHelper` resolves GOG, Steam, and Epic cover labels from that structured identity. For
   Steam/Heroic items created before the fields existed, it falls back to their command and launch URI without
   mutating library data. `AppSettings.ShowStoreBadges` controls presentation only; moving an item between
@@ -395,7 +396,13 @@ the report never mutates JSON or deletes files.
 - Epic's native provider boundary uses the Legendary CLI as an isolated backend. Executable discovery prefers the
   Retromind-managed copy before AppImage and host installations, arguments are passed without a shell, and each
   process receives a dedicated `LEGENDARY_CONFIG_PATH` below `Tools/Legendary/Data`. Legendary's account state,
-  manifests, and temporary metadata therefore remain separate from Retromind settings and metadata backups
+  manifests, and temporary metadata therefore remain separate from Retromind settings and metadata backups.
+  Installation streams Legendary progress into the cancelable process-log window, records the selected install
+  root portably, and claims partial directories with an item-specific marker so interrupted downloads can resume
+  without allowing unrelated non-empty directories. Before each launch, Legendary supplies fresh Epic
+  authentication arguments; Retromind then executes the installed game through its selected Wine/Proton runner so
+  normal process tracking, playtime, wrappers, and launch logs remain active. Epic exchange codes are redacted from
+  those logs
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider

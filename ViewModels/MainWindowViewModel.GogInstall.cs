@@ -24,7 +24,8 @@ public partial class MainWindowViewModel
     }
 
     private bool ShouldOfferInstallForItem(MediaItem? item)
-        => GogMediaItemStateHelper.ShouldOfferInstall(item);
+        => GogMediaItemStateHelper.ShouldOfferInstall(item) ||
+           EpicMediaItemStateHelper.ShouldOfferInstall(item);
 
     private async Task<bool> InstallGogItemAsync(
         MediaItem item,

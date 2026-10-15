@@ -15,7 +15,9 @@ public sealed class EpicProviderTests
         Assert.Equal(StoreProviderIds.Epic, provider.ProviderId);
         Assert.Equal("Epic Games", provider.DisplayName);
         Assert.Equal(
-            StoreProviderCapabilities.Authentication | StoreProviderCapabilities.OwnedLibrary,
+            StoreProviderCapabilities.Authentication |
+            StoreProviderCapabilities.OwnedLibrary |
+            StoreProviderCapabilities.Install,
             provider.Capabilities);
     }
 
@@ -52,7 +54,10 @@ public sealed class EpicProviderTests
         Assert.Equal(LegendaryCliClient.AuthorizationUri, receivedChallenge.AuthorizationUri);
         Assert.Equal(StoreSignInResponseKind.AuthorizationCode, receivedChallenge.ResponseKind);
         Assert.Equal("Example Player", account.DisplayName);
-        Assert.Equal(["auth", "--code", "one-time-code"], runner.Commands[0].Arguments);
+        Assert.Equal(["auth", "--disable-webview"], runner.Commands[0].Arguments);
+        Assert.Equal("one-time-code", runner.Commands[0].StandardInput);
+        Assert.True(runner.Commands[0].SuppressBrowserLaunch);
+        Assert.False(runner.Commands[0].IncludeErrorDetails);
         Assert.Equal(["status", "--json"], runner.Commands[1].Arguments);
     }
 

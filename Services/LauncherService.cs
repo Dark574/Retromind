@@ -64,6 +64,7 @@ public sealed class LauncherService
         List<string>? nodePath = null,
         IReadOnlyList<LaunchWrapper>? nativeWrappers = null,
         IReadOnlyDictionary<string, string>? environmentOverrides = null,
+        IReadOnlyList<string>? additionalLaunchArguments = null,
         bool usePlaylistForMultiDisc = false,
         bool recordStatistics = true,
         CancellationToken cancellationToken = default)
@@ -124,6 +125,7 @@ public sealed class LauncherService
                     nativeWrappers,
                     usePlaylistForMultiDisc,
                     environmentOverrides,
+                    additionalLaunchArguments,
                     launchLog);
             processStartedAt = stopwatch.Elapsed;
 
@@ -434,6 +436,7 @@ public sealed class LauncherService
         IReadOnlyList<LaunchWrapper>? nativeWrappers,
         bool usePlaylistForMultiDisc,
         IReadOnlyDictionary<string, string>? environmentOverrides,
+        IReadOnlyList<string>? additionalLaunchArguments,
         LaunchLogBuilder launchLog)
     {
         var launchFilePath = _launchPlaylistService.ResolveLaunchFilePath(
@@ -442,6 +445,7 @@ public sealed class LauncherService
             usePlaylistForMultiDisc);
         var (fileName, args, useShellExecute) =
             LaunchPlanBuilder.Build(item, inheritedConfig, nativeWrappers, launchFilePath);
+        args = AppendLaunchArguments(args, additionalLaunchArguments);
 
         var startInfo = new ProcessStartInfo
         {
@@ -525,6 +529,52 @@ public sealed class LauncherService
         launchLog.CaptureProcessStart(startInfo, launchFilePath, environmentOverrides);
 
         return _launchProcessService.Start(startInfo);
+    }
+
+    internal static string AppendLaunchArguments(
+        string? existingArguments,
+        IReadOnlyList<string>? additionalArguments)
+    {
+        if (additionalArguments is not { Count: > 0 })
+            return existingArguments?.Trim() ?? string.Empty;
+
+        var formatted = string.Join(' ', additionalArguments.Select(QuoteProcessArgument));
+        return string.IsNullOrWhiteSpace(existingArguments)
+            ? formatted
+            : $"{existingArguments.Trim()} {formatted}";
+    }
+
+    private static string QuoteProcessArgument(string argument)
+    {
+        if (argument.Length > 0 &&
+            !argument.Any(character => char.IsWhiteSpace(character) || character == '"'))
+        {
+            return argument;
+        }
+
+        var builder = new System.Text.StringBuilder(argument.Length + 2);
+        builder.Append('"');
+        var backslashes = 0;
+        foreach (var character in argument)
+        {
+            if (character == '\\')
+            {
+                backslashes++;
+                continue;
+            }
+
+            if (character == '"')
+                builder.Append('\\', backslashes * 2 + 1);
+            else
+                builder.Append('\\', backslashes);
+
+            builder.Append(character);
+            backslashes = 0;
+        }
+
+        builder.Append('\\', backslashes * 2);
+        builder.Append('"');
+        return builder.ToString();
     }
 
     private static string DescribeLaunchOutcome(LaunchResult result) => result.Outcome switch

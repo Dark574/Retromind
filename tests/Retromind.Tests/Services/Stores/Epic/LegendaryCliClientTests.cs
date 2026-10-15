@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Retromind.Services.Stores.Epic.Legendary;
 
 namespace Retromind.Tests.Services.Stores.Epic;
@@ -104,7 +105,13 @@ public sealed class LegendaryCliClientTests
         Assert.True(status.IsAuthenticated);
         Assert.Collection(
             runner.Commands,
-            command => Assert.Equal(["auth", "--code", "example-code"], command.Arguments),
+            command =>
+            {
+                Assert.Equal(["auth", "--disable-webview"], command.Arguments);
+                Assert.Equal("example-code", command.StandardInput);
+                Assert.True(command.SuppressBrowserLaunch);
+                Assert.False(command.IncludeErrorDetails);
+            },
             command => Assert.Equal(["status", "--json"], command.Arguments));
     }
 
@@ -119,7 +126,26 @@ public sealed class LegendaryCliClientTests
         var exception = await Assert.ThrowsAsync<LegendaryCliException>(
             () => client.AuthenticateWithAuthorizationCodeAsync("invalid-code"));
 
-        Assert.Contains("did not establish", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("invalid or expired", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Login attempt failed", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AuthenticateWithAuthorizationCodeAsync_HidesLegendaryErrorOutput()
+    {
+        const string secret = "sensitive-exchange-code";
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(
+                1,
+                string.Empty,
+                $"Login failed: authorizationCode={secret}"));
+        var client = new LegendaryCliClient(runner);
+
+        var exception = await Assert.ThrowsAsync<LegendaryCliException>(
+            () => client.AuthenticateWithAuthorizationCodeAsync("one-time-code"));
+
+        Assert.Contains("Epic sign-in failed", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(secret, exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -195,6 +221,186 @@ public sealed class LegendaryCliClientTests
     }
 
     [Fact]
+    public async Task GetInstallEstimateAsync_SumsManifestFileSizes()
+    {
+        const string json = """
+            [
+              { "filename": "first.bin", "file_size": 1024 },
+              { "filename": "second.bin", "file_size": 2048 }
+            ]
+            """;
+        var runner = new FakeProcessRunner(new LegendaryCliResult(0, json, string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var estimate = await client.GetInstallEstimateAsync("ExampleGame");
+
+        Assert.Equal(3072, estimate.InstalledBytes);
+        Assert.Equal(2, estimate.FileCount);
+        Assert.Equal(
+            ["list-files", "ExampleGame", "--force-download", "--platform", "Windows", "--json"],
+            Assert.Single(runner.Commands).Arguments);
+    }
+
+    [Fact]
+    public async Task GetInstalledGamesAsync_ParsesLegendaryInstallationData()
+    {
+        const string json = """
+            [
+              {
+                "app_name": "ExampleGame",
+                "title": "Example Game",
+                "install_path": "/games/Example Game",
+                "executable": "Binaries/Example.exe",
+                "version": "1.2.3",
+                "platform": "Windows",
+                "install_size": 4096,
+                "is_dlc": false
+              }
+            ]
+            """;
+        var client = new LegendaryCliClient(
+            new FakeProcessRunner(new LegendaryCliResult(0, json, string.Empty)));
+
+        var game = Assert.Single(await client.GetInstalledGamesAsync());
+
+        Assert.Equal("ExampleGame", game.AppName);
+        Assert.Equal("Example Game", game.Title);
+        Assert.Equal("/games/Example Game", game.InstallPath);
+        Assert.Equal("Binaries/Example.exe", game.Executable);
+        Assert.Equal("1.2.3", game.Version);
+        Assert.Equal(4096, game.InstallSize);
+        Assert.False(game.IsDlc);
+    }
+
+    [Fact]
+    public async Task InstallAsync_UsesRequestedDirectoryAndVerifiesRegistration()
+    {
+        using var temp = new TempDirectory();
+        var installPath = Path.Combine(temp.RootPath, "Example Game");
+        var installedJson = $$"""
+            [
+              {
+                "app_name": "ExampleGame",
+                "title": "Example Game",
+                "install_path": {{JsonSerializer.Serialize(installPath)}},
+                "executable": "Example.exe",
+                "version": "1.2.3",
+                "platform": "Windows",
+                "install_size": 4096,
+                "is_dlc": false
+              }
+            ]
+            """;
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, installedJson, string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var installed = await client.InstallAsync("ExampleGame", installPath);
+
+        Assert.Equal("ExampleGame", installed.AppName);
+        Assert.Collection(
+            runner.Commands,
+            command =>
+            {
+                Assert.Equal(Timeout.InfiniteTimeSpan, command.Timeout);
+                Assert.Equal(
+                    [
+                        "--yes", "install", "ExampleGame",
+                        "--base-path", temp.RootPath,
+                        "--game-folder", "Example Game",
+                        "--platform", "Windows",
+                        "--skip-sdl", "--skip-dlcs"
+                    ],
+                    command.Arguments);
+            },
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments));
+    }
+
+    [Fact]
+    public async Task InstallAsync_AcceptsEquivalentPathWithTrailingDirectorySeparator()
+    {
+        using var temp = new TempDirectory();
+        var installPath = Path.Combine(temp.RootPath, "Example Game");
+        var requestedPath = installPath + Path.DirectorySeparatorChar;
+        var installedJson = $$"""
+            [
+              {
+                "app_name": "ExampleGame",
+                "title": "Example Game",
+                "install_path": {{JsonSerializer.Serialize(installPath)}},
+                "executable": "Example.exe",
+                "version": "1.2.3",
+                "platform": "Windows",
+                "install_size": 4096,
+                "is_dlc": false
+              }
+            ]
+            """;
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, installedJson, string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var installed = await client.InstallAsync("ExampleGame", requestedPath);
+
+        Assert.Equal(installPath, installed.InstallPath);
+        Assert.Equal(
+            [
+                "--yes", "install", "ExampleGame",
+                "--base-path", temp.RootPath,
+                "--game-folder", "Example Game",
+                "--platform", "Windows",
+                "--skip-sdl", "--skip-dlcs"
+            ],
+            runner.Commands[0].Arguments);
+    }
+
+    [Fact]
+    public async Task InstallAsync_RejectsLegendarysLogicalSuccessWithoutRegistration()
+    {
+        using var temp = new TempDirectory();
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var exception = await Assert.ThrowsAsync<LegendaryCliException>(
+            () => client.InstallAsync("ExampleGame", Path.Combine(temp.RootPath, "Example Game")));
+
+        Assert.Contains("without registering", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetLaunchParametersAsync_PreservesLegendaryArgumentOrderAndEnvironment()
+    {
+        const string json = """
+            {
+              "game_parameters": ["-game", "value with spaces"],
+              "user_parameters": ["-user"],
+              "egl_parameters": ["-AUTH_PASSWORD=exchange-code", "-EpicPortal"],
+              "environment": {
+                "EpicApp": "ExampleGame",
+                "LANG": "de_DE.UTF-8"
+              }
+            }
+            """;
+        var runner = new FakeProcessRunner(new LegendaryCliResult(0, json, string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var parameters = await client.GetLaunchParametersAsync("ExampleGame");
+
+        Assert.Equal(
+            ["-game", "value with spaces", "-user", "-AUTH_PASSWORD=exchange-code", "-EpicPortal"],
+            parameters.Arguments);
+        Assert.Equal("ExampleGame", parameters.Environment["EpicApp"]);
+        Assert.Equal("de_DE.UTF-8", parameters.Environment["LANG"]);
+        Assert.Equal(
+            ["launch", "ExampleGame", "--json", "--no-wine", "--skip-version-check"],
+            Assert.Single(runner.Commands).Arguments);
+    }
+
+    [Fact]
     public async Task CommandFailure_ReportsOperationAndSanitizedError()
     {
         var client = new LegendaryCliClient(
@@ -205,6 +411,24 @@ public sealed class LegendaryCliClientTests
         Assert.Contains("status check", exception.Message, StringComparison.Ordinal);
         Assert.Contains("exit code 7", exception.Message, StringComparison.Ordinal);
         Assert.Contains("Login required", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CommandFailure_RedactsKnownCredentialFormats()
+    {
+        const string accessToken = "access-token-secret";
+        const string bearerToken = "bearer-token-secret";
+        var client = new LegendaryCliClient(
+            new FakeProcessRunner(new LegendaryCliResult(
+                7,
+                string.Empty,
+                $"access_token={accessToken} Authorization: Bearer {bearerToken}")));
+
+        var exception = await Assert.ThrowsAsync<LegendaryCliException>(() => client.GetStatusAsync());
+
+        Assert.DoesNotContain(accessToken, exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(bearerToken, exception.Message, StringComparison.Ordinal);
+        Assert.Contains("[REDACTED]", exception.Message, StringComparison.Ordinal);
     }
 
     private static string CreateAuthenticatedStatusJson() => """
@@ -239,6 +463,25 @@ public sealed class LegendaryCliClientTests
         {
             Commands.Add(command);
             return Task.FromResult(_results.Dequeue());
+        }
+    }
+
+    private sealed class TempDirectory : IDisposable
+    {
+        internal TempDirectory()
+        {
+            RootPath = Path.Combine(
+                Path.GetTempPath(),
+                "retromind-legendary-client-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(RootPath);
+        }
+
+        internal string RootPath { get; }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(RootPath))
+                Directory.Delete(RootPath, recursive: true);
         }
     }
 }

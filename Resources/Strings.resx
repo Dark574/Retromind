@@ -340,6 +340,51 @@
     <data name="Epic.LibraryLoadFailed" xml:space="preserve"><value>The Epic Games library could not be loaded.</value></data>
     <data name="Epic.LibraryEmpty" xml:space="preserve"><value>No games were found in your Epic Games library.</value></data>
     <data name="Epic.Picker.NoNewForNode" xml:space="preserve"><value>The selection did not contain new Epic games for this category.</value></data>
+    <data name="Epic.Install.DialogTitle" xml:space="preserve"><value>Install Epic Games title</value></data>
+    <data name="Epic.Install.DialogMessageFormat" xml:space="preserve"><value>Install "{0}"</value></data>
+    <data name="Epic.Install.PathLabel" xml:space="preserve"><value>Install path</value></data>
+    <data name="Epic.Install.RunnerLabel" xml:space="preserve"><value>Wine/Proton runner</value></data>
+    <data name="Epic.Install.RunnerMissingHint" xml:space="preserve"><value>No Wine/Proton runner is configured. Add one in Settings -&gt; Runner.</value></data>
+    <data name="Epic.Install.ValidationPathRequired" xml:space="preserve"><value>Install path is required.</value></data>
+    <data name="Epic.Install.ValidationPathAbsolute" xml:space="preserve"><value>Install path must be absolute.</value></data>
+    <data name="Epic.Install.ValidationRunnerRequired" xml:space="preserve"><value>Select a Wine/Proton runner.</value></data>
+    <data name="Epic.Install.ValidationUmuRequired" xml:space="preserve"><value>Proton runner requires umu-run in PATH. Install umu or select a Wine runner.</value></data>
+    <data name="Epic.Install.PickPathTitle" xml:space="preserve"><value>Select Epic Games install folder</value></data>
+    <data name="Epic.Install.SpaceEstimateFailedFormat" xml:space="preserve"><value>Epic Games did not provide a usable installation size for this title. Retromind cannot check the required free space in advance. Legendary will still perform its own exact check before downloading.
+
+Continue installation?</value></data>
+    <data name="Epic.Install.SpaceEstimateWarningFormat" xml:space="preserve"><value>The complete Epic Games manifest may need more free space than is currently available.
+
+Estimated installation: {0}
+Estimated requirement including 1 GB safety reserve: {1}
+Available: {2}
+Checked filesystem: {3}
+
+This estimate can be too high when a game uses optional install groups. Legendary performs its own exact check before downloading. Continue anyway?</value></data>
+    <data name="Epic.Install.SpaceUnavailableFormat" xml:space="preserve"><value>Retromind could not complete the free-space check for:
+{0}
+
+Legendary will still perform its own exact check before downloading. Continue?</value></data>
+    <data name="Epic.Install.MarkerRequiredFormat" xml:space="preserve"><value>Retromind could not safely prepare the install directory: {0}</value></data>
+    <data name="Epic.Install.ProgressTitleFormat" xml:space="preserve"><value>Epic install - {0}</value></data>
+    <data name="Epic.Install.Starting" xml:space="preserve"><value>Preparing Legendary download and installation...</value></data>
+    <data name="Epic.Install.LaunchConfigurationFailed" xml:space="preserve"><value>Installation completed, but Retromind could not configure the game executable.</value></data>
+    <data name="Epic.Install.MarkerWarning" xml:space="preserve"><value>Installation succeeded, but Retromind could not mark the install directory as managed.</value></data>
+    <data name="Epic.Install.Success" xml:space="preserve"><value>Installation completed.</value></data>
+    <data name="Epic.Install.Cancelled" xml:space="preserve"><value>Installation cancelled by user.</value></data>
+    <data name="Epic.Install.ResumeHint" xml:space="preserve"><value>Legendary can reuse already downloaded data when installation is started again.</value></data>
+    <data name="Epic.Install.FailedFormat" xml:space="preserve"><value>Installation failed: {0}</value></data>
+    <data name="Epic.Install.DirectoryUnsafeFormat" xml:space="preserve"><value>The selected install directory is unsafe:
+{0}</value></data>
+    <data name="Epic.Install.DirectoryLinkFormat" xml:space="preserve"><value>The install path contains a symbolic link and cannot be used safely:
+{0}</value></data>
+    <data name="Epic.Install.DirectoryNotEmptyFormat" xml:space="preserve"><value>The selected directory is not empty and does not belong to this Retromind game:
+{0}
+
+Choose a new or empty directory.</value></data>
+    <data name="Epic.Install.DirectoryInvalidFormat" xml:space="preserve"><value>The selected install directory cannot be used:
+{0}</value></data>
+    <data name="Epic.Launch.PreparationFailedFormat" xml:space="preserve"><value>Epic Games launch data could not be prepared: {0}</value></data>
 
     <!-- GOG -->
     <data name="Gog.Dlc.DialogTitle" xml:space="preserve"><value>Manage GOG DLCs</value></data>

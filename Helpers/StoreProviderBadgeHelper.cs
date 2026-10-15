@@ -72,7 +72,7 @@ internal static class StoreProviderBadgeHelper
         {
             GogProviderId => "GOG",
             SteamProviderId => "Steam",
-            EpicProviderId => "Epic Games (via Heroic)",
+            EpicProviderId => "Epic Games",
             _ => null
         };
 

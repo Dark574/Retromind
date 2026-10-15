@@ -218,7 +218,7 @@ internal sealed partial class LaunchLogBuilder
     }
 
     [GeneratedRegex(
-        "(?<prefix>(?:--?|/)?(?:password|passwd|token|secret|api[-_]?key|authorization|cookie|credential)(?:\\s*=\\s*|\\s+))(?:\\\"[^\\\"]*\\\"|'[^']*'|[^\\s&#]+)",
+        "(?<prefix>(?:--?|/)?(?:auth[-_]?password|auth[-_]?login|password|passwd|token|secret|api[-_]?key|authorization|cookie|credential)(?:\\s*=\\s*|\\s+))(?:\\\"[^\\\"]*\\\"|'[^']*'|[^\\s&#]+)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SensitiveArgumentRegex();
 

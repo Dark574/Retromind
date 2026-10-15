@@ -47,4 +47,27 @@ public sealed class LaunchLogBuilderTests
         Assert.DoesNotContain(uriSecret, log);
         Assert.DoesNotContain(environmentSecret, log);
     }
+
+    [Fact]
+    public void Build_RedactsLegendaryExchangeCodeFromEpicArguments()
+    {
+        var item = new MediaItem("Epic launch") { MediaType = MediaType.Emulator };
+        var builder = new LaunchLogBuilder(
+            item,
+            emulator: null,
+            new AppSettings(),
+            wrappers: null,
+            recordsStatistics: true);
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "umu-run",
+            Arguments = "game.exe -AUTH_LOGIN=unused -AUTH_PASSWORD=secret-exchange-code -AUTH_TYPE=exchangecode"
+        };
+
+        builder.CaptureProcessStart(startInfo, "game.exe", effectiveEnvironment: null);
+        var log = builder.Build("Started", TimeSpan.Zero);
+
+        Assert.Contains("-AUTH_PASSWORD=<redacted>", log);
+        Assert.DoesNotContain("secret-exchange-code", log);
+    }
 }

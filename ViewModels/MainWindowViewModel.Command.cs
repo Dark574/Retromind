@@ -15,6 +15,7 @@ using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.Stores.Epic;
 using Retromind.Services.Stores.Gog;
 using Retromind.Views;
 
@@ -977,7 +978,7 @@ public partial class MainWindowViewModel
         {
             if (ShouldOfferInstallForItem(item))
             {
-                await InstallGogItemAsync(item);
+                await InstallStoreItemAsync(item);
                 return null;
             }
 
@@ -1054,6 +1055,18 @@ public partial class MainWindowViewModel
             }
 
             var effectiveEnvironment = ResolveEffectiveEnvironmentOverrides(item, emulator, trueParent);
+            EpicLaunchPreparation? epicLaunch = null;
+            if (EpicMediaItemStateHelper.IsRetromindManagedInstallation(item) &&
+                CurrentWindow is { } epicOwner)
+            {
+                epicLaunch = await PrepareEpicLaunchAsync(item, epicOwner);
+                if (epicLaunch == null)
+                    return null;
+
+                effectiveEnvironment = MergeEpicLaunchEnvironment(
+                    effectiveEnvironment,
+                    epicLaunch.Environment);
+            }
 
             var launchResult = await _launcherService.LaunchAsync(
                 item,
@@ -1061,6 +1074,7 @@ public partial class MainWindowViewModel
                 nodePath,
                 nativeWrappers: effectiveWrappers,
                 environmentOverrides: effectiveEnvironment,
+                additionalLaunchArguments: epicLaunch?.Arguments,
                 usePlaylistForMultiDisc: emulator?.UsePlaylistForMultiDisc == true,
                 recordStatistics: recordStatistics);
             ViewLastLaunchLogCommand.NotifyCanExecuteChanged();
