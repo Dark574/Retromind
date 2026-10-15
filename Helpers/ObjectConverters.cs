@@ -108,7 +108,7 @@ public static class ObjectConverters
     public static readonly IValueConverter StoreInstallMenuVisible =
         new FuncValueConverter<MediaItem?, bool>(item =>
         {
-            return GogMediaItemStateHelper.ShouldOfferInstall(item) ||
+            return GogMediaItemStateHelper.CanInstallWithRetromind(item) ||
                    EpicMediaItemStateHelper.CanInstallWithRetromind(item);
         });
 
@@ -202,7 +202,8 @@ public static class ObjectConverters
     public static readonly IValueConverter GogInstalledMenuVisible =
         new FuncValueConverter<MediaItem?, bool>(item =>
         {
-            return GogMediaItemStateHelper.IsInstalled(item);
+            return GogMediaItemStateHelper.IsInstalled(item) &&
+                   GogMediaItemStateHelper.IsRetromindManagedInstallation(item);
         });
 
     /// <summary>

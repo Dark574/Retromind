@@ -587,12 +587,32 @@ public partial class MainWindowViewModel
         return compact.Length <= 260 ? compact : compact[..260] + "...";
     }
 
-    private string ResolveDefaultGogInstallPath(MediaItem item, string storeGameId)
+    internal static string ResolveDefaultGogInstallPath(MediaItem item, string storeGameId)
     {
         if (item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var savedPath) &&
             GogInstallPathHelper.TryResolveStoredPath(savedPath, out var resolvedSavedPath))
         {
             return resolvedSavedPath;
+        }
+
+        // If a legacy native Linux installation could not be adopted and its
+        // directory was removed later, retain the former location as the next
+        // installation suggestion. This is only a dialog default and does not
+        // claim ownership of the directory.
+        var previousLaunchPath = item.GetPrimaryLaunchPath();
+        if (!string.IsNullOrWhiteSpace(previousLaunchPath) &&
+            string.Equals(Path.GetFileName(previousLaunchPath), "start.sh", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var previousInstallPath = Path.GetDirectoryName(Path.GetFullPath(previousLaunchPath));
+                if (!string.IsNullOrWhiteSpace(previousInstallPath))
+                    return previousInstallPath;
+            }
+            catch
+            {
+                // Invalid legacy paths fall through to the normal GOG default.
+            }
         }
 
         var safeTitle = PathHelper.SanitizePathSegment(item.Title);

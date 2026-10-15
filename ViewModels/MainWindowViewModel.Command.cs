@@ -416,7 +416,7 @@ public partial class MainWindowViewModel
     private bool CanInstallStoreMedia(MediaItem? item) =>
         !IsLaunchInProgress &&
         !IsMultiSelectModeActive &&
-        (GogMediaItemStateHelper.ShouldOfferInstall(item) ||
+        (GogMediaItemStateHelper.CanInstallWithRetromind(item) ||
          EpicMediaItemStateHelper.CanInstallWithRetromind(item));
 
     private bool IsMultiSelectModeActive =>
@@ -431,8 +431,8 @@ public partial class MainWindowViewModel
         if (IsLaunchInProgress || item == null)
             return false;
 
-        // If no playable config exists yet, the primary button already acts as "Install".
-        return GogMediaItemStateHelper.IsInstalled(item);
+        return GogMediaItemStateHelper.IsInstalled(item) &&
+               GogMediaItemStateHelper.IsRetromindManagedInstallation(item);
     }
 
     private bool CanUpdateGogMedia(MediaItem? item)

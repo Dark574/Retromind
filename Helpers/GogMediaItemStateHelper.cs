@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Retromind.Models;
+using Retromind.Services.Stores;
 
 namespace Retromind.Helpers;
 
@@ -30,10 +31,19 @@ internal static class GogMediaItemStateHelper
     public static bool ShouldOfferInstall(MediaItem? item) =>
         TryGetGameId(item) != null && !HasPlayableLaunchConfiguration(item!);
 
-    public static bool CanUninstall(MediaItem? item) =>
+    public static bool CanInstallWithRetromind(MediaItem? item) =>
+        TryGetGameId(item) != null && !IsRetromindManagedInstallation(item);
+
+    public static bool IsRetromindManagedInstallation(MediaItem? item) =>
+        TryResolveManagedInstallPath(item, out var installPath) && Directory.Exists(installPath);
+
+    public static bool HasRetromindManagedInstallMetadata(MediaItem? item) =>
         TryGetGameId(item) != null &&
         item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var installPath) &&
         !string.IsNullOrWhiteSpace(installPath);
+
+    public static bool CanUninstall(MediaItem? item) =>
+        HasRetromindManagedInstallMetadata(item);
 
     public static bool CanCheckUpdates(MediaItem? item) =>
         IsInstalled(item) && CanUninstall(item);
@@ -95,5 +105,13 @@ internal static class GogMediaItemStateHelper
 
         var resolvedLauncherPath = EnvironmentPathHelper.ResolveExecutablePathForExistenceCheck(launcherPath);
         return string.IsNullOrWhiteSpace(resolvedLauncherPath) || File.Exists(resolvedLauncherPath);
+    }
+
+    private static bool TryResolveManagedInstallPath(MediaItem? item, out string installPath)
+    {
+        installPath = string.Empty;
+        return HasRetromindManagedInstallMetadata(item) &&
+               item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var storedPath) &&
+               StoreInstallPathHelper.TryResolveStoredPath(storedPath, out installPath);
     }
 }

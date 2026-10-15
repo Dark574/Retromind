@@ -260,6 +260,44 @@ public sealed class GogInstallDirectorySafetyTests
     }
 
     [Fact]
+    public void CanAdoptLegacyInstall_NativeLinuxLayout_ReturnsTrue()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("legacy-linux-install");
+        var launchPath = temp.CreateFile("legacy-linux-install/start.sh", "#!/bin/sh");
+        temp.CreateFile(
+            "legacy-linux-install/game/goggame-12345.info",
+            """{"gameId":"12345","name":"Test game"}""");
+        var item = CreateGogItemWithLaunchFile(launchPath, "12345");
+
+        var result = GogInstallDirectorySafety.CanAdoptLegacyInstall(
+            installPath,
+            item,
+            "12345");
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void CanAdoptLegacyInstall_NestedMetadataWithoutLinuxLauncher_ReturnsFalse()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("unrelated-layout");
+        var launchPath = temp.CreateFile("unrelated-layout/game/game.bin");
+        temp.CreateFile(
+            "unrelated-layout/game/goggame-12345.info",
+            """{"gameId":"12345","name":"Test game"}""");
+        var item = CreateGogItemWithLaunchFile(launchPath, "12345");
+
+        var result = GogInstallDirectorySafety.CanAdoptLegacyInstall(
+            installPath,
+            item,
+            "12345");
+
+        Assert.False(result);
+    }
+
+    [Fact]
     public void CanAdoptLegacyInstall_DifferentGogGameId_ReturnsFalse()
     {
         using var temp = new TemporaryDirectory();

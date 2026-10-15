@@ -79,6 +79,36 @@ public sealed class GogMediaItemStateHelperTests
     }
 
     [Fact]
+    public void CanInstallWithRetromind_RemainsAvailableForLinkedExternalInstallation()
+    {
+        using var temp = new TemporaryDirectory();
+        var item = CreateGogItem();
+        item.LauncherPath = temp.CreateFile("external/game.sh");
+
+        Assert.True(GogMediaItemStateHelper.IsInstalled(item));
+        Assert.True(GogMediaItemStateHelper.CanInstallWithRetromind(item));
+        Assert.False(GogMediaItemStateHelper.IsRetromindManagedInstallation(item));
+    }
+
+    [Fact]
+    public void ManagedInstallation_IsRecognizedOnlyWhileStoredDirectoryExists()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("managed-game");
+        var item = CreateGogItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = installPath;
+
+        Assert.True(GogMediaItemStateHelper.IsRetromindManagedInstallation(item));
+        Assert.False(GogMediaItemStateHelper.CanInstallWithRetromind(item));
+
+        Directory.Delete(installPath);
+
+        Assert.False(GogMediaItemStateHelper.IsRetromindManagedInstallation(item));
+        Assert.True(GogMediaItemStateHelper.CanInstallWithRetromind(item));
+        Assert.True(GogMediaItemStateHelper.CanUninstall(item));
+    }
+
+    [Fact]
     public void HasUpdateAvailable_RequiresInstalledGogItem()
     {
         var item = CreateGogItem();

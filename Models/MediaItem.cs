@@ -499,6 +499,12 @@ public partial class MediaItem : ObservableObject
         OnPropertyChanged(nameof(VisibleCustomFields));
         OnPropertyChanged(nameof(HasCustomFields));
         OnPropertyChanged(nameof(StoreProviderId));
+
+        // Several context-menu entries bind the complete item through a
+        // converter. An empty property name is the INotifyPropertyChanged
+        // convention for invalidating every derived binding after store state
+        // was replaced (for example immediately after linking a game).
+        OnPropertyChanged(string.Empty);
     }
 }
 

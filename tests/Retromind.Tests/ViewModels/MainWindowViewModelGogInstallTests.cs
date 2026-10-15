@@ -1,3 +1,4 @@
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.Stores.Gog;
 using Retromind.ViewModels;
@@ -6,6 +7,54 @@ namespace Retromind.Tests.ViewModels;
 
 public sealed class MainWindowViewModelGogInstallTests
 {
+    [Fact]
+    public void DefaultInstallPath_PreservesFormerNativeLinuxInstallDirectory()
+    {
+        var item = new MediaItem
+        {
+            Title = "Test Game",
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = "/games/Test Game/start.sh",
+                    Index = 1
+                }
+            ]
+        };
+
+        var result = MainWindowViewModel.ResolveDefaultGogInstallPath(item, "12345");
+
+        Assert.Equal("/games/Test Game", result);
+    }
+
+    [Fact]
+    public void DefaultInstallPath_StoredManagedPathTakesPrecedenceOverFormerLauncherDirectory()
+    {
+        var item = new MediaItem
+        {
+            Title = "Test Game",
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = "/games/Old Location/start.sh",
+                    Index = 1
+                }
+            ],
+            CustomFields = new Dictionary<string, string>
+            {
+                [CustomFieldKeyHelper.StoreInstallPath] = "/games/Managed Location"
+            }
+        };
+
+        var result = MainWindowViewModel.ResolveDefaultGogInstallPath(item, "12345");
+
+        Assert.Equal("/games/Managed Location", result);
+    }
+
     [Fact]
     public void Dialog_DefaultsShortcutsToDisabled()
     {

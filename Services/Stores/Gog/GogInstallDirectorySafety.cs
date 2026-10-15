@@ -215,11 +215,22 @@ internal static class GogInstallDirectorySafety
         string? metadataPath;
         try
         {
-            metadataPath = Directory.EnumerateFiles(fullInstallPath, "goggame-*.info", SearchOption.TopDirectoryOnly)
-                .FirstOrDefault(path => string.Equals(
-                    Path.GetFileName(path),
-                    expectedFileName,
-                    StringComparison.OrdinalIgnoreCase));
+            var rootMetadataPath = Path.Combine(fullInstallPath, expectedFileName);
+            metadataPath = File.Exists(rootMetadataPath)
+                ? rootMetadataPath
+                : null;
+
+            // Native Linux offline installers keep their GOG metadata below
+            // <install root>/game while start.sh remains in the install root.
+            // Require that launcher layout before accepting the nested file so
+            // a walk from a game binary cannot incorrectly adopt only /game.
+            if (metadataPath == null &&
+                File.Exists(Path.Combine(fullInstallPath, "start.sh")))
+            {
+                var linuxMetadataPath = Path.Combine(fullInstallPath, "game", expectedFileName);
+                if (File.Exists(linuxMetadataPath))
+                    metadataPath = linuxMetadataPath;
+            }
         }
         catch
         {
