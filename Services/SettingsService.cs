@@ -264,7 +264,6 @@ public class SettingsService
         if (settings.SavedSearchOnlyFavorites == null)
             throw InvalidNull("$.SavedSearchOnlyFavorites");
         ValidateRequiredList(settings.SteamLibraryPaths, "$.SteamLibraryPaths");
-        ValidateRequiredList(settings.HeroicEpicConfigPaths, "$.HeroicEpicConfigPaths");
         ValidateOptionalList(settings.LastBigModeNavigationPath, "$.LastBigModeNavigationPath");
 
         if (settings.ControllerBindings == null)

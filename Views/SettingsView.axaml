@@ -1022,41 +1022,6 @@
                         </ScrollViewer>
                     </TabItem>
 
-                    <TabItem Header="{Binding HeroicEpicIntegrationTabTitle}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Spacing="16" Margin="10,10,20,20">
-
-                                <Border Classes="section">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{x:Static p:Strings.Settings_SectionHeroicEpic}"
-                                                   FontWeight="Bold"
-                                                   FontSize="16" />
-                                        <TextBlock Text="{x:Static p:Strings.Settings_HeroicEpicPathsHint}"
-                                                   Opacity="0.6"
-                                                   TextWrapping="Wrap" />
-                                        <ListBox ItemsSource="{Binding HeroicEpicConfigPaths}"
-                                                 SelectedItem="{Binding SelectedHeroicEpicPath}"
-                                                 MinHeight="100" />
-                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
-                                            <TextBox Grid.Column="0"
-                                                     Text="{Binding HeroicEpicPathInput}"
-                                                     PlaceholderText="{x:Static p:Strings.Settings_HeroicEpicPathWatermark}" />
-                                            <Button Grid.Column="1"
-                                                    Content="{x:Static p:Strings.Button_Browse}"
-                                                    Command="{Binding BrowseHeroicEpicPathCommand}" />
-                                            <Button Grid.Column="2"
-                                                    Content="{x:Static p:Strings.Button_Add}"
-                                                    Command="{Binding AddHeroicEpicPathCommand}" />
-                                            <Button Grid.Column="3"
-                                                    Content="{x:Static p:Strings.Button_Remove}"
-                                                    Command="{Binding RemoveHeroicEpicPathCommand}" />
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
                 </TabControl>
             </TabItem>
 

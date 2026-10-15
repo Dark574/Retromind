@@ -297,7 +297,6 @@ public partial class SettingsViewModel
         _appSettings.Scrapers = Scrapers.ToList();
         _appSettings.RunnerVersions = RunnerVersions.Select(r => r.ToModel()).ToList();
         _appSettings.SteamLibraryPaths = SteamLibraryPaths.ToList();
-        _appSettings.HeroicEpicConfigPaths = HeroicEpicConfigPaths.ToList();
         ApplyRetroAchievementsSettings();
         ApplySteamAchievementsSettings();
 
@@ -341,7 +340,6 @@ public partial class SettingsViewModel
         _targetSettings.Scrapers = committed.Scrapers;
         _targetSettings.RunnerVersions = committed.RunnerVersions;
         _targetSettings.SteamLibraryPaths = committed.SteamLibraryPaths;
-        _targetSettings.HeroicEpicConfigPaths = committed.HeroicEpicConfigPaths;
         _targetSettings.ScraperImport = committed.ScraperImport;
         _targetSettings.RetroAchievements = committed.RetroAchievements;
         _targetSettings.SteamAchievements = committed.SteamAchievements;
@@ -781,22 +779,6 @@ public partial class SettingsViewModel
         AddSteamLibraryPath(result[0].Path.LocalPath);
     }
 
-    private async Task BrowseHeroicEpicPathAsync()
-    {
-        var provider = ResolveStorageProvider();
-        if (provider == null) return;
-
-        var result = await provider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = Strings.Dialog_SelectHeroicEpicFolder,
-            AllowMultiple = false
-        });
-
-        if (result == null || result.Count == 0) return;
-
-        AddHeroicEpicPath(result[0].Path.LocalPath);
-    }
-
     private void AddSteamLibraryPath()
     {
         AddSteamLibraryPath(SteamLibraryPathInput);
@@ -825,36 +807,6 @@ public partial class SettingsViewModel
         if (SelectedSteamLibraryPath == null) return;
         SteamLibraryPaths.Remove(SelectedSteamLibraryPath);
         SelectedSteamLibraryPath = null;
-    }
-
-    private void AddHeroicEpicPath()
-    {
-        AddHeroicEpicPath(HeroicEpicPathInput);
-    }
-
-    private void AddHeroicEpicPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return;
-
-        var trimmed = path.Trim();
-        var normalized = NormalizePathSafe(trimmed);
-
-        if (HeroicEpicConfigPaths.Any(path => FileSystemPathIdentity.Equals(path, normalized)))
-        {
-            HeroicEpicPathInput = string.Empty;
-            return;
-        }
-
-        HeroicEpicConfigPaths.Add(normalized);
-        HeroicEpicPathInput = string.Empty;
-    }
-
-    private void RemoveHeroicEpicPath()
-    {
-        if (SelectedHeroicEpicPath == null) return;
-        HeroicEpicConfigPaths.Remove(SelectedHeroicEpicPath);
-        SelectedHeroicEpicPath = null;
     }
 
     private static string NormalizePathSafe(string path)

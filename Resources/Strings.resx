@@ -39,7 +39,7 @@
 • A category's game system and default emulator are inherited by its children.</value></data>
     <data name="GettingStarted.Category.Action" xml:space="preserve"><value>Create category...</value></data>
     <data name="GettingStarted.Import.Title" xml:space="preserve"><value>Add content</value></data>
-    <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Right-click a category to import ROMs or games from Steam, Heroic/Epic and GOG, or create media manually.</value></data>
+    <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Right-click a category to import ROMs or games from Steam, Epic and GOG, or create media manually.</value></data>
     <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Select the category that should contain the new items.
 • Use Import for ROM folders, Steam or Epic libraries; GOG and manual media have their own entries.
 • Set the category's game system and default emulator before importing ROMs. This lets RetroAchievements identify supported games automatically and assigns the emulator immediately. For existing ROMs, the default emulator can later be applied to existing items in the category settings.</value></data>
@@ -47,7 +47,7 @@
     <data name="GettingStarted.Settings.Description" xml:space="preserve"><value>Set up emulators, metadata providers, library paths and optional RetroAchievements access.</value></data>
     <data name="GettingStarted.Settings.Details" xml:space="preserve"><value>• The Emulators tab defines programs, launch arguments and inherited runner defaults.
 • Metadata &amp; scrapers contains providers and controls which discovered data is imported.
-• Integrations contains RetroAchievements, Steam Achievements and additional Steam or Heroic library locations.</value></data>
+• Integrations contains RetroAchievements, Steam Achievements and additional Steam library locations.</value></data>
     <data name="GettingStarted.Settings.Action" xml:space="preserve"><value>Open settings...</value></data>
     <data name="GettingStarted.Restore.Title" xml:space="preserve"><value>Restore an existing library</value></data>
     <data name="GettingStarted.Restore.Description" xml:space="preserve"><value>Restore library metadata and settings from a Retromind backup stored in the current data location.</value></data>
@@ -55,7 +55,7 @@
 • A backup contains the library database and settings, but not games, artwork, videos, themes or portable HOME data.
 • Retromind closes after a successful restore so the restored state can be loaded cleanly on the next start.</value></data>
     <data name="GettingStarted.Restore.Action" xml:space="preserve"><value>Manage backups...</value></data>
-    <data name="GettingStarted.NextStep" xml:space="preserve"><value>After creating a category, right-click it to import ROMs or games from Steam, Heroic/Epic and GOG, or create media manually.</value></data>
+    <data name="GettingStarted.NextStep" xml:space="preserve"><value>After creating a category, right-click it to import ROMs or games from Steam, Epic and GOG, or create media manually.</value></data>
     <data name="GettingStarted.EmptyCategory.Title" xml:space="preserve"><value>This category is ready</value></data>
     <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Right-click this empty area or the category on the left to add media, import a ROM folder, or import games from Steam, Epic and GOG.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Close overview</value></data>

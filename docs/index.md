@@ -35,7 +35,7 @@ Feedback and bug reports are especially welcome.
 ### Launch everything from one place
 
 - **A flexible Linux launch pipeline.** Start native applications, scripts and emulators, or combine Wine, Proton, UMU, wrappers and environment overrides while preserving portable paths.
-- **Integrated game-library workflows.** Import Steam and Heroic titles, download GE-Proton versions, reuse emulator profiles, and manage GOG offline installations, updates and DLCs through the experimental GOG integration.
+- **Integrated game-library workflows.** Import Steam, Epic and GOG titles, download GE-Proton versions, reuse emulator profiles, and manage Epic and GOG installations directly in Retromind.
 - **Diagnostics you can actually share.** Retromind records the latest launch command, resolved runner, environment, output, runtime and exit result for easier troubleshooting.
 - **Experimental achievement support.** View Steam achievements for imported games, or identify supported ROM and disc images through RetroAchievements with separate Casual and Hardcore summaries.
 

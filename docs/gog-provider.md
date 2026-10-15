@@ -44,7 +44,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - Read-only library fetch:
   - owned products from `https://embed.gog.com/account/getFilteredProducts` (paged)
 - Initial UI wiring:
-  - node context menu action `GOG-Spiele importieren` alongside the Steam and Heroic imports
+  - node context menu action `GOG-Spiele importieren` alongside the Steam and Epic imports
     - every node opens the scalable picker (search + filter + multi-select)
     - selecting all filtered titles imports the complete owned library into the chosen node
     - games already present in the target node are not added again

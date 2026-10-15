@@ -24,21 +24,4 @@ public sealed class StoreImportServiceTests
         Assert.Equal("steam", item.CustomFields[CustomFieldKeyHelper.StoreProviderId]);
         Assert.Equal("123", item.CustomFields[CustomFieldKeyHelper.StoreGameId]);
     }
-
-    [Fact]
-    public async Task HeroicEpicImport_PersistsStoreIdentity()
-    {
-        using var temp = new TemporaryDirectory();
-        var installedPath = temp.CreateFile(
-            "installed.json",
-            "{\"installed\":[{\"title\":\"Test Game\",\"appName\":\"test-id\",\"platform\":\"Windows\"}]}");
-        var service = new StoreImportService(new AppSettings());
-
-        var item = Assert.Single(
-            await service.ImportHeroicEpicAsync(installedPath),
-            candidate => candidate.CustomFields.GetValueOrDefault(CustomFieldKeyHelper.StoreGameId) == "test-id");
-
-        Assert.Equal("epic", item.CustomFields[CustomFieldKeyHelper.StoreProviderId]);
-        Assert.Equal("test-id", item.CustomFields[CustomFieldKeyHelper.StoreGameId]);
-    }
 }

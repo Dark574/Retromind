@@ -62,13 +62,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private string _steamLibraryPathInput = string.Empty;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RemoveHeroicEpicPathCommand))]
-    private string? _selectedHeroicEpicPath;
-
-    [ObservableProperty]
-    private string _heroicEpicPathInput = string.Empty;
-
-    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveRunnerVersionCommand))]
     [NotifyCanExecuteChangedFor(nameof(ReplaceRunnerVersionAssignmentsCommand))]
     [NotifyPropertyChangedFor(nameof(IsRunnerReplacementVisible))]
@@ -156,7 +149,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public ObservableCollection<EmulatorConfig> Emulators { get; } = new();
     public ObservableCollection<ScraperConfig> Scrapers { get; } = new();
     public ObservableCollection<string> SteamLibraryPaths { get; } = new();
-    public ObservableCollection<string> HeroicEpicConfigPaths { get; } = new();
     public ObservableCollection<RunnerVersionRow> RunnerVersions { get; } = new();
     public ObservableCollection<RunnerVersionSelectionOption> SelectedEmulatorRunnerVersionOptions { get; } = new();
     public ObservableCollection<RunnerVersionSelectionOption> RunnerReplacementOptions { get; } = new();
@@ -535,7 +527,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         "Set up emulators, metadata providers, library paths and optional RetroAchievements access in the corresponding settings tabs.");
     public string GettingStartedSettingsDetails => T(
         "GettingStarted.Settings.Details",
-        "• The Emulators tab defines programs, launch arguments and inherited runner defaults.\n• Metadata & scrapers contains providers and controls which discovered data is imported.\n• Integrations contains RetroAchievements, Steam Achievements and additional Steam or Heroic library locations.");
+        "• The Emulators tab defines programs, launch arguments and inherited runner defaults.\n• Metadata & scrapers contains providers and controls which discovered data is imported.\n• Integrations contains RetroAchievements, Steam Achievements and additional Steam library locations.");
     public string GettingStartedRestoreTitle => T("GettingStarted.Restore.Title", "Restore an existing library");
     public string GettingStartedRestoreDescription => T(
         "GettingStarted.Restore.Description",
@@ -558,7 +550,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string CopySupportDiagnosticsText => T(
         "Help.Diagnostics.Copy",
         "Copy diagnostic information");
-    public string HeroicEpicIntegrationTabTitle => T("Settings_HeroicEpicIntegrationTabTitle", "Heroic / Epic");
     public string RunnerVersionsSectionTitle => T("Settings_SectionRunnerVersions", "Wine/Proton versions");
     public string RunnerVersionNameLabel => T("Settings_RunnerVersionNameLabel", "Name");
     public string RunnerVersionPathLabel => T("Settings_RunnerVersionPathLabel", "Path");
@@ -773,14 +764,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IRelayCommand RemoveScraperCommand { get; }
     public IRelayCommand AddSteamLibraryPathCommand { get; }
     public IRelayCommand RemoveSteamLibraryPathCommand { get; }
-    public IRelayCommand AddHeroicEpicPathCommand { get; }
-    public IRelayCommand RemoveHeroicEpicPathCommand { get; }
     public IAsyncRelayCommand SaveCommand { get; }
     public IAsyncRelayCommand CancelCommand { get; }
     public IAsyncRelayCommand BrowsePathCommand { get; }
     public IAsyncRelayCommand CheckEmulatorExecutableVersionCommand { get; }
     public IAsyncRelayCommand BrowseSteamLibraryPathCommand { get; }
-    public IAsyncRelayCommand BrowseHeroicEpicPathCommand { get; }
     public IAsyncRelayCommand ConvertExistingToPortableCommand { get; }
     public IAsyncRelayCommand ChangeParentalPasswordCommand { get; }
     public IRelayCommand OpenGitHubDiscussionsCommand { get; }
@@ -898,12 +886,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 SteamLibraryPaths.Add(path);
         }
 
-        if (_appSettings.HeroicEpicConfigPaths != null)
-        {
-            foreach (var path in _appSettings.HeroicEpicConfigPaths)
-                HeroicEpicConfigPaths.Add(path);
-        }
-
         if (_appSettings.RunnerVersions != null)
         {
             foreach (var version in _appSettings.RunnerVersions)
@@ -925,8 +907,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         
         AddSteamLibraryPathCommand = new RelayCommand(AddSteamLibraryPath);
         RemoveSteamLibraryPathCommand = new RelayCommand(RemoveSteamLibraryPath, () => SelectedSteamLibraryPath != null);
-        AddHeroicEpicPathCommand = new RelayCommand(AddHeroicEpicPath);
-        RemoveHeroicEpicPathCommand = new RelayCommand(RemoveHeroicEpicPath, () => SelectedHeroicEpicPath != null);
         
         SaveCommand = new AsyncRelayCommand(SaveAsync, CanSave);
         CancelCommand = new AsyncRelayCommand(CancelAsync);
@@ -935,7 +915,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             CheckEmulatorExecutableVersionAsync,
             CanCheckEmulatorExecutableVersion);
         BrowseSteamLibraryPathCommand = new AsyncRelayCommand(BrowseSteamLibraryPathAsync);
-        BrowseHeroicEpicPathCommand = new AsyncRelayCommand(BrowseHeroicEpicPathAsync);
         
         // command to request migration to portable launch paths
         ConvertExistingToPortableCommand = new AsyncRelayCommand(ConvertExistingToPortableAsync);

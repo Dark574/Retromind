@@ -951,51 +951,6 @@ public partial class MainWindowViewModel
             : StoreSignInResponse.FromAuthorizationCode(authorizationCode);
     }
 
-    private void StoreHeroicEpicConfigPaths(IEnumerable<string> configPaths)
-    {
-        if (configPaths == null)
-            return;
-
-        _currentSettings.HeroicEpicConfigPaths ??= new List<string>();
-
-        var existing = new HashSet<string>(
-            _currentSettings.HeroicEpicConfigPaths,
-            FileSystemPathIdentity.Comparer);
-        var changed = false;
-
-        foreach (var path in configPaths)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                continue;
-
-            string fullPath;
-            try
-            {
-                fullPath = Path.GetFullPath(path);
-            }
-            catch
-            {
-                continue;
-            }
-
-            if (string.Equals(Path.GetFileName(fullPath), "installed.json", StringComparison.OrdinalIgnoreCase))
-            {
-                var parent = Directory.GetParent(fullPath)?.FullName;
-                if (!string.IsNullOrWhiteSpace(parent))
-                    fullPath = parent;
-            }
-
-            if (existing.Add(fullPath))
-            {
-                _currentSettings.HeroicEpicConfigPaths.Add(fullPath);
-                changed = true;
-            }
-        }
-
-        if (changed)
-            SaveSettingsOnly();
-    }
-
     private void StoreSteamLibraryPaths(IEnumerable<string> steamAppsPaths)
     {
         if (steamAppsPaths == null)

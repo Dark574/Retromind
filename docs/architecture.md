@@ -380,9 +380,8 @@ the report never mutates JSON or deletes files.
   list expansion, refresh, and BigMode navigation remain common, while RetroAchievements adds points and Hardcore
   state and Steam adds hidden-achievement state. Historical RetroAchievements property/type names remain available
   so third-party runtime themes do not break
-- `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`) plus legacy Heroic Epic
-  discovery (`installed.json`) for existing compatibility paths. The normal Epic import loads the owned library
-  through the native Legendary provider. New imports persist the provider-neutral identity fields
+- `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`). Epic imports load the
+  owned library through the native Legendary provider. New imports persist the provider-neutral identity fields
   `Store.ProviderId` and `Store.GameId` on the `MediaItem`
 - `StoreProviderBadgeHelper` resolves GOG, Steam, and Epic cover labels from that structured identity. For
   Steam/Heroic items created before the fields existed, it falls back to their command and launch URI without

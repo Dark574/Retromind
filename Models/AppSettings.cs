@@ -52,12 +52,6 @@ public class AppSettings
     public List<string> SteamLibraryPaths { get; set; } = new();
 
     /// <summary>
-    /// Optional manual Heroic Epic config paths (heroic folder, epic_store folder, or installed.json).
-    /// If empty, Retromind uses automatic discovery only.
-    /// </summary>
-    public List<string> HeroicEpicConfigPaths { get; set; } = new();
-    
-    /// <summary>
     /// Preferred LibVLC/FFmpeg hardware decoding mode for BigMode preview videos
     /// Valid values are implementation-defined (e.g. "none", "auto", "vaapi")
     /// Default is "none" for maximum compatibility on unknown systems

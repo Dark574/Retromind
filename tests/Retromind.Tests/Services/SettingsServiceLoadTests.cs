@@ -83,6 +83,29 @@ public sealed class SettingsServiceLoadTests
     }
 
     [Fact]
+    public async Task LoadAsync_AcceptsLegacyHeroicPathsAndDropsThemOnNextSave()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+        var service = new SettingsService();
+        var settingsPath = temp.GetPath("app_settings.json");
+        File.WriteAllText(
+            settingsPath,
+            """
+            {
+              "HeroicEpicConfigPaths": ["/tmp/legacy-heroic"]
+            }
+            """);
+
+        var settings = await service.LoadAsync();
+        await service.SaveAsync(settings);
+
+        var savedJson = await File.ReadAllTextAsync(settingsPath);
+        Assert.DoesNotContain("HeroicEpicConfigPaths", savedJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("legacy-heroic", savedJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task LoadAsync_UsesBackupAndRestoresPrimaryWhenPrimaryIsCorrupt()
     {
         using var temp = new TemporaryDirectory();

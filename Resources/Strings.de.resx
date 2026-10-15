@@ -39,7 +39,7 @@
 • Spielsystem und Standard-Emulator einer Kategorie werden an ihre untergeordneten Inhalte vererbt.</value></data>
     <data name="GettingStarted.Category.Action" xml:space="preserve"><value>Kategorie anlegen...</value></data>
     <data name="GettingStarted.Import.Title" xml:space="preserve"><value>Inhalte hinzufügen</value></data>
-    <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf eine Kategorie, um ROMs oder Spiele aus Steam, Heroic/Epic und GOG zu importieren oder Medien manuell anzulegen.</value></data>
+    <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf eine Kategorie, um ROMs oder Spiele aus Steam, Epic und GOG zu importieren oder Medien manuell anzulegen.</value></data>
     <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Wähle zuerst die Kategorie, in der die neuen Einträge abgelegt werden sollen.
 • Unter Importieren findest du ROM-Ordner sowie Steam- und Epic-Bibliotheken; GOG und manuelle Medien besitzen eigene Einträge.
 • Lege vor einem ROM-Import das Spielsystem und den Standard-Emulator der Kategorie fest. So kann RetroAchievements unterstützte Spiele automatisch erkennen und die ROMs übernehmen den Emulator direkt. Bei bereits importierten ROMs lässt sich der Standard-Emulator in den Kategorieeinstellungen nachträglich auf vorhandene Einträge anwenden.</value></data>
@@ -47,7 +47,7 @@
     <data name="GettingStarted.Settings.Description" xml:space="preserve"><value>Richte Emulatoren, Metadatenanbieter, Bibliothekspfade und optional RetroAchievements ein.</value></data>
     <data name="GettingStarted.Settings.Details" xml:space="preserve"><value>• Unter Emulatoren legst du Programme, Startargumente und vererbte Runner-Vorgaben fest.
 • Metadaten &amp; Scraper enthält die Anbieter und steuert, welche gefundenen Daten übernommen werden.
-• Integrationen enthält RetroAchievements und Steam-Achievements sowie zusätzliche Bibliothekspfade für Steam und Heroic.</value></data>
+• Integrationen enthält RetroAchievements und Steam-Achievements sowie zusätzliche Bibliothekspfade für Steam.</value></data>
     <data name="GettingStarted.Settings.Action" xml:space="preserve"><value>Einstellungen öffnen...</value></data>
     <data name="GettingStarted.Restore.Title" xml:space="preserve"><value>Vorhandene Bibliothek wiederherstellen</value></data>
     <data name="GettingStarted.Restore.Description" xml:space="preserve"><value>Stelle Bibliotheksmetadaten und Einstellungen aus einem Retromind-Backup am aktuellen Datenort wieder her.</value></data>
@@ -55,7 +55,7 @@
 • Ein Backup enthält die Bibliotheksdatenbank und Einstellungen, aber keine Spiele, Bilder, Videos, Themes oder portablen HOME-Daten.
 • Nach einer erfolgreichen Wiederherstellung wird Retromind geschlossen, damit der wiederhergestellte Zustand beim nächsten Start sauber geladen wird.</value></data>
     <data name="GettingStarted.Restore.Action" xml:space="preserve"><value>Backups verwalten...</value></data>
-    <data name="GettingStarted.NextStep" xml:space="preserve"><value>Nach dem Anlegen einer Kategorie kannst du per Rechtsklick ROMs oder Spiele aus Steam, Heroic/Epic und GOG importieren oder Medien manuell anlegen.</value></data>
+    <data name="GettingStarted.NextStep" xml:space="preserve"><value>Nach dem Anlegen einer Kategorie kannst du per Rechtsklick ROMs oder Spiele aus Steam, Epic und GOG importieren oder Medien manuell anlegen.</value></data>
     <data name="GettingStarted.EmptyCategory.Title" xml:space="preserve"><value>Diese Kategorie ist bereit</value></data>
     <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf diese freie Fläche oder links auf die Kategorie, um Medien hinzuzufügen, einen ROM-Ordner oder Spiele aus Steam, Epic und GOG zu importieren.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Übersicht schließen</value></data>
