@@ -55,6 +55,7 @@ public sealed class EpicMediaItemStateHelperTests
         Assert.False(EpicMediaItemStateHelper.IsLaunchReady(item));
         Assert.False(EpicMediaItemStateHelper.ShouldOfferInstall(item));
         Assert.True(EpicMediaItemStateHelper.CanCheckUpdates(item));
+        Assert.True(EpicMediaItemStateHelper.CanUninstall(item));
         Assert.False(EpicMediaItemStateHelper.HasUpdateAvailable(item));
 
         item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] = "true";
@@ -71,6 +72,7 @@ public sealed class EpicMediaItemStateHelperTests
 
         Assert.False(EpicMediaItemStateHelper.IsRetromindManagedInstallation(item));
         Assert.True(EpicMediaItemStateHelper.HasRetromindManagedInstallMetadata(item));
+        Assert.True(EpicMediaItemStateHelper.CanUninstall(item));
         Assert.True(EpicMediaItemStateHelper.ShouldOfferInstall(item));
     }
 

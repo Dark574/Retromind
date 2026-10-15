@@ -51,6 +51,8 @@ internal sealed record EpicInstallSpaceAssessment(
     long? EstimatedInstallBytes,
     long? RequiredBytes);
 
+internal sealed record EpicUninstallResult(bool PrefixPreserved);
+
 public sealed class EpicInstallService
 {
     private const string MarkerFileName = ".retromind-install.json";
@@ -121,7 +123,7 @@ public sealed class EpicInstallService
         }
     }
 
-    internal async Task UninstallAsync(
+    internal async Task<EpicUninstallResult> UninstallAsync(
         MediaItem item,
         bool deletePrefix = true,
         Action<string>? outputReceived = null,
@@ -147,7 +149,9 @@ public sealed class EpicInstallService
             }
         }
 
+        var hadPrefix = !string.IsNullOrWhiteSpace(item.PrefixPath);
         var prefixPath = ResolveSafePrefixForDeletion(item.PrefixPath, deletePrefix);
+        var prefixPreserved = hadPrefix && string.IsNullOrWhiteSpace(prefixPath);
 
         var installedDlcs = (await _client.GetDlcCatalogAsync(appName, ct).ConfigureAwait(false))
             .Where(static dlc => dlc.IsInstalled)
@@ -189,6 +193,39 @@ public sealed class EpicInstallService
                     ct)
                 .ConfigureAwait(false);
         }
+
+        ClearInstallState(item, prefixPreserved);
+        return new EpicUninstallResult(prefixPreserved);
+    }
+
+    private static void ClearInstallState(MediaItem item, bool prefixPreserved)
+    {
+        var installFields = new HashSet<string>(StringComparer.Ordinal)
+        {
+            CustomFieldKeyHelper.StoreInstallPath,
+            CustomFieldKeyHelper.StoreInstallPlatform,
+            CustomFieldKeyHelper.StoreInstallRunnerVersionId,
+            CustomFieldKeyHelper.StoreInstallWindowsInstallerPreference,
+            CustomFieldKeyHelper.StoreInstalledVersion,
+            CustomFieldKeyHelper.StoreInstalledInstallerSignature,
+            CustomFieldKeyHelper.StoreUpdateAvailable,
+            CustomFieldKeyHelper.StoreDlcUpdateAvailable,
+            CustomFieldKeyHelper.StoreUpdateLastCheckedUtc,
+            CustomFieldKeyHelper.StoreUpdateLastStatus
+        };
+
+        item.CustomFields = item.CustomFields
+            .Where(entry => !installFields.Contains(entry.Key))
+            .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
+        item.Files = [];
+        item.MediaType = MediaType.Command;
+        item.EmulatorId = null;
+        item.LauncherPath = null;
+        item.LauncherArgs = null;
+        item.WorkingDirectory = null;
+        item.RunnerVersionId = null;
+        if (!prefixPreserved)
+            item.PrefixPath = null;
     }
 
     private (string BaseAppName, string InstallPath) ResolveOwnedInstallation(MediaItem item)

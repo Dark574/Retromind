@@ -198,7 +198,12 @@
                                     <Button Content="{Binding EpicRepairText}"
                                             Command="{Binding EpicRepairCommand}"
                                             CommandParameter="{Binding $parent[Window]}"
-                                            IsVisible="{Binding ShowEpicRepairAction}" />
+                                            IsVisible="{Binding ShowEpicRepairAction}"
+                                            Margin="0,0,8,0" />
+                                    <Button Content="{Binding EpicUninstallText}"
+                                            Command="{Binding EpicUninstallCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            IsVisible="{Binding ShowEpicUninstallAction}" />
                                 </WrapPanel>
 
                                 <Border BorderBrush="Gray"

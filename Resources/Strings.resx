@@ -430,6 +430,25 @@ Installed version: {0}</value></data>
     <data name="Epic.Repair.Cancelled" xml:space="preserve"><value>Repair cancelled by user.</value></data>
     <data name="Epic.Repair.ResumeHint" xml:space="preserve"><value>Legendary can reuse already downloaded repair data when the repair is started again.</value></data>
     <data name="Epic.Repair.FailedFormat" xml:space="preserve"><value>Repair failed: {0}</value></data>
+    <data name="Epic.Uninstall.ContextMenu" xml:space="preserve"><value>Uninstall</value></data>
+    <data name="Epic.Uninstall.ConfirmFormat" xml:space="preserve"><value>Uninstall "{0}"?
+
+The game files and its Wine/Proton prefix will be deleted, and the installation will be unregistered from Legendary. The Retromind library item, media and metadata remain available.
+
+This action cannot be undone.</value></data>
+    <data name="Epic.Uninstall.ConfirmSharedPrefixFormat" xml:space="preserve"><value>Uninstall "{0}"?
+
+The game files will be deleted and the installation will be unregistered from Legendary. Its Wine/Proton prefix is also used by another item and will be preserved. The Retromind library item, media and metadata remain available.
+
+This action cannot be undone.</value></data>
+    <data name="Epic.Uninstall.SharedInstallDirectoryFormat" xml:space="preserve"><value>The game folder is also used by another library item and will not be deleted:
+{0}</value></data>
+    <data name="Epic.Uninstall.ProgressTitleFormat" xml:space="preserve"><value>Uninstall Epic game - {0}</value></data>
+    <data name="Epic.Uninstall.Starting" xml:space="preserve"><value>Uninstalling the Epic Games title and removing its Legendary registration...</value></data>
+    <data name="Epic.Uninstall.Success" xml:space="preserve"><value>Game uninstalled successfully.</value></data>
+    <data name="Epic.Uninstall.SuccessPrefixPreserved" xml:space="preserve"><value>Game uninstalled successfully. The Wine/Proton prefix was preserved.</value></data>
+    <data name="Epic.Uninstall.Cancelled" xml:space="preserve"><value>Uninstallation cancelled.</value></data>
+    <data name="Epic.Uninstall.FailedFormat" xml:space="preserve"><value>Uninstallation failed: {0}</value></data>
     <data name="Epic.Dlc.ContextMenu" xml:space="preserve"><value>Manage DLCs...</value></data>
     <data name="Epic.Dlc.DialogTitle" xml:space="preserve"><value>Manage Epic Games DLCs</value></data>
     <data name="Epic.Dlc.Header" xml:space="preserve"><value>Owned DLCs</value></data>

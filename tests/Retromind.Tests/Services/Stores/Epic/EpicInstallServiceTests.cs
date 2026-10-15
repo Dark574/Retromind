@@ -97,6 +97,14 @@ public sealed class EpicInstallServiceTests
         var installPath = temp.CreateDirectory("installed-game");
         var item = CreateEpicItem();
         item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = installPath;
+        item.CustomFields[CustomFieldKeyHelper.StoreInstalledVersion] = "1.0";
+        item.Files = [new MediaFileRef { Kind = MediaFileKind.Absolute, Path = Path.Combine(installPath, "Game.exe") }];
+        item.MediaType = MediaType.Emulator;
+        item.EmulatorId = "old-emulator";
+        item.LauncherPath = "umu-run";
+        item.LauncherArgs = "{file}";
+        item.WorkingDirectory = installPath;
+        item.RunnerVersionId = "proton-test";
         var runner = new QueueProcessRunner(
             new LegendaryCliResult(0, CreateEmptyDlcCatalogJson(), string.Empty),
             new LegendaryCliResult(0, "[]", string.Empty),
@@ -106,9 +114,21 @@ public sealed class EpicInstallServiceTests
         service.WriteMarker(installPath, item);
         File.WriteAllText(Path.Combine(installPath, "game.dat"), "game data");
 
-        await service.UninstallAsync(item);
+        var result = await service.UninstallAsync(item);
 
         Assert.False(Directory.Exists(installPath));
+        Assert.False(result.PrefixPreserved);
+        Assert.Equal(StoreProviderIds.Epic, item.CustomFields[CustomFieldKeyHelper.StoreProviderId]);
+        Assert.Equal("ExampleGame", item.CustomFields[CustomFieldKeyHelper.StoreGameId]);
+        Assert.False(item.CustomFields.ContainsKey(CustomFieldKeyHelper.StoreInstallPath));
+        Assert.False(item.CustomFields.ContainsKey(CustomFieldKeyHelper.StoreInstalledVersion));
+        Assert.Empty(item.Files);
+        Assert.Equal(MediaType.Command, item.MediaType);
+        Assert.Null(item.EmulatorId);
+        Assert.Null(item.LauncherPath);
+        Assert.Null(item.LauncherArgs);
+        Assert.Null(item.WorkingDirectory);
+        Assert.Null(item.RunnerVersionId);
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(["list", "--json"], command.Arguments),
@@ -145,9 +165,40 @@ public sealed class EpicInstallServiceTests
         var service = CreateService(runner);
         service.WriteMarker(installPath, item);
 
-        await service.UninstallAsync(item, deletePrefix);
+        var result = await service.UninstallAsync(item, deletePrefix);
 
         Assert.Equal(expectedPrefixExists, Directory.Exists(prefixPath));
+        Assert.Equal(expectedPrefixExists, result.PrefixPreserved);
+        Assert.Equal(expectedPrefixExists ? Path.GetRelativePath(AppPaths.LibraryRoot, prefixPath) : null, item.PrefixPath);
+    }
+
+    [Fact]
+    public async Task UninstallAsync_PreservesUnsafePrefixPathAndMetadata()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(
+            ("APPIMAGE", temp.GetPath("Retromind.AppImage")),
+            ("APPDIR", null));
+        var installPath = temp.CreateDirectory("Library", "Games", "Epic", "Example Game");
+        var externalPrefixPath = temp.CreateDirectory("external-prefix");
+        File.WriteAllText(Path.Combine(externalPrefixPath, "prefix.dat"), "prefix data");
+        var item = CreateEpicItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] =
+            Path.GetRelativePath(AppPaths.DataRoot, installPath);
+        item.PrefixPath = externalPrefixPath;
+        var runner = new QueueProcessRunner(
+            new LegendaryCliResult(0, CreateEmptyDlcCatalogJson(), string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty),
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty));
+        var service = CreateService(runner);
+        service.WriteMarker(installPath, item);
+
+        var result = await service.UninstallAsync(item);
+
+        Assert.True(result.PrefixPreserved);
+        Assert.True(Directory.Exists(externalPrefixPath));
+        Assert.Equal(externalPrefixPath, item.PrefixPath);
     }
 
     [Fact]

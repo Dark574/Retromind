@@ -179,6 +179,9 @@ public static class ObjectConverters
     public static readonly IValueConverter EpicInstalledMenuVisible =
         new FuncValueConverter<MediaItem?, bool>(EpicMediaItemStateHelper.IsRetromindManagedInstallation);
 
+    public static readonly IValueConverter EpicUninstallMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(EpicMediaItemStateHelper.CanUninstall);
+
     public static readonly IValueConverter EpicUpdateCheckMenuVisible =
         new FuncValueConverter<MediaItem?, bool>(item =>
         {

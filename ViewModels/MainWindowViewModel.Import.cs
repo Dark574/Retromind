@@ -1301,6 +1301,7 @@ public partial class MainWindowViewModel
             epicCheckUpdates: dialogOwner => CheckEpicUpdatesNowAsync(item, dialogOwner),
             epicUpdate: dialogOwner => RunEpicMaintenanceFromEditorAsync(item, dialogOwner, repair: false),
             epicRepair: dialogOwner => RunEpicMaintenanceFromEditorAsync(item, dialogOwner, repair: true),
+            epicUninstall: dialogOwner => RunEpicUninstallAsync(item, dialogOwner),
             epicManageDlcs: dialogOwner => ShowEpicDlcManagerAsync(item, dialogOwner),
             viewLastLaunchLog: dialogOwner => ShowLastLaunchLogAsync(item, dialogOwner),
             hasLastLaunchLog: _launchLogService.HasLog(item.Id))

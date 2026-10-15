@@ -52,6 +52,9 @@ internal static class EpicMediaItemStateHelper
     internal static bool CanCheckUpdates(MediaItem? item) =>
         IsRetromindManagedInstallation(item);
 
+    internal static bool CanUninstall(MediaItem? item) =>
+        HasRetromindManagedInstallMetadata(item);
+
     internal static bool HasUpdateAvailable(MediaItem? item) =>
         IsRetromindManagedInstallation(item) &&
         item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) &&

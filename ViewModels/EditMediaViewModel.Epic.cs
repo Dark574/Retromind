@@ -15,6 +15,7 @@ public partial class EditMediaViewModel
     private Func<Window, Task>? _epicCheckUpdates;
     private Func<Window, Task<bool>>? _epicUpdate;
     private Func<Window, Task<bool>>? _epicRepair;
+    private Func<Window, Task<bool>>? _epicUninstall;
     private Func<Window, Task>? _epicManageDlcs;
     private bool _isEpicOperationRunning;
 
@@ -22,6 +23,7 @@ public partial class EditMediaViewModel
     public IAsyncRelayCommand<Window?> EpicCheckUpdatesCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> EpicUpdateCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> EpicRepairCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<Window?> EpicUninstallCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> EpicManageDlcsCommand { get; private set; } = null!;
 
     public bool IsEpicManagementVisible =>
@@ -40,6 +42,9 @@ public partial class EditMediaViewModel
     public bool ShowEpicRepairAction =>
         EpicMediaItemStateHelper.IsRetromindManagedInstallation(_originalItem);
 
+    public bool ShowEpicUninstallAction =>
+        EpicMediaItemStateHelper.CanUninstall(_originalItem);
+
     public bool ShowEpicDlcAction => ShowEpicRepairAction;
 
     public bool ShowEpicInstalledVersion =>
@@ -57,6 +62,7 @@ public partial class EditMediaViewModel
             EpicCheckUpdatesCommand.NotifyCanExecuteChanged();
             EpicUpdateCommand.NotifyCanExecuteChanged();
             EpicRepairCommand.NotifyCanExecuteChanged();
+            EpicUninstallCommand.NotifyCanExecuteChanged();
             EpicManageDlcsCommand.NotifyCanExecuteChanged();
             OnPropertyChanged(nameof(IsEditorBusy));
         }
@@ -70,6 +76,7 @@ public partial class EditMediaViewModel
     public string EpicCheckUpdatesText => T("Epic.Update.CheckNow", "Check for Epic Games updates");
     public string EpicUpdateText => Strings.Button_Update;
     public string EpicRepairText => T("Epic.Repair.ContextMenu", "Repair installation");
+    public string EpicUninstallText => T("Epic.Uninstall.ContextMenu", "Uninstall");
     public string EpicManageDlcsText => T("Epic.Dlc.ContextMenu", "Manage DLCs...");
     public string EpicDlcTitle => T("EditMedia.EpicDlcTitle", "DLCs");
     public string EpicDlcHint => T(
@@ -120,12 +127,14 @@ public partial class EditMediaViewModel
         Func<Window, Task>? checkUpdates,
         Func<Window, Task<bool>>? update,
         Func<Window, Task<bool>>? repair,
+        Func<Window, Task<bool>>? uninstall,
         Func<Window, Task>? manageDlcs)
     {
         _epicInstall = install;
         _epicCheckUpdates = checkUpdates;
         _epicUpdate = update;
         _epicRepair = repair;
+        _epicUninstall = uninstall;
         _epicManageDlcs = manageDlcs;
 
         EpicInstallCommand = new AsyncRelayCommand<Window?>(
@@ -140,6 +149,9 @@ public partial class EditMediaViewModel
         EpicRepairCommand = new AsyncRelayCommand<Window?>(
             owner => RunEpicActionAsync(owner, _epicRepair),
             owner => ShowEpicRepairAction && CanRunEpicAction(owner, _epicRepair));
+        EpicUninstallCommand = new AsyncRelayCommand<Window?>(
+            owner => RunEpicActionAsync(owner, _epicUninstall),
+            owner => ShowEpicUninstallAction && CanRunEpicAction(owner, _epicUninstall));
         EpicManageDlcsCommand = new AsyncRelayCommand<Window?>(
             RunEpicDlcDialogAsync,
             owner => ShowEpicDlcAction && CanRunEpicAction(owner, _epicManageDlcs));
@@ -224,6 +236,7 @@ public partial class EditMediaViewModel
         OnPropertyChanged(nameof(ShowEpicCheckUpdatesAction));
         OnPropertyChanged(nameof(ShowEpicUpdateAction));
         OnPropertyChanged(nameof(ShowEpicRepairAction));
+        OnPropertyChanged(nameof(ShowEpicUninstallAction));
         OnPropertyChanged(nameof(ShowEpicDlcAction));
         OnPropertyChanged(nameof(ShowEpicInstalledVersion));
         OnPropertyChanged(nameof(EpicInstalledVersionText));
@@ -232,6 +245,7 @@ public partial class EditMediaViewModel
         EpicCheckUpdatesCommand.NotifyCanExecuteChanged();
         EpicUpdateCommand.NotifyCanExecuteChanged();
         EpicRepairCommand.NotifyCanExecuteChanged();
+        EpicUninstallCommand.NotifyCanExecuteChanged();
         EpicManageDlcsCommand.NotifyCanExecuteChanged();
     }
 }

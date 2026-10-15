@@ -431,6 +431,25 @@ Installierte Version: {0}</value></data>
     <data name="Epic.Repair.Cancelled" xml:space="preserve"><value>Reparatur durch den Benutzer abgebrochen.</value></data>
     <data name="Epic.Repair.ResumeHint" xml:space="preserve"><value>Legendary kann bereits heruntergeladene Reparaturdaten beim nächsten Versuch wiederverwenden.</value></data>
     <data name="Epic.Repair.FailedFormat" xml:space="preserve"><value>Reparatur fehlgeschlagen: {0}</value></data>
+    <data name="Epic.Uninstall.ContextMenu" xml:space="preserve"><value>Deinstallieren</value></data>
+    <data name="Epic.Uninstall.ConfirmFormat" xml:space="preserve"><value>„{0}“ deinstallieren?
+
+Die Spieldateien und der Wine-/Proton-Prefix werden gelöscht und die Installation wird aus Legendary entfernt. Das Retromind-Bibliotheks-Item mit seinen Medien und Metadaten bleibt erhalten.
+
+Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
+    <data name="Epic.Uninstall.ConfirmSharedPrefixFormat" xml:space="preserve"><value>„{0}“ deinstallieren?
+
+Die Spieldateien werden gelöscht und die Installation wird aus Legendary entfernt. Der Wine-/Proton-Prefix wird auch von einem anderen Item verwendet und deshalb beibehalten. Das Retromind-Bibliotheks-Item mit seinen Medien und Metadaten bleibt erhalten.
+
+Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
+    <data name="Epic.Uninstall.SharedInstallDirectoryFormat" xml:space="preserve"><value>Der Spieleordner wird auch von einem anderen Bibliotheks-Item verwendet und deshalb nicht gelöscht:
+{0}</value></data>
+    <data name="Epic.Uninstall.ProgressTitleFormat" xml:space="preserve"><value>Epic-Spiel deinstallieren – {0}</value></data>
+    <data name="Epic.Uninstall.Starting" xml:space="preserve"><value>Das Epic-Spiel wird deinstalliert und seine Registrierung aus Legendary entfernt...</value></data>
+    <data name="Epic.Uninstall.Success" xml:space="preserve"><value>Spiel erfolgreich deinstalliert.</value></data>
+    <data name="Epic.Uninstall.SuccessPrefixPreserved" xml:space="preserve"><value>Spiel erfolgreich deinstalliert. Der Wine-/Proton-Prefix wurde beibehalten.</value></data>
+    <data name="Epic.Uninstall.Cancelled" xml:space="preserve"><value>Deinstallation abgebrochen.</value></data>
+    <data name="Epic.Uninstall.FailedFormat" xml:space="preserve"><value>Deinstallation fehlgeschlagen: {0}</value></data>
     <data name="Epic.Dlc.ContextMenu" xml:space="preserve"><value>DLCs verwalten...</value></data>
     <data name="Epic.Dlc.DialogTitle" xml:space="preserve"><value>Epic-Games-DLCs verwalten</value></data>
     <data name="Epic.Dlc.Header" xml:space="preserve"><value>Eigene DLCs</value></data>

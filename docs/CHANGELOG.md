@@ -13,6 +13,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - install Epic Games titles directly through Retromind with install-location selection, free-space checks, progress output, and cancellation
 - repair missing or damaged files in Retromind-managed Epic Games installations through Legendary
 - manage owned Epic Games DLCs through Legendary, including installation, updates and removal
+- uninstall Retromind-managed Epic Games installations without removing their library items, media or metadata
 - ScreenScraper now supports video asset downloads
 - multiple videos are now also played random if the selection is active
 - filter game metadata searches by a selected system with ScreenScraper, IGDB and TheGamesDB

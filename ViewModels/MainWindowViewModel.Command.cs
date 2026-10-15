@@ -16,6 +16,7 @@ using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.Stores;
 using Retromind.Services.Stores.Epic;
 using Retromind.Services.Stores.Gog;
 using Retromind.Views;
@@ -61,6 +62,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> CheckEpicUpdatesCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> UpdateEpicCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> RepairEpicCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> UninstallEpicCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> ManageEpicDlcsCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
@@ -105,6 +107,7 @@ public partial class MainWindowViewModel
     public string EpicCheckUpdatesMenuText => T("Epic.Update.CheckNow", "Check for Epic Games updates");
     public string EpicUpdateMenuText => T("Button_Update", "Update");
     public string EpicRepairMenuText => T("Epic.Repair.ContextMenu", "Repair installation");
+    public string EpicUninstallMenuText => T("Epic.Uninstall.ContextMenu", "Uninstall");
     public string EpicManageDlcsMenuText => T("Epic.Dlc.ContextMenu", "Manage DLCs...");
 
     private void InitializeCommands()
@@ -137,6 +140,7 @@ public partial class MainWindowViewModel
         CheckEpicUpdatesCommand = new AsyncRelayCommand<MediaItem?>(CheckEpicUpdatesNowAsync, CanCheckEpicUpdates);
         UpdateEpicCommand = new AsyncRelayCommand<MediaItem?>(UpdateEpicMediaAsync, CanUpdateEpicMedia);
         RepairEpicCommand = new AsyncRelayCommand<MediaItem?>(RepairEpicMediaAsync, CanRepairEpicMedia);
+        UninstallEpicCommand = new AsyncRelayCommand<MediaItem?>(UninstallEpicMediaAsync, CanUninstallEpicMedia);
         ManageEpicDlcsCommand = new AsyncRelayCommand<MediaItem?>(ShowEpicDlcManagerAsync, CanManageEpicDlcs);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
@@ -355,6 +359,7 @@ public partial class MainWindowViewModel
         CheckEpicUpdatesCommand.NotifyCanExecuteChanged();
         UpdateEpicCommand.NotifyCanExecuteChanged();
         RepairEpicCommand.NotifyCanExecuteChanged();
+        UninstallEpicCommand.NotifyCanExecuteChanged();
         ManageEpicDlcsCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanPlaySelectedMedia));
         OnPropertyChanged(nameof(PlaySelectedMediaButtonText));
@@ -1464,6 +1469,22 @@ public partial class MainWindowViewModel
                 EpicMediaItemStateHelper.HasRetromindManagedInstallMetadata(item);
             var preserveSharedEpicPrefix = removeManagedEpicInstallation &&
                                            IsPrefixUsedByAnotherItem(item.PrefixPath, item);
+            if (removeManagedEpicInstallation &&
+                item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var storedInstallPath) &&
+                StoreInstallPathHelper.TryResolveStoredPath(storedInstallPath, out var installPath) &&
+                IsInstallDirectoryUsedByAnotherItem(installPath, item))
+            {
+                await ShowInfoDialog(
+                    owner,
+                    string.Format(
+                        CultureInfo.CurrentCulture,
+                        T(
+                            "Epic.Uninstall.SharedInstallDirectoryFormat",
+                            "The game folder is also used by another library item and will not be deleted:\n{0}"),
+                        installPath));
+                return;
+            }
+
             var confirmMessage = removeManagedEpicInstallation
                 ? string.Format(
                     CultureInfo.CurrentCulture,

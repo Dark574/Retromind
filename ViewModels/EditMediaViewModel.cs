@@ -637,6 +637,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         Func<Window, Task>? epicCheckUpdates = null,
         Func<Window, Task<bool>>? epicUpdate = null,
         Func<Window, Task<bool>>? epicRepair = null,
+        Func<Window, Task<bool>>? epicUninstall = null,
         Func<Window, Task>? epicManageDlcs = null,
         Func<Window, Task>? viewLastLaunchLog = null,
         bool hasLastLaunchLog = false)
@@ -655,7 +656,13 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService ??
             throw new ArgumentNullException(nameof(retroAchievementsGameIdentificationService));
         InitializeGogManagement(gogLink, gogInstallOrReinstall, gogCheckUpdates, gogUpdate, gogUninstall, gogManageDlcs);
-        InitializeEpicManagement(epicInstall, epicCheckUpdates, epicUpdate, epicRepair, epicManageDlcs);
+        InitializeEpicManagement(
+            epicInstall,
+            epicCheckUpdates,
+            epicUpdate,
+            epicRepair,
+            epicUninstall,
+            epicManageDlcs);
         _metadataSuggestionService = new MetadataSuggestionService(_rootNodes, _parentNode);
         _assetsChangedHandler = (_, _) => ScheduleSortAssets();
         _editedAssets.CollectionChanged += _assetsChangedHandler;

@@ -392,7 +392,7 @@
                                                       CommandParameter="{Binding .}"
                                                       IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}" />
                                             <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
-                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
+                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicUninstallMenuVisible}}" />
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicCheckUpdatesMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CheckEpicUpdatesCommand}"
                                                       CommandParameter="{Binding .}"
@@ -409,7 +409,11 @@
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ManageEpicDlcsCommand}"
                                                       CommandParameter="{Binding .}"
                                                       IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
-                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicUninstallMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UninstallEpicCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicUninstallMenuVisible}}" />
+                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicUninstallMenuVisible}}" />
                                             <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
                                                       CommandParameter="{Binding .}"
