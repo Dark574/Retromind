@@ -238,56 +238,45 @@
                                              input:DragDrop.AllowDrop="True">
                                            <Border.ContextMenu>
                                                <ContextMenu>
-                                                   <!-- SIMPLIFIED & LOCALIZED -->
+                                                   <!-- Node actions mirror the item context-menu ordering. -->
+                                                   <MenuItem Header="{x:Static p:Strings.Media_Settings}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditNodeCommand}"
+                                                             CommandParameter="{Binding .}"
+                                                             FontWeight="Bold" />
+                                                   <MenuItem Header="{x:Static p:Strings.Metadata_SearchMetadataAll}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeNodeCommand}"
+                                                             CommandParameter="{Binding .}" />
+                                                   <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RetroAchievementsSearchAllText}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IdentifyNodeWithRetroAchievementsCommand}"
+                                                             CommandParameter="{Binding .}" />
+
+                                                   <Separator />
+
                                                    <MenuItem Header="{x:Static p:Strings.Ctx_Category_Add}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddCategoryCommand}"
                                                              CommandParameter="{Binding .}" />
-
                                                    <Separator />
-
                                                    <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
-                                                             CommandParameter="{Binding .}"
-                                                             FontWeight="Bold" />
+                                                             CommandParameter="{Binding .}" />
                                                    <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddEmpty}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddEmptyMediaCommand}"
                                                              CommandParameter="{Binding .}" />
-
-                                                   <Separator />
-
                                                    <MenuItem Header="{x:Static p:Strings.Button_Import}" FontWeight="Bold">
                                                        <MenuItem Header="{x:Static p:Strings.Import_Roms}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportRomsCommand}"
-                                                                 CommandParameter="{Binding .}"/>
-                                                       <Separator/>
+                                                                 CommandParameter="{Binding .}" />
+                                                       <Separator />
                                                        <MenuItem Header="{x:Static p:Strings.Import_Steam}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportSteamCommand}"
-                                                                 CommandParameter="{Binding .}"/>
+                                                                 CommandParameter="{Binding .}" />
                                                        <MenuItem Header="{x:Static p:Strings.Import_Epic}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportEpicCommand}"
-                                                                 CommandParameter="{Binding .}"/>
+                                                                 CommandParameter="{Binding .}" />
                                                        <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportGogText}"
                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ImportGogCommand}"
-                                                                 CommandParameter="{Binding .}"/>
+                                                                 CommandParameter="{Binding .}" />
                                                    </MenuItem>
-
-                                                   <Separator />
-
-                                                   <MenuItem Header="{x:Static p:Strings.Metadata_SearchMetadataAll}"
-                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScrapeNodeCommand}"
-                                                             CommandParameter="{Binding .}"
-                                                             FontWeight="Bold" />
-                                                   <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RetroAchievementsSearchAllText}"
-                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).IdentifyNodeWithRetroAchievementsCommand}"
-                                                             CommandParameter="{Binding .}"
-                                                             FontWeight="Bold" />
-
-                                                   <Separator/>
-
-                                                   <!-- Settings for the folder -->
-                                                   <MenuItem Header="{x:Static p:Strings.Media_Settings}"
-                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditNodeCommand}"
-                                                             CommandParameter="{Binding .}"/>
 
                                                    <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteCommand}"

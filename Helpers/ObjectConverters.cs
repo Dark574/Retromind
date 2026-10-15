@@ -109,7 +109,67 @@ public static class ObjectConverters
         new FuncValueConverter<MediaItem?, bool>(item =>
         {
             return GogMediaItemStateHelper.ShouldOfferInstall(item) ||
-                   EpicMediaItemStateHelper.ShouldOfferInstall(item);
+                   EpicMediaItemStateHelper.CanInstallWithRetromind(item);
+        });
+
+    public static readonly IValueConverter StoreMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+        {
+            if (item == null)
+                return false;
+
+            var providerId = StoreProviderBadgeHelper.GetProviderId(item);
+            return providerId == null ||
+                   string.Equals(providerId, StoreProviderBadgeHelper.GogProviderId, StringComparison.Ordinal) ||
+                   string.Equals(providerId, StoreProviderBadgeHelper.EpicProviderId, StringComparison.Ordinal);
+        });
+
+    public static readonly IValueConverter StoreLinkGogMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+            item != null && StoreProviderBadgeHelper.GetProviderId(item) == null);
+
+    public static readonly IValueConverter StoreSwitchToGogMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+            string.Equals(
+                StoreProviderBadgeHelper.GetProviderId(item),
+                StoreProviderBadgeHelper.EpicProviderId,
+                StringComparison.Ordinal));
+
+    public static readonly IValueConverter StoreLinkEpicMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+        {
+            if (item == null)
+                return false;
+
+            var providerId = StoreProviderBadgeHelper.GetProviderId(item);
+            return providerId == null ||
+                   (string.Equals(
+                        providerId,
+                        StoreProviderBadgeHelper.EpicProviderId,
+                        StringComparison.Ordinal) &&
+                    !StoreGameIdentityHelper.HasStoredIdentity(item));
+        });
+
+    public static readonly IValueConverter StoreSwitchToEpicMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+            string.Equals(
+                StoreProviderBadgeHelper.GetProviderId(item),
+                StoreProviderBadgeHelper.GogProviderId,
+                StringComparison.Ordinal));
+
+    public static readonly IValueConverter StoreLinkChangeSeparatorVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+        {
+            var providerId = StoreProviderBadgeHelper.GetProviderId(item);
+            return StoreGameIdentityHelper.HasStoredIdentity(item) &&
+                   (string.Equals(
+                        providerId,
+                        StoreProviderBadgeHelper.GogProviderId,
+                        StringComparison.Ordinal) ||
+                    string.Equals(
+                        providerId,
+                        StoreProviderBadgeHelper.EpicProviderId,
+                        StringComparison.Ordinal));
         });
 
     /// <summary>

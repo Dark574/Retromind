@@ -128,8 +128,13 @@ public partial class SearchAreaView : UserControl
         vm.SelectedMediaItem = item;
         _resultsList?.Focus();
 
-        if (updateKind == PointerUpdateKind.LeftButtonPressed)
-            e.Handled = true;
+        e.Handled = true;
+
+        if (updateKind == PointerUpdateKind.RightButtonPressed &&
+            sender is Control { ContextMenu: { } contextMenu } placementTarget)
+        {
+            contextMenu.Open(placementTarget);
+        }
     }
 
     private void OnItemContextMenuOpening(object? sender, CancelEventArgs e)

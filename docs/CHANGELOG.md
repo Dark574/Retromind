@@ -22,6 +22,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - automatically track imported Steam game sessions for playtime and achievement updates without requiring a manually configured process name
 
 ### Changed
+- organize item and category context menus consistently, with compact Store actions and direct access to imports and per-item searches
 - link existing library items to GOG or Epic Games, switch between both stores after uninstalling managed copies, and migrate legacy Heroic entries without losing launch settings, media or metadata
 - show Epic Games installation status, installed version, updates, repair and DLC actions in the media editor
 - install uninstalled GOG and Epic games directly from their item context menus

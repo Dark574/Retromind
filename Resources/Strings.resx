@@ -951,6 +951,7 @@ This action cannot be undone.</value></data>
     <data name="ScrapeDialog.AllGameSystems" xml:space="preserve"><value>All systems</value></data>
     <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping area</value></data>
     <data name="Metadata.SearchMetadata" xml:space="preserve"><value>Search metadata</value></data>
+    <data name="Metadata.SearchMetadataMenu" xml:space="preserve"><value>Search metadata...</value></data>
     <data name="Metadata.SearchMetadataAll" xml:space="preserve"><value>Search metadata (All)...</value></data>
     <data name="Metadata.Search.InProgress" xml:space="preserve"><value>Search is ongoing...</value></data>
     <data name="Metadata.Search.TimedOut" xml:space="preserve"><value>The search timed out. Please try again.</value></data>
@@ -1440,6 +1441,7 @@ The current application settings will be kept.</value></data>
     <data name="SteamAchievements_AchievementUnlocked" xml:space="preserve"><value>Unlocked</value></data>
     <data name="SteamAchievements_NoAchievements" xml:space="preserve"><value>This game has no Steam achievements.</value></data>
     <data name="RetroAchievements_SearchAll" xml:space="preserve"><value>Search RetroAchievements (All)...</value></data>
+    <data name="RetroAchievements_SearchItem" xml:space="preserve"><value>Search RetroAchievements...</value></data>
     <data name="RetroAchievements_AccountRequired" xml:space="preserve"><value>Configure a RetroAchievements account and Web API key in the settings before starting identification.</value></data>
     <data name="RetroAchievements_BulkTitle" xml:space="preserve"><value>RetroAchievements mass identification</value></data>
     <data name="RetroAchievements_BulkStartingFormat" xml:space="preserve"><value>Checking {0:N0} games...</value></data>
@@ -1455,6 +1457,7 @@ The current application settings will be kept.</value></data>
     <data name="RetroAchievements_BulkSaveFailed" xml:space="preserve"><value>The identified games were changed in memory, but the library could not be saved.</value></data>
     <data name="RetroAchievements_BulkUnexpectedFailureFormat" xml:space="preserve"><value>Identification failed unexpectedly: {0}</value></data>
     <data name="Store.Link.Title" xml:space="preserve"><value>Store link</value></data>
+    <data name="Store.ContextMenu" xml:space="preserve"><value>Store</value></data>
     <data name="Store.Link.NotLinked" xml:space="preserve"><value>Not linked to a store</value></data>
     <data name="Store.Link.LinkedGog" xml:space="preserve"><value>Linked to GOG</value></data>
     <data name="Store.Link.LinkedEpic" xml:space="preserve"><value>Linked to Epic Games</value></data>

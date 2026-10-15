@@ -15,6 +15,24 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
+    private bool CanLinkMediaItemToGog(MediaItem? item)
+    {
+        var providerId = StoreProviderBadgeHelper.GetProviderId(item);
+        return !IsLaunchInProgress &&
+               !IsMultiSelectModeActive &&
+               item != null &&
+               (providerId == null ||
+                string.Equals(providerId, StoreProviderIds.Epic, StringComparison.Ordinal));
+    }
+
+    private async Task LinkMediaItemToGogFromContextAsync(MediaItem? item)
+    {
+        if (!CanLinkMediaItemToGog(item) || item == null || CurrentWindow is not { } owner)
+            return;
+
+        _ = await LinkMediaItemToGogAsync(item, owner);
+    }
+
     private async Task<bool> LinkMediaItemToGogAsync(MediaItem item, Window owner)
     {
         var parentNode = FindParentNode(RootItems, item);

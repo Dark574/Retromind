@@ -29,6 +29,7 @@ internal static class EpicMediaItemStateHelper
         !HasPlayableLaunchConfiguration(item!);
 
     internal static bool CanInstallWithRetromind(MediaItem? item) =>
+        StoreGameIdentityHelper.HasStoredIdentity(item) &&
         TryGetGameId(item) != null &&
         !IsRetromindManagedInstallation(item);
 

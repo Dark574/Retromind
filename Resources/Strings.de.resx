@@ -952,6 +952,7 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="ScrapeDialog.AllGameSystems" xml:space="preserve"><value>Alle Systeme</value></data>
     <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping-Bereich</value></data>
     <data name="Metadata.SearchMetadata" xml:space="preserve"><value>Metadaten suchen</value></data>
+    <data name="Metadata.SearchMetadataMenu" xml:space="preserve"><value>Metadaten suchen...</value></data>
     <data name="Metadata.SearchMetadataAll" xml:space="preserve"><value>Metadaten suchen (alle)...</value></data>
     <data name="Metadata.Search.InProgress" xml:space="preserve"><value>Suche läuft...</value></data>
     <data name="Metadata.Search.TimedOut" xml:space="preserve"><value>Die Suche hat zu lange gedauert. Bitte versuche es erneut.</value></data>
@@ -1442,6 +1443,7 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="SteamAchievements_AchievementUnlocked" xml:space="preserve"><value>Freigeschaltet</value></data>
     <data name="SteamAchievements_NoAchievements" xml:space="preserve"><value>Dieses Spiel besitzt keine Steam-Achievements.</value></data>
     <data name="RetroAchievements_SearchAll" xml:space="preserve"><value>RetroAchievements suchen (alle)...</value></data>
+    <data name="RetroAchievements_SearchItem" xml:space="preserve"><value>RetroAchievements suchen...</value></data>
     <data name="RetroAchievements_AccountRequired" xml:space="preserve"><value>Richte vor der Erkennung in den Einstellungen ein RetroAchievements-Konto mit Web-API-Schlüssel ein.</value></data>
     <data name="RetroAchievements_BulkTitle" xml:space="preserve"><value>RetroAchievements-Massenerkennung</value></data>
     <data name="RetroAchievements_BulkStartingFormat" xml:space="preserve"><value>{0:N0} Spiele werden geprüft...</value></data>
@@ -1457,6 +1459,7 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="RetroAchievements_BulkSaveFailed" xml:space="preserve"><value>Die erkannten Spiele wurden im Arbeitsspeicher geändert, die Bibliothek konnte jedoch nicht gespeichert werden.</value></data>
     <data name="RetroAchievements_BulkUnexpectedFailureFormat" xml:space="preserve"><value>Die Erkennung ist unerwartet fehlgeschlagen: {0}</value></data>
     <data name="Store.Link.Title" xml:space="preserve"><value>Store-Verknüpfung</value></data>
+    <data name="Store.ContextMenu" xml:space="preserve"><value>Store</value></data>
     <data name="Store.Link.NotLinked" xml:space="preserve"><value>Mit keinem Store verknüpft</value></data>
     <data name="Store.Link.LinkedGog" xml:space="preserve"><value>Mit GOG verknüpft</value></data>
     <data name="Store.Link.LinkedEpic" xml:space="preserve"><value>Mit Epic Games verknüpft</value></data>

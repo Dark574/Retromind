@@ -16,6 +16,17 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
+    private bool CanManageGogDlcs(MediaItem? item) =>
+        !IsLaunchInProgress && GogMediaItemStateHelper.IsInstalled(item);
+
+    private async Task ShowGogDlcManagerAsync(MediaItem? item)
+    {
+        if (!CanManageGogDlcs(item) || item == null || CurrentWindow is not { } owner)
+            return;
+
+        await ShowGogDlcManagerAsync(item, owner);
+    }
+
     private async Task ShowGogDlcManagerAsync(MediaItem item, Window owner)
     {
         var gameId = GogMediaItemStateHelper.TryGetGameId(item);

@@ -80,6 +80,27 @@ public sealed class EpicMediaItemStateHelperTests
         Assert.True(EpicMediaItemStateHelper.CanInstallWithRetromind(item));
     }
 
+    [Fact]
+    public void LegacyHeroicEntry_MustBeLinkedBeforeRetromindInstallation()
+    {
+        var item = new MediaItem("Legacy Heroic game")
+        {
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = "heroic",
+                    Index = 1
+                }
+            ],
+            LauncherArgs = "epic://ExampleGame"
+        };
+
+        Assert.Equal("ExampleGame", EpicMediaItemStateHelper.TryGetGameId(item));
+        Assert.False(EpicMediaItemStateHelper.CanInstallWithRetromind(item));
+    }
+
     [Theory]
     [InlineData("1.2.3", "1.2.3")]
     [InlineData("  build 42  ", "build 42")]

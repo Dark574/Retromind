@@ -64,6 +64,9 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> RepairEpicCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> UninstallEpicCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> ManageEpicDlcsCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> ManageGogDlcsCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> LinkMediaItemToGogCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> LinkMediaItemToEpicCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenSetupSettingsCommand { get; private set; } = null!;
@@ -79,6 +82,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaNode?> ImportEpicCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ImportGogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> IdentifyNodeWithRetroAchievementsCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> IdentifyMediaWithRetroAchievementsCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand<MediaItem?> ScrapeMediaCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaNode?> ScrapeNodeCommand { get; private set; } = null!;
@@ -99,6 +103,12 @@ public partial class MainWindowViewModel
     public string RetroAchievementsSearchAllText => T(
         "RetroAchievements_SearchAll",
         "Search RetroAchievements (All)...");
+    public string RetroAchievementsSearchItemText => T(
+        "RetroAchievements_SearchItem",
+        "Search RetroAchievements...");
+    public string MetadataSearchItemText => T(
+        "Metadata.SearchMetadataMenu",
+        "Search metadata...");
     public string StatisticsButtonToolTip => T("Statistics.Title", "Library statistics");
     public string GogCheckUpdatesMenuText => T("Gog.Update.CheckNow", "Check for GOG updates");
     public string GogUpdateMenuText => T("Button_Update", "Update");
@@ -109,6 +119,12 @@ public partial class MainWindowViewModel
     public string EpicRepairMenuText => T("Epic.Repair.ContextMenu", "Repair installation");
     public string EpicUninstallMenuText => T("Epic.Uninstall.ContextMenu", "Uninstall");
     public string EpicManageDlcsMenuText => T("Epic.Dlc.ContextMenu", "Manage DLCs...");
+    public string GogManageDlcsMenuText => T("EditMedia.GogManageDlcs", "Manage DLCs...");
+    public string StoreContextMenuText => T("Store.ContextMenu", "Store");
+    public string GogLinkStoreMenuText => T("Gog.Link.Button", "Link to GOG game...");
+    public string GogSwitchStoreMenuText => T("Gog.Link.SwitchButton", "Switch to GOG...");
+    public string EpicLinkStoreMenuText => T("Epic.Link.Button", "Link to Epic Games title...");
+    public string EpicSwitchStoreMenuText => T("Epic.Link.SwitchButton", "Switch to Epic Games...");
 
     private void InitializeCommands()
     {
@@ -142,6 +158,13 @@ public partial class MainWindowViewModel
         RepairEpicCommand = new AsyncRelayCommand<MediaItem?>(RepairEpicMediaAsync, CanRepairEpicMedia);
         UninstallEpicCommand = new AsyncRelayCommand<MediaItem?>(UninstallEpicMediaAsync, CanUninstallEpicMedia);
         ManageEpicDlcsCommand = new AsyncRelayCommand<MediaItem?>(ShowEpicDlcManagerAsync, CanManageEpicDlcs);
+        ManageGogDlcsCommand = new AsyncRelayCommand<MediaItem?>(ShowGogDlcManagerAsync, CanManageGogDlcs);
+        LinkMediaItemToGogCommand = new AsyncRelayCommand<MediaItem?>(
+            LinkMediaItemToGogFromContextAsync,
+            CanLinkMediaItemToGog);
+        LinkMediaItemToEpicCommand = new AsyncRelayCommand<MediaItem?>(
+            LinkMediaItemToEpicFromContextAsync,
+            CanLinkMediaItemToEpic);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenSetupSettingsCommand = new AsyncRelayCommand(OpenSetupSettingsAsync);
@@ -161,6 +184,9 @@ public partial class MainWindowViewModel
         IdentifyNodeWithRetroAchievementsCommand = new AsyncRelayCommand<MediaNode?>(
             IdentifyNodeWithRetroAchievementsAsync,
             CanIdentifyNodeWithRetroAchievements);
+        IdentifyMediaWithRetroAchievementsCommand = new AsyncRelayCommand<MediaItem?>(
+            IdentifyMediaWithRetroAchievementsAsync,
+            CanIdentifyMediaWithRetroAchievements);
         
         ScrapeMediaCommand = new AsyncRelayCommand<MediaItem?>(ScrapeMediaAsync);
         ScrapeNodeCommand = new AsyncRelayCommand<MediaNode?>(ScrapeNodeAsync, CanOperateOnNode);
@@ -361,6 +387,10 @@ public partial class MainWindowViewModel
         RepairEpicCommand.NotifyCanExecuteChanged();
         UninstallEpicCommand.NotifyCanExecuteChanged();
         ManageEpicDlcsCommand.NotifyCanExecuteChanged();
+        ManageGogDlcsCommand.NotifyCanExecuteChanged();
+        LinkMediaItemToGogCommand.NotifyCanExecuteChanged();
+        LinkMediaItemToEpicCommand.NotifyCanExecuteChanged();
+        IdentifyMediaWithRetroAchievementsCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanPlaySelectedMedia));
         OnPropertyChanged(nameof(PlaySelectedMediaButtonText));
     }
@@ -386,7 +416,8 @@ public partial class MainWindowViewModel
     private bool CanInstallStoreMedia(MediaItem? item) =>
         !IsLaunchInProgress &&
         !IsMultiSelectModeActive &&
-        ShouldOfferInstallForItem(item);
+        (GogMediaItemStateHelper.ShouldOfferInstall(item) ||
+         EpicMediaItemStateHelper.CanInstallWithRetromind(item));
 
     private bool IsMultiSelectModeActive =>
         _currentMediaAreaVm?.IsMultiSelectMode == true ||
@@ -835,6 +866,7 @@ public partial class MainWindowViewModel
         ImportGogCommand.NotifyCanExecuteChanged();
         ScrapeNodeCommand.NotifyCanExecuteChanged();
         IdentifyNodeWithRetroAchievementsCommand.NotifyCanExecuteChanged();
+        IdentifyMediaWithRetroAchievementsCommand.NotifyCanExecuteChanged();
     }
     
     private async Task AddCategoryAsync(MediaNode? parentNode)
@@ -985,10 +1017,19 @@ public partial class MainWindowViewModel
 
     private async Task InstallStoreMediaAsync(MediaItem? item)
     {
-        if (!CanInstallStoreMedia(item))
+        if (!CanInstallStoreMedia(item) || item == null || CurrentWindow is not { } owner)
             return;
 
-        await PlayMediaAsync(item);
+        if (EpicMediaItemStateHelper.TryGetGameId(item) != null)
+        {
+            _ = await RunEpicInstallFromEditorAsync(item, owner);
+            return;
+        }
+
+        _ = await RunGogInstallFromEditorAsync(
+            item,
+            owner,
+            requireAvailableUpdate: false);
     }
 
     private async Task<LaunchResult?> PlayMediaAsync(MediaItem? item, bool recordStatistics = true)

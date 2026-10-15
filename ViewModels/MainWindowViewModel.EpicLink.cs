@@ -14,6 +14,26 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
+    private bool CanLinkMediaItemToEpic(MediaItem? item)
+    {
+        var providerId = StoreProviderBadgeHelper.GetProviderId(item);
+        return !IsLaunchInProgress &&
+               !IsMultiSelectModeActive &&
+               item != null &&
+               (providerId == null ||
+                string.Equals(providerId, StoreProviderIds.Gog, StringComparison.Ordinal) ||
+                (string.Equals(providerId, StoreProviderIds.Epic, StringComparison.Ordinal) &&
+                 !StoreGameIdentityHelper.HasStoredIdentity(item)));
+    }
+
+    private async Task LinkMediaItemToEpicFromContextAsync(MediaItem? item)
+    {
+        if (!CanLinkMediaItemToEpic(item) || item == null || CurrentWindow is not { } owner)
+            return;
+
+        _ = await LinkMediaItemToEpicAsync(item, owner);
+    }
+
     private async Task<bool> LinkMediaItemToEpicAsync(MediaItem item, Window owner)
     {
         var parentNode = FindParentNode(RootItems, item);

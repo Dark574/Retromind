@@ -12,6 +12,52 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
+    private bool CanIdentifyMediaWithRetroAchievements(MediaItem? item)
+    {
+        if (_libraryLoadFailed ||
+            IsMultiSelectModeActive ||
+            item == null ||
+            item.RetroAchievementsGame?.GameId > 0 ||
+            _currentSettings.RetroAchievements?.Enabled != true ||
+            !HasConfiguredRetroAchievementsIdentity())
+        {
+            return false;
+        }
+
+        var parentNode = FindParentNode(RootItems, item) ?? SelectedNode;
+        if (parentNode == null || string.IsNullOrWhiteSpace(item.GetPrimaryLaunchPath()))
+            return false;
+
+        var gameSystemId = GameSystemResolver.ResolveForItem(item, parentNode, RootItems);
+        return RetroAchievementsConsoleCatalog.TryGetConsoleId(gameSystemId, out _);
+    }
+
+    private async Task IdentifyMediaWithRetroAchievementsAsync(MediaItem? item)
+    {
+        if (!CanIdentifyMediaWithRetroAchievements(item) ||
+            item == null ||
+            CurrentWindow is not { } owner)
+        {
+            return;
+        }
+
+        var parentNode = FindParentNode(RootItems, item) ?? SelectedNode;
+        if (parentNode == null)
+            return;
+
+        var apiKey = await GetRetroAchievementsApiKeyOrShowErrorAsync(owner);
+        if (apiKey == null)
+            return;
+
+        await RunRetroAchievementsBulkIdentificationAsync(
+            owner,
+            [CreateRetroAchievementsCandidate(item, parentNode)],
+            apiKey,
+            saveResultsImmediately: true);
+
+        IdentifyMediaWithRetroAchievementsCommand.NotifyCanExecuteChanged();
+    }
+
     private bool CanIdentifyNodeWithRetroAchievements(MediaNode? node)
     {
         var targetNode = node ?? SelectedNode;
@@ -140,14 +186,20 @@ public partial class MainWindowViewModel
         string apiKey,
         bool saveResultsImmediately)
     {
-        var logViewModel = new ProcessLogViewModel(
-            T("RetroAchievements_BulkTitle", "RetroAchievements mass identification"));
+        var isSingleItem = candidates.Count == 1;
+        var logViewModel = new ProcessLogViewModel(isSingleItem
+            ? T("RetroAchievements_IdentificationTitle", "RetroAchievements identification")
+            : T("RetroAchievements_BulkTitle", "RetroAchievements mass identification"));
         var logView = new ProcessLogView { DataContext = logViewModel };
         var dialogTask = logView.ShowDialog(owner);
         logViewModel.EnableCancel();
-        logViewModel.AppendLine(string.Format(
-            T("RetroAchievements_BulkStartingFormat", "Checking {0:N0} games..."),
-            candidates.Count));
+        logViewModel.AppendLine(isSingleItem
+            ? T(
+                "RetroAchievements_IdentificationRunning",
+                "Calculating the game hash and checking RetroAchievements...")
+            : string.Format(
+                T("RetroAchievements_BulkStartingFormat", "Checking {0:N0} games..."),
+                candidates.Count));
 
         var progress = new Progress<RetroAchievementsBulkIdentificationProgress>(itemProgress =>
             logViewModel.AppendLine(FormatRetroAchievementsBulkProgress(itemProgress)));
