@@ -434,9 +434,8 @@ public partial class MainWindowViewModel
         // The item has an explicit launcher, so the normal emulator inheritance path
         // is intentionally bypassed at launch time. Persist the selected runner here.
         item.RunnerVersionId = runner.Id;
-        item.PrefixPath ??= Path.Combine(
-            "Prefixes",
-            $"epic_{PrefixPathHelper.SanitizePrefixFolderName(appName)}");
+        if (string.IsNullOrWhiteSpace(item.PrefixPath))
+            item.PrefixPath = EpicMediaItemStateHelper.BuildDefaultPrefixPath(appName, item.Title);
         item.MediaType = MediaType.Emulator;
         item.EmulatorId = null;
         return true;

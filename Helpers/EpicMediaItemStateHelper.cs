@@ -30,6 +30,16 @@ internal static class EpicMediaItemStateHelper
         item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var installPath) &&
         !string.IsNullOrWhiteSpace(installPath);
 
+    internal static string BuildDefaultPrefixPath(string appName, string? gameTitle)
+    {
+        var safeGameId = PrefixPathHelper.SanitizePrefixFolderName(appName);
+        var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(gameTitle ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(safeTitle))
+            safeTitle = "Unknown";
+
+        return Path.Combine("Prefixes", $"epic_{safeGameId}_{safeTitle}");
+    }
+
     private static bool HasPlayableLaunchConfiguration(MediaItem item)
     {
         var launchPath = item.GetPrimaryLaunchPath();
