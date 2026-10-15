@@ -408,7 +408,10 @@ the report never mutates JSON or deletes files.
   authentication arguments; Retromind then executes the installed game through its selected Wine/Proton runner so
   normal process tracking, playtime, wrappers, and launch logs remain active. Epic exchange codes are redacted from
   those logs, while the interactive authorization code is passed to Legendary through standard input rather than
-  process arguments
+  process arguments. Owned Epic DLCs and their installed versions remain authoritative in Legendary rather than
+  being copied into the Retromind library model. The DLC manager installs and updates them into the main game's
+  shared, marker-owned directory and removes only their Legendary-managed files; deleting the main game first
+  unregisters its installed DLCs before removing that shared directory
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider

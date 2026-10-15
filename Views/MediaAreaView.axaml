@@ -399,6 +399,10 @@
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RepairEpicCommand}"
                                                       CommandParameter="{Binding .}"
                                                       IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicManageDlcsMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ManageEpicDlcsCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
                                             <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
                                             <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"

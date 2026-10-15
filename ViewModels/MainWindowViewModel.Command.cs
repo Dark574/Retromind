@@ -60,6 +60,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> CheckEpicUpdatesCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> UpdateEpicCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> RepairEpicCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> ManageEpicDlcsCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenSetupSettingsCommand { get; private set; } = null!;
@@ -103,6 +104,7 @@ public partial class MainWindowViewModel
     public string EpicCheckUpdatesMenuText => T("Epic.Update.CheckNow", "Check for Epic Games updates");
     public string EpicUpdateMenuText => T("Button_Update", "Update");
     public string EpicRepairMenuText => T("Epic.Repair.ContextMenu", "Repair installation");
+    public string EpicManageDlcsMenuText => T("Epic.Dlc.ContextMenu", "Manage DLCs...");
 
     private void InitializeCommands()
     {
@@ -133,6 +135,7 @@ public partial class MainWindowViewModel
         CheckEpicUpdatesCommand = new AsyncRelayCommand<MediaItem?>(CheckEpicUpdatesNowAsync, CanCheckEpicUpdates);
         UpdateEpicCommand = new AsyncRelayCommand<MediaItem?>(UpdateEpicMediaAsync, CanUpdateEpicMedia);
         RepairEpicCommand = new AsyncRelayCommand<MediaItem?>(RepairEpicMediaAsync, CanRepairEpicMedia);
+        ManageEpicDlcsCommand = new AsyncRelayCommand<MediaItem?>(ShowEpicDlcManagerAsync, CanManageEpicDlcs);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenSetupSettingsCommand = new AsyncRelayCommand(OpenSetupSettingsAsync);
@@ -349,6 +352,7 @@ public partial class MainWindowViewModel
         CheckEpicUpdatesCommand.NotifyCanExecuteChanged();
         UpdateEpicCommand.NotifyCanExecuteChanged();
         RepairEpicCommand.NotifyCanExecuteChanged();
+        ManageEpicDlcsCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanPlaySelectedMedia));
         OnPropertyChanged(nameof(PlaySelectedMediaButtonText));
     }
@@ -1460,6 +1464,9 @@ public partial class MainWindowViewModel
 
             if (removeManagedEpicInstallation)
             {
+                if (!await EnsureEpicSignInAsync(owner))
+                    return;
+
                 try
                 {
                     using (BeginBusyCursor(owner))

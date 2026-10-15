@@ -98,6 +98,8 @@ public sealed class EpicInstallServiceTests
         var item = CreateEpicItem();
         item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = installPath;
         var runner = new QueueProcessRunner(
+            new LegendaryCliResult(0, CreateEmptyDlcCatalogJson(), string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty),
             new LegendaryCliResult(0, string.Empty, string.Empty),
             new LegendaryCliResult(0, "[]", string.Empty));
         var service = CreateService(runner);
@@ -109,6 +111,8 @@ public sealed class EpicInstallServiceTests
         Assert.False(Directory.Exists(installPath));
         Assert.Collection(
             runner.Commands,
+            command => Assert.Equal(["list", "--json"], command.Arguments),
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments),
             command => Assert.Equal(
                 ["--yes", "uninstall", "ExampleGame", "--skip-uninstaller"],
                 command.Arguments),
@@ -134,6 +138,8 @@ public sealed class EpicInstallServiceTests
             Path.GetRelativePath(AppPaths.DataRoot, installPath);
         item.PrefixPath = Path.GetRelativePath(AppPaths.LibraryRoot, prefixPath);
         var runner = new QueueProcessRunner(
+            new LegendaryCliResult(0, CreateEmptyDlcCatalogJson(), string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty),
             new LegendaryCliResult(0, string.Empty, string.Empty),
             new LegendaryCliResult(0, "[]", string.Empty));
         var service = CreateService(runner);
@@ -143,6 +149,170 @@ public sealed class EpicInstallServiceTests
 
         Assert.Equal(expectedPrefixExists, Directory.Exists(prefixPath));
     }
+
+    [Fact]
+    public async Task InstallDlcAsync_UsesTheOwnedMainGameDirectory()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("installed-game");
+        var item = CreateEpicItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = installPath;
+        var installedDlcJson = $$"""
+            [
+              {
+                "app_name": "ExampleDlc",
+                "title": "Example DLC",
+                "install_path": {{System.Text.Json.JsonSerializer.Serialize(installPath)}},
+                "executable": "",
+                "version": "2.0",
+                "platform": "Windows",
+                "install_size": 2048,
+                "is_dlc": true
+              }
+            ]
+            """;
+        var runner = new QueueProcessRunner(
+            new LegendaryCliResult(0, "[]", string.Empty),
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, installedDlcJson, string.Empty));
+        var service = CreateService(runner);
+        service.WriteMarker(installPath, item);
+
+        var installed = await service.InstallDlcAsync(item, "ExampleDlc");
+
+        Assert.Equal("ExampleDlc", installed.AppName);
+        Assert.Equal(installPath, installed.InstallPath);
+        Assert.True(Directory.Exists(installPath));
+        Assert.Collection(
+            runner.Commands,
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments),
+            command => Assert.Equal(
+                [
+                    "--yes", "install", "ExampleDlc",
+                    "--base-path", temp.RootPath,
+                    "--game-folder", "installed-game",
+                    "--platform", "Windows",
+                    "--skip-sdl", "--skip-dlcs"
+                ],
+                command.Arguments),
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments));
+    }
+
+    [Fact]
+    public async Task UninstallDlcAsync_PreservesTheSharedMainGameDirectory()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("installed-game");
+        var item = CreateEpicItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = installPath;
+        var runner = new QueueProcessRunner(
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty));
+        var service = CreateService(runner);
+        service.WriteMarker(installPath, item);
+        var gameFile = Path.Combine(installPath, "main-game.dat");
+        File.WriteAllText(gameFile, "keep main game");
+
+        await service.UninstallDlcAsync(item, "ExampleDlc");
+
+        Assert.True(Directory.Exists(installPath));
+        Assert.True(File.Exists(gameFile));
+        Assert.Equal(
+            ["--yes", "uninstall", "ExampleDlc", "--skip-uninstaller"],
+            runner.Commands[0].Arguments);
+    }
+
+    [Fact]
+    public async Task DlcOperations_RejectTheMainGameAppName()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("installed-game");
+        var item = CreateEpicItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = installPath;
+        var runner = new QueueProcessRunner();
+        var service = CreateService(runner);
+        service.WriteMarker(installPath, item);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UninstallDlcAsync(item, "ExampleGame"));
+
+        Assert.Empty(runner.Commands);
+    }
+
+    [Fact]
+    public async Task UninstallAsync_UnregistersInstalledDlcsBeforeTheMainGame()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("installed-game");
+        var item = CreateEpicItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = installPath;
+        var catalogJson = """
+            [
+              {
+                "app_name": "ExampleGame",
+                "app_title": "Example Game",
+                "asset_infos": { "Windows": { "build_version": "1.0" } },
+                "dlcs": [
+                  {
+                    "app_name": "ExampleDlc",
+                    "app_title": "Example DLC",
+                    "asset_infos": { "Windows": { "build_version": "2.0" } }
+                  }
+                ]
+              }
+            ]
+            """;
+        var installedJson = $$"""
+            [
+              {
+                "app_name": "ExampleDlc",
+                "title": "Example DLC",
+                "install_path": {{System.Text.Json.JsonSerializer.Serialize(installPath)}},
+                "executable": "",
+                "version": "2.0",
+                "platform": "Windows",
+                "install_size": 2048,
+                "is_dlc": true
+              }
+            ]
+            """;
+        var runner = new QueueProcessRunner(
+            new LegendaryCliResult(0, catalogJson, string.Empty),
+            new LegendaryCliResult(0, installedJson, string.Empty),
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty),
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty));
+        var service = CreateService(runner);
+        service.WriteMarker(installPath, item);
+
+        await service.UninstallAsync(item);
+
+        Assert.False(Directory.Exists(installPath));
+        Assert.Collection(
+            runner.Commands,
+            command => Assert.Equal(["list", "--json"], command.Arguments),
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments),
+            command => Assert.Equal(
+                ["--yes", "uninstall", "ExampleDlc", "--skip-uninstaller"],
+                command.Arguments),
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments),
+            command => Assert.Equal(
+                ["--yes", "uninstall", "ExampleGame", "--skip-uninstaller"],
+                command.Arguments),
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments));
+    }
+
+    private static string CreateEmptyDlcCatalogJson() => """
+        [
+          {
+            "app_name": "ExampleGame",
+            "app_title": "Example Game",
+            "asset_infos": { "Windows": { "build_version": "1.0" } },
+            "dlcs": []
+          }
+        ]
+        """;
 
     private static EpicInstallService CreateService() =>
         new(new LegendaryCliClient(new UnusedProcessRunner()));

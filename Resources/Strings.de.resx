@@ -423,6 +423,42 @@ Installierte Version: {0}</value></data>
     <data name="Epic.Repair.Cancelled" xml:space="preserve"><value>Reparatur durch den Benutzer abgebrochen.</value></data>
     <data name="Epic.Repair.ResumeHint" xml:space="preserve"><value>Legendary kann bereits heruntergeladene Reparaturdaten beim nächsten Versuch wiederverwenden.</value></data>
     <data name="Epic.Repair.FailedFormat" xml:space="preserve"><value>Reparatur fehlgeschlagen: {0}</value></data>
+    <data name="Epic.Dlc.ContextMenu" xml:space="preserve"><value>DLCs verwalten...</value></data>
+    <data name="Epic.Dlc.DialogTitle" xml:space="preserve"><value>Epic-Games-DLCs verwalten</value></data>
+    <data name="Epic.Dlc.Header" xml:space="preserve"><value>Eigene DLCs</value></data>
+    <data name="Epic.Dlc.SearchPlaceholder" xml:space="preserve"><value>Nach Titel oder Epic-App-Namen suchen...</value></data>
+    <data name="Epic.Dlc.Refresh" xml:space="preserve"><value>Aktualisieren</value></data>
+    <data name="Epic.Dlc.Loading" xml:space="preserve"><value>DLCs werden über Legendary geladen...</value></data>
+    <data name="Epic.Dlc.EmptyState" xml:space="preserve"><value>Keine DLCs entsprechen dem aktuellen Filter.</value></data>
+    <data name="Epic.Dlc.SummaryFormat" xml:space="preserve"><value>{0:N0} im Konto · {1:N0} installiert · {2:N0} Updates</value></data>
+    <data name="Epic.Dlc.FilterAll" xml:space="preserve"><value>Alle DLCs</value></data>
+    <data name="Epic.Dlc.FilterInstalled" xml:space="preserve"><value>Installiert</value></data>
+    <data name="Epic.Dlc.FilterNotInstalled" xml:space="preserve"><value>Nicht installiert</value></data>
+    <data name="Epic.Dlc.FilterUpdates" xml:space="preserve"><value>Updates</value></data>
+    <data name="Epic.Dlc.NotInstalled" xml:space="preserve"><value>Nicht installiert</value></data>
+    <data name="Epic.Dlc.UpToDate" xml:space="preserve"><value>Aktuell</value></data>
+    <data name="Epic.Dlc.UpdateAvailable" xml:space="preserve"><value>Update verfügbar</value></data>
+    <data name="Epic.Dlc.UpdateUnknown" xml:space="preserve"><value>Installiert · Update-Status unbekannt</value></data>
+    <data name="Epic.Dlc.Install" xml:space="preserve"><value>DLC installieren</value></data>
+    <data name="Epic.Dlc.Update" xml:space="preserve"><value>DLC aktualisieren</value></data>
+    <data name="Epic.Dlc.Uninstall" xml:space="preserve"><value>DLC deinstallieren</value></data>
+    <data name="Epic.Dlc.SpaceEstimateFailedFormat" xml:space="preserve"><value>Epic Games hat keine verwendbare Installationsgröße für den DLC „{0}“ geliefert. Retromind kann den benötigten freien Speicherplatz deshalb nicht vorab prüfen. Legendary führt vor dem Download weiterhin seine eigene genaue Prüfung durch.
+
+Trotzdem fortfahren?</value></data>
+    <data name="Epic.Dlc.ProgressTitleFormat" xml:space="preserve"><value>Epic-DLC – {0}</value></data>
+    <data name="Epic.Dlc.InstallStartingFormat" xml:space="preserve"><value>Der DLC „{0}“ wird über Legendary installiert...</value></data>
+    <data name="Epic.Dlc.UpdateStartingFormat" xml:space="preserve"><value>Der DLC „{0}“ wird über Legendary aktualisiert...</value></data>
+    <data name="Epic.Dlc.InstallSuccess" xml:space="preserve"><value>DLC-Installation abgeschlossen.</value></data>
+    <data name="Epic.Dlc.UpdateSuccess" xml:space="preserve"><value>DLC-Update abgeschlossen.</value></data>
+    <data name="Epic.Dlc.OperationCancelled" xml:space="preserve"><value>DLC-Vorgang abgebrochen.</value></data>
+    <data name="Epic.Dlc.OperationFailedFormat" xml:space="preserve"><value>Der DLC-Vorgang ist fehlgeschlagen: {0}</value></data>
+    <data name="Epic.Dlc.UninstallConfirmFormat" xml:space="preserve"><value>DLC „{0}“ deinstallieren?
+
+Legendary entfernt die zu diesem DLC gehörenden Dateien aus dem gemeinsamen Spielordner. Das Hauptspiel und seine anderen DLCs bleiben installiert.</value></data>
+    <data name="Epic.Dlc.UninstallProgressTitleFormat" xml:space="preserve"><value>Epic-DLC deinstallieren – {0}</value></data>
+    <data name="Epic.Dlc.UninstallStartingFormat" xml:space="preserve"><value>Der DLC „{0}“ wird über Legendary deinstalliert...</value></data>
+    <data name="Epic.Dlc.UninstallSuccess" xml:space="preserve"><value>DLC deinstalliert.</value></data>
+    <data name="Epic.Dlc.LoadFailedFormat" xml:space="preserve"><value>DLCs konnten nicht geladen werden: {0}</value></data>
     <data name="Store.Update.BadgeTooltip" xml:space="preserve"><value>Spiel-Update verfügbar</value></data>
 
     <!-- GOG -->

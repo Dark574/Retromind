@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -70,6 +71,56 @@ public sealed class EpicInstallService
         CancellationToken ct = default) =>
         _client.GetUpdateStatusAsync(appName, ct);
 
+    internal Task<IReadOnlyList<LegendaryDlc>> GetDlcCatalogAsync(
+        MediaItem item,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var appName = EpicMediaItemStateHelper.TryGetGameId(item);
+        if (string.IsNullOrWhiteSpace(appName))
+            throw new InvalidOperationException("The media item has no Epic Games identity.");
+
+        return _client.GetDlcCatalogAsync(appName, ct);
+    }
+
+    internal async Task<LegendaryInstalledGame> InstallDlcAsync(
+        MediaItem item,
+        string dlcAppName,
+        Action<string>? outputReceived = null,
+        CancellationToken ct = default)
+    {
+        var (baseAppName, installPath) = ResolveOwnedInstallation(item);
+        ValidateDlcAppName(baseAppName, dlcAppName);
+
+        return await _client
+            .InstallAsync(dlcAppName.Trim(), installPath, outputReceived, ct)
+            .ConfigureAwait(false);
+    }
+
+    internal async Task UninstallDlcAsync(
+        MediaItem item,
+        string dlcAppName,
+        Action<string>? outputReceived = null,
+        CancellationToken ct = default)
+    {
+        var (baseAppName, installPath) = ResolveOwnedInstallation(item);
+        ValidateDlcAppName(baseAppName, dlcAppName);
+
+        await _client
+            .UninstallAsync(dlcAppName.Trim(), keepFiles: false, outputReceived, ct)
+            .ConfigureAwait(false);
+
+        // A DLC shares the main game's directory. Legendary may remove only files
+        // belonging to the DLC; Retromind must never apply its recursive main-game
+        // cleanup here. Recheck the ownership marker instead.
+        if (Directory.Exists(installPath) &&
+            AssessDirectory(installPath, item).Status != EpicInstallDirectoryStatus.OwnedDirectory)
+        {
+            throw new InvalidOperationException(
+                "The Epic Games install directory lost its Retromind ownership marker while removing the DLC.");
+        }
+    }
+
     internal async Task UninstallAsync(
         MediaItem item,
         bool deletePrefix = true,
@@ -97,6 +148,17 @@ public sealed class EpicInstallService
         }
 
         var prefixPath = ResolveSafePrefixForDeletion(item.PrefixPath, deletePrefix);
+
+        var installedDlcs = (await _client.GetDlcCatalogAsync(appName, ct).ConfigureAwait(false))
+            .Where(static dlc => dlc.IsInstalled)
+            .ToArray();
+        foreach (var dlc in installedDlcs)
+        {
+            outputReceived?.Invoke($"[Retromind] Removing installed DLC '{dlc.Title}'...");
+            await _client
+                .UninstallAsync(dlc.AppName, keepFiles: false, outputReceived, ct)
+                .ConfigureAwait(false);
+        }
 
         await _client
             .UninstallAsync(appName, keepFiles: false, outputReceived, ct)
@@ -127,6 +189,35 @@ public sealed class EpicInstallService
                     ct)
                 .ConfigureAwait(false);
         }
+    }
+
+    private (string BaseAppName, string InstallPath) ResolveOwnedInstallation(MediaItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var appName = EpicMediaItemStateHelper.TryGetGameId(item);
+        if (string.IsNullOrWhiteSpace(appName))
+            throw new InvalidOperationException("The media item has no Epic Games identity.");
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var storedInstallPath) ||
+            !StoreInstallPathHelper.TryResolveStoredPath(storedInstallPath, out var installPath))
+        {
+            throw new InvalidOperationException("The Epic Games install path is missing or invalid.");
+        }
+
+        var assessment = AssessDirectory(installPath, item);
+        if (assessment.Status != EpicInstallDirectoryStatus.OwnedDirectory)
+        {
+            throw new InvalidOperationException(
+                $"Retromind cannot safely modify DLCs in the Epic Games install directory '{assessment.FullPath}'.");
+        }
+
+        return (appName, assessment.FullPath);
+    }
+
+    private static void ValidateDlcAppName(string baseAppName, string dlcAppName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(dlcAppName);
+        if (string.Equals(baseAppName, dlcAppName.Trim(), StringComparison.Ordinal))
+            throw new InvalidOperationException("The main game cannot be changed through the DLC workflow.");
     }
 
     private static string? ResolveSafePrefixForDeletion(string? storedPrefixPath, bool deletePrefix)
