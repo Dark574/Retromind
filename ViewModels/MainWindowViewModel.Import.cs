@@ -1290,6 +1290,7 @@ public partial class MainWindowViewModel
             RootItems,
             parentNode,
             gogLink: dialogOwner => LinkMediaItemToGogAsync(item, dialogOwner),
+            epicLink: dialogOwner => LinkMediaItemToEpicAsync(item, dialogOwner),
             gogInstallOrReinstall: dialogOwner =>
                 RunGogInstallFromEditorAsync(item, dialogOwner, requireAvailableUpdate: false),
             gogCheckUpdates: dialogOwner => CheckGogUpdatesNowAsync(item, dialogOwner),

@@ -326,6 +326,12 @@ the report never mutates JSON or deletes files.
   sections, including the stored installed version. These store operations reuse the MainWindow workflows and
   persist immediately; after success, the editor reloads only the affected launch configuration so staged metadata
   remains intact and cannot overwrite store-generated launch settings on a later save
+- the media editor can assign storeless items to an owned GOG or Epic Games title and switch an item between those
+  providers. A switch replaces only internal `Store.*` state and preserves launch settings, media, metadata, and
+  user-defined fields. Retromind-managed installations must be uninstalled first so their owned game directory,
+  prefix, and backend registration cannot become associated with the wrong provider. Legacy Heroic/Epic launch
+  entries can receive a structured Epic identity without replacing their existing external launch configuration;
+  users may then install a separately managed Legendary copy from the same editor
 - GOG main-game updates and explicit reinstalls snapshot the DLCs installed through Retromind before running the
   offline installer, then reapply those installed DLCs with their current same-platform packages in the shared
   cancelable progress flow. Updates are always in-place and cannot request directory cleanup; explicit reinstalls

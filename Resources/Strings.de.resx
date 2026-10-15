@@ -1458,8 +1458,17 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="RetroAchievements_BulkUnexpectedFailureFormat" xml:space="preserve"><value>Die Erkennung ist unerwartet fehlgeschlagen: {0}</value></data>
     <data name="Store.Link.Title" xml:space="preserve"><value>Store-Verknüpfung</value></data>
     <data name="Store.Link.NotLinked" xml:space="preserve"><value>Mit keinem Store verknüpft</value></data>
-    <data name="Store.Link.Hint" xml:space="preserve"><value>Verknüpfe dieses bestehende Item mit einem Spiel aus deiner GOG-Bibliothek. Medien und Metadaten bleiben erhalten.</value></data>
+    <data name="Store.Link.LinkedGog" xml:space="preserve"><value>Mit GOG verknüpft</value></data>
+    <data name="Store.Link.LinkedEpic" xml:space="preserve"><value>Mit Epic Games verknüpft</value></data>
+    <data name="Store.Link.LegacyEpic" xml:space="preserve"><value>Alter Heroic-/Epic-Eintrag</value></data>
+    <data name="Store.Link.Hint" xml:space="preserve"><value>Verknüpfe dieses bestehende Item mit einem Spiel aus deiner GOG- oder Epic-Games-Bibliothek. Medien und Metadaten bleiben erhalten.</value></data>
+    <data name="Store.Link.ChangeHint" xml:space="preserve"><value>Ändere die Store-Verknüpfung, ohne das Item, seine Medien oder Metadaten zu verlieren. Von Retromind verwaltete Installationen müssen zuerst deinstalliert werden.</value></data>
+    <data name="Store.Link.SwitchConfirmFormat" xml:space="preserve"><value>Die Store-Verknüpfung von {0} zum {1}-Spiel „{2}“ ändern?
+
+Die vorhandenen Dateien und Starteinstellungen bleiben unverändert. Das Retromind-Bibliotheks-Item, seine Medien und Metadaten bleiben erhalten.</value></data>
+    <data name="Store.Link.UninstallFirstFormat" xml:space="preserve"><value>Deinstalliere zuerst die aktuelle {0}-Installation, bevor du dieses Item zu {1} wechselst. Das Bibliotheks-Item, seine Medien und Metadaten bleiben nach der Deinstallation erhalten.</value></data>
     <data name="Gog.Link.Button" xml:space="preserve"><value>Mit GOG-Spiel verknüpfen...</value></data>
+    <data name="Gog.Link.SwitchButton" xml:space="preserve"><value>Zu GOG wechseln...</value></data>
     <data name="Gog.Link.DialogTitle" xml:space="preserve"><value>GOG-Spiel verknüpfen</value></data>
     <data name="Gog.Link.Header" xml:space="preserve"><value>Wähle das passende Spiel aus deiner GOG-Bibliothek</value></data>
     <data name="Gog.Link.Apply" xml:space="preserve"><value>Spiel verknüpfen</value></data>
@@ -1471,6 +1480,12 @@ Mit „{1}“ verknüpfen und diesen Spieleordner künftig durch Retromind verwa
 
 Nur die GOG-Identität verknüpfen? Die vorhandenen Dateien und Starteinstellungen bleiben unverändert, Updates und Deinstallation können aber erst verwaltet werden, nachdem das Spiel über Retromind installiert wurde.</value></data>
     <data name="Gog.Link.FailedFormat" xml:space="preserve"><value>Das Item konnte nicht mit GOG verknüpft werden: {0}</value></data>
+    <data name="Epic.Link.Button" xml:space="preserve"><value>Mit Epic-Games-Spiel verknüpfen...</value></data>
+    <data name="Epic.Link.SwitchButton" xml:space="preserve"><value>Zu Epic Games wechseln...</value></data>
+    <data name="Epic.Link.IdentityOnlyConfirmFormat" xml:space="preserve"><value>Dieses Item mit dem Epic-Games-Spiel „{0}“ verknüpfen?
+
+Die vorhandenen Dateien und Starteinstellungen bleiben unverändert. Das Retromind-Bibliotheks-Item, seine Medien und Metadaten bleiben erhalten. Bereits vorhandene, extern verwaltete Dateien bleiben extern, bis das Spiel über Retromind installiert wird.</value></data>
+    <data name="Epic.Link.FailedFormat" xml:space="preserve"><value>Das Item konnte nicht mit Epic Games verknüpft werden: {0}</value></data>
     <data name="Gog.Install.DirectorySharedFormat" xml:space="preserve"><value>Der ausgewählte Installationsordner wird auch von einem anderen Bibliotheks-Item verwendet und kann nicht sicher verwaltet werden:
 {0}</value></data>
     <data name="EditMedia.GogInstalledVersionFormat" xml:space="preserve"><value>Installierte Version: {0}</value></data>

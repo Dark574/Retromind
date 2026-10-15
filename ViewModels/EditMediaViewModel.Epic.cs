@@ -30,7 +30,7 @@ public partial class EditMediaViewModel
         EpicMediaItemStateHelper.TryGetGameId(_originalItem) != null;
 
     public bool ShowEpicInstallAction =>
-        EpicMediaItemStateHelper.ShouldOfferInstall(_originalItem);
+        EpicMediaItemStateHelper.CanInstallWithRetromind(_originalItem);
 
     public bool ShowEpicCheckUpdatesAction =>
         EpicMediaItemStateHelper.CanCheckUpdates(_originalItem) &&
@@ -64,6 +64,8 @@ public partial class EditMediaViewModel
             EpicRepairCommand.NotifyCanExecuteChanged();
             EpicUninstallCommand.NotifyCanExecuteChanged();
             EpicManageDlcsCommand.NotifyCanExecuteChanged();
+            GogLinkCommand.NotifyCanExecuteChanged();
+            EpicLinkCommand.NotifyCanExecuteChanged();
             OnPropertyChanged(nameof(IsEditorBusy));
         }
     }

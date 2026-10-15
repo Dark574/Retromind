@@ -20,6 +20,13 @@ internal static class StoreGameIdentityHelper
                string.Equals(leftGameId, rightGameId, StringComparison.Ordinal);
     }
 
+    internal static bool HasStoredIdentity(MediaItem? item) =>
+        item != null &&
+        item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var providerId) &&
+        !string.IsNullOrWhiteSpace(providerId) &&
+        item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var gameId) &&
+        !string.IsNullOrWhiteSpace(gameId);
+
     internal static bool TryGetIdentity(
         MediaItem item,
         out string providerId,

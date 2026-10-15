@@ -589,7 +589,11 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _isSavingAssetChanges;
 
-    public bool IsEditorBusy => IsGogOperationRunning || IsEpicOperationRunning || IsSavingAssetChanges;
+    public bool IsEditorBusy =>
+        IsStoreLinkOperationRunning ||
+        IsGogOperationRunning ||
+        IsEpicOperationRunning ||
+        IsSavingAssetChanges;
 
     partial void OnIsSavingAssetChangesChanged(bool value)
         => OnPropertyChanged(nameof(IsEditorBusy));
@@ -633,6 +637,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         Func<Window, Task<bool>>? gogUpdate = null,
         Func<Window, Task<bool>>? gogUninstall = null,
         Func<Window, Task>? gogManageDlcs = null,
+        Func<Window, Task<bool>>? epicLink = null,
         Func<Window, Task<bool>>? epicInstall = null,
         Func<Window, Task>? epicCheckUpdates = null,
         Func<Window, Task<bool>>? epicUpdate = null,
@@ -655,7 +660,14 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         _settings = settings;
         _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService ??
             throw new ArgumentNullException(nameof(retroAchievementsGameIdentificationService));
-        InitializeGogManagement(gogLink, gogInstallOrReinstall, gogCheckUpdates, gogUpdate, gogUninstall, gogManageDlcs);
+        InitializeGogManagement(
+            gogLink,
+            epicLink,
+            gogInstallOrReinstall,
+            gogCheckUpdates,
+            gogUpdate,
+            gogUninstall,
+            gogManageDlcs);
         InitializeEpicManagement(
             epicInstall,
             epicCheckUpdates,

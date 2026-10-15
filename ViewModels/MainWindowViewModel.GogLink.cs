@@ -18,8 +18,15 @@ public partial class MainWindowViewModel
     private async Task<bool> LinkMediaItemToGogAsync(MediaItem item, Window owner)
     {
         var parentNode = FindParentNode(RootItems, item);
-        if (StoreProviderBadgeHelper.HasStoreAssociation(item))
+        var previousProviderId = StoreProviderBadgeHelper.GetProviderId(item);
+        if (!await CanChangeStoreLinkAsync(
+                item,
+                StoreProviderIds.Gog,
+                GogDisplayName,
+                owner))
+        {
             return false;
+        }
 
         if (!await EnsureGogSignInForInstallAsync(owner))
             return false;
@@ -113,6 +120,20 @@ public partial class MainWindowViewModel
             if (!confirmed)
                 return false;
         }
+        else if (previousProviderId != null)
+        {
+            var confirmed = await ShowConfirmDialog(
+                owner,
+                string.Format(
+                    T(
+                        "Store.Link.SwitchConfirmFormat",
+                        "Change the store association from {0} to {1} title '{2}'?\n\nThe current files and launch settings remain unchanged. The Retromind library item, media and metadata are preserved."),
+                    StoreProviderBadgeHelper.GetToolTip(previousProviderId) ?? previousProviderId,
+                    GogDisplayName,
+                    selectedGame.Title));
+            if (!confirmed)
+                return false;
+        }
         else
         {
             var confirmed = await ShowConfirmDialog(
@@ -127,11 +148,11 @@ public partial class MainWindowViewModel
         }
 
         var previousFields = item.CustomFields;
-        var updatedFields = new Dictionary<string, string>(previousFields, StringComparer.Ordinal)
-        {
-            [CustomFieldKeyHelper.StoreProviderId] = GogProviderId,
-            [CustomFieldKeyHelper.StoreGameId] = selectedGame.StoreGameId
-        };
+        var previousGogDlcInstallations = item.GogDlcInstallations;
+        var updatedFields = BuildChangedStoreFields(
+            previousFields,
+            GogProviderId,
+            selectedGame.StoreGameId);
 
         if (legacyInstallRoot != null)
         {
@@ -141,6 +162,7 @@ public partial class MainWindowViewModel
         }
 
         item.CustomFields = updatedFields;
+        item.GogDlcInstallations = null;
         var inferredPlatform = GogLaunchConfigurationHelper.InferLegacyInstallPlatform(item);
         if (inferredPlatform.HasValue)
         {
@@ -165,6 +187,7 @@ public partial class MainWindowViewModel
         catch (Exception ex)
         {
             item.CustomFields = previousFields;
+            item.GogDlcInstallations = previousGogDlcInstallations;
             _libraryTracker.MarkDirty();
 
             if (markerWritten && legacyInstallRoot != null)
@@ -204,6 +227,81 @@ public partial class MainWindowViewModel
         }
 
         return true;
+    }
+
+    private async Task<bool> CanChangeStoreLinkAsync(
+        MediaItem item,
+        string targetProviderId,
+        string targetDisplayName,
+        Window owner)
+    {
+        var currentProviderId = StoreProviderBadgeHelper.GetProviderId(item);
+        if (currentProviderId != null &&
+            !string.Equals(currentProviderId, StoreProviderIds.Gog, StringComparison.Ordinal) &&
+            !string.Equals(currentProviderId, StoreProviderIds.Epic, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (string.Equals(currentProviderId, targetProviderId, StringComparison.Ordinal) &&
+            StoreGameIdentityHelper.HasStoredIdentity(item))
+        {
+            return false;
+        }
+
+        // The owned install path is the decisive safety boundary even if an
+        // incomplete legacy entry happens to be missing its store game ID.
+        var hasManagedInstallation =
+            item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var installPath) &&
+            !string.IsNullOrWhiteSpace(installPath);
+        if (!hasManagedInstallation)
+            return true;
+
+        await ShowInfoDialog(
+            owner,
+            string.Format(
+                T(
+                    "Store.Link.UninstallFirstFormat",
+                    "Uninstall the current {0} installation before switching this item to {1}. The library item, media and metadata remain available after uninstallation."),
+                StoreProviderBadgeHelper.GetToolTip(currentProviderId) ?? currentProviderId,
+                targetDisplayName));
+        return false;
+    }
+
+    private static Dictionary<string, string> BuildChangedStoreFields(
+        IReadOnlyDictionary<string, string> previousFields,
+        string providerId,
+        string gameId)
+    {
+        var updatedFields = previousFields
+            .Where(entry => !CustomFieldKeyHelper.IsInternal(entry.Key))
+            .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
+        updatedFields[CustomFieldKeyHelper.StoreProviderId] = providerId;
+        updatedFields[CustomFieldKeyHelper.StoreGameId] = gameId;
+        return updatedFields;
+    }
+
+    private Dictionary<string, int> BuildStoreUsageCountExcludingItem(
+        string providerId,
+        MediaItem excludedItem)
+    {
+        var usageByGameId = BuildStoreUsageCountByGameId(providerId);
+        if (!StoreGameIdentityHelper.TryGetIdentity(
+                excludedItem,
+                out var itemProviderId,
+                out var gameId) ||
+            !string.Equals(itemProviderId, providerId, StringComparison.OrdinalIgnoreCase) ||
+            !usageByGameId.TryGetValue(gameId, out var count))
+        {
+            return usageByGameId;
+        }
+
+        if (count > 1)
+            usageByGameId[gameId] = count - 1;
+        else
+            usageByGameId.Remove(gameId);
+
+        return usageByGameId;
     }
 
     private static string? FindAdoptableLegacyGogInstallRoot(MediaItem item, string storeGameId)

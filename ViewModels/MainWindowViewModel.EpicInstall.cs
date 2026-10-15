@@ -102,7 +102,7 @@ public partial class MainWindowViewModel
 
     private async Task<bool> RunEpicInstallFromEditorAsync(MediaItem item, Window owner)
     {
-        if (IsLaunchInProgress || !EpicMediaItemStateHelper.ShouldOfferInstall(item))
+        if (IsLaunchInProgress || !EpicMediaItemStateHelper.CanInstallWithRetromind(item))
             return false;
 
         IsLaunchInProgress = true;

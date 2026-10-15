@@ -28,6 +28,10 @@ internal static class EpicMediaItemStateHelper
         !IsRetromindManagedInstallation(item) &&
         !HasPlayableLaunchConfiguration(item!);
 
+    internal static bool CanInstallWithRetromind(MediaItem? item) =>
+        TryGetGameId(item) != null &&
+        !IsRetromindManagedInstallation(item);
+
     internal static bool IsRetromindManagedInstallation(MediaItem? item) =>
         TryResolveManagedInstallPath(item, out var installPath) &&
         Directory.Exists(installPath);

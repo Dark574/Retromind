@@ -11,14 +11,17 @@ namespace Retromind.ViewModels;
 public partial class EditMediaViewModel
 {
     private Func<Window, Task<bool>>? _gogLink;
+    private Func<Window, Task<bool>>? _epicLink;
     private Func<Window, Task<bool>>? _gogInstallOrReinstall;
     private Func<Window, Task>? _gogCheckUpdates;
     private Func<Window, Task<bool>>? _gogUpdate;
     private Func<Window, Task<bool>>? _gogUninstall;
     private Func<Window, Task>? _gogManageDlcs;
+    private bool _isStoreLinkOperationRunning;
     private bool _isGogOperationRunning;
 
     public IAsyncRelayCommand<Window?> GogLinkCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<Window?> EpicLinkCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> GogInstallOrReinstallCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> GogCheckUpdatesCommand { get; private set; } = null!;
     public IAsyncRelayCommand<Window?> GogUpdateCommand { get; private set; } = null!;
@@ -28,8 +31,37 @@ public partial class EditMediaViewModel
     public bool IsGogManagementVisible =>
         GogMediaItemStateHelper.TryGetGameId(_originalItem) != null;
 
-    public bool IsStoreLinkingVisible =>
-        !StoreProviderBadgeHelper.HasStoreAssociation(_originalItem);
+    public bool IsStoreLinkingVisible
+    {
+        get
+        {
+            var providerId = StoreProviderBadgeHelper.GetProviderId(_originalItem);
+            return providerId == null ||
+                   string.Equals(providerId, StoreProviderBadgeHelper.GogProviderId, StringComparison.Ordinal) ||
+                   string.Equals(providerId, StoreProviderBadgeHelper.EpicProviderId, StringComparison.Ordinal);
+        }
+    }
+
+    public bool ShowGogLinkAction =>
+        IsStoreLinkingVisible &&
+        !string.Equals(
+            StoreProviderBadgeHelper.GetProviderId(_originalItem),
+            StoreProviderBadgeHelper.GogProviderId,
+            StringComparison.Ordinal);
+
+    public bool ShowEpicLinkAction
+    {
+        get
+        {
+            var providerId = StoreProviderBadgeHelper.GetProviderId(_originalItem);
+            return IsStoreLinkingVisible &&
+                   (!string.Equals(
+                        providerId,
+                        StoreProviderBadgeHelper.EpicProviderId,
+                        StringComparison.Ordinal) ||
+                    !StoreGameIdentityHelper.HasStoredIdentity(_originalItem));
+        }
+    }
 
     public bool ShowGogUpdateAction =>
         GogMediaItemStateHelper.HasUpdateAvailable(_originalItem);
@@ -43,6 +75,20 @@ public partial class EditMediaViewModel
     public bool ShowGogInstalledVersion =>
         GogMediaItemStateHelper.TryGetInstalledVersion(_originalItem) != null;
 
+    public bool IsStoreLinkOperationRunning
+    {
+        get => _isStoreLinkOperationRunning;
+        private set
+        {
+            if (!SetProperty(ref _isStoreLinkOperationRunning, value))
+                return;
+
+            GogLinkCommand.NotifyCanExecuteChanged();
+            EpicLinkCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(IsEditorBusy));
+        }
+    }
+
     public bool IsGogOperationRunning
     {
         get => _isGogOperationRunning;
@@ -51,22 +97,55 @@ public partial class EditMediaViewModel
             if (!SetProperty(ref _isGogOperationRunning, value))
                 return;
 
-            GogLinkCommand.NotifyCanExecuteChanged();
             GogInstallOrReinstallCommand.NotifyCanExecuteChanged();
             GogCheckUpdatesCommand.NotifyCanExecuteChanged();
             GogUpdateCommand.NotifyCanExecuteChanged();
             GogUninstallCommand.NotifyCanExecuteChanged();
             GogManageDlcsCommand.NotifyCanExecuteChanged();
+            GogLinkCommand.NotifyCanExecuteChanged();
+            EpicLinkCommand.NotifyCanExecuteChanged();
             OnPropertyChanged(nameof(IsEditorBusy));
         }
     }
 
     public string StoreLinkTitle => T("Store.Link.Title", "Store link");
-    public string StoreLinkStatusText => T("Store.Link.NotLinked", "Not linked to a store");
-    public string StoreLinkHint => T(
-        "Store.Link.Hint",
-        "Link this existing item to a game from your GOG library. Media and metadata are preserved.");
-    public string GogLinkText => T("Gog.Link.Button", "Link to GOG game...");
+    public string StoreLinkStatusText
+    {
+        get
+        {
+            var providerId = StoreProviderBadgeHelper.GetProviderId(_originalItem);
+            if (string.Equals(providerId, StoreProviderBadgeHelper.GogProviderId, StringComparison.Ordinal))
+                return T("Store.Link.LinkedGog", "Linked to GOG");
+            if (string.Equals(providerId, StoreProviderBadgeHelper.EpicProviderId, StringComparison.Ordinal))
+            {
+                return StoreGameIdentityHelper.HasStoredIdentity(_originalItem)
+                    ? T("Store.Link.LinkedEpic", "Linked to Epic Games")
+                    : T("Store.Link.LegacyEpic", "Legacy Heroic/Epic entry");
+            }
+
+            return T("Store.Link.NotLinked", "Not linked to a store");
+        }
+    }
+
+    public string StoreLinkHint => StoreProviderBadgeHelper.GetProviderId(_originalItem) == null
+        ? T(
+            "Store.Link.Hint",
+            "Link this item to a game from your GOG or Epic Games library. Media and metadata are preserved.")
+        : T(
+            "Store.Link.ChangeHint",
+            "Change the store association while preserving this item, its media and metadata. Retromind-managed installations must be uninstalled first.");
+
+    public string GogLinkText => string.Equals(
+        StoreProviderBadgeHelper.GetProviderId(_originalItem),
+        StoreProviderBadgeHelper.EpicProviderId,
+        StringComparison.Ordinal)
+        ? T("Gog.Link.SwitchButton", "Switch to GOG...")
+        : T("Gog.Link.Button", "Link to GOG game...");
+
+    public string EpicLinkText => StoreProviderBadgeHelper.GetProviderId(_originalItem) == null ||
+                                  !StoreGameIdentityHelper.HasStoredIdentity(_originalItem)
+        ? T("Epic.Link.Button", "Link to Epic Games title...")
+        : T("Epic.Link.SwitchButton", "Switch to Epic Games...");
     public string GogManagementTitle => "GOG";
 
     public string GogManagementHint => T(
@@ -116,14 +195,16 @@ public partial class EditMediaViewModel
     }
 
     private void InitializeGogManagement(
-        Func<Window, Task<bool>>? link,
+        Func<Window, Task<bool>>? gogLink,
+        Func<Window, Task<bool>>? epicLink,
         Func<Window, Task<bool>>? installOrReinstall,
         Func<Window, Task>? checkUpdates,
         Func<Window, Task<bool>>? update,
         Func<Window, Task<bool>>? uninstall,
         Func<Window, Task>? manageDlcs)
     {
-        _gogLink = link;
+        _gogLink = gogLink;
+        _epicLink = epicLink;
         _gogInstallOrReinstall = installOrReinstall;
         _gogCheckUpdates = checkUpdates;
         _gogUpdate = update;
@@ -131,8 +212,11 @@ public partial class EditMediaViewModel
         _gogManageDlcs = manageDlcs;
 
         GogLinkCommand = new AsyncRelayCommand<Window?>(
-            RunStoreLinkAsync,
-            owner => CanRunStoreLink(owner));
+            owner => RunStoreLinkAsync(owner, _gogLink),
+            owner => ShowGogLinkAction && CanRunStoreLink(owner, _gogLink));
+        EpicLinkCommand = new AsyncRelayCommand<Window?>(
+            owner => RunStoreLinkAsync(owner, _epicLink),
+            owner => ShowEpicLinkAction && CanRunStoreLink(owner, _epicLink));
         GogInstallOrReinstallCommand = new AsyncRelayCommand<Window?>(
             owner => RunGogActionAsync(owner, _gogInstallOrReinstall),
             owner => CanRunGogAction(owner, _gogInstallOrReinstall));
@@ -158,11 +242,15 @@ public partial class EditMediaViewModel
         IsGogManagementVisible &&
         !IsGogOperationRunning;
 
-    private bool CanRunStoreLink(Window? owner) =>
+    private bool CanRunStoreLink(
+        Window? owner,
+        Func<Window, Task<bool>>? action) =>
         owner != null &&
-        _gogLink != null &&
+        action != null &&
         IsStoreLinkingVisible &&
-        !IsGogOperationRunning;
+        !IsStoreLinkOperationRunning &&
+        !IsGogOperationRunning &&
+        !IsEpicOperationRunning;
 
     private bool CanRunGogDlcDialog(Window? owner) =>
         owner != null &&
@@ -177,25 +265,29 @@ public partial class EditMediaViewModel
         !GogMediaItemStateHelper.HasAnyUpdateAvailable(_originalItem) &&
         !IsGogOperationRunning;
 
-    private async Task RunStoreLinkAsync(Window? owner)
+    private async Task RunStoreLinkAsync(
+        Window? owner,
+        Func<Window, Task<bool>>? action)
     {
-        if (!CanRunStoreLink(owner) || owner == null || _gogLink == null)
+        if (!CanRunStoreLink(owner, action) || owner == null || action == null)
             return;
 
-        IsGogOperationRunning = true;
+        IsStoreLinkOperationRunning = true;
         try
         {
-            if (await _gogLink(owner))
+            if (await action(owner))
                 ReloadLaunchConfigurationFromOriginalItem();
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[GOG] Store linking failed: {ex.Message}");
+            Debug.WriteLine($"[Store] Store linking failed: {ex.Message}");
         }
         finally
         {
-            IsGogOperationRunning = false;
+            IsStoreLinkOperationRunning = false;
+            RefreshStoreLinkState();
             RefreshGogManagementState();
+            RefreshEpicManagementState();
         }
     }
 
@@ -267,7 +359,6 @@ public partial class EditMediaViewModel
     private void RefreshGogManagementState()
     {
         OnPropertyChanged(nameof(IsGogManagementVisible));
-        OnPropertyChanged(nameof(IsStoreLinkingVisible));
         OnPropertyChanged(nameof(ShowGogCheckUpdatesAction));
         OnPropertyChanged(nameof(ShowGogUpdateAction));
         OnPropertyChanged(nameof(ShowGogUninstallAction));
@@ -275,12 +366,24 @@ public partial class EditMediaViewModel
         OnPropertyChanged(nameof(GogInstalledVersionText));
         OnPropertyChanged(nameof(GogInstallOrReinstallText));
         OnPropertyChanged(nameof(GogManagementStatusText));
-        GogLinkCommand.NotifyCanExecuteChanged();
         GogInstallOrReinstallCommand.NotifyCanExecuteChanged();
         GogCheckUpdatesCommand.NotifyCanExecuteChanged();
         GogUpdateCommand.NotifyCanExecuteChanged();
         GogUninstallCommand.NotifyCanExecuteChanged();
         GogManageDlcsCommand.NotifyCanExecuteChanged();
+    }
+
+    private void RefreshStoreLinkState()
+    {
+        OnPropertyChanged(nameof(IsStoreLinkingVisible));
+        OnPropertyChanged(nameof(ShowGogLinkAction));
+        OnPropertyChanged(nameof(ShowEpicLinkAction));
+        OnPropertyChanged(nameof(StoreLinkStatusText));
+        OnPropertyChanged(nameof(StoreLinkHint));
+        OnPropertyChanged(nameof(GogLinkText));
+        OnPropertyChanged(nameof(EpicLinkText));
+        GogLinkCommand.NotifyCanExecuteChanged();
+        EpicLinkCommand.NotifyCanExecuteChanged();
     }
 
     private void ReloadLaunchConfigurationFromOriginalItem()

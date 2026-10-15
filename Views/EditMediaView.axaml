@@ -63,12 +63,19 @@
                                            FontSize="11"
                                            Opacity="0.7"
                                            TextWrapping="Wrap" />
-                                <Button Content="{Binding GogLinkText}"
-                                        Command="{Binding GogLinkCommand}"
-                                        CommandParameter="{Binding $parent[Window]}"
-                                        HorizontalAlignment="Left" />
-                                <ProgressBar IsVisible="{Binding IsGogOperationRunning}"
-                                             IsIndeterminate="{Binding IsGogOperationRunning}"
+                                <WrapPanel Orientation="Horizontal">
+                                    <Button Content="{Binding GogLinkText}"
+                                            Command="{Binding GogLinkCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            IsVisible="{Binding ShowGogLinkAction}"
+                                            Margin="0,0,8,0" />
+                                    <Button Content="{Binding EpicLinkText}"
+                                            Command="{Binding EpicLinkCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            IsVisible="{Binding ShowEpicLinkAction}" />
+                                </WrapPanel>
+                                <ProgressBar IsVisible="{Binding IsStoreLinkOperationRunning}"
+                                             IsIndeterminate="{Binding IsStoreLinkOperationRunning}"
                                              Height="3" />
                             </StackPanel>
                         </Border>

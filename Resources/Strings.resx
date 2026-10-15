@@ -1456,8 +1456,17 @@ The current application settings will be kept.</value></data>
     <data name="RetroAchievements_BulkUnexpectedFailureFormat" xml:space="preserve"><value>Identification failed unexpectedly: {0}</value></data>
     <data name="Store.Link.Title" xml:space="preserve"><value>Store link</value></data>
     <data name="Store.Link.NotLinked" xml:space="preserve"><value>Not linked to a store</value></data>
-    <data name="Store.Link.Hint" xml:space="preserve"><value>Link this existing item to a game from your GOG library. Media and metadata are preserved.</value></data>
+    <data name="Store.Link.LinkedGog" xml:space="preserve"><value>Linked to GOG</value></data>
+    <data name="Store.Link.LinkedEpic" xml:space="preserve"><value>Linked to Epic Games</value></data>
+    <data name="Store.Link.LegacyEpic" xml:space="preserve"><value>Legacy Heroic/Epic entry</value></data>
+    <data name="Store.Link.Hint" xml:space="preserve"><value>Link this existing item to a game from your GOG or Epic Games library. Media and metadata are preserved.</value></data>
+    <data name="Store.Link.ChangeHint" xml:space="preserve"><value>Change the store association while preserving this item, its media and metadata. Retromind-managed installations must be uninstalled first.</value></data>
+    <data name="Store.Link.SwitchConfirmFormat" xml:space="preserve"><value>Change the store association from {0} to {1} title '{2}'?
+
+The current files and launch settings remain unchanged. The Retromind library item, media and metadata are preserved.</value></data>
+    <data name="Store.Link.UninstallFirstFormat" xml:space="preserve"><value>Uninstall the current {0} installation before switching this item to {1}. The library item, media and metadata remain available after uninstallation.</value></data>
     <data name="Gog.Link.Button" xml:space="preserve"><value>Link to GOG game...</value></data>
+    <data name="Gog.Link.SwitchButton" xml:space="preserve"><value>Switch to GOG...</value></data>
     <data name="Gog.Link.DialogTitle" xml:space="preserve"><value>Link GOG game</value></data>
     <data name="Gog.Link.Header" xml:space="preserve"><value>Select the matching game from your GOG library</value></data>
     <data name="Gog.Link.Apply" xml:space="preserve"><value>Link game</value></data>
@@ -1469,6 +1478,12 @@ Link it to '{1}' and manage this game folder from now on? A later clean reinstal
 
 Link only the GOG identity? The current files and launch settings remain unchanged, but updates and uninstallation cannot be managed until the game is installed through Retromind.</value></data>
     <data name="Gog.Link.FailedFormat" xml:space="preserve"><value>The item could not be linked to GOG: {0}</value></data>
+    <data name="Epic.Link.Button" xml:space="preserve"><value>Link to Epic Games title...</value></data>
+    <data name="Epic.Link.SwitchButton" xml:space="preserve"><value>Switch to Epic Games...</value></data>
+    <data name="Epic.Link.IdentityOnlyConfirmFormat" xml:space="preserve"><value>Link this item to Epic Games title '{0}'?
+
+The current files and launch settings remain unchanged. The Retromind library item, media and metadata are preserved. Existing externally managed files remain external until the game is installed through Retromind.</value></data>
+    <data name="Epic.Link.FailedFormat" xml:space="preserve"><value>The item could not be linked to Epic Games: {0}</value></data>
     <data name="Gog.Install.DirectorySharedFormat" xml:space="preserve"><value>The selected install directory is also used by another library item and cannot be managed safely:
 {0}</value></data>
     <data name="EditMedia.GogInstalledVersionFormat" xml:space="preserve"><value>Installed version: {0}</value></data>

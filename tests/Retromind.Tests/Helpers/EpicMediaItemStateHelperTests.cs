@@ -28,6 +28,7 @@ public sealed class EpicMediaItemStateHelperTests
         var item = CreateEpicItem();
 
         Assert.True(EpicMediaItemStateHelper.ShouldOfferInstall(item));
+        Assert.True(EpicMediaItemStateHelper.CanInstallWithRetromind(item));
         Assert.False(EpicMediaItemStateHelper.IsLaunchReady(item));
 
         item.Files =
@@ -40,6 +41,7 @@ public sealed class EpicMediaItemStateHelperTests
         ];
 
         Assert.False(EpicMediaItemStateHelper.ShouldOfferInstall(item));
+        Assert.True(EpicMediaItemStateHelper.CanInstallWithRetromind(item));
         Assert.True(EpicMediaItemStateHelper.IsLaunchReady(item));
         Assert.False(EpicMediaItemStateHelper.IsRetromindManagedInstallation(item));
     }
@@ -54,6 +56,7 @@ public sealed class EpicMediaItemStateHelperTests
         Assert.True(EpicMediaItemStateHelper.IsRetromindManagedInstallation(item));
         Assert.False(EpicMediaItemStateHelper.IsLaunchReady(item));
         Assert.False(EpicMediaItemStateHelper.ShouldOfferInstall(item));
+        Assert.False(EpicMediaItemStateHelper.CanInstallWithRetromind(item));
         Assert.True(EpicMediaItemStateHelper.CanCheckUpdates(item));
         Assert.True(EpicMediaItemStateHelper.CanUninstall(item));
         Assert.False(EpicMediaItemStateHelper.HasUpdateAvailable(item));
@@ -74,6 +77,7 @@ public sealed class EpicMediaItemStateHelperTests
         Assert.True(EpicMediaItemStateHelper.HasRetromindManagedInstallMetadata(item));
         Assert.True(EpicMediaItemStateHelper.CanUninstall(item));
         Assert.True(EpicMediaItemStateHelper.ShouldOfferInstall(item));
+        Assert.True(EpicMediaItemStateHelper.CanInstallWithRetromind(item));
     }
 
     [Theory]

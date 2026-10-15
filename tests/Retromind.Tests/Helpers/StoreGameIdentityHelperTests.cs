@@ -57,6 +57,28 @@ public sealed class StoreGameIdentityHelperTests
         Assert.False(StoreGameIdentityHelper.IsSameGame(manualItem, importedItem));
     }
 
+    [Fact]
+    public void HasStoredIdentity_DistinguishesStructuredIdentityFromLegacyHeroicEntry()
+    {
+        var legacyItem = new MediaItem("Legacy Heroic game")
+        {
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = "heroic",
+                    Index = 1
+                }
+            ],
+            LauncherArgs = "epic://ExampleGame"
+        };
+        var linkedItem = CreateStoreItem("epic", "ExampleGame", "Linked Epic game");
+
+        Assert.False(StoreGameIdentityHelper.HasStoredIdentity(legacyItem));
+        Assert.True(StoreGameIdentityHelper.HasStoredIdentity(linkedItem));
+    }
+
     private static MediaItem CreateStoreItem(string providerId, string gameId, string title)
     {
         var item = new MediaItem(title);
