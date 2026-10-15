@@ -51,7 +51,9 @@ internal sealed record EpicInstallSpaceAssessment(
     long? EstimatedInstallBytes,
     long? RequiredBytes);
 
-internal sealed record EpicUninstallResult(bool PrefixPreserved);
+internal sealed record EpicUninstallResult(
+    bool PrefixPreserved,
+    string? PreservedInstallDirectory);
 
 public sealed class EpicInstallService
 {
@@ -92,10 +94,11 @@ public sealed class EpicInstallService
         CancellationToken ct = default)
     {
         var (baseAppName, installPath) = ResolveOwnedInstallation(item);
-        ValidateDlcAppName(baseAppName, dlcAppName);
+        var validatedDlcAppName = await ValidateDlcAppNameAsync(baseAppName, dlcAppName, ct)
+            .ConfigureAwait(false);
 
         return await _client
-            .InstallAsync(dlcAppName.Trim(), installPath, outputReceived, ct)
+            .InstallAsync(validatedDlcAppName, installPath, outputReceived, ct)
             .ConfigureAwait(false);
     }
 
@@ -106,10 +109,11 @@ public sealed class EpicInstallService
         CancellationToken ct = default)
     {
         var (baseAppName, installPath) = ResolveOwnedInstallation(item);
-        ValidateDlcAppName(baseAppName, dlcAppName);
+        var validatedDlcAppName = await ValidateDlcAppNameAsync(baseAppName, dlcAppName, ct)
+            .ConfigureAwait(false);
 
         await _client
-            .UninstallAsync(dlcAppName.Trim(), keepFiles: false, outputReceived, ct)
+            .UninstallAsync(validatedDlcAppName, keepFiles: false, outputReceived, ct)
             .ConfigureAwait(false);
 
         // A DLC shares the main game's directory. Legendary may remove only files
@@ -168,11 +172,12 @@ public sealed class EpicInstallService
             .UninstallAsync(appName, keepFiles: false, outputReceived, ct)
             .ConfigureAwait(false);
 
+        string? preservedInstallDirectory = null;
         if (Directory.Exists(installPath))
         {
             // Legendary deletes the files from its manifest but intentionally leaves
-            // unknown files behind. The Retromind marker proves ownership, so remove
-            // the remaining managed directory only after validating it again.
+            // unknown files behind. Remove Retromind's marker, but preserve every
+            // remaining file because its ownership cannot be proven safely.
             var remainingAssessment = AssessDirectory(installPath, item);
             if (remainingAssessment.Status != EpicInstallDirectoryStatus.OwnedDirectory)
             {
@@ -180,10 +185,19 @@ public sealed class EpicInstallService
                     $"Legendary was unregistered, but Retromind could not safely remove the remaining install directory '{remainingAssessment.FullPath}'.");
             }
 
-            await Task.Run(
-                    () => Directory.Delete(remainingAssessment.FullPath, recursive: true),
-                    ct)
-                .ConfigureAwait(false);
+            File.Delete(Path.Combine(remainingAssessment.FullPath, MarkerFileName));
+            try
+            {
+                Directory.Delete(remainingAssessment.FullPath, recursive: false);
+            }
+            catch (IOException) when (Directory.Exists(remainingAssessment.FullPath))
+            {
+                preservedInstallDirectory = remainingAssessment.FullPath;
+            }
+            catch (UnauthorizedAccessException) when (Directory.Exists(remainingAssessment.FullPath))
+            {
+                preservedInstallDirectory = remainingAssessment.FullPath;
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(prefixPath) && Directory.Exists(prefixPath))
@@ -195,7 +209,7 @@ public sealed class EpicInstallService
         }
 
         ClearInstallState(item, prefixPreserved);
-        return new EpicUninstallResult(prefixPreserved);
+        return new EpicUninstallResult(prefixPreserved, preservedInstallDirectory);
     }
 
     private static void ClearInstallState(MediaItem item, bool prefixPreserved)
@@ -250,11 +264,26 @@ public sealed class EpicInstallService
         return (appName, assessment.FullPath);
     }
 
-    private static void ValidateDlcAppName(string baseAppName, string dlcAppName)
+    private async Task<string> ValidateDlcAppNameAsync(
+        string baseAppName,
+        string dlcAppName,
+        CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dlcAppName);
-        if (string.Equals(baseAppName, dlcAppName.Trim(), StringComparison.Ordinal))
+        var normalizedDlcAppName = dlcAppName.Trim();
+        if (string.Equals(baseAppName, normalizedDlcAppName, StringComparison.Ordinal))
             throw new InvalidOperationException("The main game cannot be changed through the DLC workflow.");
+
+        var catalog = await _client.GetDlcCatalogAsync(baseAppName, ct).ConfigureAwait(false);
+        var matchingDlc = catalog.SingleOrDefault(
+            dlc => string.Equals(dlc.AppName, normalizedDlcAppName, StringComparison.Ordinal));
+        if (matchingDlc == null)
+        {
+            throw new InvalidOperationException(
+                $"The Epic Games title '{normalizedDlcAppName}' is not a DLC of '{baseAppName}'.");
+        }
+
+        return matchingDlc.AppName;
     }
 
     private static string? ResolveSafePrefixForDeletion(string? storedPrefixPath, bool deletePrefix)

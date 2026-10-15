@@ -49,10 +49,10 @@ public partial class MainWindowViewModel
             preserveSharedPrefix
                 ? T(
                     "Epic.Uninstall.ConfirmSharedPrefixFormat",
-                    "Uninstall \"{0}\"?\n\nThe game files will be deleted and the installation will be unregistered from Legendary. Its Wine/Proton prefix is also used by another item and will be preserved. The Retromind library item, media and metadata remain available.\n\nThis action cannot be undone.")
+                    "Uninstall \"{0}\"?\n\nThe managed game files will be deleted and the installation will be unregistered from Legendary. Unrecognized files such as mods or saves will remain in the game folder. Its Wine/Proton prefix is also used by another item and will be preserved. The Retromind library item, media and metadata remain available.\n\nThis action cannot be undone.")
                 : T(
                     "Epic.Uninstall.ConfirmFormat",
-                    "Uninstall \"{0}\"?\n\nThe game files and its Wine/Proton prefix will be deleted, and the installation will be unregistered from Legendary. The Retromind library item, media and metadata remain available.\n\nThis action cannot be undone."),
+                    "Uninstall \"{0}\"?\n\nThe managed game files and its Wine/Proton prefix will be deleted, and the installation will be unregistered from Legendary. Unrecognized files such as mods or saves will remain in the game folder. The Retromind library item, media and metadata remain available.\n\nThis action cannot be undone."),
             item.Title);
         if (!await ShowConfirmDialog(owner, confirmMessage))
             return false;
@@ -94,6 +94,18 @@ public partial class MainWindowViewModel
                         "Epic.Uninstall.SuccessPrefixPreserved",
                         "Game uninstalled successfully. The Wine/Proton prefix was preserved.")
                     : T("Epic.Uninstall.Success", "Game uninstalled successfully."));
+            if (!string.IsNullOrWhiteSpace(result.PreservedInstallDirectory))
+            {
+                AppendProcessLog(
+                    progressVm,
+                    string.Format(
+                        CultureInfo.CurrentCulture,
+                        T(
+                            "Epic.Uninstall.RemainingFilesPreservedFormat",
+                            "The game folder still contains files or could not be removed safely. It was preserved in:\n{0}"),
+                        result.PreservedInstallDirectory));
+            }
+
             return true;
         }
         catch (OperationCanceledException)

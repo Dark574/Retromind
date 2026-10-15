@@ -1503,6 +1503,7 @@ public partial class MainWindowViewModel
     private async Task DeleteMediaAsync(MediaItem? item)
     {
         if (item == null || CurrentWindow is not { } owner) return;
+        string? preservedEpicInstallDirectory = null;
         
         try
         {
@@ -1532,10 +1533,10 @@ public partial class MainWindowViewModel
                     preserveSharedEpicPrefix
                         ? T(
                             "Epic.Delete.ManagedSharedPrefixConfirmFormat",
-                            "Delete \"{0}\" from the library?\n\nThe Retromind-managed Epic Games installation and all files in its game folder will also be permanently deleted and unregistered from Legendary. Its Wine/Proton prefix is used by another item and will be preserved.\n\nThis action cannot be undone.")
+                            "Delete \"{0}\" from the library?\n\nThe Retromind-managed Epic Games installation will be unregistered from Legendary and its managed game files will be deleted. Unrecognized files such as mods or saves will remain in the game folder. Its Wine/Proton prefix is used by another item and will be preserved.\n\nThis action cannot be undone.")
                         : T(
                             "Epic.Delete.ManagedConfirmFormat",
-                            "Delete \"{0}\" from the library?\n\nThe Retromind-managed Epic Games installation, its Wine/Proton prefix and all files in those folders will also be permanently deleted. The installation will be unregistered from Legendary.\n\nThis action cannot be undone."),
+                            "Delete \"{0}\" from the library?\n\nThe Retromind-managed Epic Games installation will be unregistered from Legendary, its managed game files and its Wine/Proton prefix will be deleted. Unrecognized files such as mods or saves will remain in the game folder.\n\nThis action cannot be undone."),
                     item.Title)
                 : Strings.Dialog_MsgConfirmDelete;
             if (!await ShowConfirmDialog(owner, confirmMessage)) return;
@@ -1550,9 +1551,10 @@ public partial class MainWindowViewModel
                     using (BeginBusyCursor(owner))
                     {
                         await Task.Yield();
-                        await _epicInstallService.UninstallAsync(
+                        var uninstallResult = await _epicInstallService.UninstallAsync(
                             item,
                             deletePrefix: !preserveSharedEpicPrefix);
+                        preservedEpicInstallDirectory = uninstallResult.PreservedInstallDirectory;
                     }
                 }
                 catch (Exception ex)
@@ -1590,6 +1592,18 @@ public partial class MainWindowViewModel
                 }
                 
                 RefreshContentAfterMediaCollectionChange();
+            }
+
+            if (!string.IsNullOrWhiteSpace(preservedEpicInstallDirectory))
+            {
+                await ShowInfoDialog(
+                    owner,
+                    string.Format(
+                        CultureInfo.CurrentCulture,
+                        T(
+                            "Epic.Uninstall.RemainingFilesPreservedFormat",
+                            "The game folder still contains files or could not be removed safely. It was preserved in:\n{0}"),
+                        preservedEpicInstallDirectory));
             }
         }
         catch (Exception ex)

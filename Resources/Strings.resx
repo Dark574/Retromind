@@ -221,12 +221,12 @@
   <data name="Dialog.MsgConfirmDelete" xml:space="preserve"><value>Do you really want to delete this?</value></data>
   <data name="Epic.Delete.ManagedConfirmFormat" xml:space="preserve"><value>Delete "{0}" from the library?
 
-The Retromind-managed Epic Games installation, its Wine/Proton prefix and all files in those folders will also be permanently deleted. The installation will be unregistered from Legendary.
+The Retromind-managed Epic Games installation will be unregistered from Legendary, its managed game files and its Wine/Proton prefix will be deleted. Unrecognized files such as mods or saves will remain in the game folder.
 
 This action cannot be undone.</value></data>
   <data name="Epic.Delete.ManagedSharedPrefixConfirmFormat" xml:space="preserve"><value>Delete "{0}" from the library?
 
-The Retromind-managed Epic Games installation and all files in its game folder will also be permanently deleted and unregistered from Legendary. Its Wine/Proton prefix is used by another item and will be preserved.
+The Retromind-managed Epic Games installation will be unregistered from Legendary and its managed game files will be deleted. Unrecognized files such as mods or saves will remain in the game folder. Its Wine/Proton prefix is used by another item and will be preserved.
 
 This action cannot be undone.</value></data>
   <data name="Epic.Delete.UninstallFailedFormat" xml:space="preserve"><value>The Epic Games installation could not be removed, so the library item was kept:
@@ -433,12 +433,12 @@ Installed version: {0}</value></data>
     <data name="Epic.Uninstall.ContextMenu" xml:space="preserve"><value>Uninstall</value></data>
     <data name="Epic.Uninstall.ConfirmFormat" xml:space="preserve"><value>Uninstall "{0}"?
 
-The game files and its Wine/Proton prefix will be deleted, and the installation will be unregistered from Legendary. The Retromind library item, media and metadata remain available.
+The managed game files and its Wine/Proton prefix will be deleted, and the installation will be unregistered from Legendary. Unrecognized files such as mods or saves will remain in the game folder. The Retromind library item, media and metadata remain available.
 
 This action cannot be undone.</value></data>
     <data name="Epic.Uninstall.ConfirmSharedPrefixFormat" xml:space="preserve"><value>Uninstall "{0}"?
 
-The game files will be deleted and the installation will be unregistered from Legendary. Its Wine/Proton prefix is also used by another item and will be preserved. The Retromind library item, media and metadata remain available.
+The managed game files will be deleted and the installation will be unregistered from Legendary. Unrecognized files such as mods or saves will remain in the game folder. Its Wine/Proton prefix is also used by another item and will be preserved. The Retromind library item, media and metadata remain available.
 
 This action cannot be undone.</value></data>
     <data name="Epic.Uninstall.SharedInstallDirectoryFormat" xml:space="preserve"><value>The game folder is also used by another library item and will not be deleted:
@@ -447,6 +447,8 @@ This action cannot be undone.</value></data>
     <data name="Epic.Uninstall.Starting" xml:space="preserve"><value>Uninstalling the Epic Games title and removing its Legendary registration...</value></data>
     <data name="Epic.Uninstall.Success" xml:space="preserve"><value>Game uninstalled successfully.</value></data>
     <data name="Epic.Uninstall.SuccessPrefixPreserved" xml:space="preserve"><value>Game uninstalled successfully. The Wine/Proton prefix was preserved.</value></data>
+    <data name="Epic.Uninstall.RemainingFilesPreservedFormat" xml:space="preserve"><value>The game folder still contains files or could not be removed safely. It was preserved in:
+{0}</value></data>
     <data name="Epic.Uninstall.Cancelled" xml:space="preserve"><value>Uninstallation cancelled.</value></data>
     <data name="Epic.Uninstall.FailedFormat" xml:space="preserve"><value>Uninstallation failed: {0}</value></data>
     <data name="Epic.Dlc.ContextMenu" xml:space="preserve"><value>Manage DLCs...</value></data>

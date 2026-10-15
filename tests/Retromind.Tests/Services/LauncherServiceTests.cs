@@ -1,6 +1,8 @@
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.Stores.Epic;
+using Retromind.Services.Stores.Epic.Legendary;
 using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services;
@@ -566,6 +568,76 @@ public sealed class LauncherServiceTests
         Assert.Contains("launch-log-marker", log);
         Assert.DoesNotContain("command-secret", log);
         Assert.DoesNotContain("environment-secret", log);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_RedactsSecretsFromPreparedEpicLaunchThroughoutTheSavedLog()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        const string argumentSecret = "epic-exchange-secret";
+        const string environmentSecret = "epic-environment-secret";
+        using var temp = new TemporaryDirectory();
+        var legendaryOutput = $$"""
+            {
+              "game_parameters": [],
+              "user_parameters": [],
+              "egl_parameters": [
+                "-AUTH_LOGIN=unused",
+                "-AUTH_PASSWORD={{argumentSecret}}",
+                "-AUTH_TYPE=exchangecode"
+              ],
+              "environment": {
+                "EPIC_AUTH_TOKEN": "{{environmentSecret}}"
+              }
+            }
+            """;
+        var epicLaunchService = new EpicLaunchService(
+            new LegendaryCliClient(
+                new SingleResultLegendaryProcessRunner(
+                    new LegendaryCliResult(0, legendaryOutput, string.Empty))));
+        var preparation = await epicLaunchService.PrepareAsync("ExampleGame");
+        var scriptPath = temp.CreateFile(
+            "epic-launch.sh",
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" >&2\nprintf 'env=%s\\n' \"$EPIC_AUTH_TOKEN\" >&2\nexit 23\n");
+        var item = new MediaItem("Epic launch")
+        {
+            MediaType = MediaType.Native,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = scriptPath
+                }
+            ]
+        };
+        var launchLogs = new LaunchLogService(temp.GetPath("launch-logs"));
+        var launcher = new LauncherService(temp.RootPath, new AppSettings(), launchLogs);
+
+        var result = await launcher.LaunchAsync(
+            item,
+            environmentOverrides: preparation.Environment,
+            additionalLaunchArguments: preparation.Arguments,
+            recordStatistics: false);
+        var log = await launchLogs.TryReadAsync(item.Id);
+
+        Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.NotNull(log);
+        Assert.Contains("-AUTH_PASSWORD=<redacted>", log);
+        Assert.Contains("EPIC_AUTH_TOKEN=<redacted>", log);
+        Assert.DoesNotContain(argumentSecret, log);
+        Assert.DoesNotContain(environmentSecret, log);
+    }
+
+    private sealed class SingleResultLegendaryProcessRunner(LegendaryCliResult result)
+        : ILegendaryCliProcessRunner
+    {
+        public Task<LegendaryCliResult> RunAsync(
+            LegendaryCliCommand command,
+            CancellationToken ct = default) =>
+            Task.FromResult(result);
     }
 
     private sealed class StubSteamProcessTrackingService(TimeSpan duration)

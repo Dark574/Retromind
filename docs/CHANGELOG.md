@@ -40,6 +40,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - import GOG games into any category through the regular picker instead of restricting categories as dedicated GOG nodes
 - show the category game-system assignment under General instead of keeping a separate Integrations tab
 - make Epic game management safer and more resilient by protecting temporary launch credentials, rechecking install folders before changes, preserving user environment overrides, and keeping damaged installations available for update or recovery
+- preserve files left behind by Legendary when uninstalling Epic games instead of deleting possible mods, saves or other user data
 
 ### Fixed
 - prevent the Arcade theme from crashing while creating its logo rail and keep the layout stable while artwork is loading
