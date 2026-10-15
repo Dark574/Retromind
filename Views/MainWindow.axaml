@@ -238,7 +238,7 @@
                                              input:DragDrop.AllowDrop="True">
                                            <Border.ContextMenu>
                                                <ContextMenu>
-                                                   <!-- Node actions mirror the item context-menu ordering. -->
+                                                   <!-- Keep category-wide actions grouped above content creation. -->
                                                    <MenuItem Header="{x:Static p:Strings.Media_Settings}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EditNodeCommand}"
                                                              CommandParameter="{Binding .}"
@@ -252,10 +252,6 @@
 
                                                    <Separator />
 
-                                                   <MenuItem Header="{x:Static p:Strings.Ctx_Category_Add}"
-                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddCategoryCommand}"
-                                                             CommandParameter="{Binding .}" />
-                                                   <Separator />
                                                    <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddMediaCommand}"
                                                              CommandParameter="{Binding .}" />
@@ -278,6 +274,11 @@
                                                                  CommandParameter="{Binding .}" />
                                                    </MenuItem>
 
+                                                   <Separator />
+
+                                                   <MenuItem Header="{x:Static p:Strings.Ctx_Category_Add}"
+                                                             Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddCategoryCommand}"
+                                                             CommandParameter="{Binding .}" />
                                                    <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteCommand}"
                                                              CommandParameter="{Binding .}"
