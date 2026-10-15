@@ -1297,6 +1297,11 @@ public partial class MainWindowViewModel
                 RunGogInstallFromEditorAsync(item, dialogOwner, requireAvailableUpdate: true),
             gogUninstall: dialogOwner => RunGogUninstallAsync(item, dialogOwner),
             gogManageDlcs: dialogOwner => ShowGogDlcManagerAsync(item, dialogOwner),
+            epicInstall: dialogOwner => RunEpicInstallFromEditorAsync(item, dialogOwner),
+            epicCheckUpdates: dialogOwner => CheckEpicUpdatesNowAsync(item, dialogOwner),
+            epicUpdate: dialogOwner => RunEpicMaintenanceFromEditorAsync(item, dialogOwner, repair: false),
+            epicRepair: dialogOwner => RunEpicMaintenanceFromEditorAsync(item, dialogOwner, repair: true),
+            epicManageDlcs: dialogOwner => ShowEpicDlcManagerAsync(item, dialogOwner),
             viewLastLaunchLog: dialogOwner => ShowLastLaunchLogAsync(item, dialogOwner),
             hasLastLaunchLog: _launchLogService.HasLog(item.Id))
         { 

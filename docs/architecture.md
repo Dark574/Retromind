@@ -322,10 +322,10 @@ the report never mutates JSON or deletes files.
 - the media editor can stage this identification without mutating the library; saving persists the game ID,
   console ID, system ID, hash, and provider title on `MediaItem`, while canceling or changing the staged game
   system/launch file discards the staged assignment
-- GOG-linked items expose install/reinstall, update, and uninstall actions in a dedicated media-editor section.
-  These store operations reuse the MainWindow workflows and persist immediately; after success, the editor reloads
-  only the affected launch configuration so staged metadata remains intact and cannot overwrite store-generated
-  launch settings on a later save
+- GOG- and Epic-linked items expose their supported installation and maintenance actions in dedicated media-editor
+  sections, including the stored installed version. These store operations reuse the MainWindow workflows and
+  persist immediately; after success, the editor reloads only the affected launch configuration so staged metadata
+  remains intact and cannot overwrite store-generated launch settings on a later save
 - GOG main-game updates and explicit reinstalls snapshot the DLCs installed through Retromind before running the
   offline installer, then reapply those installed DLCs with their current same-platform packages in the shared
   cancelable progress flow. Updates are always in-place and cannot request directory cleanup; explicit reinstalls

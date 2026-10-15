@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading.Tasks;
+using Avalonia.Controls;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.Stores;
@@ -33,6 +34,14 @@ public partial class MainWindowViewModel
     private async Task CheckEpicUpdatesNowAsync(MediaItem? item)
     {
         if (!CanCheckEpicUpdates(item) || item == null || CurrentWindow is not { } owner)
+            return;
+
+        await CheckEpicUpdatesNowAsync(item, owner);
+    }
+
+    private async Task CheckEpicUpdatesNowAsync(MediaItem item, Window owner)
+    {
+        if (!CanCheckEpicUpdates(item))
             return;
 
         var appName = EpicMediaItemStateHelper.TryGetGameId(item);
@@ -109,6 +118,36 @@ public partial class MainWindowViewModel
         return await MaintainEpicItemAsync(item, EpicMaintenanceOperation.Update);
     }
 
+    private async Task<bool> RunEpicMaintenanceFromEditorAsync(
+        MediaItem item,
+        Window owner,
+        bool repair)
+    {
+        var operation = repair
+            ? EpicMaintenanceOperation.Repair
+            : EpicMaintenanceOperation.Update;
+        var canRun = repair
+            ? CanRepairEpicMedia(item)
+            : CanUpdateEpicMedia(item);
+        if (!canRun)
+            return false;
+
+        IsLaunchInProgress = true;
+        try
+        {
+            return await MaintainEpicItemAsync(item, operation, owner);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Epic] {(repair ? "Repair" : "Update")} from media editor failed: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            IsLaunchInProgress = false;
+        }
+    }
+
     private async Task RepairEpicMediaAsync(MediaItem? item)
     {
         if (!CanRepairEpicMedia(item) || item == null)
@@ -131,9 +170,11 @@ public partial class MainWindowViewModel
 
     private async Task<bool> MaintainEpicItemAsync(
         MediaItem item,
-        EpicMaintenanceOperation operation)
+        EpicMaintenanceOperation operation,
+        Window? ownerOverride = null)
     {
-        if (CurrentWindow is not { } owner)
+        var owner = ownerOverride ?? CurrentWindow;
+        if (owner == null)
             return false;
 
         var isRepair = operation == EpicMaintenanceOperation.Repair;

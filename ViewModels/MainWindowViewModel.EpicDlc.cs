@@ -21,6 +21,14 @@ public partial class MainWindowViewModel
     {
         if (!CanManageEpicDlcs(item) || item == null || CurrentWindow is not { } owner)
             return;
+
+        await ShowEpicDlcManagerAsync(item, owner);
+    }
+
+    private async Task ShowEpicDlcManagerAsync(MediaItem item, Window owner)
+    {
+        if (!CanManageEpicDlcs(item))
+            return;
         if (!await EnsureEpicSignInAsync(owner))
             return;
 

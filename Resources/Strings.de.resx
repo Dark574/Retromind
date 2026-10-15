@@ -307,6 +307,14 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="EditMedia.GogDlcTitle" xml:space="preserve"><value>DLCs</value></data>
     <data name="EditMedia.GogDlcHint" xml:space="preserve"><value>Zeigt eigene DLCs und deren verfügbare Offline-Installer.</value></data>
     <data name="EditMedia.GogManageDlcs" xml:space="preserve"><value>DLCs verwalten...</value></data>
+    <data name="EditMedia.EpicManagementHint" xml:space="preserve"><value>Store-Aktionen werden sofort ausgeführt. Erfolgreich geänderte Starteinstellungen werden anschließend in diesem Editor neu geladen.</value></data>
+    <data name="EditMedia.EpicStatusInstalled" xml:space="preserve"><value>Installiert</value></data>
+    <data name="EditMedia.EpicStatusNotInstalled" xml:space="preserve"><value>Nicht installiert</value></data>
+    <data name="EditMedia.EpicStatusUpdateAvailable" xml:space="preserve"><value>Installiert – Update verfügbar</value></data>
+    <data name="EditMedia.EpicStatusExternal" xml:space="preserve"><value>Startbereit – extern verwaltet</value></data>
+    <data name="EditMedia.EpicInstalledVersionFormat" xml:space="preserve"><value>Installierte Version: {0}</value></data>
+    <data name="EditMedia.EpicDlcTitle" xml:space="preserve"><value>DLCs</value></data>
+    <data name="EditMedia.EpicDlcHint" xml:space="preserve"><value>Zeigt eigene und über Legendary verwaltete DLCs.</value></data>
     <data name="EditMedia.Tab_Prefix" xml:space="preserve"><value>Prefix (Wine/Proton/UMU)</value></data>
     <data name="EditMedia.AssetsPrefixLabel" xml:space="preserve"><value>Asset-Präfix:</value></data>
     <data name="EditMedia.AssetsPrefixHint" xml:space="preserve"><value>Dieses Präfix verwenden, wenn du Dateien manuell im Library-Ordner hinzufügst.</value></data>

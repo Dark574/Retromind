@@ -37,6 +37,18 @@ internal static class EpicMediaItemStateHelper
         item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var installPath) &&
         !string.IsNullOrWhiteSpace(installPath);
 
+    internal static string? TryGetInstalledVersion(MediaItem? item)
+    {
+        if (TryGetGameId(item) == null ||
+            !item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstalledVersion, out var version))
+        {
+            return null;
+        }
+
+        var trimmed = version?.Trim();
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
+    }
+
     internal static bool CanCheckUpdates(MediaItem? item) =>
         IsRetromindManagedInstallation(item);
 

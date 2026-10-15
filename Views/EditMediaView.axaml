@@ -151,6 +151,85 @@
                             </StackPanel>
                         </Border>
 
+                        <Border IsVisible="{Binding IsEpicManagementVisible}"
+                                BorderBrush="Gray"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="12"
+                                Margin="0,0,0,15">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding EpicManagementTitle}"
+                                               FontWeight="Bold"
+                                               FontSize="16" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding EpicManagementStatusText}"
+                                               Opacity="0.7"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+
+                                <TextBlock Text="{Binding EpicManagementHint}"
+                                           FontSize="11"
+                                           Opacity="0.7"
+                                           TextWrapping="Wrap" />
+
+                                <TextBlock Text="{Binding EpicInstalledVersionText}"
+                                           IsVisible="{Binding ShowEpicInstalledVersion}"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+
+                                <WrapPanel Orientation="Horizontal">
+                                    <Button Content="{Binding EpicInstallText}"
+                                            Command="{Binding EpicInstallCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            IsVisible="{Binding ShowEpicInstallAction}"
+                                            Margin="0,0,8,0" />
+                                    <Button Content="{Binding EpicCheckUpdatesText}"
+                                            Command="{Binding EpicCheckUpdatesCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            IsVisible="{Binding ShowEpicCheckUpdatesAction}"
+                                            Margin="0,0,8,0" />
+                                    <Button Content="{Binding EpicUpdateText}"
+                                            Command="{Binding EpicUpdateCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            IsVisible="{Binding ShowEpicUpdateAction}"
+                                            Margin="0,0,8,0" />
+                                    <Button Content="{Binding EpicRepairText}"
+                                            Command="{Binding EpicRepairCommand}"
+                                            CommandParameter="{Binding $parent[Window]}"
+                                            IsVisible="{Binding ShowEpicRepairAction}" />
+                                </WrapPanel>
+
+                                <Border BorderBrush="Gray"
+                                        BorderThickness="0,1,0,0"
+                                        Margin="0,4,0,0"
+                                        Padding="10,8,0,0"
+                                        IsVisible="{Binding ShowEpicDlcAction}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <TextBlock Text="{Binding EpicDlcTitle}"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding EpicDlcHint}"
+                                                       FontSize="11"
+                                                       Opacity="0.7"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Margin="12,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Content="{Binding EpicManageDlcsText}"
+                                                Command="{Binding EpicManageDlcsCommand}"
+                                                CommandParameter="{Binding $parent[Window]}" />
+                                    </Grid>
+                                </Border>
+
+                                <ProgressBar IsVisible="{Binding IsEpicOperationRunning}"
+                                             IsIndeterminate="{Binding IsEpicOperationRunning}"
+                                             Height="3" />
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Text="{x:Static p:Strings.Launch_Config}" FontWeight="Bold" FontSize="16" />
 
                         <!-- Emulator profile selection -->

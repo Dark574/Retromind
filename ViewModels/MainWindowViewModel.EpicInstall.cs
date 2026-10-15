@@ -92,10 +92,37 @@ public partial class MainWindowViewModel
             : InstallGogItemAsync(item);
     }
 
-    private async Task<bool> InstallEpicItemAsync(MediaItem item)
+    private Task<bool> InstallEpicItemAsync(MediaItem item)
     {
         if (CurrentWindow is not { } owner)
+            return Task.FromResult(false);
+
+        return InstallEpicItemAsync(item, owner);
+    }
+
+    private async Task<bool> RunEpicInstallFromEditorAsync(MediaItem item, Window owner)
+    {
+        if (IsLaunchInProgress || !EpicMediaItemStateHelper.ShouldOfferInstall(item))
             return false;
+
+        IsLaunchInProgress = true;
+        try
+        {
+            return await InstallEpicItemAsync(item, owner);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Epic] Install from media editor failed: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            IsLaunchInProgress = false;
+        }
+    }
+
+    private async Task<bool> InstallEpicItemAsync(MediaItem item, Window owner)
+    {
 
         var appName = EpicMediaItemStateHelper.TryGetGameId(item);
         if (string.IsNullOrWhiteSpace(appName))

@@ -74,6 +74,19 @@ public sealed class EpicMediaItemStateHelperTests
         Assert.True(EpicMediaItemStateHelper.ShouldOfferInstall(item));
     }
 
+    [Theory]
+    [InlineData("1.2.3", "1.2.3")]
+    [InlineData("  build 42  ", "build 42")]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    public void TryGetInstalledVersion_ReturnsOnlyKnownVersion(string storedVersion, string? expected)
+    {
+        var item = CreateEpicItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstalledVersion] = storedVersion;
+
+        Assert.Equal(expected, EpicMediaItemStateHelper.TryGetInstalledVersion(item));
+    }
+
     private static MediaItem CreateEpicItem() => new("Epic game")
     {
         CustomFields = new Dictionary<string, string>(StringComparer.Ordinal)
