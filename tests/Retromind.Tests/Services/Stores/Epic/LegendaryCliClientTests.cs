@@ -410,6 +410,26 @@ public sealed class LegendaryCliClientTests
     }
 
     [Fact]
+    public async Task InstallAsync_UsesLegendaryRepairWithoutImplicitUpdate()
+    {
+        using var temp = new TempDirectory();
+        var installPath = Path.Combine(temp.RootPath, "Example Game");
+        var installedJson = CreateInstalledGameJson(installPath);
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, installedJson, string.Empty),
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, installedJson, string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        await client.InstallAsync("ExampleGame", installPath, repair: true);
+
+        var repairCommand = runner.Commands[1];
+        Assert.Equal("game repair", repairCommand.Operation);
+        Assert.Contains("--repair", repairCommand.Arguments);
+        Assert.DoesNotContain("--repair-and-update", repairCommand.Arguments);
+    }
+
+    [Fact]
     public async Task InstallAsync_RemovesMissingRegistrationBeforeInstallingAtNewPath()
     {
         using var temp = new TempDirectory();

@@ -414,6 +414,14 @@ Installed version: {0}</value></data>
     <data name="Epic.Update.Cancelled" xml:space="preserve"><value>Update cancelled by user.</value></data>
     <data name="Epic.Update.ResumeHint" xml:space="preserve"><value>Legendary can reuse already downloaded update data when the update is started again.</value></data>
     <data name="Epic.Update.FailedFormat" xml:space="preserve"><value>Update failed: {0}</value></data>
+    <data name="Epic.Repair.ContextMenu" xml:space="preserve"><value>Repair installation</value></data>
+    <data name="Epic.Repair.ProgressTitleFormat" xml:space="preserve"><value>Repair Epic installation - {0}</value></data>
+    <data name="Epic.Repair.Starting" xml:space="preserve"><value>Checking the Epic Games installation and restoring missing or damaged files with Legendary...</value></data>
+    <data name="Epic.Repair.ExecutableWarning" xml:space="preserve"><value>The repair completed, but Retromind could not refresh the game executable. The existing launch configuration was retained.</value></data>
+    <data name="Epic.Repair.Success" xml:space="preserve"><value>Repair completed.</value></data>
+    <data name="Epic.Repair.Cancelled" xml:space="preserve"><value>Repair cancelled by user.</value></data>
+    <data name="Epic.Repair.ResumeHint" xml:space="preserve"><value>Legendary can reuse already downloaded repair data when the repair is started again.</value></data>
+    <data name="Epic.Repair.FailedFormat" xml:space="preserve"><value>Repair failed: {0}</value></data>
     <data name="Store.Update.BadgeTooltip" xml:space="preserve"><value>Game update available</value></data>
 
     <!-- GOG -->

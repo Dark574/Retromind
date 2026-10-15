@@ -381,7 +381,8 @@ internal sealed partial class LegendaryCliClient
         string appName,
         string installPath,
         Action<string>? outputReceived = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool repair = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(appName);
         ArgumentException.ThrowIfNullOrWhiteSpace(installPath);
@@ -401,22 +402,27 @@ internal sealed partial class LegendaryCliClient
             .ConfigureAwait(false);
 
         Directory.CreateDirectory(basePath);
+        var installArguments = new List<string>
+        {
+            "--yes",
+            "install",
+            normalizedAppName,
+            "--base-path",
+            basePath,
+            "--game-folder",
+            gameFolder,
+            "--platform",
+            "Windows",
+            "--skip-sdl",
+            "--skip-dlcs"
+        };
+        if (repair)
+            installArguments.Add("--repair");
+
         await ExecuteAsync(
                 new LegendaryCliCommand(
-                    "game installation",
-                    [
-                        "--yes",
-                        "install",
-                        normalizedAppName,
-                        "--base-path",
-                        basePath,
-                        "--game-folder",
-                        gameFolder,
-                        "--platform",
-                        "Windows",
-                        "--skip-sdl",
-                        "--skip-dlcs"
-                    ],
+                    repair ? "game repair" : "game installation",
+                    installArguments,
                     Timeout.InfiniteTimeSpan,
                     outputReceived),
                 ct)

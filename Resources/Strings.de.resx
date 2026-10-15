@@ -415,6 +415,14 @@ Installierte Version: {0}</value></data>
     <data name="Epic.Update.Cancelled" xml:space="preserve"><value>Update durch den Benutzer abgebrochen.</value></data>
     <data name="Epic.Update.ResumeHint" xml:space="preserve"><value>Legendary kann bereits heruntergeladene Update-Daten beim nächsten Versuch wiederverwenden.</value></data>
     <data name="Epic.Update.FailedFormat" xml:space="preserve"><value>Update fehlgeschlagen: {0}</value></data>
+    <data name="Epic.Repair.ContextMenu" xml:space="preserve"><value>Installation reparieren</value></data>
+    <data name="Epic.Repair.ProgressTitleFormat" xml:space="preserve"><value>Epic-Installation reparieren – {0}</value></data>
+    <data name="Epic.Repair.Starting" xml:space="preserve"><value>Die Epic-Games-Installation wird geprüft und fehlende oder beschädigte Dateien werden mit Legendary wiederhergestellt...</value></data>
+    <data name="Epic.Repair.ExecutableWarning" xml:space="preserve"><value>Die Reparatur wurde abgeschlossen, aber Retromind konnte die ausführbare Spieldatei nicht aktualisieren. Die vorhandene Startkonfiguration wurde beibehalten.</value></data>
+    <data name="Epic.Repair.Success" xml:space="preserve"><value>Reparatur abgeschlossen.</value></data>
+    <data name="Epic.Repair.Cancelled" xml:space="preserve"><value>Reparatur durch den Benutzer abgebrochen.</value></data>
+    <data name="Epic.Repair.ResumeHint" xml:space="preserve"><value>Legendary kann bereits heruntergeladene Reparaturdaten beim nächsten Versuch wiederverwenden.</value></data>
+    <data name="Epic.Repair.FailedFormat" xml:space="preserve"><value>Reparatur fehlgeschlagen: {0}</value></data>
     <data name="Store.Update.BadgeTooltip" xml:space="preserve"><value>Spiel-Update verfügbar</value></data>
 
     <!-- GOG -->

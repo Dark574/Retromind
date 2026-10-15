@@ -258,7 +258,8 @@ public sealed class EpicInstallService
         MediaItem item,
         string installPath,
         Action<string>? outputReceived,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool repair = false)
     {
         ArgumentNullException.ThrowIfNull(item);
         var appName = EpicMediaItemStateHelper.TryGetGameId(item);
@@ -273,7 +274,7 @@ public sealed class EpicInstallService
         }
 
         var installed = await _client
-            .InstallAsync(appName, assessment.FullPath, outputReceived, ct)
+            .InstallAsync(appName, assessment.FullPath, outputReceived, ct, repair)
             .ConfigureAwait(false);
         return installed;
     }

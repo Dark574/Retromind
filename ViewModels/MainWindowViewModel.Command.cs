@@ -59,6 +59,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> UninstallGogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> CheckEpicUpdatesCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> UpdateEpicCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> RepairEpicCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenSetupSettingsCommand { get; private set; } = null!;
@@ -101,6 +102,7 @@ public partial class MainWindowViewModel
     public string GogUninstallMenuText => T("Gog.Uninstall.ContextMenu", "Uninstall");
     public string EpicCheckUpdatesMenuText => T("Epic.Update.CheckNow", "Check for Epic Games updates");
     public string EpicUpdateMenuText => T("Button_Update", "Update");
+    public string EpicRepairMenuText => T("Epic.Repair.ContextMenu", "Repair installation");
 
     private void InitializeCommands()
     {
@@ -130,6 +132,7 @@ public partial class MainWindowViewModel
         UninstallGogCommand = new AsyncRelayCommand<MediaItem?>(UninstallGogMediaAsync, CanUninstallGogMedia);
         CheckEpicUpdatesCommand = new AsyncRelayCommand<MediaItem?>(CheckEpicUpdatesNowAsync, CanCheckEpicUpdates);
         UpdateEpicCommand = new AsyncRelayCommand<MediaItem?>(UpdateEpicMediaAsync, CanUpdateEpicMedia);
+        RepairEpicCommand = new AsyncRelayCommand<MediaItem?>(RepairEpicMediaAsync, CanRepairEpicMedia);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenSetupSettingsCommand = new AsyncRelayCommand(OpenSetupSettingsAsync);
@@ -345,6 +348,7 @@ public partial class MainWindowViewModel
         UninstallGogCommand.NotifyCanExecuteChanged();
         CheckEpicUpdatesCommand.NotifyCanExecuteChanged();
         UpdateEpicCommand.NotifyCanExecuteChanged();
+        RepairEpicCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanPlaySelectedMedia));
         OnPropertyChanged(nameof(PlaySelectedMediaButtonText));
     }

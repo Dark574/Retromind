@@ -13,6 +13,12 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
+    private enum EpicMaintenanceOperation
+    {
+        Update,
+        Repair
+    }
+
     private bool CanCheckEpicUpdates(MediaItem? item) =>
         !IsLaunchInProgress &&
         EpicMediaItemStateHelper.CanCheckUpdates(item) &&
@@ -20,6 +26,9 @@ public partial class MainWindowViewModel
 
     private bool CanUpdateEpicMedia(MediaItem? item) =>
         !IsLaunchInProgress && EpicMediaItemStateHelper.HasUpdateAvailable(item);
+
+    private bool CanRepairEpicMedia(MediaItem? item) =>
+        !IsLaunchInProgress && EpicMediaItemStateHelper.IsRetromindManagedInstallation(item);
 
     private async Task CheckEpicUpdatesNowAsync(MediaItem? item)
     {
@@ -97,8 +106,37 @@ public partial class MainWindowViewModel
 
     private async Task<bool> UpdateEpicItemAsync(MediaItem item)
     {
+        return await MaintainEpicItemAsync(item, EpicMaintenanceOperation.Update);
+    }
+
+    private async Task RepairEpicMediaAsync(MediaItem? item)
+    {
+        if (!CanRepairEpicMedia(item) || item == null)
+            return;
+
+        IsLaunchInProgress = true;
+        try
+        {
+            await MaintainEpicItemAsync(item, EpicMaintenanceOperation.Repair);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Epic] Repair failed: {ex.Message}");
+        }
+        finally
+        {
+            IsLaunchInProgress = false;
+        }
+    }
+
+    private async Task<bool> MaintainEpicItemAsync(
+        MediaItem item,
+        EpicMaintenanceOperation operation)
+    {
         if (CurrentWindow is not { } owner)
             return false;
+
+        var isRepair = operation == EpicMaintenanceOperation.Repair;
 
         var appName = EpicMediaItemStateHelper.TryGetGameId(item);
         if (string.IsNullOrWhiteSpace(appName) ||
@@ -120,7 +158,9 @@ public partial class MainWindowViewModel
 
         var progressTitle = string.Format(
             CultureInfo.CurrentCulture,
-            T("Epic.Update.ProgressTitleFormat", "Epic update - {0}"),
+            isRepair
+                ? T("Epic.Repair.ProgressTitleFormat", "Repair Epic installation - {0}")
+                : T("Epic.Update.ProgressTitleFormat", "Epic update - {0}"),
             string.IsNullOrWhiteSpace(item.Title) ? "Epic Games" : item.Title);
         var progressVm = new ProcessLogViewModel(progressTitle, newestFirst: true);
         var progressView = new ProcessLogView { DataContext = progressVm };
@@ -131,51 +171,72 @@ public partial class MainWindowViewModel
         {
             AppendProcessLog(
                 progressVm,
-                T("Epic.Update.Starting", "Checking and applying the Epic Games update with Legendary..."));
+                isRepair
+                    ? T("Epic.Repair.Starting", "Checking the Epic Games installation and restoring missing or damaged files with Legendary...")
+                    : T("Epic.Update.Starting", "Checking and applying the Epic Games update with Legendary..."));
             var installed = await _epicInstallService.InstallAsync(
                 item,
                 directoryAssessment.FullPath,
                 line => AppendProcessLog(progressVm, line),
-                progressVm.Token);
+                progressVm.Token,
+                repair: isRepair);
 
             if (!ApplyEpicExecutablePath(item, installed))
             {
                 AppendProcessLog(
                     progressVm,
-                    T(
-                        "Epic.Update.ExecutableWarning",
-                        "The update completed, but Retromind could not refresh the game executable. The existing launch configuration was retained."));
+                    isRepair
+                        ? T(
+                            "Epic.Repair.ExecutableWarning",
+                            "The repair completed, but Retromind could not refresh the game executable. The existing launch configuration was retained.")
+                        : T(
+                            "Epic.Update.ExecutableWarning",
+                            "The update completed, but Retromind could not refresh the game executable. The existing launch configuration was retained."));
             }
 
             item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = StoreInstallPathHelper.ToStoredPath(
                 installed.InstallPath,
                 _currentSettings.PreferPortableLaunchPaths);
             item.CustomFields[CustomFieldKeyHelper.StoreInstalledVersion] = installed.Version;
-            item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] = "false";
+            if (!isRepair)
+                item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] = "false";
             _libraryTracker.MarkDirty();
             NotifyPlayAvailabilityChanged();
             await SaveData();
-            AppendProcessLog(progressVm, T("Epic.Update.Success", "Update completed."));
+            AppendProcessLog(
+                progressVm,
+                isRepair
+                    ? T("Epic.Repair.Success", "Repair completed.")
+                    : T("Epic.Update.Success", "Update completed."));
             return true;
         }
         catch (OperationCanceledException)
         {
-            progressVm.MarkCancelled(T("Epic.Update.Cancelled", "Update cancelled by user."));
+            progressVm.MarkCancelled(
+                isRepair
+                    ? T("Epic.Repair.Cancelled", "Repair cancelled by user.")
+                    : T("Epic.Update.Cancelled", "Update cancelled by user."));
             AppendProcessLog(
                 progressVm,
-                T(
-                    "Epic.Update.ResumeHint",
-                    "Legendary can reuse already downloaded update data when the update is started again."));
+                isRepair
+                    ? T(
+                        "Epic.Repair.ResumeHint",
+                        "Legendary can reuse already downloaded repair data when the repair is started again.")
+                    : T(
+                        "Epic.Update.ResumeHint",
+                        "Legendary can reuse already downloaded update data when the update is started again."));
             return false;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Epic] Update failed: {ex.Message}");
+            Debug.WriteLine($"[Epic] {(isRepair ? "Repair" : "Update")} failed: {ex.Message}");
             AppendProcessLog(
                 progressVm,
                 string.Format(
                     CultureInfo.CurrentCulture,
-                    T("Epic.Update.FailedFormat", "Update failed: {0}"),
+                    isRepair
+                        ? T("Epic.Repair.FailedFormat", "Repair failed: {0}")
+                        : T("Epic.Update.FailedFormat", "Update failed: {0}"),
                     BuildShortErrorDetail(ex)));
             return false;
         }
