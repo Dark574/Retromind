@@ -28,6 +28,24 @@
         <helpers:FileExtensionToGlyphConverter x:Key="FileExtensionToGlyphConverter" />
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <!-- Fade a fallback title in with its logo, but remove it quickly before
+             a newly selected item's own logo starts appearing. -->
+        <Style Selector="TextBlock.fallback-title">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity"
+                                      Delay="0:0:0.22"
+                                      Duration="0:0:0.6" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="TextBlock.fallback-title.has-item-logo">
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+    </UserControl.Styles>
+
     <ScrollViewer>
         <StackPanel Margin="15" Spacing="15">
 
@@ -37,24 +55,27 @@
                     <StackPanel Spacing="2"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Top">
-                        <!-- Title shown when the item has no logo -->
-                        <TextBlock Text="{Binding Title}"
-                                   FontSize="28" FontWeight="Bold" TextWrapping="Wrap"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   TextAlignment="Center"
-                                   IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
-
-                        <!-- Logo (item logo or fallback) -->
+                        <!-- Keep the item or fallback logo anchored at the top. -->
                         <ext:CrossfadeImage x:CompileBindings="False"
                                Url="{Binding $parent[Window].DataContext.ResolvedSelectedItemLogoPath}"
                                DecodeWidth="400"
                                DisableCache="True"
                                LoadDelayMs="220"
                                Stretch="Uniform"
-                               FadeDurationMs="1600"
+                               FadeDurationMs="600"
                                MaxHeight="150"
                                HorizontalAlignment="Center"
                                IsVisible="{Binding $parent[Window].DataContext.ResolvedSelectedItemLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                        <!-- For fallback logos, show the item title below the stable logo position. -->
+                        <TextBlock Text="{Binding Title}"
+                                   Classes="fallback-title"
+                                   Classes.has-item-logo="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                   FontSize="28" FontWeight="Bold" TextWrapping="Wrap"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   TextAlignment="Center"
+                                   IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                   IsHitTestVisible="False" />
                     </StackPanel>
                 </Grid>
 
