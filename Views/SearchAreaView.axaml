@@ -368,6 +368,12 @@
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaCommand}"
                                                       CommandParameter="{Binding .}" />
+                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreInstallMenuVisible}}" />
+                                            <MenuItem Header="{x:Static p:Strings.Button_Install}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).InstallStoreItemCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreInstallMenuVisible}}" />
+                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreInstallMenuVisible}}" />
                                             <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogCheckUpdatesMenuText}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CheckGogUpdatesCommand}"

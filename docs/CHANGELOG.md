@@ -21,6 +21,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - automatically track imported Steam game sessions for playtime and achievement updates without requiring a manually configured process name
 
 ### Changed
+- install uninstalled GOG and Epic games directly from their item context menus
 - remove the obsolete Heroic/Epic path settings; Epic libraries are now imported directly through Legendary while existing Heroic launch entries remain usable
 - include readable game titles in the prefix folder names of newly installed Epic Games titles
 - check installed Epic Games titles for updates and apply available updates directly through Legendary

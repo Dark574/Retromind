@@ -103,6 +103,16 @@ public static class ObjectConverters
         });
 
     /// <summary>
+    /// Returns true for linked GOG or Epic items that still require installation.
+    /// </summary>
+    public static readonly IValueConverter StoreInstallMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+        {
+            return GogMediaItemStateHelper.ShouldOfferInstall(item) ||
+                   EpicMediaItemStateHelper.ShouldOfferInstall(item);
+        });
+
+    /// <summary>
     /// Returns true when store badges are enabled and the media item can be
     /// associated with one of the supported stores.
     /// Bindings order: current media item, global show-store-badges setting.

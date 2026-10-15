@@ -53,6 +53,7 @@ public partial class MainWindowViewModel
     
     // PlayCommand is special, it fires and forgets mostly, but async is better for UI responsiveness
     public IAsyncRelayCommand<MediaItem?> PlayCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> InstallStoreItemCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> CheckGogUpdatesCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> ReinstallGogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> UpdateGogCommand { get; private set; } = null!;
@@ -128,6 +129,7 @@ public partial class MainWindowViewModel
         ToggleParentalLockCommand = new AsyncRelayCommand(ToggleParentalLockAsync);
         ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
         PlayCommand = new AsyncRelayCommand<MediaItem?>(item => PlayMediaAsync(item), CanPlayMedia);
+        InstallStoreItemCommand = new AsyncRelayCommand<MediaItem?>(InstallStoreMediaAsync, CanInstallStoreMedia);
         CheckGogUpdatesCommand = new AsyncRelayCommand<MediaItem?>(CheckGogUpdatesNowAsync, CanCheckGogUpdatesForItem);
         ReinstallGogCommand = new AsyncRelayCommand<MediaItem?>(ReinstallGogMediaAsync, CanReinstallGogMedia);
         UpdateGogCommand = new AsyncRelayCommand<MediaItem?>(UpdateGogMediaAsync, CanUpdateGogMedia);
@@ -344,6 +346,7 @@ public partial class MainWindowViewModel
     private void NotifyPlayAvailabilityChanged()
     {
         PlayCommand.NotifyCanExecuteChanged();
+        InstallStoreItemCommand.NotifyCanExecuteChanged();
         TestPlayMediaCommand.NotifyCanExecuteChanged();
         CheckGogUpdatesCommand.NotifyCanExecuteChanged();
         ReinstallGogCommand.NotifyCanExecuteChanged();
@@ -374,6 +377,11 @@ public partial class MainWindowViewModel
         var primaryLaunchPath = item.GetPrimaryLaunchPath();
         return !string.IsNullOrWhiteSpace(primaryLaunchPath);
     }
+
+    private bool CanInstallStoreMedia(MediaItem? item) =>
+        !IsLaunchInProgress &&
+        !IsMultiSelectModeActive &&
+        ShouldOfferInstallForItem(item);
 
     private bool IsMultiSelectModeActive =>
         _currentMediaAreaVm?.IsMultiSelectMode == true ||
@@ -969,6 +977,14 @@ public partial class MainWindowViewModel
 
     private Task TestPlayMediaAsync(MediaItem? item)
         => PlayMediaAsync(item, recordStatistics: false);
+
+    private async Task InstallStoreMediaAsync(MediaItem? item)
+    {
+        if (!CanInstallStoreMedia(item))
+            return;
+
+        await PlayMediaAsync(item);
+    }
 
     private async Task<LaunchResult?> PlayMediaAsync(MediaItem? item, bool recordStatistics = true)
     {
