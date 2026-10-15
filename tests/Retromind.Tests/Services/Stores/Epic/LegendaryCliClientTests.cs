@@ -221,6 +221,114 @@ public sealed class LegendaryCliClientTests
     }
 
     [Fact]
+    public async Task GetDlcCatalogAsync_CombinesOwnedAndInstalledLegendaryData()
+    {
+        const string catalogJson = """
+            [
+              {
+                "app_name": "ExampleGame",
+                "app_title": "Example Game",
+                "asset_infos": {
+                  "Windows": { "build_version": "base-2" }
+                },
+                "dlcs": [
+                  {
+                    "app_name": "DlcInstalled",
+                    "app_title": "Installed DLC",
+                    "asset_infos": {
+                      "Windows": { "build_version": "dlc-2" }
+                    }
+                  },
+                  {
+                    "app_name": "DlcAvailable",
+                    "app_title": "Available DLC",
+                    "asset_infos": {
+                      "Windows": { "build_version": "dlc-1" }
+                    }
+                  }
+                ]
+              }
+            ]
+            """;
+        const string installedJson = """
+            [
+              {
+                "app_name": "ExampleGame",
+                "title": "Example Game",
+                "install_path": "/games/Example",
+                "version": "base-2",
+                "platform": "Windows",
+                "install_size": 4096,
+                "is_dlc": false
+              },
+              {
+                "app_name": "DlcInstalled",
+                "title": "Installed DLC",
+                "install_path": "/games/Example",
+                "version": "dlc-1",
+                "platform": "Windows",
+                "install_size": 2048,
+                "is_dlc": true
+              }
+            ]
+            """;
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, catalogJson, string.Empty),
+            new LegendaryCliResult(0, installedJson, string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var dlcs = await client.GetDlcCatalogAsync("ExampleGame");
+
+        Assert.Collection(
+            dlcs,
+            dlc =>
+            {
+                Assert.Equal("DlcAvailable", dlc.AppName);
+                Assert.Equal("Available DLC", dlc.Title);
+                Assert.Equal("dlc-1", dlc.AvailableVersion);
+                Assert.False(dlc.IsInstalled);
+                Assert.False(dlc.HasUpdateAvailable);
+            },
+            dlc =>
+            {
+                Assert.Equal("DlcInstalled", dlc.AppName);
+                Assert.Equal("Installed DLC", dlc.Title);
+                Assert.Equal("dlc-2", dlc.AvailableVersion);
+                Assert.Equal("dlc-1", dlc.InstalledVersion);
+                Assert.Equal(2048, dlc.InstalledSize);
+                Assert.True(dlc.IsInstalled);
+                Assert.True(dlc.HasUpdateAvailable);
+            });
+        Assert.Collection(
+            runner.Commands,
+            command => Assert.Equal(["list", "--json"], command.Arguments),
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments));
+    }
+
+    [Fact]
+    public async Task GetDlcCatalogAsync_ReturnsEmptyCatalogWhenGameHasNoDlcs()
+    {
+        const string catalogJson = """
+            [
+              {
+                "app_name": "ExampleGame",
+                "app_title": "Example Game",
+                "asset_infos": {},
+                "dlcs": []
+              }
+            ]
+            """;
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, catalogJson, string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var dlcs = await client.GetDlcCatalogAsync("ExampleGame");
+
+        Assert.Empty(dlcs);
+    }
+
+    [Fact]
     public async Task GetInstallEstimateAsync_SumsManifestFileSizes()
     {
         const string json = """

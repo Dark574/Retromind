@@ -26,6 +26,21 @@ internal sealed record LegendaryGame(
     string? Platform,
     string? Version);
 
+internal sealed record LegendaryDlc(
+    string AppName,
+    string Title,
+    string? AvailableVersion,
+    bool IsInstalled,
+    string? InstalledVersion,
+    long InstalledSize)
+{
+    internal bool HasUpdateAvailable =>
+        IsInstalled &&
+        !string.IsNullOrWhiteSpace(InstalledVersion) &&
+        !string.IsNullOrWhiteSpace(AvailableVersion) &&
+        !string.Equals(InstalledVersion, AvailableVersion, StringComparison.Ordinal);
+}
+
 internal sealed record LegendaryInstallEstimate(
     long InstalledBytes,
     int FileCount);
@@ -229,6 +244,98 @@ internal sealed partial class LegendaryCliClient
                 "Legendary returned an invalid response for the 'library load' operation.",
                 ex);
         }
+    }
+
+    internal async Task<IReadOnlyList<LegendaryDlc>> GetDlcCatalogAsync(
+        string baseAppName,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(baseAppName);
+        var normalizedBaseAppName = baseAppName.Trim();
+        var result = await ExecuteAsync(
+                new LegendaryCliCommand(
+                    "DLC catalog load",
+                    ["list", "--json"],
+                    LibraryTimeout),
+                ct)
+            .ConfigureAwait(false);
+
+        List<(string AppName, string Title, string? AvailableVersion)> availableDlcs;
+        try
+        {
+            using var document = JsonDocument.Parse(result.StandardOutput);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+                throw new JsonException("Legendary game list is not an array.");
+
+            JsonElement? baseGame = null;
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.Object &&
+                    string.Equals(
+                        ReadString(element, "app_name")?.Trim(),
+                        normalizedBaseAppName,
+                        StringComparison.Ordinal))
+                {
+                    baseGame = element;
+                    break;
+                }
+            }
+
+            if (!baseGame.HasValue)
+            {
+                throw new LegendaryCliException(
+                    $"Legendary did not return the Epic Games title '{normalizedBaseAppName}' while loading its DLC catalog.");
+            }
+
+            if (!baseGame.Value.TryGetProperty("dlcs", out var dlcsElement))
+                return Array.Empty<LegendaryDlc>();
+            if (dlcsElement.ValueKind != JsonValueKind.Array)
+                throw new JsonException("Legendary DLC data is not an array.");
+
+            availableDlcs = [];
+            foreach (var dlc in dlcsElement.EnumerateArray())
+            {
+                if (dlc.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                var appName = ReadString(dlc, "app_name")?.Trim();
+                if (string.IsNullOrWhiteSpace(appName))
+                    continue;
+
+                var title = ReadString(dlc, "app_title")?.Trim();
+                if (string.IsNullOrWhiteSpace(title))
+                    title = appName;
+                var (_, version) = ReadPreferredAsset(dlc);
+                availableDlcs.Add((appName, title, version?.Trim()));
+            }
+        }
+        catch (JsonException ex)
+        {
+            throw new LegendaryCliException(
+                "Legendary returned an invalid response for the 'DLC catalog load' operation.",
+                ex);
+        }
+
+        var installedByAppName = (await GetInstalledGamesAsync(ct).ConfigureAwait(false))
+            .Where(static game => game.IsDlc)
+            .GroupBy(static game => game.AppName, StringComparer.Ordinal)
+            .ToDictionary(static group => group.Key, static group => group.Last(), StringComparer.Ordinal);
+
+        return availableDlcs
+            .Select(dlc =>
+            {
+                installedByAppName.TryGetValue(dlc.AppName, out var installed);
+                return new LegendaryDlc(
+                    dlc.AppName,
+                    dlc.Title,
+                    dlc.AvailableVersion,
+                    installed != null,
+                    installed?.Version,
+                    installed?.InstallSize ?? 0);
+            })
+            .OrderBy(static dlc => dlc.Title, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static dlc => dlc.AppName, StringComparer.Ordinal)
+            .ToArray();
     }
 
     internal async Task<LegendaryInstallEstimate> GetInstallEstimateAsync(
