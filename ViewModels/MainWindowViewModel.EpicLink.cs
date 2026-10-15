@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Models.Stores;
+using Retromind.Services.Stores;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -144,26 +144,22 @@ public partial class MainWindowViewModel
         if (!await ShowConfirmDialog(owner, confirmationText))
             return false;
 
-        var previousFields = item.CustomFields;
-        var previousGogDlcInstallations = item.GogDlcInstallations;
-        item.CustomFields = BuildChangedStoreFields(
-            previousFields,
+        var updatedFields = StoreLinkChangeService.BuildChangedFields(
+            item.CustomFields,
             StoreProviderIds.Epic,
             selectedGame.StoreGameId);
-        item.GogDlcInstallations = null;
 
         try
         {
-            _libraryTracker.MarkDirty();
-            if (!await SaveData())
-                throw new IOException("The linked Epic Games identity could not be saved.");
+            await StoreLinkChangeService.ApplyAndSaveAsync(
+                item,
+                updatedFields,
+                SaveData,
+                _libraryTracker.MarkDirty,
+                "The linked Epic Games identity could not be saved.");
         }
         catch (Exception ex)
         {
-            item.CustomFields = previousFields;
-            item.GogDlcInstallations = previousGogDlcInstallations;
-            _libraryTracker.MarkDirty();
-
             Debug.WriteLine($"[Epic] Failed to link media item: {ex.Message}");
             await ShowInfoDialog(
                 owner,

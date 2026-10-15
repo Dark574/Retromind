@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Models.Stores;
+using Retromind.Services.Stores;
 using Retromind.Services.Stores.Gog;
 using Retromind.Views;
 
@@ -165,10 +166,8 @@ public partial class MainWindowViewModel
                 return false;
         }
 
-        var previousFields = item.CustomFields;
-        var previousGogDlcInstallations = item.GogDlcInstallations;
-        var updatedFields = BuildChangedStoreFields(
-            previousFields,
+        var updatedFields = StoreLinkChangeService.BuildChangedFields(
+            item.CustomFields,
             GogProviderId,
             selectedGame.StoreGameId);
 
@@ -179,35 +178,35 @@ public partial class MainWindowViewModel
                 _currentSettings.PreferPortableLaunchPaths);
         }
 
-        item.CustomFields = updatedFields;
-        item.GogDlcInstallations = null;
-        var inferredPlatform = GogLaunchConfigurationHelper.InferLegacyInstallPlatform(item);
-        if (inferredPlatform.HasValue)
-        {
-            updatedFields[CustomFieldKeyHelper.StoreInstallPlatform] = inferredPlatform.Value == GogInstallPlatform.Windows
-                ? "windows"
-                : "linux";
-        }
-
         var markerWritten = false;
         try
         {
-            if (legacyInstallRoot != null)
-            {
-                GogInstallDirectorySafety.WriteMarker(legacyInstallRoot, item);
-                markerWritten = true;
-            }
+            await StoreLinkChangeService.ApplyAndSaveAsync(
+                item,
+                updatedFields,
+                SaveData,
+                _libraryTracker.MarkDirty,
+                "The linked GOG identity could not be saved.",
+                beforeSave: () =>
+                {
+                    var inferredPlatform = GogLaunchConfigurationHelper.InferLegacyInstallPlatform(item);
+                    if (inferredPlatform.HasValue)
+                    {
+                        updatedFields[CustomFieldKeyHelper.StoreInstallPlatform] =
+                            inferredPlatform.Value == GogInstallPlatform.Windows
+                                ? "windows"
+                                : "linux";
+                    }
 
-            _libraryTracker.MarkDirty();
-            if (!await SaveData())
-                throw new IOException("The linked GOG identity could not be saved.");
+                    if (legacyInstallRoot == null)
+                        return;
+
+                    GogInstallDirectorySafety.WriteMarker(legacyInstallRoot, item);
+                    markerWritten = true;
+                });
         }
         catch (Exception ex)
         {
-            item.CustomFields = previousFields;
-            item.GogDlcInstallations = previousGogDlcInstallations;
-            _libraryTracker.MarkDirty();
-
             if (markerWritten && legacyInstallRoot != null)
             {
                 try
@@ -253,28 +252,11 @@ public partial class MainWindowViewModel
         string targetDisplayName,
         Window owner)
     {
+        var blockReason = StoreLinkChangeService.GetBlockReason(item, targetProviderId);
+        if (blockReason != StoreLinkChangeBlockReason.ManagedInstallation)
+            return blockReason == StoreLinkChangeBlockReason.None;
+
         var currentProviderId = StoreProviderBadgeHelper.GetProviderId(item);
-        if (currentProviderId != null &&
-            !string.Equals(currentProviderId, StoreProviderIds.Gog, StringComparison.Ordinal) &&
-            !string.Equals(currentProviderId, StoreProviderIds.Epic, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (string.Equals(currentProviderId, targetProviderId, StringComparison.Ordinal) &&
-            StoreGameIdentityHelper.HasStoredIdentity(item))
-        {
-            return false;
-        }
-
-        // The owned install path is the decisive safety boundary even if an
-        // incomplete legacy entry happens to be missing its store game ID.
-        var hasManagedInstallation =
-            item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var installPath) &&
-            !string.IsNullOrWhiteSpace(installPath);
-        if (!hasManagedInstallation)
-            return true;
-
         await ShowInfoDialog(
             owner,
             string.Format(
@@ -284,19 +266,6 @@ public partial class MainWindowViewModel
                 StoreProviderBadgeHelper.GetToolTip(currentProviderId) ?? currentProviderId,
                 targetDisplayName));
         return false;
-    }
-
-    private static Dictionary<string, string> BuildChangedStoreFields(
-        IReadOnlyDictionary<string, string> previousFields,
-        string providerId,
-        string gameId)
-    {
-        var updatedFields = previousFields
-            .Where(entry => !CustomFieldKeyHelper.IsInternal(entry.Key))
-            .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
-        updatedFields[CustomFieldKeyHelper.StoreProviderId] = providerId;
-        updatedFields[CustomFieldKeyHelper.StoreGameId] = gameId;
-        return updatedFields;
     }
 
     private Dictionary<string, int> BuildStoreUsageCountExcludingItem(
