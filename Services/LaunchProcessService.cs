@@ -71,8 +71,8 @@ public sealed class LaunchProcessService
         }
         catch (Exception ex)
         {
-            var command = BuildCommandDisplay(startInfo);
-            var details = new StringBuilder(ex.Message)
+            var command = LaunchSecretRedactor.RedactArguments(BuildCommandDisplay(startInfo));
+            var details = new StringBuilder(LaunchSecretRedactor.RedactArguments(ex.Message))
                 .AppendLine()
                 .Append("Command: ")
                 .Append(command);

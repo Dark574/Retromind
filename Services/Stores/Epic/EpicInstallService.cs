@@ -255,13 +255,25 @@ public sealed class EpicInstallService
     }
 
     internal async Task<LegendaryInstalledGame> InstallAsync(
-        string appName,
+        MediaItem item,
         string installPath,
         Action<string>? outputReceived,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(item);
+        var appName = EpicMediaItemStateHelper.TryGetGameId(item);
+        if (string.IsNullOrWhiteSpace(appName))
+            throw new InvalidOperationException("The media item has no Epic Games identity.");
+
+        var assessment = AssessDirectory(installPath, item);
+        if (assessment.Status != EpicInstallDirectoryStatus.OwnedDirectory)
+        {
+            throw new InvalidOperationException(
+                $"Retromind cannot safely install into the Epic Games directory '{assessment.FullPath}'.");
+        }
+
         var installed = await _client
-            .InstallAsync(appName, installPath, outputReceived, ct)
+            .InstallAsync(appName, assessment.FullPath, outputReceived, ct)
             .ConfigureAwait(false);
         return installed;
     }
@@ -274,11 +286,24 @@ public sealed class EpicInstallService
             throw new InvalidOperationException("The media item has no Epic Games identity.");
         }
 
-        var fullPath = Path.GetFullPath(installPath);
-        Directory.CreateDirectory(fullPath);
+        var assessment = AssessDirectory(installPath, item);
+        if (!assessment.IsAllowed)
+        {
+            throw new InvalidOperationException(
+                $"Retromind cannot safely claim the Epic Games install directory '{assessment.FullPath}'.");
+        }
+
+        Directory.CreateDirectory(assessment.FullPath);
+        assessment = AssessDirectory(assessment.FullPath, item);
+        if (!assessment.IsAllowed)
+        {
+            throw new InvalidOperationException(
+                $"The Epic Games install directory changed while Retromind was preparing it: '{assessment.FullPath}'.");
+        }
+
         var marker = new InstallMarker(StoreProviderIds.Epic, gameId, item.Id);
         File.WriteAllText(
-            Path.Combine(fullPath, MarkerFileName),
+            Path.Combine(assessment.FullPath, MarkerFileName),
             JsonSerializer.Serialize(marker, new JsonSerializerOptions { WriteIndented = true }),
             Encoding.UTF8);
     }

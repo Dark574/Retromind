@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Retromind.Models;
 using Retromind.Models.Stores;
+using Retromind.Services.Stores;
 
 namespace Retromind.Helpers;
 
@@ -19,15 +20,17 @@ internal static class EpicMediaItemStateHelper
         return gameId;
     }
 
-    internal static bool IsInstalled(MediaItem? item) =>
+    internal static bool IsLaunchReady(MediaItem? item) =>
         TryGetGameId(item) != null && HasPlayableLaunchConfiguration(item!);
 
     internal static bool ShouldOfferInstall(MediaItem? item) =>
-        TryGetGameId(item) != null && !HasPlayableLaunchConfiguration(item!);
+        TryGetGameId(item) != null &&
+        !IsRetromindManagedInstallation(item) &&
+        !HasPlayableLaunchConfiguration(item!);
 
     internal static bool IsRetromindManagedInstallation(MediaItem? item) =>
-        IsInstalled(item) &&
-        HasRetromindManagedInstallMetadata(item);
+        TryResolveManagedInstallPath(item, out var installPath) &&
+        Directory.Exists(installPath);
 
     internal static bool HasRetromindManagedInstallMetadata(MediaItem? item) =>
         TryGetGameId(item) != null &&
@@ -71,6 +74,14 @@ internal static class EpicMediaItemStateHelper
 
         var resolvedLauncher = EnvironmentPathHelper.ResolveExecutablePathForExistenceCheck(launcherPath);
         return string.IsNullOrWhiteSpace(resolvedLauncher) || File.Exists(resolvedLauncher);
+    }
+
+    private static bool TryResolveManagedInstallPath(MediaItem? item, out string installPath)
+    {
+        installPath = string.Empty;
+        return HasRetromindManagedInstallMetadata(item) &&
+               item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var storedPath) &&
+               StoreInstallPathHelper.TryResolveStoredPath(storedPath, out installPath);
     }
 
     private static bool IsTruthyCustomField(string? raw)

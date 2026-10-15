@@ -524,8 +524,9 @@ public sealed class LauncherService
             LinuxFileSystemHelper.EnsureExecutableBitBestEffort(launchFilePath);
         }
 
-        // DEBUG: log the exact command-line we are about to run
-        Debug.WriteLine($"[Launcher] START: {startInfo.FileName} {startInfo.Arguments}");
+        var diagnosticCommand = LaunchSecretRedactor.RedactArguments(
+            LaunchProcessService.BuildCommandDisplay(startInfo));
+        Debug.WriteLine($"[Launcher] START: {diagnosticCommand}");
         launchLog.CaptureProcessStart(startInfo, launchFilePath, environmentOverrides);
 
         return _launchProcessService.Start(startInfo);

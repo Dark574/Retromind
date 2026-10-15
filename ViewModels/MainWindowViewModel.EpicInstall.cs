@@ -63,7 +63,7 @@ public partial class MainWindowViewModel
         }
     }
 
-    private static Dictionary<string, string>? MergeEpicLaunchEnvironment(
+    internal static Dictionary<string, string>? MergeEpicLaunchEnvironment(
         IReadOnlyDictionary<string, string>? effectiveEnvironment,
         IReadOnlyDictionary<string, string> epicEnvironment)
     {
@@ -71,14 +71,17 @@ public partial class MainWindowViewModel
             return null;
 
         var merged = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var entry in epicEnvironment)
+            merged[entry.Key] = entry.Value;
+
+        // Explicit Retromind settings are the user's final override. Legendary's
+        // required launch credentials are supplied as arguments, not environment values.
         if (effectiveEnvironment != null)
         {
             foreach (var entry in effectiveEnvironment)
                 merged[entry.Key] = entry.Value;
         }
 
-        foreach (var entry in epicEnvironment)
-            merged[entry.Key] = entry.Value;
         return merged;
     }
 
@@ -192,7 +195,7 @@ public partial class MainWindowViewModel
                 progressVm,
                 T("Epic.Install.Starting", "Preparing Legendary download and installation..."));
             var installed = await _epicInstallService.InstallAsync(
-                appName,
+                item,
                 directoryAssessment.FullPath,
                 line => AppendProcessLog(progressVm, line),
                 progressVm.Token);

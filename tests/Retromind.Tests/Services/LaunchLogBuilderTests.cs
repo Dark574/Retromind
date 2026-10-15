@@ -70,4 +70,29 @@ public sealed class LaunchLogBuilderTests
         Assert.Contains("-AUTH_PASSWORD=<redacted>", log);
         Assert.DoesNotContain("secret-exchange-code", log);
     }
+
+    [Fact]
+    public void Build_RedactsSensitiveArgumentsFromErrorsAndConsoleOutput()
+    {
+        const string errorSecret = "error-exchange-code";
+        const string outputSecret = "output-exchange-code";
+        var item = new MediaItem("Epic launch") { MediaType = MediaType.Emulator };
+        var builder = new LaunchLogBuilder(
+            item,
+            emulator: null,
+            new AppSettings(),
+            wrappers: null,
+            recordsStatistics: true);
+
+        var log = builder.Build(
+            "Failed",
+            TimeSpan.Zero,
+            errorMessage: $"Command failed: -AUTH_PASSWORD={errorSecret}",
+            consoleOutput: $"Arguments: --auth-password {outputSecret}");
+
+        Assert.Contains("-AUTH_PASSWORD=<redacted>", log);
+        Assert.Contains("--auth-password <redacted>", log);
+        Assert.DoesNotContain(errorSecret, log);
+        Assert.DoesNotContain(outputSecret, log);
+    }
 }

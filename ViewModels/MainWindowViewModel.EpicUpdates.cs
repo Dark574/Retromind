@@ -133,7 +133,7 @@ public partial class MainWindowViewModel
                 progressVm,
                 T("Epic.Update.Starting", "Checking and applying the Epic Games update with Legendary..."));
             var installed = await _epicInstallService.InstallAsync(
-                appName,
+                item,
                 directoryAssessment.FullPath,
                 line => AppendProcessLog(progressVm, line),
                 progressVm.Token);

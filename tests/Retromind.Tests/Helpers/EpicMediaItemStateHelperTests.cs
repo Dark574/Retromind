@@ -22,13 +22,13 @@ public sealed class EpicMediaItemStateHelperTests
     }
 
     [Fact]
-    public void ImportedOwnedGame_OffersInstallUntilExecutableIsConfigured()
+    public void ImportedGame_OffersInstallUntilItHasAPlayableManualConfiguration()
     {
         using var temp = new TemporaryDirectory();
         var item = CreateEpicItem();
 
         Assert.True(EpicMediaItemStateHelper.ShouldOfferInstall(item));
-        Assert.False(EpicMediaItemStateHelper.IsInstalled(item));
+        Assert.False(EpicMediaItemStateHelper.IsLaunchReady(item));
 
         item.Files =
         [
@@ -40,26 +40,20 @@ public sealed class EpicMediaItemStateHelperTests
         ];
 
         Assert.False(EpicMediaItemStateHelper.ShouldOfferInstall(item));
-        Assert.True(EpicMediaItemStateHelper.IsInstalled(item));
+        Assert.True(EpicMediaItemStateHelper.IsLaunchReady(item));
         Assert.False(EpicMediaItemStateHelper.IsRetromindManagedInstallation(item));
     }
 
     [Fact]
-    public void ManagedInstallation_AlsoRequiresStoredInstallPath()
+    public void ManagedInstallation_RequiresExistingStoredInstallPathButNotExecutable()
     {
         using var temp = new TemporaryDirectory();
         var item = CreateEpicItem();
-        item.Files =
-        [
-            new MediaFileRef
-            {
-                Kind = MediaFileKind.Absolute,
-                Path = temp.CreateFile("Game.exe")
-            }
-        ];
-        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = "Library/Games/Epic/Game";
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = temp.CreateDirectory("Game");
 
         Assert.True(EpicMediaItemStateHelper.IsRetromindManagedInstallation(item));
+        Assert.False(EpicMediaItemStateHelper.IsLaunchReady(item));
+        Assert.False(EpicMediaItemStateHelper.ShouldOfferInstall(item));
         Assert.True(EpicMediaItemStateHelper.CanCheckUpdates(item));
         Assert.False(EpicMediaItemStateHelper.HasUpdateAvailable(item));
 
@@ -72,10 +66,12 @@ public sealed class EpicMediaItemStateHelperTests
     public void ManagedInstallMetadata_RemainsDetectableWhenExecutableIsMissing()
     {
         var item = CreateEpicItem();
-        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = "Library/Games/Epic/Game";
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] =
+            Path.Combine(Path.GetTempPath(), $"retromind-missing-{Guid.NewGuid():N}");
 
         Assert.False(EpicMediaItemStateHelper.IsRetromindManagedInstallation(item));
         Assert.True(EpicMediaItemStateHelper.HasRetromindManagedInstallMetadata(item));
+        Assert.True(EpicMediaItemStateHelper.ShouldOfferInstall(item));
     }
 
     private static MediaItem CreateEpicItem() => new("Epic game")

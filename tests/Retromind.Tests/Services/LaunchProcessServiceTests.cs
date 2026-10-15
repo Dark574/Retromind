@@ -83,6 +83,24 @@ public sealed class LaunchProcessServiceTests
     }
 
     [Fact]
+    public void StartFailure_RedactsSensitiveArguments()
+    {
+        const string exchangeCode = "secret-exchange-code";
+        var service = new LaunchProcessService();
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "/retromind/missing-executable",
+            Arguments = $"game.exe -AUTH_PASSWORD={exchangeCode} -AUTH_TYPE=exchangecode",
+            UseShellExecute = false
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() => service.Start(startInfo));
+
+        Assert.Contains("-AUTH_PASSWORD=<redacted>", exception.Message);
+        Assert.DoesNotContain(exchangeCode, exception.Message);
+    }
+
+    [Fact]
     public async Task SessionStop_RequiresASecondRequestBeforeForceKillingDirectProcess()
     {
         if (!OperatingSystem.IsLinux())

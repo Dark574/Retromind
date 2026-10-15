@@ -4,13 +4,12 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
 using Retromind.Helpers;
 using Retromind.Models;
 
 namespace Retromind.Services;
 
-internal sealed partial class LaunchLogBuilder
+internal sealed class LaunchLogBuilder
 {
     private static readonly string[] DiagnosticEnvironmentKeys =
     [
@@ -101,27 +100,27 @@ internal sealed partial class LaunchLogBuilder
 
         log.AppendLine()
             .AppendLine($"Executable: {ValueOrUnavailable(_executable)}")
-            .AppendLine($"Arguments: {ValueOrUnavailable(RedactKnownSecrets(RedactArguments(_arguments)))}")
+            .AppendLine($"Arguments: {ValueOrUnavailable(RedactSensitiveData(_arguments))}")
             .AppendLine($"Working directory: {ValueOrUnavailable(_workingDirectory)}")
-            .AppendLine($"Game: {ValueOrUnavailable(RedactKnownSecrets(RedactArguments(_gamePath)))}")
+            .AppendLine($"Game: {ValueOrUnavailable(RedactSensitiveData(_gamePath))}")
             .AppendLine($"Runner: {ValueOrUnavailable(_runnerDescription)}")
-            .AppendLine($"Wrappers: {ValueOrUnavailable(RedactKnownSecrets(RedactArguments(_wrapperDescription)))}");
+            .AppendLine($"Wrappers: {ValueOrUnavailable(RedactSensitiveData(_wrapperDescription))}");
 
         if (_environment.Count > 0)
         {
             log.AppendLine().AppendLine("Environment:");
             foreach (var pair in _environment)
             {
-                var value = IsSensitiveName(pair.Key) ? "<redacted>" : SanitizeLine(pair.Value);
+                var value = LaunchSecretRedactor.IsSensitiveName(pair.Key) ? "<redacted>" : SanitizeLine(pair.Value);
                 log.AppendLine($"{pair.Key}={value}");
             }
         }
 
         if (!string.IsNullOrWhiteSpace(errorMessage))
-            log.AppendLine().AppendLine("Error:").AppendLine(RedactKnownSecrets(errorMessage.Trim()));
+            log.AppendLine().AppendLine("Error:").AppendLine(RedactSensitiveData(errorMessage.Trim()));
 
         if (!string.IsNullOrWhiteSpace(consoleOutput))
-            log.AppendLine().AppendLine("Console output:").AppendLine(RedactKnownSecrets(consoleOutput.Trim()));
+            log.AppendLine().AppendLine("Console output:").AppendLine(RedactSensitiveData(consoleOutput.Trim()));
 
         log.AppendLine()
             .AppendLine($"Retromind: {typeof(LauncherService).Assembly.GetName().Version}")
@@ -175,52 +174,8 @@ internal sealed partial class LaunchLogBuilder
         return $"{runner.Name} ({runner.Kind}) - {resolvedPath}";
     }
 
-    private static bool IsSensitiveName(string name)
-    {
-        var normalized = name.Replace("_", string.Empty, StringComparison.Ordinal)
-            .Replace("-", string.Empty, StringComparison.Ordinal)
-            .ToUpperInvariant();
-        return normalized.Contains("PASSWORD", StringComparison.Ordinal) ||
-               normalized.Contains("PASSWD", StringComparison.Ordinal) ||
-               normalized.Contains("TOKEN", StringComparison.Ordinal) ||
-               normalized.Contains("SECRET", StringComparison.Ordinal) ||
-               normalized.Contains("APIKEY", StringComparison.Ordinal) ||
-               normalized.Contains("AUTH", StringComparison.Ordinal) ||
-               normalized.Contains("COOKIE", StringComparison.Ordinal) ||
-               normalized.Contains("CREDENTIAL", StringComparison.Ordinal);
-    }
-
-    private static string? RedactArguments(string? arguments)
-    {
-        if (string.IsNullOrWhiteSpace(arguments))
-            return arguments;
-
-        return SensitiveArgumentRegex().Replace(
-            arguments,
-            match => match.Groups["prefix"].Value + "<redacted>");
-    }
-
-    private string? RedactKnownSecrets(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return value;
-
-        foreach (var secret in _environment
-                     .Where(pair => IsSensitiveName(pair.Key) && !string.IsNullOrEmpty(pair.Value))
-                     .Select(pair => pair.Value)
-                     .Distinct(StringComparer.Ordinal)
-                     .OrderByDescending(secret => secret.Length))
-        {
-            value = value.Replace(secret, "<redacted>", StringComparison.Ordinal);
-        }
-
-        return value;
-    }
-
-    [GeneratedRegex(
-        "(?<prefix>(?:--?|/)?(?:auth[-_]?password|auth[-_]?login|password|passwd|token|secret|api[-_]?key|authorization|cookie|credential)(?:\\s*=\\s*|\\s+))(?:\\\"[^\\\"]*\\\"|'[^']*'|[^\\s&#]+)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex SensitiveArgumentRegex();
+    private string? RedactSensitiveData(string? value) =>
+        LaunchSecretRedactor.Redact(value, _environment);
 
     private static string FormatRuntime(TimeSpan runtime)
     {

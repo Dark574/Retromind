@@ -57,6 +57,40 @@ public sealed class EpicInstallServiceTests
     }
 
     [Fact]
+    public void WriteMarker_RejectsDirectoryThatChangedAfterAssessment()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("changed-game");
+        var service = CreateService();
+        var item = CreateEpicItem();
+        var initialAssessment = service.AssessDirectory(installPath, item);
+        Assert.Equal(EpicInstallDirectoryStatus.EmptyDirectory, initialAssessment.Status);
+
+        File.WriteAllText(Path.Combine(installPath, "foreign-file.txt"), "not managed by Retromind");
+
+        Assert.Throws<InvalidOperationException>(() => service.WriteMarker(installPath, item));
+        Assert.False(File.Exists(Path.Combine(installPath, ".retromind-install.json")));
+    }
+
+    [Fact]
+    public async Task InstallAsync_RechecksDirectoryOwnershipBeforeCallingLegendary()
+    {
+        using var temp = new TemporaryDirectory();
+        var installPath = temp.CreateDirectory("changed-before-install");
+        var runner = new QueueProcessRunner();
+        var service = CreateService(runner);
+        var item = CreateEpicItem();
+        service.WriteMarker(installPath, item);
+        File.Delete(Path.Combine(installPath, ".retromind-install.json"));
+        File.WriteAllText(Path.Combine(installPath, "foreign-file.txt"), "not managed by Retromind");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.InstallAsync(item, installPath, outputReceived: null));
+
+        Assert.Empty(runner.Commands);
+    }
+
+    [Fact]
     public async Task UninstallAsync_RemovesLegendaryRegistrationAndOwnedInstallDirectory()
     {
         using var temp = new TemporaryDirectory();
