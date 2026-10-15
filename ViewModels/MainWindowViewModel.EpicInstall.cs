@@ -387,6 +387,26 @@ public partial class MainWindowViewModel
         EpicInstallDialogViewModel.RunnerOption runner,
         string runnerExecutable)
     {
+        if (!ApplyEpicExecutablePath(item, installed))
+            return false;
+
+        item.LauncherPath = runner.Kind == RunnerVersionKind.Proton
+            ? "umu-run"
+            : PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(runnerExecutable)
+              ?? runnerExecutable;
+        item.LauncherArgs = "{file}";
+        // The item has an explicit launcher, so the normal emulator inheritance path
+        // is intentionally bypassed at launch time. Persist the selected runner here.
+        item.RunnerVersionId = runner.Id;
+        if (string.IsNullOrWhiteSpace(item.PrefixPath))
+            item.PrefixPath = EpicMediaItemStateHelper.BuildDefaultPrefixPath(appName, item.Title);
+        item.MediaType = MediaType.Emulator;
+        item.EmulatorId = null;
+        return true;
+    }
+
+    private bool ApplyEpicExecutablePath(MediaItem item, LegendaryInstalledGame installed)
+    {
         if (string.IsNullOrWhiteSpace(installed.Executable))
             return false;
 
@@ -426,18 +446,6 @@ public partial class MainWindowViewModel
         ];
         item.WorkingDirectory = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(
             Path.GetDirectoryName(executablePath));
-        item.LauncherPath = runner.Kind == RunnerVersionKind.Proton
-            ? "umu-run"
-            : PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(runnerExecutable)
-              ?? runnerExecutable;
-        item.LauncherArgs = "{file}";
-        // The item has an explicit launcher, so the normal emulator inheritance path
-        // is intentionally bypassed at launch time. Persist the selected runner here.
-        item.RunnerVersionId = runner.Id;
-        if (string.IsNullOrWhiteSpace(item.PrefixPath))
-            item.PrefixPath = EpicMediaItemStateHelper.BuildDefaultPrefixPath(appName, item.Title);
-        item.MediaType = MediaType.Emulator;
-        item.EmulatorId = null;
         return true;
     }
 }

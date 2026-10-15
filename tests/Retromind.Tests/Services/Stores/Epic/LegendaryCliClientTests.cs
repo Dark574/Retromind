@@ -272,6 +272,56 @@ public sealed class LegendaryCliClientTests
         Assert.False(game.IsDlc);
     }
 
+    [Theory]
+    [InlineData("1.2.3", true)]
+    [InlineData("1.1.0", false)]
+    public async Task GetUpdateStatusAsync_ComparesInstalledAndRefreshedAvailableVersion(
+        string availableVersion,
+        bool expectedUpdate)
+    {
+        const string installedJson = """
+            [
+              {
+                "app_name": "ExampleGame",
+                "title": "Example Game",
+                "install_path": "/games/Example",
+                "executable": "Example.exe",
+                "version": "1.1.0",
+                "platform": "Windows",
+                "install_size": 4096,
+                "is_dlc": false
+              }
+            ]
+            """;
+        var availableJson = $$"""
+            [
+              {
+                "app_name": "ExampleGame",
+                "app_title": "Example Game",
+                "asset_infos": {
+                  "Windows": { "build_version": {{JsonSerializer.Serialize(availableVersion)}} }
+                }
+              }
+            ]
+            """;
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, installedJson, string.Empty),
+            new LegendaryCliResult(0, availableJson, string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var status = await client.GetUpdateStatusAsync("ExampleGame");
+
+        Assert.Equal("1.1.0", status.InstalledVersion);
+        Assert.Equal(availableVersion, status.AvailableVersion);
+        Assert.Equal(expectedUpdate, status.IsUpdateAvailable);
+        Assert.Collection(
+            runner.Commands,
+            command => Assert.Equal(
+                ["list-installed", "--check-updates", "--json"],
+                command.Arguments),
+            command => Assert.Equal(["list", "--json"], command.Arguments));
+    }
+
     [Fact]
     public async Task InstallAsync_UsesRequestedDirectoryAndVerifiesRegistration()
     {
@@ -292,6 +342,7 @@ public sealed class LegendaryCliClientTests
             ]
             """;
         var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, "[]", string.Empty),
             new LegendaryCliResult(0, string.Empty, string.Empty),
             new LegendaryCliResult(0, installedJson, string.Empty));
         var client = new LegendaryCliClient(runner);
@@ -301,6 +352,7 @@ public sealed class LegendaryCliClientTests
         Assert.Equal("ExampleGame", installed.AppName);
         Assert.Collection(
             runner.Commands,
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments),
             command =>
             {
                 Assert.Equal(Timeout.InfiniteTimeSpan, command.Timeout);
@@ -338,6 +390,7 @@ public sealed class LegendaryCliClientTests
             ]
             """;
         var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, "[]", string.Empty),
             new LegendaryCliResult(0, string.Empty, string.Empty),
             new LegendaryCliResult(0, installedJson, string.Empty));
         var client = new LegendaryCliClient(runner);
@@ -353,7 +406,90 @@ public sealed class LegendaryCliClientTests
                 "--platform", "Windows",
                 "--skip-sdl", "--skip-dlcs"
             ],
-            runner.Commands[0].Arguments);
+            runner.Commands[1].Arguments);
+    }
+
+    [Fact]
+    public async Task InstallAsync_RemovesMissingRegistrationBeforeInstallingAtNewPath()
+    {
+        using var temp = new TempDirectory();
+        var missingOldPath = Path.Combine(temp.RootPath, "Old", "Example Game");
+        var requestedPath = Path.Combine(temp.RootPath, "New", "Example Game");
+        var oldRegistration = CreateInstalledGameJson(missingOldPath);
+        var newRegistration = CreateInstalledGameJson(requestedPath);
+        var log = new List<string>();
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, oldRegistration, string.Empty),
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty),
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, newRegistration, string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var installed = await client.InstallAsync("ExampleGame", requestedPath, log.Add);
+
+        Assert.Equal(requestedPath, installed.InstallPath);
+        Assert.Contains(log, line => line.Contains("stale Legendary registration", StringComparison.Ordinal));
+        Assert.Collection(
+            runner.Commands,
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments),
+            command => Assert.Equal(
+                [
+                    "--yes", "uninstall", "ExampleGame",
+                    "--skip-uninstaller", "--keep-files"
+                ],
+                command.Arguments),
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments),
+            command => Assert.Equal(
+                [
+                    "--yes", "install", "ExampleGame",
+                    "--base-path", Path.Combine(temp.RootPath, "New"),
+                    "--game-folder", "Example Game",
+                    "--platform", "Windows",
+                    "--skip-sdl", "--skip-dlcs"
+                ],
+                command.Arguments),
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments));
+    }
+
+    [Fact]
+    public async Task UninstallAsync_RemovesLegendaryRegistrationAndVerifiesResult()
+    {
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, string.Empty, string.Empty),
+            new LegendaryCliResult(0, "[]", string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        await client.UninstallAsync("ExampleGame", keepFiles: false);
+
+        Assert.Collection(
+            runner.Commands,
+            command =>
+            {
+                Assert.Equal(
+                    ["--yes", "uninstall", "ExampleGame", "--skip-uninstaller"],
+                    command.Arguments);
+                Assert.Equal(Timeout.InfiniteTimeSpan, command.Timeout);
+            },
+            command => Assert.Equal(["list-installed", "--json"], command.Arguments));
+    }
+
+    [Fact]
+    public async Task InstallAsync_DoesNotReplaceRegistrationWhoseDirectoryStillExists()
+    {
+        using var temp = new TempDirectory();
+        var registeredPath = Path.Combine(temp.RootPath, "Existing", "Example Game");
+        var requestedPath = Path.Combine(temp.RootPath, "New", "Example Game");
+        Directory.CreateDirectory(registeredPath);
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, CreateInstalledGameJson(registeredPath), string.Empty));
+        var client = new LegendaryCliClient(runner);
+
+        var exception = await Assert.ThrowsAsync<LegendaryCliException>(
+            () => client.InstallAsync("ExampleGame", requestedPath));
+
+        Assert.Contains("already has this game registered", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(["list-installed", "--json"], Assert.Single(runner.Commands).Arguments);
     }
 
     [Fact]
@@ -361,6 +497,7 @@ public sealed class LegendaryCliClientTests
     {
         using var temp = new TempDirectory();
         var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, "[]", string.Empty),
             new LegendaryCliResult(0, string.Empty, string.Empty),
             new LegendaryCliResult(0, "[]", string.Empty));
         var client = new LegendaryCliClient(runner);
@@ -370,6 +507,21 @@ public sealed class LegendaryCliClientTests
 
         Assert.Contains("without registering", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static string CreateInstalledGameJson(string installPath) => $$"""
+        [
+          {
+            "app_name": "ExampleGame",
+            "title": "Example Game",
+            "install_path": {{JsonSerializer.Serialize(installPath)}},
+            "executable": "Example.exe",
+            "version": "1.2.3",
+            "platform": "Windows",
+            "install_size": 4096,
+            "is_dlc": false
+          }
+        ]
+        """;
 
     [Fact]
     public async Task GetLaunchParametersAsync_PreservesLegendaryArgumentOrderAndEnvironment()

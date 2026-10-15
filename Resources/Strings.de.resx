@@ -220,6 +220,19 @@
     <data name="Dialog.EmptyLibraryHint" xml:space="preserve"><value>Bitte zuerst eine Kategorie anlegen.</value></data>
     <data name="Dialog.LoadMetadata" xml:space="preserve"><value>Metadaten laden...</value></data>
     <data name="Dialog.MsgConfirmDelete" xml:space="preserve"><value>Möchten Sie dies wirklich löschen?</value></data>
+    <data name="Epic.Delete.ManagedConfirmFormat" xml:space="preserve"><value>„{0}“ aus der Bibliothek löschen?
+
+Die von Retromind verwaltete Epic-Games-Installation, ihr Wine-/Proton-Prefix und alle Dateien in diesen Ordnern werden ebenfalls dauerhaft gelöscht. Die Installation wird bei Legendary abgemeldet.
+
+Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
+    <data name="Epic.Delete.ManagedSharedPrefixConfirmFormat" xml:space="preserve"><value>„{0}“ aus der Bibliothek löschen?
+
+Die von Retromind verwaltete Epic-Games-Installation und alle Dateien im Spieleordner werden ebenfalls dauerhaft gelöscht und bei Legendary abgemeldet. Ihr Wine-/Proton-Prefix wird von einem anderen Item verwendet und deshalb beibehalten.
+
+Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
+    <data name="Epic.Delete.UninstallFailedFormat" xml:space="preserve"><value>Die Epic-Games-Installation konnte nicht entfernt werden. Der Bibliothekseintrag wurde deshalb beibehalten:
+
+{0}</value></data>
     <data name="Dialog.ConfirmMoveNodeAssetsFormat" xml:space="preserve"><value>Alle Assets für '{0}' auf den neuen Speicherort verschieben? Das kann einen Moment dauern.</value></data>
     <data name="Dialog.ConfirmMergeNodeAssetsFormat" xml:space="preserve"><value>Ziel-Assets für '{0}' existieren bereits. Zusammenführen und bei Konflikten automatisch umnummerieren?</value></data>
     <data name="MoveMedia.DialogTitle" xml:space="preserve"><value>Medium verschieben</value></data>
@@ -386,6 +399,23 @@ Wähle einen neuen oder leeren Ordner.</value></data>
     <data name="Epic.Install.DirectoryInvalidFormat" xml:space="preserve"><value>Der ausgewählte Installationsordner kann nicht verwendet werden:
 {0}</value></data>
     <data name="Epic.Launch.PreparationFailedFormat" xml:space="preserve"><value>Die Startdaten von Epic Games konnten nicht vorbereitet werden: {0}</value></data>
+    <data name="Epic.Update.CheckNow" xml:space="preserve"><value>Nach Epic-Games-Updates suchen</value></data>
+    <data name="Epic.Update.AvailableFormat" xml:space="preserve"><value>Ein Epic-Games-Update ist verfügbar.
+
+Installiert: {0}
+Verfügbar: {1}</value></data>
+    <data name="Epic.Update.UpToDateFormat" xml:space="preserve"><value>Das Epic-Spiel ist aktuell.
+
+Installierte Version: {0}</value></data>
+    <data name="Epic.Update.CheckFailedFormat" xml:space="preserve"><value>Die Suche nach Epic-Games-Updates ist fehlgeschlagen: {0}</value></data>
+    <data name="Epic.Update.ProgressTitleFormat" xml:space="preserve"><value>Epic-Update – {0}</value></data>
+    <data name="Epic.Update.Starting" xml:space="preserve"><value>Das Epic-Games-Update wird mit Legendary geprüft und installiert...</value></data>
+    <data name="Epic.Update.ExecutableWarning" xml:space="preserve"><value>Das Update wurde abgeschlossen, aber Retromind konnte die ausführbare Spieldatei nicht aktualisieren. Die vorhandene Startkonfiguration wurde beibehalten.</value></data>
+    <data name="Epic.Update.Success" xml:space="preserve"><value>Update abgeschlossen.</value></data>
+    <data name="Epic.Update.Cancelled" xml:space="preserve"><value>Update durch den Benutzer abgebrochen.</value></data>
+    <data name="Epic.Update.ResumeHint" xml:space="preserve"><value>Legendary kann bereits heruntergeladene Update-Daten beim nächsten Versuch wiederverwenden.</value></data>
+    <data name="Epic.Update.FailedFormat" xml:space="preserve"><value>Update fehlgeschlagen: {0}</value></data>
+    <data name="Store.Update.BadgeTooltip" xml:space="preserve"><value>Spiel-Update verfügbar</value></data>
 
     <!-- GOG -->
     <data name="Gog.Dlc.DialogTitle" xml:space="preserve"><value>GOG-DLCs verwalten</value></data>

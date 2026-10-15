@@ -17,7 +17,8 @@ public sealed class EpicProviderTests
         Assert.Equal(
             StoreProviderCapabilities.Authentication |
             StoreProviderCapabilities.OwnedLibrary |
-            StoreProviderCapabilities.Install,
+            StoreProviderCapabilities.Install |
+            StoreProviderCapabilities.Update,
             provider.Capabilities);
     }
 

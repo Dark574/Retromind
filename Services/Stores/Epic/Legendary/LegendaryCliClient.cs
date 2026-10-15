@@ -40,6 +40,11 @@ internal sealed record LegendaryInstalledGame(
     long InstallSize,
     bool IsDlc);
 
+internal sealed record LegendaryUpdateStatus(
+    string InstalledVersion,
+    string AvailableVersion,
+    bool IsUpdateAvailable);
+
 internal sealed record LegendaryLaunchParameters(
     IReadOnlyList<string> Arguments,
     IReadOnlyDictionary<string, string> Environment);
@@ -139,6 +144,44 @@ internal sealed partial class LegendaryCliClient
                     StatusTimeout),
                 ct)
             .ConfigureAwait(false);
+    }
+
+    internal async Task UninstallAsync(
+        string appName,
+        bool keepFiles,
+        Action<string>? outputReceived = null,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(appName);
+        var normalizedAppName = appName.Trim();
+        var arguments = new List<string>
+        {
+            "--yes",
+            "uninstall",
+            normalizedAppName,
+            "--skip-uninstaller"
+        };
+        if (keepFiles)
+            arguments.Add("--keep-files");
+
+        await ExecuteAsync(
+                new LegendaryCliCommand(
+                    keepFiles ? "installation registration cleanup" : "game uninstallation",
+                    arguments,
+                    Timeout.InfiniteTimeSpan,
+                    outputReceived),
+                ct)
+            .ConfigureAwait(false);
+
+        var installedGames = await GetInstalledGamesAsync(ct).ConfigureAwait(false);
+        if (installedGames.Any(game => string.Equals(
+                game.AppName,
+                normalizedAppName,
+                StringComparison.Ordinal)))
+        {
+            throw new LegendaryCliException(
+                "Legendary finished without removing the game's installation registration.");
+        }
     }
 
     internal async Task<IReadOnlyList<LegendaryGame>> GetGamesAsync(CancellationToken ct = default)
@@ -247,11 +290,52 @@ internal sealed partial class LegendaryCliClient
     internal async Task<IReadOnlyList<LegendaryInstalledGame>> GetInstalledGamesAsync(
         CancellationToken ct = default)
     {
+        return await GetInstalledGamesAsync(checkForUpdates: false, ct).ConfigureAwait(false);
+    }
+
+    internal async Task<LegendaryUpdateStatus> GetUpdateStatusAsync(
+        string appName,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(appName);
+        var normalizedAppName = appName.Trim();
+        var installedGames = await GetInstalledGamesAsync(checkForUpdates: true, ct).ConfigureAwait(false);
+        var installed = installedGames.FirstOrDefault(game => string.Equals(
+            game.AppName,
+            normalizedAppName,
+            StringComparison.Ordinal));
+        if (installed == null || string.IsNullOrWhiteSpace(installed.Version))
+            throw new LegendaryCliException("Legendary could not determine the installed game version.");
+
+        // list-installed --check-updates refreshes Legendary's asset cache, but its
+        // JSON output contains only installed data. Read the refreshed catalog to
+        // obtain the currently available build version.
+        var availableGames = await GetGamesAsync(ct).ConfigureAwait(false);
+        var available = availableGames.FirstOrDefault(game => string.Equals(
+            game.AppName,
+            normalizedAppName,
+            StringComparison.Ordinal));
+        if (available == null || string.IsNullOrWhiteSpace(available.Version))
+            throw new LegendaryCliException("Legendary could not determine the available game version.");
+
+        return new LegendaryUpdateStatus(
+            installed.Version,
+            available.Version,
+            !string.Equals(installed.Version, available.Version, StringComparison.Ordinal));
+    }
+
+    private async Task<IReadOnlyList<LegendaryInstalledGame>> GetInstalledGamesAsync(
+        bool checkForUpdates,
+        CancellationToken ct)
+    {
+        var arguments = checkForUpdates
+            ? new[] { "list-installed", "--check-updates", "--json" }
+            : new[] { "list-installed", "--json" };
         var result = await ExecuteAsync(
                 new LegendaryCliCommand(
-                    "installed games check",
-                    ["list-installed", "--json"],
-                    StatusTimeout),
+                    checkForUpdates ? "game update check" : "installed games check",
+                    arguments,
+                    checkForUpdates ? LibraryTimeout : StatusTimeout),
                 ct)
             .ConfigureAwait(false);
 
@@ -288,7 +372,7 @@ internal sealed partial class LegendaryCliClient
         catch (JsonException ex)
         {
             throw new LegendaryCliException(
-                "Legendary returned an invalid response for the 'installed games check' operation.",
+                $"Legendary returned an invalid response for the '{(checkForUpdates ? "game update check" : "installed games check")}' operation.",
                 ex);
         }
     }
@@ -303,10 +387,18 @@ internal sealed partial class LegendaryCliClient
         ArgumentException.ThrowIfNullOrWhiteSpace(installPath);
 
         var fullInstallPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installPath));
+        var normalizedAppName = appName.Trim();
         var basePath = Path.GetDirectoryName(fullInstallPath);
         var gameFolder = Path.GetFileName(fullInstallPath);
         if (string.IsNullOrWhiteSpace(basePath) || string.IsNullOrWhiteSpace(gameFolder))
             throw new ArgumentException("The Legendary install path must point to a game directory.", nameof(installPath));
+
+        await RemoveStaleInstallRegistrationAsync(
+                normalizedAppName,
+                fullInstallPath,
+                outputReceived,
+                ct)
+            .ConfigureAwait(false);
 
         Directory.CreateDirectory(basePath);
         await ExecuteAsync(
@@ -315,7 +407,7 @@ internal sealed partial class LegendaryCliClient
                     [
                         "--yes",
                         "install",
-                        appName.Trim(),
+                        normalizedAppName,
                         "--base-path",
                         basePath,
                         "--game-folder",
@@ -333,7 +425,7 @@ internal sealed partial class LegendaryCliClient
         var installedGames = await GetInstalledGamesAsync(ct).ConfigureAwait(false);
         var installedGame = installedGames.FirstOrDefault(game => string.Equals(
             game.AppName,
-            appName.Trim(),
+            normalizedAppName,
             StringComparison.Ordinal));
         if (installedGame == null)
         {
@@ -350,6 +442,48 @@ internal sealed partial class LegendaryCliClient
         }
 
         return installedGame;
+    }
+
+    private async Task RemoveStaleInstallRegistrationAsync(
+        string appName,
+        string requestedInstallPath,
+        Action<string>? outputReceived,
+        CancellationToken ct)
+    {
+        var installedGames = await GetInstalledGamesAsync(ct).ConfigureAwait(false);
+        var registeredGame = installedGames.FirstOrDefault(game => string.Equals(
+            game.AppName,
+            appName,
+            StringComparison.Ordinal));
+        if (registeredGame == null)
+            return;
+
+        string registeredInstallPath;
+        try
+        {
+            registeredInstallPath = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(registeredGame.InstallPath));
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            throw new LegendaryCliException(
+                "Legendary contains an invalid existing installation path for this game.",
+                ex);
+        }
+
+        if (FileSystemPathIdentity.Equals(registeredInstallPath, requestedInstallPath))
+            return;
+
+        if (Directory.Exists(registeredInstallPath) || File.Exists(registeredInstallPath))
+        {
+            throw new LegendaryCliException(
+                $"Legendary already has this game registered at the existing path '{registeredInstallPath}'. " +
+                "Uninstall or move that installation before selecting a different destination.");
+        }
+
+        outputReceived?.Invoke(
+            $"[Retromind] Removing stale Legendary registration for missing path '{registeredInstallPath}'...");
+        await UninstallAsync(appName, keepFiles: true, outputReceived, ct).ConfigureAwait(false);
     }
 
     internal async Task<LegendaryLaunchParameters> GetLaunchParametersAsync(

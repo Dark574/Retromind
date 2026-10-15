@@ -399,10 +399,16 @@ the report never mutates JSON or deletes files.
   manifests, and temporary metadata therefore remain separate from Retromind settings and metadata backups.
   Installation streams Legendary progress into the cancelable process-log window, records the selected install
   root portably, and claims partial directories with an item-specific marker so interrupted downloads can resume
-  without allowing unrelated non-empty directories. Before each launch, Legendary supplies fresh Epic
+  without allowing unrelated non-empty directories. Manual update checks compare the version registered by
+  Legendary with its freshly loaded Windows catalog version; available updates reuse the owned install root and
+  the same cancelable progress pipeline. Deleting a Retromind-managed Epic item first unregisters it through
+  Legendary, then removes the marker-owned install directory and its safely contained Wine/Proton prefix; prefixes
+  shared by another item are preserved. Missing legacy install roots are unregistered without touching files when a
+  later installation selects a new destination. Before each launch, Legendary supplies fresh Epic
   authentication arguments; Retromind then executes the installed game through its selected Wine/Proton runner so
   normal process tracking, playtime, wrappers, and launch logs remain active. Epic exchange codes are redacted from
-  those logs
+  those logs, while the interactive authorization code is passed to Legendary through standard input rather than
+  process arguments
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider

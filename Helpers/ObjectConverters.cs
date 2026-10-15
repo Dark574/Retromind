@@ -94,13 +94,12 @@ public static class ObjectConverters
             return BoxShadows.Parse(shadow);
         });
 
-    /// <summary>
-    /// Returns true when a main-game or DLC update is available for the GOG item.
-    /// </summary>
-    public static readonly IValueConverter GogUpdateBadgeVisible =
-        new FuncValueConverter<Dictionary<string, string>?, bool>(customFields =>
+    /// <summary>Returns true when the item's store reports an available update.</summary>
+    public static readonly IValueConverter StoreUpdateBadgeVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
         {
-            return GogMediaItemStateHelper.HasAnyUpdateAvailable(customFields);
+            return GogMediaItemStateHelper.HasAnyUpdateAvailable(item) ||
+                   EpicMediaItemStateHelper.HasUpdateAvailable(item);
         });
 
     /// <summary>
@@ -166,6 +165,19 @@ public static class ObjectConverters
         {
             return GogMediaItemStateHelper.HasUpdateAvailable(item);
         });
+
+    public static readonly IValueConverter EpicInstalledMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(EpicMediaItemStateHelper.IsRetromindManagedInstallation);
+
+    public static readonly IValueConverter EpicUpdateCheckMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(item =>
+        {
+            return EpicMediaItemStateHelper.CanCheckUpdates(item) &&
+                   !EpicMediaItemStateHelper.HasUpdateAvailable(item);
+        });
+
+    public static readonly IValueConverter EpicUpdateMenuVisible =
+        new FuncValueConverter<MediaItem?, bool>(EpicMediaItemStateHelper.HasUpdateAvailable);
 
 
     private static readonly IBrush SelectedBrush =

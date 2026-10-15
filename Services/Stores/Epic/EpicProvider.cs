@@ -27,7 +27,8 @@ internal sealed class EpicProvider : IStoreAuthProvider, IStoreLibraryProvider
     public StoreProviderCapabilities Capabilities =>
         StoreProviderCapabilities.Authentication |
         StoreProviderCapabilities.OwnedLibrary |
-        StoreProviderCapabilities.Install;
+        StoreProviderCapabilities.Install |
+        StoreProviderCapabilities.Update;
 
     public async Task<StoreAuthState> GetAuthStateAsync(CancellationToken ct = default)
     {

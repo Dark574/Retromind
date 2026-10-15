@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -63,6 +64,106 @@ public sealed class EpicInstallService
         string appName,
         CancellationToken ct = default) =>
         _client.GetInstallEstimateAsync(appName, ct: ct);
+
+    internal Task<LegendaryUpdateStatus> GetUpdateStatusAsync(
+        string appName,
+        CancellationToken ct = default) =>
+        _client.GetUpdateStatusAsync(appName, ct);
+
+    internal async Task UninstallAsync(
+        MediaItem item,
+        bool deletePrefix = true,
+        Action<string>? outputReceived = null,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var appName = EpicMediaItemStateHelper.TryGetGameId(item);
+        if (string.IsNullOrWhiteSpace(appName))
+            throw new InvalidOperationException("The media item has no Epic Games identity.");
+        if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var storedInstallPath) ||
+            !StoreInstallPathHelper.TryResolveStoredPath(storedInstallPath, out var installPath))
+        {
+            throw new InvalidOperationException("The Epic Games install path is missing or invalid.");
+        }
+
+        if (Directory.Exists(installPath))
+        {
+            var assessment = AssessDirectory(installPath, item);
+            if (assessment.Status != EpicInstallDirectoryStatus.OwnedDirectory)
+            {
+                throw new InvalidOperationException(
+                    $"Retromind cannot safely remove the Epic Games install directory '{assessment.FullPath}'.");
+            }
+        }
+
+        var prefixPath = ResolveSafePrefixForDeletion(item.PrefixPath, deletePrefix);
+
+        await _client
+            .UninstallAsync(appName, keepFiles: false, outputReceived, ct)
+            .ConfigureAwait(false);
+
+        if (Directory.Exists(installPath))
+        {
+            // Legendary deletes the files from its manifest but intentionally leaves
+            // unknown files behind. The Retromind marker proves ownership, so remove
+            // the remaining managed directory only after validating it again.
+            var remainingAssessment = AssessDirectory(installPath, item);
+            if (remainingAssessment.Status != EpicInstallDirectoryStatus.OwnedDirectory)
+            {
+                throw new InvalidOperationException(
+                    $"Legendary was unregistered, but Retromind could not safely remove the remaining install directory '{remainingAssessment.FullPath}'.");
+            }
+
+            await Task.Run(
+                    () => Directory.Delete(remainingAssessment.FullPath, recursive: true),
+                    ct)
+                .ConfigureAwait(false);
+        }
+
+        if (!string.IsNullOrWhiteSpace(prefixPath) && Directory.Exists(prefixPath))
+        {
+            await Task.Run(
+                    () => Directory.Delete(prefixPath, recursive: true),
+                    ct)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private static string? ResolveSafePrefixForDeletion(string? storedPrefixPath, bool deletePrefix)
+    {
+        if (!deletePrefix || string.IsNullOrWhiteSpace(storedPrefixPath))
+            return null;
+
+        string resolvedPrefix;
+        try
+        {
+            resolvedPrefix = PrefixPathHelper.ResolveAbsolutePrefixPath(
+                storedPrefixPath,
+                AppPaths.LibraryRoot);
+            var libraryRoot = Path.GetFullPath(AppPaths.LibraryRoot);
+            var protectedPaths = new[]
+            {
+                libraryRoot,
+                Path.Combine(libraryRoot, "Prefixes"),
+                Path.Combine(libraryRoot, "Games")
+            };
+            if (protectedPaths.Any(path => FileSystemPathIdentity.Equals(path, resolvedPrefix)) ||
+                !IsEqualToOrBelow(resolvedPrefix, libraryRoot) ||
+                ContainsSymbolicLinkInPath(resolvedPrefix))
+            {
+                Debug.WriteLine(
+                    $"[Epic] Prefix '{resolvedPrefix}' is outside the managed library, protected, or contains a symbolic link. It will be preserved.");
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Epic] Prefix path could not be validated and will be preserved: {ex.Message}");
+            return null;
+        }
+
+        return resolvedPrefix;
+    }
 
     internal EpicInstallSpaceAssessment AssessSpace(
         string installPath,

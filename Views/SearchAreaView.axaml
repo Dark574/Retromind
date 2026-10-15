@@ -386,6 +386,16 @@
                                                       CommandParameter="{Binding .}"
                                                       IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}" />
                                             <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
+                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicCheckUpdatesMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CheckEpicUpdatesCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicUpdateCheckMenuVisible}}" />
+                                            <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicUpdateMenuText}"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UpdateEpicCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicUpdateMenuVisible}}" />
+                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
                                             <MenuItem Header="{x:Static p:Strings.Button_Delete}"
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteMediaCommand}"
                                                       CommandParameter="{Binding .}"
@@ -469,8 +479,8 @@
                                                     HorizontalAlignment="Left"
                                                     VerticalAlignment="Bottom"
                                                     Margin="8"
-                                                    ToolTip.Tip="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUpdateAvailableBadgeTooltip}"
-                                                    IsVisible="{Binding CustomFields, Converter={x:Static helpers:ObjectConverters.GogUpdateBadgeVisible}}" />
+                                                    ToolTip.Tip="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).StoreUpdateAvailableBadgeTooltip}"
+                                                    IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreUpdateBadgeVisible}}" />
                                         </Grid>
 
                                         <CheckBox HorizontalAlignment="Left"

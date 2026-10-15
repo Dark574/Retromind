@@ -60,6 +60,22 @@ public sealed class EpicMediaItemStateHelperTests
         item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = "Library/Games/Epic/Game";
 
         Assert.True(EpicMediaItemStateHelper.IsRetromindManagedInstallation(item));
+        Assert.True(EpicMediaItemStateHelper.CanCheckUpdates(item));
+        Assert.False(EpicMediaItemStateHelper.HasUpdateAvailable(item));
+
+        item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] = "true";
+
+        Assert.True(EpicMediaItemStateHelper.HasUpdateAvailable(item));
+    }
+
+    [Fact]
+    public void ManagedInstallMetadata_RemainsDetectableWhenExecutableIsMissing()
+    {
+        var item = CreateEpicItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = "Library/Games/Epic/Game";
+
+        Assert.False(EpicMediaItemStateHelper.IsRetromindManagedInstallation(item));
+        Assert.True(EpicMediaItemStateHelper.HasRetromindManagedInstallMetadata(item));
     }
 
     private static MediaItem CreateEpicItem() => new("Epic game")

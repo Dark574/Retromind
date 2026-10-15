@@ -27,8 +27,20 @@ internal static class EpicMediaItemStateHelper
 
     internal static bool IsRetromindManagedInstallation(MediaItem? item) =>
         IsInstalled(item) &&
+        HasRetromindManagedInstallMetadata(item);
+
+    internal static bool HasRetromindManagedInstallMetadata(MediaItem? item) =>
+        TryGetGameId(item) != null &&
         item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var installPath) &&
         !string.IsNullOrWhiteSpace(installPath);
+
+    internal static bool CanCheckUpdates(MediaItem? item) =>
+        IsRetromindManagedInstallation(item);
+
+    internal static bool HasUpdateAvailable(MediaItem? item) =>
+        IsRetromindManagedInstallation(item) &&
+        item!.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateAvailable, out var raw) &&
+        IsTruthyCustomField(raw);
 
     internal static string BuildDefaultPrefixPath(string appName, string? gameTitle)
     {
@@ -59,5 +71,15 @@ internal static class EpicMediaItemStateHelper
 
         var resolvedLauncher = EnvironmentPathHelper.ResolveExecutablePathForExistenceCheck(launcherPath);
         return string.IsNullOrWhiteSpace(resolvedLauncher) || File.Exists(resolvedLauncher);
+    }
+
+    private static bool IsTruthyCustomField(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        return bool.TryParse(raw, out var parsed)
+            ? parsed
+            : string.Equals(raw.Trim(), "1", StringComparison.OrdinalIgnoreCase);
     }
 }

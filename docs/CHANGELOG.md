@@ -20,6 +20,8 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Changed
 - include readable game titles in the prefix folder names of newly installed Epic Games titles
+- check installed Epic Games titles for updates and apply available updates directly through Legendary
+- deleting a Retromind-managed Epic Games title now also removes its game files, Wine/Proton prefix and Legendary installation registration while preserving shared prefixes
 - check available storage before downloading and installing GOG games, updates and DLCs while accounting for reusable installer files
 - improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews
 - load desktop cover grids in parallel while retaining responsive, serialized artwork loading in BigMode

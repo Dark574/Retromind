@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -56,6 +57,8 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand<MediaItem?> ReinstallGogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> UpdateGogCommand { get; private set; } = null!;
     public IAsyncRelayCommand<MediaItem?> UninstallGogCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> CheckEpicUpdatesCommand { get; private set; } = null!;
+    public IAsyncRelayCommand<MediaItem?> UpdateEpicCommand { get; private set; } = null!;
     
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenSetupSettingsCommand { get; private set; } = null!;
@@ -96,6 +99,8 @@ public partial class MainWindowViewModel
     public string GogUpdateMenuText => T("Button_Update", "Update");
     public string GogReinstallMenuText => T("Gog.Media.ReinstallMenu", "Reinstall / Switch Version");
     public string GogUninstallMenuText => T("Gog.Uninstall.ContextMenu", "Uninstall");
+    public string EpicCheckUpdatesMenuText => T("Epic.Update.CheckNow", "Check for Epic Games updates");
+    public string EpicUpdateMenuText => T("Button_Update", "Update");
 
     private void InitializeCommands()
     {
@@ -123,6 +128,8 @@ public partial class MainWindowViewModel
         ReinstallGogCommand = new AsyncRelayCommand<MediaItem?>(ReinstallGogMediaAsync, CanReinstallGogMedia);
         UpdateGogCommand = new AsyncRelayCommand<MediaItem?>(UpdateGogMediaAsync, CanUpdateGogMedia);
         UninstallGogCommand = new AsyncRelayCommand<MediaItem?>(UninstallGogMediaAsync, CanUninstallGogMedia);
+        CheckEpicUpdatesCommand = new AsyncRelayCommand<MediaItem?>(CheckEpicUpdatesNowAsync, CanCheckEpicUpdates);
+        UpdateEpicCommand = new AsyncRelayCommand<MediaItem?>(UpdateEpicMediaAsync, CanUpdateEpicMedia);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenSetupSettingsCommand = new AsyncRelayCommand(OpenSetupSettingsAsync);
@@ -326,7 +333,7 @@ public partial class MainWindowViewModel
             return Strings.Button_Play;
         }
     }
-    public string GogUpdateAvailableBadgeTooltip => T("Gog.Update.BadgeTooltip", "GOG update available");
+    public string StoreUpdateAvailableBadgeTooltip => T("Store.Update.BadgeTooltip", "Game update available");
 
     private void NotifyPlayAvailabilityChanged()
     {
@@ -336,6 +343,8 @@ public partial class MainWindowViewModel
         ReinstallGogCommand.NotifyCanExecuteChanged();
         UpdateGogCommand.NotifyCanExecuteChanged();
         UninstallGogCommand.NotifyCanExecuteChanged();
+        CheckEpicUpdatesCommand.NotifyCanExecuteChanged();
+        UpdateEpicCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanPlaySelectedMedia));
         OnPropertyChanged(nameof(PlaySelectedMediaButtonText));
     }
@@ -1427,7 +1436,50 @@ public partial class MainWindowViewModel
         
         try
         {
-            if (!await ShowConfirmDialog(owner, Strings.Dialog_MsgConfirmDelete)) return;
+            var removeManagedEpicInstallation =
+                EpicMediaItemStateHelper.HasRetromindManagedInstallMetadata(item);
+            var preserveSharedEpicPrefix = removeManagedEpicInstallation &&
+                                           IsPrefixUsedByAnotherItem(item.PrefixPath, item);
+            var confirmMessage = removeManagedEpicInstallation
+                ? string.Format(
+                    CultureInfo.CurrentCulture,
+                    preserveSharedEpicPrefix
+                        ? T(
+                            "Epic.Delete.ManagedSharedPrefixConfirmFormat",
+                            "Delete \"{0}\" from the library?\n\nThe Retromind-managed Epic Games installation and all files in its game folder will also be permanently deleted and unregistered from Legendary. Its Wine/Proton prefix is used by another item and will be preserved.\n\nThis action cannot be undone.")
+                        : T(
+                            "Epic.Delete.ManagedConfirmFormat",
+                            "Delete \"{0}\" from the library?\n\nThe Retromind-managed Epic Games installation, its Wine/Proton prefix and all files in those folders will also be permanently deleted. The installation will be unregistered from Legendary.\n\nThis action cannot be undone."),
+                    item.Title)
+                : Strings.Dialog_MsgConfirmDelete;
+            if (!await ShowConfirmDialog(owner, confirmMessage)) return;
+
+            if (removeManagedEpicInstallation)
+            {
+                try
+                {
+                    using (BeginBusyCursor(owner))
+                    {
+                        await Task.Yield();
+                        await _epicInstallService.UninstallAsync(
+                            item,
+                            deletePrefix: !preserveSharedEpicPrefix);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Epic] Delete-time uninstall failed: {ex.Message}");
+                    await ShowInfoDialog(
+                        owner,
+                        string.Format(
+                            CultureInfo.CurrentCulture,
+                            T(
+                                "Epic.Delete.UninstallFailedFormat",
+                                "The Epic Games installation could not be removed, so the library item was kept:\n\n{0}"),
+                            BuildShortErrorDetail(ex)));
+                    return;
+                }
+            }
 
             if (ReferenceEquals(item, GetCurrentSelectedItem()))
             {
