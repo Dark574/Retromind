@@ -626,6 +626,9 @@ Continue?</value></data>
     <data name="Gog.Install.SystemWineRequired" xml:space="preserve"><value>Installing GOG Windows games requires system Wine. Install Wine and try again.</value></data>
     <data name="Gog.Install.RunnerInvalidFormat" xml:space="preserve"><value>The selected runner '{0}' is unavailable or incomplete. Check its path in Settings -&gt; Runner.</value></data>
     <data name="Settings_GeProtonIncompleteFormat" xml:space="preserve"><value>The Proton archive is incomplete. Expected 'proton' and 'toolmanifest.vdf' in '{0}'.</value></data>
+    <data name="Settings_GeProtonDownloadTooLargeFormat" xml:space="preserve"><value>The GE-Proton download exceeds the allowed size of {0} MiB.</value></data>
+    <data name="Settings_GeProtonArchiveTooLargeFormat" xml:space="preserve"><value>The GE-Proton archive expands beyond the allowed size of {0} MiB.</value></data>
+    <data name="Settings_GeProtonArchiveEntryLimitFormat" xml:space="preserve"><value>The GE-Proton archive contains more than the allowed {0} entries.</value></data>
     <data name="Gog.Install.ResolveFailed" xml:space="preserve"><value>GOG installer metadata could not be loaded.</value></data>
     <data name="Gog.Install.ResolveFailedFormat" xml:space="preserve"><value>GOG installer metadata could not be loaded: {0}</value></data>
     <data name="Gog.Install.NoInstallerAvailable" xml:space="preserve"><value>No installable package is available for this GOG title.</value></data>

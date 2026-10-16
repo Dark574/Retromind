@@ -201,6 +201,167 @@ public sealed class RunnerVersionServiceTests
     }
 
     [Fact]
+    public async Task DownloadAndInstallGeProton_RejectsAnnouncedDownloadAboveLimit()
+    {
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", "runner"),
+            ("GE-Proton10-1/toolmanifest.vdf", "manifest"));
+        var maximumDownloadBytes = archive.Length;
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+        {
+            var response = BinaryResponse(archive);
+            response.Content.Headers.ContentLength = maximumDownloadBytes + 1;
+            return response;
+        }));
+        using var service = new RunnerVersionService(
+            temp.RootPath,
+            httpClient,
+            maximumDownloadBytes,
+            maxExtractedBytes: 1024,
+            maxArchiveEntries: 10);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.DownloadAndInstallGeProtonAsync(
+                new GeProtonRelease(
+                    "GE-Proton10-1",
+                    "GE-Proton10-1.tar.gz",
+                    "https://example.invalid/ge-proton.tar.gz")));
+
+        Assert.Empty(Directory.GetFileSystemEntries(
+            temp.GetPath("Emulators", "ProtonVersions")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DownloadAndInstallGeProton_EnforcesStreamingLimitWhenLengthIsMissingOrUnderstated(
+        bool understateContentLength)
+    {
+        var payload = Enumerable.Repeat((byte)0x41, 65).ToArray();
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+        {
+            var content = new UnknownLengthContent(payload);
+            if (understateContentLength)
+                content.Headers.ContentLength = 1;
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = content
+            };
+        }));
+        using var service = new RunnerVersionService(
+            temp.RootPath,
+            httpClient,
+            maxDownloadBytes: 64,
+            maxExtractedBytes: 1024,
+            maxArchiveEntries: 10);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.DownloadAndInstallGeProtonAsync(
+                new GeProtonRelease(
+                    "GE-Proton10-1",
+                    "GE-Proton10-1.tar.gz",
+                    "https://example.invalid/ge-proton.tar.gz")));
+
+        Assert.Empty(Directory.GetFileSystemEntries(
+            temp.GetPath("Emulators", "ProtonVersions")));
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_RejectsExpandedPayloadAboveLimit()
+    {
+        const string runnerContent = "runner payload";
+        const string manifestContent = "manifest";
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", runnerContent),
+            ("GE-Proton10-1/toolmanifest.vdf", manifestContent));
+        var extractedBytes = Encoding.UTF8.GetByteCount(runnerContent) +
+                             Encoding.UTF8.GetByteCount(manifestContent);
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var service = new RunnerVersionService(
+            temp.RootPath,
+            httpClient,
+            maxDownloadBytes: archive.Length,
+            maxExtractedBytes: extractedBytes - 1,
+            maxArchiveEntries: 10);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.DownloadAndInstallGeProtonAsync(
+                new GeProtonRelease(
+                    "GE-Proton10-1",
+                    "GE-Proton10-1.tar.gz",
+                    "https://example.invalid/ge-proton.tar.gz")));
+
+        Assert.Empty(Directory.GetDirectories(
+            temp.GetPath("Emulators", "ProtonVersions"),
+            ".tmp_ge_*"));
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_RejectsTooManyArchiveEntries()
+    {
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", "runner"),
+            ("GE-Proton10-1/toolmanifest.vdf", "manifest"));
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var service = new RunnerVersionService(
+            temp.RootPath,
+            httpClient,
+            maxDownloadBytes: archive.Length,
+            maxExtractedBytes: 1024,
+            maxArchiveEntries: 1);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.DownloadAndInstallGeProtonAsync(
+                new GeProtonRelease(
+                    "GE-Proton10-1",
+                    "GE-Proton10-1.tar.gz",
+                    "https://example.invalid/ge-proton.tar.gz")));
+
+        Assert.Empty(Directory.GetDirectories(
+            temp.GetPath("Emulators", "ProtonVersions"),
+            ".tmp_ge_*"));
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_AcceptsExactSizeAndEntryLimits()
+    {
+        const string runnerContent = "runner";
+        const string manifestContent = "manifest";
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", runnerContent),
+            ("GE-Proton10-1/toolmanifest.vdf", manifestContent));
+        var extractedBytes = Encoding.UTF8.GetByteCount(runnerContent) +
+                             Encoding.UTF8.GetByteCount(manifestContent);
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var service = new RunnerVersionService(
+            temp.RootPath,
+            httpClient,
+            maxDownloadBytes: archive.Length,
+            maxExtractedBytes: extractedBytes,
+            maxArchiveEntries: 2);
+
+        var relativePath = await service.DownloadAndInstallGeProtonAsync(
+            new GeProtonRelease(
+                "GE-Proton10-1",
+                "GE-Proton10-1.tar.gz",
+                "https://example.invalid/ge-proton.tar.gz"));
+
+        Assert.True(File.Exists(temp.GetPath(relativePath, "proton")));
+        Assert.True(File.Exists(temp.GetPath(relativePath, "toolmanifest.vdf")));
+    }
+
+    [Fact]
     public async Task DownloadAndInstallGeProton_CanceledDownloadLeavesNoPublishedRunner()
     {
         var archive = CreateTarGz(
@@ -453,6 +614,18 @@ public sealed class RunnerVersionServiceTests
             HttpRequestMessage request,
             CancellationToken cancellationToken) =>
             Task.FromResult(responseFactory(request, cancellationToken));
+    }
+
+    private sealed class UnknownLengthContent(byte[] content) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            stream.WriteAsync(content).AsTask();
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
     }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>

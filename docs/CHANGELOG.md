@@ -22,7 +22,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - automatically track imported Steam game sessions for playtime and achievement updates without requiring a manually configured process name
 
 ### Changed
-- prevent managed GE-Proton installation and removal paths from being redirected outside Retromind's runner directory through symbolic links
+- prevent managed GE-Proton operations from following symbolic links outside Retromind's runner directory and reject oversized downloads and archives before extraction
 - restrict runtime theme files and assets to symlink-free paths inside their assigned theme directories and reject oversized AXAML files
 - store scraper API keys, passwords, and client secrets in the system keyring; portable scraper profiles now require their credentials to be entered again on each new computer
 - organize item and category context menus consistently, with compact Store actions and direct access to imports and per-item searches

@@ -52,31 +52,80 @@ public sealed class RunnerVersionService : IDisposable
     private const int GeProtonMaxPages = 6;
     private const int GeProtonMaxItems = 300;
     private const string ManagedRunnerRelativeRoot = "Emulators/ProtonVersions";
+    internal const long MaxGeProtonDownloadBytes = 1024L * 1024 * 1024;
+    internal const long MaxGeProtonExtractedBytes = 4L * 1024 * 1024 * 1024;
+    internal const int MaxGeProtonArchiveEntries = 100_000;
 
     private readonly string _dataRoot;
     private readonly string _managedRunnerRoot;
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
+    private readonly long _maxDownloadBytes;
+    private readonly long _maxExtractedBytes;
+    private readonly int _maxArchiveEntries;
 
     public RunnerVersionService(string dataRoot)
-        : this(dataRoot, CreateHttpClient(), ownsHttpClient: true)
+        : this(
+            dataRoot,
+            CreateHttpClient(),
+            ownsHttpClient: true,
+            MaxGeProtonDownloadBytes,
+            MaxGeProtonExtractedBytes,
+            MaxGeProtonArchiveEntries)
     {
     }
 
     internal RunnerVersionService(string dataRoot, HttpClient httpClient)
-        : this(dataRoot, httpClient, ownsHttpClient: false)
+        : this(
+            dataRoot,
+            httpClient,
+            ownsHttpClient: false,
+            MaxGeProtonDownloadBytes,
+            MaxGeProtonExtractedBytes,
+            MaxGeProtonArchiveEntries)
     {
     }
 
-    private RunnerVersionService(string dataRoot, HttpClient httpClient, bool ownsHttpClient)
+    internal RunnerVersionService(
+        string dataRoot,
+        HttpClient httpClient,
+        long maxDownloadBytes,
+        long maxExtractedBytes,
+        int maxArchiveEntries)
+        : this(
+            dataRoot,
+            httpClient,
+            ownsHttpClient: false,
+            maxDownloadBytes,
+            maxExtractedBytes,
+            maxArchiveEntries)
+    {
+    }
+
+    private RunnerVersionService(
+        string dataRoot,
+        HttpClient httpClient,
+        bool ownsHttpClient,
+        long maxDownloadBytes,
+        long maxExtractedBytes,
+        int maxArchiveEntries)
     {
         if (string.IsNullOrWhiteSpace(dataRoot))
             throw new ArgumentException("A data root is required.", nameof(dataRoot));
+        if (maxDownloadBytes <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxDownloadBytes));
+        if (maxExtractedBytes <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxExtractedBytes));
+        if (maxArchiveEntries <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxArchiveEntries));
 
         _dataRoot = Path.GetFullPath(dataRoot);
         _managedRunnerRoot = Path.GetFullPath(Path.Combine(_dataRoot, "Emulators", "ProtonVersions"));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _ownsHttpClient = ownsHttpClient;
+        _maxDownloadBytes = maxDownloadBytes;
+        _maxExtractedBytes = maxExtractedBytes;
+        _maxArchiveEntries = maxArchiveEntries;
     }
 
     public async Task<IReadOnlyList<GeProtonRelease>> GetGeProtonReleasesAsync(
@@ -164,6 +213,7 @@ public sealed class RunnerVersionService : IDisposable
                        cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
+                EnsureDownloadSizeAllowed(response.Content.Headers.ContentLength);
                 await using var remote = await response.Content.ReadAsStreamAsync(cancellationToken)
                     .ConfigureAwait(false);
                 await using var local = File.Create(tempArchivePath);
@@ -171,6 +221,7 @@ public sealed class RunnerVersionService : IDisposable
                         remote,
                         local,
                         response.Content.Headers.ContentLength,
+                        _maxDownloadBytes,
                         progress,
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -204,6 +255,8 @@ public sealed class RunnerVersionService : IDisposable
                 EnsureCompleteProtonRunner(targetDir);
                 return relativeInstalledPath;
             }
+
+            ValidateArchiveForExtraction(tempArchivePath, cancellationToken);
 
             var stagingDir = Path.Combine(_managedRunnerRoot, $".tmp_ge_{Guid.NewGuid():N}");
             Directory.CreateDirectory(stagingDir);
@@ -372,6 +425,58 @@ public sealed class RunnerVersionService : IDisposable
         }
 
         return string.Empty;
+    }
+
+    private void EnsureDownloadSizeAllowed(long? contentLength)
+    {
+        if (!contentLength.HasValue || contentLength.Value <= _maxDownloadBytes)
+            return;
+
+        throw new InvalidDataException(GetLimitMessage(
+            "Settings_GeProtonDownloadTooLargeFormat",
+            "The GE-Proton download exceeds the allowed size of {0} MiB.",
+            _maxDownloadBytes / (1024 * 1024)));
+    }
+
+    private void ValidateArchiveForExtraction(string tarGzPath, CancellationToken cancellationToken)
+    {
+        using var fileStream = File.OpenRead(tarGzPath);
+        using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress);
+        using var tarReader = new TarReader(gzipStream, leaveOpen: false);
+
+        long extractedBytes = 0;
+        var entryCount = 0;
+
+        TarEntry? entry;
+        while ((entry = tarReader.GetNextEntry()) != null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            entryCount++;
+            if (entryCount > _maxArchiveEntries)
+            {
+                throw new InvalidDataException(GetLimitMessage(
+                    "Settings_GeProtonArchiveEntryLimitFormat",
+                    "The GE-Proton archive contains more than the allowed {0} entries.",
+                    _maxArchiveEntries));
+            }
+
+            if (entry.Length < 0 || entry.Length > _maxExtractedBytes - extractedBytes)
+            {
+                throw new InvalidDataException(GetLimitMessage(
+                    "Settings_GeProtonArchiveTooLargeFormat",
+                    "The GE-Proton archive expands beyond the allowed size of {0} MiB.",
+                    _maxExtractedBytes / (1024 * 1024)));
+            }
+
+            extractedBytes += entry.Length;
+        }
+    }
+
+    private static string GetLimitMessage(string resourceName, string fallbackFormat, object value)
+    {
+        var format = Strings.ResourceManager.GetString(resourceName, Strings.Culture) ?? fallbackFormat;
+        return string.Format(format, value);
     }
 
     private static string SanitizeFolderName(string value)
@@ -572,6 +677,7 @@ public sealed class RunnerVersionService : IDisposable
         Stream source,
         Stream destination,
         long? totalBytes,
+        long maximumBytes,
         IProgress<GeProtonInstallProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -589,6 +695,14 @@ public sealed class RunnerVersionService : IDisposable
             var bytesRead = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
             if (bytesRead == 0)
                 break;
+
+            if (bytesRead > maximumBytes - downloadedBytes)
+            {
+                throw new InvalidDataException(GetLimitMessage(
+                    "Settings_GeProtonDownloadTooLargeFormat",
+                    "The GE-Proton download exceeds the allowed size of {0} MiB.",
+                    maximumBytes / (1024 * 1024)));
+            }
 
             await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
             downloadedBytes += bytesRead;
