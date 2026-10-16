@@ -153,7 +153,7 @@ public sealed class RunnerVersionService : IDisposable
     {
         ArgumentNullException.ThrowIfNull(release);
 
-        Directory.CreateDirectory(_managedRunnerRoot);
+        EnsureManagedRunnerRootForMutation();
         var tempArchivePath = Path.Combine(Path.GetTempPath(), $"retromind_ge_{Guid.NewGuid():N}.tar.gz");
 
         try
@@ -193,7 +193,9 @@ public sealed class RunnerVersionService : IDisposable
             if (string.IsNullOrWhiteSpace(rootFolder))
                 throw new InvalidOperationException("Unable to determine installation folder name.");
 
-            var targetDir = Path.Combine(_managedRunnerRoot, rootFolder);
+            if (!TryResolveManagedDirectChild(rootFolder, out var targetDir))
+                throw new InvalidOperationException("Unable to determine a safe installation folder name.");
+
             var relativeInstalledPath = NormalizeRelativePath(
                 Path.Combine(ManagedRunnerRelativeRoot, rootFolder));
 
@@ -205,6 +207,7 @@ public sealed class RunnerVersionService : IDisposable
 
             var stagingDir = Path.Combine(_managedRunnerRoot, $".tmp_ge_{Guid.NewGuid():N}");
             Directory.CreateDirectory(stagingDir);
+            EnsureSafeManagedPath(stagingDir, requireDirectChild: true);
 
             try
             {
@@ -214,12 +217,13 @@ public sealed class RunnerVersionService : IDisposable
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var extractedRunnerDir = ResolveExtractedRunnerDirectory(stagingDir, rootFolder);
+                EnsureSafeManagedPath(extractedRunnerDir, requireDirectChild: false);
                 EnsureCompleteProtonRunner(extractedRunnerDir);
-                PublishRunnerDirectory(extractedRunnerDir, targetDir, replaceExisting);
+                PublishRunnerDirectory(extractedRunnerDir, stagingDir, targetDir, replaceExisting);
             }
             finally
             {
-                TryDeleteDirectory(stagingDir);
+                TryDeleteManagedDirectory(stagingDir);
             }
 
             return relativeInstalledPath;
@@ -237,14 +241,17 @@ public sealed class RunnerVersionService : IDisposable
         if (!TryResolveManagedRunnerDirectory(storedPath, out var runnerDirectory))
             return false;
 
-        await Task.Run(() =>
+        return await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (Directory.Exists(runnerDirectory))
-                Directory.Delete(runnerDirectory, recursive: true);
-        }, cancellationToken).ConfigureAwait(false);
+            if (!TryResolveManagedRunnerDirectory(runnerDirectory, out var revalidatedDirectory))
+                return false;
 
-        return true;
+            if (Directory.Exists(revalidatedDirectory))
+                Directory.Delete(revalidatedDirectory, recursive: true);
+
+            return true;
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     public bool IsManagedRunnerPath(string storedPath)
@@ -306,8 +313,11 @@ public sealed class RunnerVersionService : IDisposable
             var parentDirectory = Path.GetDirectoryName(
                 candidate.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
 
-            if (!string.Equals(parentDirectory, _managedRunnerRoot, StringComparison.Ordinal))
+            if (!FileSystemPathIdentity.Equals(parentDirectory, _managedRunnerRoot) ||
+                !IsSafeManagedPath(candidate, requireDirectChild: true))
+            {
                 return false;
+            }
 
             directory = candidate;
             return true;
@@ -388,8 +398,20 @@ public sealed class RunnerVersionService : IDisposable
         return extractedDirs.Length == 1 ? extractedDirs[0] : stagingDir;
     }
 
-    private static void PublishRunnerDirectory(string sourceDir, string targetDir, bool replaceExisting)
+    private void PublishRunnerDirectory(
+        string sourceDir,
+        string stagingDir,
+        string targetDir,
+        bool replaceExisting)
     {
+        EnsureManagedRunnerRootForMutation();
+        EnsureSafeManagedPath(stagingDir, requireDirectChild: true);
+        EnsureSafeManagedPath(sourceDir, requireDirectChild: false);
+        EnsureSafeManagedPath(targetDir, requireDirectChild: true);
+
+        if (!IsPathEqualToOrBelow(sourceDir, stagingDir))
+            throw new IOException($"Refusing to publish runner directory outside staging: {sourceDir}");
+
         if (!Directory.Exists(targetDir))
         {
             Directory.Move(sourceDir, targetDir);
@@ -402,6 +424,7 @@ public sealed class RunnerVersionService : IDisposable
         var backupDir = Path.Combine(
             Path.GetDirectoryName(targetDir)!,
             $".backup_ge_{Guid.NewGuid():N}");
+        EnsureSafeManagedPath(backupDir, requireDirectChild: true);
         Directory.Move(targetDir, backupDir);
 
         try
@@ -409,15 +432,140 @@ public sealed class RunnerVersionService : IDisposable
             // Both directories are below the managed runner root, so publishing
             // remains an atomic same-filesystem rename.
             Directory.Move(sourceDir, targetDir);
-            TryDeleteDirectory(backupDir);
+            TryDeleteManagedDirectory(backupDir);
         }
         catch
         {
-            if (!Directory.Exists(targetDir) && Directory.Exists(backupDir))
+            if (IsSafeManagedPath(targetDir, requireDirectChild: true) &&
+                IsSafeManagedPath(backupDir, requireDirectChild: true) &&
+                !Directory.Exists(targetDir) &&
+                Directory.Exists(backupDir))
+            {
                 Directory.Move(backupDir, targetDir);
+            }
 
             throw;
         }
+    }
+
+    private void EnsureManagedRunnerRootForMutation()
+    {
+        EnsureSafeManagedPath(_managedRunnerRoot, requireDirectChild: false);
+        Directory.CreateDirectory(_managedRunnerRoot);
+        EnsureSafeManagedPath(_managedRunnerRoot, requireDirectChild: false);
+    }
+
+    private bool TryResolveManagedDirectChild(string directoryName, out string directory)
+    {
+        directory = string.Empty;
+        if (string.IsNullOrWhiteSpace(directoryName))
+            return false;
+
+        try
+        {
+            var candidate = Path.GetFullPath(Path.Combine(_managedRunnerRoot, directoryName));
+            if (!IsSafeManagedPath(candidate, requireDirectChild: true))
+                return false;
+
+            directory = candidate;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void EnsureSafeManagedPath(string path, bool requireDirectChild)
+    {
+        if (!IsSafeManagedPath(path, requireDirectChild))
+        {
+            throw new IOException(
+                $"Refusing to modify unsafe managed runner path '{path}'.");
+        }
+    }
+
+    private bool IsSafeManagedPath(string path, bool requireDirectChild)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        try
+        {
+            var candidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            var relativeToManagedRoot = Path.GetRelativePath(_managedRunnerRoot, candidate);
+
+            if (Path.IsPathRooted(relativeToManagedRoot) ||
+                relativeToManagedRoot == ".." ||
+                relativeToManagedRoot.StartsWith(
+                    ".." + Path.DirectorySeparatorChar,
+                    FileSystemPathIdentity.Comparison))
+            {
+                return false;
+            }
+
+            if (requireDirectChild &&
+                (relativeToManagedRoot == "." ||
+                 relativeToManagedRoot.IndexOfAny(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0))
+            {
+                return false;
+            }
+
+            return !ContainsSymbolicLinkBelowDataRoot(candidate);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool ContainsSymbolicLinkBelowDataRoot(string path)
+    {
+        var relativePath = Path.GetRelativePath(_dataRoot, path);
+        if (Path.IsPathRooted(relativePath) ||
+            relativePath == ".." ||
+            relativePath.StartsWith(
+                ".." + Path.DirectorySeparatorChar,
+                FileSystemPathIdentity.Comparison))
+        {
+            return true;
+        }
+
+        var currentPath = _dataRoot;
+        foreach (var component in relativePath.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            currentPath = Path.Combine(currentPath, component);
+
+            try
+            {
+                if ((File.GetAttributes(currentPath) & FileAttributes.ReparsePoint) != 0)
+                    return true;
+            }
+            catch (FileNotFoundException)
+            {
+                return false;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsPathEqualToOrBelow(string path, string root)
+    {
+        var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        if (FileSystemPathIdentity.Equals(fullPath, fullRoot))
+            return true;
+
+        var rootWithSeparator = fullRoot + Path.DirectorySeparatorChar;
+        return fullPath.StartsWith(rootWithSeparator, FileSystemPathIdentity.Comparison);
     }
 
     private static async Task CopyDownloadAsync(
@@ -468,11 +616,11 @@ public sealed class RunnerVersionService : IDisposable
             totalBytes));
     }
 
-    private static void TryDeleteDirectory(string path)
+    private void TryDeleteManagedDirectory(string path)
     {
         try
         {
-            if (Directory.Exists(path))
+            if (IsSafeManagedPath(path, requireDirectChild: true) && Directory.Exists(path))
                 Directory.Delete(path, recursive: true);
         }
         catch

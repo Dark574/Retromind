@@ -254,6 +254,37 @@ public sealed class RunnerVersionServiceTests
     }
 
     [Fact]
+    public async Task DownloadAndInstallGeProton_RejectsSymbolicLinkInManagedRootBeforeDownload()
+    {
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", "runner"),
+            ("GE-Proton10-1/toolmanifest.vdf", "manifest"));
+
+        using var temp = new TemporaryDirectory();
+        var externalEmulators = temp.CreateDirectory("ExternalEmulators");
+        Directory.CreateDirectory(Path.Combine(externalEmulators, "ProtonVersions"));
+        Directory.CreateSymbolicLink(temp.GetPath("Emulators"), externalEmulators);
+        var requestSent = false;
+        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+        {
+            requestSent = true;
+            return BinaryResponse(archive);
+        }));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        await Assert.ThrowsAsync<IOException>(() =>
+            service.DownloadAndInstallGeProtonAsync(
+                new GeProtonRelease(
+                    "GE-Proton10-1",
+                    "GE-Proton10-1.tar.gz",
+                    "https://example.invalid/ge-proton.tar.gz")));
+
+        Assert.False(requestSent);
+        Assert.Empty(Directory.GetFileSystemEntries(
+            Path.Combine(externalEmulators, "ProtonVersions")));
+    }
+
+    [Fact]
     public async Task DeleteManagedRunner_RejectsPathOutsideManagedRoot()
     {
         using var temp = new TemporaryDirectory();
@@ -288,6 +319,84 @@ public sealed class RunnerVersionServiceTests
         Assert.True(runnerRemoved);
         Assert.True(Directory.Exists(managedRoot));
         Assert.False(Directory.Exists(runnerDirectory));
+    }
+
+    [Fact]
+    public async Task DeleteManagedRunner_RejectsSymbolicManagedRoot()
+    {
+        using var temp = new TemporaryDirectory();
+        temp.CreateDirectory("Emulators");
+        var externalManagedRoot = temp.CreateDirectory("ExternalManagedRoot");
+        var externalRunner = temp.CreateDirectory("ExternalManagedRoot", "GE-Proton10-1");
+        var externalFile = temp.CreateFile(
+            "ExternalManagedRoot/GE-Proton10-1/must-remain.txt");
+        Directory.CreateSymbolicLink(
+            temp.GetPath("Emulators", "ProtonVersions"),
+            externalManagedRoot);
+        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+            throw new InvalidOperationException("HTTP should not be used.")));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        var isManaged = service.IsManagedRunnerPath(
+            "Emulators/ProtonVersions/GE-Proton10-1");
+        var removed = await service.DeleteManagedRunnerAsync(
+            "Emulators/ProtonVersions/GE-Proton10-1");
+
+        Assert.False(isManaged);
+        Assert.False(removed);
+        Assert.True(Directory.Exists(externalRunner));
+        Assert.True(File.Exists(externalFile));
+    }
+
+    [Fact]
+    public async Task DeleteManagedRunner_RejectsSymbolicRunnerDirectory()
+    {
+        using var temp = new TemporaryDirectory();
+        var managedRoot = temp.CreateDirectory("Emulators", "ProtonVersions");
+        var externalRunner = temp.CreateDirectory("ExternalRunner");
+        var externalFile = temp.CreateFile("ExternalRunner/must-remain.txt");
+        var runnerLink = Path.Combine(managedRoot, "GE-Proton10-1");
+        Directory.CreateSymbolicLink(runnerLink, externalRunner);
+        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+            throw new InvalidOperationException("HTTP should not be used.")));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        var isManaged = service.IsManagedRunnerPath(
+            "Emulators/ProtonVersions/GE-Proton10-1");
+        var removed = await service.DeleteManagedRunnerAsync(
+            "Emulators/ProtonVersions/GE-Proton10-1");
+
+        Assert.False(isManaged);
+        Assert.False(removed);
+        Assert.True(Directory.Exists(runnerLink));
+        Assert.True(File.Exists(externalFile));
+    }
+
+    [Fact]
+    public async Task DeleteManagedRunner_DoesNotFollowNestedSymbolicLinks()
+    {
+        using var temp = new TemporaryDirectory();
+        var runnerDirectory = temp.CreateDirectory(
+            "Emulators",
+            "ProtonVersions",
+            "GE-Proton10-1");
+        temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/proton");
+        var externalDirectory = temp.CreateDirectory("ExternalData");
+        var externalFile = temp.CreateFile("ExternalData/must-remain.txt");
+        Directory.CreateSymbolicLink(
+            Path.Combine(runnerDirectory, "external-link"),
+            externalDirectory);
+        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+            throw new InvalidOperationException("HTTP should not be used.")));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        var removed = await service.DeleteManagedRunnerAsync(
+            "Emulators/ProtonVersions/GE-Proton10-1");
+
+        Assert.True(removed);
+        Assert.False(Directory.Exists(runnerDirectory));
+        Assert.True(Directory.Exists(externalDirectory));
+        Assert.True(File.Exists(externalFile));
     }
 
     [Fact]

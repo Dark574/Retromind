@@ -551,10 +551,13 @@ download is registered immediately, managed files require confirmation before ph
 uses `MediaSortHelper.NaturalStringComparer` so numeric release segments sort naturally (for example, GE-Proton9
 before GE-Proton10). Managed downloads are extracted into uniquely named staging directories and atomically renamed
 into place; they are registered only after their Proton entry point and UMU tool manifest have been verified. An
-explicit reinstall validates the replacement first and preserves the previous runner until the final atomic swap. Before
-a selected runner is launched, its persisted
-definition and files are checked again so removed, moved, or incomplete runners fail with visible guidance rather
-than silently falling back to another runtime.
+explicit reinstall validates the replacement first and preserves the previous runner until the final atomic swap.
+Installation, publication, cleanup, and removal accept only direct runner directories beneath
+`Emulators/ProtonVersions`; every existing path component below the data root must be free of symbolic links so a
+managed operation cannot be redirected outside that boundary. Symbolic links contained inside an otherwise valid
+runner are removed as links and are not followed during recursive deletion. Before a selected runner is launched,
+its persisted definition and files are checked again so removed, moved, or incomplete runners fail with visible
+guidance rather than silently falling back to another runtime.
 
 Emulator executable values without path separators remain command tokens resolved through the effective `PATH` at
 launch time; explicit and portable-relative paths bypass that lookup. The emulator settings use the same resolver
