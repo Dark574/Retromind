@@ -1,4 +1,6 @@
+using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Text;
 using Retromind.Services;
 using Retromind.Tests.TestInfrastructure;
 
@@ -78,6 +80,67 @@ public sealed class MetadataBackupServiceTests
 
         Assert.False(listed.IsValid);
         Assert.False(string.IsNullOrWhiteSpace(listed.ValidationError));
+    }
+
+    [Fact]
+    public async Task ReadBoundedEntryStreamAsync_StopsAfterFirstByteBeyondDeclaredLimit()
+    {
+        await using var stream = new CountingMemoryStream(new byte[1024]);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            MetadataBackupService.ReadBoundedEntryStreamAsync(
+                stream,
+                declaredLength: 8,
+                maximumBytes: 8,
+                entryName: "retromind_tree.json"));
+
+        Assert.Equal(9, stream.BytesRead);
+    }
+
+    [Fact]
+    public async Task ReadBoundedEntryStreamAsync_RejectsTruncatedEntry()
+    {
+        await using var stream = new CountingMemoryStream(new byte[7]);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            MetadataBackupService.ReadBoundedEntryStreamAsync(
+                stream,
+                declaredLength: 8,
+                maximumBytes: 8,
+                entryName: "retromind_tree.json"));
+
+        Assert.Equal(7, stream.BytesRead);
+    }
+
+    [Fact]
+    public async Task GetBackupsAsync_MarksEntryWithUnderstatedStreamLengthInvalidAndKeepsArchive()
+    {
+        using var temp = new TemporaryDirectory();
+        var service = new MetadataBackupService(temp.RootPath);
+        var created = await service.CreateBackupAsync(SampleContent, MetadataBackupReason.OnStartup);
+        PatchCentralDirectoryUncompressedSize(created.FilePath, "retromind_tree.json", 4);
+
+        var listed = Assert.Single(await service.GetBackupsAsync());
+
+        Assert.False(listed.IsValid);
+        Assert.True(File.Exists(created.FilePath));
+    }
+
+    [Fact]
+    public async Task GetBackupsAsync_RejectsOversizedDeclaredEntryWithoutDeletingArchive()
+    {
+        using var temp = new TemporaryDirectory();
+        var service = new MetadataBackupService(temp.RootPath);
+        var created = await service.CreateBackupAsync(SampleContent, MetadataBackupReason.OnStartup);
+        PatchCentralDirectoryUncompressedSize(
+            created.FilePath,
+            "retromind_tree.json",
+            checked((uint)(MetadataBackupService.MaximumJsonEntryBytes + 1)));
+
+        var listed = Assert.Single(await service.GetBackupsAsync());
+
+        Assert.False(listed.IsValid);
+        Assert.True(File.Exists(created.FilePath));
     }
 
     [Fact]
@@ -171,5 +234,67 @@ public sealed class MetadataBackupServiceTests
         var changed = archive.CreateEntry(entryName);
         await using var writer = new StreamWriter(changed.Open());
         await writer.WriteAsync(json);
+    }
+
+    private static void PatchCentralDirectoryUncompressedSize(
+        string path,
+        string entryName,
+        uint uncompressedSize)
+    {
+        const uint centralDirectoryHeaderSignature = 0x02014b50;
+        const int fixedHeaderLength = 46;
+        const int uncompressedSizeOffset = 24;
+        const int fileNameLengthOffset = 28;
+        const int extraFieldLengthOffset = 30;
+        const int commentLengthOffset = 32;
+
+        var bytes = File.ReadAllBytes(path);
+        for (var offset = 0; offset <= bytes.Length - fixedHeaderLength; offset++)
+        {
+            var header = bytes.AsSpan(offset);
+            if (BinaryPrimitives.ReadUInt32LittleEndian(header) != centralDirectoryHeaderSignature)
+                continue;
+
+            var fileNameLength = BinaryPrimitives.ReadUInt16LittleEndian(
+                header[fileNameLengthOffset..]);
+            var extraFieldLength = BinaryPrimitives.ReadUInt16LittleEndian(
+                header[extraFieldLengthOffset..]);
+            var commentLength = BinaryPrimitives.ReadUInt16LittleEndian(
+                header[commentLengthOffset..]);
+            var entryHeaderLength = fixedHeaderLength + fileNameLength + extraFieldLength + commentLength;
+            if (offset > bytes.Length - entryHeaderLength)
+                break;
+
+            var fileName = Encoding.UTF8.GetString(
+                bytes,
+                offset + fixedHeaderLength,
+                fileNameLength);
+            if (string.Equals(fileName, entryName, StringComparison.Ordinal))
+            {
+                BinaryPrimitives.WriteUInt32LittleEndian(
+                    header[uncompressedSizeOffset..],
+                    uncompressedSize);
+                File.WriteAllBytes(path, bytes);
+                return;
+            }
+
+            offset += entryHeaderLength - 1;
+        }
+
+        throw new InvalidOperationException($"ZIP entry '{entryName}' was not found.");
+    }
+
+    private sealed class CountingMemoryStream(byte[] buffer) : MemoryStream(buffer, writable: false)
+    {
+        public int BytesRead { get; private set; }
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> destination,
+            CancellationToken cancellationToken = default)
+        {
+            var bytesRead = await base.ReadAsync(destination, cancellationToken);
+            BytesRead += bytesRead;
+            return bytesRead;
+        }
     }
 }

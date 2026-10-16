@@ -45,7 +45,7 @@ public sealed class MetadataBackupService
 {
     private const int BackupFormatVersion = 1;
     private const int AutomaticBackupRetention = 10;
-    private const long MaximumJsonEntryBytes = 512L * 1024 * 1024;
+    internal const long MaximumJsonEntryBytes = 512L * 1024 * 1024;
     private const long MaximumManifestBytes = 64L * 1024;
     private const string ArchivePrefix = "RetromindMetadata-";
     private const string LibraryEntryName = "retromind_tree.json";
@@ -109,28 +109,20 @@ public sealed class MetadataBackupService
                 BackupDirectory,
                 $".{Path.GetFileName(finalPath)}.{Guid.NewGuid():N}.tmp");
 
-            var libraryBytes = Encoding.UTF8.GetBytes(content.LibraryJson);
-            var settingsBytes = Encoding.UTF8.GetBytes(content.SettingsJson);
-            var manifest = new MetadataBackupManifest
-            {
-                FormatVersion = BackupFormatVersion,
-                CreatedUtc = createdUtc,
-                Reason = reason,
-                RetromindVersion = ResolveRetromindVersion(),
-                LibrarySha256 = ComputeSha256(libraryBytes),
-                SettingsSha256 = ComputeSha256(settingsBytes)
-            };
-
-            await WriteArchiveAsync(
+            await WriteBackupContentArchiveAsync(
                     temporaryPath,
-                    libraryBytes,
-                    settingsBytes,
-                    JsonSerializer.SerializeToUtf8Bytes(manifest, ManifestJsonOptions),
+                    content,
+                    reason,
+                    createdUtc,
                     cancellationToken)
                 .ConfigureAwait(false);
 
             // Never publish a partially written or unreadable archive.
-            var validated = await ReadBackupCoreAsync(temporaryPath, cancellationToken).ConfigureAwait(false);
+            var validated = await ReadBackupCoreAsync(
+                    temporaryPath,
+                    materializeContent: false,
+                    cancellationToken)
+                .ConfigureAwait(false);
             File.Move(temporaryPath, finalPath, overwrite: false);
             temporaryPath = null;
 
@@ -202,7 +194,13 @@ public sealed class MetadataBackupService
         await _ioGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return (await ReadBackupCoreAsync(safePath, cancellationToken).ConfigureAwait(false)).Content;
+            var validated = await ReadBackupCoreAsync(
+                    safePath,
+                    materializeContent: true,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return validated.Content
+                   ?? throw new InvalidDataException("The metadata backup content was not loaded.");
         }
         finally
         {
@@ -271,7 +269,11 @@ public sealed class MetadataBackupService
         string path,
         CancellationToken cancellationToken)
     {
-        var validated = await ReadBackupCoreAsync(path, cancellationToken).ConfigureAwait(false);
+        var validated = await ReadBackupCoreAsync(
+                path,
+                materializeContent: false,
+                cancellationToken)
+            .ConfigureAwait(false);
         return CreateBackupInfo(path, validated.Manifest);
     }
 
@@ -290,13 +292,17 @@ public sealed class MetadataBackupService
 
     private static Task<ValidatedBackup> ReadBackupCoreAsync(
         string path,
+        bool materializeContent,
         CancellationToken cancellationToken)
         // ZIP processing, hashing and JSON parsing must also stay off the UI thread
         // when the asynchronous reads complete synchronously from filesystem caches.
-        => Task.Run(() => ReadBackupArchiveAsync(path, cancellationToken), cancellationToken);
+        => Task.Run(
+            () => ReadBackupArchiveAsync(path, materializeContent, cancellationToken),
+            cancellationToken);
 
     private static async Task<ValidatedBackup> ReadBackupArchiveAsync(
         string path,
+        bool materializeContent,
         CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(
@@ -310,30 +316,29 @@ public sealed class MetadataBackupService
 
         var manifest = await ReadAndValidateManifestAsync(archive, cancellationToken).ConfigureAwait(false);
 
-        var libraryBytes = await ReadRequiredEntryAsync(
+        var libraryJson = await ReadAndValidateJsonEntryAsync(
                 archive,
                 LibraryEntryName,
+                manifest.LibrarySha256,
                 MaximumJsonEntryBytes,
+                materializeContent,
                 cancellationToken)
             .ConfigureAwait(false);
-        var settingsBytes = await ReadRequiredEntryAsync(
+        var settingsJson = await ReadAndValidateJsonEntryAsync(
                 archive,
                 SettingsEntryName,
+                manifest.SettingsSha256,
                 MaximumJsonEntryBytes,
+                materializeContent,
                 cancellationToken)
             .ConfigureAwait(false);
 
-        VerifyHash(libraryBytes, manifest.LibrarySha256, LibraryEntryName);
-        VerifyHash(settingsBytes, manifest.SettingsSha256, SettingsEntryName);
-
-        var libraryJson = Encoding.UTF8.GetString(libraryBytes);
-        var settingsJson = Encoding.UTF8.GetString(settingsBytes);
-        ValidateJson(libraryJson, LibraryEntryName);
-        ValidateJson(settingsJson, SettingsEntryName);
-
+        var content = materializeContent
+            ? new MetadataBackupContent(libraryJson!, settingsJson!)
+            : null;
         return new ValidatedBackup(
             manifest,
-            new MetadataBackupContent(libraryJson, settingsJson));
+            content);
     }
 
     private static async Task<MetadataBackupManifest> ReadAndValidateManifestAsync(
@@ -396,12 +401,105 @@ public sealed class MetadataBackupService
         var entry = GetValidatedEntry(archive, entryName, maximumBytes);
 
         await using var entryStream = entry.Open();
-        using var memory = new MemoryStream((int)Math.Min(entry.Length, int.MaxValue));
-        await entryStream.CopyToAsync(memory, cancellationToken).ConfigureAwait(false);
-        if (memory.Length > maximumBytes)
+        return await ReadBoundedEntryStreamAsync(
+                entryStream,
+                entry.Length,
+                maximumBytes,
+                entryName,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    internal static async Task<byte[]> ReadBoundedEntryStreamAsync(
+        Stream source,
+        long declaredLength,
+        long maximumBytes,
+        string entryName,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (declaredLength < 0 || declaredLength > maximumBytes || declaredLength > int.MaxValue)
             throw new InvalidDataException($"The backup entry '{entryName}' is too large.");
 
-        return memory.ToArray();
+        var bytes = new byte[checked((int)declaredLength)];
+        var offset = 0;
+        while (offset < bytes.Length)
+        {
+            var bytesRead = await source.ReadAsync(bytes.AsMemory(offset), cancellationToken)
+                .ConfigureAwait(false);
+            if (bytesRead == 0)
+            {
+                throw new InvalidDataException(
+                    $"The backup entry '{entryName}' does not match its declared size.");
+            }
+
+            offset += bytesRead;
+        }
+
+        var trailingByte = new byte[1];
+        if (await source.ReadAsync(trailingByte, cancellationToken).ConfigureAwait(false) != 0)
+        {
+            throw new InvalidDataException(
+                $"The backup entry '{entryName}' exceeds its declared size.");
+        }
+
+        return bytes;
+    }
+
+    private static async Task<string?> ReadAndValidateJsonEntryAsync(
+        ZipArchive archive,
+        string entryName,
+        string expectedHash,
+        long maximumBytes,
+        bool materializeContent,
+        CancellationToken cancellationToken)
+    {
+        var bytes = await ReadRequiredEntryAsync(
+                archive,
+                entryName,
+                maximumBytes,
+                cancellationToken)
+            .ConfigureAwait(false);
+        VerifyHash(bytes, expectedHash, entryName);
+        ValidateJson(bytes, entryName);
+        return materializeContent ? Encoding.UTF8.GetString(bytes) : null;
+    }
+
+    private static async Task WriteBackupContentArchiveAsync(
+        string path,
+        MetadataBackupContent content,
+        MetadataBackupReason reason,
+        DateTimeOffset createdUtc,
+        CancellationToken cancellationToken)
+    {
+        var libraryBytes = Encoding.UTF8.GetBytes(content.LibraryJson);
+        var settingsBytes = Encoding.UTF8.GetBytes(content.SettingsJson);
+        EnsureEntrySize(LibraryEntryName, libraryBytes.LongLength, MaximumJsonEntryBytes);
+        EnsureEntrySize(SettingsEntryName, settingsBytes.LongLength, MaximumJsonEntryBytes);
+
+        var manifest = new MetadataBackupManifest
+        {
+            FormatVersion = BackupFormatVersion,
+            CreatedUtc = createdUtc,
+            Reason = reason,
+            RetromindVersion = ResolveRetromindVersion(),
+            LibrarySha256 = ComputeSha256(libraryBytes),
+            SettingsSha256 = ComputeSha256(settingsBytes)
+        };
+
+        await WriteArchiveAsync(
+                path,
+                libraryBytes,
+                settingsBytes,
+                JsonSerializer.SerializeToUtf8Bytes(manifest, ManifestJsonOptions),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static void EnsureEntrySize(string entryName, long length, long maximumBytes)
+    {
+        if (length < 0 || length > maximumBytes)
+            throw new InvalidDataException($"The backup entry '{entryName}' is too large.");
     }
 
     private static async Task WriteArchiveAsync(
@@ -485,6 +583,24 @@ public sealed class MetadataBackupService
         }
     }
 
+    private static void ValidateJson(ReadOnlySpan<byte> json, string entryName)
+    {
+        if (json.IsEmpty)
+            throw new InvalidDataException($"The backup entry '{entryName}' is empty.");
+
+        try
+        {
+            var reader = new Utf8JsonReader(json, isFinalBlock: true, state: default);
+            while (reader.Read())
+            {
+            }
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException($"The backup entry '{entryName}' contains invalid JSON.", ex);
+        }
+    }
+
     private static void VerifyHash(byte[] bytes, string expectedHash, string entryName)
     {
         if (!string.Equals(ComputeSha256(bytes), expectedHash, StringComparison.OrdinalIgnoreCase))
@@ -525,5 +641,5 @@ public sealed class MetadataBackupService
 
     private sealed record ValidatedBackup(
         MetadataBackupManifest Manifest,
-        MetadataBackupContent Content);
+        MetadataBackupContent? Content);
 }

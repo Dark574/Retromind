@@ -124,6 +124,11 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
 - listing and retention fully validate archive contents and checksums off the UI thread; invalid archives
   remain visible and are neither counted toward retention nor deleted automatically. Restore validates
   again independently of any earlier listing
+- the manifest is limited to 64 KiB and each library/settings JSON entry retains a 512 MiB compatibility
+  ceiling. Entry streams must end at their declared size and are rejected on the first trailing byte instead
+  of being copied without a bound. Listing, retention, and post-write validation hash and parse entries without
+  materializing JSON strings; restore materializes the two strings sequentially. The 512 MiB ceiling remains a
+  deliberately generous compatibility bound, not a target size for normal libraries
 - when its trigger is enabled, an accepted bulk edit or started bulk scrape requires a successful pre-change
   backup before any item is mutated
 - restore validates both archive integrity and the actual library/settings serialization contracts, optionally
