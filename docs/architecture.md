@@ -552,6 +552,10 @@ Parental behavior is not isolated to one screen:
 - current content refresh and fallback node selection when active node becomes hidden
 - search view respects parental filtering
 - node/item protection state propagation and auto-protect recalculation is debounced
+- the parental lock is a local content-filtering and UX boundary, not a security boundary against users with
+  access to the application files or persisted settings. Its password uses `SecurityHelper` with a fixed key by
+  design so portable profiles continue to work across machines; this prevents casual plaintext inspection but
+  does not prevent a determined local user from recovering the password or modifying the stored lock state
 
 ## Media model notes
 - `MediaNode` and `MediaItem` both support asset collections and active-asset overrides
