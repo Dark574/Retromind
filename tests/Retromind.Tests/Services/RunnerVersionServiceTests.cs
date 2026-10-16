@@ -2,6 +2,7 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using Retromind.Models;
 using Retromind.Services;
@@ -11,6 +12,13 @@ namespace Retromind.Tests.Services;
 
 public sealed class RunnerVersionServiceTests
 {
+    private const string ReleaseTag = "GE-Proton10-1";
+    private const string ReleaseAssetName = "GE-Proton10-1.tar.gz";
+    private const string ReleaseDownloadUrl =
+        "https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-1/GE-Proton10-1.tar.gz";
+    private const string ReleaseChecksumUrl =
+        "https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-1/GE-Proton10-1.sha512sum";
+
     [Fact]
     public async Task GetGeProtonReleases_FiltersDraftAndArmAssets()
     {
@@ -22,7 +30,11 @@ public sealed class RunnerVersionServiceTests
                 "assets": [
                   {
                     "name": "GE-Proton10-1.tar.gz",
-                    "browser_download_url": "https://example.invalid/ge-proton.tar.gz"
+                    "browser_download_url": "https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-1/GE-Proton10-1.tar.gz"
+                  },
+                  {
+                    "name": "GE-Proton10-1.sha512sum",
+                    "browser_download_url": "https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-1/GE-Proton10-1.sha512sum"
                   }
                 ]
               },
@@ -58,6 +70,53 @@ public sealed class RunnerVersionServiceTests
         var release = Assert.Single(releases);
         Assert.Equal("GE-Proton10-1", release.TagName);
         Assert.Equal("GE-Proton10-1.tar.gz", release.AssetName);
+        Assert.Equal(ReleaseDownloadUrl, release.DownloadUrl);
+        Assert.Equal(ReleaseChecksumUrl, release.ChecksumUrl);
+    }
+
+    [Fact]
+    public async Task GetGeProtonReleases_SkipsReleaseWithoutMatchingChecksumAsset()
+    {
+        const string json = """
+            [
+              {
+                "tag_name": "GE-Proton10-1",
+                "draft": false,
+                "assets": [
+                  {
+                    "name": "GE-Proton10-1.tar.gz",
+                    "browser_download_url": "https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-1/GE-Proton10-1.tar.gz"
+                  }
+                ]
+              }
+            ]
+            """;
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) => JsonResponse(json)));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        var releases = await service.GetGeProtonReleasesAsync();
+
+        Assert.Empty(releases);
+    }
+
+    [Fact]
+    public async Task GetGeProtonReleases_RejectsRedirectOutsideTrustedApiHost()
+    {
+        var requestCount = 0;
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+        {
+            requestCount++;
+            return RedirectResponse("https://example.invalid/releases");
+        }));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.GetGeProtonReleasesAsync());
+
+        Assert.Equal(1, requestCount);
     }
 
     [Fact]
@@ -68,14 +127,11 @@ public sealed class RunnerVersionServiceTests
             ("GE-Proton10-1/toolmanifest.vdf", "manifest"));
 
         using var temp = new TemporaryDirectory();
-        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            ReleaseResponse(request, archive)));
         using var service = new RunnerVersionService(temp.RootPath, httpClient);
 
-        var relativePath = await service.DownloadAndInstallGeProtonAsync(
-            new GeProtonRelease(
-                "GE-Proton10-1",
-                "GE-Proton10-1.tar.gz",
-                "https://example.invalid/ge-proton.tar.gz"));
+        var relativePath = await service.DownloadAndInstallGeProtonAsync(CreateRelease());
 
         Assert.Equal("Emulators/ProtonVersions/GE-Proton10-1", relativePath);
         Assert.True(File.Exists(temp.GetPath(relativePath, "proton")));
@@ -83,6 +139,125 @@ public sealed class RunnerVersionServiceTests
         Assert.Empty(Directory.GetDirectories(
             temp.GetPath("Emulators", "ProtonVersions"),
             ".tmp_ge_*"));
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_RejectsChecksumMismatchBeforeExtraction()
+    {
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", "runner"),
+            ("GE-Proton10-1/toolmanifest.vdf", "manifest"));
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            IsChecksumRequest(request)
+                ? ChecksumResponse([0x01, 0x02, 0x03])
+                : BinaryResponse(archive)));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.DownloadAndInstallGeProtonAsync(CreateRelease()));
+
+        var runnerRoot = temp.GetPath("Emulators", "ProtonVersions");
+        Assert.False(Directory.Exists(Path.Combine(runnerRoot, ReleaseTag)));
+        Assert.Empty(Directory.GetDirectories(runnerRoot, ".tmp_ge_*"));
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_RejectsChecksumForDifferentAssetBeforeArchiveDownload()
+    {
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", "runner"),
+            ("GE-Proton10-1/toolmanifest.vdf", "manifest"));
+        var requestCount = 0;
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+        {
+            requestCount++;
+            return ChecksumResponse(archive, "different.tar.gz");
+        }));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.DownloadAndInstallGeProtonAsync(CreateRelease()));
+
+        Assert.Equal(1, requestCount);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DownloadAndInstallGeProton_RejectsUntrustedInitialAssetUrl(
+        bool replaceChecksumUrl)
+    {
+        var requestCount = 0;
+        var release = replaceChecksumUrl
+            ? CreateRelease(checksumUrl: "https://example.invalid/GE-Proton10-1.sha512sum")
+            : CreateRelease(downloadUrl: "https://example.invalid/GE-Proton10-1.tar.gz");
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+        {
+            requestCount++;
+            throw new InvalidOperationException("HTTP should not be used.");
+        }));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.DownloadAndInstallGeProtonAsync(release));
+
+        Assert.Equal(0, requestCount);
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_RejectsRedirectOutsideGithubReleaseAssetHost()
+    {
+        var requestCount = 0;
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+        {
+            requestCount++;
+            return RedirectResponse("https://example.invalid/asset");
+        }));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.DownloadAndInstallGeProtonAsync(CreateRelease()));
+
+        Assert.Equal(1, requestCount);
+    }
+
+    [Fact]
+    public async Task DownloadAndInstallGeProton_AllowsGithubReleaseAssetRedirects()
+    {
+        var archive = CreateTarGz(
+            ("GE-Proton10-1/proton", "runner"),
+            ("GE-Proton10-1/toolmanifest.vdf", "manifest"));
+
+        using var temp = new TemporaryDirectory();
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+        {
+            if (string.Equals(
+                    request.RequestUri?.IdnHost,
+                    "github.com",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                var redirectedName = IsChecksumRequest(request)
+                    ? "GE-Proton10-1.sha512sum"
+                    : "GE-Proton10-1.tar.gz";
+                return RedirectResponse(
+                    $"https://release-assets.githubusercontent.com/test/{redirectedName}?token=test");
+            }
+
+            return ReleaseResponse(request, archive);
+        }));
+        using var service = new RunnerVersionService(temp.RootPath, httpClient);
+
+        var relativePath = await service.DownloadAndInstallGeProtonAsync(CreateRelease());
+
+        Assert.True(File.Exists(temp.GetPath(relativePath, "proton")));
+        Assert.True(File.Exists(temp.GetPath(relativePath, "toolmanifest.vdf")));
     }
 
     [Fact]
@@ -99,14 +274,12 @@ public sealed class RunnerVersionServiceTests
             "GE-Proton10-1");
         temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/proton", "old runner");
         temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/toolmanifest.vdf", "old manifest");
-        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            ReleaseResponse(request, archive)));
         using var service = new RunnerVersionService(temp.RootPath, httpClient);
 
         await service.DownloadAndInstallGeProtonAsync(
-            new GeProtonRelease(
-                "GE-Proton10-1",
-                "GE-Proton10-1.tar.gz",
-                "https://example.invalid/ge-proton.tar.gz"),
+            CreateRelease(),
             replaceExisting: true);
 
         Assert.Equal("new runner", File.ReadAllText(Path.Combine(existingDirectory, "proton")));
@@ -130,14 +303,11 @@ public sealed class RunnerVersionServiceTests
             "GE-Proton10-1");
         temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/proton", "old runner");
         temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/toolmanifest.vdf", "old manifest");
-        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            ReleaseResponse(request, archive)));
         using var service = new RunnerVersionService(temp.RootPath, httpClient);
 
-        await service.DownloadAndInstallGeProtonAsync(
-            new GeProtonRelease(
-                "GE-Proton10-1",
-                "GE-Proton10-1.tar.gz",
-                "https://example.invalid/ge-proton.tar.gz"));
+        await service.DownloadAndInstallGeProtonAsync(CreateRelease());
 
         Assert.Equal("old runner", File.ReadAllText(Path.Combine(existingDirectory, "proton")));
         Assert.Equal("old manifest", File.ReadAllText(Path.Combine(existingDirectory, "toolmanifest.vdf")));
@@ -155,15 +325,13 @@ public sealed class RunnerVersionServiceTests
             "GE-Proton10-1");
         temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/proton", "old runner");
         temp.CreateFile("Emulators/ProtonVersions/GE-Proton10-1/toolmanifest.vdf", "old manifest");
-        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            ReleaseResponse(request, archive)));
         using var service = new RunnerVersionService(temp.RootPath, httpClient);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.DownloadAndInstallGeProtonAsync(
-                new GeProtonRelease(
-                    "GE-Proton10-1",
-                    "GE-Proton10-1.tar.gz",
-                    "https://example.invalid/ge-proton.tar.gz"),
+                CreateRelease(),
                 replaceExisting: true));
 
         Assert.Equal("old runner", File.ReadAllText(Path.Combine(existingDirectory, "proton")));
@@ -182,14 +350,12 @@ public sealed class RunnerVersionServiceTests
         var reports = new List<GeProtonInstallProgress>();
 
         using var temp = new TemporaryDirectory();
-        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            ReleaseResponse(request, archive)));
         using var service = new RunnerVersionService(temp.RootPath, httpClient);
 
         await service.DownloadAndInstallGeProtonAsync(
-            new GeProtonRelease(
-                "GE-Proton10-1",
-                "GE-Proton10-1.tar.gz",
-                "https://example.invalid/ge-proton.tar.gz"),
+            CreateRelease(),
             progress: new InlineProgress<GeProtonInstallProgress>(reports.Add));
 
         Assert.Contains(reports, report =>
@@ -209,8 +375,11 @@ public sealed class RunnerVersionServiceTests
         var maximumDownloadBytes = archive.Length;
 
         using var temp = new TemporaryDirectory();
-        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
         {
+            if (IsChecksumRequest(request))
+                return ChecksumResponse(archive);
+
             var response = BinaryResponse(archive);
             response.Content.Headers.ContentLength = maximumDownloadBytes + 1;
             return response;
@@ -223,11 +392,7 @@ public sealed class RunnerVersionServiceTests
             maxArchiveEntries: 10);
 
         await Assert.ThrowsAsync<InvalidDataException>(() =>
-            service.DownloadAndInstallGeProtonAsync(
-                new GeProtonRelease(
-                    "GE-Proton10-1",
-                    "GE-Proton10-1.tar.gz",
-                    "https://example.invalid/ge-proton.tar.gz")));
+            service.DownloadAndInstallGeProtonAsync(CreateRelease()));
 
         Assert.Empty(Directory.GetFileSystemEntries(
             temp.GetPath("Emulators", "ProtonVersions")));
@@ -242,8 +407,11 @@ public sealed class RunnerVersionServiceTests
         var payload = Enumerable.Repeat((byte)0x41, 65).ToArray();
 
         using var temp = new TemporaryDirectory();
-        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
         {
+            if (IsChecksumRequest(request))
+                return ChecksumResponse(payload);
+
             var content = new UnknownLengthContent(payload);
             if (understateContentLength)
                 content.Headers.ContentLength = 1;
@@ -261,11 +429,7 @@ public sealed class RunnerVersionServiceTests
             maxArchiveEntries: 10);
 
         await Assert.ThrowsAsync<InvalidDataException>(() =>
-            service.DownloadAndInstallGeProtonAsync(
-                new GeProtonRelease(
-                    "GE-Proton10-1",
-                    "GE-Proton10-1.tar.gz",
-                    "https://example.invalid/ge-proton.tar.gz")));
+            service.DownloadAndInstallGeProtonAsync(CreateRelease()));
 
         Assert.Empty(Directory.GetFileSystemEntries(
             temp.GetPath("Emulators", "ProtonVersions")));
@@ -283,7 +447,8 @@ public sealed class RunnerVersionServiceTests
                              Encoding.UTF8.GetByteCount(manifestContent);
 
         using var temp = new TemporaryDirectory();
-        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            ReleaseResponse(request, archive)));
         using var service = new RunnerVersionService(
             temp.RootPath,
             httpClient,
@@ -292,11 +457,7 @@ public sealed class RunnerVersionServiceTests
             maxArchiveEntries: 10);
 
         await Assert.ThrowsAsync<InvalidDataException>(() =>
-            service.DownloadAndInstallGeProtonAsync(
-                new GeProtonRelease(
-                    "GE-Proton10-1",
-                    "GE-Proton10-1.tar.gz",
-                    "https://example.invalid/ge-proton.tar.gz")));
+            service.DownloadAndInstallGeProtonAsync(CreateRelease()));
 
         Assert.Empty(Directory.GetDirectories(
             temp.GetPath("Emulators", "ProtonVersions"),
@@ -311,7 +472,8 @@ public sealed class RunnerVersionServiceTests
             ("GE-Proton10-1/toolmanifest.vdf", "manifest"));
 
         using var temp = new TemporaryDirectory();
-        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            ReleaseResponse(request, archive)));
         using var service = new RunnerVersionService(
             temp.RootPath,
             httpClient,
@@ -320,11 +482,7 @@ public sealed class RunnerVersionServiceTests
             maxArchiveEntries: 1);
 
         await Assert.ThrowsAsync<InvalidDataException>(() =>
-            service.DownloadAndInstallGeProtonAsync(
-                new GeProtonRelease(
-                    "GE-Proton10-1",
-                    "GE-Proton10-1.tar.gz",
-                    "https://example.invalid/ge-proton.tar.gz")));
+            service.DownloadAndInstallGeProtonAsync(CreateRelease()));
 
         Assert.Empty(Directory.GetDirectories(
             temp.GetPath("Emulators", "ProtonVersions"),
@@ -343,7 +501,8 @@ public sealed class RunnerVersionServiceTests
                              Encoding.UTF8.GetByteCount(manifestContent);
 
         using var temp = new TemporaryDirectory();
-        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            ReleaseResponse(request, archive)));
         using var service = new RunnerVersionService(
             temp.RootPath,
             httpClient,
@@ -351,11 +510,7 @@ public sealed class RunnerVersionServiceTests
             maxExtractedBytes: extractedBytes,
             maxArchiveEntries: 2);
 
-        var relativePath = await service.DownloadAndInstallGeProtonAsync(
-            new GeProtonRelease(
-                "GE-Proton10-1",
-                "GE-Proton10-1.tar.gz",
-                "https://example.invalid/ge-proton.tar.gz"));
+        var relativePath = await service.DownloadAndInstallGeProtonAsync(CreateRelease());
 
         Assert.True(File.Exists(temp.GetPath(relativePath, "proton")));
         Assert.True(File.Exists(temp.GetPath(relativePath, "toolmanifest.vdf")));
@@ -370,7 +525,8 @@ public sealed class RunnerVersionServiceTests
         using var cancellation = new CancellationTokenSource();
 
         using var temp = new TemporaryDirectory();
-        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            ReleaseResponse(request, archive)));
         using var service = new RunnerVersionService(temp.RootPath, httpClient);
 
         var progress = new InlineProgress<GeProtonInstallProgress>(report =>
@@ -381,10 +537,7 @@ public sealed class RunnerVersionServiceTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             service.DownloadAndInstallGeProtonAsync(
-                new GeProtonRelease(
-                    "GE-Proton10-1",
-                    "GE-Proton10-1.tar.gz",
-                    "https://example.invalid/ge-proton.tar.gz"),
+                CreateRelease(),
                 cancellation.Token,
                 progress));
 
@@ -399,15 +552,12 @@ public sealed class RunnerVersionServiceTests
         var archive = CreateTarGz(("GE-Proton10-1/proton", "runner"));
 
         using var temp = new TemporaryDirectory();
-        using var httpClient = new HttpClient(new StubHandler((_, _) => BinaryResponse(archive)));
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
+            ReleaseResponse(request, archive)));
         using var service = new RunnerVersionService(temp.RootPath, httpClient);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.DownloadAndInstallGeProtonAsync(
-                new GeProtonRelease(
-                    "GE-Proton10-1",
-                    "GE-Proton10-1.tar.gz",
-                    "https://example.invalid/ge-proton.tar.gz")));
+            service.DownloadAndInstallGeProtonAsync(CreateRelease()));
 
         var runnerRoot = temp.GetPath("Emulators", "ProtonVersions");
         Assert.False(Directory.Exists(Path.Combine(runnerRoot, "GE-Proton10-1")));
@@ -426,19 +576,15 @@ public sealed class RunnerVersionServiceTests
         Directory.CreateDirectory(Path.Combine(externalEmulators, "ProtonVersions"));
         Directory.CreateSymbolicLink(temp.GetPath("Emulators"), externalEmulators);
         var requestSent = false;
-        using var httpClient = new HttpClient(new StubHandler((_, _) =>
+        using var httpClient = new HttpClient(new StubHandler((request, _) =>
         {
             requestSent = true;
-            return BinaryResponse(archive);
+            return ReleaseResponse(request, archive);
         }));
         using var service = new RunnerVersionService(temp.RootPath, httpClient);
 
         await Assert.ThrowsAsync<IOException>(() =>
-            service.DownloadAndInstallGeProtonAsync(
-                new GeProtonRelease(
-                    "GE-Proton10-1",
-                    "GE-Proton10-1.tar.gz",
-                    "https://example.invalid/ge-proton.tar.gz")));
+            service.DownloadAndInstallGeProtonAsync(CreateRelease()));
 
         Assert.False(requestSent);
         Assert.Empty(Directory.GetFileSystemEntries(
@@ -593,6 +739,37 @@ public sealed class RunnerVersionServiceTests
 
         return archive.ToArray();
     }
+
+    private static GeProtonRelease CreateRelease(
+        string downloadUrl = ReleaseDownloadUrl,
+        string checksumUrl = ReleaseChecksumUrl) =>
+        new(ReleaseTag, ReleaseAssetName, downloadUrl, checksumUrl);
+
+    private static bool IsChecksumRequest(HttpRequestMessage request) =>
+        request.RequestUri?.AbsolutePath.EndsWith(".sha512sum", StringComparison.Ordinal) == true;
+
+    private static HttpResponseMessage ReleaseResponse(HttpRequestMessage request, byte[] archive) =>
+        IsChecksumRequest(request) ? ChecksumResponse(archive) : BinaryResponse(archive);
+
+    private static HttpResponseMessage ChecksumResponse(
+        byte[] archive,
+        string assetName = ReleaseAssetName)
+    {
+        var checksum = Convert.ToHexString(SHA512.HashData(archive)).ToLowerInvariant();
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent($"{checksum}  {assetName}\n", Encoding.UTF8, "text/plain")
+        };
+    }
+
+    private static HttpResponseMessage RedirectResponse(string location) =>
+        new(HttpStatusCode.Found)
+        {
+            Headers =
+            {
+                Location = new Uri(location)
+            }
+        };
 
     private static HttpResponseMessage JsonResponse(string json) =>
         new(HttpStatusCode.OK)

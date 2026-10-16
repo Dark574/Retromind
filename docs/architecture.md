@@ -560,7 +560,13 @@ its persisted definition and files are checked again so removed, moved, or incom
 guidance rather than silently falling back to another runtime. GE-Proton downloads are streamed with a 1 GiB hard
 limit even when the server omits or understates `Content-Length`. Before extraction, the TAR is inspected without
 writing files and rejected if its declared payload exceeds 4 GiB or 100,000 entries; the validated archive is then
-written by the framework TAR extractor rather than a custom extraction implementation.
+written by the framework TAR extractor rather than a custom extraction implementation. Release metadata is accepted
+only from the fixed `api.github.com` repository endpoint. Each listed archive must have a matching `.sha512sum`
+asset in the same official GitHub release; both asset URLs must match their tag and filenames exactly. Downloads use
+manual, bounded redirects that accept only the original GitHub release path and GitHub's release-asset CDN, and the
+archive must pass SHA-512 verification before it is parsed or extracted. Because the checksum and archive share the
+same upstream release trust boundary, this detects corruption or inconsistent content but does not protect against
+a compromise of the upstream publisher or GitHub release itself.
 
 Emulator executable values without path separators remain command tokens resolved through the effective `PATH` at
 launch time; explicit and portable-relative paths bypass that lookup. The emulator settings use the same resolver

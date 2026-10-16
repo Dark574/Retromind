@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Formats.Tar;
 using System.IO;
 using System.IO.Compression;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,7 +20,8 @@ namespace Retromind.Services;
 public sealed record GeProtonRelease(
     string TagName,
     string AssetName,
-    string DownloadUrl)
+    string DownloadUrl,
+    string ChecksumUrl)
 {
     public string DisplayName => string.IsNullOrWhiteSpace(AssetName)
         ? TagName
@@ -51,7 +55,15 @@ public sealed class RunnerVersionService : IDisposable
     private const int GeProtonPerPage = 100;
     private const int GeProtonMaxPages = 6;
     private const int GeProtonMaxItems = 300;
+    private const int GeProtonMaxRedirects = 5;
+    private const int GeProtonMaxChecksumBytes = 16 * 1024;
     private const string ManagedRunnerRelativeRoot = "Emulators/ProtonVersions";
+    private const string GithubApiHost = "api.github.com";
+    private const string GithubHost = "github.com";
+    private const string GithubReleaseAssetHost = "release-assets.githubusercontent.com";
+    private const string GeProtonApiPath = "/repos/GloriousEggroll/proton-ge-custom/releases";
+    private const string GeProtonReleasePathPrefix =
+        "/GloriousEggroll/proton-ge-custom/releases/download/";
     internal const long MaxGeProtonDownloadBytes = 1024L * 1024 * 1024;
     internal const long MaxGeProtonExtractedBytes = 4L * 1024 * 1024 * 1024;
     internal const int MaxGeProtonArchiveEntries = 100_000;
@@ -136,7 +148,12 @@ public sealed class RunnerVersionService : IDisposable
         for (var page = 1; page <= GeProtonMaxPages; page++)
         {
             var url = $"{GeProtonReleasesApiUrl}?per_page={GeProtonPerPage}&page={page}";
-            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+            using var response = await SendTrustedGetAsync(
+                    new Uri(url),
+                    TrustedRequestKind.ReleaseApi,
+                    HttpCompletionOption.ResponseContentRead,
+                    cancellationToken)
+                .ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -179,7 +196,19 @@ public sealed class RunnerVersionService : IDisposable
                         continue;
                     }
 
-                    result.Add(new GeProtonRelease(tagName, assetName, downloadUrl));
+                    var checksumName = assetName[..^".tar.gz".Length] + ".sha512sum";
+                    if (!TryFindReleaseAsset(assets, checksumName, out var checksumUrl) ||
+                        !IsExpectedReleaseAssetUrl(downloadUrl, tagName, assetName) ||
+                        !IsExpectedReleaseAssetUrl(checksumUrl, tagName, checksumName))
+                    {
+                        continue;
+                    }
+
+                    result.Add(new GeProtonRelease(
+                        tagName,
+                        assetName,
+                        downloadUrl,
+                        checksumUrl));
                     break;
                 }
 
@@ -201,14 +230,19 @@ public sealed class RunnerVersionService : IDisposable
         bool replaceExisting = false)
     {
         ArgumentNullException.ThrowIfNull(release);
+        ValidateReleaseSource(release);
 
         EnsureManagedRunnerRootForMutation();
         var tempArchivePath = Path.Combine(Path.GetTempPath(), $"retromind_ge_{Guid.NewGuid():N}.tar.gz");
 
         try
         {
-            using (var response = await _httpClient.GetAsync(
-                       release.DownloadUrl,
+            var expectedChecksum = await DownloadExpectedChecksumAsync(release, cancellationToken)
+                .ConfigureAwait(false);
+
+            using (var response = await SendTrustedGetAsync(
+                       new Uri(release.DownloadUrl),
+                       TrustedRequestKind.ReleaseAsset,
                        HttpCompletionOption.ResponseHeadersRead,
                        cancellationToken).ConfigureAwait(false))
             {
@@ -226,6 +260,9 @@ public sealed class RunnerVersionService : IDisposable
                         cancellationToken)
                     .ConfigureAwait(false);
             }
+
+            await VerifyArchiveChecksumAsync(tempArchivePath, expectedChecksum, cancellationToken)
+                .ConfigureAwait(false);
 
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report(new GeProtonInstallProgress(
@@ -402,6 +439,263 @@ public sealed class RunnerVersionService : IDisposable
         value = property.GetString() ?? string.Empty;
         return !string.IsNullOrWhiteSpace(value);
     }
+
+    private static bool TryFindReleaseAsset(JsonElement assets, string assetName, out string downloadUrl)
+    {
+        downloadUrl = string.Empty;
+        foreach (var candidate in assets.EnumerateArray())
+        {
+            if (TryGetStringProperty(candidate, "name", out var candidateName) &&
+                string.Equals(candidateName, assetName, StringComparison.Ordinal) &&
+                TryGetStringProperty(candidate, "browser_download_url", out downloadUrl))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ValidateReleaseSource(GeProtonRelease release)
+    {
+        if (string.IsNullOrWhiteSpace(release.TagName) ||
+            string.IsNullOrWhiteSpace(release.AssetName) ||
+            release.TagName.IndexOfAny(['/', '\\']) >= 0 ||
+            release.AssetName.IndexOfAny(['/', '\\']) >= 0 ||
+            !release.AssetName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
+        {
+            throw CreateUntrustedSourceException();
+        }
+
+        var checksumName = release.AssetName[..^".tar.gz".Length] + ".sha512sum";
+        if (!IsExpectedReleaseAssetUrl(release.DownloadUrl, release.TagName, release.AssetName) ||
+            !IsExpectedReleaseAssetUrl(release.ChecksumUrl, release.TagName, checksumName))
+        {
+            throw CreateUntrustedSourceException();
+        }
+    }
+
+    private async Task<byte[]> DownloadExpectedChecksumAsync(
+        GeProtonRelease release,
+        CancellationToken cancellationToken)
+    {
+        using var response = await SendTrustedGetAsync(
+                new Uri(release.ChecksumUrl),
+                TrustedRequestKind.ReleaseAsset,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var checksumBytes = await ReadLimitedContentAsync(
+                response.Content,
+                GeProtonMaxChecksumBytes,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return ParseSha512Checksum(Encoding.UTF8.GetString(checksumBytes), release.AssetName);
+    }
+
+    private static byte[] ParseSha512Checksum(string checksumContent, string assetName)
+    {
+        foreach (var rawLine in checksumContent.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var line = rawLine.TrimStart('\uFEFF');
+            if (line.Length < 128)
+                continue;
+
+            var hashText = line[..128];
+            var referencedName = line[128..].TrimStart();
+            if (referencedName.StartsWith('*'))
+                referencedName = referencedName[1..];
+
+            if (!string.Equals(referencedName, assetName, StringComparison.Ordinal))
+                continue;
+
+            try
+            {
+                var hash = Convert.FromHexString(hashText);
+                if (hash.Length == SHA512.HashSizeInBytes)
+                    return hash;
+            }
+            catch (FormatException)
+            {
+                break;
+            }
+        }
+
+        throw new InvalidDataException(GetMessage(
+            "Settings_GeProtonChecksumInvalid",
+            "The GE-Proton checksum file is invalid or does not match the selected archive name."));
+    }
+
+    private static async Task VerifyArchiveChecksumAsync(
+        string archivePath,
+        byte[] expectedChecksum,
+        CancellationToken cancellationToken)
+    {
+        await using var archive = File.OpenRead(archivePath);
+        var actualChecksum = await SHA512.HashDataAsync(archive, cancellationToken).ConfigureAwait(false);
+        if (!CryptographicOperations.FixedTimeEquals(actualChecksum, expectedChecksum))
+        {
+            throw new InvalidDataException(GetMessage(
+                "Settings_GeProtonChecksumMismatch",
+                "The GE-Proton download failed SHA-512 verification and was not installed."));
+        }
+    }
+
+    private static async Task<byte[]> ReadLimitedContentAsync(
+        HttpContent content,
+        int maximumBytes,
+        CancellationToken cancellationToken)
+    {
+        if (content.Headers.ContentLength.HasValue &&
+            content.Headers.ContentLength.Value > maximumBytes)
+        {
+            throw CreateInvalidChecksumException();
+        }
+
+        await using var source = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var destination = new MemoryStream();
+        var buffer = new byte[4096];
+
+        while (true)
+        {
+            var bytesRead = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            if (bytesRead == 0)
+                return destination.ToArray();
+            if (bytesRead > maximumBytes - destination.Length)
+                throw CreateInvalidChecksumException();
+
+            await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<HttpResponseMessage> SendTrustedGetAsync(
+        Uri initialUri,
+        TrustedRequestKind requestKind,
+        HttpCompletionOption completionOption,
+        CancellationToken cancellationToken)
+    {
+        if (!IsAllowedInitialUri(initialUri, requestKind))
+            throw CreateUntrustedSourceException();
+
+        var currentUri = initialUri;
+        for (var redirectCount = 0; redirectCount <= GeProtonMaxRedirects; redirectCount++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
+            var response = await _httpClient.SendAsync(request, completionOption, cancellationToken)
+                .ConfigureAwait(false);
+            var effectiveUri = response.RequestMessage?.RequestUri ?? currentUri;
+
+            if (!IsAllowedResponseUri(effectiveUri, initialUri, requestKind))
+            {
+                response.Dispose();
+                throw CreateUntrustedSourceException();
+            }
+
+            if (!IsRedirectStatusCode(response.StatusCode))
+                return response;
+
+            if (redirectCount == GeProtonMaxRedirects || response.Headers.Location == null)
+            {
+                response.Dispose();
+                throw new HttpRequestException("The GE-Proton download returned too many redirects.");
+            }
+
+            var nextUri = response.Headers.Location.IsAbsoluteUri
+                ? response.Headers.Location
+                : new Uri(currentUri, response.Headers.Location);
+            response.Dispose();
+
+            if (!IsAllowedResponseUri(nextUri, initialUri, requestKind))
+                throw CreateUntrustedSourceException();
+
+            currentUri = nextUri;
+        }
+
+        throw new HttpRequestException("The GE-Proton download returned too many redirects.");
+    }
+
+    private static bool IsAllowedInitialUri(Uri uri, TrustedRequestKind requestKind) =>
+        requestKind == TrustedRequestKind.ReleaseApi
+            ? IsTrustedApiUri(uri)
+            : IsOfficialReleaseAssetUri(uri);
+
+    private static bool IsAllowedResponseUri(
+        Uri uri,
+        Uri initialUri,
+        TrustedRequestKind requestKind)
+    {
+        if (requestKind == TrustedRequestKind.ReleaseApi)
+            return IsTrustedApiUri(uri);
+
+        if (!IsSecureHttpsUri(uri))
+            return false;
+
+        if (string.Equals(uri.IdnHost, GithubReleaseAssetHost, StringComparison.OrdinalIgnoreCase))
+            return string.IsNullOrEmpty(uri.Fragment);
+
+        return string.Equals(uri.IdnHost, GithubHost, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(uri.AbsolutePath, initialUri.AbsolutePath, StringComparison.Ordinal) &&
+               string.IsNullOrEmpty(uri.Query) &&
+               string.IsNullOrEmpty(uri.Fragment);
+    }
+
+    private static bool IsTrustedApiUri(Uri uri) =>
+        IsSecureHttpsUri(uri) &&
+        string.Equals(uri.IdnHost, GithubApiHost, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(uri.AbsolutePath, GeProtonApiPath, StringComparison.Ordinal) &&
+        string.IsNullOrEmpty(uri.Fragment);
+
+    private static bool IsOfficialReleaseAssetUri(Uri uri) =>
+        IsSecureHttpsUri(uri) &&
+        string.Equals(uri.IdnHost, GithubHost, StringComparison.OrdinalIgnoreCase) &&
+        uri.AbsolutePath.StartsWith(GeProtonReleasePathPrefix, StringComparison.Ordinal) &&
+        string.IsNullOrEmpty(uri.Query) &&
+        string.IsNullOrEmpty(uri.Fragment);
+
+    private static bool IsSecureHttpsUri(Uri uri) =>
+        uri.IsAbsoluteUri &&
+        string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
+        uri.IsDefaultPort &&
+        string.IsNullOrEmpty(uri.UserInfo);
+
+    private static bool IsExpectedReleaseAssetUrl(string url, string tagName, string assetName)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || !IsOfficialReleaseAssetUri(uri))
+            return false;
+
+        try
+        {
+            var decodedPath = Uri.UnescapeDataString(uri.AbsolutePath);
+            var expectedPath = GeProtonReleasePathPrefix + tagName + "/" + assetName;
+            return string.Equals(decodedPath, expectedPath, StringComparison.Ordinal);
+        }
+        catch (UriFormatException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsRedirectStatusCode(HttpStatusCode statusCode) =>
+        statusCode is HttpStatusCode.MovedPermanently or
+            HttpStatusCode.Found or
+            HttpStatusCode.SeeOther or
+            HttpStatusCode.TemporaryRedirect or
+            HttpStatusCode.PermanentRedirect;
+
+    private static InvalidDataException CreateUntrustedSourceException() =>
+        new(GetMessage(
+            "Settings_GeProtonUntrustedSource",
+            "The GE-Proton download source is not an approved official GitHub release location."));
+
+    private static InvalidDataException CreateInvalidChecksumException() =>
+        new(GetMessage(
+            "Settings_GeProtonChecksumInvalid",
+            "The GE-Proton checksum file is invalid or does not match the selected archive name."));
+
+    private static string GetMessage(string resourceName, string fallback) =>
+        Strings.ResourceManager.GetString(resourceName, Strings.Culture) ?? fallback;
 
     private static string DetectArchiveRootFolderName(string tarGzPath)
     {
@@ -758,7 +1052,10 @@ public sealed class RunnerVersionService : IDisposable
 
     private static HttpClient CreateHttpClient()
     {
-        var client = new HttpClient
+        var client = new HttpClient(new HttpClientHandler
+        {
+            AllowAutoRedirect = false
+        })
         {
             Timeout = TimeSpan.FromSeconds(90)
         };
@@ -772,5 +1069,11 @@ public sealed class RunnerVersionService : IDisposable
     {
         if (_ownsHttpClient)
             _httpClient.Dispose();
+    }
+
+    private enum TrustedRequestKind
+    {
+        ReleaseApi,
+        ReleaseAsset
     }
 }

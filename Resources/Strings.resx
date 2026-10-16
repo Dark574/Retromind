@@ -629,6 +629,9 @@ Continue?</value></data>
     <data name="Settings_GeProtonDownloadTooLargeFormat" xml:space="preserve"><value>The GE-Proton download exceeds the allowed size of {0} MiB.</value></data>
     <data name="Settings_GeProtonArchiveTooLargeFormat" xml:space="preserve"><value>The GE-Proton archive expands beyond the allowed size of {0} MiB.</value></data>
     <data name="Settings_GeProtonArchiveEntryLimitFormat" xml:space="preserve"><value>The GE-Proton archive contains more than the allowed {0} entries.</value></data>
+    <data name="Settings_GeProtonUntrustedSource" xml:space="preserve"><value>The GE-Proton download source is not an approved official GitHub release location.</value></data>
+    <data name="Settings_GeProtonChecksumInvalid" xml:space="preserve"><value>The GE-Proton checksum file is invalid or does not match the selected archive name.</value></data>
+    <data name="Settings_GeProtonChecksumMismatch" xml:space="preserve"><value>The GE-Proton download failed SHA-512 verification and was not installed.</value></data>
     <data name="Gog.Install.ResolveFailed" xml:space="preserve"><value>GOG installer metadata could not be loaded.</value></data>
     <data name="Gog.Install.ResolveFailedFormat" xml:space="preserve"><value>GOG installer metadata could not be loaded: {0}</value></data>
     <data name="Gog.Install.NoInstallerAvailable" xml:space="preserve"><value>No installable package is available for this GOG title.</value></data>

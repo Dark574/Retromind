@@ -630,6 +630,9 @@ Fortfahren?</value></data>
     <data name="Settings_GeProtonDownloadTooLargeFormat" xml:space="preserve"><value>Der GE-Proton-Download überschreitet die zulässige Größe von {0} MiB.</value></data>
     <data name="Settings_GeProtonArchiveTooLargeFormat" xml:space="preserve"><value>Das entpackte GE-Proton-Archiv überschreitet die zulässige Größe von {0} MiB.</value></data>
     <data name="Settings_GeProtonArchiveEntryLimitFormat" xml:space="preserve"><value>Das GE-Proton-Archiv enthält mehr als die zulässigen {0} Einträge.</value></data>
+    <data name="Settings_GeProtonUntrustedSource" xml:space="preserve"><value>Die GE-Proton-Downloadquelle ist kein zugelassener offizieller GitHub-Releasepfad.</value></data>
+    <data name="Settings_GeProtonChecksumInvalid" xml:space="preserve"><value>Die GE-Proton-Prüfsummendatei ist ungültig oder gehört nicht zum ausgewählten Archivnamen.</value></data>
+    <data name="Settings_GeProtonChecksumMismatch" xml:space="preserve"><value>Die SHA-512-Prüfung des GE-Proton-Downloads ist fehlgeschlagen. Das Archiv wurde nicht installiert.</value></data>
     <data name="Gog.Install.ResolveFailed" xml:space="preserve"><value>GOG-Installerdaten konnten nicht geladen werden.</value></data>
     <data name="Gog.Install.ResolveFailedFormat" xml:space="preserve"><value>GOG-Installerdaten konnten nicht geladen werden: {0}</value></data>
     <data name="Gog.Install.NoInstallerAvailable" xml:space="preserve"><value>Für diesen GOG-Titel ist kein installierbares Paket verfügbar.</value></data>
