@@ -7,9 +7,9 @@ namespace Retromind.Helpers;
 
 public static class SecurityHelper
 {
-    // A fixed key allows portability (USB stick works on any PC).
-    // NOTE: This protects against casual snooping (text editor), not dedicated hackers.
-    // For true security, user-specific keys (DPAPI) would be needed, breaking portability.
+    // Retained for the intentionally portable parental-control UX boundary and for
+    // decrypting legacy scraper values during migration to the system keyring.
+    // The fixed key protects only against casual inspection, not a targeted attack.
     private static readonly byte[] Key = Encoding.UTF8.GetBytes("Retromind_Secret_Key_2025!_Fixed"); // 32 bytes for AES-256
     private static readonly byte[] IV = Encoding.UTF8.GetBytes("Retromind_IV_123"); // 16 bytes for AES
 

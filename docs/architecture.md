@@ -65,8 +65,8 @@ Main window is a layered shell:
 
 ## Persistence model
 Persisted app/library data is portable under `AppPaths.DataRoot` (AppImage directory or app base directory).
-Secrets that use the shared host credential abstraction (currently the GOG refresh token and the
-RetroAchievements and Steam Web API keys) are stored through `ISecretStore`, not in `DataRoot`.
+Secrets that use the shared host credential abstraction (currently scraper credentials, the GOG refresh token,
+and the RetroAchievements and Steam Web API keys) are stored through `ISecretStore`, not in `DataRoot`.
 
 ### Library (`retromind_tree.json`)
 - service: `MediaDataService`
@@ -88,7 +88,11 @@ RetroAchievements and Steam Web API keys) are stored through `ISecretStore`, not
   temp/backup/replace transaction completes before a restore can proceed
 - corrupt or structurally unusable settings are quarantined and fallback restore from `.bak` is attempted
 - save failures propagate to the caller and are surfaced to the user
-- sensitive scraper secrets are encrypted/decrypted via `SecurityHelper`
+- scraper profile metadata remains portable, while runtime-only API keys, passwords, and client secrets are
+  hydrated from the host keyring by `ScraperCredentialService`
+- legacy `EncryptedApiKey`, `EncryptedPassword`, and `EncryptedClientSecret` settings fields are read only for
+  migration and removed from both the primary settings file and `.bak` after the durable keyring write was verified;
+  they remain intact, and may still enter metadata backups, while migration is pending because the keyring failed
 - the settings dialog edits a detached working copy; **Save** commits it, while Cancel or closing the
   window discards it
 - title sorting remains a live preview while the dialog is open and is restored if the dialog closes
@@ -98,10 +102,12 @@ RetroAchievements and Steam Web API keys) are stored through `ISecretStore`, not
 - `ISecretStore` is shared by store authentication and account integrations. On Linux the composite
   implementation prefers the host Secret Service and falls back to session-only memory when persistent
   storage is unavailable
-- the GOG refresh token and RetroAchievements and Steam Web API keys are excluded from `app_settings.json`,
-  `retromind_tree.json`, metadata backups, and integration caches
-- scraper credentials follow a separate legacy contract: they are serialized only in encrypted settings
-  fields through `SecurityHelper`; they do not use `ISecretStore`
+- scraper credentials require the persistent `IPersistentSecretStore` boundary: edits fail visibly when the host
+  keyring is unavailable instead of falling back to session-only memory. Moving the portable data to a different
+  host preserves scraper profiles but requires the secrets to be entered again
+- after legacy migration, scraper credentials join the GOG refresh token and RetroAchievements and Steam Web API
+  keys in being excluded from `app_settings.json` and metadata backups; all of them are also excluded from
+  `retromind_tree.json` and integration caches
 - integration caches contain replaceable non-secret data. RetroAchievements catalog, progress, and badge
   caches may follow portable-HOME migrations, while the corresponding API key always remains in the host
   secret store or session memory

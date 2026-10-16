@@ -1494,4 +1494,7 @@ Die vorhandenen Dateien und Starteinstellungen bleiben unverändert. Das Retromi
     <data name="Gog.Install.DirectorySharedFormat" xml:space="preserve"><value>Der ausgewählte Installationsordner wird auch von einem anderen Bibliotheks-Item verwendet und kann nicht sicher verwaltet werden:
 {0}</value></data>
     <data name="EditMedia.GogInstalledVersionFormat" xml:space="preserve"><value>Installierte Version: {0}</value></data>
+    <data name="Settings.Scraper.CredentialsStorageHint" xml:space="preserve"><value>API-Keys, Passwörter und Client-Secrets werden im System-Schlüsselbund dieses Computers gespeichert. Nach dem Umzug einer portablen Retromind-Bibliothek auf einen anderen Computer müssen sie erneut eingegeben werden.</value></data>
+    <data name="Settings.Scraper.CredentialsStoreFailed" xml:space="preserve"><value>Die Scraper-Zugangsdaten konnten nicht im System-Schlüsselbund gespeichert werden. Die Einstellungen wurden nicht gespeichert.</value></data>
+    <data name="Settings.Scraper.CredentialsRollbackFailed" xml:space="preserve"><value>Die vorherigen Scraper-Zugangsdaten konnten nicht vollständig wiederhergestellt werden. Prüfe die Scraper-Profile, bevor du erneut speicherst.</value></data>
 </root>

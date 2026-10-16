@@ -12,7 +12,7 @@ namespace Retromind.Services.Stores.Security;
 /// <summary>
 /// Linux Secret Service store backed by <c>secret-tool</c> (libsecret / org.freedesktop.secrets).
 /// </summary>
-public sealed class SecretServiceSecretStore : ISecretStore
+public sealed class SecretServiceSecretStore : IPersistentSecretStore
 {
     private const string SecretToolExecutable = "secret-tool";
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(10);

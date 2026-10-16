@@ -85,6 +85,23 @@ public partial class App : Application
 
             Services = services.BuildServiceProvider();
 
+            if (!settingsService.HasLoadFailure)
+            {
+                try
+                {
+                    var scraperCredentialService = Services.GetRequiredService<ScraperCredentialService>();
+                    Task.Run(() => scraperCredentialService.InitializeAsync(settings, settingsService))
+                        .GetAwaiter()
+                        .GetResult();
+                }
+                catch (Exception ex)
+                {
+                    // Startup must remain possible when the desktop keyring is locked or
+                    // unavailable. Unmigrated legacy values stay in the settings files.
+                    Debug.WriteLine($"[App] Scraper credential initialization failed: {ex.Message}");
+                }
+            }
+
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 var mainViewModel = Services.GetRequiredService<MainWindowViewModel>();
@@ -297,6 +314,9 @@ public partial class App : Application
         
         // --- Store providers ---
         services.AddSingleton<SecretServiceSecretStore>();
+        services.AddSingleton<IPersistentSecretStore>(provider =>
+            provider.GetRequiredService<SecretServiceSecretStore>());
+        services.AddSingleton<ScraperCredentialService>();
         services.AddSingleton<InMemorySecretStore>();
         services.AddSingleton<ISecretStore>(provider =>
         {

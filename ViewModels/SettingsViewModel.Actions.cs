@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -10,12 +11,14 @@ using Avalonia.Platform.Storage;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
 public partial class SettingsViewModel
 {
     private AchievementSecretRollbackState? _achievementSecretRollbackState;
+    private ScraperCredentialRollbackState? _scraperCredentialRollbackState;
 
     private sealed record AchievementSecretRollbackState(
         bool RestoreRetroAchievementsKey,
@@ -24,6 +27,10 @@ public partial class SettingsViewModel
         string? SteamApiKey,
         RetroAchievementsSettings RetroAchievementsSettings,
         SteamAchievementsSettings SteamAchievementsSettings);
+
+    private sealed record ScraperCredentialRollbackState(
+        ScraperCredentialService.ScraperCredentialTransaction Transaction,
+        List<ScraperConfig> PreviousProfiles);
 
     private bool CanSave()
     {
@@ -305,12 +312,99 @@ public partial class SettingsViewModel
         // to the runtime settings is an in-memory operation only.
         var committed = CreateWorkingCopy(_appSettings);
 
-        if (!await SaveAchievementSecretsAsync())
+        if (!await SaveScraperCredentialsAsync(committed.Scrapers))
             return;
+
+        if (!await SaveAchievementSecretsAsync())
+        {
+            await RollbackScraperCredentialChangesAsync();
+            return;
+        }
 
         ApplyWorkingCopyToTarget(committed);
         IsSaved = true;
         RequestClose?.Invoke();
+    }
+
+    private async Task<bool> SaveScraperCredentialsAsync(IReadOnlyList<ScraperConfig> committedProfiles)
+    {
+        _scraperCredentialRollbackState = null;
+        ScraperCredentialStatusText = string.Empty;
+
+        if (_scraperCredentialService == null)
+            return true;
+
+        var previousProfiles = CloneScraperProfiles(_targetSettings.Scrapers);
+        try
+        {
+            var transaction = await _scraperCredentialService.ApplyChangesAsync(
+                _targetSettings.Scrapers,
+                committedProfiles).ConfigureAwait(true);
+            _scraperCredentialRollbackState = new ScraperCredentialRollbackState(
+                transaction,
+                previousProfiles);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Settings] Scraper credentials could not be stored: {ex.Message}");
+            SetScraperCredentialWriteFailure();
+            return false;
+        }
+    }
+
+    internal async Task<bool> RollbackScraperCredentialChangesAsync()
+    {
+        var rollbackState = _scraperCredentialRollbackState;
+        if (rollbackState == null)
+            return true;
+
+        var restored = await rollbackState.Transaction.RollbackAsync().ConfigureAwait(true);
+        _targetSettings.Scrapers = CloneScraperProfiles(rollbackState.PreviousProfiles);
+        _scraperCredentialRollbackState = null;
+
+        if (!restored)
+            SetScraperCredentialRollbackFailure();
+
+        return restored;
+    }
+
+    internal void CompleteScraperCredentialChanges()
+    {
+        _scraperCredentialRollbackState?.Transaction.Complete();
+        _scraperCredentialRollbackState = null;
+    }
+
+    private void SetScraperCredentialWriteFailure()
+    {
+        ScraperCredentialStatusText = T(
+            "Settings.Scraper.CredentialsStoreFailed",
+            "The scraper credentials could not be stored in the system keyring. The settings were not saved.");
+    }
+
+    private void SetScraperCredentialRollbackFailure()
+    {
+        ScraperCredentialStatusText = T(
+            "Settings.Scraper.CredentialsRollbackFailed",
+            "The previous scraper credentials could not be fully restored. Check the scraper profiles before saving again.");
+    }
+
+    private static List<ScraperConfig> CloneScraperProfiles(IReadOnlyList<ScraperConfig> source)
+    {
+        var json = JsonSerializer.Serialize(source);
+        var clone = JsonSerializer.Deserialize<List<ScraperConfig>>(json) ?? [];
+        for (var index = 0; index < clone.Count && index < source.Count; index++)
+        {
+            clone[index].ApiKey = source[index].ApiKey;
+            clone[index].Password = source[index].Password;
+            clone[index].ClientSecret = source[index].ClientSecret;
+        }
+
+        return clone;
     }
 
     private async Task CancelAsync()

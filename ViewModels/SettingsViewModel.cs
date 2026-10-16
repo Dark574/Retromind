@@ -33,6 +33,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private readonly AppSettings _appSettings;
     private readonly SettingsService _settingsService;
     private readonly RunnerVersionService _runnerVersionService;
+    private readonly ScraperCredentialService? _scraperCredentialService;
     private readonly ObservableCollection<MediaNode> _rootNodes;
     private readonly bool _originalIgnoreLeadingArticlesInSort;
     private readonly Dictionary<string, int> _runnerUsageById = new(StringComparer.Ordinal);
@@ -116,6 +117,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string _supportDiagnosticStatusText = string.Empty;
+
+    [ObservableProperty]
+    private string _scraperCredentialStatusText = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGeProtonDownloadButton))]
@@ -846,12 +850,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         SteamAccountDiscoveryService steamAccountDiscoveryService,
         RunnerVersionService runnerVersionService,
         ObservableCollection<MediaNode>? rootNodes = null,
-        GamepadService? gamepadService = null)
+        GamepadService? gamepadService = null,
+        ScraperCredentialService? scraperCredentialService = null)
     {
         _targetSettings = settings ?? throw new ArgumentNullException(nameof(settings));
         _appSettings = CreateWorkingCopy(_targetSettings);
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _runnerVersionService = runnerVersionService ?? throw new ArgumentNullException(nameof(runnerVersionService));
+        _scraperCredentialService = scraperCredentialService;
         _gamepadService = gamepadService;
         _retroAchievementsAccountService = retroAchievementsAccountService ??
             throw new ArgumentNullException(nameof(retroAchievementsAccountService));
@@ -1043,6 +1049,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string ScreenScraperCredentialsHint => T(
         "Settings.ScreenScraper.CredentialsHint",
         "Retromind provides the application access. Without a personal ScreenScraper account, restricted anonymous access is used and may be unavailable during high server load. Enter either both account fields or neither.");
+    public string ScraperCredentialsStorageHint => T(
+        "Settings.Scraper.CredentialsStorageHint",
+        "API keys, passwords, and client secrets are stored in this computer's system keyring. After moving a portable Retromind library to another computer, enter them again.");
     public string ScreenScraperHashRecognitionHint => T(
         "Settings.ScreenScraper.HashRecognitionHint",
         "Automatic hash identification requires a game system on the category. An individual item can override the inherited system.");

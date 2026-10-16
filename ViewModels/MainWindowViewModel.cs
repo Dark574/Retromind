@@ -58,6 +58,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly GogLaunchDetectionService _gogLaunchDetectionService;
     private readonly GogInstallerWorkflowService _gogInstallerWorkflowService;
     private readonly SettingsService _settingsService;
+    private readonly ScraperCredentialService _scraperCredentialService;
     private readonly RunnerVersionService _runnerVersionService;
     private readonly MetadataService _metadataService; 
     private readonly GamepadService _gamepadService;
@@ -439,6 +440,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SteamAchievementsAccountService steamAchievementsAccountService,
         SteamAccountDiscoveryService steamAccountDiscoveryService,
         ISteamAchievementsProgressService steamAchievementsProgressService,
+        ScraperCredentialService scraperCredentialService,
         LibraryHealthService? libraryHealthService = null)
     {
         _audioService = audioService;
@@ -461,6 +463,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _gogLaunchDetectionService = gogLaunchDetectionService;
         _gogInstallerWorkflowService = gogInstallerWorkflowService;
         _settingsService = settingsService;
+        _scraperCredentialService = scraperCredentialService;
         _runnerVersionService = runnerVersionService;
         _metadataService = metadataService;
         _soundEffectService = soundEffectService;

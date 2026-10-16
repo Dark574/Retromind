@@ -25,6 +25,7 @@ public class SettingsService
     // keep a stable backup of the last known-good settings
     private string BackupPath => FilePath + ".bak";
     private string TempPath => FilePath + ".tmp";
+    private string MigrationBackupTempPath => BackupPath + ".migration.tmp";
     
     // Serialize settings IO to avoid concurrent temp/backup/replace races.
     private readonly SemaphoreSlim _ioGate = new(1, 1);
@@ -115,6 +116,8 @@ public class SettingsService
             {
                 if (File.Exists(TempPath))
                     File.Delete(TempPath);
+                if (File.Exists(MigrationBackupTempPath))
+                    File.Delete(MigrationBackupTempPath);
             }
             catch
             {
@@ -219,11 +222,50 @@ public class SettingsService
     {
         if (settings == null) throw new ArgumentNullException(nameof(settings));
 
-        // Encrypt sensitive data before serializing (in-place).
-        ProtectSensitiveData(settings);
-
         var options = CreateSerializerOptions();
         return JsonSerializer.Serialize(settings, options);
+    }
+
+    /// <summary>
+    /// Publishes settings after legacy secrets were moved to the persistent secret store.
+    /// Both the primary file and its stable backup receive the sanitized snapshot so the
+    /// normal backup step cannot retain the preceding secret-bearing JSON.
+    /// </summary>
+    internal async Task SaveAfterSecretMigrationAsync(
+        AppSettings settings,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfRegularSaveDisallowed();
+
+        var json = Serialize(settings);
+        ValidateSerializedSettings(json);
+
+        await _ioGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfRegularSaveDisallowed();
+            Directory.CreateDirectory(SettingsFolder);
+
+            // Once publication starts, finish both atomic replacements without
+            // cancellation. Publishing the sanitized backup first leaves at least
+            // one valid settings copy at every point in the transaction.
+            await File.WriteAllTextAsync(TempPath, json).ConfigureAwait(false);
+            await File.WriteAllTextAsync(MigrationBackupTempPath, json).ConfigureAwait(false);
+            File.Move(MigrationBackupTempPath, BackupPath, overwrite: true);
+            File.Move(TempPath, FilePath, overwrite: true);
+        }
+        catch
+        {
+            TryDeleteTemporaryFile(TempPath);
+            TryDeleteTemporaryFile(MigrationBackupTempPath);
+            throw;
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
     }
 
     /// <summary>
@@ -460,16 +502,6 @@ public class SettingsService
         }
     }
     
-    private void ProtectSensitiveData(AppSettings settings)
-    {
-        foreach (var scraper in settings.Scrapers)
-        {
-            scraper.EncryptedApiKey = SecurityHelper.Encrypt(scraper.ApiKey ?? "");
-            scraper.EncryptedPassword = SecurityHelper.Encrypt(scraper.Password ?? "");
-            scraper.EncryptedClientSecret = SecurityHelper.Encrypt(scraper.ClientSecret ?? "");
-        }
-    }
-
     private void UnprotectSensitiveData(AppSettings settings)
     {
         foreach (var scraper in settings.Scrapers)
@@ -483,5 +515,18 @@ public class SettingsService
     private static JsonSerializerOptions CreateSerializerOptions()
     {
         return new JsonSerializerOptions { WriteIndented = true };
+    }
+
+    private static void TryDeleteTemporaryFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch
+        {
+            // best effort
+        }
     }
 }

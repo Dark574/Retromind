@@ -1707,7 +1707,8 @@ public partial class MainWindowViewModel
             _steamAccountDiscoveryService,
             _runnerVersionService,
             RootItems,
-            _gamepadService);
+            _gamepadService,
+            _scraperCredentialService);
         if (initialTabIndex.HasValue)
             settingsVm.SelectedSettingsTabIndex = initialTabIndex.Value;
 
@@ -1812,6 +1813,7 @@ public partial class MainWindowViewModel
             if (settingsSaved && !_settingsService.HasLoadFailure)
             {
                 settingsVm.CompleteAchievementSecretChanges();
+                settingsVm.CompleteScraperCredentialChanges();
 
                 var portableHomeIsEnabled = _currentSettings.UsePortableHomeInAppImage;
                 await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
@@ -1825,11 +1827,12 @@ public partial class MainWindowViewModel
             }
             else
             {
-                var secretsRestored = await settingsVm.RollbackAchievementChangesAsync();
-                if (!secretsRestored)
+                var achievementSecretsRestored = await settingsVm.RollbackAchievementChangesAsync();
+                var scraperSecretsRestored = await settingsVm.RollbackScraperCredentialChangesAsync();
+                if (!achievementSecretsRestored || !scraperSecretsRestored)
                 {
                     Debug.WriteLine(
-                        "[Settings] Achievement keys could not be restored after the settings save failed.");
+                        "[Settings] Secret values could not be fully restored after the settings save failed.");
                 }
             }
         }

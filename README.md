@@ -579,9 +579,13 @@ from the scraper configuration in the settings dialog. Official builds do embed 
 ScreenScraper access, while an optional personal ScreenScraper account is configured separately by the user.
 OpenLibrary does not require credentials, and the Google Books API key is optional.
 
-Scraper secrets are not written to `app_settings.json` as plain text. Retromind stores them using portable
-application-level encryption (for example, `EncryptedApiKey`). Because its encryption key ships with the
-open-source application, this prevents casual disclosure but is not protection against a targeted attack.
+Scraper API keys, passwords, and client secrets are stored in the current computer's system keyring. After a
+successful migration they are no longer written to `app_settings.json` or new metadata backups. Scraper profiles,
+usernames, client IDs, and preferences remain portable. After moving a portable Retromind library to another
+computer, enter its scraper secrets again. Existing encrypted settings values are migrated automatically only
+after Retromind has written and verified them in the keyring; if the keyring is unavailable, the legacy copy is
+retained to prevent data loss. Older settings copies and backup archives can therefore still contain the former
+reversibly encrypted values; delete those copies or rotate the affected credentials if they may have been exposed.
 
 ### Scraper metadata coverage
 

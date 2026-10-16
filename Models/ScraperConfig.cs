@@ -97,17 +97,20 @@ public partial class ScraperConfig : ObservableObject, IJsonOnDeserialized
     /// </summary>
     [ObservableProperty] private string _language = "en-US";
     
-    // --- Encrypted Storage ---
-    // These properties are what gets saved to JSON.
-    // The Service maps between these and the runtime properties above.
+    // --- Legacy encrypted storage ---
+    // Kept only so existing portable settings can be migrated to ISecretStore.
+    // New saves omit these properties after a successful migration.
 
     [JsonPropertyName("EncryptedApiKey")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? EncryptedApiKey { get; set; }
 
     [JsonPropertyName("EncryptedPassword")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? EncryptedPassword { get; set; }
 
     [JsonPropertyName("EncryptedClientSecret")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? EncryptedClientSecret { get; set; }
 }
 

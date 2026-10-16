@@ -1492,4 +1492,7 @@ The current files and launch settings remain unchanged. The Retromind library it
     <data name="Gog.Install.DirectorySharedFormat" xml:space="preserve"><value>The selected install directory is also used by another library item and cannot be managed safely:
 {0}</value></data>
     <data name="EditMedia.GogInstalledVersionFormat" xml:space="preserve"><value>Installed version: {0}</value></data>
+    <data name="Settings.Scraper.CredentialsStorageHint" xml:space="preserve"><value>API keys, passwords, and client secrets are stored in this computer's system keyring. After moving a portable Retromind library to another computer, enter them again.</value></data>
+    <data name="Settings.Scraper.CredentialsStoreFailed" xml:space="preserve"><value>The scraper credentials could not be stored in the system keyring. The settings were not saved.</value></data>
+    <data name="Settings.Scraper.CredentialsRollbackFailed" xml:space="preserve"><value>The previous scraper credentials could not be fully restored. Check the scraper profiles before saving again.</value></data>
 </root>
