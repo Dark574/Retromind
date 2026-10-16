@@ -997,17 +997,25 @@ public partial class MainWindowViewModel
         ArgumentException.ThrowIfNullOrWhiteSpace(themesRoot);
 
         var assignedThemePath = node == null ? rootThemePath : node.ThemePath;
-        if (!string.IsNullOrWhiteSpace(assignedThemePath))
+        if (ThemePathResolver.TryResolveThemeFilePath(
+                themesRoot,
+                assignedThemePath,
+                out var assignedFullPath))
         {
-            var assignedFullPath = Path.GetFullPath(Path.Combine(themesRoot, assignedThemePath));
-            if (File.Exists(assignedFullPath))
-                return assignedFullPath;
-
-            Debug.WriteLine($"[Theme] Assigned theme file not found: '{assignedFullPath}'.");
+            return assignedFullPath;
         }
 
-        var fallbackThemePath = Path.GetFullPath(
-            Path.Combine(themesRoot, ThemeDiscovery.DefaultThemePath));
+        if (!string.IsNullOrWhiteSpace(assignedThemePath))
+            Debug.WriteLine($"[Theme] Assigned theme path is invalid or unavailable: '{assignedThemePath}'.");
+
+        if (!ThemePathResolver.TryResolveThemeFilePath(
+                themesRoot,
+                ThemeDiscovery.DefaultThemePath,
+                out var fallbackThemePath))
+        {
+            fallbackThemePath = Path.GetFullPath(
+                Path.Combine(themesRoot, ThemeDiscovery.DefaultThemePath));
+        }
         Debug.WriteLine($"[Theme] No valid local theme assigned, using fallback: {fallbackThemePath}");
         return fallbackThemePath;
     }

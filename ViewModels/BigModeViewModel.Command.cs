@@ -319,9 +319,13 @@ public partial class BigModeViewModel
         if (string.IsNullOrWhiteSpace(relativeSoundPath))
             return;
 
-        // Theme.BasePath is the theme directory as provided by ThemeLoader.
-        var fullPath = Path.Combine(_theme.BasePath, relativeSoundPath);
-        _soundEffectService.PlaySound(fullPath);
+        if (ThemePathResolver.TryResolveThemeAssetPath(
+                _theme.BasePath,
+                relativeSoundPath,
+                out var fullPath))
+        {
+            _soundEffectService.PlaySound(fullPath);
+        }
     }
 
     [RelayCommand]

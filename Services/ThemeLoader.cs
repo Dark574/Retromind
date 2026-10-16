@@ -22,6 +22,7 @@ public static class ThemeLoader
     private sealed record CachedXaml(string Content, DateTime LastWriteTimeUtc);
 
     private const int MaxXamlCacheEntries = 40;
+    internal const long MaxThemeXamlBytes = 1024 * 1024;
 
     private static readonly Dictionary<string, CachedXaml> XamlCache =
         new(FileSystemPathIdentity.Comparer);
@@ -32,20 +33,18 @@ public static class ThemeLoader
 
     public static Theme LoadTheme(string filePath)
     {
-        // Allow passing "Wheel/theme.axaml" etc. (relative to portable ThemesRoot).
-        if (!string.IsNullOrWhiteSpace(filePath) && !Path.IsPathRooted(filePath))
-            filePath = Path.Combine(AppPaths.ThemesRoot, filePath);
-
-        filePath = AppPaths.ResolveDataPathInsideRootOrEmpty(filePath);
-
-        if (string.IsNullOrWhiteSpace(filePath))
+        if (!ThemePathResolver.TryResolveThemeFilePath(
+                AppPaths.ThemesRoot,
+                filePath,
+                out var resolvedThemePath))
         {
             var errorView = CreateErrorView(Strings.Theme_Error_InvalidPath);
             return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, primaryVideoEnabled: false, secondaryVideoEnabled: false);
         }
 
+        filePath = resolvedThemePath;
         var themeDir = Path.GetDirectoryName(filePath);
-        if (string.IsNullOrWhiteSpace(themeDir) || !File.Exists(filePath))
+        if (string.IsNullOrWhiteSpace(themeDir))
         {
             var errorView = CreateErrorView(string.Format(Strings.Theme_Error_FileNotFoundFormat, filePath));
             return new Theme(errorView, new ThemeSounds(), AppPaths.DataRoot, primaryVideoEnabled: false, secondaryVideoEnabled: false);
@@ -160,14 +159,19 @@ public static class ThemeLoader
         var pathPart = hashIndex >= 0 ? spec[..hashIndex] : spec;
         var familyPart = hashIndex >= 0 ? spec[hashIndex..] : string.Empty;
 
-        if (!ThemeFontFamilyConverter.LooksLikeFontPath(pathPart) || Path.IsPathRooted(pathPart))
+        if (!ThemeFontFamilyConverter.LooksLikeFontPath(pathPart))
             return;
 
-        var resolved = Path.Combine(themeDir, pathPart) + familyPart;
-        setter(view, resolved);
+        if (!ThemePathResolver.TryResolveThemeAssetPath(themeDir, pathPart, out var resolved))
+        {
+            setter(view, null);
+            return;
+        }
+
+        setter(view, resolved + familyPart);
     }
 
-    private static string ReadXamlWithCache(string filePath)
+    internal static string ReadXamlWithCache(string filePath)
     {
         var lastWriteUtc = File.GetLastWriteTimeUtc(filePath);
 
@@ -181,7 +185,28 @@ public static class ThemeLoader
             }
         }
 
-        var content = File.ReadAllText(filePath);
+        string content;
+        using (var stream = new FileStream(
+                   filePath,
+                   FileMode.Open,
+                   FileAccess.Read,
+                   FileShare.Read,
+                   bufferSize: 4096,
+                   FileOptions.SequentialScan))
+        {
+            if (stream.Length > MaxThemeXamlBytes)
+            {
+                var messageFormat = Strings.ResourceManager.GetString(
+                                        "Theme_Error_FileTooLargeFormat",
+                                        Strings.Culture)
+                                    ?? "Theme AXAML exceeds the {0} KiB size limit.";
+                throw new InvalidDataException(
+                    string.Format(messageFormat, MaxThemeXamlBytes / 1024));
+            }
+
+            using var reader = new StreamReader(stream);
+            content = reader.ReadToEnd();
+        }
 
         lock (XamlCacheLock)
         {

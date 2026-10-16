@@ -766,8 +766,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             if (string.IsNullOrWhiteSpace(basePath) || string.IsNullOrWhiteSpace(relative))
                 return;
 
-            var candidate = System.IO.Path.Combine(basePath, relative);
-            if (!System.IO.File.Exists(candidate))
+            if (!ThemePathResolver.TryResolveThemeAssetPath(basePath, relative, out var candidate))
                 return;
 
             var media = new Media(_secondaryLibVlc, new Uri(candidate));

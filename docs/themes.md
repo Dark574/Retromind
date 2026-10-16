@@ -3,6 +3,15 @@
 Retromind supports **external `.axaml` themes** that are loaded **at runtime**.  
 This allows anyone to create and publish themes without recompiling Retromind.
 
+> **Trust boundary:** Runtime AXAML is not sandboxed. Avalonia can resolve public .NET types from loaded
+> assemblies and may run their constructors while creating a theme. Retromind currently ships all available
+> themes itself and does not provide an external theme distributor. If you manually add a third-party theme,
+> treat it like an executable extension and use only sources you trust.
+
+Theme files must remain below the portable `Themes/` directory and are limited to 1 MiB. Image, sound, video,
+and font paths declared by a theme must be relative files inside that theme's own directory. Parent traversal,
+absolute paths, and symbolic-link/reparse-point paths are rejected.
+
 This guide covers:
 
 - Theme structure and folder layout

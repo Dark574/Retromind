@@ -170,8 +170,13 @@ public partial class BigModeViewModel
             {
                 try
                 {
-                    var fullPath = System.IO.Path.Combine(_theme.BasePath, _theme.AttractModeSoundPath);
-                    _soundEffectService.PlaySound(fullPath);
+                    if (ThemePathResolver.TryResolveThemeAssetPath(
+                            _theme.BasePath,
+                            _theme.AttractModeSoundPath,
+                            out var fullPath))
+                    {
+                        _soundEffectService.PlaySound(fullPath);
+                    }
                 }
                 catch
                 {

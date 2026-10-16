@@ -20,11 +20,13 @@ public static class ThemeDiscovery
             return Directory.EnumerateDirectories(AppPaths.ThemesRoot)
                 .Select(directory => new
                 {
-                    Name = Path.GetFileName(directory),
-                    ThemeFile = Path.Combine(directory, "theme.axaml")
+                    RelativePath = Path.Combine(Path.GetFileName(directory), "theme.axaml")
                 })
-                .Where(theme => File.Exists(theme.ThemeFile))
-                .Select(theme => $"{theme.Name}/theme.axaml")
+                .Where(theme => ThemePathResolver.TryResolveThemeFilePath(
+                    AppPaths.ThemesRoot,
+                    theme.RelativePath,
+                    out _))
+                .Select(theme => theme.RelativePath.Replace(Path.DirectorySeparatorChar, '/'))
                 .OrderBy(path => path, StringComparer.CurrentCultureIgnoreCase)
                 .ToArray();
         }

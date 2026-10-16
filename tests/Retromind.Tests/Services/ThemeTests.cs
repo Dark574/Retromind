@@ -5,6 +5,7 @@ using Retromind.Helpers;
 using Retromind.Helpers.Video;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services;
 
@@ -203,17 +204,33 @@ public sealed class ThemeTests
     [Fact]
     public void GetThemeFilePath_UsesTheSuppliedViewScope()
     {
+        using var temp = new TemporaryDirectory();
+        var arcadeDirectory = temp.CreateDirectory("Arcade");
+        var systemDirectory = temp.CreateDirectory("System", "C64");
+        var arcadeAsset = temp.CreateFile("Arcade/Images/cabinet.png");
+        var systemAsset = temp.CreateFile("System/C64/Images/frame.png");
         var arcadeView = new Border();
         var systemView = new Border();
-        ThemeProperties.SetThemeBasePath(arcadeView, "/themes/Arcade");
-        ThemeProperties.SetThemeBasePath(systemView, "/themes/System/C64");
+        ThemeProperties.SetThemeBasePath(arcadeView, arcadeDirectory);
+        ThemeProperties.SetThemeBasePath(systemView, systemDirectory);
 
         Assert.Equal(
-            Path.Combine("/themes/Arcade", "Images/cabinet.png"),
+            arcadeAsset,
             ThemeProperties.GetThemeFilePath("Images/cabinet.png", arcadeView));
         Assert.Equal(
-            Path.Combine("/themes/System/C64", "Images/frame.png"),
+            systemAsset,
             ThemeProperties.GetThemeFilePath("Images/frame.png", systemView));
+    }
+
+    [Fact]
+    public void ReadXamlWithCache_RejectsOversizedTheme()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.CreateFile(
+            "theme.axaml",
+            new string('x', checked((int)ThemeLoader.MaxThemeXamlBytes + 1)));
+
+        Assert.Throws<InvalidDataException>(() => ThemeLoader.ReadXamlWithCache(path));
     }
 
     [Theory]

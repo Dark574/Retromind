@@ -48,11 +48,9 @@ public sealed class ThemeAssetToBitmapConverter : IValueConverter
 
         try
         {
-            var fullPath = Path.IsPathRooted(relativePath)
-                ? relativePath
-                : value is AvaloniaObject scope
-                    ? ThemeProperties.GetThemeFilePath(relativePath, scope)
-                    : null;
+            var fullPath = value is AvaloniaObject scope
+                ? ThemeProperties.GetThemeFilePath(relativePath, scope)
+                : null;
 
             if (string.IsNullOrWhiteSpace(fullPath))
                 return null;

@@ -1148,6 +1148,7 @@ zelda AND platform:switch</value></data>
     <data name="Theme_Error_FileNotFoundFormat" xml:space="preserve"><value>Theme file not found: {0}</value></data>
     <data name="Theme_Error_LoadedNullOrInvalid" xml:space="preserve"><value>Loaded theme was null or invalid.</value></data>
     <data name="Theme_Error_LoadFailedFormat" xml:space="preserve"><value>Error loading theme: {0}</value></data>
+    <data name="Theme_Error_FileTooLargeFormat" xml:space="preserve"><value>Theme AXAML exceeds the {0} KiB size limit.</value></data>
     <data name="Theme.NoPreviewVideo" xml:space="preserve"><value>No preview video</value></data>
     <data name="Theme.GameLabel" xml:space="preserve"><value>Game:</value></data>
     <data name="Theme.MovieLabel" xml:space="preserve"><value>Movie:</value></data>

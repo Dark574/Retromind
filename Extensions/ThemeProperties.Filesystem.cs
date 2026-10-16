@@ -20,10 +20,9 @@ public partial class ThemeProperties
         element.SetValue(ThemeBasePathProperty, value);
 
     /// <summary>
-    /// Combines the scoped ThemeBasePath with a theme-relative path.
+    /// Resolves a file below the scoped ThemeBasePath.
     /// If ThemeBasePath is not set or the relative path is empty, returns null.
-    /// This method uses Path.Combine semantics and is intended for use in converters
-    /// or code-behind, not directly from XAML.
+    /// Rooted paths, parent traversal, symbolic links, and missing files are rejected.
     /// </summary>
     /// <param name="relativePath">
     /// Path relative to the theme directory, e.g. "Images/cabinet.png" or "sounds/navigate.wav".
@@ -39,7 +38,11 @@ public partial class ThemeProperties
         if (string.IsNullOrWhiteSpace(relativePath))
             return null;
 
-        // Use System.IO.Path.Combine to keep it portable across platforms.
-        return System.IO.Path.Combine(basePath, relativePath);
+        return Retromind.Helpers.ThemePathResolver.TryResolveThemeAssetPath(
+            basePath,
+            relativePath,
+            out var fullPath)
+            ? fullPath
+            : null;
     }
 }

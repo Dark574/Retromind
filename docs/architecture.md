@@ -142,7 +142,8 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
 
 ## Path and portability contract
 - persisted file paths are expected to be DataRoot-relative when possible
-- path resolution for runtime assets/documents/themes uses `AppPaths.ResolveDataPathInsideRootOrEmpty`
+- path resolution for general runtime assets/documents uses `AppPaths.ResolveDataPathInsideRootOrEmpty`;
+  runtime themes use the stricter `ThemePathResolver` boundary described below
 - escaping `DataRoot` is intentionally blocked (`TryResolveDataPathInsideRoot`)
 - generic Linux filesystem identity and node asset-directory operations are case-sensitive
 - this boundary is central for portable use and for avoiding accidental absolute-path drift
@@ -170,12 +171,20 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
   the original files and assignments intact
 ## Theme subsystem
 Themes are external runtime XAML loaded through `ThemeLoader`:
-- resolves relative theme paths against portable `ThemesRoot`
+- resolves theme files against portable `ThemesRoot` and theme assets against their individual theme directory;
+  rooted asset paths, traversal outside these roots, and symbolic-link/reparse-point components are rejected
+- limits each runtime AXAML document to 1 MiB before parsing
 - parses theme XAML at runtime and applies theme base path per view instance
 - caches XAML text with LRU to reduce repeated file IO/parse overhead
 - exposes theme metadata, visual tuning, selection effects, typography, video options, attract-mode options, etc. via `ThemeProperties` attached properties
 - optionally derives a cached two-color accent palette from the active artwork; analysis is debounced during navigation and only themes that opt in through `DynamicAccentEnabled` receive host-updated colors
 - user-visible runtime-theme text is exposed through localized `ThemeStrings` resource properties
+
+Runtime AXAML is a trusted extension boundary rather than a sandboxed data format. Avalonia may resolve public
+.NET types from loaded assemblies and invoke their constructors while materializing a theme. Retromind currently
+ships all available themes itself and has no external theme distributor; if external themes are introduced, they
+must be treated like executable extensions and obtained only from trusted sources unless the format is replaced
+or constrained by a separately audited allowlist model.
 
 ### Portable theme sync/update at startup
 `AppPaths.EnsurePortableThemes()` implements best-effort shipped-theme sync:

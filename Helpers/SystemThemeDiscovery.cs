@@ -31,8 +31,11 @@ public static class SystemThemeDiscovery
         foreach (var dir in Directory.GetDirectories(systemRoot))
         {
             var id = Path.GetFileName(dir);
-            var themeAxaml = Path.Combine(dir, "theme.axaml");
-            if (!File.Exists(themeAxaml))
+            var relativePath = Path.Combine("System", id, "theme.axaml");
+            if (!ThemePathResolver.TryResolveThemeFilePath(
+                    AppPaths.ThemesRoot,
+                    relativePath,
+                    out _))
                 continue;
 
             var displayName = id;
@@ -41,7 +44,6 @@ public static class SystemThemeDiscovery
             {
                 // Use the existing ThemeLoader so we get ThemeProperties.Name, VideoEnabled, etc.
                 // Passing a relative path keeps it portable (ThemeLoader resolves via AppPaths.ThemesRoot).
-                var relativePath = Path.Combine("System", id, "theme.axaml");
                 var theme = ThemeLoader.LoadTheme(relativePath);
 
                 if (!string.IsNullOrWhiteSpace(theme.Name))
