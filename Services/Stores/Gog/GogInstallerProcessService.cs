@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
+using Retromind.Services.Stores;
 
 namespace Retromind.Services.Stores.Gog;
 
@@ -152,13 +153,12 @@ public sealed class GogInstallerProcessService
         if (string.IsNullOrWhiteSpace(realKonsolePath))
             return new GogLinuxInstallerCompatibilityEnvironment(null, null);
 
+        string? shimDirectory = null;
         try
         {
-            var shimDirectory = Path.Combine(
-                Path.GetTempPath(),
-                "retromind-gog-shims",
-                $"konsole-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(shimDirectory);
+            shimDirectory = Directory
+                .CreateTempSubdirectory("retromind-gog-shim-")
+                .FullName;
 
             var shimPath = Path.Combine(shimDirectory, "konsole");
             const string shimScript = """
@@ -189,6 +189,8 @@ public sealed class GogInstallerProcessService
         }
         catch (Exception ex)
         {
+            CleanupLinuxCompatibilityEnvironment(
+                new GogLinuxInstallerCompatibilityEnvironment(shimDirectory, realKonsolePath));
             appendLog($"Warning: could not initialize konsole compatibility shim ({ex.Message})");
             return new GogLinuxInstallerCompatibilityEnvironment(null, null);
         }
@@ -222,7 +224,11 @@ public sealed class GogInstallerProcessService
         try
         {
             if (Directory.Exists(compatibilityEnvironment.ShimDirectory))
-                Directory.Delete(compatibilityEnvironment.ShimDirectory, recursive: true);
+            {
+                StoreDirectoryDeletionHelper.DeleteDirectoryTreeWithoutFollowingLinks(
+                    compatibilityEnvironment.ShimDirectory,
+                    CancellationToken.None);
+            }
         }
         catch
         {

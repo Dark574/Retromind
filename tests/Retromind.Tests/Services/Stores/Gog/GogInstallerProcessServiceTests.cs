@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Retromind.Services.Stores.Gog;
+using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services.Stores.Gog;
 
@@ -74,5 +75,47 @@ public sealed class GogInstallerProcessServiceTests
     public void RuntimeCrashDetection_RecognizesWineCrashOutput(string line)
     {
         Assert.True(GogInstallerProcessService.LooksLikeRuntimeCrashError(line));
+    }
+
+    [Fact]
+    public void PrepareLinuxCompatibilityEnvironment_UsesPrivateTemporaryDirectoryAndCleansIt()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temporaryDirectory = new TemporaryDirectory();
+        var fakeKonsolePath = temporaryDirectory.CreateFile("konsole", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            fakeKonsolePath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        var testPath = string.IsNullOrEmpty(originalPath)
+            ? temporaryDirectory.RootPath
+            : temporaryDirectory.RootPath + Path.PathSeparator + originalPath;
+        using var environment = new EnvironmentVariableScope(("PATH", testPath));
+
+        var compatibilityEnvironment = _service.PrepareLinuxCompatibilityEnvironment(_ => { });
+        var shimDirectory = Assert.IsType<string>(compatibilityEnvironment.ShimDirectory);
+        try
+        {
+            const UnixFileMode accessMask =
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
+                UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
+
+            Assert.StartsWith("retromind-gog-shim-", Path.GetFileName(shimDirectory), StringComparison.Ordinal);
+            Assert.Equal(
+                Path.TrimEndingDirectorySeparator(Path.GetTempPath()),
+                Path.GetDirectoryName(shimDirectory));
+            Assert.Equal(
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute,
+                File.GetUnixFileMode(shimDirectory) & accessMask);
+        }
+        finally
+        {
+            GogInstallerProcessService.CleanupLinuxCompatibilityEnvironment(compatibilityEnvironment);
+        }
+
+        Assert.False(Directory.Exists(shimDirectory));
     }
 }

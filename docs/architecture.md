@@ -527,14 +527,17 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   detected configuration to the media item
 - `GogInstallerProcessService` owns low-level installer process execution, cancellation with child-process
   termination, stdout/stderr draining, known MojoSetup/Wine error classification, the temporary Konsole
-  compatibility shim, and Wine-prefix diagnostics. Installer output is reported through a callback so this
-  infrastructure service remains independent of Avalonia and process-log view models
+  compatibility shim, and Wine-prefix diagnostics. Temporary compatibility files use unique, owner-only OS
+  temporary directories and are removed without following symbolic links. Installer output is reported through
+  a callback so this infrastructure service remains independent of Avalonia and process-log view models
 - `GogInstallerExecutionService` owns the platform installation workflow. Its Linux path selects compatibility
   argument profiles, falls back to extracted `startmojo.sh`, isolates shell-sensitive destination paths,
-  promotes temporary installs while preserving Unix modes, repairs relocated MojoSetup metadata, and validates
-  that DLC installers actually changed the payload. Its Windows path owns prefix creation, installer architecture
-  selection, silent/interactive Inno profiles, shortcut policy cleanup, Wine diagnostics, and target/prefix
-  payload validation. Shared payload snapshots are provided by `GogInstallPayloadTracker`
+  creates extraction, destination, and alias directories as unique owner-only OS temporary directories, cleans
+  extracted trees without following symbolic links, promotes temporary installs while preserving Unix modes,
+  repairs relocated MojoSetup metadata, and validates that DLC installers actually changed the payload. Its
+  Windows path owns prefix creation, installer architecture selection, silent/interactive Inno profiles, shortcut
+  policy cleanup, Wine diagnostics, and target/prefix payload validation. Shared payload snapshots are provided by
+  `GogInstallPayloadTracker`
 - `GogInstallerWorkflowService` coordinates the common base-game and DLC pipeline above those platform paths:
   resumable package download, throttled progress reporting, detailed file logging, clean-install preparation,
   execution, cancellation classification, and guarded staging cleanup. It reports plain results and log lines;

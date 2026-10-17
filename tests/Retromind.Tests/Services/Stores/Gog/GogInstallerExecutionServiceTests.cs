@@ -29,6 +29,7 @@ public sealed class GogInstallerExecutionServiceTests
             done
             [ -n "$destination" ] || exit 9
             mkdir -p "$destination"
+            stat -c '%a' "$destination" > "$destination/temporary-directory-mode.txt"
             printf 'game' > "$destination/game.x86_64"
             """);
         var package = new GogDownloadedInstallerPackage(stagingPath, installerPath, [installerPath]);
@@ -44,7 +45,118 @@ public sealed class GogInstallerExecutionServiceTests
         Assert.True(File.Exists(installedExecutable));
         Assert.Contains(output, line => line.StartsWith("Installer destination (temporary):", StringComparison.Ordinal));
         Assert.Contains("Promoting install from temporary path", string.Join('\n', output));
+        Assert.Equal(
+            "700",
+            File.ReadAllText(Path.Combine(installPath, "temporary-directory-mode.txt")).Trim());
         Assert.True((File.GetUnixFileMode(installedExecutable) & UnixFileMode.UserExecute) != 0);
+    }
+
+    [Fact]
+    public async Task RunLinuxAsync_ExtractFallbackUsesPrivateDirectoryAndDoesNotFollowCleanupLinks()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var externalDirectory = new TemporaryDirectory();
+        var externalSentinel = externalDirectory.CreateFile("keep.txt", "keep");
+        using var temporaryDirectory = new TemporaryDirectory();
+        var installPath = temporaryDirectory.CreateDirectory("fallback-game");
+        var stagingPath = temporaryDirectory.CreateDirectory("staging");
+        var installerPath = CreateInstallerScript(
+            stagingPath,
+            $$"""
+            #!/bin/sh
+            extract=0
+            target=""
+            while [ "$#" -gt 0 ]; do
+              if [ "$1" = "--noexec" ]; then
+                extract=1
+              elif [ "$1" = "--target" ]; then
+                shift
+                target="$1"
+              fi
+              shift
+            done
+            [ "$extract" -eq 1 ] || exit 1
+            [ -n "$target" ] || exit 9
+            ln -s "{{externalDirectory.RootPath}}" "$target/external-link"
+            cat > "$target/startmojo.sh" <<'MOJO'
+            #!/bin/sh
+            destination=""
+            while [ "$#" -gt 0 ]; do
+              if [ "$1" = "--destination" ]; then
+                shift
+                destination="$1"
+              fi
+              shift
+            done
+            [ -n "$destination" ] || exit 9
+            mkdir -p "$destination"
+            pwd > "$destination/extraction-root.txt"
+            stat -c '%a' . > "$destination/extraction-mode.txt"
+            printf 'game' > "$destination/game.x86_64"
+            MOJO
+            """);
+        var package = new GogDownloadedInstallerPackage(stagingPath, installerPath, [installerPath]);
+        var output = new ConcurrentQueue<string>();
+        var service = CreateService(temporaryDirectory.RootPath);
+
+        var result = await service.RunLinuxAsync(
+            new GogLinuxInstallerExecutionRequest("fallback", installPath, package, false, true),
+            output.Enqueue);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        var extractionRoot = File.ReadAllText(Path.Combine(installPath, "extraction-root.txt")).Trim();
+        Assert.StartsWith("retromind-gog-extract-", Path.GetFileName(extractionRoot), StringComparison.Ordinal);
+        Assert.Equal(
+            Path.TrimEndingDirectorySeparator(Path.GetTempPath()),
+            Path.GetDirectoryName(extractionRoot));
+        Assert.Equal("700", File.ReadAllText(Path.Combine(installPath, "extraction-mode.txt")).Trim());
+        Assert.False(Directory.Exists(extractionRoot));
+        Assert.True(File.Exists(externalSentinel));
+        Assert.Contains("Fallback: extract mode", string.Join('\n', output));
+    }
+
+    [Fact]
+    public async Task RunLinuxAsync_ShellSensitiveExistingDestinationUsesPrivateTemporaryAlias()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temporaryDirectory = new TemporaryDirectory();
+        var installPath = temporaryDirectory.CreateDirectory("Alias Game");
+        var stagingPath = temporaryDirectory.CreateDirectory("staging");
+        var installerPath = CreateInstallerScript(
+            stagingPath,
+            """
+            #!/bin/sh
+            destination=""
+            while [ "$#" -gt 0 ]; do
+              if [ "$1" = "--destination" ]; then
+                shift
+                destination="$1"
+              fi
+              shift
+            done
+            [ -n "$destination" ] || exit 9
+            alias_root="$(dirname "$destination")"
+            printf '%s' "$alias_root" > "$destination/alias-root.txt"
+            stat -c '%a' "$alias_root" > "$destination/alias-mode.txt"
+            printf 'game' > "$destination/game.x86_64"
+            """);
+        var package = new GogDownloadedInstallerPackage(stagingPath, installerPath, [installerPath]);
+        var service = CreateService(temporaryDirectory.RootPath);
+
+        var result = await service.RunLinuxAsync(
+            new GogLinuxInstallerExecutionRequest("alias", installPath, package, false, true),
+            _ => { });
+
+        Assert.True(result.Success, result.ErrorMessage);
+        var aliasRoot = File.ReadAllText(Path.Combine(installPath, "alias-root.txt"));
+        Assert.StartsWith("retromind-gog-target-", Path.GetFileName(aliasRoot), StringComparison.Ordinal);
+        Assert.Equal("700", File.ReadAllText(Path.Combine(installPath, "alias-mode.txt")).Trim());
+        Assert.False(Directory.Exists(aliasRoot));
+        Assert.True(File.Exists(Path.Combine(installPath, "game.x86_64")));
     }
 
     [Fact]

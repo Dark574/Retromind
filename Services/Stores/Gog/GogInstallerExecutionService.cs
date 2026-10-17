@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
+using Retromind.Services.Stores;
 
 namespace Retromind.Services.Stores.Gog;
 
@@ -61,7 +62,7 @@ public sealed partial class GogInstallerExecutionService
         appendLog($"Staging path: {request.DownloadedPackage.StagingDirectory}");
 
         var effectiveInstallPath = request.UseTemporaryDestination
-            ? ResolveSafeDestinationPath(request.InstallPath, request.StoreGameId)
+            ? ResolveSafeDestinationPath(request.InstallPath)
             : request.InstallPath;
         string? existingInstallAlias = null;
         if (!request.UseTemporaryDestination &&
@@ -70,7 +71,7 @@ public sealed partial class GogInstallerExecutionService
         {
             try
             {
-                existingInstallAlias = CreateSafeDestinationAlias(request.InstallPath, request.StoreGameId);
+                existingInstallAlias = CreateSafeDestinationAlias(request.InstallPath);
                 effectiveInstallPath = existingInstallAlias;
                 appendLog($"Installer destination (safe alias): {effectiveInstallPath}");
             }
@@ -212,12 +213,9 @@ public sealed partial class GogInstallerExecutionService
         Action<string> appendLog,
         CancellationToken cancellationToken)
     {
-        var extractionRoot = Path.Combine(
-            Path.GetTempPath(),
-            "retromind-gog-extract",
-            $"extract-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}");
-
-        Directory.CreateDirectory(extractionRoot);
+        var extractionRoot = Directory
+            .CreateTempSubdirectory("retromind-gog-extract-")
+            .FullName;
         try
         {
             var extractStartInfo = _processService.CreateStartInfo(installerWorkingDirectory);
@@ -276,7 +274,11 @@ public sealed partial class GogInstallerExecutionService
             try
             {
                 if (Directory.Exists(extractionRoot))
-                    Directory.Delete(extractionRoot, recursive: true);
+                {
+                    StoreDirectoryDeletionHelper.DeleteDirectoryTreeWithoutFollowingLinks(
+                        extractionRoot,
+                        CancellationToken.None);
+                }
             }
             catch
             {
@@ -301,35 +303,32 @@ public sealed partial class GogInstallerExecutionService
             ["--nox11", "--destination", installPath])
     ];
 
-    private static string ResolveSafeDestinationPath(string requestedInstallPath, string storeGameId)
+    private static string ResolveSafeDestinationPath(string requestedInstallPath)
     {
         if (!HasShellSensitivePathCharacters(requestedInstallPath))
             return requestedInstallPath;
 
-        var safeId = SanitizeStoreGameId(storeGameId);
-        var safeRoot = Path.Combine(Path.GetTempPath(), "retromind-gog-install", safeId);
-        Directory.CreateDirectory(safeRoot);
-        return Path.Combine(
-            safeRoot,
-            $"install-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}");
+        return Directory
+            .CreateTempSubdirectory("retromind-gog-install-")
+            .FullName;
     }
 
-    private static string CreateSafeDestinationAlias(string requestedInstallPath, string storeGameId)
+    private static string CreateSafeDestinationAlias(string requestedInstallPath)
     {
-        var aliasRoot = Path.Combine(Path.GetTempPath(), "retromind-gog-install-targets");
-        Directory.CreateDirectory(aliasRoot);
-        var aliasPath = Path.Combine(aliasRoot, $"{SanitizeStoreGameId(storeGameId)}-{Guid.NewGuid():N}");
-        Directory.CreateSymbolicLink(aliasPath, Path.GetFullPath(requestedInstallPath));
-        return aliasPath;
-    }
-
-    private static string SanitizeStoreGameId(string storeGameId)
-    {
-        var safeId = string.IsNullOrWhiteSpace(storeGameId)
-            ? "gog"
-            : new string(storeGameId.Where(character =>
-                char.IsLetterOrDigit(character) || character is '-' or '_').ToArray());
-        return string.IsNullOrWhiteSpace(safeId) ? "gog" : safeId;
+        var aliasRoot = Directory
+            .CreateTempSubdirectory("retromind-gog-target-")
+            .FullName;
+        var aliasPath = Path.Combine(aliasRoot, "target");
+        try
+        {
+            Directory.CreateSymbolicLink(aliasPath, Path.GetFullPath(requestedInstallPath));
+            return aliasPath;
+        }
+        catch
+        {
+            TryDeleteDirectoryIfEmpty(aliasRoot);
+            throw;
+        }
     }
 
     private static void TryDeleteDestinationAlias(string? aliasPath)
@@ -340,6 +339,9 @@ public sealed partial class GogInstallerExecutionService
         try
         {
             File.Delete(aliasPath);
+            var aliasRoot = Path.GetDirectoryName(aliasPath);
+            if (!string.IsNullOrWhiteSpace(aliasRoot))
+                TryDeleteDirectoryIfEmpty(aliasRoot);
         }
         catch (Exception ex)
         {
