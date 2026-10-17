@@ -191,6 +191,91 @@ public sealed class GogInstallServiceDownloadIntegrityTests
         Assert.Equal(payload, await File.ReadAllBytesAsync(result.EntryFilePath));
     }
 
+    [Fact]
+    public async Task DownloadInstallerPackage_StreamExceedsDeclaredLength_StopsAtFirstOverflowByte()
+    {
+        using var temp = new TemporaryDirectory();
+        var payload = Enumerable.Range(0, 64).Select(value => (byte)value).ToArray();
+        var stagingPath = temp.CreateDirectory("staging");
+        var source = new TrackingMemoryStream(payload);
+        using var downloadClient = new HttpClient(new StubHandler(_ => StreamResponse(source, 8)));
+        var service = CreateService(downloadClient);
+        var package = new GogInstallerPackage(
+            "game-id",
+            GogInstallPlatform.Linux,
+            "Installer",
+            "1.0",
+            [new GogInstallerDownloadFile(
+                DownloadUri.ToString(),
+                "setup_game.sh",
+                payload.Length)]);
+
+        var exception = await Assert.ThrowsAsync<GogInstallerDownloadLimitExceededException>(() =>
+            service.DownloadInstallerPackageAsync(package, stagingPath));
+
+        Assert.Contains("allowed download size", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(9, source.BytesRead);
+        Assert.False(File.Exists(Path.Combine(stagingPath, "setup_game.sh")));
+        Assert.False(File.Exists(Path.Combine(stagingPath, "setup_game.sh.part")));
+    }
+
+    [Fact]
+    public async Task DownloadInstallerPackage_DeclaredLengthExceedsHardLimit_RejectsBeforeReading()
+    {
+        using var temp = new TemporaryDirectory();
+        var payload = Enumerable.Range(0, 33).Select(value => (byte)value).ToArray();
+        var stagingPath = temp.CreateDirectory("staging");
+        var source = new TrackingMemoryStream(payload);
+        using var downloadClient = new HttpClient(new StubHandler(_ => StreamResponse(source, payload.Length)));
+        var service = CreateService(
+            downloadClient,
+            maxInstallerFileDownloadBytes: 32,
+            maxChecksumMetadataBytes: GogInstallService.MaxChecksumMetadataBytes);
+        var package = new GogInstallerPackage(
+            "game-id",
+            GogInstallPlatform.Linux,
+            "Installer",
+            "1.0",
+            [new GogInstallerDownloadFile(
+                DownloadUri.ToString(),
+                "setup_game.sh",
+                null)]);
+
+        await Assert.ThrowsAsync<GogInstallerDownloadLimitExceededException>(() =>
+            service.DownloadInstallerPackageAsync(package, stagingPath));
+
+        Assert.Equal(0, source.BytesRead);
+        Assert.False(File.Exists(Path.Combine(stagingPath, "setup_game.sh.part")));
+    }
+
+    [Fact]
+    public async Task DownloadInstallerPackage_ChecksumMetadataStopsAtFirstOverflowByte()
+    {
+        using var temp = new TemporaryDirectory();
+        var payload = Encoding.UTF8.GetBytes("installer payload");
+        var oversizedMetadata = Enumerable.Repeat((byte)'x', 64).ToArray();
+        var checksumSource = new TrackingMemoryStream(oversizedMetadata);
+        var stagingPath = temp.CreateDirectory("staging");
+        using var downloadClient = new HttpClient(new StubHandler(request =>
+        {
+            if (request.RequestUri == ChecksumUri)
+                return StreamResponse(checksumSource, 1);
+
+            return BytesResponse(payload);
+        }));
+        var service = CreateService(
+            downloadClient,
+            maxInstallerFileDownloadBytes: 1024,
+            maxChecksumMetadataBytes: 32);
+
+        var result = await service.DownloadInstallerPackageAsync(
+            CreatePackage(catalogSize: payload.Length),
+            stagingPath);
+
+        Assert.Equal(33, checksumSource.BytesRead);
+        Assert.Equal(payload, await File.ReadAllBytesAsync(result.EntryFilePath));
+    }
+
     private static GogInstallerPackage CreatePackage(long? catalogSize = null)
     {
         return new GogInstallerPackage(
@@ -205,7 +290,10 @@ public sealed class GogInstallServiceDownloadIntegrityTests
                 ChecksumUri.ToString())]);
     }
 
-    private static GogInstallService CreateService(HttpClient downloadClient)
+    private static GogInstallService CreateService(
+        HttpClient downloadClient,
+        long maxInstallerFileDownloadBytes = GogInstallService.MaxInstallerFileDownloadBytes,
+        int maxChecksumMetadataBytes = GogInstallService.MaxChecksumMetadataBytes)
     {
         var providerClient = new HttpClient(new StubHandler(_ =>
             throw new InvalidOperationException("Provider HTTP was not expected.")));
@@ -213,7 +301,12 @@ public sealed class GogInstallServiceDownloadIntegrityTests
             new InMemorySecretStore(),
             new GogOAuthClient(providerClient),
             new GogPkceService());
-        return new GogInstallService(authService, providerClient, downloadClient);
+        return new GogInstallService(
+            authService,
+            providerClient,
+            downloadClient,
+            maxInstallerFileDownloadBytes,
+            maxChecksumMetadataBytes);
     }
 
     private static HttpResponseMessage ChecksumResponse(byte[] payload)
@@ -236,6 +329,30 @@ public sealed class GogInstallServiceDownloadIntegrityTests
         {
             Content = new ByteArrayContent(payload)
         };
+    }
+
+    private static HttpResponseMessage StreamResponse(Stream content, long declaredLength)
+    {
+        var streamContent = new StreamContent(content);
+        streamContent.Headers.ContentLength = declaredLength;
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = streamContent
+        };
+    }
+
+    private sealed class TrackingMemoryStream(byte[] buffer) : MemoryStream(buffer, writable: false)
+    {
+        public int BytesRead { get; private set; }
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> target,
+            CancellationToken cancellationToken = default)
+        {
+            var bytesRead = await base.ReadAsync(target, cancellationToken);
+            BytesRead += bytesRead;
+            return bytesRead;
+        }
     }
 
     private sealed class StubHandler(

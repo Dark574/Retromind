@@ -38,6 +38,9 @@ internal sealed record GogDownloadChecksum(
     long? TotalSize,
     string? Md5);
 
+internal sealed class GogInstallerDownloadLimitExceededException(string message)
+    : IOException(message);
+
 public sealed record GogInstallerPackage(
     string GameId,
     GogInstallPlatform Platform,
@@ -90,10 +93,14 @@ public sealed class GogInstallService
 {
     private static readonly Uri ApiBaseUri = new("https://api.gog.com/");
     private static readonly Uri EmbedBaseUri = new("https://embed.gog.com/");
+    internal const long MaxInstallerFileDownloadBytes = 64L * 1024 * 1024 * 1024;
+    internal const int MaxChecksumMetadataBytes = 2 * 1024 * 1024;
 
     private readonly GogAuthService _authService;
     private readonly HttpClient _httpClient;
     private readonly HttpClient _downloadHttpClient;
+    private readonly long _maxInstallerFileDownloadBytes;
+    private readonly int _maxChecksumMetadataBytes;
 
     public GogInstallService(
         GogAuthService authService,
@@ -102,6 +109,8 @@ public sealed class GogInstallService
     {
         _authService = authService ?? throw new ArgumentNullException(nameof(authService));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _maxInstallerFileDownloadBytes = MaxInstallerFileDownloadBytes;
+        _maxChecksumMetadataBytes = MaxChecksumMetadataBytes;
         _downloadHttpClient = downloadHttpClient ?? new HttpClient
         {
             Timeout = TimeSpan.FromHours(2)
@@ -118,6 +127,23 @@ public sealed class GogInstallService
                 _downloadHttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Retromind/1.0 (Linux Portable Media Manager)");
             }
         }
+    }
+
+    internal GogInstallService(
+        GogAuthService authService,
+        HttpClient httpClient,
+        HttpClient downloadHttpClient,
+        long maxInstallerFileDownloadBytes,
+        int maxChecksumMetadataBytes)
+        : this(authService, httpClient, downloadHttpClient)
+    {
+        if (maxInstallerFileDownloadBytes <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxInstallerFileDownloadBytes));
+        if (maxChecksumMetadataBytes <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxChecksumMetadataBytes));
+
+        _maxInstallerFileDownloadBytes = maxInstallerFileDownloadBytes;
+        _maxChecksumMetadataBytes = maxChecksumMetadataBytes;
     }
 
     public async Task<GogInstallerPackage?> ResolveInstallerPackageAsync(
@@ -690,6 +716,7 @@ public sealed class GogInstallService
         var catalogSize = file.Size is > 0 ? file.Size : null;
         var expectedSize = checksum != null ? checksum.TotalSize : catalogSize;
         var expectedMd5 = checksum?.Md5;
+        EnsureInstallerFileSizeAllowed(checksum?.TotalSize ?? catalogSize, file.FileName);
 
         if (File.Exists(targetPath))
         {
@@ -788,39 +815,71 @@ public sealed class GogInstallService
                 resumeOffset = 0;
             }
 
-            GogInstallSpaceService.EnsureDownloadCanFit(
-                targetPath,
-                response.Content.Headers.ContentLength);
-
             var responseStart = append ? resumeOffset : 0L;
             var responseLength = response.Content.Headers.ContentLength;
             long? responseTotalSize = response.StatusCode == System.Net.HttpStatusCode.PartialContent
                 ? response.Content.Headers.ContentRange?.Length
                 : responseLength;
             if (!responseTotalSize.HasValue && responseLength.HasValue)
-                responseTotalSize = responseStart + responseLength.Value;
-
-            await using var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            var bytesWritten = responseStart;
-            reportProgress?.Invoke(bytesWritten);
-
-            await using (var destination = new FileStream(
-                             partPath,
-                             append ? FileMode.Append : FileMode.Create,
-                             FileAccess.Write,
-                             FileShare.None))
             {
+                responseTotalSize = responseLength.Value > long.MaxValue - responseStart
+                    ? long.MaxValue
+                    : responseStart + responseLength.Value;
+            }
+
+            long bytesWritten;
+            try
+            {
+                var maximumTotalBytes = ResolveInstallerDownloadLimit(
+                    checksum?.TotalSize,
+                    responseTotalSize,
+                    catalogSize,
+                    file.FileName);
+                EnsureResponseFitsDownloadLimit(
+                    responseStart,
+                    responseLength,
+                    maximumTotalBytes,
+                    file.FileName);
+                GogInstallSpaceService.EnsureDownloadCanFit(targetPath, responseLength);
+
+                await using var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                bytesWritten = responseStart;
+                reportProgress?.Invoke(bytesWritten);
+
+                await using var destination = new FileStream(
+                    partPath,
+                    append ? FileMode.Append : FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None);
                 var buffer = new byte[128 * 1024];
                 while (true)
                 {
-                    var bytesRead = await source.ReadAsync(buffer, ct).ConfigureAwait(false);
+                    var remainingBytes = maximumTotalBytes - bytesWritten;
+                    var bytesToRead = remainingBytes >= buffer.Length
+                        ? buffer.Length
+                        : checked((int)remainingBytes + 1);
+                    var bytesRead = await source
+                        .ReadAsync(buffer.AsMemory(0, bytesToRead), ct)
+                        .ConfigureAwait(false);
                     if (bytesRead <= 0)
                         break;
+                    if (bytesRead > maximumTotalBytes - bytesWritten)
+                    {
+                        throw CreateInstallerDownloadLimitException(
+                            file.FileName,
+                            maximumTotalBytes);
+                    }
 
                     await destination.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
                     bytesWritten += bytesRead;
                     reportProgress?.Invoke(bytesWritten);
                 }
+            }
+            catch (GogInstallerDownloadLimitExceededException)
+            {
+                if (File.Exists(partPath))
+                    File.Delete(partPath);
+                throw;
             }
 
             var responseBytesRead = bytesWritten - responseStart;
@@ -857,6 +916,55 @@ public sealed class GogInstallService
         }
     }
 
+    private long ResolveInstallerDownloadLimit(
+        long? checksumTotalSize,
+        long? responseTotalSize,
+        long? catalogSize,
+        string fileName)
+    {
+        var expectedTotalSize = checksumTotalSize is > 0
+            ? checksumTotalSize
+            : responseTotalSize is > 0
+                ? responseTotalSize
+                : catalogSize is > 0
+                    ? catalogSize
+                    : null;
+        EnsureInstallerFileSizeAllowed(expectedTotalSize, fileName);
+        return expectedTotalSize ?? _maxInstallerFileDownloadBytes;
+    }
+
+    private void EnsureInstallerFileSizeAllowed(long? totalSize, string fileName)
+    {
+        if (totalSize is > 0 && totalSize.Value > _maxInstallerFileDownloadBytes)
+        {
+            throw CreateInstallerDownloadLimitException(
+                fileName,
+                _maxInstallerFileDownloadBytes);
+        }
+    }
+
+    private static void EnsureResponseFitsDownloadLimit(
+        long responseStart,
+        long? responseLength,
+        long maximumTotalBytes,
+        string fileName)
+    {
+        if (responseStart < 0 ||
+            responseStart > maximumTotalBytes ||
+            responseLength is < 0 ||
+            (responseLength.HasValue && responseLength.Value > maximumTotalBytes - responseStart))
+        {
+            throw CreateInstallerDownloadLimitException(fileName, maximumTotalBytes);
+        }
+    }
+
+    private static GogInstallerDownloadLimitExceededException CreateInstallerDownloadLimitException(
+        string fileName,
+        long maximumBytes) =>
+        new(
+            $"GOG installer file '{fileName}' exceeds the allowed download size of " +
+            $"{GogInstallSpaceService.FormatByteSize(maximumBytes)}.");
+
     private async Task<GogDownloadChecksum?> TryGetDownloadChecksumAsync(
         string? checksumUrl,
         CancellationToken ct)
@@ -877,7 +985,7 @@ public sealed class GogInstallService
             if (!response.IsSuccessStatusCode)
                 return null;
 
-            var xml = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            var xml = await ReadLimitedChecksumMetadataAsync(response.Content, ct).ConfigureAwait(false);
             return TryParseDownloadChecksum(xml, out var checksum) ? checksum : null;
         }
         catch (OperationCanceledException)
@@ -899,47 +1007,106 @@ public sealed class GogInstallService
 
         try
         {
-            var settings = new XmlReaderSettings
-            {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-                MaxCharactersInDocument = 2 * 1024 * 1024
-            };
             using var stringReader = new StringReader(xml);
-            using var reader = XmlReader.Create(stringReader, settings);
-            var root = XDocument.Load(reader, LoadOptions.None).Root;
-            if (root == null || !root.Name.LocalName.Equals("file", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            if (string.Equals(root.Attribute("available")?.Value, "0", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(root.Attribute("available")?.Value, "false", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            long? totalSize = null;
-            if (long.TryParse(
-                    root.Attribute("total_size")?.Value,
-                    System.Globalization.NumberStyles.None,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    out var parsedSize) &&
-                parsedSize > 0)
-            {
-                totalSize = parsedSize;
-            }
-
-            var md5 = NormalizeMd5(root.Attribute("md5")?.Value);
-            if (!totalSize.HasValue && md5 == null)
-                return false;
-
-            checksum = new GogDownloadChecksum(totalSize, md5);
-            return true;
+            using var reader = XmlReader.Create(stringReader, CreateChecksumXmlReaderSettings());
+            return TryParseDownloadChecksum(reader, out checksum);
         }
         catch
         {
             return false;
         }
     }
+
+    private async Task<byte[]> ReadLimitedChecksumMetadataAsync(
+        HttpContent content,
+        CancellationToken ct)
+    {
+        var contentLength = content.Headers.ContentLength;
+        if (contentLength is > 0 && contentLength.Value > _maxChecksumMetadataBytes)
+        {
+            throw new InvalidDataException("GOG installer checksum metadata is too large.");
+        }
+
+        await using var source = await content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        using var destination = new MemoryStream();
+        var buffer = new byte[16 * 1024];
+        while (true)
+        {
+            var remainingBytes = _maxChecksumMetadataBytes - destination.Length;
+            var bytesToRead = remainingBytes >= buffer.Length
+                ? buffer.Length
+                : checked((int)remainingBytes + 1);
+            var bytesRead = await source
+                .ReadAsync(buffer.AsMemory(0, bytesToRead), ct)
+                .ConfigureAwait(false);
+            if (bytesRead == 0)
+                return destination.ToArray();
+            if (bytesRead > _maxChecksumMetadataBytes - destination.Length)
+                throw new InvalidDataException("GOG installer checksum metadata is too large.");
+
+            destination.Write(buffer, 0, bytesRead);
+        }
+    }
+
+    private static bool TryParseDownloadChecksum(byte[] xml, out GogDownloadChecksum checksum)
+    {
+        checksum = new GogDownloadChecksum(null, null);
+        if (xml.Length == 0)
+            return false;
+
+        try
+        {
+            using var stream = new MemoryStream(xml, writable: false);
+            using var reader = XmlReader.Create(stream, CreateChecksumXmlReaderSettings());
+            return TryParseDownloadChecksum(reader, out checksum);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryParseDownloadChecksum(
+        XmlReader reader,
+        out GogDownloadChecksum checksum)
+    {
+        checksum = new GogDownloadChecksum(null, null);
+        var root = XDocument.Load(reader, LoadOptions.None).Root;
+        if (root == null || !root.Name.LocalName.Equals("file", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (string.Equals(root.Attribute("available")?.Value, "0", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(root.Attribute("available")?.Value, "false", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        long? totalSize = null;
+        if (long.TryParse(
+                root.Attribute("total_size")?.Value,
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsedSize) &&
+            parsedSize > 0)
+        {
+            totalSize = parsedSize;
+        }
+
+        var md5 = NormalizeMd5(root.Attribute("md5")?.Value);
+        if (!totalSize.HasValue && md5 == null)
+            return false;
+
+        checksum = new GogDownloadChecksum(totalSize, md5);
+        return true;
+    }
+
+    private static XmlReaderSettings CreateChecksumXmlReaderSettings() =>
+        new()
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null,
+            MaxCharactersInDocument = MaxChecksumMetadataBytes
+        };
 
     private static async Task<bool> IsDownloadedFileValidAsync(
         string path,

@@ -22,6 +22,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - automatically track imported Steam game sessions for playtime and achievement updates without requiring a manually configured process name
 
 ### Changed
+- stop oversized GOG installer downloads and checksum metadata while they are still being received
 - isolate temporary GOG installer files in private per-operation directories on Linux
 - revalidate Epic Wine/Proton prefixes immediately before deletion and remove directory trees without following symbolic links
 - validate metadata backups with bounded, lower-memory reads and reject ZIP entries whose actual data does not match their declared size

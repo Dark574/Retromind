@@ -542,7 +542,10 @@ For detailed GOG-native status and file map, see `docs/gog-provider.md`.
   resumable package download, throttled progress reporting, detailed file logging, clean-install preparation,
   execution, cancellation classification, and guarded staging cleanup. It reports plain results and log lines;
   `MainWindowViewModel` retains user confirmation, progress-window ownership, manual executable selection,
-  media-item mutation, and persistence
+  media-item mutation, and persistence. Each installer-file response is limited while streaming to its checksum,
+  HTTP, or product-catalog total when available and always to an absolute 64 GiB ceiling; a response that
+  understates its length is stopped after the first excess byte and its partial file is removed. Checksum XML is
+  likewise limited to 2 MiB while streaming before the existing DTD-disabled parser processes it
 
 Winetricks follows the same application/infrastructure boundary. `EditMediaViewModel` resolves the effective
 item/emulator environment and owns the process-log window, while `WinetricksService` owns prefix preparation,
