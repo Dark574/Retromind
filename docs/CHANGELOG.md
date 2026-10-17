@@ -9,60 +9,54 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.2-alpha] - unreleased
 
 ### Added
-- import owned Epic games directly through bundled Legendary without requiring Heroic Games Launcher
+- import owned Epic Games titles directly through bundled Legendary without requiring Heroic Games Launcher
 - install Epic Games titles directly through Retromind with install-location selection, free-space checks, progress output, and cancellation
-- repair missing or damaged files in Retromind-managed Epic Games installations through Legendary
-- manage owned Epic Games DLCs through Legendary, including installation, updates and removal
-- uninstall Retromind-managed Epic Games installations without removing their library items, media or metadata
-- ScreenScraper now supports video asset downloads
-- multiple videos are now also played random if the selection is active
-- filter game metadata searches by a selected system with ScreenScraper, IGDB and TheGamesDB
+- view Epic Games installation status and installed versions, check for and apply updates, and repair managed installations from the media editor
+- manage owned Epic Games DLCs through Legendary, including installation, updates, and removal
+- uninstall Retromind-managed Epic Games installations without removing their library items, media, or metadata
+- install uninstalled GOG and Epic Games titles directly from their item context menus
+- link existing library items to GOG or Epic Games, switch stores after uninstalling a managed copy, and migrate legacy Heroic entries without losing launch settings, media, or metadata
 - display Steam achievement progress, unlock times and privacy-safe hidden achievements in the desktop details and BigMode
-- Steam Achievements have been added
 - automatically track imported Steam game sessions for playtime and achievement updates without requiring a manually configured process name
+- download video assets through ScreenScraper
+- randomly select among multiple videos when random playback is enabled
+- filter game metadata searches by system with ScreenScraper, IGDB, and TheGamesDB
+- access direct contact links and privacy-conscious diagnostic information from the Help tab
 
 ### Changed
-- give Prism descriptions more room by using the empty space below their metadata chips
-- stop oversized GOG installer downloads and checksum metadata while they are still being received
-- isolate temporary GOG installer files in private per-operation directories on Linux
-- revalidate Epic Wine/Proton prefixes immediately before deletion and remove directory trees without following symbolic links
-- validate metadata backups with bounded, lower-memory reads and reject ZIP entries whose actual data does not match their declared size
-- restrict managed GE-Proton operations to safe local paths and official GitHub release sources, reject oversized downloads and archives, and verify SHA-512 checksums before extraction
-- restrict runtime theme files and assets to symlink-free paths inside their assigned theme directories and reject oversized AXAML files
-- store scraper API keys, passwords, and client secrets in the system keyring; portable scraper profiles now require their credentials to be entered again on each new computer
-- organize item and category context menus consistently, with compact Store actions and direct access to imports and per-item searches
-- link existing library items to GOG or Epic Games, switch between both stores after uninstalling managed copies, and migrate legacy Heroic entries without losing launch settings, media or metadata
-- show Epic Games installation status, installed version, updates, repair and DLC actions in the media editor
-- install uninstalled GOG and Epic games directly from their item context menus
 - remove the obsolete Heroic/Epic path settings; Epic libraries are now imported directly through Legendary while existing Heroic launch entries remain usable
 - include readable game titles in the prefix folder names of newly installed Epic Games titles
-- check installed Epic Games titles for updates and apply available updates directly through Legendary
-- deleting a Retromind-managed Epic Games title now also removes its game files, Wine/Proton prefix and Legendary installation registration while preserving shared prefixes
-- check available storage before downloading and installing GOG games, updates and DLCs while accounting for reusable installer files
-- improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews
-- load desktop cover grids in parallel while retaining responsive, serialized artwork loading in BigMode
-- make the Default BigMode cover transition smoother while preserving its clearly visible entrance
+- make Epic Games installation, repair, and removal safer by protecting temporary credentials, preserving user environment overrides, rechecking managed paths immediately before changes, and retaining damaged installations for recovery
+- remove Legendary registrations and exclusive Wine/Proton prefixes when uninstalling managed Epic Games titles while preserving shared prefixes, mods, saves, and other unrecognized files
+- check available storage before downloading and installing GOG games, updates, and DLCs while accounting for reusable installer files
+- protect GOG installations from oversized installer downloads and checksum metadata, and isolate temporary installer files from other users on Linux
+- protect managed GE-Proton installs and removals against unsafe paths, untrusted release sources, oversized downloads and archives, and corrupted files
+- reject malformed or oversized metadata-backup entries before they can consume excessive memory
+- keep runtime theme files and assets inside their assigned theme folders and reject oversized theme definitions
+- store scraper API keys, passwords, and client secrets in the system keyring; portable scraper profiles require their credentials to be entered again on each new computer
+- organize item and category context menus consistently, with compact Store actions and direct access to imports and per-item searches
+- import GOG games into any category through the regular picker instead of restricting categories to dedicated GOG nodes
 - use Steam's quiet system-tray mode when launching imported Steam games on Linux to reduce unwanted client windows
-- add direct contact links and privacy-conscious diagnostic information for support requests to the Help tab
-- stop inheriting BigMode themes from parent categories; new nodes use the Default normal and system themes
-- import GOG games into any category through the regular picker instead of restricting categories as dedicated GOG nodes
+- improve BigMode responsiveness on high-resolution displays, especially while rapidly browsing artwork-heavy libraries and playing previews
+- load desktop cover grids faster while keeping BigMode artwork loading responsive
+- make the Default BigMode cover transition smoother while preserving its clearly visible entrance
+- give Prism descriptions more room by using the empty space below their metadata chips
+- stop inheriting BigMode themes from parent categories; new categories start with the Default regular and system themes
 - show the category game-system assignment under General instead of keeping a separate Integrations tab
-- make Epic game management safer and more resilient by protecting temporary launch credentials, rechecking install folders before changes, preserving user environment overrides, and keeping damaged installations available for update or recovery
-- preserve files left behind by Legendary when uninstalling Epic games instead of deleting possible mods, saves or other user data
 
 ### Fixed
 - keep fallback logos in a stable position while browsing games in the desktop details panel
-- recognize existing native Linux GOG offline installations when linking games, refresh Store actions immediately and retain their previous folder for later reinstalls
 - prevent the Arcade theme from crashing while creating its logo rail and keep the layout stable while artwork is loading
 - prevent the previous system's fallback artwork from flashing while switching BigMode system themes
-- after linking a Game to a GOG-Game the GOG-Badge is added immediately
-- Fixed media previews showing an outdated image when the source file was replaced with another one
-- outdated media previews and restored live asset updates in MainView while editing
-- report failures when stored achievement API keys cannot be removed from the system keyring
-- keep showing cached Steam achievement progress when downloading an updated response is interrupted
+- refresh replaced media previews immediately and restore live asset updates in the main view while editing
+- keep global search scopes, search results, and media filters current when nested categories or edited items change
+- recognize existing native Linux GOG offline installations when linking games, refresh Store actions immediately and retain their previous folder for later reinstalls
+- display the GOG badge immediately after linking a library item to a GOG title
 - preselect the currently configured Wine or Proton runner when updating or reinstalling a GOG game
-- keep existing achievement account keys intact when updated integration settings cannot be saved completely
+- keep showing cached Steam achievement progress when downloading an updated response is interrupted
+- preserve existing achievement credentials when updated integration settings cannot be saved completely and report failures when stored credentials cannot be removed
 - prevent reused Linux process IDs from hiding newly started Steam games from automatic playtime tracking
+- allow Retromind to close promptly while startup sorting or asset scanning is still running
 - avoid rebuilding the current library view when toggling parental protection for a single item
 
 ---
