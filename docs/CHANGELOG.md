@@ -6,7 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project (aims to) adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## [0.2.2-alpha] - unreleased
+
+## [0.2.3-alpha] - unreleased
+
+### Added
+
+### Changed
+
+### Fixed
+
+---
+
+## [0.2.2-alpha] - 2026-10-27
 
 ### Added
 - import owned Epic Games titles directly through bundled Legendary without requiring Heroic Games Launcher
@@ -513,7 +524,8 @@ also a lot of small fixes and changes
 
 ---
 
-[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.2.1-alpha...HEAD
+[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.2.3-alpha...HEAD
+[0.2.2-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.2-alpha
 [0.2.1-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.1-alpha
 [0.2.0-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.0-alpha
 [0.1.9-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.1.9-alpha
