@@ -338,10 +338,9 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Descriptions stay intentionally short in the resting view and
-                     begin scrolling only after the user has paused on an item. -->
+                <!-- Descriptions use the flexible space between the chips and lower
+                     metadata, then scroll after the user has paused on an item. -->
                 <Border Grid.Row="3"
-                        MaxHeight="250"
                         ClipToBounds="True"
                         IsVisible="{Binding IsGameListActive}">
                     <ScrollViewer VerticalScrollBarVisibility="Hidden"
@@ -364,7 +363,6 @@
                 </Border>
 
                 <Border Grid.Row="3"
-                        MaxHeight="250"
                         ClipToBounds="True"
                         IsVisible="{Binding IsCategorySelectionActive}">
                     <ScrollViewer VerticalScrollBarVisibility="Hidden"
