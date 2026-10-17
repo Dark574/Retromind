@@ -228,6 +228,103 @@ public sealed class EpicInstallServiceTests
     }
 
     [Fact]
+    public async Task UninstallAsync_DeletesNestedPrefixLinkWithoutTouchingExternalTarget()
+    {
+        using var external = new TemporaryDirectory();
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(
+            ("APPIMAGE", temp.GetPath("Retromind.AppImage")),
+            ("APPDIR", null));
+        var installPath = temp.CreateDirectory("Library", "Games", "Epic", "Example Game");
+        var prefixPath = temp.CreateDirectory("Library", "Prefixes", "epic_ExampleGame");
+        var externalSentinel = external.CreateFile("must-remain.txt", "external prefix data");
+        Directory.CreateSymbolicLink(Path.Combine(prefixPath, "external-link"), external.RootPath);
+        var item = CreateEpicItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] =
+            Path.GetRelativePath(AppPaths.DataRoot, installPath);
+        item.PrefixPath = Path.GetRelativePath(AppPaths.LibraryRoot, prefixPath);
+        var service = CreateService(CreateSuccessfulUninstallRunner());
+        service.WriteMarker(installPath, item);
+
+        var result = await service.UninstallAsync(item);
+
+        Assert.False(result.PrefixPreserved);
+        Assert.False(Directory.Exists(prefixPath));
+        Assert.True(File.Exists(externalSentinel));
+        Assert.Null(item.PrefixPath);
+    }
+
+    [Fact]
+    public async Task UninstallAsync_PreservesPrefixBehindSymbolicLinkAncestor()
+    {
+        using var external = new TemporaryDirectory();
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(
+            ("APPIMAGE", temp.GetPath("Retromind.AppImage")),
+            ("APPDIR", null));
+        var installPath = temp.CreateDirectory("Library", "Games", "Epic", "Example Game");
+        var externalPrefix = external.CreateDirectory("prefix");
+        var externalSentinel = external.CreateFile("prefix/must-remain.txt", "external prefix data");
+        var prefixLink = Path.Combine(AppPaths.LibraryRoot, "prefix-link");
+        Directory.CreateSymbolicLink(prefixLink, external.RootPath);
+        var item = CreateEpicItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] =
+            Path.GetRelativePath(AppPaths.DataRoot, installPath);
+        item.PrefixPath = Path.Combine("prefix-link", "prefix");
+        var service = CreateService(CreateSuccessfulUninstallRunner());
+        service.WriteMarker(installPath, item);
+
+        var result = await service.UninstallAsync(item);
+
+        Assert.True(result.PrefixPreserved);
+        Assert.True(Directory.Exists(externalPrefix));
+        Assert.True(File.Exists(externalSentinel));
+        Assert.Equal(Path.Combine("prefix-link", "prefix"), item.PrefixPath);
+    }
+
+    [Fact]
+    public async Task UninstallAsync_RejectsPrefixWhoseAncestorChangedAfterValidation()
+    {
+        using var external = new TemporaryDirectory();
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(
+            ("APPIMAGE", temp.GetPath("Retromind.AppImage")),
+            ("APPDIR", null));
+        var installPath = temp.CreateDirectory("Library", "Games", "Epic", "Example Game");
+        var prefixParent = temp.CreateDirectory("Library", "Prefixes");
+        var prefixPath = temp.CreateDirectory("Library", "Prefixes", "epic_ExampleGame");
+        var externalPrefix = external.CreateDirectory("epic_ExampleGame");
+        var externalSentinel = external.CreateFile(
+            "epic_ExampleGame/must-remain.txt",
+            "external prefix data");
+        var item = CreateEpicItem();
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] =
+            Path.GetRelativePath(AppPaths.DataRoot, installPath);
+        item.PrefixPath = Path.GetRelativePath(AppPaths.LibraryRoot, prefixPath);
+        var changed = false;
+        var runner = CreateSuccessfulUninstallRunner();
+        runner.CommandReceived = _ =>
+        {
+            if (changed)
+                return;
+
+            changed = true;
+            Directory.Delete(prefixPath, recursive: true);
+            Directory.Delete(prefixParent, recursive: false);
+            Directory.CreateSymbolicLink(prefixParent, external.RootPath);
+        };
+        var service = CreateService(runner);
+        service.WriteMarker(installPath, item);
+
+        var exception = await Assert.ThrowsAsync<IOException>(() => service.UninstallAsync(item));
+
+        Assert.Contains("symbolic link", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(Directory.Exists(externalPrefix));
+        Assert.True(File.Exists(externalSentinel));
+        Assert.NotNull(item.PrefixPath);
+    }
+
+    [Fact]
     public async Task InstallDlcAsync_UsesTheOwnedMainGameDirectory()
     {
         using var temp = new TemporaryDirectory();
@@ -448,6 +545,12 @@ public sealed class EpicInstallServiceTests
     private static EpicInstallService CreateService(ILegendaryCliProcessRunner runner) =>
         new(new LegendaryCliClient(runner));
 
+    private static QueueProcessRunner CreateSuccessfulUninstallRunner() => new(
+        new LegendaryCliResult(0, CreateEmptyDlcCatalogJson(), string.Empty),
+        new LegendaryCliResult(0, "[]", string.Empty),
+        new LegendaryCliResult(0, string.Empty, string.Empty),
+        new LegendaryCliResult(0, "[]", string.Empty));
+
     private static MediaItem CreateEpicItem() => new("Example Game")
     {
         CustomFields = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -470,12 +573,14 @@ public sealed class EpicInstallServiceTests
         private readonly Queue<LegendaryCliResult> _results = new(results);
 
         internal List<LegendaryCliCommand> Commands { get; } = [];
+        internal Action<LegendaryCliCommand>? CommandReceived { get; set; }
 
         public Task<LegendaryCliResult> RunAsync(
             LegendaryCliCommand command,
             CancellationToken ct = default)
         {
             Commands.Add(command);
+            CommandReceived?.Invoke(command);
             return Task.FromResult(_results.Dequeue());
         }
     }

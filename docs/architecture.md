@@ -429,8 +429,9 @@ the report never mutates JSON or deletes files.
   the same cancelable progress pipeline. Epic installations can be uninstalled independently while retaining the
   library item, media, metadata, and store identity; the generated launch configuration and installation state are
   cleared only after Legendary is unregistered and the marker-owned directory has been removed. Deleting a managed
-  item reuses that physical cleanup before removing the item. Safely contained Wine/Proton prefixes are removed,
-  while prefixes shared by another item or rejected by the path-safety checks are preserved. Missing legacy install
+  item reuses that physical cleanup before removing the item. Safely contained Wine/Proton prefixes are revalidated
+  immediately before link-safe recursive removal, while prefixes shared by another item or rejected by the path-safety
+  checks are preserved. Missing legacy install
   roots are unregistered without touching files when a later installation selects a new destination. Before each
   launch, Legendary supplies fresh Epic
   authentication arguments; Retromind then executes the installed game through its selected Wine/Proton runner so

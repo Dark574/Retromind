@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Models.Stores;
+using Retromind.Services.Stores;
 using Retromind.Services.Stores.Epic.Legendary;
 
 namespace Retromind.Services.Stores.Epic;
@@ -203,7 +204,7 @@ public sealed class EpicInstallService
         if (!string.IsNullOrWhiteSpace(prefixPath) && Directory.Exists(prefixPath))
         {
             await Task.Run(
-                    () => Directory.Delete(prefixPath, recursive: true),
+                    () => StoreDirectoryDeletionHelper.DeleteDirectoryTreeWithoutFollowingLinks(prefixPath, ct),
                     ct)
                 .ConfigureAwait(false);
         }
@@ -518,26 +519,7 @@ public sealed class EpicInstallService
     }
 
     private static bool ContainsSymbolicLinkInPath(string path)
-    {
-        var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-        var root = Path.GetPathRoot(fullPath);
-        if (string.IsNullOrWhiteSpace(root))
-            return false;
-
-        var currentPath = root;
-        foreach (var component in Path.GetRelativePath(root, fullPath).Split(
-                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                     StringSplitOptions.RemoveEmptyEntries))
-        {
-            currentPath = Path.Combine(currentPath, component);
-            if (!File.Exists(currentPath) && !Directory.Exists(currentPath))
-                return false;
-            if ((File.GetAttributes(currentPath) & FileAttributes.ReparsePoint) != 0)
-                return true;
-        }
-
-        return false;
-    }
+        => StoreDirectoryDeletionHelper.ContainsSymbolicLinkInPath(path);
 
     private static bool IsEqualToOrBelow(string path, string root)
     {
