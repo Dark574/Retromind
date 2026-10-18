@@ -462,7 +462,9 @@ the report never mutates JSON or deletes files.
   explicit unambiguous aliases; sharing a vendor or family word is insufficient. Ambiguous or unsafe results are
   logged but not imported
 
-For detailed GOG-native status and file map, see `docs/gog-provider.md`.
+For detailed GOG-native status and file map, see `docs/gog-provider.md`. GOG Galaxy/Comet achievement support
+is not integrated yet; the current secure-credential fork, reproducible Docker workflow, and implementation
+handoff are recorded in `docs/comet-fork.md`.
 
 ## Launch pipeline
 `LauncherService` resolves and executes media launches:
