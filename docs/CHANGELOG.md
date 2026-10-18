@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 
 ### Fixed
+- refresh the context menu after a game is assigend to the GOG-Store
 
 ---
 

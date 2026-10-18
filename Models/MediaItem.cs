@@ -51,6 +51,7 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StoreProviderId))]
+    [NotifyPropertyChangedFor(nameof(StorePresentationState))]
     private List<MediaFileRef> _files = new();
 
     /// <summary>
@@ -246,6 +247,13 @@ public partial class MediaItem : ObservableObject
     StoreProviderBadgeHelper.GetProviderId(this);
 
     /// <summary>
+    /// Provides an explicitly observable binding source for UI elements whose
+    /// state is derived from multiple store-related properties on this item.
+    /// </summary>
+    [JsonIgnore]
+    public MediaItem StorePresentationState => this;
+
+    /// <summary>
     /// Sets an asset explicitly as "active" for display (used by randomization)
     /// </summary>
     public void SetActiveAsset(AssetType type, string relativePath)
@@ -372,6 +380,7 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StoreProviderId))]
+    [NotifyPropertyChangedFor(nameof(StorePresentationState))]
     private string? _launcherPath;
 
     /// <summary>
@@ -379,6 +388,7 @@ public partial class MediaItem : ObservableObject
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StoreProviderId))]
+    [NotifyPropertyChangedFor(nameof(StorePresentationState))]
     private string? _launcherArgs;
 
     /// <summary>
@@ -499,12 +509,7 @@ public partial class MediaItem : ObservableObject
         OnPropertyChanged(nameof(VisibleCustomFields));
         OnPropertyChanged(nameof(HasCustomFields));
         OnPropertyChanged(nameof(StoreProviderId));
-
-        // Several context-menu entries bind the complete item through a
-        // converter. An empty property name is the INotifyPropertyChanged
-        // convention for invalidating every derived binding after store state
-        // was replaced (for example immediately after linking a game).
-        OnPropertyChanged(string.Empty);
+        OnPropertyChanged(nameof(StorePresentationState));
     }
 }
 

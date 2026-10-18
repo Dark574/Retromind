@@ -1,8 +1,12 @@
+using System.Globalization;
 using System.IO;
+using Avalonia.Data.Converters;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Models.Stores;
 using Retromind.Services.Stores;
+using Retromind.Tests.TestInfrastructure;
+using RetromindObjectConverters = Retromind.Helpers.ObjectConverters;
 
 namespace Retromind.Tests.Services.Stores;
 
@@ -102,6 +106,49 @@ public sealed class StoreLinkChangeServiceTests
     }
 
     [Fact]
+    public async Task ApplyAndSaveAsync_LinkedManagedGogItemInvalidatesAndUpdatesStoreMenuState()
+    {
+        using var temp = new TemporaryDirectory();
+        var item = new MediaItem("Manual game")
+        {
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = temp.CreateFile("game.sh"),
+                    Index = 1
+                }
+            ]
+        };
+        var storePresentationChanged = false;
+        item.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(MediaItem.StorePresentationState))
+                storePresentationChanged = true;
+        };
+        var updatedFields = StoreLinkChangeService.BuildChangedFields(
+            item.CustomFields,
+            StoreProviderIds.Gog,
+            "gog-game");
+        updatedFields[CustomFieldKeyHelper.StoreInstallPath] = temp.RootPath;
+
+        Assert.True(Convert(RetromindObjectConverters.StoreLinkGogMenuVisible, item));
+        Assert.False(Convert(RetromindObjectConverters.GogInstalledMenuVisible, item));
+
+        await StoreLinkChangeService.ApplyAndSaveAsync(
+            item,
+            updatedFields,
+            () => Task.FromResult(true),
+            () => { },
+            "Save failed.");
+
+        Assert.True(storePresentationChanged);
+        Assert.False(Convert(RetromindObjectConverters.StoreLinkGogMenuVisible, item));
+        Assert.True(Convert(RetromindObjectConverters.GogInstalledMenuVisible, item));
+    }
+
+    [Fact]
     public void BuildChangedFields_RemovesAllStoreFieldsButPreservesUserFields()
     {
         var previousFields = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -141,6 +188,13 @@ public sealed class StoreLinkChangeServiceTests
             () => { },
             "Save failed.");
     }
+
+    private static bool Convert(IValueConverter converter, MediaItem item) =>
+        Assert.IsType<bool>(converter.Convert(
+            item,
+            typeof(bool),
+            parameter: null,
+            CultureInfo.InvariantCulture));
 
     private static MediaItem CreateLinkedItem(string providerId, string gameId) => new("Example Game")
     {

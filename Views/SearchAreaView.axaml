@@ -374,79 +374,79 @@
                                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).MoveMediaCommand}"
                                                       CommandParameter="{Binding .}" />
 
-                                            <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreMenuVisible}}" />
+                                            <Separator IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreMenuVisible}}" />
 
                                             <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).StoreContextMenuText}"
-                                                      IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreMenuVisible}}">
+                                                      IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreMenuVisible}}">
                                                 <MenuItem Header="{x:Static p:Strings.Button_Install}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).InstallStoreItemCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreInstallMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreInstallMenuVisible}}" />
 
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogCheckUpdatesMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CheckGogUpdatesCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUpdateCheckMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogUpdateCheckMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUpdateMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UpdateGogCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUpdateMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogUpdateMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogReinstallMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ReinstallGogCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogManageDlcsMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ManageGogDlcsCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
 
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicCheckUpdatesMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CheckEpicUpdatesCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicUpdateCheckMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicUpdateCheckMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicUpdateMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UpdateEpicCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicUpdateMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicUpdateMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicRepairMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RepairEpicCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicManageDlcsMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ManageEpicDlcsCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
 
-                                                <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}" />
+                                                <Separator IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogUninstallMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UninstallGogCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}"
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}"
                                                           Foreground="Red" />
-                                                <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicUninstallMenuVisible}}" />
+                                                <Separator IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicUninstallMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicUninstallMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).UninstallEpicCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.EpicUninstallMenuVisible}}"
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicUninstallMenuVisible}}"
                                                           Foreground="Red" />
 
-                                                <Separator IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreLinkChangeSeparatorVisible}}" />
+                                                <Separator IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreLinkChangeSeparatorVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogLinkStoreMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).LinkMediaItemToGogCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreLinkGogMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreLinkGogMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).GogSwitchStoreMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).LinkMediaItemToGogCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreSwitchToGogMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreSwitchToGogMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicLinkStoreMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).LinkMediaItemToEpicCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreLinkEpicMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreLinkEpicMenuVisible}}" />
                                                 <MenuItem Header="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).EpicSwitchStoreMenuText}"
                                                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).LinkMediaItemToEpicCommand}"
                                                           CommandParameter="{Binding .}"
-                                                          IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreSwitchToEpicMenuVisible}}" />
+                                                          IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreSwitchToEpicMenuVisible}}" />
                                             </MenuItem>
 
                                             <MenuItem Header="{x:Static p:Strings.Button_Delete}"
@@ -533,7 +533,7 @@
                                                     VerticalAlignment="Bottom"
                                                     Margin="8"
                                                     ToolTip.Tip="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).StoreUpdateAvailableBadgeTooltip}"
-                                                    IsVisible="{Binding ., Converter={x:Static helpers:ObjectConverters.StoreUpdateBadgeVisible}}" />
+                                                    IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreUpdateBadgeVisible}}" />
                                         </Grid>
 
                                         <CheckBox HorizontalAlignment="Left"
