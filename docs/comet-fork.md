@@ -336,8 +336,10 @@ startup-failure and cancellation paths.
 
 Comet's replaceable configuration, gameplay database, downloaded components, and cache are isolated below
 `Tools/Comet/Data` through explicit XDG paths and are excluded from metadata backups. No credential is persisted
-there by Retromind. Supplying fresh credentials from the existing GOG authentication and secret-store boundary is
-part of the launch-lifecycle integration below.
+there by Retromind. `GogCometCredentialProvider` obtains a fresh access token and account identity through the
+existing GOG authentication service and reads the current refresh token back through `ISecretStore`; it introduces
+no additional credential storage. Starting this prepared sidecar around eligible games remains part of the
+launch-lifecycle integration below.
 
 ### 3. Integrate with the launch lifecycle
 

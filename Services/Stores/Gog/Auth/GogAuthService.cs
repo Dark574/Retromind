@@ -36,6 +36,7 @@ public sealed class GogAuthService
     private readonly Uri _redirectUri;
 
     private GogTokenSet? _currentToken;
+    private StoreAccountInfo? _currentAccountInfo;
 
     public GogAuthService(ISecretStore secretStore, GogOAuthClient oAuthClient, GogPkceService pkceService)
     {
@@ -67,6 +68,38 @@ public sealed class GogAuthService
             return null;
 
         return _currentToken?.AccessToken;
+    }
+
+    internal async Task<GogSessionCredentials?> GetSessionCredentialsAsync(CancellationToken ct = default)
+    {
+        var accessToken = await GetValidAccessTokenAsync(ct).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(accessToken))
+            return null;
+
+        var refreshToken = await _secretStore
+            .GetAsync(GogRefreshTokenKey, ct)
+            .ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return null;
+
+        var accountInfo = _currentAccountInfo;
+        if (accountInfo == null)
+        {
+            accountInfo = await _oAuthClient
+                .GetAccountInfoAsync(accessToken, ct)
+                .ConfigureAwait(false);
+            _currentAccountInfo = accountInfo;
+        }
+
+        EnsureUsableAccountIdentity(accountInfo);
+        var username = !string.IsNullOrWhiteSpace(accountInfo.DisplayName)
+            ? accountInfo.DisplayName
+            : accountInfo.AccountId;
+        return new GogSessionCredentials(
+            accessToken,
+            refreshToken,
+            accountInfo.AccountId,
+            username);
     }
 
     public Task<StoreAccountInfo> SignInInteractiveAsync(
@@ -115,6 +148,7 @@ public sealed class GogAuthService
     public async Task SignOutAsync(bool forgetPersistentToken, CancellationToken ct = default)
     {
         _currentToken = null;
+        _currentAccountInfo = null;
 
         if (forgetPersistentToken)
             await _secretStore.DeleteAsync(GogRefreshTokenKey, ct).ConfigureAwait(false);
@@ -191,7 +225,11 @@ public sealed class GogAuthService
 
         try
         {
-            return await _oAuthClient.GetAccountInfoAsync(token.AccessToken, ct).ConfigureAwait(false);
+            var accountInfo = await _oAuthClient
+                .GetAccountInfoAsync(token.AccessToken, ct)
+                .ConfigureAwait(false);
+            _currentAccountInfo = accountInfo;
+            return accountInfo;
         }
         catch (OperationCanceledException)
         {
@@ -298,6 +336,15 @@ public sealed class GogAuthService
             .TrimEnd('=')
             .Replace('+', '-')
             .Replace('/', '_');
+    }
+
+    private static void EnsureUsableAccountIdentity(StoreAccountInfo accountInfo)
+    {
+        if (string.IsNullOrWhiteSpace(accountInfo.AccountId) ||
+            string.Equals(accountInfo.AccountId, "gog-user", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("GOG account identity is unavailable.");
+        }
     }
 
     private static string GetEnvironmentOrDefault(string variableName, string fallback)

@@ -445,7 +445,9 @@ the report never mutates JSON or deletes files.
   `PATH`. It starts Comet without a shell, supplies the four transient account values through bounded JSON on
   standard input, and keeps its replaceable configuration, gameplay database, components, and cache below
   `Tools/Comet/Data` through private XDG paths. The returned session owns and cleans up the complete Comet process
-  tree. This boundary is registered for future launch integration but is not invoked by game launches yet
+  tree. Its credential provider combines a fresh access token and GOG account identity with the refresh token read
+  through the existing secret-store boundary and adds no persistence. These services are registered for future
+  launch integration but are not invoked by game launches yet
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider

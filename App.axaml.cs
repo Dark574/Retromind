@@ -337,6 +337,7 @@ public partial class App : Application
             AppPaths.LibraryRoot));
         services.AddSingleton<GogInstallerWorkflowService>();
         services.AddSingleton<CometExecutableResolver>();
+        services.AddSingleton<GogCometCredentialProvider>();
         services.AddSingleton(provider => new CometProcessRunner(
             provider.GetRequiredService<CometExecutableResolver>(),
             CometProcessRunner.GetDefaultDataDirectory(AppPaths.DataRoot)));
