@@ -35,3 +35,6 @@ dist/
 build-appimage.log
 build-appimage.debug.log
 docker-build.log
+
+# Local dependency and update-planning inventory
+/docs/COMPONENTS.md
