@@ -1111,7 +1111,7 @@
                                        TextWrapping="Wrap" />
                         </StackPanel>
 
-                        <Expander IsExpanded="True"
+                        <Expander IsExpanded="False"
                                   HorizontalAlignment="Stretch">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="42,*" Margin="6">
@@ -1140,7 +1140,8 @@
                                        TextWrapping="Wrap" />
                         </Expander>
 
-                        <Expander HorizontalAlignment="Stretch">
+                        <Expander IsExpanded="False"
+                                  HorizontalAlignment="Stretch">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="42,*" Margin="6">
                                     <Border Width="30" Height="30"
@@ -1168,7 +1169,8 @@
                                        TextWrapping="Wrap" />
                         </Expander>
 
-                        <Expander HorizontalAlignment="Stretch">
+                        <Expander IsExpanded="False"
+                                  HorizontalAlignment="Stretch">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="42,*" Margin="6">
                                     <Border Width="30" Height="30"
@@ -1196,7 +1198,8 @@
                                        TextWrapping="Wrap" />
                         </Expander>
 
-                        <Expander HorizontalAlignment="Stretch">
+                        <Expander IsExpanded="False"
+                                  HorizontalAlignment="Stretch">
                             <Expander.Header>
                                 <Grid ColumnDefinitions="42,*" Margin="6">
                                     <Border Width="30" Height="30"
