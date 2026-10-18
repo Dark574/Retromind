@@ -7,6 +7,7 @@ OUT_DIR="$PROJECT_ROOT/dist"
 WORK_DIR="$PROJECT_ROOT/.build-work"
 APPDIR="$WORK_DIR/AppDir"
 LEGENDARY_VERSION_FILE="$BUILD_DIR/legendary-version.env"
+COMET_VERSION_FILE="$BUILD_DIR/comet-version.env"
 BUILDER_IMAGE="retromind-appimage-builder:bookworm"
 BUILDX_BUILDER="${RETROMIND_BUILDX_BUILDER:-retromind-appimage}"
 BUILDX_CACHE_LIMIT="${RETROMIND_BUILDX_CACHE_LIMIT:-20gb}"
@@ -20,10 +21,26 @@ if [ ! -f "$LEGENDARY_VERSION_FILE" ]; then
   exit 1
 fi
 
+if [ ! -f "$COMET_VERSION_FILE" ]; then
+  echo "ERROR: Comet version file not found at '$COMET_VERSION_FILE'."
+  exit 1
+fi
+
 . "$LEGENDARY_VERSION_FILE"
+. "$COMET_VERSION_FILE"
 
 if [ -z "${LEGENDARY_VERSION:-}" ]; then
   echo "ERROR: LEGENDARY_VERSION is missing from '$LEGENDARY_VERSION_FILE'."
+  exit 1
+fi
+
+if [ -z "${COMET_VERSION:-}" ] || [ -z "${COMET_RUST_IMAGE:-}" ]; then
+  echo "ERROR: COMET_VERSION or COMET_RUST_IMAGE is missing from '$COMET_VERSION_FILE'."
+  exit 1
+fi
+
+if ! printf '%s' "$COMET_RUST_IMAGE" | grep -Eq '^rust@sha256:[0-9a-f]{64}$'; then
+  echo "ERROR: COMET_RUST_IMAGE must pin an exact rust image digest."
   exit 1
 fi
 
@@ -145,7 +162,8 @@ set -- \
   --builder "$BUILDX_BUILDER" \
   --load \
   -f "$BUILD_DIR/Dockerfile.appimage" \
-  -t "$BUILDER_IMAGE"
+  -t "$BUILDER_IMAGE" \
+  --build-arg "COMET_RUST_IMAGE=$COMET_RUST_IMAGE"
 
 if [ -n "${RETROMIND_SCREENSCRAPER_DEVELOPER_ID:-}" ] ||
    [ -n "${RETROMIND_SCREENSCRAPER_DEVELOPER_PASSWORD:-}" ]; then
@@ -177,6 +195,7 @@ docker cp "$CID:/out/vlc" "$WORK_DIR/vlc"
 docker cp "$CID:/out/tools" "$WORK_DIR/tools"
 docker cp "$CID:/out/runtime-libs" "$WORK_DIR/runtime-libs"
 docker cp "$CID:/out/legendary-licenses" "$WORK_DIR/legendary-licenses"
+docker cp "$CID:/out/comet-licenses" "$WORK_DIR/comet-licenses"
 cleanup_container
 
 if [ ! -f "$WORK_DIR/publish/Retromind" ]; then
@@ -200,7 +219,7 @@ chmod +x "$APPDIR/AppRun"
 cp -a "$WORK_DIR/publish/." "$APPDIR/usr/bin/"
 chmod +x "$APPDIR/usr/bin/Retromind"
 
-for helper in sidplayfp ffplay secret-tool legendary; do
+for helper in sidplayfp ffplay secret-tool legendary comet; do
   if [ -f "$WORK_DIR/tools/bin/$helper" ]; then
     echo "Bundling $helper from Debian bookworm builder image."
     cp "$WORK_DIR/tools/bin/$helper" "$APPDIR/usr/bin/$helper"
@@ -212,6 +231,22 @@ done
 
 if [ ! -x "$APPDIR/usr/bin/legendary" ]; then
   echo "ERROR: Legendary $LEGENDARY_VERSION was not exported by the builder image."
+  exit 1
+fi
+
+if [ ! -x "$APPDIR/usr/bin/comet" ]; then
+  echo "ERROR: Comet $COMET_VERSION was not exported by the builder image."
+  exit 1
+fi
+
+comet_magic="$(head -c 4 "$APPDIR/usr/bin/comet" | od -An -tx1 | tr -d ' \n')"
+if [ "$comet_magic" != "7f454c46" ]; then
+  echo "ERROR: Bundled Comet $COMET_VERSION is not an ELF executable."
+  exit 1
+fi
+
+if [ "$("$APPDIR/usr/bin/comet" --version)" != "comet $COMET_VERSION" ]; then
+  echo "ERROR: Bundled Comet version does not match $COMET_VERSION."
   exit 1
 fi
 
@@ -299,6 +334,15 @@ if [ -d "$WORK_DIR/legendary-licenses" ]; then
   cp -r "$WORK_DIR/legendary-licenses/." "$DOC_DIR/Licenses/Legendary-Bundle/"
 else
   echo "ERROR: Legendary bundle license material is missing from the builder output."
+  exit 1
+fi
+
+# Exact license material exported with the pinned Comet/protocol build.
+if [ -d "$WORK_DIR/comet-licenses" ]; then
+  mkdir -p "$DOC_DIR/Licenses/Comet-Bundle"
+  cp -r "$WORK_DIR/comet-licenses/." "$DOC_DIR/Licenses/Comet-Bundle/"
+else
+  echo "ERROR: Comet bundle license material is missing from the builder output."
   exit 1
 fi
 

@@ -159,6 +159,7 @@ This project ships a build script that creates a portable **AppImage** containin
 - bundled **LibVLC + plugins** (video playback required)
 - helper/runtime libraries exported from a Debian 12 (bookworm) build container
 - a standalone Legendary executable built from checksum-pinned source for native Epic Games integration
+- a standalone Comet executable built from checksum-pinned fork and protocol sources for the planned GOG Galaxy integration
 - a checksum-pinned, statically linked AppImage runtime
 - embedded GitHub Releases update information and matching `.zsync` metadata for delta updates
 
@@ -227,6 +228,11 @@ The version is read from `InformationalVersion` in `Retromind.csproj`. The build
 The bundled Legendary source revision and build-tool version are maintained centrally in
 `build/legendary-version.env`. Legendary's own `uv.lock` supplies the exact Python dependency versions and hashes.
 To update Legendary, change the values in that file, rebuild the AppImage and verify the Epic integration.
+
+The Retromind-specific Comet fork revision, protocol submodule, and exact Rust builder image are pinned in
+`build/comet-version.env`. Comet's committed `Cargo.lock` supplies the Rust dependency versions and checksums.
+Update these pins together, rebuild the AppImage, and verify the secure stdin credential contract before changing
+the bundled Comet version. Runtime integration is still under development.
 
 It also creates the small compatibility metadata file
 `dist/Retromind-<version>-linux-x86_64.AppImage.zsync`. Upload it with the primary assets so AppImageUpdate

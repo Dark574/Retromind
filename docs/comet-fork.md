@@ -37,9 +37,13 @@ Snapshot recorded on 2026-10-18:
 | Upstream base | `19b32597019ea1e64f1916010441960bcaac6e49` |
 | Fork commit | `b150497dd5da0aa861a528c012f1de71a3280aeb` (`Add secure stdin credential input`) |
 | Comet package version at the base | `0.3.2` |
+| Fork release | `retromind-v0.3.2-1` |
+| Linux x86_64 SHA-256 | `27b82834742f908d68a4b618bed57e441fd6d405ebe6f25825cbdfa830999133` |
 
-The branch is pushed to the fork. It has not been merged into the fork's `main`, submitted upstream, tagged,
-or published as a release. No Comet code or binary is integrated into Retromind yet.
+The branch and immutable release tag are pushed to the fork. The release contains
+`comet-x86_64-unknown-linux-gnu` and its SHA-256 file. The patch has not been merged into the fork's `main` or
+submitted upstream. Retromind's AppImage pipeline now builds the same binary from checksum-pinned fork and
+protocol sources; runtime process and launch integration have not started yet.
 
 Verify this state before continuing:
 
@@ -213,7 +217,7 @@ The resulting binary is `target/release/comet`. Prepare a clearly named release 
 ```bash
 mkdir -p dist
 install -m 0755 target/release/comet dist/comet-x86_64-unknown-linux-gnu
-sha256sum dist/comet-x86_64-unknown-linux-gnu > dist/comet-x86_64-unknown-linux-gnu.sha256
+(cd dist && sha256sum comet-x86_64-unknown-linux-gnu > comet-x86_64-unknown-linux-gnu.sha256)
 ```
 
 Before publishing, run at least:
@@ -256,7 +260,15 @@ publication; corrections receive the next fork revision. The inherited upstream 
 tags matching `v*.*.*`, not the `retromind-v...` convention above, so this documented flow deliberately uploads
 the pinned Docker build. Changing that policy requires a separate review of the workflow and its release assets.
 
-No tag or release has been created yet. The commands above are a procedure, not a record of completed work.
+The first release was published from commit `b150497` on 2026-10-18:
+
+```text
+https://github.com/Dark574/comet/releases/tag/retromind-v0.3.2-1
+```
+
+Its Linux x86_64 binary is a stripped PIE executable of 13,230,392 bytes. It was built against the documented
+Bookworm toolchain, requires no non-standard shared libraries, and has a maximum glibc symbol requirement of
+2.34. The stdin rejection probe returned exit status `2` and did not echo its credential sentinel.
 
 ## Keeping the fork current
 
@@ -299,13 +311,17 @@ released upstream build and the complete credential and launch behavior has been
 The next implementation has not started. It should preserve the service and launch boundaries documented in
 `docs/architecture.md` and should be split into reviewable changes.
 
-### 1. Pin and package Comet
+### 1. Pin and package Comet (completed)
 
-- Decide whether the AppImage build compiles Comet from the immutable fork tag/commit or consumes a release binary.
-- Record the fork version, full commit, source or binary URL, and SHA-256 in one version manifest under `build/`.
-- Extend the reproducible AppImage pipeline rather than relying on a host-installed Comet executable.
-- Include the license and any required Comet runtime/configuration assets.
-- Update the local component inventory when the bundled version changes.
+The AppImage builds Comet from source rather than consuming the release binary. `build/comet-version.env` pins
+the fork version/commit and source checksum, the separately archived protocol-submodule commit and checksum, and
+the exact Rust builder-image digest. The build uses Comet's committed `Cargo.lock`, verifies the version and
+`--credentials-stdin` contract, runs a non-echo credential probe, and exports the Comet Apache-2.0 and protocol
+CC0-1.0 license texts. The resulting binary is byte-identical to the published release artifact:
+
+```text
+27b82834742f908d68a4b618bed57e441fd6d405ebe6f25825cbdfa830999133
+```
 
 Do not download from `main` or `retromind/credentials-stdin` during a release build.
 

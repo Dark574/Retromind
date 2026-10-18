@@ -197,6 +197,28 @@ Version-specific Python and package license files are exported during the AppIma
 
 ---
 
+## Comet
+
+**Component:** Open-source implementation of GOG Galaxy's communication service
+
+**Fork and corresponding source:** https://github.com/Dark574/comet
+
+**Upstream repository:** https://github.com/imLinguin/comet
+
+**Protocol source:** https://github.com/Yepoleb/gog_protocols
+
+**Licenses:** Apache-2.0 (Comet), CC0-1.0 (protocol definitions)
+
+Retromind distributions may bundle a separately executed Comet binary for GOG Galaxy features. The AppImage
+build compiles it from checksum-pinned fork and protocol revisions, Comet's locked Rust dependency graph, and an
+exact Rust builder-image digest. Retromind's fork adds bounded credential delivery through standard input so GOG
+tokens do not need to appear in process arguments or temporary files.
+
+The exact Comet and protocol license files are exported during the AppImage build and shipped below
+`usr/share/doc/retromind/Licenses/Comet-Bundle`.
+
+---
+
 ## Other NuGet Packages
 
 Retromind currently references additional NuGet packages such as:

@@ -1,4 +1,60 @@
 # syntax=docker/dockerfile:1
+# The canonical build script passes this value from build/comet-version.env.
+# Keep the same pinned default so direct Dockerfile builds remain valid.
+ARG COMET_RUST_IMAGE=rust@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f
+FROM ${COMET_RUST_IMAGE} AS comet-builder
+
+COPY build/comet-version.env /tmp/comet-version.env
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       ca-certificates \
+       curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN set -eu; \
+    . /tmp/comet-version.env; \
+    comet_archive=/tmp/comet-source.tar.gz; \
+    protocols_archive=/tmp/comet-protocols.tar.gz; \
+    curl --fail --location --retry 5 --retry-delay 2 --retry-connrefused \
+      -o "$comet_archive" \
+      "https://github.com/Dark574/comet/archive/${COMET_SOURCE_COMMIT}.tar.gz"; \
+    printf '%s  %s\n' "$COMET_SOURCE_SHA256" "$comet_archive" | sha256sum --check --strict; \
+    mkdir -p /workspace; \
+    tar -xzf "$comet_archive" -C /workspace --strip-components=1; \
+    test "$(sed -n 's/^version = "\([^"]*\)"/\1/p' /workspace/Cargo.toml | head -n 1)" = "$COMET_VERSION"; \
+    curl --fail --location --retry 5 --retry-delay 2 --retry-connrefused \
+      -o "$protocols_archive" \
+      "https://github.com/Yepoleb/gog_protocols/archive/${COMET_PROTOCOLS_COMMIT}.tar.gz"; \
+    printf '%s  %s\n' "$COMET_PROTOCOLS_SOURCE_SHA256" "$protocols_archive" | sha256sum --check --strict; \
+    rm -rf /workspace/proto; \
+    mkdir -p /workspace/proto; \
+    tar -xzf "$protocols_archive" -C /workspace/proto --strip-components=1; \
+    rm -f "$comet_archive" "$protocols_archive"
+
+RUN set -eu; \
+    . /tmp/comet-version.env; \
+    cd /workspace; \
+    CARGO_HOME=/tmp/comet-cargo CARGO_TARGET_DIR=/tmp/comet-target CARGO_INCREMENTAL=0 \
+      cargo build --release --locked; \
+    mkdir -p /out/licenses; \
+    cp /tmp/comet-target/release/comet /out/comet; \
+    chmod +x /out/comet; \
+    cp LICENSE /out/licenses/Comet.Apache-2.0.txt; \
+    cp proto/LICENSE /out/licenses/GOG-Protocols.CC0-1.0.txt; \
+    test "$(/out/comet --version)" = "comet ${COMET_VERSION}"; \
+    /out/comet --help | grep -F -- '--credentials-stdin'; \
+    set +e; \
+    probe_output="$(printf '%s' '{"access_token":"DO_NOT_ECHO_SENTINEL"}' \
+      | XDG_CONFIG_HOME=/tmp/comet-config /out/comet --credentials-stdin 2>&1)"; \
+    probe_status=$?; \
+    set -e; \
+    test "$probe_status" -eq 2; \
+    if printf '%s' "$probe_output" | grep -F 'DO_NOT_ECHO_SENTINEL'; then \
+      echo 'Comet echoed credential input during its rejection probe.' >&2; \
+      exit 1; \
+    fi
+
 FROM debian:bookworm AS legendary-builder
 
 COPY build/legendary-version.env /tmp/legendary-version.env
@@ -339,5 +395,7 @@ RUN set -eu; \
 
 COPY --from=legendary-builder /out/legendary /out/tools/bin/legendary
 COPY --from=legendary-builder /out/licenses /out/legendary-licenses
+COPY --from=comet-builder /out/comet /out/tools/bin/comet
+COPY --from=comet-builder /out/licenses /out/comet-licenses
 
 CMD ["bash", "-lc", "echo 'Retromind bookworm builder image ready.'"]
