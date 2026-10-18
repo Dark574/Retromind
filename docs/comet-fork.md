@@ -308,8 +308,8 @@ released upstream build and the complete credential and launch behavior has been
 
 ## Remaining Retromind integration
 
-The next implementation has not started. It should preserve the service and launch boundaries documented in
-`docs/architecture.md` and should be split into reviewable changes.
+Packaging and the isolated process boundary are complete. Launch lifecycle and authentication wiring remain and
+should preserve the service and launch boundaries documented in `docs/architecture.md` as reviewable changes.
 
 ### 1. Pin and package Comet (completed)
 
@@ -325,21 +325,19 @@ CC0-1.0 license texts. The resulting binary is byte-identical to the published r
 
 Do not download from `main` or `retromind/credentials-stdin` during a release build.
 
-### 2. Add a dedicated Comet process boundary
+### 2. Add a dedicated Comet process boundary (completed)
 
-- Resolve only the Retromind-managed executable for the bundled integration; do not silently execute an unrelated
-  `comet` found earlier on `PATH`.
-- Start it without a shell and construct every option through `ProcessStartInfo.ArgumentList`.
-- Enable standard-input redirection, serialize only the four documented fields, write the JSON, flush it, and close
-  stdin before waiting for startup.
-- Never place tokens in arguments, environment variables, persistent configuration, exception text, or process logs.
-- Obtain the GOG refresh token through the existing `ISecretStore` boundary and obtain a fresh access token and
-  account identity through the existing GOG authentication services.
-- Give Comet a deliberate configuration/cache directory. Decide whether it belongs to portable runtime state or a
-  host cache only after reviewing what Comet writes there; it must not leak credentials into Retromind metadata
-  backups.
-- Define ownership, readiness, cancellation, game-exit, and abnormal-exit behavior so orphan Comet processes are not
-  left behind.
+`CometExecutableResolver` accepts only the executable bundled below `APPDIR` or beside the published Retromind
+binary and never searches `PATH`. `CometProcessRunner` starts it without a shell using the fixed
+`--credentials-stdin --quit` arguments, writes the bounded four-field JSON directly as UTF-8, closes stdin, and
+waits for Comet's listener-readiness marker. Output is drained but not copied into Retromind logs or exceptions.
+The returned session exclusively owns the process and kills its complete process tree when disposed, including
+startup-failure and cancellation paths.
+
+Comet's replaceable configuration, gameplay database, downloaded components, and cache are isolated below
+`Tools/Comet/Data` through explicit XDG paths and are excluded from metadata backups. No credential is persisted
+there by Retromind. Supplying fresh credentials from the existing GOG authentication and secret-store boundary is
+part of the launch-lifecycle integration below.
 
 ### 3. Integrate with the launch lifecycle
 

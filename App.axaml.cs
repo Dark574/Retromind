@@ -21,6 +21,7 @@ using Retromind.Services.Stores.Epic;
 using Retromind.Services.Stores.Epic.Legendary;
 using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Auth;
+using Retromind.Services.Stores.Gog.Comet;
 using Retromind.Services.Stores.Security;
 using Retromind.ViewModels;
 
@@ -335,6 +336,10 @@ public partial class App : Application
             provider.GetRequiredService<GogInstallerProcessService>(),
             AppPaths.LibraryRoot));
         services.AddSingleton<GogInstallerWorkflowService>();
+        services.AddSingleton<CometExecutableResolver>();
+        services.AddSingleton(provider => new CometProcessRunner(
+            provider.GetRequiredService<CometExecutableResolver>(),
+            CometProcessRunner.GetDefaultDataDirectory(AppPaths.DataRoot)));
         services.AddSingleton<GogProvider>();
         services.AddSingleton<IStoreProvider>(provider => provider.GetRequiredService<GogProvider>());
         services.AddSingleton<StoreProviderRegistry>();

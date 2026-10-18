@@ -441,6 +441,11 @@ the report never mutates JSON or deletes files.
   being copied into the Retromind library model. The DLC manager installs and updates them into the main game's
   shared, marker-owned directory and removes only their Legendary-managed files; deleting the main game first
   unregisters its installed DLCs before removing that shared directory
+- the prepared GOG Galaxy sidecar boundary resolves Comet only from Retromind's packaged locations and never from
+  `PATH`. It starts Comet without a shell, supplies the four transient account values through bounded JSON on
+  standard input, and keeps its replaceable configuration, gameplay database, components, and cache below
+  `Tools/Comet/Data` through private XDG paths. The returned session owns and cleans up the complete Comet process
+  tree. This boundary is registered for future launch integration but is not invoked by game launches yet
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider
