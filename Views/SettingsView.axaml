@@ -870,6 +870,25 @@
             <!-- TAB 6: INTEGRATIONS -->
             <TabItem Header="{Binding SettingsTabIntegrationsTitle}">
                 <TabControl Margin="0,4,0,0">
+                    <TabItem Header="{Binding GogGalaxyTabTitle}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="10,10,20,20">
+                                <Border Classes="section">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Text="{Binding GogGalaxySectionTitle}"
+                                                   FontWeight="Bold"
+                                                   FontSize="16" />
+                                        <TextBlock Text="{Binding GogGalaxyHint}"
+                                                   Opacity="0.65"
+                                                   TextWrapping="Wrap" />
+                                        <CheckBox Content="{Binding GogGalaxyEnableText}"
+                                                  IsChecked="{Binding EnableGogGalaxyIntegration}" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
                     <TabItem Header="{Binding RetroAchievementsTabTitle}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="10,10,20,20">

@@ -3,6 +3,7 @@ using Retromind.Models;
 using Retromind.Services;
 using Retromind.Services.Stores.Epic;
 using Retromind.Services.Stores.Epic.Legendary;
+using Retromind.Services.Stores.Gog.Comet;
 using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services;
@@ -631,6 +632,156 @@ public sealed class LauncherServiceTests
         Assert.DoesNotContain(environmentSecret, log);
     }
 
+    [Fact]
+    public async Task LaunchAsync_CompletesCometSessionForEnabledGogGame()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile("gog-game.sh", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            scriptPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = CreateGogItem("GOG game", scriptPath);
+        var settings = new AppSettings { EnableGogGalaxyIntegration = true };
+        var cometService = new StubGogCometSessionService();
+        var launcher = CreateLauncherWithComet(temp, settings, cometService);
+
+        var result = await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.True(result.IsStarted);
+        Assert.Equal(1, cometService.StartCalls);
+        Assert.Equal(1, cometService.Session.CompleteCalls);
+        Assert.Equal(0, cometService.Session.DisposeCalls);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_DoesNotStartCometWhenIntegrationIsDisabled()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile("gog-game.sh", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            scriptPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = CreateGogItem("GOG game", scriptPath);
+        var cometService = new StubGogCometSessionService();
+        var launcher = CreateLauncherWithComet(temp, new AppSettings(), cometService);
+
+        var result = await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.True(result.IsStarted);
+        Assert.Equal(0, cometService.StartCalls);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_CometStartupFailureDoesNotBlockGogGame()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile("gog-game.sh", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            scriptPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = CreateGogItem("GOG game", scriptPath);
+        var settings = new AppSettings { EnableGogGalaxyIntegration = true };
+        var cometService = new StubGogCometSessionService
+        {
+            StartException = new CometProcessException("Comet test failure.")
+        };
+        var launcher = CreateLauncherWithComet(temp, settings, cometService);
+
+        var result = await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.True(result.IsStarted);
+        Assert.True(result.WasSessionTracked);
+        Assert.Equal(1, cometService.StartCalls);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_DisposesCometImmediatelyWhenGameCannotStart()
+    {
+        using var temp = new TemporaryDirectory();
+        var item = CreateGogItem("Missing GOG game", temp.GetPath("missing-game"));
+        var settings = new AppSettings { EnableGogGalaxyIntegration = true };
+        var cometService = new StubGogCometSessionService();
+        var launcher = CreateLauncherWithComet(temp, settings, cometService);
+
+        var result = await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.False(result.IsStarted);
+        Assert.Equal(1, cometService.StartCalls);
+        Assert.Equal(0, cometService.Session.CompleteCalls);
+        Assert.Equal(1, cometService.Session.DisposeCalls);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_DoesNotStartCometForLegacyExternalGogCommand()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var heroicPath = temp.CreateFile("heroic", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            heroicPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = CreateGogItem("Delegated GOG game", heroicPath);
+        item.MediaType = MediaType.Command;
+        item.LauncherArgs = "heroic://launch/example";
+        var settings = new AppSettings { EnableGogGalaxyIntegration = true };
+        var cometService = new StubGogCometSessionService();
+        var launcher = CreateLauncherWithComet(temp, settings, cometService);
+
+        var result = await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.True(result.IsStarted);
+        Assert.Equal(0, cometService.StartCalls);
+    }
+
+    private static MediaItem CreateGogItem(string title, string launchPath)
+    {
+        var item = new MediaItem(title)
+        {
+            MediaType = MediaType.Native,
+            Files =
+            [
+                new MediaFileRef
+                {
+                    Kind = MediaFileKind.Absolute,
+                    Path = launchPath
+                }
+            ]
+        };
+        item.CustomFields[CustomFieldKeyHelper.StoreProviderId] = "gog";
+        item.CustomFields[CustomFieldKeyHelper.StoreGameId] = "123456";
+        return item;
+    }
+
+    private static LauncherService CreateLauncherWithComet(
+        TemporaryDirectory temp,
+        AppSettings settings,
+        IGogCometSessionService cometSessionService)
+    {
+        var libraryRoot = temp.CreateDirectory("Library");
+        return new LauncherService(
+            libraryRoot,
+            settings,
+            new LaunchLogService(temp.GetPath("launch-logs")),
+            new LaunchPlaylistService(libraryRoot),
+            new LaunchEnvironmentService(),
+            new WinePrefixService(libraryRoot, settings),
+            new LaunchProcessService(),
+            new ProtonPrefixRelocationService(libraryRoot, settings),
+            new SteamProcessTrackingService(),
+            cometSessionService);
+    }
+
     private sealed class SingleResultLegendaryProcessRunner(LegendaryCliResult result)
         : ILegendaryCliProcessRunner
     {
@@ -638,6 +789,42 @@ public sealed class LauncherServiceTests
             LegendaryCliCommand command,
             CancellationToken ct = default) =>
             Task.FromResult(result);
+    }
+
+    private sealed class StubGogCometSessionService : IGogCometSessionService
+    {
+        internal int StartCalls { get; private set; }
+        internal StubGogCometGameSession Session { get; } = new();
+        internal Exception? StartException { get; init; }
+
+        public Task<IGogCometGameSession?> TryStartAsync(
+            MediaItem item,
+            CancellationToken ct = default)
+        {
+            StartCalls++;
+            if (StartException != null)
+                throw StartException;
+
+            return Task.FromResult<IGogCometGameSession?>(Session);
+        }
+    }
+
+    private sealed class StubGogCometGameSession : IGogCometGameSession
+    {
+        internal int CompleteCalls { get; private set; }
+        internal int DisposeCalls { get; private set; }
+
+        public Task CompleteAsync()
+        {
+            CompleteCalls++;
+            return Task.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            DisposeCalls++;
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class StubSteamProcessTrackingService(TimeSpan duration)

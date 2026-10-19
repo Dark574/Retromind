@@ -160,7 +160,9 @@ internal sealed class CometProcessRunner
         startInfo.Environment["XDG_CONFIG_HOME"] = configHome;
         startInfo.Environment["XDG_DATA_HOME"] = dataHome;
         startInfo.Environment["XDG_CACHE_HOME"] = cacheHome;
-        startInfo.Environment["COMET_IDLE_WAIT"] = "5";
+        // Keep post-disconnect synchronization bounded while allowing Comet to
+        // shut down normally after a game using the Galaxy SDK exits.
+        startInfo.Environment["COMET_IDLE_WAIT"] = "1";
         startInfo.Environment.Remove("VLC_PLUGIN_PATH");
         AppImageToolResolver.ConfigureBundledToolEnvironment(startInfo, executablePath);
 

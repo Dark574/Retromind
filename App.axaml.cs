@@ -297,6 +297,7 @@ public partial class App : Application
             var launchProcessService = provider.GetRequiredService<LaunchProcessService>();
             var protonPrefixRelocationService = provider.GetRequiredService<ProtonPrefixRelocationService>();
             var steamProcessTrackingService = provider.GetRequiredService<SteamProcessTrackingService>();
+            var gogCometSessionService = provider.GetRequiredService<IGogCometSessionService>();
             return new LauncherService(
                 libraryPath,
                 settings,
@@ -306,7 +307,8 @@ public partial class App : Application
                 winePrefixService,
                 launchProcessService,
                 protonPrefixRelocationService,
-                steamProcessTrackingService);
+                steamProcessTrackingService,
+                gogCometSessionService);
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();
@@ -341,6 +343,7 @@ public partial class App : Application
         services.AddSingleton(provider => new CometProcessRunner(
             provider.GetRequiredService<CometExecutableResolver>(),
             CometProcessRunner.GetDefaultDataDirectory(AppPaths.DataRoot)));
+        services.AddSingleton<IGogCometSessionService, GogCometSessionService>();
         services.AddSingleton<GogProvider>();
         services.AddSingleton<IStoreProvider>(provider => provider.GetRequiredService<GogProvider>());
         services.AddSingleton<StoreProviderRegistry>();

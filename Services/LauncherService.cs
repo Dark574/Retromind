@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.SteamAchievements;
+using Retromind.Services.Stores.Gog.Comet;
 
 namespace Retromind.Services;
 
@@ -29,6 +30,7 @@ public sealed class LauncherService
     private readonly LaunchProcessService _launchProcessService;
     private readonly ProtonPrefixRelocationService _protonPrefixRelocationService;
     private readonly SteamProcessTrackingService _steamProcessTrackingService;
+    private readonly IGogCometSessionService? _gogCometSessionService;
 
     public LauncherService(
         string libraryRootPath,
@@ -40,18 +42,44 @@ public sealed class LauncherService
         LaunchProcessService? launchProcessService = null,
         ProtonPrefixRelocationService? protonPrefixRelocationService = null,
         SteamProcessTrackingService? steamProcessTrackingService = null)
+        : this(
+            libraryRootPath,
+            settings,
+            launchLogService,
+            launchPlaylistService ?? new LaunchPlaylistService(libraryRootPath),
+            launchEnvironmentService ?? new LaunchEnvironmentService(),
+            winePrefixService ?? new WinePrefixService(libraryRootPath, settings),
+            launchProcessService ?? new LaunchProcessService(),
+            protonPrefixRelocationService ?? new ProtonPrefixRelocationService(libraryRootPath, settings),
+            steamProcessTrackingService ?? new SteamProcessTrackingService(),
+            gogCometSessionService: null)
+    {
+    }
+
+    internal LauncherService(
+        string libraryRootPath,
+        AppSettings settings,
+        LaunchLogService launchLogService,
+        LaunchPlaylistService launchPlaylistService,
+        LaunchEnvironmentService launchEnvironmentService,
+        WinePrefixService winePrefixService,
+        LaunchProcessService launchProcessService,
+        ProtonPrefixRelocationService protonPrefixRelocationService,
+        SteamProcessTrackingService steamProcessTrackingService,
+        IGogCometSessionService? gogCometSessionService)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _launchLogService = launchLogService ?? throw new ArgumentNullException(nameof(launchLogService));
-        _launchPlaylistService = launchPlaylistService ?? new LaunchPlaylistService(libraryRootPath);
-        _launchEnvironmentService = launchEnvironmentService ?? new LaunchEnvironmentService();
-        _winePrefixService = winePrefixService ?? new WinePrefixService(libraryRootPath, settings);
-        _launchProcessService = launchProcessService ?? new LaunchProcessService();
+        _launchPlaylistService = launchPlaylistService ?? throw new ArgumentNullException(nameof(launchPlaylistService));
+        _launchEnvironmentService = launchEnvironmentService ?? throw new ArgumentNullException(nameof(launchEnvironmentService));
+        _winePrefixService = winePrefixService ?? throw new ArgumentNullException(nameof(winePrefixService));
+        _launchProcessService = launchProcessService ?? throw new ArgumentNullException(nameof(launchProcessService));
         _protonPrefixRelocationService = protonPrefixRelocationService ??
-                                         new ProtonPrefixRelocationService(libraryRootPath, settings);
+                                         throw new ArgumentNullException(nameof(protonPrefixRelocationService));
         _steamProcessTrackingService = steamProcessTrackingService ??
-                                       new SteamProcessTrackingService();
+                                       throw new ArgumentNullException(nameof(steamProcessTrackingService));
+        _gogCometSessionService = gogCometSessionService;
     }
 
     internal Task<LaunchSessionStopRequestResult> RequestActiveSessionStopAsync(
@@ -78,6 +106,7 @@ public sealed class LauncherService
             nativeWrappers,
             recordStatistics);
         Process? process = null;
+        IGogCometGameSession? gogCometSession = null;
         ActiveLaunchSessionRegistration? activeSession = null;
         LaunchProcessOutputCapture? outputCapture = null;
         Task initialLogWriteTask = Task.CompletedTask;
@@ -116,6 +145,31 @@ public sealed class LauncherService
 
         try
         {
+            if (_settings.EnableGogGalaxyIntegration &&
+                // Managed GOG launches are direct. This guard only retains safety
+                // for legacy or deliberately external launcher/URI handoffs.
+                !isDelegatedCommand &&
+                !watchedProcessWasAlreadyRunning &&
+                _gogCometSessionService != null)
+            {
+                try
+                {
+                    gogCometSession = await _gogCometSessionService
+                        .TryStartAsync(item, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    // Comet is an optional sidecar. A missing SDK service or a
+                    // transient authentication failure must not block the game.
+                    Debug.WriteLine($"[Comet] Optional startup failed: {ex.Message}");
+                }
+            }
+
             process = item.MediaType == MediaType.Command
                 ? LaunchCommand(item, environmentOverrides, launchLog)
                 : LaunchNativeOrEmulator(
@@ -146,6 +200,8 @@ public sealed class LauncherService
             stopwatch.Stop();
             if (activeSession is { } registration)
                 _launchProcessService.EndActiveSession(registration);
+            await FinishGogCometSessionAsync(gogCometSession, allowGracefulCompletion: false)
+                .ConfigureAwait(false);
             process?.Dispose();
             Debug.WriteLine($"[Launcher] Failed to launch: {ex.Message}");
             var failedResult = LaunchResult.Failed(ex.Message);
@@ -262,6 +318,12 @@ public sealed class LauncherService
             stopwatch.Stop();
             elapsed = stopwatch.Elapsed;
 
+            await FinishGogCometSessionAsync(
+                    gogCometSession,
+                    allowGracefulCompletion: !trackingWasCancelled)
+                .ConfigureAwait(false);
+            gogCometSession = null;
+
             if (activeSession is { } registration)
             {
                 wasStoppedByUser = _launchProcessService.WasStopRequested(registration);
@@ -342,6 +404,26 @@ public sealed class LauncherService
                     consoleOutput: consoleOutput))
             .ConfigureAwait(false);
         return result;
+    }
+
+    private static async Task FinishGogCometSessionAsync(
+        IGogCometGameSession? session,
+        bool allowGracefulCompletion)
+    {
+        if (session == null)
+            return;
+
+        try
+        {
+            if (allowGracefulCompletion)
+                await session.CompleteAsync().ConfigureAwait(false);
+            else
+                await session.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Comet] Session cleanup failed: {ex.Message}");
+        }
     }
 
     private Process? LaunchCommand(

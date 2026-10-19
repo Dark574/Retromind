@@ -341,17 +341,19 @@ existing GOG authentication service and reads the current refresh token back thr
 no additional credential storage. Starting this prepared sidecar around eligible games remains part of the
 launch-lifecycle integration below.
 
-### 3. Integrate with the launch lifecycle
+### 3. Integrate with the launch lifecycle (implemented; platform validation pending)
 
-- Treat Comet as a managed sidecar around the existing launch plan, not as a replacement for
-  `LauncherService`, Wine/Proton/UMU setup, wrapper ordering, or session tracking.
-- Start Comet only for eligible GOG-linked games and stop the owned process when the tracked game session ends.
-- Preserve test-launch semantics and ensure a failed optional Comet startup does not corrupt launch settings.
-- Keep eligibility capability-based. Do not hard-code the feature to Windows games: native Linux GOG titles must be
-  considered too, although actual Galaxy SDK/achievement support depends on each game's shipped SDK and must be
-  verified with real titles.
-- Verify the communication path separately for native Linux, Wine, Proton, and UMU. A successful Comet process start
-  alone does not prove that the game connected or that an achievement was synchronized.
+The experimental setting starts Comet before direct launches of GOG-linked games without changing the established
+launch plan, wrappers, Wine/Proton/UMU setup, process tracking, playtime, or test-launch behavior. Eligibility is
+based on the provider-neutral GOG identity rather than the media type, so native Linux titles remain candidates.
+Legacy or deliberately external launcher/URI handoffs and already-running manual watch processes are excluded
+because Retromind has no reliable game-session boundary for them. Current Retromind-managed GOG launches and the
+Legendary-based Epic integration do not use this legacy path. Optional Comet startup failures do not block the
+game. The owned session is stopped immediately after launch failure or cancellation and otherwise receives a short
+bounded interval to exit normally after the tracked game ends.
+
+Real communication and achievement synchronization still need separate verification with native Linux, Wine,
+Proton, and UMU titles. A successful Comet readiness check proves only that its local listener started.
 
 ### 4. Expose achievement data only after the runtime path works
 

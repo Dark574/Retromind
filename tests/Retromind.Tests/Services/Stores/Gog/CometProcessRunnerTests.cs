@@ -69,7 +69,7 @@ public sealed class CometProcessRunnerTests
                     Path.Combine(dataDirectory, "config"),
                     Path.Combine(dataDirectory, "data"),
                     Path.Combine(dataDirectory, "cache"),
-                    "5"
+                    "1"
                 ],
                 await File.ReadAllLinesAsync(Path.Combine(dataDirectory, "environment.txt")));
 

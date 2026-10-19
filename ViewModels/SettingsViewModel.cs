@@ -253,6 +253,19 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public bool EnableGogGalaxyIntegration
+    {
+        get => _appSettings.EnableGogGalaxyIntegration;
+        set
+        {
+            if (_appSettings.EnableGogGalaxyIntegration == value)
+                return;
+
+            _appSettings.EnableGogGalaxyIntegration = value;
+            OnPropertyChanged();
+        }
+    }
+
     public bool EnableBigModeHomeScreen
     {
         get => _appSettings.EnableBigModeHomeScreen;
@@ -505,6 +518,16 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string SettingsTabMetadataTitle => T("Settings_TabMetadataAndScrapers", "Metadata");
     public string SettingsTabLaunchCompatibilityTitle => T("Settings_TabLaunchCompatibility", "Launch");
     public string SettingsTabIntegrationsTitle => T("Settings_TabIntegrations", "Integrations");
+    public string GogGalaxyTabTitle => T("Settings.GogGalaxy.TabTitle", "GOG Galaxy");
+    public string GogGalaxySectionTitle => T(
+        "Settings.GogGalaxy.SectionTitle",
+        "GOG Galaxy services (experimental)");
+    public string GogGalaxyEnableText => T(
+        "Settings.GogGalaxy.Enable",
+        "Enable Comet for linked GOG games");
+    public string GogGalaxyHint => T(
+        "Settings.GogGalaxy.Hint",
+        "Starts Retromind's bundled Comet service while an eligible GOG game runs. This can enable Galaxy SDK features such as achievement synchronization when the game and runtime are compatible. Native Linux, Wine, Proton and UMU support varies by title.");
     public string SettingsTabBackupsTitle => T("Settings_TabBackups", "Data");
     public string SettingsTabHelpTitle => T("Settings_TabHelp", "Help");
     public string GettingStartedTitle => T("GettingStarted.Title", "Welcome to Retromind");

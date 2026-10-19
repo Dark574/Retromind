@@ -29,6 +29,20 @@ public sealed class SettingsViewModelRetroAchievementsTests
     }
 
     [Fact]
+    public async Task Save_PersistsExperimentalGogGalaxyPreference()
+    {
+        var targetSettings = new AppSettings();
+        var secretStore = new RecordingSecretStore();
+        using var httpClient = CreateProfileClient();
+        using var viewModel = CreateViewModel(targetSettings, secretStore, httpClient);
+
+        viewModel.EnableGogGalaxyIntegration = true;
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.True(targetSettings.EnableGogGalaxyIntegration);
+    }
+
+    [Fact]
     public async Task TestThenCancel_DoesNotPersistKeyOrWorkingSettings()
     {
         var targetSettings = new AppSettings();
