@@ -49,6 +49,8 @@ public sealed class CometProcessRunnerTests
               "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$COMET_IDLE_WAIT" \
               > "$capture_root/environment.txt"
             cat > "$capture_root/credentials.json"
+            printf '[2026-10-19T06:30:16Z WARN comet] No such file or directory (os error 2)\n' >&2
+            printf 'ERROR upload failed for access-secret refresh-secret 123456 player-name\n' >&2
             printf 'Listening on port 9977\n' >&2
             while :; do sleep 1; done
             """);
@@ -93,6 +95,19 @@ public sealed class CometProcessRunnerTests
         }
 
         AssertProcessExited(processId);
+        var diagnosticPath = Path.Combine(dataDirectory, "comet-errors.log");
+        var diagnostic = await File.ReadAllTextAsync(diagnosticPath);
+        Assert.Contains("ERROR upload failed", diagnostic, StringComparison.Ordinal);
+        Assert.DoesNotContain("WARN", diagnostic, StringComparison.Ordinal);
+        Assert.DoesNotContain(credentials.AccessToken, diagnostic, StringComparison.Ordinal);
+        Assert.DoesNotContain(credentials.RefreshToken, diagnostic, StringComparison.Ordinal);
+        Assert.DoesNotContain(credentials.UserId, diagnostic, StringComparison.Ordinal);
+        Assert.DoesNotContain(credentials.Username, diagnostic, StringComparison.Ordinal);
+        const UnixFileMode userPermissions =
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+        Assert.Equal(
+            UnixFileMode.UserRead | UnixFileMode.UserWrite,
+            File.GetUnixFileMode(diagnosticPath) & userPermissions);
     }
 
     [Fact]

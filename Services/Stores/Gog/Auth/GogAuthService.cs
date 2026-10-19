@@ -76,6 +76,10 @@ public sealed class GogAuthService
         if (string.IsNullOrWhiteSpace(accessToken))
             return null;
 
+        var galaxyUserId = _currentToken?.UserId;
+        if (string.IsNullOrWhiteSpace(galaxyUserId))
+            return null;
+
         var refreshToken = await _secretStore
             .GetAsync(GogRefreshTokenKey, ct)
             .ConfigureAwait(false);
@@ -98,7 +102,7 @@ public sealed class GogAuthService
         return new GogSessionCredentials(
             accessToken,
             refreshToken,
-            accountInfo.AccountId,
+            galaxyUserId,
             username);
     }
 

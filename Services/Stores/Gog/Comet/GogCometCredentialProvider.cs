@@ -25,7 +25,7 @@ internal sealed class GogCometCredentialProvider
         return new CometCredentials(
             session.AccessToken,
             session.RefreshToken,
-            session.AccountId,
+            session.UserId,
             session.Username);
     }
 }

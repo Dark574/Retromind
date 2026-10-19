@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ namespace Retromind.Services.Stores.Gog.Comet;
 internal sealed class CometProcessRunner
 {
     private const int MaximumCredentialBytes = 16 * 1024;
+    private const int MaximumDiagnosticCharacters = 64 * 1024;
+    private const string DiagnosticLogFileName = "comet-errors.log";
     private const string ReadinessMarker = "Listening on port 9977";
     private static readonly TimeSpan DefaultStartupTimeout = TimeSpan.FromSeconds(15);
 
@@ -68,6 +71,13 @@ internal sealed class CometProcessRunner
         {
             StartInfo = CreateStartInfo(executablePath)
         };
+        var diagnosticLog = new CometDiagnosticLog(
+            Path.Combine(_dataDirectory, DiagnosticLogFileName),
+            MaximumDiagnosticCharacters,
+            credentials.AccessToken,
+            credentials.RefreshToken,
+            credentials.UserId,
+            credentials.Username);
         var outputCts = new CancellationTokenSource();
         var readiness = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Task stdoutTask = Task.CompletedTask;
@@ -87,7 +97,11 @@ internal sealed class CometProcessRunner
             }
 
             stdoutTask = DrainOutputAsync(process.StandardOutput, readiness, outputCts.Token);
-            stderrTask = DrainOutputAsync(process.StandardError, readiness, outputCts.Token);
+            stderrTask = DrainOutputAsync(
+                process.StandardError,
+                readiness,
+                outputCts.Token,
+                diagnosticLog.AppendError);
             exitTask = process.WaitForExitAsync();
 
             await process.StandardInput.BaseStream
@@ -110,7 +124,8 @@ internal sealed class CometProcessRunner
                     exitTask,
                     stdoutTask,
                     stderrTask,
-                    outputCts);
+                    outputCts,
+                    diagnosticLog);
             }
 
             if (completed == exitTask || process.HasExited)
@@ -129,6 +144,7 @@ internal sealed class CometProcessRunner
             outputCts.Cancel();
             await ObserveTasksAsync(exitTask, stdoutTask, stderrTask).ConfigureAwait(false);
             outputCts.Dispose();
+            diagnosticLog.Dispose();
             process.Dispose();
             throw;
         }
@@ -184,12 +200,14 @@ internal sealed class CometProcessRunner
     private static async Task DrainOutputAsync(
         StreamReader reader,
         TaskCompletionSource readiness,
-        CancellationToken ct)
+        CancellationToken ct,
+        Action<string>? lineObserver = null)
     {
         try
         {
             while (await reader.ReadLineAsync(ct).ConfigureAwait(false) is { } line)
             {
+                lineObserver?.Invoke(line);
                 if (line.Contains(ReadinessMarker, StringComparison.Ordinal))
                     readiness.TrySetResult();
             }
@@ -249,6 +267,121 @@ internal sealed class CometProcessRunner
         }
     }
 
+    internal sealed class CometDiagnosticLog : IDisposable
+    {
+        private readonly object _sync = new();
+        private readonly string _path;
+        private readonly int _maximumCharacters;
+        private readonly string[] _sensitiveValues;
+        private StreamWriter? _writer;
+        private int _writtenCharacters;
+
+        internal CometDiagnosticLog(
+            string path,
+            int maximumCharacters,
+            params string[] sensitiveValues)
+        {
+            _path = path;
+            _maximumCharacters = maximumCharacters;
+            _sensitiveValues = sensitiveValues;
+            TryDeleteExistingLog();
+        }
+
+        internal void AppendError(string line)
+        {
+            if (!IsErrorLine(line))
+                return;
+
+            lock (_sync)
+            {
+                if (_writtenCharacters >= _maximumCharacters)
+                    return;
+
+                try
+                {
+                    _writer ??= CreateWriter();
+                    var sanitized = Sanitize(line);
+                    var remaining = _maximumCharacters - _writtenCharacters;
+                    if (sanitized.Length > remaining)
+                        sanitized = sanitized[..remaining];
+
+                    _writer.WriteLine(sanitized);
+                    _writer.Flush();
+                    _writtenCharacters += sanitized.Length + Environment.NewLine.Length;
+                }
+                catch
+                {
+                    // Diagnostics must never affect whether a game can launch.
+                }
+            }
+        }
+
+        private static bool IsErrorLine(string line)
+        {
+            if (line.StartsWith("ERROR", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var headerEnd = line.IndexOf(']');
+            return headerEnd > 0 &&
+                   line.AsSpan(0, headerEnd)
+                       .Contains(" ERROR ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public void Dispose()
+        {
+            lock (_sync)
+            {
+                _writer?.Dispose();
+                _writer = null;
+            }
+        }
+
+        private StreamWriter CreateWriter()
+        {
+            var stream = new FileStream(_path, FileMode.Create, FileAccess.Write, FileShare.Read);
+            TryRestrictFileAccess(_path);
+            return new StreamWriter(stream, new UTF8Encoding(false));
+        }
+
+        private string Sanitize(string line)
+        {
+            foreach (var value in _sensitiveValues)
+            {
+                if (!string.IsNullOrEmpty(value))
+                    line = line.Replace(value, "<redacted>", StringComparison.Ordinal);
+            }
+
+            return line;
+        }
+
+        private void TryDeleteExistingLog()
+        {
+            try
+            {
+                File.Delete(_path);
+            }
+            catch
+            {
+                // A stale diagnostic is preferable to blocking a game launch.
+            }
+        }
+
+        private static void TryRestrictFileAccess(string path)
+        {
+            if (!OperatingSystem.IsLinux())
+                return;
+
+            try
+            {
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+            catch
+            {
+                // Best effort for filesystems without Unix permission support.
+            }
+        }
+    }
+
     internal sealed class CometProcessSession : IAsyncDisposable
     {
         private readonly Process _process;
@@ -256,6 +389,7 @@ internal sealed class CometProcessRunner
         private readonly Task _stdoutTask;
         private readonly Task _stderrTask;
         private readonly CancellationTokenSource _outputCts;
+        private readonly CometDiagnosticLog _diagnosticLog;
         private int _disposed;
 
         internal CometProcessSession(
@@ -263,13 +397,15 @@ internal sealed class CometProcessRunner
             Task exitTask,
             Task stdoutTask,
             Task stderrTask,
-            CancellationTokenSource outputCts)
+            CancellationTokenSource outputCts,
+            CometDiagnosticLog diagnosticLog)
         {
             _process = process;
             _exitTask = exitTask;
             _stdoutTask = stdoutTask;
             _stderrTask = stderrTask;
             _outputCts = outputCts;
+            _diagnosticLog = diagnosticLog;
         }
 
         internal int ProcessId => _process.Id;
@@ -289,6 +425,7 @@ internal sealed class CometProcessRunner
             _outputCts.Cancel();
             await ObserveTasksAsync(_stdoutTask, _stderrTask).ConfigureAwait(false);
             _outputCts.Dispose();
+            _diagnosticLog.Dispose();
             _process.Dispose();
         }
     }

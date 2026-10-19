@@ -8,7 +8,7 @@ namespace Retromind.Services.Stores.Gog.Comet;
 
 internal sealed class GogCometSessionService : IGogCometSessionService
 {
-    private static readonly TimeSpan CompletionGracePeriod = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan CompletionGracePeriod = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(20);
 
     private readonly CometExecutableResolver _executableResolver;
@@ -77,8 +77,8 @@ internal sealed class GogCometSessionService : IGogCometSessionService
             }
             catch (TimeoutException)
             {
-                // Games without a compatible Galaxy SDK never connect, so Comet's
-                // --quit mode cannot observe a client disconnect on its own.
+                // Keep shutdown bounded if Comet cannot finish its post-disconnect
+                // synchronization or never observes a compatible SDK client.
             }
             finally
             {

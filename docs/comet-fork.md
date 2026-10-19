@@ -35,15 +35,16 @@ Snapshot recorded on 2026-10-18:
 | Fork remote | `origin` |
 | Working branch | `retromind/credentials-stdin` |
 | Upstream base | `19b32597019ea1e64f1916010441960bcaac6e49` |
-| Fork commit | `b150497dd5da0aa861a528c012f1de71a3280aeb` (`Add secure stdin credential input`) |
+| Fork commit | `c496bd8683088b1f5baf8f05d1900c6c0431a74c` (`Retry pending gameplay sync after restart`) |
 | Comet package version at the base | `0.3.2` |
-| Fork release | `retromind-v0.3.2-1` |
-| Linux x86_64 SHA-256 | `27b82834742f908d68a4b618bed57e441fd6d405ebe6f25825cbdfa830999133` |
+| Fork release | `retromind-v0.3.2-2` |
+| Linux x86_64 SHA-256 | `c66f28b84f50fde418be510a59e00ea5e7444dc8e46cb863def8c58753411548` |
 
 The branch and immutable release tag are pushed to the fork. The release contains
 `comet-x86_64-unknown-linux-gnu` and its SHA-256 file. The patch has not been merged into the fork's `main` or
-submitted upstream. Retromind's AppImage pipeline now builds the same binary from checksum-pinned fork and
-protocol sources; runtime process and launch integration have not started yet.
+submitted upstream. Retromind's AppImage pipeline builds Comet from checksum-pinned fork and protocol sources with
+an immutable Rust builder image. The runtime process, authentication, and launch lifecycle are integrated behind
+an experimental setting.
 
 Verify this state before continuing:
 
@@ -58,7 +59,7 @@ git log -1 --oneline
 Expected head:
 
 ```text
-b150497 Add secure stdin credential input
+c496bd8 Retry pending gameplay sync after restart
 ```
 
 ## Initial GitHub and checkout setup
@@ -188,8 +189,8 @@ docker run --rm \
     cargo clippy --locked --all-targets --all-features'
 ```
 
-At commit `b150497`, formatting passed, all eight tests passed, and Clippy exited successfully. Clippy reported
-four pre-existing warnings; they were not introduced or broadened by the credential patch. Do not add
+At commit `c496bd8`, formatting passed, all ten tests passed, and Clippy exited successfully. Clippy reported
+four pre-existing warnings; they were not introduced or broadened by the Retromind patches. Do not add
 `-D warnings` until those upstream warnings have either been fixed or intentionally allowed.
 
 For repeated local runs, named Docker volumes can cache `/tmp/comet-cargo` and `/tmp/comet-target`, but they are
@@ -236,7 +237,7 @@ Do not make Retromind download a mutable branch head. A consumable build needs a
 binary, and a recorded SHA-256 checksum. A suitable fork-specific tag format is:
 
 ```text
-retromind-v0.3.2-1
+retromind-v0.3.2-2
 ```
 
 The first version segment records the upstream Comet version; the final number is the Retromind fork revision.
@@ -245,14 +246,14 @@ After validation:
 ```bash
 cd /home/neville/Projects/comet
 git status --short
-git tag -a retromind-v0.3.2-1 -m "Retromind Comet 0.3.2 revision 1"
-git push origin retromind-v0.3.2-1
-gh release create retromind-v0.3.2-1 \
+git tag -a retromind-v0.3.2-2 -m "Retromind Comet 0.3.2 revision 2"
+git push origin retromind-v0.3.2-2
+gh release create retromind-v0.3.2-2 \
   dist/comet-x86_64-unknown-linux-gnu \
   dist/comet-x86_64-unknown-linux-gnu.sha256 \
   --repo Dark574/comet \
-  --title "Comet 0.3.2 for Retromind, revision 1" \
-  --notes "Adds bounded JSON credential delivery through --credentials-stdin."
+  --title "Comet 0.3.2 for Retromind, revision 2" \
+  --notes "Retries persisted gameplay changes after restart and retains secure stdin credentials."
 ```
 
 Check `git status` carefully before tagging. A tag is a public release boundary and should not be moved after
@@ -269,6 +270,16 @@ https://github.com/Dark574/comet/releases/tag/retromind-v0.3.2-1
 Its Linux x86_64 binary is a stripped PIE executable of 13,230,392 bytes. It was built against the documented
 Bookworm toolchain, requires no non-standard shared libraries, and has a maximum glibc symbol requirement of
 2.34. The stdin rejection probe returned exit status `2` and did not echo its credential sentinel.
+
+Revision 2 was published from commit `c496bd8` on 2026-10-19. It restores pending achievement, statistic, and
+leaderboard synchronization from the gameplay database after a Comet restart:
+
+```text
+https://github.com/Dark574/comet/releases/tag/retromind-v0.3.2-2
+```
+
+Its Linux x86_64 binary is 13,244,216 bytes and has SHA-256
+`c66f28b84f50fde418be510a59e00ea5e7444dc8e46cb863def8c58753411548`.
 
 ## Keeping the fork current
 
@@ -308,8 +319,8 @@ released upstream build and the complete credential and launch behavior has been
 
 ## Remaining Retromind integration
 
-Packaging and the isolated process boundary are complete. Launch lifecycle and authentication wiring remain and
-should preserve the service and launch boundaries documented in `docs/architecture.md` as reviewable changes.
+Packaging, the isolated process boundary, authentication, and launch lifecycle are complete. Real-title platform
+validation and the provider-neutral achievement presentation remain.
 
 ### 1. Pin and package Comet (completed)
 
@@ -317,29 +328,34 @@ The AppImage builds Comet from source rather than consuming the release binary. 
 the fork version/commit and source checksum, the separately archived protocol-submodule commit and checksum, and
 the exact Rust builder-image digest. The build uses Comet's committed `Cargo.lock`, verifies the version and
 `--credentials-stdin` contract, runs a non-echo credential probe, and exports the Comet Apache-2.0 and protocol
-CC0-1.0 license texts. The resulting binary is byte-identical to the published release artifact:
+CC0-1.0 license texts. The published release artifact is recorded separately with SHA-256:
 
 ```text
-27b82834742f908d68a4b618bed57e441fd6d405ebe6f25825cbdfa830999133
+c66f28b84f50fde418be510a59e00ea5e7444dc8e46cb863def8c58753411548
 ```
 
-Do not download from `main` or `retromind/credentials-stdin` during a release build.
+Rust binaries built from the same source can differ byte-for-byte when their build paths differ. The AppImage
+security boundary is therefore the pinned source archives and immutable builder-image digest, not equality with
+the separately published convenience binary. Do not download from `main` or `retromind/credentials-stdin` during a
+release build.
 
 ### 2. Add a dedicated Comet process boundary (completed)
 
 `CometExecutableResolver` accepts only the executable bundled below `APPDIR` or beside the published Retromind
 binary and never searches `PATH`. `CometProcessRunner` starts it without a shell using the fixed
 `--credentials-stdin --quit` arguments, writes the bounded four-field JSON directly as UTF-8, closes stdin, and
-waits for Comet's listener-readiness marker. Output is drained but not copied into Retromind logs or exceptions.
+waits for Comet's listener-readiness marker. Output is drained and never copied into exceptions; only bounded,
+credential-redacted error diagnostics are persisted as described below.
 The returned session exclusively owns the process and kills its complete process tree when disposed, including
 startup-failure and cancellation paths.
 
 Comet's replaceable configuration, gameplay database, downloaded components, and cache are isolated below
 `Tools/Comet/Data` through explicit XDG paths and are excluded from metadata backups. No credential is persisted
-there by Retromind. `GogCometCredentialProvider` obtains a fresh access token and account identity through the
+there by Retromind. `GogCometCredentialProvider` obtains a fresh access token and Galaxy identity through the
 existing GOG authentication service and reads the current refresh token back through `ISecretStore`; it introduces
-no additional credential storage. Starting this prepared sidecar around eligible games remains part of the
-launch-lifecycle integration below.
+no additional credential storage. The gameplay identity must be the `user_id` returned alongside the OAuth token,
+not the distinct account ID from `userData.json`, or GOG rejects gameplay writes with HTTP 403. The
+launch-lifecycle integration below starts this prepared sidecar for eligible games.
 
 ### 3. Integrate with the launch lifecycle (implemented; platform validation pending)
 
@@ -349,8 +365,10 @@ based on the provider-neutral GOG identity rather than the media type, so native
 Legacy or deliberately external launcher/URI handoffs and already-running manual watch processes are excluded
 because Retromind has no reliable game-session boundary for them. Current Retromind-managed GOG launches and the
 Legendary-based Epic integration do not use this legacy path. Optional Comet startup failures do not block the
-game. The owned session is stopped immediately after launch failure or cancellation and otherwise receives a short
-bounded interval to exit normally after the tracked game ends.
+game. The owned session is stopped immediately after launch failure or cancellation and otherwise receives up to
+30 seconds to synchronize and exit normally after the tracked game ends. Retromind retains only Comet's error
+lines in a bounded `Tools/Comet/Data/comet-errors.log`, redacts the supplied account credentials, and restricts the
+file to the current user on Linux. Routine Comet output is not persisted.
 
 Real communication and achievement synchronization still need separate verification with native Linux, Wine,
 Proton, and UMU titles. A successful Comet readiness check proves only that its local listener started.

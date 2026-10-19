@@ -163,17 +163,19 @@ public sealed class GogOAuthClient
 
         var accessToken = ReadString(root, "access_token");
         var refreshToken = ReadString(root, "refresh_token");
+        var userId = ReadString(root, "user_id");
         var expiresIn = ReadInt(root, "expires_in");
 
         if (string.IsNullOrWhiteSpace(accessToken) ||
             string.IsNullOrWhiteSpace(refreshToken) ||
+            string.IsNullOrWhiteSpace(userId) ||
             expiresIn == null)
         {
             throw new InvalidOperationException("GOG token response was missing required fields.");
         }
 
         var expiresAt = DateTimeOffset.UtcNow.AddSeconds(Math.Max(0, expiresIn.Value));
-        return new GogTokenSet(accessToken, refreshToken, expiresAt);
+        return new GogTokenSet(accessToken, refreshToken, userId, expiresAt);
     }
 
     private static string? ReadString(JsonElement root, string propertyName)

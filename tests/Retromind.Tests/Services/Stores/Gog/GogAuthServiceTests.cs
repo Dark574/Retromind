@@ -16,7 +16,11 @@ public sealed class GogAuthServiceTests
     public void HasUsableAccessToken_EnforcesRefreshBuffer(int remainingSeconds, bool expected)
     {
         var now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero);
-        var token = new GogTokenSet("access-token", "refresh-token", now.AddSeconds(remainingSeconds));
+        var token = new GogTokenSet(
+            "access-token",
+            "refresh-token",
+            "galaxy-user-id",
+            now.AddSeconds(remainingSeconds));
 
         Assert.Equal(expected, GogAuthService.HasUsableAccessToken(token, now));
     }
@@ -99,6 +103,7 @@ public sealed class GogAuthServiceTests
           {
             "access_token": "{{accessToken}}",
             "refresh_token": "{{refreshToken}}",
+            "user_id": "galaxy-user-id",
             "expires_in": {{expiresIn}}
           }
           """;

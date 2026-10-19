@@ -26,6 +26,7 @@ public sealed class GogCometCredentialProviderTests
                     {
                       "access_token": "fresh-access-token",
                       "refresh_token": "rotated-refresh-token",
+                      "user_id": "galaxy-user-id",
                       "expires_in": 3600
                     }
                     """);
@@ -56,7 +57,7 @@ public sealed class GogCometCredentialProviderTests
         Assert.NotNull(credentials);
         Assert.Equal("fresh-access-token", credentials.AccessToken);
         Assert.Equal("rotated-refresh-token", credentials.RefreshToken);
-        Assert.Equal("123456", credentials.UserId);
+        Assert.Equal("galaxy-user-id", credentials.UserId);
         Assert.Equal("GalaxyPlayer", credentials.Username);
         Assert.Equal("Bearer", accountAuthorization?.Scheme);
         Assert.Equal("fresh-access-token", accountAuthorization?.Parameter);
@@ -100,6 +101,7 @@ public sealed class GogCometCredentialProviderTests
                 {
                   "access_token": "access-token",
                   "refresh_token": "refresh-token",
+                  "user_id": "galaxy-user-id",
                   "expires_in": 3600
                 }
                 """),

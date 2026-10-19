@@ -445,12 +445,16 @@ the report never mutates JSON or deletes files.
   `PATH`. It starts Comet without a shell, supplies the four transient account values through bounded JSON on
   standard input, and keeps its replaceable configuration, gameplay database, components, and cache below
   `Tools/Comet/Data` through private XDG paths. The returned session owns and cleans up the complete Comet process
-  tree. Its credential provider combines a fresh access token and GOG account identity with the refresh token read
-  through the existing secret-store boundary and adds no persistence. An experimental, default-off setting starts
+  tree. Its credential provider combines a fresh access token and the Galaxy `user_id` from the same OAuth token
+  response with the refresh token read through the existing secret-store boundary and adds no persistence. The
+  separate account identity returned by `userData.json` is not valid for gameplay writes. An experimental,
+  default-off setting starts
   this sidecar only for direct launches carrying a structured GOG identity; native Linux and compatibility-layer
   games use the same capability check. Comet startup failures do not block the game, delegated launcher handoffs are
   excluded only as a defensive legacy/external case because they have no reliable lifetime boundary, and the owned
-  sidecar receives a bounded normal-exit window before forced cleanup when the tracked game session ends. Current
+  sidecar receives a 30-second normal-exit window for post-game synchronization before forced cleanup when the
+  tracked game session ends. Comet error output is retained as a bounded, credential-redacted `0600` diagnostic
+  log below `Tools/Comet/Data`; routine output is discarded. Current
   Retromind-managed GOG launches and Legendary-based Epic launches do not use that legacy handoff path
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile

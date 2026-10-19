@@ -338,12 +338,7 @@ public partial class App : Application
             provider.GetRequiredService<GogInstallerProcessService>(),
             AppPaths.LibraryRoot));
         services.AddSingleton<GogInstallerWorkflowService>();
-        services.AddSingleton<CometExecutableResolver>();
-        services.AddSingleton<GogCometCredentialProvider>();
-        services.AddSingleton(provider => new CometProcessRunner(
-            provider.GetRequiredService<CometExecutableResolver>(),
-            CometProcessRunner.GetDefaultDataDirectory(AppPaths.DataRoot)));
-        services.AddSingleton<IGogCometSessionService, GogCometSessionService>();
+        RegisterGogCometServices(services, AppPaths.DataRoot);
         services.AddSingleton<GogProvider>();
         services.AddSingleton<IStoreProvider>(provider => provider.GetRequiredService<GogProvider>());
         services.AddSingleton<StoreProviderRegistry>();
@@ -381,5 +376,26 @@ public partial class App : Application
         // --- ViewModels ---
         // MainWindowViewModel is the long-lived app coordinator -> singleton is safer.
         services.AddSingleton<MainWindowViewModel>();
+    }
+
+    internal static void RegisterGogCometServices(
+        IServiceCollection services,
+        string dataRoot)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(dataRoot);
+
+        // These implementation types deliberately keep their constructors internal.
+        // Explicit factories avoid the DI container's public-constructor requirement.
+        services.AddSingleton(_ => new CometExecutableResolver());
+        services.AddSingleton(provider => new GogCometCredentialProvider(
+            provider.GetRequiredService<GogAuthService>()));
+        services.AddSingleton(provider => new CometProcessRunner(
+            provider.GetRequiredService<CometExecutableResolver>(),
+            CometProcessRunner.GetDefaultDataDirectory(dataRoot)));
+        services.AddSingleton<IGogCometSessionService>(provider => new GogCometSessionService(
+            provider.GetRequiredService<CometExecutableResolver>(),
+            provider.GetRequiredService<GogCometCredentialProvider>(),
+            provider.GetRequiredService<CometProcessRunner>()));
     }
 }
