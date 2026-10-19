@@ -18,6 +18,8 @@ namespace Retromind.Services.RetroAchievements;
 public sealed class RetroAchievementsGameCatalogService
 {
     private const int CacheSchemaVersion = 1;
+    private static readonly IReadOnlySet<string> CacheExtensions =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".json", ".png" };
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromDays(7);
     private static readonly TimeSpan RefreshFailureBackoff = TimeSpan.FromMinutes(15);
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -60,66 +62,13 @@ public sealed class RetroAchievementsGameCatalogService
         if (wasPortableHomeEnabled == isPortableHomeEnabled)
             return;
 
-        var sourceDirectory = GetCacheDirectory(wasPortableHomeEnabled);
-        var destinationDirectory = GetCacheDirectory(isPortableHomeEnabled);
-        if (string.Equals(sourceDirectory, destinationDirectory, StringComparison.Ordinal) ||
-            !Directory.Exists(sourceDirectory))
-        {
-            return;
-        }
-
-        try
-        {
-            if ((File.GetAttributes(sourceDirectory) & FileAttributes.ReparsePoint) != 0)
-                throw new IOException($"Refusing to migrate cache link '{sourceDirectory}'.");
-            if (Directory.Exists(destinationDirectory) &&
-                (File.GetAttributes(destinationDirectory) & FileAttributes.ReparsePoint) != 0)
-            {
-                throw new IOException($"Refusing to migrate into cache link '{destinationDirectory}'.");
-            }
-
-            var sourceFiles = GetCacheFileSnapshots(sourceDirectory);
-            if (sourceFiles.Count == 0)
-                return;
-
-            Directory.CreateDirectory(destinationDirectory);
-            foreach (var sourceFile in sourceFiles)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var destinationPath = Path.Combine(destinationDirectory, sourceFile.RelativePath);
-
-                if (!ShouldReplaceDestination(sourceFile, destinationPath))
-                    continue;
-
-                Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
-                await CopyCacheFileAtomicallyAsync(
-                        sourceFile,
-                        destinationPath,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            // A concurrent refresh may have replaced a source file while it was copied.
-            // Keep the complete source cache in that case so no newer data is lost.
-            if (sourceFiles.Any(sourceFile => !SourceFileIsUnchanged(sourceFile)))
-                return;
-
-            foreach (var sourceFile in sourceFiles)
-                File.Delete(sourceFile.Path);
-
-            TryDeleteEmptyParentDirectories(sourceFiles, sourceDirectory);
-            TryDeleteEmptyDirectory(sourceDirectory);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Cache data is reproducible. Keep the source intact on migration failure;
-            // the destination can safely reuse any files that were copied successfully.
-            Debug.WriteLine($"[RetroAchievements] Could not migrate game catalog cache: {ex.Message}");
-        }
+        await CacheDirectoryMigrationHelper.MigrateAsync(
+                GetCacheDirectory(wasPortableHomeEnabled),
+                GetCacheDirectory(isPortableHomeEnabled),
+                CacheExtensions,
+                "RetroAchievements",
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     internal RetroAchievementsGameCatalogService(
@@ -381,148 +330,6 @@ public sealed class RetroAchievementsGameCatalogService
         }
     }
 
-    private static List<CacheFileSnapshot> GetCacheFileSnapshots(string sourceDirectory)
-    {
-        var snapshots = new List<CacheFileSnapshot>();
-        var pendingDirectories = new Stack<string>();
-        pendingDirectories.Push(sourceDirectory);
-
-        while (pendingDirectories.Count > 0)
-        {
-            var directory = pendingDirectories.Pop();
-            foreach (var childDirectory in Directory.EnumerateDirectories(
-                         directory,
-                         "*",
-                         SearchOption.TopDirectoryOnly))
-            {
-                if ((File.GetAttributes(childDirectory) & FileAttributes.ReparsePoint) == 0)
-                    pendingDirectories.Push(childDirectory);
-            }
-
-            foreach (var path in Directory.EnumerateFiles(
-                         directory,
-                         "*",
-                         SearchOption.TopDirectoryOnly))
-            {
-                var extension = Path.GetExtension(path);
-                if (!string.Equals(extension, ".json", StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var attributes = File.GetAttributes(path);
-                if ((attributes & FileAttributes.ReparsePoint) != 0)
-                    continue;
-
-                var info = new FileInfo(path);
-                snapshots.Add(new CacheFileSnapshot(
-                    path,
-                    Path.GetRelativePath(sourceDirectory, path),
-                    info.Length,
-                    info.LastWriteTimeUtc));
-            }
-        }
-
-        return snapshots;
-    }
-
-    private static bool ShouldReplaceDestination(
-        CacheFileSnapshot sourceFile,
-        string destinationPath)
-    {
-        if (!File.Exists(destinationPath))
-            return true;
-
-        var attributes = File.GetAttributes(destinationPath);
-        if ((attributes & FileAttributes.ReparsePoint) != 0)
-            throw new IOException($"Refusing to replace cache link '{destinationPath}'.");
-
-        return sourceFile.LastWriteTimeUtc > File.GetLastWriteTimeUtc(destinationPath);
-    }
-
-    private static async Task CopyCacheFileAtomicallyAsync(
-        CacheFileSnapshot sourceFile,
-        string destinationPath,
-        CancellationToken cancellationToken)
-    {
-        var tempPath = destinationPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            await using (var source = new FileStream(
-                             sourceFile.Path,
-                             FileMode.Open,
-                             FileAccess.Read,
-                             FileShare.Read,
-                             64 * 1024,
-                             FileOptions.Asynchronous | FileOptions.SequentialScan))
-            await using (var destination = new FileStream(
-                             tempPath,
-                             FileMode.CreateNew,
-                             FileAccess.Write,
-                             FileShare.None,
-                             64 * 1024,
-                             FileOptions.Asynchronous | FileOptions.WriteThrough))
-            {
-                await source.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
-                await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            File.SetLastWriteTimeUtc(tempPath, sourceFile.LastWriteTimeUtc);
-            File.Move(tempPath, destinationPath, overwrite: true);
-        }
-        finally
-        {
-            TryDeleteTempFile(tempPath);
-        }
-    }
-
-    private static bool SourceFileIsUnchanged(CacheFileSnapshot snapshot)
-    {
-        if (!File.Exists(snapshot.Path))
-            return false;
-
-        var attributes = File.GetAttributes(snapshot.Path);
-        if ((attributes & FileAttributes.ReparsePoint) != 0)
-            return false;
-
-        var info = new FileInfo(snapshot.Path);
-        return info.Length == snapshot.Length &&
-               info.LastWriteTimeUtc == snapshot.LastWriteTimeUtc;
-    }
-
-    private static void TryDeleteEmptyDirectory(string path)
-    {
-        try
-        {
-            Directory.Delete(path, recursive: false);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // The directory may contain a concurrent refresh or an unrelated file.
-        }
-    }
-
-    private static void TryDeleteEmptyParentDirectories(
-        IEnumerable<CacheFileSnapshot> sourceFiles,
-        string sourceDirectory)
-    {
-        var directories = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var sourceFile in sourceFiles)
-        {
-            var directory = Path.GetDirectoryName(sourceFile.Path);
-            while (directory != null &&
-                   !string.Equals(directory, sourceDirectory, StringComparison.Ordinal))
-            {
-                directories.Add(directory);
-                directory = Path.GetDirectoryName(directory);
-            }
-        }
-
-        foreach (var directory in directories.OrderByDescending(static path => path.Length))
-            TryDeleteEmptyDirectory(directory);
-    }
-
     private sealed class CacheDocument
     {
         public int SchemaVersion { get; set; }
@@ -535,9 +342,4 @@ public sealed class RetroAchievementsGameCatalogService
         CacheDocument Document,
         IReadOnlyDictionary<string, RetroAchievementsGameCatalogEntry> HashIndex);
 
-    private sealed record CacheFileSnapshot(
-        string Path,
-        string RelativePath,
-        long Length,
-        DateTime LastWriteTimeUtc);
 }

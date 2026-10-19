@@ -383,8 +383,11 @@ that schema is not a public integration contract and its directory is keyed by t
 Retromind's product identity. The shared RetroAchievements/Steam presentation now also handles GOG progress,
 rarity, unlock times, artwork, selection caching, explicit refresh, tracked-session refresh, and BigMode. Locked
 hidden achievements are stripped of title, description, and artwork before presentation or caching. The gameplay
-response is bounded while streaming and the access token stays in the authorization header. The overall Galaxy
-feature remains experimental while platform and per-game compatibility coverage grows.
+response is bounded while streaming and the access token stays in the authorization header. Successful progress
+responses are persisted in an account-separated JSON cache so the last known state remains available after an
+offline restart; no credentials or plain Galaxy user ID are written there. Achievement artwork that has been
+displayed is retained in a bounded, validated image cache for offline use as well. The overall Galaxy feature
+remains experimental while platform and per-game compatibility coverage grows.
 
 ## Validation checklist for the next instance
 

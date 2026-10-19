@@ -14,6 +14,7 @@ using Retromind.Helpers.Video;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.Achievements;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Gog.Achievements;
@@ -460,7 +461,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         ISteamAchievementsProgressService steamAchievementsProgressService,
         bool parentalFilterActive = false,
         bool startOnHome = false,
-        IGogAchievementsProgressService? gogAchievementsProgressService = null)
+        IGogAchievementsProgressService? gogAchievementsProgressService = null,
+        IStoreAchievementImageCacheService? storeAchievementImageCacheService = null)
     {
         _rootNodes = rootNodes ?? throw new ArgumentNullException(nameof(rootNodes));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -474,7 +476,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             retroAchievementsProgressService,
             retroAchievementsBadgeService,
             steamAchievementsProgressService,
-            gogAchievementsProgressService);
+            gogAchievementsProgressService,
+            storeAchievementImageCacheService);
         InitializeRetroAchievementsOverlay();
         InitializeSystemMenu();
 

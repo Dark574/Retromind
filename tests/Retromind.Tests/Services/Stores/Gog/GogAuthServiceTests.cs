@@ -62,6 +62,10 @@ public sealed class GogAuthServiceTests
         Assert.Equal(
             "fresh-refresh-token",
             await secretStore.GetAsync(new SecretKey("retromind:gog", "default")));
+        Assert.Equal(
+            "galaxy-user-id",
+            await secretStore.GetAsync(new SecretKey("retromind:gog", "galaxy-user-id")));
+        Assert.Equal("galaxy-user-id", await service.GetGameplayUserIdAsync());
     }
 
     [Fact]
@@ -93,6 +97,29 @@ public sealed class GogAuthServiceTests
 
         Assert.Equal("fresh-access-token", accessToken);
         Assert.Equal(1, refreshRequests);
+    }
+
+    [Fact]
+    public async Task SignOutAsync_RemovesStoredGameplayIdentityWithSession()
+    {
+        var secretStore = new InMemorySecretStore();
+        await secretStore.SetAsync(
+            new SecretKey("retromind:gog", "default"),
+            "refresh-token");
+        await secretStore.SetAsync(
+            new SecretKey("retromind:gog", "galaxy-user-id"),
+            "galaxy-user-id");
+        using var httpClient = new HttpClient();
+        var service = new GogAuthService(
+            secretStore,
+            new GogOAuthClient(httpClient),
+            new GogPkceService());
+
+        await service.SignOutAsync(forgetPersistentToken: true);
+
+        Assert.Null(await secretStore.GetAsync(new SecretKey("retromind:gog", "default")));
+        Assert.Null(await secretStore.GetAsync(new SecretKey("retromind:gog", "galaxy-user-id")));
+        Assert.Null(await service.GetGameplayUserIdAsync());
     }
 
     private static string CreateTokenResponse(

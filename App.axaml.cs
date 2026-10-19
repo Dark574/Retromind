@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.Achievements;
 using Retromind.Services.GameIdentification;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
@@ -361,6 +362,8 @@ public partial class App : Application
         services.AddSingleton<RetroAchievementsApiClient>();
         services.AddSingleton<RetroAchievementsAccountService>();
         services.AddSingleton<RetroAchievementsCachePathProvider>();
+        services.AddSingleton<StoreAchievementCachePathProvider>();
+        services.AddSingleton<IStoreAchievementImageCacheService, StoreAchievementImageCacheService>();
         services.AddSingleton<IRetroAchievementsHashService, RetroAchievementsHashService>();
         services.AddSingleton<RetroAchievementsGameCatalogService>();
         services.AddSingleton<IRetroAchievementsGameIdentificationService, RetroAchievementsGameIdentificationService>();

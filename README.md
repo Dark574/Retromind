@@ -159,7 +159,7 @@ This project ships a build script that creates a portable **AppImage** containin
 - bundled **LibVLC + plugins** (video playback required)
 - helper/runtime libraries exported from a Debian 12 (bookworm) build container
 - a standalone Legendary executable built from checksum-pinned source for native Epic Games integration
-- a standalone Comet executable built from checksum-pinned fork and protocol sources for the planned GOG Galaxy integration
+- a standalone Comet executable built from checksum-pinned fork and protocol sources for the experimental GOG Galaxy integration
 - a checksum-pinned, statically linked AppImage runtime
 - embedded GitHub Releases update information and matching `.zsync` metadata for delta updates
 
@@ -232,7 +232,7 @@ To update Legendary, change the values in that file, rebuild the AppImage and ve
 The Retromind-specific Comet fork revision, protocol submodule, and exact Rust builder image are pinned in
 `build/comet-version.env`. Comet's committed `Cargo.lock` supplies the Rust dependency versions and checksums.
 Update these pins together, rebuild the AppImage, and verify the secure stdin credential contract before changing
-the bundled Comet version. Runtime integration is still under development.
+the bundled Comet version. Runtime compatibility remains experimental and varies between games.
 
 It also creates the small compatibility metadata file
 `dist/Retromind-<version>-linux-x86_64.AppImage.zsync`. Upload it with the primary assets so AppImageUpdate
@@ -713,10 +713,33 @@ settings.
 
 Locked hidden achievements reveal neither their title, description, nor icon. Retromind only shows how many
 hidden achievements remain; their real information appears after Steam reports them as unlocked. Results are
-kept in a short-lived memory cache to avoid repeated API calls while browsing. If a watch process is configured,
-Retromind refreshes the selected game's progress automatically after that process exits. Without process monitoring,
-launching through Steam remains a delegated handoff without a reliable game-exit signal; use **Refresh** in the
-desktop details after returning from the game.
+kept in a short-lived memory cache to avoid repeated API calls while browsing, and the last successful progress is
+stored locally for offline viewing after a restart. Achievement icons that have been displayed are cached there as
+well. Normal library browsing reuses progress for one hour and the mostly static Steam achievement definitions for
+30 days. Manual refreshes and completed tracked sessions still request the latest progress immediately. If a watch
+process is configured, Retromind refreshes the
+selected game's progress automatically after that process exits. Without process monitoring, launching through
+Steam remains a delegated handoff without a reliable game-exit signal; use **Refresh** in the desktop details after
+returning from the game.
+
+## GOG Achievements (Experimental)
+
+Retromind can show native GOG achievement progress and use the bundled Comet service to synchronize newly unlocked
+achievements for compatible games. Sign in under **Settings → Integrations → GOG**, enable the experimental GOG
+Galaxy services, and import the game from GOG or link an existing library item through **Store → Link to GOG
+game**. Retromind then shows the progress, rarity, unlock times, and privacy-safe hidden achievements in the desktop
+details and shared BigMode achievement browser.
+
+The last successful progress response is stored in an account-separated local cache, so it remains available when
+GOG cannot be reached after a restart. Cache paths contain a hash instead of the Galaxy user ID and no credentials
+are written to the cache. Achievement icons that have been displayed are retained alongside it for offline use.
+Normal library browsing reuses progress for one hour; use **Refresh** in the desktop details to request the latest
+server state manually. Retromind also refreshes immediately after a completed tracked session.
+
+Comet starts only while Retromind directly tracks an eligible GOG-linked game. Whether a title can unlock and
+synchronize achievements depends on the Galaxy SDK included by that game; native Linux, Wine, Proton, and UMU
+support therefore varies by title. A Comet startup or synchronization problem does not block the game launch.
+Credential-redacted errors are retained in `Tools/Comet/Data/comet-errors.log` for diagnosis.
 
 ## RetroAchievements (Experimental)
 

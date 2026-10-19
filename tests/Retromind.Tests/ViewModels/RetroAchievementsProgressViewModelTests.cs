@@ -1,5 +1,6 @@
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services.Achievements;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Gog.Achievements;
@@ -518,6 +519,58 @@ public sealed class RetroAchievementsProgressViewModelTests
     }
 
     [Fact]
+    public async Task EnsureAchievementBadgesLoaded_UsesPersistentStoreImageCache()
+    {
+        var settings = CreateSettings();
+        settings.SteamAchievements = new SteamAchievementsSettings
+        {
+            Enabled = true,
+            SteamId64 = "76561198000000042"
+        };
+        var steamSnapshot = new SteamProgressSnapshot(
+            new SteamGameProgress
+            {
+                AppId = 123,
+                Achievements =
+                [
+                    new SteamAchievement
+                    {
+                        ApiName = "ACH_FIRST",
+                        Title = "First",
+                        ImageUrl = "https://cdn.example/first.png"
+                    }
+                ]
+            },
+            DateTimeOffset.UtcNow,
+            UsedCachedFallback: false);
+        StoreAchievementProvider? requestedProvider = null;
+        string? requestedUrl = null;
+        using var viewModel = new RetroAchievementsProgressViewModel(
+            settings,
+            new StubProgressService((gameId, forceRefresh, cancellationToken) =>
+                throw new InvalidOperationException("RetroAchievements should not be used.")),
+            new StubBadgeService((badgeName, isUnlocked, cancellationToken) =>
+                throw new InvalidOperationException("Steam images do not use the badge service.")),
+            new StubSteamProgressService((appId, forceRefresh, cancellationToken) =>
+                Task.FromResult(steamSnapshot)),
+            gogProgressService: null,
+            storeImageCacheService: new StubStoreImageCacheService((provider, imageUrl, cancellationToken) =>
+            {
+                requestedProvider = provider;
+                requestedUrl = imageUrl;
+                return Task.FromResult<string?>("/cache/first.image");
+            }));
+
+        await viewModel.SelectItemAsync(CreateSteamItem(appId: 123));
+        viewModel.EnsureAchievementBadgesLoaded();
+        await WaitUntilAsync(() => !viewModel.IsBadgeLoading);
+
+        Assert.Equal(StoreAchievementProvider.Steam, requestedProvider);
+        Assert.Equal("https://cdn.example/first.png", requestedUrl);
+        Assert.Equal("/cache/first.image", viewModel.AchievementItems[0].BadgePath);
+    }
+
+    [Fact]
     public async Task SelectItemAsync_ShowsGogProgressForLinkedGame()
     {
         var settings = CreateSettings();
@@ -747,5 +800,16 @@ public sealed class RetroAchievementsProgressViewModelTests
             bool forceRefresh = false,
             CancellationToken cancellationToken = default) =>
             getProgress(gameId, forceRefresh, cancellationToken);
+    }
+
+    private sealed class StubStoreImageCacheService(
+        Func<StoreAchievementProvider, string?, CancellationToken, Task<string?>> getImage)
+        : IStoreAchievementImageCacheService
+    {
+        public Task<string?> GetImagePathAsync(
+            StoreAchievementProvider provider,
+            string? imageUrl,
+            CancellationToken cancellationToken = default) =>
+            getImage(provider, imageUrl, cancellationToken);
     }
 }

@@ -13,6 +13,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - optionally synchronize achievements for supported GOG games through the bundled Comet service and display GOG progress, rarity, unlock times, and privacy-safe hidden achievements in the desktop details and BigMode
 
 ### Changed
+- keep the last successful Steam and GOG achievement progress and downloaded icons available for offline viewing after restarting Retromind while avoiding repeated service requests during normal library browsing
 
 ### Fixed
 - refresh the context menu after a game is assigend to the GOG-Store

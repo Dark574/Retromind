@@ -27,6 +27,7 @@ public sealed class GogAuthService
     private static readonly TimeSpan AccessTokenRefreshBuffer = TimeSpan.FromSeconds(30);
 
     private static readonly SecretKey GogRefreshTokenKey = new("retromind:gog", "default");
+    private static readonly SecretKey GogGalaxyUserIdKey = new("retromind:gog", "galaxy-user-id");
 
     private readonly ISecretStore _secretStore;
     private readonly GogOAuthClient _oAuthClient;
@@ -78,6 +79,32 @@ public sealed class GogAuthService
         return string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(userId)
             ? null
             : new GogGameplayCredentials(accessToken, userId);
+    }
+
+    internal async Task<string?> GetGameplayUserIdAsync(CancellationToken ct = default)
+    {
+        var currentUserId = _currentToken?.UserId?.Trim();
+        if (!string.IsNullOrWhiteSpace(currentUserId))
+            return currentUserId;
+
+        try
+        {
+            var storedUserId = await _secretStore
+                .GetAsync(GogGalaxyUserIdKey, ct)
+                .ConfigureAwait(false);
+            return string.IsNullOrWhiteSpace(storedUserId)
+                ? null
+                : storedUserId.Trim();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[GOG] Stored gameplay identity could not be read ({ex.GetType().Name}).");
+            return null;
+        }
     }
 
     internal async Task<GogSessionCredentials?> GetSessionCredentialsAsync(CancellationToken ct = default)
@@ -140,6 +167,7 @@ public sealed class GogAuthService
 
             _currentToken = token;
             await _secretStore.SetAsync(GogRefreshTokenKey, token.RefreshToken, ct).ConfigureAwait(false);
+            await TryStoreGameplayUserIdAsync(token.UserId, ct).ConfigureAwait(false);
             return true;
         }
         catch (OperationCanceledException)
@@ -165,7 +193,18 @@ public sealed class GogAuthService
         _currentAccountInfo = null;
 
         if (forgetPersistentToken)
-            await _secretStore.DeleteAsync(GogRefreshTokenKey, ct).ConfigureAwait(false);
+        {
+            try
+            {
+                await _secretStore.DeleteAsync(GogRefreshTokenKey, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                // Keep the offline-cache identity and the persistent session in
+                // lockstep, even if deleting one key fails.
+                await _secretStore.DeleteAsync(GogGalaxyUserIdKey, ct).ConfigureAwait(false);
+            }
+        }
     }
 
     private async Task<StoreAccountInfo> SignInInteractiveInternalAsync(
@@ -236,6 +275,7 @@ public sealed class GogAuthService
 
         _currentToken = token;
         await _secretStore.SetAsync(GogRefreshTokenKey, token.RefreshToken, ct).ConfigureAwait(false);
+        await TryStoreGameplayUserIdAsync(token.UserId, ct).ConfigureAwait(false);
 
         try
         {
@@ -358,6 +398,31 @@ public sealed class GogAuthService
             string.Equals(accountInfo.AccountId, "gog-user", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("GOG account identity is unavailable.");
+        }
+    }
+
+    private async Task TryStoreGameplayUserIdAsync(
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return;
+
+        try
+        {
+            await _secretStore
+                .SetAsync(GogGalaxyUserIdKey, userId.Trim(), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // The active session remains usable. Only cross-restart offline cache
+            // lookup is unavailable until a later identity write succeeds.
+            Debug.WriteLine($"[GOG] Gameplay identity could not be stored ({ex.GetType().Name}).");
         }
     }
 

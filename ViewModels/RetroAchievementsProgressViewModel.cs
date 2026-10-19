@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services.Achievements;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Gog.Achievements;
@@ -25,6 +26,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private readonly IRetroAchievementsBadgeService _badgeService;
     private readonly ISteamAchievementsProgressService? _steamProgressService;
     private readonly IGogAchievementsProgressService? _gogProgressService;
+    private readonly IStoreAchievementImageCacheService? _storeImageCacheService;
     private readonly TimeSpan _selectionDelay;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _badgeLoadCts;
@@ -57,6 +59,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             badgeService,
             steamProgressService: null,
             gogProgressService: null,
+            storeImageCacheService: null,
             selectionDelay)
     {
     }
@@ -73,6 +76,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             badgeService,
             steamProgressService,
             gogProgressService: null,
+            storeImageCacheService: null,
             selectionDelay)
     {
     }
@@ -84,6 +88,25 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         ISteamAchievementsProgressService? steamProgressService,
         IGogAchievementsProgressService? gogProgressService,
         TimeSpan selectionDelay = default)
+        : this(
+            settings,
+            progressService,
+            badgeService,
+            steamProgressService,
+            gogProgressService,
+            storeImageCacheService: null,
+            selectionDelay)
+    {
+    }
+
+    public RetroAchievementsProgressViewModel(
+        AppSettings settings,
+        IRetroAchievementsProgressService progressService,
+        IRetroAchievementsBadgeService badgeService,
+        ISteamAchievementsProgressService? steamProgressService,
+        IGogAchievementsProgressService? gogProgressService,
+        IStoreAchievementImageCacheService? storeImageCacheService,
+        TimeSpan selectionDelay = default)
     {
         if (selectionDelay < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(selectionDelay));
@@ -93,6 +116,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         _badgeService = badgeService ?? throw new ArgumentNullException(nameof(badgeService));
         _steamProgressService = steamProgressService;
         _gogProgressService = gogProgressService;
+        _storeImageCacheService = storeImageCacheService;
         _selectionDelay = selectionDelay;
         RefreshCommand = new AsyncRelayCommand(
             () => SelectItemAsync(_selectedItem, forceRefresh: true),
@@ -791,8 +815,33 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                 return;
             }
 
-            foreach (var achievement in achievements)
-                achievement.SetBadgePath(achievement.ImageReference);
+            var missingImages = achievements
+                .Where(achievement =>
+                    string.IsNullOrWhiteSpace(achievement.BadgePath) &&
+                    !string.IsNullOrWhiteSpace(achievement.ImageReference))
+                .ToArray();
+            if (missingImages.Length == 0)
+                return;
+
+            if (_storeImageCacheService == null)
+            {
+                foreach (var achievement in missingImages)
+                    achievement.SetBadgePath(achievement.ImageReference);
+                return;
+            }
+
+            var storeProvider = _activeProvider == AchievementProvider.Steam
+                ? StoreAchievementProvider.Steam
+                : StoreAchievementProvider.Gog;
+            var imageLoadCts = new CancellationTokenSource();
+            _badgeLoadCts = imageLoadCts;
+            IsBadgeLoading = true;
+            _ = LoadStoreImagesAsync(
+                missingImages,
+                storeProvider,
+                imageLoadCts,
+                item,
+                gameId);
             return;
         }
 
@@ -809,6 +858,92 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         _badgeLoadCts = badgeLoadCts;
         IsBadgeLoading = true;
         _ = LoadBadgesAsync(missingBadges, badgeLoadCts, item, gameId);
+    }
+
+    private async Task LoadStoreImagesAsync(
+        IReadOnlyList<RetroAchievementsAchievementItemViewModel> achievements,
+        StoreAchievementProvider provider,
+        CancellationTokenSource requestCts,
+        MediaItem? item,
+        int gameId)
+    {
+        using var concurrencyGate = new SemaphoreSlim(4, 4);
+        try
+        {
+            var loads = achievements.Select(achievement =>
+                LoadStoreImageAsync(
+                    achievement,
+                    provider,
+                    concurrencyGate,
+                    requestCts,
+                    item,
+                    gameId));
+            await Task.WhenAll(loads);
+        }
+        catch (OperationCanceledException) when (requestCts.IsCancellationRequested)
+        {
+            // Selection changes routinely cancel optional achievement images.
+        }
+        finally
+        {
+            if (ReferenceEquals(_badgeLoadCts, requestCts))
+            {
+                _badgeLoadCts = null;
+                IsBadgeLoading = false;
+            }
+
+            requestCts.Dispose();
+        }
+    }
+
+    private async Task LoadStoreImageAsync(
+        RetroAchievementsAchievementItemViewModel achievement,
+        StoreAchievementProvider provider,
+        SemaphoreSlim concurrencyGate,
+        CancellationTokenSource requestCts,
+        MediaItem? item,
+        int gameId)
+    {
+        var lockTaken = false;
+        try
+        {
+            await concurrencyGate.WaitAsync(requestCts.Token);
+            lockTaken = true;
+            var imagePath = await _storeImageCacheService!.GetImagePathAsync(
+                provider,
+                achievement.ImageReference,
+                requestCts.Token);
+            if (ReferenceEquals(_badgeLoadCts, requestCts) &&
+                ReferenceEquals(_selectedItem, item) &&
+                _selectedGameId == gameId &&
+                ((provider == StoreAchievementProvider.Steam &&
+                  _activeProvider == AchievementProvider.Steam) ||
+                 (provider == StoreAchievementProvider.Gog &&
+                  _activeProvider == AchievementProvider.Gog)))
+            {
+                achievement.SetBadgePath(imagePath ?? achievement.ImageReference);
+            }
+        }
+        catch (OperationCanceledException) when (requestCts.IsCancellationRequested)
+        {
+            // Selection changes routinely cancel optional achievement images.
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"[{provider}] Could not cache achievement image '{achievement.ImageReference}': {ex.Message}");
+            if (ReferenceEquals(_badgeLoadCts, requestCts) &&
+                ReferenceEquals(_selectedItem, item) &&
+                _selectedGameId == gameId)
+            {
+                achievement.SetBadgePath(achievement.ImageReference);
+            }
+        }
+        finally
+        {
+            if (lockTaken)
+                concurrencyGate.Release();
+        }
     }
 
     private async Task LoadBadgesAsync(

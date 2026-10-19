@@ -22,6 +22,7 @@ using Retromind.Models;
 using Retromind.Models.Stores;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.Achievements;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores;
@@ -68,6 +69,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly LibraryChangeTracker _libraryTracker;
     private readonly RetroAchievementsAccountService _retroAchievementsAccountService;
     private readonly RetroAchievementsCachePathProvider _retroAchievementsCachePathProvider;
+    private readonly StoreAchievementCachePathProvider _storeAchievementCachePathProvider;
+    private readonly IStoreAchievementImageCacheService _storeAchievementImageCacheService;
     private readonly IRetroAchievementsGameIdentificationService _retroAchievementsGameIdentificationService;
     private readonly RetroAchievementsBulkIdentificationService _retroAchievementsBulkIdentificationService;
     private readonly IRetroAchievementsProgressService _retroAchievementsProgressService;
@@ -435,6 +438,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IDocumentService documentService,
         RetroAchievementsAccountService retroAchievementsAccountService,
         RetroAchievementsCachePathProvider retroAchievementsCachePathProvider,
+        StoreAchievementCachePathProvider storeAchievementCachePathProvider,
+        IStoreAchievementImageCacheService storeAchievementImageCacheService,
         IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService,
         RetroAchievementsBulkIdentificationService retroAchievementsBulkIdentificationService,
         IRetroAchievementsProgressService retroAchievementsProgressService,
@@ -475,6 +480,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _documentService = documentService;
         _retroAchievementsAccountService = retroAchievementsAccountService;
         _retroAchievementsCachePathProvider = retroAchievementsCachePathProvider;
+        _storeAchievementCachePathProvider = storeAchievementCachePathProvider;
+        _storeAchievementImageCacheService = storeAchievementImageCacheService;
         _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService;
         _retroAchievementsBulkIdentificationService = retroAchievementsBulkIdentificationService;
         _retroAchievementsProgressService = retroAchievementsProgressService;
@@ -489,6 +496,7 @@ public partial class MainWindowViewModel : ViewModelBase
             _retroAchievementsBadgeService,
             _steamAchievementsProgressService,
             _gogAchievementsProgressService,
+            _storeAchievementImageCacheService,
             selectionDelay: TimeSpan.FromMilliseconds(300));
         if (_settingsService.HasLoadFailure)
         {

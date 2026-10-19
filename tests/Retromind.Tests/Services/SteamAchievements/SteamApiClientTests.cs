@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using Retromind.Services.SteamAchievements;
+using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services.SteamAchievements;
 
@@ -346,6 +347,78 @@ public sealed class SteamApiClientTests
     }
 
     [Fact]
+    public async Task GetGameProgressAsync_ReusesSchemaForThirtyDaysAcrossRestarts()
+    {
+        using var temp = new TemporaryDirectory();
+        var schemaRequests = 0;
+        var progressRequests = 0;
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.Contains(
+                    "GetSchemaForGame",
+                    StringComparison.Ordinal))
+            {
+                schemaRequests++;
+                return JsonResponse(
+                    """
+                    {
+                      "game": {
+                        "gameName": "Test game",
+                        "availableGameStats": {
+                          "achievements": [
+                            { "name": "ACH_FIRST", "displayName": "First" }
+                          ]
+                        }
+                      }
+                    }
+                    """);
+            }
+
+            progressRequests++;
+            return JsonResponse(
+                """
+                {
+                  "playerstats": {
+                    "steamID": "76561198000000042",
+                    "achievements": [
+                      { "apiname": "ACH_FIRST", "achieved": 0 }
+                    ],
+                    "success": true
+                  }
+                }
+                """);
+        }));
+        var time = new MutableTimeProvider(
+            new DateTimeOffset(2026, 10, 19, 10, 0, 0, TimeSpan.Zero));
+
+        var firstClient = new SteamApiClient(httpClient, time, temp.RootPath);
+        _ = await firstClient.GetGameProgressAsync(
+            123,
+            "76561198000000042",
+            "api-key",
+            "german");
+        var restartedClient = new SteamApiClient(httpClient, time, temp.RootPath);
+        _ = await restartedClient.GetGameProgressAsync(
+            123,
+            "76561198000000042",
+            "api-key",
+            "german");
+        time.Advance(TimeSpan.FromDays(30));
+        _ = await restartedClient.GetGameProgressAsync(
+            123,
+            "76561198000000042",
+            "api-key",
+            "german");
+
+        Assert.Equal(2, schemaRequests);
+        Assert.Equal(3, progressRequests);
+        Assert.Single(Directory.EnumerateFiles(
+            temp.RootPath,
+            "*.json",
+            SearchOption.AllDirectories));
+    }
+
+    [Fact]
     public async Task GetGameProgressAsync_ReportsUnavailablePrivateProgress()
     {
         using var httpClient = new HttpClient(new StubHandler(request =>
@@ -415,5 +488,12 @@ public sealed class SteamApiClientTests
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(responseFactory(request));
         }
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+
+        public void Advance(TimeSpan duration) => utcNow += duration;
     }
 }

@@ -108,9 +108,9 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
 - after legacy migration, scraper credentials join the GOG refresh token and RetroAchievements and Steam Web API
   keys in being excluded from `app_settings.json` and metadata backups; all of them are also excluded from
   `retromind_tree.json` and integration caches
-- integration caches contain replaceable non-secret data. RetroAchievements catalog, progress, and badge
-  caches may follow portable-HOME migrations, while the corresponding API key always remains in the host
-  secret store or session memory
+- integration caches contain replaceable non-secret data. RetroAchievements catalog, progress, and badge caches,
+  plus Steam and GOG progress and achievement-image caches, may follow portable-HOME migrations, while the
+  corresponding credentials always remain in the host secret store or session memory
 
 ### Versioned metadata backups (`Backups/`)
 - service: `MetadataBackupService`; UI: `MetadataBackupViewModel` / `MetadataBackupView`
@@ -398,16 +398,30 @@ the report never mutates JSON or deletes files.
 - Steam achievement progress uses the store App ID already persisted by Steam imports. The Steam API client combines
   the localized game schema with account-specific unlock state while keeping the personal Web API key in the request
   header. Locked hidden achievements are stripped of title, description, and artwork before they reach presentation
-  or cache state; only their remaining count is exposed. A bounded five-minute memory cache coalesces browsing
-  requests and can provide the last in-memory result during a temporary API failure. Imported Steam games on Linux
-  are tracked automatically by their exact App ID unless a manual watch process is configured; after the detected
-  game processes exit, the still-selected game's progress is force-refreshed
+  or cache state; only their remaining count is exposed. A bounded one-hour memory cache with up to 512 recently
+  used games coalesces browsing requests. Localized public achievement schemas are cached separately for 30 days,
+  so routine progress refreshes normally require only the account-specific endpoint. Every successful response is
+  also written atomically to an account-separated JSON cache, allowing a
+  valid stale response to be shown after a restart when Steam is unavailable. Imported Steam games on Linux are
+  tracked automatically by their exact App ID unless a manual watch process is configured; after the detected game
+  processes exit, the still-selected game's progress is force-refreshed
 - GOG achievement progress uses the structured store game ID and the Galaxy `user_id` from the current OAuth token
   to query GOG's gameplay API. The access token is sent only in the authorization header, response bodies are
   limited to 4 MiB while streaming, and locked hidden achievements have their title, description, and artwork
-  removed before reaching presentation state. A bounded five-minute account-specific memory cache coalesces
-  browsing requests, falls back to the last in-memory result during temporary API failures, and is force-refreshed
-  after a tracked game session. GOG progress is available only while the experimental Galaxy integration is enabled
+  removed before reaching presentation state. A bounded one-hour account-specific memory cache with up to 512
+  recently used games coalesces browsing requests. Every successful response is also written atomically to an
+  account-separated JSON cache,
+  allowing a valid stale response to be shown after a restart when GOG is unavailable. The non-secret Galaxy
+  `user_id` is retained through the existing secret-store boundary so the correct account cache can be selected
+  before an online token refresh. Progress is force-refreshed after a tracked game session and remains available
+  only while the experimental Galaxy integration is enabled
+- Steam and GOG progress caches live below `Cache/StoreAchievements` or the matching portable-HOME cache root.
+  Account directory names contain SHA-256 hashes rather than Steam or Galaxy IDs, cache documents contain no
+  credentials or plain account IDs, and cache files follow the existing link-safe portable-HOME migration.
+  Achievement artwork is fetched lazily when its list is opened, limited to 2 MiB, checked for a supported image
+  signature, and atomically retained in provider-specific image directories. Image filenames contain SHA-256 URL
+  hashes rather than remote URL text; failed artwork downloads never affect the cached progress data. Directly
+  cached images update their last-use timestamp at most weekly and are removed after 180 days without use
 - the existing achievement presentation model is shared by RetroAchievements, Steam, and GOG. Provider-neutral progress,
   list expansion, refresh, and BigMode navigation remain common, while RetroAchievements adds points and Hardcore
   state, Steam adds hidden-achievement state, and GOG adds rarity. Historical RetroAchievements property/type names

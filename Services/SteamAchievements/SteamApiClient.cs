@@ -4,14 +4,24 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Retromind.Services.Achievements;
 
 namespace Retromind.Services.SteamAchievements;
 
 public sealed class SteamApiClient
 {
+    private const int SchemaCacheVersion = 1;
+    private const int SchemaSynchronizationGateCount = 64;
+    private static readonly TimeSpan SchemaCacheLifetime = TimeSpan.FromDays(30);
+    private static readonly JsonSerializerOptions CacheJsonOptions = new()
+    {
+        WriteIndented = false
+    };
     private const string PlayerSummariesEndpoint =
         "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/";
     private const string GameSchemaEndpoint =
@@ -20,11 +30,48 @@ public sealed class SteamApiClient
         "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/";
 
     private readonly HttpClient _httpClient;
+    private readonly TimeProvider _timeProvider;
+    private readonly Func<string>? _schemaCacheDirectoryProvider;
+    private readonly SemaphoreSlim[] _schemaGates = CreateSchemaSynchronizationGates();
 
     public SteamApiClient(HttpClient httpClient)
+        : this(httpClient, TimeProvider.System, schemaCacheDirectoryProvider: null)
+    {
+    }
+
+    public SteamApiClient(
+        HttpClient httpClient,
+        StoreAchievementCachePathProvider cachePathProvider)
+        : this(
+            httpClient,
+            TimeProvider.System,
+            cachePathProvider == null
+                ? throw new ArgumentNullException(nameof(cachePathProvider))
+                : cachePathProvider.GetSteamSchemaCacheDirectory)
+    {
+    }
+
+    internal SteamApiClient(
+        HttpClient httpClient,
+        TimeProvider timeProvider,
+        string schemaCacheDirectory)
+        : this(
+            httpClient,
+            timeProvider,
+            () => Path.GetFullPath(schemaCacheDirectory))
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schemaCacheDirectory);
+    }
+
+    private SteamApiClient(
+        HttpClient httpClient,
+        TimeProvider timeProvider,
+        Func<string>? schemaCacheDirectoryProvider)
     {
         _httpClient = httpClient ??
             throw new ArgumentNullException(nameof(httpClient));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _schemaCacheDirectoryProvider = schemaCacheDirectoryProvider;
     }
 
     public async Task<SteamUserProfile> GetPlayerSummaryAsync(
@@ -183,15 +230,14 @@ public sealed class SteamApiClient
 
         var appIdText = appId.ToString(CultureInfo.InvariantCulture);
         var encodedLanguage = Uri.EscapeDataString(language);
-        var schemaUri = new Uri(
-            $"{GameSchemaEndpoint}?appid={appIdText}&l={encodedLanguage}");
-        var schemaBody = await SendAuthenticatedRequestAsync(
-            schemaUri,
-            apiKey,
-            "game schema",
-            cancellationToken).ConfigureAwait(false);
-
-        var schema = ParseGameSchema(schemaBody, appId);
+        var schema = await GetGameSchemaAsync(
+                appId,
+                appIdText,
+                language,
+                encodedLanguage,
+                apiKey,
+                cancellationToken)
+            .ConfigureAwait(false);
         if (schema.Achievements.Count == 0)
         {
             return new SteamGameProgress
@@ -244,6 +290,209 @@ public sealed class SteamApiClient
             Title = FirstNonEmpty(playerProgress.GameTitle, schema.Title) ?? string.Empty,
             Achievements = achievements
         };
+    }
+
+    private async Task<GameSchema> GetGameSchemaAsync(
+        uint appId,
+        string appIdText,
+        string language,
+        string encodedLanguage,
+        string apiKey,
+        CancellationToken cancellationToken)
+    {
+        var schemaUri = new Uri(
+            $"{GameSchemaEndpoint}?appid={appIdText}&l={encodedLanguage}");
+        if (_schemaCacheDirectoryProvider == null)
+        {
+            var responseBody = await SendAuthenticatedRequestAsync(
+                    schemaUri,
+                    apiKey,
+                    "game schema",
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return ParseGameSchema(responseBody, appId);
+        }
+
+        var normalizedLanguage = language.ToLowerInvariant();
+        var cacheDirectory = _schemaCacheDirectoryProvider();
+        var cachePath = GetSchemaCachePath(cacheDirectory, appId, normalizedLanguage);
+        var gate = _schemaGates[(int)(appId % SchemaSynchronizationGateCount)];
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var cached = await TryLoadSchemaCacheAsync(
+                    cachePath,
+                    appId,
+                    normalizedLanguage,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            var now = _timeProvider.GetUtcNow();
+            if (cached != null && IsFreshSchema(cached, now))
+                return cached.Schema;
+
+            try
+            {
+                var responseBody = await SendAuthenticatedRequestAsync(
+                        schemaUri,
+                        apiKey,
+                        "game schema",
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                var schema = ParseGameSchema(responseBody, appId);
+                await TrySaveSchemaCacheAsync(
+                        cachePath,
+                        appId,
+                        normalizedLanguage,
+                        responseBody,
+                        _timeProvider.GetUtcNow(),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                return schema;
+            }
+            catch (SteamApiException) when (cached != null)
+            {
+                return cached.Schema;
+            }
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private static async Task<SchemaCacheEntry?> TryLoadSchemaCacheAsync(
+        string cachePath,
+        uint appId,
+        string language,
+        CancellationToken cancellationToken)
+    {
+        if (!File.Exists(cachePath))
+            return null;
+
+        try
+        {
+            await using var stream = new FileStream(
+                cachePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                64 * 1024,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            var document = await JsonSerializer.DeserializeAsync<SchemaCacheDocument>(
+                    stream,
+                    CacheJsonOptions,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (document == null ||
+                document.SchemaVersion != SchemaCacheVersion ||
+                document.AppId != appId ||
+                !string.Equals(document.Language, language, StringComparison.Ordinal) ||
+                document.FetchedAtUtc == default ||
+                string.IsNullOrWhiteSpace(document.ResponseBody))
+            {
+                return null;
+            }
+
+            return new SchemaCacheEntry(
+                ParseGameSchema(document.ResponseBody, appId),
+                document.FetchedAtUtc);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or
+                                   UnauthorizedAccessException or
+                                   JsonException or
+                                   SteamApiException)
+        {
+            return null;
+        }
+    }
+
+    private static async Task TrySaveSchemaCacheAsync(
+        string cachePath,
+        uint appId,
+        string language,
+        string responseBody,
+        DateTimeOffset fetchedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        var cacheDirectory = Path.GetDirectoryName(cachePath)!;
+        var temporaryPath = cachePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            Directory.CreateDirectory(cacheDirectory);
+            await using (var stream = new FileStream(
+                             temporaryPath,
+                             FileMode.CreateNew,
+                             FileAccess.Write,
+                             FileShare.None,
+                             64 * 1024,
+                             FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await JsonSerializer.SerializeAsync(
+                        stream,
+                        new SchemaCacheDocument
+                        {
+                            SchemaVersion = SchemaCacheVersion,
+                            AppId = appId,
+                            Language = language,
+                            FetchedAtUtc = fetchedAtUtc,
+                            ResponseBody = responseBody
+                        },
+                        CacheJsonOptions,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            File.Move(temporaryPath, cachePath, overwrite: true);
+        }
+        catch (OperationCanceledException)
+        {
+            TryDeleteTemporaryFile(temporaryPath);
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            TryDeleteTemporaryFile(temporaryPath);
+        }
+    }
+
+    private static string GetSchemaCachePath(
+        string cacheDirectory,
+        uint appId,
+        string language)
+    {
+        var languageHash = SHA256.HashData(Encoding.UTF8.GetBytes(language));
+        return Path.Combine(
+            cacheDirectory,
+            Convert.ToHexStringLower(languageHash),
+            $"app-{appId.ToString(CultureInfo.InvariantCulture)}.json");
+    }
+
+    private static bool IsFreshSchema(SchemaCacheEntry entry, DateTimeOffset now) =>
+        entry.FetchedAtUtc <= now && now - entry.FetchedAtUtc < SchemaCacheLifetime;
+
+    private static SemaphoreSlim[] CreateSchemaSynchronizationGates()
+    {
+        var gates = new SemaphoreSlim[SchemaSynchronizationGateCount];
+        for (var index = 0; index < gates.Length; index++)
+            gates[index] = new SemaphoreSlim(1, 1);
+        return gates;
+    }
+
+    private static void TryDeleteTemporaryFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch
+        {
+            // A later cache write uses a unique temporary path.
+        }
     }
 
     private async Task<string> SendAuthenticatedRequestAsync(
@@ -549,4 +798,17 @@ public sealed class SteamApiClient
     private sealed record PlayerAchievementState(
         bool IsUnlocked,
         DateTimeOffset? UnlockedAtUtc);
+
+    private sealed record SchemaCacheEntry(
+        GameSchema Schema,
+        DateTimeOffset FetchedAtUtc);
+
+    private sealed class SchemaCacheDocument
+    {
+        public int SchemaVersion { get; set; }
+        public uint AppId { get; set; }
+        public string Language { get; set; } = string.Empty;
+        public DateTimeOffset FetchedAtUtc { get; set; }
+        public string ResponseBody { get; set; } = string.Empty;
+    }
 }

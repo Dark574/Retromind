@@ -5,12 +5,14 @@ using System.Text;
 using Retromind.Models;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Security;
+using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services.SteamAchievements;
 
-public sealed class SteamAchievementsProgressServiceTests
+public sealed class SteamAchievementsProgressServiceTests : IDisposable
 {
     private const string SteamId64 = "76561198000000042";
+    private readonly TemporaryDirectory _cacheDirectory = new();
 
     [Fact]
     public async Task GetProgressAsync_ReusesFreshEntryAndForceRefreshes()
@@ -31,6 +33,30 @@ public sealed class SteamAchievementsProgressServiceTests
         Assert.Same(first.Progress, cached.Progress);
         Assert.NotSame(first.Progress, refreshed.Progress);
         Assert.False(cached.UsedCachedFallback);
+    }
+
+    [Fact]
+    public async Task GetProgressAsync_RefreshesAfterOneHour()
+    {
+        var requestCount = 0;
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            requestCount++;
+            return CreateApiResponse(request);
+        }));
+        var time = new MutableTimeProvider(
+            new DateTimeOffset(2026, 10, 19, 10, 0, 0, TimeSpan.Zero));
+        var service = CreateService(httpClient, timeProvider: time);
+
+        var first = await service.GetProgressAsync(123);
+        time.Advance(TimeSpan.FromMinutes(59));
+        var cached = await service.GetProgressAsync(123);
+        time.Advance(TimeSpan.FromMinutes(2));
+        var refreshed = await service.GetProgressAsync(123);
+
+        Assert.Equal(4, requestCount);
+        Assert.Same(first.Progress, cached.Progress);
+        Assert.NotSame(first.Progress, refreshed.Progress);
     }
 
     [Fact]
@@ -101,9 +127,60 @@ public sealed class SteamAchievementsProgressServiceTests
             () => service.GetProgressAsync(123));
     }
 
-    private static SteamAchievementsProgressService CreateService(
+    [Fact]
+    public async Task GetProgressAsync_UsesPersistentFallbackAfterRestart()
+    {
+        using var onlineClient = new HttpClient(new StubHandler(CreateApiResponse));
+        var onlineService = CreateService(onlineClient);
+        var online = await onlineService.GetProgressAsync(123);
+        var cachePath = Assert.Single(
+            Directory.EnumerateFiles(
+                _cacheDirectory.RootPath,
+                "*.json",
+                SearchOption.AllDirectories));
+        Assert.DoesNotContain(SteamId64, cachePath, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            SteamId64,
+            await File.ReadAllTextAsync(cachePath),
+            StringComparison.Ordinal);
+
+        using var offlineClient = new HttpClient(new StubHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+        var restartedService = CreateService(offlineClient);
+
+        var fallback = await restartedService.GetProgressAsync(123, forceRefresh: true);
+
+        Assert.NotSame(online.Progress, fallback.Progress);
+        Assert.Equal("Test game", fallback.Progress.Title);
+        Assert.Equal(online.FetchedAtUtc, fallback.FetchedAtUtc);
+        Assert.True(fallback.UsedCachedFallback);
+    }
+
+    [Fact]
+    public async Task GetProgressAsync_DoesNotReuseAnotherAccountsPersistentCache()
+    {
+        using var onlineClient = new HttpClient(new StubHandler(CreateApiResponse));
+        _ = await CreateService(onlineClient).GetProgressAsync(123);
+        using var offlineClient = new HttpClient(new StubHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+        var otherAccount = new AppSettings
+        {
+            SteamAchievements = new SteamAchievementsSettings
+            {
+                Enabled = true,
+                SteamId64 = "76561198000000099"
+            }
+        };
+        var restartedService = CreateService(offlineClient, otherAccount);
+
+        await Assert.ThrowsAsync<SteamApiException>(() =>
+            restartedService.GetProgressAsync(123, forceRefresh: true));
+    }
+
+    private SteamAchievementsProgressService CreateService(
         HttpClient httpClient,
-        AppSettings? settings = null)
+        AppSettings? settings = null,
+        TimeProvider? timeProvider = null)
     {
         settings ??= new AppSettings
         {
@@ -120,8 +197,12 @@ public sealed class SteamAchievementsProgressServiceTests
         return new SteamAchievementsProgressService(
             settings,
             accountService,
-            apiClient);
+            apiClient,
+            timeProvider ?? TimeProvider.System,
+            _cacheDirectory.RootPath);
     }
+
+    public void Dispose() => _cacheDirectory.Dispose();
 
     private static HttpResponseMessage CreateApiResponse(
         HttpRequestMessage request)
@@ -229,5 +310,12 @@ public sealed class SteamAchievementsProgressServiceTests
             length = 0;
             return false;
         }
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+
+        public void Advance(TimeSpan duration) => utcNow += duration;
     }
 }

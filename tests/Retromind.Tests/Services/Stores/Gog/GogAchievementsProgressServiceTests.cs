@@ -4,11 +4,14 @@ using Retromind.Models;
 using Retromind.Services.Stores.Gog.Achievements;
 using Retromind.Services.Stores.Gog.Auth;
 using Retromind.Services.Stores.Security;
+using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services.Stores.Gog;
 
-public sealed class GogAchievementsProgressServiceTests
+public sealed class GogAchievementsProgressServiceTests : IDisposable
 {
+    private readonly TemporaryDirectory _cacheDirectory = new();
+
     [Fact]
     public async Task GetProgressAsync_ReusesFreshEntryAndForceRefreshes()
     {
@@ -31,6 +34,33 @@ public sealed class GogAchievementsProgressServiceTests
         Assert.Same(first.Progress, cached.Progress);
         Assert.NotSame(first.Progress, refreshed.Progress);
         Assert.False(cached.UsedCachedFallback);
+    }
+
+    [Fact]
+    public async Task GetProgressAsync_RefreshesAfterOneHour()
+    {
+        var gameplayRequests = 0;
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            if (request.RequestUri?.AbsolutePath == "/token")
+                return TokenResponse();
+
+            gameplayRequests++;
+            return ProgressResponse();
+        }));
+        var time = new MutableTimeProvider(
+            new DateTimeOffset(2026, 10, 19, 10, 0, 0, TimeSpan.Zero));
+        var service = await CreateServiceAsync(httpClient, timeProvider: time);
+
+        var first = await service.GetProgressAsync("1994983163");
+        time.Advance(TimeSpan.FromMinutes(59));
+        var cached = await service.GetProgressAsync("1994983163");
+        time.Advance(TimeSpan.FromMinutes(2));
+        var refreshed = await service.GetProgressAsync("1994983163");
+
+        Assert.Equal(2, gameplayRequests);
+        Assert.Same(first.Progress, cached.Progress);
+        Assert.NotSame(first.Progress, refreshed.Progress);
     }
 
     [Fact]
@@ -76,7 +106,9 @@ public sealed class GogAchievementsProgressServiceTests
         var service = new GogAchievementsProgressService(
             new AppSettings { EnableGogGalaxyIntegration = false },
             authService,
-            new GogAchievementsApiClient(httpClient));
+            new GogAchievementsApiClient(httpClient),
+            TimeProvider.System,
+            _cacheDirectory.RootPath);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.GetProgressAsync("1994983163"));
@@ -84,10 +116,94 @@ public sealed class GogAchievementsProgressServiceTests
         Assert.Equal(0, requests);
     }
 
-    private static async Task<GogAchievementsProgressService> CreateServiceAsync(
-        HttpClient httpClient)
+    [Fact]
+    public async Task GetProgressAsync_UsesPersistentFallbackAfterRestart()
     {
         var secretStore = new InMemorySecretStore();
+        using var onlineClient = new HttpClient(new StubHandler(request =>
+            request.RequestUri?.AbsolutePath == "/token"
+                ? TokenResponse()
+                : ProgressResponse()));
+        var onlineService = await CreateServiceAsync(onlineClient, secretStore);
+        var online = await onlineService.GetProgressAsync("1994983163");
+        var cachePath = Assert.Single(
+            Directory.EnumerateFiles(
+                _cacheDirectory.RootPath,
+                "*.json",
+                SearchOption.AllDirectories));
+        Assert.DoesNotContain(
+            "46988829925743611",
+            cachePath,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "46988829925743611",
+            await File.ReadAllTextAsync(cachePath),
+            StringComparison.Ordinal);
+
+        using var offlineClient = new HttpClient(new StubHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+        var restartedAuthService = new GogAuthService(
+            secretStore,
+            new GogOAuthClient(offlineClient),
+            new GogPkceService());
+        var restartedService = new GogAchievementsProgressService(
+            new AppSettings { EnableGogGalaxyIntegration = true },
+            restartedAuthService,
+            new GogAchievementsApiClient(offlineClient),
+            TimeProvider.System,
+            _cacheDirectory.RootPath);
+
+        var fallback = await restartedService.GetProgressAsync(
+            "1994983163",
+            forceRefresh: true);
+
+        Assert.NotSame(online.Progress, fallback.Progress);
+        Assert.Equal("First", Assert.Single(fallback.Progress.Achievements).Title);
+        Assert.Equal(online.FetchedAtUtc, fallback.FetchedAtUtc);
+        Assert.True(fallback.UsedCachedFallback);
+    }
+
+    [Fact]
+    public async Task GetProgressAsync_DoesNotReuseAnotherAccountsPersistentCache()
+    {
+        var originalSecretStore = new InMemorySecretStore();
+        using var onlineClient = new HttpClient(new StubHandler(request =>
+            request.RequestUri?.AbsolutePath == "/token"
+                ? TokenResponse()
+                : ProgressResponse()));
+        _ = await (await CreateServiceAsync(onlineClient, originalSecretStore))
+            .GetProgressAsync("1994983163");
+
+        var otherAccountSecretStore = new InMemorySecretStore();
+        await otherAccountSecretStore.SetAsync(
+            new SecretKey("retromind:gog", "default"),
+            "other-refresh-token");
+        await otherAccountSecretStore.SetAsync(
+            new SecretKey("retromind:gog", "galaxy-user-id"),
+            "46988829925743999");
+        using var offlineClient = new HttpClient(new StubHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+        var authService = new GogAuthService(
+            otherAccountSecretStore,
+            new GogOAuthClient(offlineClient),
+            new GogPkceService());
+        var restartedService = new GogAchievementsProgressService(
+            new AppSettings { EnableGogGalaxyIntegration = true },
+            authService,
+            new GogAchievementsApiClient(offlineClient),
+            TimeProvider.System,
+            _cacheDirectory.RootPath);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            restartedService.GetProgressAsync("1994983163", forceRefresh: true));
+    }
+
+    private async Task<GogAchievementsProgressService> CreateServiceAsync(
+        HttpClient httpClient,
+        InMemorySecretStore? secretStore = null,
+        TimeProvider? timeProvider = null)
+    {
+        secretStore ??= new InMemorySecretStore();
         await secretStore.SetAsync(
             new SecretKey("retromind:gog", "default"),
             "refresh-token");
@@ -98,8 +214,12 @@ public sealed class GogAchievementsProgressServiceTests
         return new GogAchievementsProgressService(
             new AppSettings { EnableGogGalaxyIntegration = true },
             authService,
-            new GogAchievementsApiClient(httpClient));
+            new GogAchievementsApiClient(httpClient),
+            timeProvider ?? TimeProvider.System,
+            _cacheDirectory.RootPath);
     }
+
+    public void Dispose() => _cacheDirectory.Dispose();
 
     private static HttpResponseMessage TokenResponse() =>
         JsonResponse(
@@ -150,5 +270,12 @@ public sealed class GogAchievementsProgressServiceTests
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(responseFactory(request));
         }
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+
+        public void Advance(TimeSpan duration) => utcNow += duration;
     }
 }

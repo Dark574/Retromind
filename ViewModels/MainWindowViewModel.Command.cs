@@ -15,6 +15,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.Achievements;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.Stores;
 using Retromind.Services.Stores.Epic;
@@ -534,7 +535,8 @@ public partial class MainWindowViewModel
             _steamAchievementsProgressService,
             IsParentalFilterActive,
             startOnHome,
-            _gogAchievementsProgressService);
+            _gogAchievementsProgressService,
+            _storeAchievementImageCacheService);
         _activeBigModeViewModel = bigVm;
 
         var host = new BigModeHostView
@@ -1828,8 +1830,13 @@ public partial class MainWindowViewModel
                 await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
                     portableHomeWasEnabled,
                     portableHomeIsEnabled);
+                await StoreAchievementCachePathProvider.MigrateCacheLocationAsync(
+                    portableHomeWasEnabled,
+                    portableHomeIsEnabled);
                 var cacheLocationChanged =
                     _retroAchievementsCachePathProvider.UsePortableHome(portableHomeIsEnabled);
+                cacheLocationChanged |=
+                    _storeAchievementCachePathProvider.UsePortableHome(portableHomeIsEnabled);
                 await RetroAchievementsProgress.SelectItemAsync(
                     GetCurrentSelectedItem(),
                     forceRefresh: cacheLocationChanged);
