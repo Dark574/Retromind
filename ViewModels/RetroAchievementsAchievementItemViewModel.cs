@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
+using Retromind.Services.Stores.Gog.Achievements;
 
 namespace Retromind.ViewModels;
 
@@ -82,6 +83,33 @@ public sealed class RetroAchievementsAchievementItemViewModel : ViewModelBase
             : stateText;
     }
 
+    public RetroAchievementsAchievementItemViewModel(GogAchievement achievement)
+    {
+        ArgumentNullException.ThrowIfNull(achievement);
+
+        AchievementKey = achievement.Key;
+        Title = string.IsNullOrWhiteSpace(achievement.Title)
+            ? T("GogAchievements_HiddenAchievement", "Hidden achievement")
+            : achievement.Title;
+        Description = achievement.Description;
+        IsHidden = achievement.IsHidden;
+        IsUnlocked = achievement.IsUnlocked;
+        IsLocked = !IsUnlocked;
+        ImageReference = achievement.ImageUrl;
+        PointsText = FormatGogRarity(achievement);
+
+        var stateText = IsUnlocked
+            ? T("GogAchievements_AchievementUnlocked", "Unlocked")
+            : T("RetroAchievements_AchievementLocked", "Locked");
+        StatusText = achievement.UnlockedAtUtc.HasValue
+            ? string.Format(
+                CultureInfo.CurrentCulture,
+                T("RetroAchievements_AchievementUnlockedAtFormat", "{0} · Unlocked {1:g}"),
+                stateText,
+                achievement.UnlockedAtUtc.Value.ToLocalTime())
+            : stateText;
+    }
+
     public int AchievementId { get; }
     public string AchievementKey { get; } = string.Empty;
     public string BadgeName { get; } = string.Empty;
@@ -106,4 +134,21 @@ public sealed class RetroAchievementsAchievementItemViewModel : ViewModelBase
     }
 
     internal void SetBadgePath(string? path) => BadgePath = path;
+
+    private static string FormatGogRarity(GogAchievement achievement)
+    {
+        if (!string.IsNullOrWhiteSpace(achievement.RarityLevelDescription))
+        {
+            return string.Format(
+                CultureInfo.CurrentCulture,
+                T("GogAchievements_RarityFormat", "{0} · {1:N1}%"),
+                achievement.RarityLevelDescription,
+                achievement.Rarity);
+        }
+
+        return string.Format(
+            CultureInfo.CurrentCulture,
+            T("GogAchievements_RarityPercentFormat", "Rarity: {0:N1}%"),
+            achievement.Rarity);
+    }
 }

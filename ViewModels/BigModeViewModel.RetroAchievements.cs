@@ -255,6 +255,12 @@ public partial class BigModeViewModel
             return steamSettings.ShowInBigMode;
         }
 
+        if (_settings.EnableGogGalaxyIntegration &&
+            GogMediaItemStateHelper.TryGetGameId(item) != null)
+        {
+            return true;
+        }
+
         var retroAchievementsSettings = _settings.RetroAchievements;
         return retroAchievementsSettings != null &&
                retroAchievementsSettings.ShowInBigMode &&

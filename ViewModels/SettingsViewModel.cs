@@ -524,10 +524,10 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         "GOG Galaxy services (experimental)");
     public string GogGalaxyEnableText => T(
         "Settings.GogGalaxy.Enable",
-        "Enable Comet for linked GOG games");
+        "Enable GOG Galaxy services for linked games");
     public string GogGalaxyHint => T(
         "Settings.GogGalaxy.Hint",
-        "Starts Retromind's bundled Comet service while an eligible GOG game runs. This can enable Galaxy SDK features such as achievement synchronization when the game and runtime are compatible. Native Linux, Wine, Proton and UMU support varies by title.");
+        "Displays GOG achievement progress and starts Retromind's bundled Comet service while an eligible game runs. Comet can synchronize achievements when the game and runtime are compatible. Native Linux, Wine, Proton and UMU support varies by title.");
     public string SettingsTabBackupsTitle => T("Settings_TabBackups", "Data");
     public string SettingsTabHelpTitle => T("Settings_TabHelp", "Help");
     public string GettingStartedTitle => T("GettingStarted.Title", "Welcome to Retromind");

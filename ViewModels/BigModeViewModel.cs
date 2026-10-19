@@ -16,6 +16,7 @@ using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
+using Retromind.Services.Stores.Gog.Achievements;
 
 namespace Retromind.ViewModels;
 
@@ -458,7 +459,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         IRetroAchievementsBadgeService retroAchievementsBadgeService,
         ISteamAchievementsProgressService steamAchievementsProgressService,
         bool parentalFilterActive = false,
-        bool startOnHome = false)
+        bool startOnHome = false,
+        IGogAchievementsProgressService? gogAchievementsProgressService = null)
     {
         _rootNodes = rootNodes ?? throw new ArgumentNullException(nameof(rootNodes));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -471,7 +473,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             _settings,
             retroAchievementsProgressService,
             retroAchievementsBadgeService,
-            steamAchievementsProgressService);
+            steamAchievementsProgressService,
+            gogAchievementsProgressService);
         InitializeRetroAchievementsOverlay();
         InitializeSystemMenu();
 

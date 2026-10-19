@@ -10,7 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.3-alpha] - unreleased
 
 ### Added
-- optionally start the bundled Comet service with linked GOG games for experimental Galaxy SDK features such as achievement synchronization on supported titles
+- optionally synchronize achievements for supported GOG games through the bundled Comet service and display GOG progress, rarity, unlock times, and privacy-safe hidden achievements in the desktop details and BigMode
 
 ### Changed
 

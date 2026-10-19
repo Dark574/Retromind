@@ -533,7 +533,8 @@ public partial class MainWindowViewModel
             _retroAchievementsBadgeService,
             _steamAchievementsProgressService,
             IsParentalFilterActive,
-            startOnHome);
+            startOnHome,
+            _gogAchievementsProgressService);
         _activeBigModeViewModel = bigVm;
 
         var host = new BigModeHostView

@@ -28,6 +28,7 @@ using Retromind.Services.Stores;
 using Retromind.Services.Stores.Abstractions;
 using Retromind.Services.Stores.Epic;
 using Retromind.Services.Stores.Gog;
+using Retromind.Services.Stores.Gog.Achievements;
 
 namespace Retromind.ViewModels;
 
@@ -74,6 +75,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly SteamAchievementsAccountService _steamAchievementsAccountService;
     private readonly SteamAccountDiscoveryService _steamAccountDiscoveryService;
     private readonly ISteamAchievementsProgressService _steamAchievementsProgressService;
+    private readonly IGogAchievementsProgressService _gogAchievementsProgressService;
 
     // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
     private readonly HttpClient _httpClient;
@@ -440,6 +442,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SteamAchievementsAccountService steamAchievementsAccountService,
         SteamAccountDiscoveryService steamAccountDiscoveryService,
         ISteamAchievementsProgressService steamAchievementsProgressService,
+        IGogAchievementsProgressService gogAchievementsProgressService,
         ScraperCredentialService scraperCredentialService,
         LibraryHealthService? libraryHealthService = null)
     {
@@ -479,11 +482,13 @@ public partial class MainWindowViewModel : ViewModelBase
         _steamAchievementsAccountService = steamAchievementsAccountService;
         _steamAccountDiscoveryService = steamAccountDiscoveryService;
         _steamAchievementsProgressService = steamAchievementsProgressService;
+        _gogAchievementsProgressService = gogAchievementsProgressService;
         RetroAchievementsProgress = new RetroAchievementsProgressViewModel(
             _currentSettings,
             _retroAchievementsProgressService,
             _retroAchievementsBadgeService,
             _steamAchievementsProgressService,
+            _gogAchievementsProgressService,
             selectionDelay: TimeSpan.FromMilliseconds(300));
         if (_settingsService.HasLoadFailure)
         {

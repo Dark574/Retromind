@@ -6,9 +6,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
+using Retromind.Services.Stores.Gog.Achievements;
 
 namespace Retromind.ViewModels;
 
@@ -22,12 +24,14 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private readonly IRetroAchievementsProgressService _progressService;
     private readonly IRetroAchievementsBadgeService _badgeService;
     private readonly ISteamAchievementsProgressService? _steamProgressService;
+    private readonly IGogAchievementsProgressService? _gogProgressService;
     private readonly TimeSpan _selectionDelay;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _badgeLoadCts;
     private MediaItem? _selectedItem;
     private int _selectedGameId;
     private uint _selectedSteamAppId;
+    private string? _selectedGogGameId;
     private string? _selectedUserIdentifier;
     private AchievementProvider _activeProvider;
     private bool _isVisible;
@@ -37,6 +41,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private string _statusText = string.Empty;
     private RetroAchievementsProgressSnapshot? _snapshot;
     private SteamProgressSnapshot? _steamSnapshot;
+    private GogProgressSnapshot? _gogSnapshot;
     private IReadOnlyList<RetroAchievementsAchievementItemViewModel> _achievementItems =
         Array.Empty<RetroAchievementsAchievementItemViewModel>();
     private bool _disposed;
@@ -51,6 +56,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             progressService,
             badgeService,
             steamProgressService: null,
+            gogProgressService: null,
             selectionDelay)
     {
     }
@@ -61,6 +67,23 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         IRetroAchievementsBadgeService badgeService,
         ISteamAchievementsProgressService? steamProgressService,
         TimeSpan selectionDelay = default)
+        : this(
+            settings,
+            progressService,
+            badgeService,
+            steamProgressService,
+            gogProgressService: null,
+            selectionDelay)
+    {
+    }
+
+    public RetroAchievementsProgressViewModel(
+        AppSettings settings,
+        IRetroAchievementsProgressService progressService,
+        IRetroAchievementsBadgeService badgeService,
+        ISteamAchievementsProgressService? steamProgressService,
+        IGogAchievementsProgressService? gogProgressService,
+        TimeSpan selectionDelay = default)
     {
         if (selectionDelay < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(selectionDelay));
@@ -69,6 +92,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         _progressService = progressService ?? throw new ArgumentNullException(nameof(progressService));
         _badgeService = badgeService ?? throw new ArgumentNullException(nameof(badgeService));
         _steamProgressService = steamProgressService;
+        _gogProgressService = gogProgressService;
         _selectionDelay = selectionDelay;
         RefreshCommand = new AsyncRelayCommand(
             () => SelectItemAsync(_selectedItem, forceRefresh: true),
@@ -79,9 +103,14 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     public IAsyncRelayCommand RefreshCommand { get; }
     public IRelayCommand ToggleAchievementsCommand { get; }
 
-    public string Title => _activeProvider == AchievementProvider.Steam
-        ? T("SteamAchievements_ProgressTitle", "Steam achievement progress")
-        : T("RetroAchievements_ProgressTitle", "RetroAchievements progress");
+    public string Title => _activeProvider switch
+    {
+        AchievementProvider.Steam =>
+            T("SteamAchievements_ProgressTitle", "Steam achievement progress"),
+        AchievementProvider.Gog =>
+            T("GogAchievements_ProgressTitle", "GOG achievement progress"),
+        _ => T("RetroAchievements_ProgressTitle", "RetroAchievements progress")
+    };
     public string RefreshText => T("RetroAchievements_ProgressRefresh", "Refresh");
     public string AchievementsTitle => T("RetroAchievements_AchievementsTitle", "Achievements");
     public string AchievementsHeaderText => string.Format(
@@ -179,6 +208,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     public bool HasProgress => _activeProvider switch
     {
         AchievementProvider.Steam => _steamSnapshot != null,
+        AchievementProvider.Gog => _gogSnapshot != null,
         AchievementProvider.RetroAchievements => Snapshot != null,
         _ => false
     };
@@ -186,12 +216,18 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     public bool ShowStatus => !string.IsNullOrWhiteSpace(StatusText);
     public double ProgressMaximum => Math.Max(
         1,
-        _activeProvider == AchievementProvider.Steam
-            ? _steamSnapshot?.Progress.AchievementCount ?? 1
-            : Snapshot?.Progress.AchievementCount ?? 1);
-    public double ProgressValue => _activeProvider == AchievementProvider.Steam
-        ? _steamSnapshot?.Progress.UnlockedCount ?? 0
-        : Snapshot?.Progress.AwardedCount ?? 0;
+        _activeProvider switch
+        {
+            AchievementProvider.Steam => _steamSnapshot?.Progress.AchievementCount ?? 1,
+            AchievementProvider.Gog => _gogSnapshot?.Progress.AchievementCount ?? 1,
+            _ => Snapshot?.Progress.AchievementCount ?? 1
+        });
+    public double ProgressValue => _activeProvider switch
+    {
+        AchievementProvider.Steam => _steamSnapshot?.Progress.UnlockedCount ?? 0,
+        AchievementProvider.Gog => _gogSnapshot?.Progress.UnlockedCount ?? 0,
+        _ => Snapshot?.Progress.AwardedCount ?? 0
+    };
 
     public string SummaryText
     {
@@ -211,6 +247,22 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                     steamProgress.UnlockedCount,
                     steamProgress.AchievementCount,
                     steamProgress.CompletionPercent);
+            }
+
+            if (_activeProvider == AchievementProvider.Gog)
+            {
+                var gogProgress = _gogSnapshot?.Progress;
+                if (gogProgress == null)
+                    return string.Empty;
+
+                return string.Format(
+                    CultureInfo.CurrentCulture,
+                    T(
+                        "GogAchievements_ProgressSummaryFormat",
+                        "{0:N0} of {1:N0} achievements ({2:N1}%)"),
+                    gogProgress.UnlockedCount,
+                    gogProgress.AchievementCount,
+                    gogProgress.CompletionPercent);
             }
 
             var progress = Snapshot?.Progress;
@@ -249,6 +301,20 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                     steamProgress.LockedHiddenAchievementCount);
             }
 
+            if (_activeProvider == AchievementProvider.Gog)
+            {
+                var gogProgress = _gogSnapshot?.Progress;
+                if (gogProgress == null || gogProgress.LockedHiddenAchievementCount == 0)
+                    return string.Empty;
+
+                return string.Format(
+                    CultureInfo.CurrentCulture,
+                    T(
+                        "GogAchievements_LockedHiddenSummaryFormat",
+                        "Hidden achievements remaining: {0:N0}"),
+                    gogProgress.LockedHiddenAchievementCount);
+            }
+
             var progress = Snapshot?.Progress;
             if (progress == null)
                 return string.Empty;
@@ -280,21 +346,36 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             _steamProgressService != null &&
             steamAchievementsSettings?.Enabled == true &&
             hasSteamAppId;
+        var gogGameId = GogMediaItemStateHelper.TryGetGameId(item);
+        var gogAchievementsVisible =
+            _gogProgressService != null &&
+            _settings.EnableGogGalaxyIntegration &&
+            !string.IsNullOrWhiteSpace(gogGameId);
         var provider = steamAchievementsVisible
             ? AchievementProvider.Steam
-            : retroAchievementsVisible
-                ? AchievementProvider.RetroAchievements
-                : AchievementProvider.None;
+            : gogAchievementsVisible
+                ? AchievementProvider.Gog
+                : retroAchievementsVisible
+                    ? AchievementProvider.RetroAchievements
+                    : AchievementProvider.None;
         var isVisible = provider != AchievementProvider.None;
-        var userIdentifier = provider == AchievementProvider.Steam
-            ? steamAchievementsSettings?.SteamId64?.Trim()
-            : FirstNonEmpty(
+        var userIdentifier = provider switch
+        {
+            AchievementProvider.Steam => steamAchievementsSettings?.SteamId64?.Trim(),
+            AchievementProvider.RetroAchievements => FirstNonEmpty(
                 retroAchievementsSettings?.UserUlid,
-                retroAchievementsSettings?.Username);
+                retroAchievementsSettings?.Username),
+            _ => null
+        };
         var hasRequestedProgress = provider switch
         {
             AchievementProvider.Steam =>
                 _steamSnapshot?.Progress.AppId == steamAppId,
+            AchievementProvider.Gog =>
+                string.Equals(
+                    _gogSnapshot?.Progress.GameId,
+                    gogGameId,
+                    StringComparison.Ordinal),
             AchievementProvider.RetroAchievements =>
                 Snapshot?.Progress.GameId == gameId,
             _ => false
@@ -303,6 +384,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             ReferenceEquals(_selectedItem, item) &&
             _selectedGameId == gameId &&
             _selectedSteamAppId == steamAppId &&
+            string.Equals(_selectedGogGameId, gogGameId, StringComparison.Ordinal) &&
             _activeProvider == provider &&
             IsVisible == isVisible &&
             string.Equals(
@@ -317,6 +399,10 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         var selectedGameChanged = !ReferenceEquals(_selectedItem, item) ||
                                   _selectedGameId != gameId ||
                                   _selectedSteamAppId != steamAppId ||
+                                  !string.Equals(
+                                      _selectedGogGameId,
+                                      gogGameId,
+                                      StringComparison.Ordinal) ||
                                   _activeProvider != provider;
         if (selectedGameChanged)
             IsAchievementsExpanded = false;
@@ -324,6 +410,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         _selectedItem = item;
         _selectedGameId = gameId;
         _selectedSteamAppId = steamAppId;
+        _selectedGogGameId = gogGameId;
         _selectedUserIdentifier = userIdentifier;
         CancelCurrentLoad();
         SetActiveProvider(provider);
@@ -360,7 +447,8 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                         item,
                         provider,
                         gameId,
-                        steamAppId))
+                        steamAppId,
+                        gogGameId))
                 {
                     return;
                 }
@@ -388,6 +476,44 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                     StatusText = string.Empty;
                 }
             }
+            else if (provider == AchievementProvider.Gog)
+            {
+                var gogSnapshot = await _gogProgressService!
+                    .GetProgressAsync(gogGameId!, forceRefresh, requestCts.Token);
+                if (!IsCurrentRequest(
+                        requestCts,
+                        item,
+                        provider,
+                        gameId,
+                        steamAppId,
+                        gogGameId))
+                {
+                    return;
+                }
+
+                SetGogSnapshot(gogSnapshot);
+                if (IsAchievementsExpanded)
+                    StartBadgeLoading(AchievementItems, item, gameId);
+                if (gogSnapshot.Progress.AchievementCount == 0)
+                {
+                    StatusText = T(
+                        "GogAchievements_NoAchievements",
+                        "This game has no GOG achievements.");
+                }
+                else if (gogSnapshot.UsedCachedFallback)
+                {
+                    StatusText = string.Format(
+                        CultureInfo.CurrentCulture,
+                        T(
+                            "GogAchievements_ProgressCachedFallbackFormat",
+                            "GOG is unavailable. Showing cached data from {0:g}."),
+                        gogSnapshot.FetchedAtUtc.ToLocalTime());
+                }
+                else
+                {
+                    StatusText = string.Empty;
+                }
+            }
             else
             {
                 var snapshot = await _progressService
@@ -397,7 +523,8 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                         item,
                         provider,
                         gameId,
-                        steamAppId))
+                        steamAppId,
+                        gogGameId))
                 {
                     return;
                 }
@@ -421,6 +548,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         }
         catch (Exception ex) when (ex is RetroAchievementsApiException or
                                       SteamApiException or
+                                      GogAchievementsApiException or
                                       InvalidOperationException)
         {
             if (!IsCurrentRequest(
@@ -428,7 +556,8 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                     item,
                     provider,
                     gameId,
-                    steamAppId))
+                    steamAppId,
+                    gogGameId))
                 return;
 
             Debug.WriteLine($"[Achievements] Could not load progress: {ex.Message}");
@@ -443,7 +572,8 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                     item,
                     provider,
                     gameId,
-                    steamAppId))
+                    steamAppId,
+                    gogGameId))
                 return;
 
             Debug.WriteLine($"[Achievements] Unexpected progress load failure: {ex}");
@@ -476,9 +606,16 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private bool CanRefresh() =>
         IsVisible &&
         !IsLoading &&
-        (_activeProvider == AchievementProvider.Steam
-            ? SteamAppIdResolver.TryGetAppId(_selectedItem, out _)
-            : (_selectedItem?.RetroAchievementsGame?.GameId ?? 0) > 0);
+        (_activeProvider switch
+        {
+            AchievementProvider.Steam =>
+                SteamAppIdResolver.TryGetAppId(_selectedItem, out _),
+            AchievementProvider.Gog =>
+                GogMediaItemStateHelper.TryGetGameId(_selectedItem) != null,
+            AchievementProvider.RetroAchievements =>
+                (_selectedItem?.RetroAchievementsGame?.GameId ?? 0) > 0,
+            _ => false
+        });
 
     private static string? FirstNonEmpty(params string?[] values)
     {
@@ -528,6 +665,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     {
         Snapshot = null;
         SetSteamSnapshot(null);
+        SetGogSnapshot(null);
         AchievementItems = Array.Empty<RetroAchievementsAchievementItemViewModel>();
     }
 
@@ -553,23 +691,56 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             ?? Array.Empty<RetroAchievementsAchievementItemViewModel>();
     }
 
+    private void SetGogSnapshot(GogProgressSnapshot? value)
+    {
+        if (Equals(_gogSnapshot, value))
+            return;
+
+        _gogSnapshot = value;
+        OnPropertyChanged(nameof(HasProgress));
+        OnPropertyChanged(nameof(ProgressMaximum));
+        OnPropertyChanged(nameof(ProgressValue));
+        OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(HardcoreSummaryText));
+        OnPropertyChanged(nameof(ProviderDetailText));
+
+        if (_activeProvider != AchievementProvider.Gog)
+            return;
+
+        AchievementItems = value?.Progress.Achievements
+            .OrderByDescending(achievement => achievement.IsUnlocked)
+            .ThenByDescending(achievement => achievement.UnlockedAtUtc)
+            .ThenBy(achievement => achievement.Rarity)
+            .ThenBy(achievement => achievement.Title, StringComparer.CurrentCultureIgnoreCase)
+            .Select(achievement => new RetroAchievementsAchievementItemViewModel(achievement))
+            .ToArray()
+            ?? Array.Empty<RetroAchievementsAchievementItemViewModel>();
+    }
+
     private bool IsCurrentRequest(
         CancellationTokenSource requestCts,
         MediaItem? item,
         AchievementProvider provider,
         int gameId,
-        uint steamAppId)
+        uint steamAppId,
+        string? gogGameId)
     {
         return ReferenceEquals(_loadCts, requestCts) &&
                ReferenceEquals(_selectedItem, item) &&
                _selectedGameId == gameId &&
                _selectedSteamAppId == steamAppId &&
+               string.Equals(_selectedGogGameId, gogGameId, StringComparison.Ordinal) &&
                _activeProvider == provider &&
                (provider switch
                {
                    AchievementProvider.Steam =>
                        SteamAppIdResolver.TryGetAppId(item, out var currentAppId) &&
                        currentAppId == steamAppId,
+                   AchievementProvider.Gog =>
+                       string.Equals(
+                           GogMediaItemStateHelper.TryGetGameId(item),
+                           gogGameId,
+                           StringComparison.Ordinal),
                    AchievementProvider.RetroAchievements =>
                        item?.RetroAchievementsGame?.GameId == gameId,
                    _ => false
@@ -602,10 +773,20 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             return;
         }
 
-        if (_activeProvider == AchievementProvider.Steam)
+        if (_activeProvider is AchievementProvider.Steam or AchievementProvider.Gog)
         {
-            if (!SteamAppIdResolver.TryGetAppId(item, out var appId) ||
-                appId != _selectedSteamAppId)
+            if (_activeProvider == AchievementProvider.Steam &&
+                (!SteamAppIdResolver.TryGetAppId(item, out var appId) ||
+                 appId != _selectedSteamAppId))
+            {
+                return;
+            }
+
+            if (_activeProvider == AchievementProvider.Gog &&
+                !string.Equals(
+                    GogMediaItemStateHelper.TryGetGameId(item),
+                    _selectedGogGameId,
+                    StringComparison.Ordinal))
             {
                 return;
             }
@@ -707,6 +888,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     {
         None,
         RetroAchievements,
-        Steam
+        Steam,
+        Gog
     }
 }

@@ -70,6 +70,16 @@ public sealed class GogAuthService
         return _currentToken?.AccessToken;
     }
 
+    internal async Task<GogGameplayCredentials?> GetGameplayCredentialsAsync(
+        CancellationToken ct = default)
+    {
+        var accessToken = await GetValidAccessTokenAsync(ct).ConfigureAwait(false);
+        var userId = _currentToken?.UserId;
+        return string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(userId)
+            ? null
+            : new GogGameplayCredentials(accessToken, userId);
+    }
+
     internal async Task<GogSessionCredentials?> GetSessionCredentialsAsync(CancellationToken ct = default)
     {
         var accessToken = await GetValidAccessTokenAsync(ct).ConfigureAwait(false);

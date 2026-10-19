@@ -402,10 +402,16 @@ the report never mutates JSON or deletes files.
   requests and can provide the last in-memory result during a temporary API failure. Imported Steam games on Linux
   are tracked automatically by their exact App ID unless a manual watch process is configured; after the detected
   game processes exit, the still-selected game's progress is force-refreshed
-- the existing achievement presentation model is shared by RetroAchievements and Steam. Provider-neutral progress,
+- GOG achievement progress uses the structured store game ID and the Galaxy `user_id` from the current OAuth token
+  to query GOG's gameplay API. The access token is sent only in the authorization header, response bodies are
+  limited to 4 MiB while streaming, and locked hidden achievements have their title, description, and artwork
+  removed before reaching presentation state. A bounded five-minute account-specific memory cache coalesces
+  browsing requests, falls back to the last in-memory result during temporary API failures, and is force-refreshed
+  after a tracked game session. GOG progress is available only while the experimental Galaxy integration is enabled
+- the existing achievement presentation model is shared by RetroAchievements, Steam, and GOG. Provider-neutral progress,
   list expansion, refresh, and BigMode navigation remain common, while RetroAchievements adds points and Hardcore
-  state and Steam adds hidden-achievement state. Historical RetroAchievements property/type names remain available
-  so third-party runtime themes do not break
+  state, Steam adds hidden-achievement state, and GOG adds rarity. Historical RetroAchievements property/type names
+  remain available so third-party runtime themes do not break
 - `StoreImportService`: Steam import via `steamapps` manifest scan (`appmanifest_*.acf`). Epic imports load the
   owned library through the native Legendary provider. New imports persist the provider-neutral identity fields
   `Store.ProviderId` and `Store.GameId` on the `MediaItem`
@@ -477,9 +483,9 @@ the report never mutates JSON or deletes files.
   explicit unambiguous aliases; sharing a vendor or family word is insufficient. Ambiguous or unsafe results are
   logged but not imported
 
-For detailed GOG-native status and file map, see `docs/gog-provider.md`. GOG Galaxy/Comet achievement support
-is not integrated yet; the current secure-credential fork, reproducible Docker workflow, and implementation
-handoff are recorded in `docs/comet-fork.md`.
+For detailed GOG-native status and file map, see `docs/gog-provider.md`. The secure-credential Comet fork,
+reproducible Docker workflow, runtime integration, and achievement-presentation handoff are recorded in
+`docs/comet-fork.md`.
 
 ## Launch pipeline
 `LauncherService` resolves and executes media launches:
@@ -631,7 +637,8 @@ portable-path and prefix contracts, Winetricks prefix/command preparation, launc
 rules, metadata matching, search, statistics, managed runner publication/removal, GOG authentication/install
 safety, and the RetroAchievements account, hashing, catalog, progress,
 badge, cache-migration, and bulk-identification services, plus Steam account discovery, API parsing, App-ID
-resolution, progress caching, and privacy-safe achievement presentation. Destructive filesystem tests use unique
+resolution, progress caching, and privacy-safe achievement presentation, plus GOG gameplay API parsing, progress
+caching, and shared presentation. Destructive filesystem tests use unique
 `/tmp/retromind-tests-<guid>` roots, validate the exact target before cleanup, and avoid following symbolic
 links. This includes dangerous system/application roots, ownership markers, symbolic links, Linux case
 sensitivity, path containment, and persisted-library relocation.

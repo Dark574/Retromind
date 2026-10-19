@@ -20,6 +20,7 @@ using Retromind.Services.Stores.Abstractions;
 using Retromind.Services.Stores.Epic;
 using Retromind.Services.Stores.Epic.Legendary;
 using Retromind.Services.Stores.Gog;
+using Retromind.Services.Stores.Gog.Achievements;
 using Retromind.Services.Stores.Gog.Auth;
 using Retromind.Services.Stores.Gog.Comet;
 using Retromind.Services.Stores.Security;
@@ -330,6 +331,8 @@ public partial class App : Application
         services.AddSingleton<GogOAuthClient>();
         services.AddSingleton<GogPkceService>();
         services.AddSingleton<GogAuthService>();
+        services.AddSingleton<GogAchievementsApiClient>();
+        services.AddSingleton<IGogAchievementsProgressService, GogAchievementsProgressService>();
         services.AddSingleton<GogLibraryService>();
         services.AddSingleton<GogInstallService>();
         services.AddSingleton<GogLaunchDetectionService>();

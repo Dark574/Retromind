@@ -317,10 +317,10 @@ For every upstream update:
 If upstream accepts an equivalent secure input mechanism, retire the fork only after Retromind has migrated to a
 released upstream build and the complete credential and launch behavior has been retested.
 
-## Remaining Retromind integration
+## Retromind integration status
 
-Packaging, the isolated process boundary, authentication, and launch lifecycle are complete. Real-title platform
-validation and the provider-neutral achievement presentation remain.
+Packaging, the isolated process boundary, authentication, launch lifecycle, and provider-neutral achievement
+presentation are complete. Broader real-title validation across native Linux, Wine, Proton, and UMU remains.
 
 ### 1. Pin and package Comet (completed)
 
@@ -370,18 +370,21 @@ game. The owned session is stopped immediately after launch failure or cancellat
 lines in a bounded `Tools/Comet/Data/comet-errors.log`, redacts the supplied account credentials, and restricts the
 file to the current user on Linux. Routine Comet output is not persisted.
 
-Real communication and achievement synchronization still need separate verification with native Linux, Wine,
-Proton, and UMU titles. A successful Comet readiness check proves only that its local listener started.
+Real communication and achievement synchronization were verified with a GOG Windows title launched through UMU;
+the updated achievement appeared in GOG's Activity Feed. Native Linux and additional Wine/Proton/UMU titles still
+need broader compatibility testing. A successful Comet readiness check by itself proves only that its local listener
+started.
 
-### 4. Expose achievement data only after the runtime path works
+### 4. Expose achievement data after the runtime path works (completed)
 
-- First prove authentication, Comet readiness, game connection, and achievement synchronization with controlled
-  test accounts/titles.
-- Determine whether Retromind should read achievement state from Comet, GOG APIs, or another stable data source;
-  do not infer a presentation API merely from Comet's runtime protocol support.
-- Reuse Retromind's provider-neutral achievement presentation where possible without weakening Steam or
-  RetroAchievements privacy/cache rules.
-- Mark the feature experimental until both native and compatibility-layer behavior is understood.
+Retromind reads achievement presentation data from GOG's gameplay API with the structured GOG product ID and the
+Galaxy `user_id` from the current OAuth token. It intentionally does not read Comet's internal SQLite database:
+that schema is not a public integration contract and its directory is keyed by the SDK client ID rather than
+Retromind's product identity. The shared RetroAchievements/Steam presentation now also handles GOG progress,
+rarity, unlock times, artwork, selection caching, explicit refresh, tracked-session refresh, and BigMode. Locked
+hidden achievements are stripped of title, description, and artwork before presentation or caching. The gameplay
+response is bounded while streaming and the access token stays in the authorization header. The overall Galaxy
+feature remains experimental while platform and per-game compatibility coverage grows.
 
 ## Validation checklist for the next instance
 

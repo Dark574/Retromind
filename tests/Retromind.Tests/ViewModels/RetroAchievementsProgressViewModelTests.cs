@@ -2,6 +2,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
+using Retromind.Services.Stores.Gog.Achievements;
 using Retromind.ViewModels;
 
 namespace Retromind.Tests.ViewModels;
@@ -516,6 +517,92 @@ public sealed class RetroAchievementsProgressViewModelTests
         Assert.Null(viewModel.AchievementItems[1].BadgePath);
     }
 
+    [Fact]
+    public async Task SelectItemAsync_ShowsGogProgressForLinkedGame()
+    {
+        var settings = CreateSettings();
+        settings.EnableGogGalaxyIntegration = true;
+        var gogSnapshot = new GogProgressSnapshot(
+            new GogGameProgress
+            {
+                GameId = "1994983163",
+                Achievements =
+                [
+                    new GogAchievement
+                    {
+                        AchievementId = "101",
+                        Key = "FIRST",
+                        Title = "First",
+                        Description = "Completed",
+                        IsUnlocked = true,
+                        UnlockedAtUtc = new DateTimeOffset(
+                            2026,
+                            10,
+                            19,
+                            8,
+                            0,
+                            0,
+                            TimeSpan.Zero),
+                        ImageUrl = "https://images.gog.com/first.jpg",
+                        Rarity = 58.1,
+                        RarityLevelDescription = "Common"
+                    },
+                    new GogAchievement
+                    {
+                        AchievementId = "102",
+                        Key = "SECRET",
+                        IsHidden = true,
+                        Rarity = 2.4,
+                        RarityLevelDescription = "Epic"
+                    }
+                ]
+            },
+            new DateTimeOffset(2026, 10, 19, 8, 0, 0, TimeSpan.Zero),
+            UsedCachedFallback: false);
+        using var viewModel = new RetroAchievementsProgressViewModel(
+            settings,
+            new StubProgressService((gameId, forceRefresh, cancellationToken) =>
+                throw new InvalidOperationException("RetroAchievements should not be used.")),
+            new StubBadgeService((badgeName, isUnlocked, cancellationToken) =>
+                throw new InvalidOperationException("GOG images do not use the badge service.")),
+            steamProgressService: null,
+            gogProgressService: new StubGogProgressService((gameId, forceRefresh, cancellationToken) =>
+                Task.FromResult(gogSnapshot)));
+
+        await viewModel.SelectItemAsync(CreateGogItem("1994983163"));
+
+        Assert.True(viewModel.IsVisible);
+        Assert.True(viewModel.HasProgress);
+        Assert.Equal(2, viewModel.ProgressMaximum);
+        Assert.Equal(1, viewModel.ProgressValue);
+        Assert.Contains("GOG", viewModel.Title, StringComparison.Ordinal);
+        Assert.Contains("1", viewModel.ProviderDetailText, StringComparison.Ordinal);
+        Assert.Collection(
+            viewModel.AchievementItems,
+            achievement =>
+            {
+                Assert.Equal("First", achievement.Title);
+                Assert.True(achievement.IsUnlocked);
+                Assert.Contains("58", achievement.PointsText, StringComparison.Ordinal);
+                Assert.Null(achievement.BadgePath);
+            },
+            achievement =>
+            {
+                Assert.True(achievement.IsHidden);
+                Assert.True(achievement.IsLocked);
+                Assert.NotEmpty(achievement.Title);
+                Assert.Empty(achievement.Description);
+                Assert.Null(achievement.BadgePath);
+            });
+
+        viewModel.EnsureAchievementBadgesLoaded();
+
+        Assert.Equal(
+            "https://images.gog.com/first.jpg",
+            viewModel.AchievementItems[0].BadgePath);
+        Assert.Null(viewModel.AchievementItems[1].BadgePath);
+    }
+
     private static RetroAchievementsProgressViewModel CreateViewModel(
         Func<int, bool, CancellationToken, Task<RetroAchievementsProgressSnapshot>> getProgress,
         Func<string?, bool, CancellationToken, Task<string?>>? getBadge = null,
@@ -583,6 +670,17 @@ public sealed class RetroAchievementsProgressViewModelTests
             }
         };
 
+    private static MediaItem CreateGogItem(string gameId) =>
+        new()
+        {
+            Title = "GOG game",
+            CustomFields = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [CustomFieldKeyHelper.StoreProviderId] = "gog",
+                [CustomFieldKeyHelper.StoreGameId] = gameId
+            }
+        };
+
     private static RetroAchievementsProgressSnapshot CreateSnapshot(
         int gameId,
         bool usedCachedFallback = false,
@@ -638,5 +736,16 @@ public sealed class RetroAchievementsProgressViewModelTests
             bool forceRefresh = false,
             CancellationToken cancellationToken = default) =>
             getProgress(appId, forceRefresh, cancellationToken);
+    }
+
+    private sealed class StubGogProgressService(
+        Func<string, bool, CancellationToken, Task<GogProgressSnapshot>> getProgress)
+        : IGogAchievementsProgressService
+    {
+        public Task<GogProgressSnapshot> GetProgressAsync(
+            string gameId,
+            bool forceRefresh = false,
+            CancellationToken cancellationToken = default) =>
+            getProgress(gameId, forceRefresh, cancellationToken);
     }
 }

@@ -1451,6 +1451,15 @@ Die aktuellen Anwendungseinstellungen bleiben erhalten.</value></data>
     <data name="SteamAchievements_Hidden" xml:space="preserve"><value>Versteckt</value></data>
     <data name="SteamAchievements_AchievementUnlocked" xml:space="preserve"><value>Freigeschaltet</value></data>
     <data name="SteamAchievements_NoAchievements" xml:space="preserve"><value>Dieses Spiel besitzt keine Steam-Achievements.</value></data>
+    <data name="GogAchievements_ProgressTitle" xml:space="preserve"><value>GOG-Achievement-Fortschritt</value></data>
+    <data name="GogAchievements_ProgressSummaryFormat" xml:space="preserve"><value>{0:N0} von {1:N0} Achievements ({2:N1} %)</value></data>
+    <data name="GogAchievements_LockedHiddenSummaryFormat" xml:space="preserve"><value>Noch verborgene Achievements: {0:N0}</value></data>
+    <data name="GogAchievements_ProgressCachedFallbackFormat" xml:space="preserve"><value>GOG ist nicht erreichbar. Es werden zwischengespeicherte Daten vom {0:g} angezeigt.</value></data>
+    <data name="GogAchievements_HiddenAchievement" xml:space="preserve"><value>Verstecktes Achievement</value></data>
+    <data name="GogAchievements_AchievementUnlocked" xml:space="preserve"><value>Freigeschaltet</value></data>
+    <data name="GogAchievements_NoAchievements" xml:space="preserve"><value>Dieses Spiel besitzt keine GOG-Achievements.</value></data>
+    <data name="GogAchievements_RarityFormat" xml:space="preserve"><value>{0} · {1:N1} %</value></data>
+    <data name="GogAchievements_RarityPercentFormat" xml:space="preserve"><value>Seltenheit: {0:N1} %</value></data>
     <data name="RetroAchievements_SearchAll" xml:space="preserve"><value>RetroAchievements suchen (alle)...</value></data>
     <data name="RetroAchievements_SearchItem" xml:space="preserve"><value>RetroAchievements suchen...</value></data>
     <data name="RetroAchievements_AccountRequired" xml:space="preserve"><value>Richte vor der Erkennung in den Einstellungen ein RetroAchievements-Konto mit Web-API-Schlüssel ein.</value></data>
@@ -1506,6 +1515,6 @@ Die vorhandenen Dateien und Starteinstellungen bleiben unverändert. Das Retromi
     <data name="Settings.Scraper.CredentialsRollbackFailed" xml:space="preserve"><value>Die vorherigen Scraper-Zugangsdaten konnten nicht vollständig wiederhergestellt werden. Prüfe die Scraper-Profile, bevor du erneut speicherst.</value></data>
     <data name="Settings.GogGalaxy.TabTitle" xml:space="preserve"><value>GOG Galaxy</value></data>
     <data name="Settings.GogGalaxy.SectionTitle" xml:space="preserve"><value>GOG-Galaxy-Dienste (experimentell)</value></data>
-    <data name="Settings.GogGalaxy.Enable" xml:space="preserve"><value>Comet für verknüpfte GOG-Spiele aktivieren</value></data>
-    <data name="Settings.GogGalaxy.Hint" xml:space="preserve"><value>Startet den von Retromind mitgelieferten Comet-Dienst, während ein geeignetes GOG-Spiel läuft. Dadurch können bei kompatiblen Spielen und Laufzeitumgebungen Galaxy-SDK-Funktionen wie die Synchronisierung von Achievements verfügbar werden. Die Unterstützung nativer Linux-Spiele sowie von Wine, Proton und UMU ist vom jeweiligen Titel abhängig.</value></data>
+    <data name="Settings.GogGalaxy.Enable" xml:space="preserve"><value>GOG-Galaxy-Dienste für verknüpfte Spiele aktivieren</value></data>
+    <data name="Settings.GogGalaxy.Hint" xml:space="preserve"><value>Zeigt den GOG-Achievement-Fortschritt an und startet den von Retromind mitgelieferten Comet-Dienst, während ein geeignetes Spiel läuft. Comet kann Achievements bei kompatiblen Spielen und Laufzeitumgebungen synchronisieren. Die Unterstützung nativer Linux-Spiele sowie von Wine, Proton und UMU ist vom jeweiligen Titel abhängig.</value></data>
 </root>

@@ -75,8 +75,8 @@
     <data name="Settings.ScreenScraper.MemberPassword" xml:space="preserve"><value>ScreenScraper password</value></data>
     <data name="Settings.GogGalaxy.TabTitle" xml:space="preserve"><value>GOG Galaxy</value></data>
     <data name="Settings.GogGalaxy.SectionTitle" xml:space="preserve"><value>GOG Galaxy services (experimental)</value></data>
-    <data name="Settings.GogGalaxy.Enable" xml:space="preserve"><value>Enable Comet for linked GOG games</value></data>
-    <data name="Settings.GogGalaxy.Hint" xml:space="preserve"><value>Starts Retromind's bundled Comet service while an eligible GOG game runs. This can enable Galaxy SDK features such as achievement synchronization when the game and runtime are compatible. Native Linux, Wine, Proton and UMU support varies by title.</value></data>
+    <data name="Settings.GogGalaxy.Enable" xml:space="preserve"><value>Enable GOG Galaxy services for linked games</value></data>
+    <data name="Settings.GogGalaxy.Hint" xml:space="preserve"><value>Displays GOG achievement progress and starts Retromind's bundled Comet service while an eligible game runs. Comet can synchronize achievements when the game and runtime are compatible. Native Linux, Wine, Proton and UMU support varies by title.</value></data>
 
     <!-- BIGMODE -->
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Main menu</value></data>
@@ -1453,6 +1453,15 @@ The current application settings will be kept.</value></data>
     <data name="SteamAchievements_Hidden" xml:space="preserve"><value>Hidden</value></data>
     <data name="SteamAchievements_AchievementUnlocked" xml:space="preserve"><value>Unlocked</value></data>
     <data name="SteamAchievements_NoAchievements" xml:space="preserve"><value>This game has no Steam achievements.</value></data>
+    <data name="GogAchievements_ProgressTitle" xml:space="preserve"><value>GOG achievement progress</value></data>
+    <data name="GogAchievements_ProgressSummaryFormat" xml:space="preserve"><value>{0:N0} of {1:N0} achievements ({2:N1}%)</value></data>
+    <data name="GogAchievements_LockedHiddenSummaryFormat" xml:space="preserve"><value>Hidden achievements remaining: {0:N0}</value></data>
+    <data name="GogAchievements_ProgressCachedFallbackFormat" xml:space="preserve"><value>GOG is unavailable. Showing cached data from {0:g}.</value></data>
+    <data name="GogAchievements_HiddenAchievement" xml:space="preserve"><value>Hidden achievement</value></data>
+    <data name="GogAchievements_AchievementUnlocked" xml:space="preserve"><value>Unlocked</value></data>
+    <data name="GogAchievements_NoAchievements" xml:space="preserve"><value>This game has no GOG achievements.</value></data>
+    <data name="GogAchievements_RarityFormat" xml:space="preserve"><value>{0} · {1:N1}%</value></data>
+    <data name="GogAchievements_RarityPercentFormat" xml:space="preserve"><value>Rarity: {0:N1}%</value></data>
     <data name="RetroAchievements_SearchAll" xml:space="preserve"><value>Search RetroAchievements (All)...</value></data>
     <data name="RetroAchievements_SearchItem" xml:space="preserve"><value>Search RetroAchievements...</value></data>
     <data name="RetroAchievements_AccountRequired" xml:space="preserve"><value>Configure a RetroAchievements account and Web API key in the settings before starting identification.</value></data>
