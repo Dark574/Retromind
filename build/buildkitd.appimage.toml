@@ -1,0 +1,18 @@
+[worker.oci]
+  gc = true
+
+  # BuildKit's default policy keeps only about 512 MB for cache mounts. That
+  # is enough for Cargo's downloaded packages, but it immediately discards
+  # Comet's compiled target directory. Keep both caches between AppImage builds.
+  [[worker.oci.gcpolicy]]
+    filters = ["type==source.local", "type==exec.cachemount", "type==source.git.checkout"]
+    keepDuration = "168h"
+    reservedSpace = "4GB"
+    maxUsedSpace = "8GB"
+
+  # Regular builder layers are additionally capped by build-appimage.sh after
+  # every attempt. This policy is a safety net for automatic BuildKit GC.
+  [[worker.oci.gcpolicy]]
+    all = true
+    reservedSpace = "10GB"
+    maxUsedSpace = "30GB"

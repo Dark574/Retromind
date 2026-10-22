@@ -32,7 +32,9 @@ RUN set -eu; \
     tar -xzf "$protocols_archive" -C /workspace/proto --strip-components=1; \
     rm -f "$comet_archive" "$protocols_archive"
 
-RUN set -eu; \
+RUN --mount=type=cache,id=retromind-comet-cargo-home,target=/tmp/comet-cargo,sharing=locked \
+    --mount=type=cache,id=retromind-comet-target,target=/tmp/comet-target,sharing=locked \
+    set -eu; \
     . /tmp/comet-version.env; \
     cd /workspace; \
     CARGO_HOME=/tmp/comet-cargo CARGO_TARGET_DIR=/tmp/comet-target CARGO_INCREMENTAL=0 \

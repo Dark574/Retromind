@@ -239,14 +239,19 @@ It also creates the small compatibility metadata file
 clients from 0.1.9 and earlier can discover releases after the filename transition; it does not duplicate the
 AppImage itself.
 
-The script uses an isolated Buildx builder named `retromind-appimage`. After every build attempt, including a
-failed or interrupted one, it removes its temporary export container and limits this builder's cache to 20 GB.
-Obsolete Retromind builder images are removed after a successful build. The cache limit can be changed for a
-single build without affecting other Docker builders:
+The script uses an isolated Buildx builder named `retromind-appimage-v2`. Its BuildKit configuration reserves a
+separate cache for downloaded and compiled Comet dependencies. After every build attempt, including a failed or
+interrupted one, the script removes its temporary export container and limits regular builder layers to 20 GB;
+the separate dependency cache is not included in that limit. Obsolete Retromind builder images are removed after
+a successful build. The regular-layer cache limit can be changed for a single build without affecting other
+Docker builders:
 
 ```bash
 RETROMIND_BUILDX_CACHE_LIMIT=10gb ./build/build-appimage.sh
 ```
+
+After the first successful build with `retromind-appimage-v2`, the obsolete cache from the former builder can be
+removed once with `docker buildx rm retromind-appimage`.
 
 ## Build & Run
 ### IDE

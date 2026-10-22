@@ -9,8 +9,9 @@ APPDIR="$WORK_DIR/AppDir"
 LEGENDARY_VERSION_FILE="$BUILD_DIR/legendary-version.env"
 COMET_VERSION_FILE="$BUILD_DIR/comet-version.env"
 BUILDER_IMAGE="retromind-appimage-builder:bookworm"
-BUILDX_BUILDER="${RETROMIND_BUILDX_BUILDER:-retromind-appimage}"
+BUILDX_BUILDER="${RETROMIND_BUILDX_BUILDER:-retromind-appimage-v2}"
 BUILDX_CACHE_LIMIT="${RETROMIND_BUILDX_CACHE_LIMIT:-20gb}"
+BUILDKIT_CONFIG_FILE="$BUILD_DIR/buildkitd.appimage.toml"
 BUILDER_IMAGE_LABEL="org.retromind.appimage-builder=true"
 LOCAL_BUILD_SECRETS_DIR="$PROJECT_ROOT/.build-secrets"
 CID=""
@@ -23,6 +24,11 @@ fi
 
 if [ ! -f "$COMET_VERSION_FILE" ]; then
   echo "ERROR: Comet version file not found at '$COMET_VERSION_FILE'."
+  exit 1
+fi
+
+if [ ! -f "$BUILDKIT_CONFIG_FILE" ]; then
+  echo "ERROR: BuildKit configuration not found at '$BUILDKIT_CONFIG_FILE'."
   exit 1
 fi
 
@@ -94,9 +100,12 @@ cleanup_on_exit() {
 
   if [ "$BUILDX_CLEANUP_ENABLED" -eq 1 ]; then
     echo "Limit Retromind Docker build cache to $BUILDX_CACHE_LIMIT..."
+    # Cargo's named cache mounts avoid downloading and recompiling every Comet
+    # dependency whenever cache pressure removes the intermediate builder stage.
     if ! docker buildx prune \
         --builder "$BUILDX_BUILDER" \
         --force \
+        --filter "type!=exec.cachemount" \
         --max-used-space "$BUILDX_CACHE_LIMIT"; then
       echo "WARNING: Could not prune the Retromind Docker build cache."
     fi
@@ -154,6 +163,7 @@ if ! docker buildx inspect "$BUILDX_BUILDER" >/dev/null 2>&1; then
   docker buildx create \
     --name "$BUILDX_BUILDER" \
     --driver docker-container \
+    --buildkitd-config "$BUILDKIT_CONFIG_FILE" \
     >/dev/null
 fi
 
