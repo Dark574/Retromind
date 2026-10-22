@@ -17,6 +17,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Fixed
 - refresh the context menu after a game is assigend to the GOG-Store
+- keep usable ComicVine search results and available cover artwork when one of its comic resource searches fails temporarily
 
 ---
 
