@@ -24,6 +24,7 @@ using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Achievements;
 using Retromind.Services.Stores.Gog.Auth;
 using Retromind.Services.Stores.Gog.Comet;
+using Retromind.Services.Stores.Gog.Playtime;
 using Retromind.Services.Stores.Security;
 using Retromind.ViewModels;
 
@@ -87,6 +88,24 @@ public partial class App : Application
             ConfigureServices(services);
 
             Services = services.BuildServiceProvider();
+
+            if (settings.EnableGogGalaxyIntegration)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Services
+                            .GetRequiredService<IGogPlaytimeSyncService>()
+                            .TrySyncPendingAsync()
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[GOG] Pending playtime sync failed: {ex.Message}");
+                    }
+                });
+            }
 
             if (!settingsService.HasLoadFailure)
             {
@@ -300,6 +319,7 @@ public partial class App : Application
             var protonPrefixRelocationService = provider.GetRequiredService<ProtonPrefixRelocationService>();
             var steamProcessTrackingService = provider.GetRequiredService<SteamProcessTrackingService>();
             var gogCometSessionService = provider.GetRequiredService<IGogCometSessionService>();
+            var gogPlaytimeSyncService = provider.GetRequiredService<IGogPlaytimeSyncService>();
             return new LauncherService(
                 libraryPath,
                 settings,
@@ -310,7 +330,8 @@ public partial class App : Application
                 launchProcessService,
                 protonPrefixRelocationService,
                 steamProcessTrackingService,
-                gogCometSessionService);
+                gogCometSessionService,
+                gogPlaytimeSyncService);
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();
@@ -332,6 +353,12 @@ public partial class App : Application
         services.AddSingleton<GogOAuthClient>();
         services.AddSingleton<GogPkceService>();
         services.AddSingleton<GogAuthService>();
+        services.AddSingleton<IGogPlaytimeApiClient>(provider => new GogPlaytimeApiClient(
+            provider.GetRequiredService<HttpClient>()));
+        services.AddSingleton<IGogPlaytimeSyncService>(provider => new GogPlaytimeSyncService(
+            provider.GetRequiredService<GogAuthService>(),
+            provider.GetRequiredService<IGogPlaytimeApiClient>(),
+            GogPlaytimeSyncService.GetDefaultQueuePath(AppPaths.DataRoot)));
         services.AddSingleton<GogAchievementsApiClient>();
         services.AddSingleton<IGogAchievementsProgressService, GogAchievementsProgressService>();
         services.AddSingleton<GogLibraryService>();

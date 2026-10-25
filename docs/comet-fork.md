@@ -360,7 +360,7 @@ launch-lifecycle integration below starts this prepared sidecar for eligible gam
 ### 3. Integrate with the launch lifecycle (implemented; platform validation pending)
 
 The experimental setting starts Comet before direct launches of GOG-linked games without changing the established
-launch plan, wrappers, Wine/Proton/UMU setup, process tracking, playtime, or test-launch behavior. Eligibility is
+launch plan, wrappers, Wine/Proton/UMU setup, process tracking, or test-launch behavior. Eligibility is
 based on the provider-neutral GOG identity rather than the media type, so native Linux titles remain candidates.
 Legacy or deliberately external launcher/URI handoffs and already-running manual watch processes are excluded
 because Retromind has no reliable game-session boundary for them. Current Retromind-managed GOG launches and the
@@ -369,6 +369,9 @@ game. The owned session is stopped immediately after launch failure or cancellat
 30 seconds to synchronize and exit normally after the tracked game ends. Retromind retains only Comet's error
 lines in a bounded `Tools/Comet/Data/comet-errors.log`, redacts the supplied account credentials, and restricts the
 file to the current user on Linux. Routine Comet output is not persisted.
+
+Completed GOG playtime is synchronized separately by Retromind after its tracked launch boundary ends. Comet does
+not publish presence or own playtime submission; no Presence request or periodic status update is made by Retromind.
 
 Real communication and achievement synchronization were verified with a GOG Windows title launched through UMU;
 the updated achievement appeared in GOG's Activity Feed. Native Linux and additional Wine/Proton/UMU titles still

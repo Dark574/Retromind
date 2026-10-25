@@ -77,8 +77,8 @@ public class AppSettings
     public bool ShowStoreBadges { get; set; } = true;
 
     /// <summary>
-    /// Enables GOG achievement presentation and starts the bundled Comet sidecar
-    /// for eligible GOG-linked games so their Galaxy SDK can use supported services.
+    /// Enables GOG achievement presentation, playtime synchronization, and the bundled
+    /// Comet sidecar for eligible GOG-linked games so their Galaxy SDK can use supported services.
     /// This remains opt-in while platform and per-game compatibility are being validated.
     /// </summary>
     public bool EnableGogGalaxyIntegration { get; set; }

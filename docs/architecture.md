@@ -476,6 +476,12 @@ the report never mutates JSON or deletes files.
   tracked game session ends. Comet error output is retained as a bounded, credential-redacted `0600` diagnostic
   log below `Tools/Comet/Data`; routine output is discarded. Current
   Retromind-managed GOG launches and Legendary-based Epic launches do not use that legacy handoff path
+- `GogPlaytimeSyncService` submits completed, statistically eligible sessions for structured GOG items directly to
+  GOG's gameplay service after Retromind observes the game exit. Durations are sent as whole minutes; sub-minute,
+  canceled, delegated, and test launches are excluded. Failed submissions are kept in a bounded atomic queue that
+  stores only the numeric product ID, start time, duration, and a hash of the Galaxy account ID. Pending entries are
+  retried only with credentials for the same account, while tokens and plain account IDs are never persisted.
+  Retromind does not publish GOG Presence.
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider

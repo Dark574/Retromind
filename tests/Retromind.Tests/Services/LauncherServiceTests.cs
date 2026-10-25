@@ -4,6 +4,7 @@ using Retromind.Services;
 using Retromind.Services.Stores.Epic;
 using Retromind.Services.Stores.Epic.Legendary;
 using Retromind.Services.Stores.Gog.Comet;
+using Retromind.Services.Stores.Gog.Playtime;
 using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services;
@@ -744,6 +745,59 @@ public sealed class LauncherServiceTests
         Assert.Equal(0, cometService.StartCalls);
     }
 
+    [Fact]
+    public async Task TryReportGogPlaytimeSessionAsync_ReportsCompletedTrackedSession()
+    {
+        using var temp = new TemporaryDirectory();
+        var item = CreateGogItem("GOG playtime game", temp.GetPath("game"));
+        var settings = new AppSettings { EnableGogGalaxyIntegration = true };
+        var playtimeService = new StubGogPlaytimeSyncService();
+        var launcher = CreateLauncherWithComet(
+            temp,
+            settings,
+            new StubGogCometSessionService(),
+            playtimeService);
+        var startedAt = new DateTimeOffset(2026, 10, 25, 12, 30, 45, TimeSpan.Zero);
+        var duration = TimeSpan.FromMinutes(12);
+
+        await launcher.TryReportGogPlaytimeSessionAsync(
+            item,
+            recordStatistics: true,
+            wasSessionTracked: true,
+            startedAt,
+            duration);
+
+        var report = Assert.Single(playtimeService.Reports);
+        Assert.Same(item, report.Item);
+        Assert.Equal(startedAt, report.StartedAtUtc);
+        Assert.Equal(duration, report.Duration);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_DoesNotReportGogPlaytimeForTestLaunch()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile("gog-test-launch.sh", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            scriptPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = CreateGogItem("GOG test launch", scriptPath);
+        var settings = new AppSettings { EnableGogGalaxyIntegration = true };
+        var playtimeService = new StubGogPlaytimeSyncService();
+        var launcher = CreateLauncherWithComet(
+            temp,
+            settings,
+            new StubGogCometSessionService(),
+            playtimeService);
+
+        await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.Empty(playtimeService.Reports);
+    }
+
     private static MediaItem CreateGogItem(string title, string launchPath)
     {
         var item = new MediaItem(title)
@@ -766,7 +820,8 @@ public sealed class LauncherServiceTests
     private static LauncherService CreateLauncherWithComet(
         TemporaryDirectory temp,
         AppSettings settings,
-        IGogCometSessionService cometSessionService)
+        IGogCometSessionService cometSessionService,
+        IGogPlaytimeSyncService? playtimeSyncService = null)
     {
         var libraryRoot = temp.CreateDirectory("Library");
         return new LauncherService(
@@ -779,7 +834,8 @@ public sealed class LauncherServiceTests
             new LaunchProcessService(),
             new ProtonPrefixRelocationService(libraryRoot, settings),
             new SteamProcessTrackingService(),
-            cometSessionService);
+            cometSessionService,
+            playtimeSyncService);
     }
 
     private sealed class SingleResultLegendaryProcessRunner(LegendaryCliResult result)
@@ -826,6 +882,29 @@ public sealed class LauncherServiceTests
             return ValueTask.CompletedTask;
         }
     }
+
+    private sealed class StubGogPlaytimeSyncService : IGogPlaytimeSyncService
+    {
+        internal List<ReportCall> Reports { get; } = [];
+
+        public Task ReportSessionAsync(
+            MediaItem item,
+            DateTimeOffset startedAtUtc,
+            TimeSpan duration,
+            CancellationToken cancellationToken = default)
+        {
+            Reports.Add(new ReportCall(item, startedAtUtc, duration));
+            return Task.CompletedTask;
+        }
+
+        public Task TrySyncPendingAsync(CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+    }
+
+    private sealed record ReportCall(
+        MediaItem Item,
+        DateTimeOffset StartedAtUtc,
+        TimeSpan Duration);
 
     private sealed class StubSteamProcessTrackingService(TimeSpan duration)
         : SteamProcessTrackingService(

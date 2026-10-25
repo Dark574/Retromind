@@ -10,6 +10,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Gog.Comet;
+using Retromind.Services.Stores.Gog.Playtime;
 
 namespace Retromind.Services;
 
@@ -31,6 +32,7 @@ public sealed class LauncherService
     private readonly ProtonPrefixRelocationService _protonPrefixRelocationService;
     private readonly SteamProcessTrackingService _steamProcessTrackingService;
     private readonly IGogCometSessionService? _gogCometSessionService;
+    private readonly IGogPlaytimeSyncService? _gogPlaytimeSyncService;
 
     public LauncherService(
         string libraryRootPath,
@@ -52,7 +54,8 @@ public sealed class LauncherService
             launchProcessService ?? new LaunchProcessService(),
             protonPrefixRelocationService ?? new ProtonPrefixRelocationService(libraryRootPath, settings),
             steamProcessTrackingService ?? new SteamProcessTrackingService(),
-            gogCometSessionService: null)
+            gogCometSessionService: null,
+            gogPlaytimeSyncService: null)
     {
     }
 
@@ -66,7 +69,8 @@ public sealed class LauncherService
         LaunchProcessService launchProcessService,
         ProtonPrefixRelocationService protonPrefixRelocationService,
         SteamProcessTrackingService steamProcessTrackingService,
-        IGogCometSessionService? gogCometSessionService)
+        IGogCometSessionService? gogCometSessionService,
+        IGogPlaytimeSyncService? gogPlaytimeSyncService)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -80,6 +84,7 @@ public sealed class LauncherService
         _steamProcessTrackingService = steamProcessTrackingService ??
                                        throw new ArgumentNullException(nameof(steamProcessTrackingService));
         _gogCometSessionService = gogCometSessionService;
+        _gogPlaytimeSyncService = gogPlaytimeSyncService;
     }
 
     internal Task<LaunchSessionStopRequestResult> RequestActiveSessionStopAsync(
@@ -126,6 +131,7 @@ public sealed class LauncherService
         int? exitCode = null;
         string? consoleOutput = null;
         TimeSpan? processStartedAt = null;
+        DateTimeOffset? sessionStartedAtUtc = null;
         TimeSpan? trackedSessionDuration = null;
         var elapsed = TimeSpan.Zero;
         var wasStoppedByUser = false;
@@ -182,6 +188,7 @@ public sealed class LauncherService
                     additionalLaunchArguments,
                     launchLog);
             processStartedAt = stopwatch.Elapsed;
+            sessionStartedAtUtc = DateTimeOffset.UtcNow;
 
             if (watchedProcessName == null &&
                 !isDelegatedCommand &&
@@ -369,6 +376,21 @@ public sealed class LauncherService
             }
         }
 
+        if (sessionStartedAtUtc is { } startedAtUtc)
+        {
+            var measuredDuration = trackedSessionDuration ??
+                                   (processStartedAt is { } startedAt
+                                       ? elapsed - startedAt
+                                       : elapsed);
+            await TryReportGogPlaytimeSessionAsync(
+                    item,
+                    recordStatistics,
+                    shouldRecordSession,
+                    startedAtUtc,
+                    measuredDuration)
+                .ConfigureAwait(false);
+        }
+
         LaunchResult result;
         if (!string.IsNullOrWhiteSpace(missingWatchedProcessName))
         {
@@ -404,6 +426,34 @@ public sealed class LauncherService
                     consoleOutput: consoleOutput))
             .ConfigureAwait(false);
         return result;
+    }
+
+    internal async Task TryReportGogPlaytimeSessionAsync(
+        MediaItem item,
+        bool recordStatistics,
+        bool wasSessionTracked,
+        DateTimeOffset startedAtUtc,
+        TimeSpan duration)
+    {
+        if (!recordStatistics ||
+            !wasSessionTracked ||
+            !_settings.EnableGogGalaxyIntegration ||
+            _gogPlaytimeSyncService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _gogPlaytimeSyncService
+                .ReportSessionAsync(item, startedAtUtc, duration)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Remote playtime is best effort and must never change the launch outcome.
+            Debug.WriteLine($"[GOG] Playtime session could not be queued: {ex.Message}");
+        }
     }
 
     private static async Task FinishGogCometSessionAsync(

@@ -65,6 +65,11 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - owned-games fetch is cached in-memory for a short TTL to avoid repeated full pagination on consecutive imports
   - long-running GOG import/picker preparation shows wait cursor feedback
   - background update sweep runs throttled (24h interval, per-item delays) with auth-state caching and in-flight guards
+- Optional GOG Galaxy services:
+  - completed, directly tracked sessions of linked GOG games are submitted to the gameplay API in whole minutes
+  - sub-minute, canceled, delegated, and test launches are not submitted
+  - failed submissions use a bounded account-separated retry queue without persisted tokens or plain Galaxy IDs
+  - playtime submission is owned by Retromind and does not depend on Comet or publish GOG Presence
 - Install/launch wiring (first functional step):
   - GOG-linked items without launch config are now treated as installable from the main Start action
   - Start button label switches to Install for those items
@@ -263,7 +268,8 @@ Required behavior for native GOG auth:
    - checksums, resume strategy, and user cancellation support (implemented baseline)
 3. V3 parity/comfort:
    - updates/patches
-   - optional cloud/achievement features (if API feasibility is confirmed)
+   - optional achievement and playtime features (implemented baseline)
+   - optional cloud-save features (if API feasibility is confirmed)
 
 ## Open items
 
