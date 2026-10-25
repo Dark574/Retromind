@@ -16,7 +16,7 @@ internal sealed record ProtonPrefixRepairResult(
     int FailedLinks);
 
 /// <summary>
-/// Repairs Proton-managed prefix links after a portable Retromind data root was moved.
+/// Rebases Proton-managed prefix links after a portable Retromind data root was moved.
 /// Proton stores absolute links to files in its runtime, so moving both the runtime and
 /// prefix together does not update those link targets automatically.
 /// </summary>
@@ -39,7 +39,8 @@ public sealed class ProtonPrefixRelocationService
         ArgumentNullException.ThrowIfNull(item);
 
         var prefixPath = ResolveExistingWinePrefixPath(item.PrefixPath);
-        if (prefixPath == null || !IsProtonManagedPrefix(prefixPath))
+        var protonMetadataRoot = prefixPath == null ? null : ResolveProtonMetadataRoot(prefixPath);
+        if (prefixPath == null || protonMetadataRoot == null)
         {
             return new ProtonPrefixRepairResult(
                 false,
@@ -66,6 +67,7 @@ public sealed class ProtonPrefixRelocationService
         var repaired = 0;
         var unresolved = 0;
         var failed = 0;
+        var trackedPrefixEntries = LoadTrackedPrefixEntries(prefixPath, protonMetadataRoot);
 
         foreach (var linkPath in EnumerateSymbolicLinks(prefixPath))
         {
@@ -82,10 +84,25 @@ public sealed class ProtonPrefixRelocationService
             string? replacementTarget;
             try
             {
-                if (!IsBrokenAbsoluteProtonLink(linkPath, oldTarget, out var relativeRuntimePath))
+                if (!TryGetAbsoluteProtonRuntimeLink(
+                        linkPath,
+                        oldTarget,
+                        out var resolvedOldTarget,
+                        out var relativeRuntimePath))
+                {
+                    continue;
+                }
+
+                var oldTargetExists = File.Exists(resolvedOldTarget) || Directory.Exists(resolvedOldTarget);
+                if (oldTargetExists && !IsTrackedPrefixEntry(prefixPath, linkPath, trackedPrefixEntries))
                     continue;
 
                 replacementTarget = ResolveReplacementTarget(protonFilesRoot, relativeRuntimePath);
+                if (replacementTarget != null &&
+                    FileSystemPathIdentity.Equals(resolvedOldTarget, replacementTarget))
+                {
+                    continue;
+                }
             }
             catch
             {
@@ -182,9 +199,79 @@ public sealed class ProtonPrefixRelocationService
         return Path.GetFullPath(resolvedPath);
     }
 
-    private static bool IsProtonManagedPrefix(string prefixPath) =>
-        File.Exists(Path.Combine(prefixPath, "tracked_files")) &&
-        File.Exists(Path.Combine(prefixPath, "version"));
+    private static string? ResolveProtonMetadataRoot(string prefixPath)
+    {
+        if (HasProtonMetadata(prefixPath))
+            return prefixPath;
+
+        if (!PrefixPathHelper.IsPfxPath(prefixPath))
+            return null;
+
+        var parentPath = Directory.GetParent(prefixPath)?.FullName;
+        return parentPath != null && HasProtonMetadata(parentPath) ? parentPath : null;
+    }
+
+    private static bool HasProtonMetadata(string path) =>
+        File.Exists(Path.Combine(path, "tracked_files")) &&
+        File.Exists(Path.Combine(path, "version"));
+
+    private static HashSet<string> LoadTrackedPrefixEntries(string prefixPath, string protonMetadataRoot)
+    {
+        var trackedEntries = new HashSet<string>(FileSystemPathIdentity.Comparer);
+        var trackedFilesPath = Path.Combine(protonMetadataRoot, "tracked_files");
+
+        try
+        {
+            if ((File.GetAttributes(trackedFilesPath) & FileAttributes.ReparsePoint) != 0)
+                return trackedEntries;
+
+            foreach (var line in File.ReadLines(trackedFilesPath))
+            {
+                var normalizedEntry = NormalizePrefixRelativePath(prefixPath, line);
+                if (normalizedEntry != null)
+                    trackedEntries.Add(normalizedEntry);
+            }
+        }
+        catch
+        {
+            // A missing or unreadable manifest must not broaden which valid links can be rewritten.
+            trackedEntries.Clear();
+        }
+
+        return trackedEntries;
+    }
+
+    private static bool IsTrackedPrefixEntry(
+        string prefixPath,
+        string linkPath,
+        IReadOnlySet<string> trackedPrefixEntries)
+    {
+        var relativeLinkPath = Path.GetRelativePath(prefixPath, linkPath);
+        var normalizedLinkPath = NormalizePrefixRelativePath(prefixPath, relativeLinkPath);
+        return normalizedLinkPath != null && trackedPrefixEntries.Contains(normalizedLinkPath);
+    }
+
+    private static string? NormalizePrefixRelativePath(string prefixPath, string path)
+    {
+        var trimmedPath = path.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedPath) || Path.IsPathRooted(trimmedPath))
+            return null;
+
+        var normalizedPrefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(prefixPath));
+        var prefixWithSeparator = normalizedPrefix + Path.DirectorySeparatorChar;
+        var normalizedPath = trimmedPath
+            .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
+            .Replace('/', Path.DirectorySeparatorChar);
+        var candidate = Path.TrimEndingDirectorySeparator(
+            Path.GetFullPath(Path.Combine(normalizedPrefix, normalizedPath)));
+
+        if (!candidate.StartsWith(prefixWithSeparator, FileSystemPathIdentity.Comparison))
+            return null;
+
+        return Path.GetRelativePath(normalizedPrefix, candidate)
+            .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
+            .Replace('/', Path.DirectorySeparatorChar);
+    }
 
     private static int CountBrokenProtonLinks(string prefixPath)
     {
@@ -193,10 +280,14 @@ public sealed class ProtonPrefixRelocationService
         {
             try
             {
-                if (IsBrokenAbsoluteProtonLink(
+                var target = new FileInfo(linkPath).LinkTarget;
+                if (TryGetAbsoluteProtonRuntimeLink(
                         linkPath,
-                        new FileInfo(linkPath).LinkTarget,
-                        out _))
+                        target,
+                        out var resolvedTarget,
+                        out _) &&
+                    !File.Exists(resolvedTarget) &&
+                    !Directory.Exists(resolvedTarget))
                 {
                     count++;
                 }
@@ -254,18 +345,18 @@ public sealed class ProtonPrefixRelocationService
         }
     }
 
-    private static bool IsBrokenAbsoluteProtonLink(
+    private static bool TryGetAbsoluteProtonRuntimeLink(
         string linkPath,
         string? target,
+        out string resolvedTarget,
         out string relativeRuntimePath)
     {
+        resolvedTarget = string.Empty;
         relativeRuntimePath = string.Empty;
         if (string.IsNullOrWhiteSpace(target) || !Path.IsPathRooted(target))
             return false;
 
-        var resolvedTarget = Path.GetFullPath(target);
-        if (File.Exists(resolvedTarget) || Directory.Exists(resolvedTarget))
-            return false;
+        resolvedTarget = Path.GetFullPath(target);
 
         var separatorNormalized = resolvedTarget.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
         var marker = $"{Path.DirectorySeparatorChar}files{Path.DirectorySeparatorChar}";

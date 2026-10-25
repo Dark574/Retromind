@@ -8,7 +8,7 @@ namespace Retromind.Tests.Services;
 public sealed class ProtonPrefixRelocationServiceTests
 {
     [Fact]
-    public void Repair_RebasesOnlyBrokenProtonRuntimeLinksToConfiguredRunner()
+    public void Repair_RebasesBrokenProtonRuntimeLinksToConfiguredRunner()
     {
         if (!OperatingSystem.IsLinux())
             return;
@@ -49,6 +49,85 @@ public sealed class ProtonPrefixRelocationServiceTests
     }
 
     [Fact]
+    public void Repair_RebasesReachableTrackedProtonLinkToConfiguredRunner()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var libraryRoot = temp.CreateDirectory("Library");
+        var prefixPath = CreateProtonPrefix(temp, "Library", "Prefixes", "Copied Game");
+        var oldRunnerRoot = CreateProtonRunner(temp, "Original Proton");
+        var currentRunnerRoot = CreateProtonRunner(temp, "Portable Proton");
+        var relativeRuntimePath = Path.Combine("lib", "wine", "x86_64-windows", "kernel32.dll");
+        var oldTarget = temp.CreateFile(
+            Path.Combine("Original Proton", "files", relativeRuntimePath),
+            "original-runtime");
+        var replacementTarget = temp.CreateFile(
+            Path.Combine("Portable Proton", "files", relativeRuntimePath),
+            "portable-runtime");
+        var link = Path.Combine(prefixPath, "drive_c", "windows", "system32", "kernel32.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(link)!);
+        File.CreateSymbolicLink(link, oldTarget);
+        var settings = CreateSettingsWithProtonRunner("runner-id", currentRunnerRoot);
+        var item = new MediaItem("Copied Game")
+        {
+            PrefixPath = Path.Combine("Prefixes", "Copied Game"),
+            RunnerVersionId = "runner-id"
+        };
+
+        var result = new ProtonPrefixRelocationService(libraryRoot, settings).Repair(item);
+
+        Assert.True(Directory.Exists(oldRunnerRoot));
+        Assert.Equal(1, result.RepairedLinks);
+        Assert.Equal(0, result.UnresolvedLinks);
+        Assert.Equal(replacementTarget, new FileInfo(link).LinkTarget);
+    }
+
+    [Fact]
+    public void Repair_RebasesReachableTrackedLinkInNestedProtonPrefix()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var libraryRoot = temp.CreateDirectory("Library");
+        var compatRoot = temp.CreateDirectory("Library", "Prefixes", "Nested Game");
+        var prefixPath = temp.CreateDirectory("Library", "Prefixes", "Nested Game", "pfx");
+        temp.CreateDirectory("Library", "Prefixes", "Nested Game", "pfx", "drive_c");
+        temp.CreateFile(
+            "Library/Prefixes/Nested Game/tracked_files",
+            "drive_c/windows/system32/kernel32.dll\n");
+        temp.CreateFile("Library/Prefixes/Nested Game/version", "11.0-100\n");
+        CreateProtonRunner(temp, "Original Proton");
+        var currentRunnerRoot = CreateProtonRunner(temp, "Portable Proton");
+        var relativeRuntimePath = Path.Combine("lib", "wine", "x86_64-windows", "kernel32.dll");
+        var oldTarget = temp.CreateFile(
+            Path.Combine("Original Proton", "files", relativeRuntimePath),
+            "original-runtime");
+        var replacementTarget = temp.CreateFile(
+            Path.Combine("Portable Proton", "files", relativeRuntimePath),
+            "portable-runtime");
+        var link = Path.Combine(prefixPath, "drive_c", "windows", "system32", "kernel32.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(link)!);
+        File.CreateSymbolicLink(link, oldTarget);
+        var settings = CreateSettingsWithProtonRunner("runner-id", currentRunnerRoot);
+        var item = new MediaItem("Nested Game")
+        {
+            PrefixPath = Path.Combine("Prefixes", "Nested Game"),
+            RunnerVersionId = "runner-id"
+        };
+
+        var result = new ProtonPrefixRelocationService(libraryRoot, settings).Repair(item);
+
+        Assert.True(result.IsProtonManagedPrefix);
+        Assert.Equal(prefixPath, result.PrefixPath);
+        Assert.Equal(compatRoot, Path.GetDirectoryName(result.PrefixPath));
+        Assert.Equal(1, result.RepairedLinks);
+        Assert.Equal(replacementTarget, new FileInfo(link).LinkTarget);
+    }
+
+    [Fact]
     public void Repair_LeavesValidProtonLinkUnchanged()
     {
         if (!OperatingSystem.IsLinux())
@@ -76,6 +155,73 @@ public sealed class ProtonPrefixRelocationServiceTests
         Assert.True(result.IsProtonManagedPrefix);
         Assert.Equal(0, result.RepairedLinks);
         Assert.Equal(target, new FileInfo(link).LinkTarget);
+    }
+
+    [Fact]
+    public void Repair_LeavesReachableUntrackedLinkUnchanged()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var libraryRoot = temp.CreateDirectory("Library");
+        var prefixPath = CreateProtonPrefix(temp, "Library", "Prefixes", "Custom Link Game");
+        CreateProtonRunner(temp, "Original Proton");
+        var currentRunnerRoot = CreateProtonRunner(temp, "Portable Proton");
+        var relativeRuntimePath = Path.Combine("lib", "wine", "x86_64-windows", "custom.dll");
+        var oldTarget = temp.CreateFile(
+            Path.Combine("Original Proton", "files", relativeRuntimePath),
+            "custom-original");
+        temp.CreateFile(
+            Path.Combine("Portable Proton", "files", relativeRuntimePath),
+            "custom-portable");
+        var link = Path.Combine(prefixPath, "drive_c", "windows", "system32", "custom.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(link)!);
+        File.CreateSymbolicLink(link, oldTarget);
+        var settings = CreateSettingsWithProtonRunner("runner-id", currentRunnerRoot);
+        var item = new MediaItem("Custom Link Game")
+        {
+            PrefixPath = Path.Combine("Prefixes", "Custom Link Game"),
+            RunnerVersionId = "runner-id"
+        };
+
+        var result = new ProtonPrefixRelocationService(libraryRoot, settings).Repair(item);
+
+        Assert.Equal(0, result.RepairedLinks);
+        Assert.Equal(0, result.UnresolvedLinks);
+        Assert.Equal(oldTarget, new FileInfo(link).LinkTarget);
+    }
+
+    [Fact]
+    public void Repair_PreservesReachableTrackedLinkWhenConfiguredRunnerHasNoEquivalent()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var libraryRoot = temp.CreateDirectory("Library");
+        var prefixPath = CreateProtonPrefix(temp, "Library", "Prefixes", "Missing Replacement Game");
+        CreateProtonRunner(temp, "Original Proton");
+        var currentRunnerRoot = CreateProtonRunner(temp, "Portable Proton");
+        var relativeRuntimePath = Path.Combine("lib", "wine", "x86_64-windows", "kernel32.dll");
+        var oldTarget = temp.CreateFile(
+            Path.Combine("Original Proton", "files", relativeRuntimePath),
+            "original-runtime");
+        var link = Path.Combine(prefixPath, "drive_c", "windows", "system32", "kernel32.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(link)!);
+        File.CreateSymbolicLink(link, oldTarget);
+        var settings = CreateSettingsWithProtonRunner("runner-id", currentRunnerRoot);
+        var item = new MediaItem("Missing Replacement Game")
+        {
+            PrefixPath = Path.Combine("Prefixes", "Missing Replacement Game"),
+            RunnerVersionId = "runner-id"
+        };
+
+        var result = new ProtonPrefixRelocationService(libraryRoot, settings).Repair(item);
+
+        Assert.Equal(0, result.RepairedLinks);
+        Assert.Equal(1, result.UnresolvedLinks);
+        Assert.Equal(oldTarget, new FileInfo(link).LinkTarget);
     }
 
     [Fact]

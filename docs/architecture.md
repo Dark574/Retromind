@@ -515,8 +515,9 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
   resolved emulator/item variables in launch order, and enforces emulator/item XDG precedence
 - `WinePrefixService` resolves existing portable or absolute prefix paths, selects the correct Wine, Proton, or UMU
   prefix layout, creates safe `dosdevices` mappings, and supplies the launch environment paths
-- `ProtonPrefixRelocationService` repairs only broken Proton-runtime links after a portable data-root move before
-  a game launch or a later GOG installer accesses the existing prefix
+- `ProtonPrefixRelocationService` rebases stale Proton-managed runtime links after a portable data-root move before
+  a game launch or a later GOG installer accesses the existing prefix; reachable links are rewritten only when
+  Proton's `tracked_files` manifest identifies them as runtime-owned
 - `LaunchProcessService` owns operating-system process startup, bounded stdout/stderr capture, delegated-command
   observation, configured watch-process tracking, and the active tracked-session stop boundary. While Retromind
   is in the background, holding the configured stop combination (L1 + R1 by default) first requests an orderly
