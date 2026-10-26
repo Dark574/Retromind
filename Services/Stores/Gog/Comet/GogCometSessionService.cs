@@ -63,7 +63,7 @@ internal sealed class GogCometSessionService : IGogCometSessionService
     {
         private int _disposed;
 
-        public async Task CompleteAsync()
+        public async Task CompleteAsync(CancellationToken ct = default)
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0)
                 return;
@@ -71,14 +71,19 @@ internal sealed class GogCometSessionService : IGogCometSessionService
             try
             {
                 await processSession
-                    .WaitForExitAsync()
-                    .WaitAsync(CompletionGracePeriod)
+                    .WaitForExitAsync(ct)
+                    .WaitAsync(CompletionGracePeriod, ct)
                     .ConfigureAwait(false);
             }
             catch (TimeoutException)
             {
                 // Keep shutdown bounded if Comet cannot finish its post-disconnect
                 // synchronization or never observes a compatible SDK client.
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // A new GOG launch or application shutdown needs the shared
+                // Comet port immediately; disposal below stops the old sidecar.
             }
             finally
             {

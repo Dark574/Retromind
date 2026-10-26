@@ -39,6 +39,8 @@ namespace Retromind.ViewModels;
 /// </summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
+    private static readonly TimeSpan GogShutdownGracePeriod = TimeSpan.FromSeconds(5);
+
     // --- Services ---
     private readonly AudioService _audioService;
     private readonly MediaDataService _dataService;
@@ -1120,6 +1122,9 @@ public partial class MainWindowViewModel : ViewModelBase
         // Startup maintenance mutates asset collections and item order. It must
         // finish or observe cancellation before the final library snapshot is taken.
         await StopStartupWarmupAsync().ConfigureAwait(false);
+        await _launcherService
+            .PrepareForShutdownAsync(GogShutdownGracePeriod)
+            .ConfigureAwait(false);
 
         if (_closeWithoutPersistenceAfterRestore)
         {
@@ -1153,6 +1158,7 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (Exception ex)
         {
             Console.WriteLine($"[Shutdown] Final save failed: {ex.Message}");
+            _launcherService.ResumeAfterCancelledShutdown();
             return false;
         }
         finally
@@ -1195,6 +1201,8 @@ public partial class MainWindowViewModel : ViewModelBase
         // Signal cancellation here as a best-effort fallback; the normal closing
         // path has already awaited this task in StopStartupWarmupAsync().
         _startupWarmupCts?.Cancel();
+
+        _launcherService.CancelPendingGogCometCompletion();
 
         RetroAchievementsProgress.Dispose();
 

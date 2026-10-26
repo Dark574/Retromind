@@ -33,6 +33,11 @@ public sealed class LauncherService
     private readonly SteamProcessTrackingService _steamProcessTrackingService;
     private readonly IGogCometSessionService? _gogCometSessionService;
     private readonly IGogPlaytimeSyncService? _gogPlaytimeSyncService;
+    private readonly object _gogCometCompletionLock = new();
+    private readonly object _gogLaunchCompletionLock = new();
+    private readonly HashSet<TaskCompletionSource> _activeGogLaunchCompletions = [];
+    private PendingGogCometCompletion? _pendingGogCometCompletion;
+    private int _shutdownRequested;
 
     public LauncherService(
         string libraryRootPath,
@@ -104,6 +109,52 @@ public sealed class LauncherService
     {
         ArgumentNullException.ThrowIfNull(item);
 
+        TaskCompletionSource? launchCompletion = null;
+        if (_settings.EnableGogGalaxyIntegration && GogCometSessionService.IsEligible(item))
+        {
+            launchCompletion = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (_gogLaunchCompletionLock)
+                _activeGogLaunchCompletions.Add(launchCompletion);
+        }
+
+        try
+        {
+            return await LaunchCoreAsync(
+                    item,
+                    inheritedConfig,
+                    nodePath,
+                    nativeWrappers,
+                    environmentOverrides,
+                    additionalLaunchArguments,
+                    usePlaylistForMultiDisc,
+                    recordStatistics,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            if (launchCompletion != null)
+            {
+                launchCompletion.TrySetResult();
+                lock (_gogLaunchCompletionLock)
+                    _activeGogLaunchCompletions.Remove(launchCompletion);
+            }
+        }
+    }
+
+    private async Task<LaunchResult> LaunchCoreAsync(
+        MediaItem item,
+        EmulatorConfig? inheritedConfig,
+        List<string>? nodePath,
+        IReadOnlyList<LaunchWrapper>? nativeWrappers,
+        IReadOnlyDictionary<string, string>? environmentOverrides,
+        IReadOnlyList<string>? additionalLaunchArguments,
+        bool usePlaylistForMultiDisc,
+        bool recordStatistics,
+        CancellationToken cancellationToken)
+    {
+
         var launchLog = new LaunchLogBuilder(
             item,
             inheritedConfig,
@@ -149,18 +200,22 @@ public sealed class LauncherService
             }
         }
 
+        var shouldStartGogComet = _settings.EnableGogGalaxyIntegration &&
+                                  !isDelegatedCommand &&
+                                  !watchedProcessWasAlreadyRunning &&
+                                  _gogCometSessionService != null &&
+                                  GogCometSessionService.IsEligible(item);
+
         try
         {
-            if (_settings.EnableGogGalaxyIntegration &&
-                // Managed GOG launches are direct. This guard only retains safety
-                // for legacy or deliberately external launcher/URI handoffs.
-                !isDelegatedCommand &&
-                !watchedProcessWasAlreadyRunning &&
-                _gogCometSessionService != null)
+            if (shouldStartGogComet)
             {
+                // A previous sidecar may still be using Comet's fixed port while
+                // completing post-game synchronization in the background.
+                await StopPendingGogCometCompletionAsync().ConfigureAwait(false);
                 try
                 {
-                    gogCometSession = await _gogCometSessionService
+                    gogCometSession = await _gogCometSessionService!
                         .TryStartAsync(item, cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -325,10 +380,27 @@ public sealed class LauncherService
             stopwatch.Stop();
             elapsed = stopwatch.Elapsed;
 
-            await FinishGogCometSessionAsync(
-                    gogCometSession,
-                    allowGracefulCompletion: !trackingWasCancelled)
-                .ConfigureAwait(false);
+            if (gogCometSession != null)
+            {
+                if (trackingWasCancelled)
+                {
+                    await FinishGogCometSessionAsync(
+                            gogCometSession,
+                            allowGracefulCompletion: false)
+                        .ConfigureAwait(false);
+                }
+                else if (Volatile.Read(ref _shutdownRequested) == 0)
+                {
+                    ScheduleGogCometCompletion(gogCometSession);
+                }
+                else
+                {
+                    await FinishGogCometSessionAsync(
+                            gogCometSession,
+                            allowGracefulCompletion: false)
+                        .ConfigureAwait(false);
+                }
+            }
             gogCometSession = null;
 
             if (activeSession is { } registration)
@@ -457,9 +529,124 @@ public sealed class LauncherService
         }
     }
 
+    internal async Task StopPendingGogCometCompletionAsync()
+    {
+        await StopPendingGogCometCompletionAsync(TimeSpan.Zero).ConfigureAwait(false);
+    }
+
+    internal async Task PrepareForShutdownAsync(TimeSpan gracePeriod)
+    {
+        if (gracePeriod < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(gracePeriod));
+
+        Interlocked.Exchange(ref _shutdownRequested, 1);
+        var stopwatch = Stopwatch.StartNew();
+        Task[] activeLaunchCompletions;
+        lock (_gogLaunchCompletionLock)
+        {
+            activeLaunchCompletions = _activeGogLaunchCompletions
+                .Select(completion => completion.Task)
+                .ToArray();
+        }
+
+        if (activeLaunchCompletions.Length > 0)
+        {
+            try
+            {
+                await Task.WhenAll(activeLaunchCompletions)
+                    .WaitAsync(gracePeriod)
+                    .ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                // The game may still be running, or local post-launch work may
+                // be unusually slow. Keep application shutdown bounded.
+            }
+        }
+
+        var remainingGracePeriod = gracePeriod - stopwatch.Elapsed;
+        if (remainingGracePeriod < TimeSpan.Zero)
+            remainingGracePeriod = TimeSpan.Zero;
+
+        await StopPendingGogCometCompletionAsync(remainingGracePeriod).ConfigureAwait(false);
+    }
+
+    private async Task StopPendingGogCometCompletionAsync(TimeSpan gracefulWait)
+    {
+        PendingGogCometCompletion? pendingCompletion;
+        lock (_gogCometCompletionLock)
+            pendingCompletion = _pendingGogCometCompletion;
+
+        if (pendingCompletion == null)
+            return;
+
+        if (gracefulWait > TimeSpan.Zero && !pendingCompletion.Completion.IsCompleted)
+        {
+            try
+            {
+                await pendingCompletion.Completion
+                    .WaitAsync(gracefulWait)
+                    .ConfigureAwait(false);
+                return;
+            }
+            catch (TimeoutException)
+            {
+                // The bounded graceful window expired. Cancel below so the
+                // sidecar cannot outlive Retromind or retain its fixed port.
+            }
+        }
+
+        lock (_gogCometCompletionLock)
+        {
+            if (ReferenceEquals(_pendingGogCometCompletion, pendingCompletion))
+                pendingCompletion.Cancellation.Cancel();
+        }
+
+        await pendingCompletion.Completion.ConfigureAwait(false);
+    }
+
+    internal void CancelPendingGogCometCompletion()
+    {
+        Interlocked.Exchange(ref _shutdownRequested, 1);
+        lock (_gogCometCompletionLock)
+            _pendingGogCometCompletion?.Cancellation.Cancel();
+    }
+
+    internal void ResumeAfterCancelledShutdown() =>
+        Interlocked.Exchange(ref _shutdownRequested, 0);
+
+    private void ScheduleGogCometCompletion(IGogCometGameSession session)
+    {
+        var cancellation = new CancellationTokenSource();
+        var completion = FinishGogCometSessionAsync(
+            session,
+            allowGracefulCompletion: true,
+            cancellationToken: cancellation.Token);
+        var pendingCompletion = new PendingGogCometCompletion(cancellation, completion);
+
+        lock (_gogCometCompletionLock)
+            _pendingGogCometCompletion = pendingCompletion;
+
+        _ = ClearPendingGogCometCompletionAsync(pendingCompletion);
+    }
+
+    private async Task ClearPendingGogCometCompletionAsync(
+        PendingGogCometCompletion pendingCompletion)
+    {
+        await pendingCompletion.Completion.ConfigureAwait(false);
+        lock (_gogCometCompletionLock)
+        {
+            if (ReferenceEquals(_pendingGogCometCompletion, pendingCompletion))
+                _pendingGogCometCompletion = null;
+        }
+
+        pendingCompletion.Cancellation.Dispose();
+    }
+
     private static async Task FinishGogCometSessionAsync(
         IGogCometGameSession? session,
-        bool allowGracefulCompletion)
+        bool allowGracefulCompletion,
+        CancellationToken cancellationToken = default)
     {
         if (session == null)
             return;
@@ -467,7 +654,7 @@ public sealed class LauncherService
         try
         {
             if (allowGracefulCompletion)
-                await session.CompleteAsync().ConfigureAwait(false);
+                await session.CompleteAsync(cancellationToken).ConfigureAwait(false);
             else
                 await session.DisposeAsync().ConfigureAwait(false);
         }
@@ -476,6 +663,10 @@ public sealed class LauncherService
             Debug.WriteLine($"[Comet] Session cleanup failed: {ex.Message}");
         }
     }
+
+    private sealed record PendingGogCometCompletion(
+        CancellationTokenSource Cancellation,
+        Task Completion);
 
     private Process? LaunchCommand(
         MediaItem item,

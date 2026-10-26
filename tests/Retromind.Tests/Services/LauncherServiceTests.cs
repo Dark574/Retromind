@@ -658,6 +658,129 @@ public sealed class LauncherServiceTests
     }
 
     [Fact]
+    public async Task LaunchAsync_ReturnsWhileCometCompletesInBackground()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile("gog-background-completion.sh", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            scriptPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = CreateGogItem("GOG background completion", scriptPath);
+        var settings = new AppSettings { EnableGogGalaxyIntegration = true };
+        var cometService = new StubGogCometSessionService();
+        var completionBlocker = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        cometService.Session.CompletionBlocker = completionBlocker;
+        var launcher = CreateLauncherWithComet(temp, settings, cometService);
+
+        try
+        {
+            var result = await launcher
+                .LaunchAsync(item, recordStatistics: false)
+                .WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.True(result.IsStarted);
+            Assert.Equal(1, cometService.Session.CompleteCalls);
+            Assert.False(completionBlocker.Task.IsCompleted);
+        }
+        finally
+        {
+            completionBlocker.TrySetResult();
+            await launcher.StopPendingGogCometCompletionAsync();
+        }
+    }
+
+    [Fact]
+    public async Task PrepareForShutdownAsync_AllowsPendingCometToFinishWithinGracePeriod()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile("gog-shutdown-grace.sh", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            scriptPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = CreateGogItem("GOG shutdown grace", scriptPath);
+        var settings = new AppSettings { EnableGogGalaxyIntegration = true };
+        var cometService = new StubGogCometSessionService();
+        var completionBlocker = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        cometService.Session.CompletionBlocker = completionBlocker;
+        var launcher = CreateLauncherWithComet(temp, settings, cometService);
+
+        await launcher.LaunchAsync(item, recordStatistics: false);
+        var shutdownTask = launcher.PrepareForShutdownAsync(TimeSpan.FromSeconds(2));
+
+        Assert.False(shutdownTask.IsCompleted);
+        completionBlocker.SetResult();
+        await shutdownTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.False(cometService.Session.CompletionCancellationObserved);
+    }
+
+    [Fact]
+    public async Task PrepareForShutdownAsync_CancelsPendingCometAfterGracePeriod()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile("gog-shutdown-timeout.sh", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            scriptPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = CreateGogItem("GOG shutdown timeout", scriptPath);
+        var settings = new AppSettings { EnableGogGalaxyIntegration = true };
+        var cometService = new StubGogCometSessionService();
+        cometService.Session.CompletionBlocker = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var launcher = CreateLauncherWithComet(temp, settings, cometService);
+
+        await launcher.LaunchAsync(item, recordStatistics: false);
+        await launcher
+            .PrepareForShutdownAsync(TimeSpan.FromMilliseconds(50))
+            .WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.True(cometService.Session.CompletionCancellationObserved);
+    }
+
+    [Fact]
+    public async Task PrepareForShutdownAsync_WaitsForActiveGogLaunchLocalCompletion()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var scriptPath = temp.CreateFile("gog-shutdown-local.sh", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(
+            scriptPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = CreateGogItem("GOG shutdown local completion", scriptPath);
+        var settings = new AppSettings { EnableGogGalaxyIntegration = true };
+        var cometService = new StubGogCometSessionService
+        {
+            StartBlocker = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously)
+        };
+        var launcher = CreateLauncherWithComet(temp, settings, cometService);
+
+        var launchTask = launcher.LaunchAsync(item, recordStatistics: false);
+        await cometService.StartEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var shutdownTask = launcher.PrepareForShutdownAsync(TimeSpan.FromSeconds(2));
+
+        Assert.False(shutdownTask.IsCompleted);
+        cometService.StartBlocker.SetResult();
+        await Task.WhenAll(launchTask, shutdownTask).WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(0, cometService.Session.CompleteCalls);
+        Assert.Equal(1, cometService.Session.DisposeCalls);
+    }
+
+    [Fact]
     public async Task LaunchAsync_DoesNotStartCometWhenIntegrationIsDisabled()
     {
         if (!OperatingSystem.IsLinux())
@@ -854,16 +977,22 @@ public sealed class LauncherServiceTests
         internal int StartCalls { get; private set; }
         internal StubGogCometGameSession Session { get; } = new();
         internal Exception? StartException { get; init; }
+        internal TaskCompletionSource? StartBlocker { get; init; }
+        internal TaskCompletionSource StartEntered { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public Task<IGogCometGameSession?> TryStartAsync(
+        public async Task<IGogCometGameSession?> TryStartAsync(
             MediaItem item,
             CancellationToken ct = default)
         {
             StartCalls++;
+            StartEntered.TrySetResult();
             if (StartException != null)
                 throw StartException;
+            if (StartBlocker != null)
+                await StartBlocker.Task.WaitAsync(ct);
 
-            return Task.FromResult<IGogCometGameSession?>(Session);
+            return Session;
         }
     }
 
@@ -871,11 +1000,24 @@ public sealed class LauncherServiceTests
     {
         internal int CompleteCalls { get; private set; }
         internal int DisposeCalls { get; private set; }
+        internal bool CompletionCancellationObserved { get; private set; }
+        internal TaskCompletionSource? CompletionBlocker { get; set; }
 
-        public Task CompleteAsync()
+        public async Task CompleteAsync(CancellationToken ct = default)
         {
             CompleteCalls++;
-            return Task.CompletedTask;
+            if (CompletionBlocker != null)
+            {
+                try
+                {
+                    await CompletionBlocker.Task.WaitAsync(ct);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    CompletionCancellationObserved = true;
+                    throw;
+                }
+            }
         }
 
         public ValueTask DisposeAsync()

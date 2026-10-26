@@ -7,7 +7,7 @@ namespace Retromind.Services.Stores.Gog.Comet;
 
 internal interface IGogCometGameSession : IAsyncDisposable
 {
-    Task CompleteAsync();
+    Task CompleteAsync(CancellationToken ct = default);
 }
 
 internal interface IGogCometSessionService

@@ -473,7 +473,10 @@ the report never mutates JSON or deletes files.
   games use the same capability check. Comet startup failures do not block the game, delegated launcher handoffs are
   excluded only as a defensive legacy/external case because they have no reliable lifetime boundary, and the owned
   sidecar receives a 30-second normal-exit window for post-game synchronization before forced cleanup when the
-  tracked game session ends. Comet error output is retained as a bounded, credential-redacted `0600` diagnostic
+  tracked game session ends. This cleanup runs outside the active-launch UI boundary; a subsequent GOG launch
+  cancels and awaits pending cleanup before reclaiming Comet's fixed port. Application shutdown uses a shared,
+  five-second maximum grace period for local GOG post-launch work and Comet completion, then forces cleanup. Comet error
+  output is retained as a bounded, credential-redacted `0600` diagnostic
   log below `Tools/Comet/Data`; routine output is discarded. Current
   Retromind-managed GOG launches and Legendary-based Epic launches do not use that legacy handoff path
 - `GogPlaytimeSyncService` submits completed, statistically eligible sessions for structured GOG items directly to
