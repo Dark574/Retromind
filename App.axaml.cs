@@ -91,20 +91,9 @@ public partial class App : Application
 
             if (settings.EnableGogGalaxyIntegration)
             {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await Services
-                            .GetRequiredService<IGogPlaytimeSyncService>()
-                            .TrySyncPendingAsync()
-                            .ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[GOG] Pending playtime sync failed: {ex.Message}");
-                    }
-                });
+                Services
+                    .GetRequiredService<IGogPlaytimeSyncService>()
+                    .RequestPendingSync();
             }
 
             if (!settingsService.HasLoadFailure)

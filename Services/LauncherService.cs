@@ -446,12 +446,13 @@ public sealed class LauncherService
         try
         {
             await _gogPlaytimeSyncService
-                .ReportSessionAsync(item, startedAtUtc, duration)
+                .EnqueueSessionAsync(item, startedAtUtc, duration)
                 .ConfigureAwait(false);
+            _gogPlaytimeSyncService.RequestPendingSync();
         }
         catch (Exception ex)
         {
-            // Remote playtime is best effort and must never change the launch outcome.
+            // Queueing remote playtime is best effort and must never change the launch outcome.
             Debug.WriteLine($"[GOG] Playtime session could not be queued: {ex.Message}");
         }
     }

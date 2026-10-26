@@ -33,6 +33,10 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
     private readonly IGogPlaytimeApiClient _apiClient;
     private readonly string _queuePath;
     private readonly SemaphoreSlim _queueGate = new(1, 1);
+    private readonly SemaphoreSlim _syncGate = new(1, 1);
+    private readonly object _backgroundSyncLock = new();
+    private bool _backgroundSyncRequested;
+    private Task? _backgroundSyncTask;
 
     internal GogPlaytimeSyncService(
         GogAuthService authService,
@@ -71,7 +75,7 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
             "pending-playtime-sessions.json");
     }
 
-    public async Task ReportSessionAsync(
+    public async Task EnqueueSessionAsync(
         MediaItem item,
         DateTimeOffset startedAtUtc,
         TimeSpan duration,
@@ -125,8 +129,18 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
         {
             _queueGate.Release();
         }
+    }
 
-        await TrySyncPendingAsync(cancellationToken).ConfigureAwait(false);
+    public void RequestPendingSync()
+    {
+        lock (_backgroundSyncLock)
+        {
+            _backgroundSyncRequested = true;
+            if (_backgroundSyncTask is { IsCompleted: false })
+                return;
+
+            _backgroundSyncTask = Task.Run(ProcessBackgroundSyncRequestsAsync);
+        }
     }
 
     public async Task TrySyncPendingAsync(CancellationToken cancellationToken = default)
@@ -134,41 +148,50 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
         if (!File.Exists(_queuePath))
             return;
 
-        GogGameplayCredentials? credentials;
+        await _syncGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            credentials = await _getCredentialsAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GOG] Playtime sync credentials are unavailable: {ex.Message}");
-            return;
-        }
-
-        if (credentials == null)
-            return;
-
-        var accountIdentifierHash = HashAccountIdentifier(credentials.UserId.Trim());
-        await _queueGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var pendingSessions = await LoadQueueAsync(cancellationToken).ConfigureAwait(false);
-            var matchingSessions = pendingSessions
-                .Where(session => string.Equals(
-                    session.AccountIdentifierHash,
-                    accountIdentifierHash,
-                    StringComparison.Ordinal))
-                .OrderBy(session => session.SessionDate)
-                .Take(MaximumSyncAttemptsPerRun)
-                .ToArray();
-            if (matchingSessions.Length == 0)
+            if (!File.Exists(_queuePath))
                 return;
 
-            var changed = false;
+            GogGameplayCredentials? credentials;
+            try
+            {
+                credentials = await _getCredentialsAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GOG] Playtime sync credentials are unavailable: {ex.Message}");
+                return;
+            }
+
+            if (credentials == null)
+                return;
+
+            var accountIdentifierHash = HashAccountIdentifier(credentials.UserId.Trim());
+            PendingSession[] matchingSessions;
+            await _queueGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var pendingSessions = await LoadQueueAsync(cancellationToken).ConfigureAwait(false);
+                matchingSessions = pendingSessions
+                    .Where(session => string.Equals(
+                        session.AccountIdentifierHash,
+                        accountIdentifierHash,
+                        StringComparison.Ordinal))
+                    .OrderBy(session => session.SessionDate)
+                    .Take(MaximumSyncAttemptsPerRun)
+                    .ToArray();
+            }
+            finally
+            {
+                _queueGate.Release();
+            }
+
             foreach (var session in matchingSessions)
             {
                 try
@@ -184,8 +207,7 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
                             session.TimeMinutes,
                             requestCts.Token)
                         .ConfigureAwait(false);
-                    pendingSessions.Remove(session);
-                    changed = true;
+                    await RemoveUploadedSessionAsync(session, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -207,9 +229,59 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
                     break;
                 }
             }
+        }
+        finally
+        {
+            _syncGate.Release();
+        }
+    }
 
-            if (changed)
-                await SaveQueueAsync(pendingSessions, cancellationToken).ConfigureAwait(false);
+    private async Task ProcessBackgroundSyncRequestsAsync()
+    {
+        while (true)
+        {
+            lock (_backgroundSyncLock)
+            {
+                if (!_backgroundSyncRequested)
+                {
+                    _backgroundSyncTask = null;
+                    return;
+                }
+
+                _backgroundSyncRequested = false;
+            }
+
+            try
+            {
+                await TrySyncPendingAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GOG] Background playtime sync failed: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task RemoveUploadedSessionAsync(
+        PendingSession uploadedSession,
+        CancellationToken cancellationToken)
+    {
+        await _queueGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var pendingSessions = await LoadQueueAsync(cancellationToken).ConfigureAwait(false);
+            var removed = pendingSessions.RemoveAll(session =>
+                string.Equals(
+                    session.AccountIdentifierHash,
+                    uploadedSession.AccountIdentifierHash,
+                    StringComparison.Ordinal) &&
+                string.Equals(session.GameId, uploadedSession.GameId, StringComparison.Ordinal) &&
+                session.SessionDate == uploadedSession.SessionDate &&
+                session.TimeMinutes == uploadedSession.TimeMinutes);
+            if (removed == 0)
+                return;
+
+            await SaveQueueAsync(pendingSessions, cancellationToken).ConfigureAwait(false);
         }
         finally
         {

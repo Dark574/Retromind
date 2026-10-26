@@ -478,8 +478,10 @@ the report never mutates JSON or deletes files.
   Retromind-managed GOG launches and Legendary-based Epic launches do not use that legacy handoff path
 - `GogPlaytimeSyncService` submits completed, statistically eligible sessions for structured GOG items directly to
   GOG's gameplay service after Retromind observes the game exit. Durations are sent as whole minutes; sub-minute,
-  canceled, delegated, and test launches are excluded. Failed submissions are kept in a bounded atomic queue that
-  stores only the numeric product ID, start time, duration, and a hash of the Galaxy account ID. Pending entries are
+  canceled, delegated, and test launches are excluded. The launch path waits only for the bounded atomic queue write;
+  a coalesced background worker performs network uploads without holding the queue lock, so GOG latency does not
+  extend the active-launch UI state or prevent new sessions from being queued. Failed submissions remain queued and
+  store only the numeric product ID, start time, duration, and a hash of the Galaxy account ID. Pending entries are
   retried only with credentials for the same account, while tokens and plain account IDs are never persisted.
   Retromind does not publish GOG Presence.
 - `MetadataService`: scraper-provider factory + provider caching + connect gating

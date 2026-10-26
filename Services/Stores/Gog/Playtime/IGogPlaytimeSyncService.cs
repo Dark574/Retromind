@@ -7,11 +7,13 @@ namespace Retromind.Services.Stores.Gog.Playtime;
 
 internal interface IGogPlaytimeSyncService
 {
-    Task ReportSessionAsync(
+    Task EnqueueSessionAsync(
         MediaItem item,
         DateTimeOffset startedAtUtc,
         TimeSpan duration,
         CancellationToken cancellationToken = default);
+
+    void RequestPendingSync();
 
     Task TrySyncPendingAsync(CancellationToken cancellationToken = default);
 }

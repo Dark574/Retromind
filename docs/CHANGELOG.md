@@ -19,6 +19,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - refresh the context menu after a game is assigend to the GOG-Store
 - keep usable ComicVine search results and available cover artwork when one of its comic resource searches fails temporarily
 - keep copied Proton prefixes independent from the original Retromind installation when both locations remain available
+- re-enable launch and Store actions immediately after a GOG game closes while playtime synchronization continues in the background
 
 ---
 

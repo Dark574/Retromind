@@ -771,6 +771,7 @@ public sealed class LauncherServiceTests
         Assert.Same(item, report.Item);
         Assert.Equal(startedAt, report.StartedAtUtc);
         Assert.Equal(duration, report.Duration);
+        Assert.Equal(1, playtimeService.SyncRequests);
     }
 
     [Fact]
@@ -796,6 +797,7 @@ public sealed class LauncherServiceTests
         await launcher.LaunchAsync(item, recordStatistics: false);
 
         Assert.Empty(playtimeService.Reports);
+        Assert.Equal(0, playtimeService.SyncRequests);
     }
 
     private static MediaItem CreateGogItem(string title, string launchPath)
@@ -886,8 +888,9 @@ public sealed class LauncherServiceTests
     private sealed class StubGogPlaytimeSyncService : IGogPlaytimeSyncService
     {
         internal List<ReportCall> Reports { get; } = [];
+        internal int SyncRequests { get; private set; }
 
-        public Task ReportSessionAsync(
+        public Task EnqueueSessionAsync(
             MediaItem item,
             DateTimeOffset startedAtUtc,
             TimeSpan duration,
@@ -896,6 +899,8 @@ public sealed class LauncherServiceTests
             Reports.Add(new ReportCall(item, startedAtUtc, duration));
             return Task.CompletedTask;
         }
+
+        public void RequestPendingSync() => SyncRequests++;
 
         public Task TrySyncPendingAsync(CancellationToken cancellationToken = default) =>
             Task.CompletedTask;

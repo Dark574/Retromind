@@ -9,7 +9,7 @@ namespace Retromind.Tests.Services.Stores.Gog;
 public sealed class GogPlaytimeSyncServiceTests
 {
     [Fact]
-    public async Task ReportSessionAsync_FloorsMinutesUploadsAndClearsQueue()
+    public async Task EnqueueSessionAsync_PersistsBeforeExplicitUpload()
     {
         using var temp = new TemporaryDirectory();
         var queuePath = temp.GetPath("cache", "pending-playtime-sessions.json");
@@ -21,10 +21,15 @@ public sealed class GogPlaytimeSyncServiceTests
             accessToken: "access-token");
         var startedAt = new DateTimeOffset(2026, 10, 25, 12, 30, 45, TimeSpan.Zero);
 
-        await service.ReportSessionAsync(
+        await service.EnqueueSessionAsync(
             CreateGogItem("1994983163"),
             startedAt,
             TimeSpan.FromSeconds(179));
+
+        Assert.Empty(apiClient.Posts);
+        Assert.True(File.Exists(queuePath));
+
+        await service.TrySyncPendingAsync();
 
         var post = Assert.Single(apiClient.Posts);
         Assert.Equal("1994983163", post.GameId);
@@ -36,7 +41,7 @@ public sealed class GogPlaytimeSyncServiceTests
     }
 
     [Fact]
-    public async Task ReportSessionAsync_SkipsSessionsShorterThanOneMinute()
+    public async Task EnqueueSessionAsync_SkipsSessionsShorterThanOneMinute()
     {
         using var temp = new TemporaryDirectory();
         var userIdCalls = 0;
@@ -51,7 +56,7 @@ public sealed class GogPlaytimeSyncServiceTests
             apiClient,
             temp.GetPath("pending.json"));
 
-        await service.ReportSessionAsync(
+        await service.EnqueueSessionAsync(
             CreateGogItem("1994983163"),
             DateTimeOffset.UtcNow,
             TimeSpan.FromSeconds(59));
@@ -94,10 +99,11 @@ public sealed class GogPlaytimeSyncServiceTests
             accessToken: "first-token");
         var startedAt = new DateTimeOffset(2026, 10, 25, 12, 30, 45, TimeSpan.Zero);
 
-        await firstService.ReportSessionAsync(
+        await firstService.EnqueueSessionAsync(
             CreateGogItem("1994983163"),
             startedAt,
             TimeSpan.FromMinutes(12));
+        await firstService.TrySyncPendingAsync();
 
         Assert.True(File.Exists(queuePath));
         var persistedQueue = await File.ReadAllTextAsync(queuePath);
@@ -130,10 +136,11 @@ public sealed class GogPlaytimeSyncServiceTests
             queuePath,
             userId: "46988829925743611",
             accessToken: "first-token");
-        await firstService.ReportSessionAsync(
+        await firstService.EnqueueSessionAsync(
             CreateGogItem("1994983163"),
             DateTimeOffset.UtcNow,
             TimeSpan.FromMinutes(5));
+        await firstService.TrySyncPendingAsync();
 
         var otherAccountClient = new StubApiClient();
         var otherAccountService = CreateService(
@@ -146,6 +153,89 @@ public sealed class GogPlaytimeSyncServiceTests
 
         Assert.Empty(otherAccountClient.Posts);
         Assert.True(File.Exists(queuePath));
+    }
+
+    [Fact]
+    public async Task RunningUploadDoesNotBlockEnqueueingAnotherSession()
+    {
+        using var temp = new TemporaryDirectory();
+        var queuePath = temp.GetPath("cache", "pending-playtime-sessions.json");
+        var apiClient = new BlockingApiClient();
+        var service = CreateService(
+            apiClient,
+            queuePath,
+            userId: "46988829925743611",
+            accessToken: "access-token");
+        var firstStart = new DateTimeOffset(2026, 10, 25, 12, 30, 45, TimeSpan.Zero);
+
+        await service.EnqueueSessionAsync(
+            CreateGogItem("1994983163"),
+            firstStart,
+            TimeSpan.FromMinutes(5));
+        var syncTask = service.TrySyncPendingAsync();
+        await apiClient.RequestStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        try
+        {
+            await service.EnqueueSessionAsync(
+                    CreateGogItem("1207658680"),
+                    firstStart.AddHours(1),
+                    TimeSpan.FromMinutes(6))
+                .WaitAsync(TimeSpan.FromSeconds(2));
+
+            var persistedQueue = await File.ReadAllTextAsync(queuePath);
+            Assert.Contains("1994983163", persistedQueue, StringComparison.Ordinal);
+            Assert.Contains("1207658680", persistedQueue, StringComparison.Ordinal);
+        }
+        finally
+        {
+            apiClient.ReleaseRequest.TrySetResult();
+        }
+
+        await syncTask;
+        var remainingQueue = await File.ReadAllTextAsync(queuePath);
+        Assert.DoesNotContain("1994983163", remainingQueue, StringComparison.Ordinal);
+        Assert.Contains("1207658680", remainingQueue, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RequestPendingSync_UploadsInBackgroundAfterReturning()
+    {
+        using var temp = new TemporaryDirectory();
+        var queuePath = temp.GetPath("cache", "pending-playtime-sessions.json");
+        var apiClient = new BlockingApiClient();
+        var service = CreateService(
+            apiClient,
+            queuePath,
+            userId: "46988829925743611",
+            accessToken: "access-token");
+
+        await service.EnqueueSessionAsync(
+            CreateGogItem("1994983163"),
+            new DateTimeOffset(2026, 10, 25, 12, 30, 45, TimeSpan.Zero),
+            TimeSpan.FromMinutes(5));
+
+        service.RequestPendingSync();
+        try
+        {
+            await apiClient.RequestStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.True(File.Exists(queuePath));
+        }
+        finally
+        {
+            apiClient.ReleaseRequest.TrySetResult();
+        }
+
+        await WaitUntilAsync(() => !File.Exists(queuePath), TimeSpan.FromSeconds(2));
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        while (!condition() && DateTimeOffset.UtcNow - startedAt < timeout)
+            await Task.Delay(10);
+
+        Assert.True(condition(), "The expected background synchronization did not complete in time.");
     }
 
     private static GogPlaytimeSyncService CreateService(
@@ -191,6 +281,27 @@ public sealed class GogPlaytimeSyncServiceTests
                 sessionDate,
                 timeMinutes));
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class BlockingApiClient : IGogPlaytimeApiClient
+    {
+        internal TaskCompletionSource RequestStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal TaskCompletionSource ReleaseRequest { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task PostSessionAsync(
+            string gameId,
+            string userId,
+            string accessToken,
+            long sessionDate,
+            int timeMinutes,
+            CancellationToken cancellationToken = default)
+        {
+            RequestStarted.TrySetResult();
+            await ReleaseRequest.Task.WaitAsync(cancellationToken);
         }
     }
 
