@@ -28,6 +28,10 @@ The CHD reader uses the separately vendored libchdr source in `../libchdr/`:
 - License: BSD-3-Clause (`../libchdr/LICENSE.txt` and
   `../../Licenses/libchdr.BSD-3-Clause.txt`)
 
+Local deviation: the bundled `dr_flac` 0.13.3 includes the targeted upstream
+fixes from commits `663239a` and `fefced4`. No other `dr_flac` 0.13.4 changes
+are included.
+
 The adapter's track and sector handling follows RetroArch's MIT-licensed CHD
 integration. See `../../Licenses/RetroArch.MIT.txt`. libchdr's bundled decoder
 dependencies and their license files are listed in `../../THIRD-PARTY-NOTICES.md`.

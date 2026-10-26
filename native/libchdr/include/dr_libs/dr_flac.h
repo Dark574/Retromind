@@ -6747,6 +6747,11 @@ static drflac_bool32 drflac__read_and_decode_metadata(drflac_read_proc onRead, d
                     blockSizeRemaining -= 4;
                     metadata.data.picture.mimeLength = drflac__be2host_32(metadata.data.picture.mimeLength);
 
+                    if (metadata.data.picture.mimeLength > blockSizeRemaining) {
+                        result = DRFLAC_FALSE;
+                        goto done_flac;
+                    }
+
                     pMime = (char*)drflac__malloc_from_callbacks(metadata.data.picture.mimeLength + 1, pAllocationCallbacks); /* +1 for null terminator. */
                     if (pMime == NULL) {
                         result = DRFLAC_FALSE;
@@ -6768,6 +6773,11 @@ static drflac_bool32 drflac__read_and_decode_metadata(drflac_read_proc onRead, d
                     }
                     blockSizeRemaining -= 4;
                     metadata.data.picture.descriptionLength = drflac__be2host_32(metadata.data.picture.descriptionLength);
+
+                    if (metadata.data.picture.descriptionLength > blockSizeRemaining) {
+                        result = DRFLAC_FALSE;
+                        goto done_flac;
+                    }
 
                     pDescription = (char*)drflac__malloc_from_callbacks(metadata.data.picture.descriptionLength + 1, pAllocationCallbacks); /* +1 for null terminator. */
                     if (pDescription == NULL) {

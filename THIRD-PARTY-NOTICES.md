@@ -128,8 +128,8 @@ The vendored libchdr unity build also contains these decoder components:
   `Licenses/miniz.MIT.txt`
 - Zstandard 1.5.7 decompressor — BSD-3-Clause; see
   `Licenses/Zstandard.BSD-3-Clause.txt`
-- dr_flac 0.13.3 — MIT-0 or public domain; Retromind uses the MIT-0 terms; see
-  `Licenses/dr_flac.MIT-0.txt`
+- dr_flac 0.13.3 with selected upstream backports — MIT-0 or public domain;
+  Retromind uses the MIT-0 terms; see `Licenses/dr_flac.MIT-0.txt`
 
 The small CHD-to-rcheevos adapter follows the track/sector handling of
 RetroArch's MIT-licensed CHD integration.
