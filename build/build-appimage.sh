@@ -8,6 +8,7 @@ WORK_DIR="$PROJECT_ROOT/.build-work"
 APPDIR="$WORK_DIR/AppDir"
 LEGENDARY_VERSION_FILE="$BUILD_DIR/legendary-version.env"
 COMET_VERSION_FILE="$BUILD_DIR/comet-version.env"
+ENVIRONMENT_FILE="$BUILD_DIR/appimage-environment.env"
 BUILDER_IMAGE="retromind-appimage-builder:bookworm"
 BUILDX_BUILDER="${RETROMIND_BUILDX_BUILDER:-retromind-appimage-v2}"
 BUILDX_CACHE_LIMIT="${RETROMIND_BUILDX_CACHE_LIMIT:-20gb}"
@@ -27,6 +28,11 @@ if [ ! -f "$COMET_VERSION_FILE" ]; then
   exit 1
 fi
 
+if [ ! -f "$ENVIRONMENT_FILE" ]; then
+  echo "ERROR: AppImage environment lock not found at '$ENVIRONMENT_FILE'."
+  exit 1
+fi
+
 if [ ! -f "$BUILDKIT_CONFIG_FILE" ]; then
   echo "ERROR: BuildKit configuration not found at '$BUILDKIT_CONFIG_FILE'."
   exit 1
@@ -34,6 +40,7 @@ fi
 
 . "$LEGENDARY_VERSION_FILE"
 . "$COMET_VERSION_FILE"
+. "$ENVIRONMENT_FILE"
 
 if [ -z "${LEGENDARY_VERSION:-}" ]; then
   echo "ERROR: LEGENDARY_VERSION is missing from '$LEGENDARY_VERSION_FILE'."
@@ -47,6 +54,17 @@ fi
 
 if ! printf '%s' "$COMET_RUST_IMAGE" | grep -Eq '^rust@sha256:[0-9a-f]{64}$'; then
   echo "ERROR: COMET_RUST_IMAGE must pin an exact rust image digest."
+  exit 1
+fi
+
+if ! printf '%s' "${DEBIAN_BOOKWORM_IMAGE:-}" | grep -Eq '^debian:bookworm@sha256:[0-9a-f]{64}$' ||
+   ! printf '%s' "${DEBIAN_SNAPSHOT_MAIN:-}" | grep -Eq '^[0-9]{8}T[0-9]{6}Z$' ||
+   ! printf '%s' "${DEBIAN_SNAPSHOT_SECURITY:-}" | grep -Eq '^[0-9]{8}T[0-9]{6}Z$' ||
+   ! printf '%s' "${DOTNET_SDK_VERSION:-}" | grep -Eq '^10\.[0-9]+\.[0-9]+$' ||
+   ! printf '%s' "${DOTNET_RUNTIME_VERSION:-}" | grep -Eq '^10\.0\.[0-9]+$' ||
+   ! printf '%s' "${DOTNET_SDK_LINUX_X64_URL:-}" | grep -Eq '^https://[^[:space:]]+$' ||
+   ! printf '%s' "${DOTNET_SDK_LINUX_X64_SHA512:-}" | grep -Eq '^[0-9a-f]{128}$'; then
+  echo "ERROR: '$ENVIRONMENT_FILE' contains missing or invalid environment pins."
   exit 1
 fi
 
@@ -143,10 +161,19 @@ esac
 
 APPIMAGE_NAME="Retromind-$RETROMIND_VERSION-x86_64.AppImage"
 APPIMAGE_PATH="$OUT_DIR/$APPIMAGE_NAME"
+MANIFEST_NAME="$APPIMAGE_NAME.manifest.tsv"
+MANIFEST_PATH="$OUT_DIR/$MANIFEST_NAME"
 ZSYNC_PATH="$APPIMAGE_PATH.zsync"
 LEGACY_ZSYNC_NAME="Retromind-$RETROMIND_VERSION-linux-x86_64.AppImage.zsync"
 LEGACY_ZSYNC_PATH="$OUT_DIR/$LEGACY_ZSYNC_NAME"
 APPIMAGE_UPDATE_INFORMATION="gh-releases-zsync|Dark574|Retromind|$APPIMAGE_UPDATE_CHANNEL|Retromind-*-x86_64.AppImage.zsync"
+BUILD_TIMESTAMP_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+GIT_COMMIT="$(git -C "$PROJECT_ROOT" rev-parse HEAD)"
+if [ -n "$(git -C "$PROJECT_ROOT" status --porcelain --untracked-files=normal)" ]; then
+  GIT_WORKTREE_STATE="dirty"
+else
+  GIT_WORKTREE_STATE="clean"
+fi
 
 echo "[1/8] Prepare folders..."
 rm -rf "$WORK_DIR"
@@ -173,7 +200,14 @@ set -- \
   --load \
   -f "$BUILD_DIR/Dockerfile.appimage" \
   -t "$BUILDER_IMAGE" \
-  --build-arg "COMET_RUST_IMAGE=$COMET_RUST_IMAGE"
+  --build-arg "COMET_RUST_IMAGE=$COMET_RUST_IMAGE" \
+  --build-arg "DEBIAN_BOOKWORM_IMAGE=$DEBIAN_BOOKWORM_IMAGE" \
+  --build-arg "DEBIAN_SNAPSHOT_MAIN=$DEBIAN_SNAPSHOT_MAIN" \
+  --build-arg "DEBIAN_SNAPSHOT_SECURITY=$DEBIAN_SNAPSHOT_SECURITY" \
+  --build-arg "DOTNET_SDK_VERSION=$DOTNET_SDK_VERSION" \
+  --build-arg "DOTNET_RUNTIME_VERSION=$DOTNET_RUNTIME_VERSION" \
+  --build-arg "DOTNET_SDK_LINUX_X64_URL=$DOTNET_SDK_LINUX_X64_URL" \
+  --build-arg "DOTNET_SDK_LINUX_X64_SHA512=$DOTNET_SDK_LINUX_X64_SHA512"
 
 if [ -n "${RETROMIND_SCREENSCRAPER_DEVELOPER_ID:-}" ] ||
    [ -n "${RETROMIND_SCREENSCRAPER_DEVELOPER_PASSWORD:-}" ]; then
@@ -206,6 +240,7 @@ docker cp "$CID:/out/tools" "$WORK_DIR/tools"
 docker cp "$CID:/out/runtime-libs" "$WORK_DIR/runtime-libs"
 docker cp "$CID:/out/legendary-licenses" "$WORK_DIR/legendary-licenses"
 docker cp "$CID:/out/comet-licenses" "$WORK_DIR/comet-licenses"
+docker cp "$CID:/out/build-environment" "$WORK_DIR/build-environment"
 cleanup_container
 
 if [ ! -f "$WORK_DIR/publish/Retromind" ]; then
@@ -356,6 +391,90 @@ else
   exit 1
 fi
 
+MANIFEST_INTERNAL_PATH="$DOC_DIR/AppImageBuildManifest.tsv"
+
+manifest_record() {
+  manifest_section="$1"
+  manifest_name="$2"
+  manifest_value="$3"
+  manifest_detail="${4:-}"
+  printf '%s\t%s\t%s\t%s\n' \
+    "$manifest_section" "$manifest_name" "$manifest_value" "$manifest_detail" \
+    >> "$MANIFEST_INTERNAL_PATH"
+}
+
+echo "Generate AppImage build manifest..."
+printf 'section\tname\tvalue\tdetail\n' > "$MANIFEST_INTERNAL_PATH"
+manifest_record build retromind-version "$RETROMIND_VERSION"
+manifest_record build git-commit "$GIT_COMMIT" "$GIT_WORKTREE_STATE worktree"
+manifest_record build timestamp-utc "$BUILD_TIMESTAMP_UTC"
+manifest_record environment debian-base-image "$DEBIAN_BOOKWORM_IMAGE" "immutable OCI digest"
+manifest_record environment debian-main-snapshot "$DEBIAN_SNAPSHOT_MAIN" "bookworm and bookworm-updates"
+manifest_record environment debian-security-snapshot "$DEBIAN_SNAPSHOT_SECURITY" "bookworm-security"
+manifest_record environment dotnet-sdk-artifact "$DOTNET_SDK_LINUX_X64_URL" "SHA-512 $DOTNET_SDK_LINUX_X64_SHA512"
+
+if [ ! -s "$WORK_DIR/build-environment/facts.tsv" ] ||
+   [ ! -s "$WORK_DIR/build-environment/debian-packages.tsv" ] ||
+   [ ! -s "$WORK_DIR/build-environment/elf-dependencies.tsv" ]; then
+  echo "ERROR: Builder environment facts required for the manifest are incomplete."
+  exit 1
+fi
+
+while IFS="$(printf '\t')" read -r fact_name fact_value; do
+  [ -n "$fact_name" ] || continue
+  manifest_record environment "$fact_name" "$fact_value" "measured in final builder stage"
+done < "$WORK_DIR/build-environment/facts.tsv"
+
+while IFS="$(printf '\t')" read -r package_name package_version package_architecture; do
+  [ -n "$package_name" ] || continue
+  manifest_record debian-package "$package_name" "$package_version" "$package_architecture"
+done < "$WORK_DIR/build-environment/debian-packages.tsv"
+
+manifest_record component legendary "$LEGENDARY_VERSION" "commit $LEGENDARY_SOURCE_COMMIT"
+manifest_record component uv "$UV_VERSION" "Legendary build tool"
+manifest_record component comet "$COMET_VERSION" "commit $COMET_SOURCE_COMMIT; release $COMET_FORK_RELEASE"
+manifest_record component gog-protocols "$COMET_PROTOCOLS_COMMIT" "Comet protocol source"
+manifest_record component comet-rust-builder "$COMET_RUST_IMAGE" "immutable OCI digest"
+DOCKERFILE_FRONTEND="$(sed -n 's/^# syntax=//p' "$BUILD_DIR/Dockerfile.appimage" | head -n 1)"
+if ! printf '%s' "$DOCKERFILE_FRONTEND" | grep -Eq '^docker/dockerfile:[^@]+@sha256:[0-9a-f]{64}$'; then
+  echo "ERROR: Dockerfile frontend must be pinned by digest."
+  exit 1
+fi
+manifest_record component dockerfile-frontend "$DOCKERFILE_FRONTEND" "immutable OCI digest"
+manifest_record component appimagetool "$APPIMAGETOOL_VERSION" "SHA-256 $APPIMAGETOOL_SHA256"
+manifest_record component appimage-runtime "$APPIMAGE_RUNTIME_COMMIT" "SHA-256 $APPIMAGE_RUNTIME_SHA256"
+
+RCHEEVOS_VERSION="$(sed -n 's/.*return "\([0-9][0-9.]*\)";.*/\1/p' "$PROJECT_ROOT/native/rcheevos/retromind_rhash.c" | head -n 1)"
+LIBCHDR_VERSION="$(sed -n 's/^## \[\([0-9][0-9.]*\)\].*/\1/p' "$PROJECT_ROOT/native/libchdr/CHANGELOG.md" | head -n 1)"
+DR_FLAC_VERSION="$(sed -n 's/^dr_flac - v\([0-9][0-9.]*\).*/\1/p' "$PROJECT_ROOT/native/libchdr/include/dr_libs/dr_flac.h" | head -n 1)"
+DR_FLAC_PATCHES="$(
+  sed -n '/^Local deviation:/,/^are included\.$/p' "$PROJECT_ROOT/native/rcheevos/README.md" \
+    | grep -Eo '`[0-9a-f]{7,40}`' \
+    | tr -d '`'
+)"
+if [ -z "$RCHEEVOS_VERSION" ] || [ -z "$LIBCHDR_VERSION" ] || [ -z "$DR_FLAC_VERSION" ] ||
+   [ -z "$DR_FLAC_PATCHES" ]; then
+  echo "ERROR: Could not derive vendored native component versions."
+  exit 1
+fi
+manifest_record component rcheevos "$RCHEEVOS_VERSION" "vendored source"
+manifest_record component libchdr "$LIBCHDR_VERSION" "vendored source"
+manifest_record component dr_flac "$DR_FLAC_VERSION" "vendored through libchdr"
+for dr_flac_patch in $DR_FLAC_PATCHES; do
+  manifest_record patch "dr_flac-$dr_flac_patch" "$dr_flac_patch" "targeted upstream security fix"
+done
+
+tail -n +2 "$WORK_DIR/build-environment/elf-dependencies.tsv" >> "$MANIFEST_INTERNAL_PATH"
+
+find "$APPDIR/usr/lib" -type f -print | LC_ALL=C sort | while IFS= read -r native_library; do
+  relative_library="${native_library#"$APPDIR"/}"
+  library_sha256="$(sha256sum "$native_library" | awk '{print $1}')"
+  manifest_record bundled-native-library "$relative_library" "$library_sha256" "SHA-256"
+done
+
+# The internal manifest intentionally has no checksum for its enclosing
+# AppImage. The external copy receives that checksum after packaging.
+
 echo "[6/8] Download verified AppImage packaging tools..."
 APPIMAGETOOL="$WORK_DIR/appimagetool"
 APPIMAGE_RUNTIME="$WORK_DIR/runtime-x86_64"
@@ -461,7 +580,13 @@ fi
 # AppImage asset is required.
 cp "$ZSYNC_PATH" "$LEGACY_ZSYNC_PATH"
 
+APPIMAGE_SHA256="$(sha256sum "$APPIMAGE_PATH" | awk '{print $1}')"
+cp "$MANIFEST_INTERNAL_PATH" "$MANIFEST_PATH"
+printf 'artifact\t%s\t%s\tSHA-256 of the release AppImage\n' \
+  "$APPIMAGE_NAME" "$APPIMAGE_SHA256" >> "$MANIFEST_PATH"
+
 echo "Done: $APPIMAGE_PATH"
+echo "Build manifest: $MANIFEST_PATH"
 echo "Delta metadata: $ZSYNC_PATH"
 echo "Legacy update metadata: $LEGACY_ZSYNC_PATH"
 echo "Run it with: $APPIMAGE_PATH"

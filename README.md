@@ -167,9 +167,11 @@ Note: When using the AppImage, you do not need a system-wide VLC installation be
 The Wayland/X11 note below still applies because it affects how video is embedded into the Avalonia window.
 
 ### Build requirements (host)
-- Docker with the Buildx plugin (for the full reproducible BuildKit/bookworm build pipeline)
+- Docker with the Buildx plugin (for the locked BuildKit/Bookworm build pipeline)
 - `curl` (to download `appimagetool` if missing)
 - `sha256sum` (normally provided by GNU coreutils)
+
+Updating the locked build environment additionally requires `jq`; normal AppImage builds do not.
 
 Verify that Buildx is available:
 
@@ -224,6 +226,42 @@ The version is read from `InformationalVersion` in `Retromind.csproj`. The build
 
 - `dist/Retromind-<version>-x86_64.AppImage`
 - `dist/Retromind-<version>-x86_64.AppImage.zsync`
+- `dist/Retromind-<version>-x86_64.AppImage.manifest.tsv`
+
+The tracked `build/appimage-environment.env` is the reviewed build-environment lock. It pins the Debian 12
+Bookworm OCI digest, separate Debian and Debian Security snapshot imports, and the exact official .NET 10 SDK
+archive with its SHA-512. The SDK archive contains the runtime used for publishing, so the downloaded SDK and
+runtime are protected by the artifact checksum rather than only by a checksum of an installer script. Normal
+builds neither resolve newer tags nor contact mutable Debian mirrors; they reuse these pins and the Docker cache.
+
+Update the environment only as an explicit maintenance action:
+
+```bash
+./build/update-appimage-environment.sh
+git diff -- build/appimage-environment.env
+./build/build-appimage.sh
+```
+
+The update script first resolves and validates every candidate value, downloads and verifies the complete .NET
+SDK archive, and tests the signed Bookworm snapshots in a disposable container. It keeps APT signature checking
+enabled while disabling the expired `Valid-Until` check required by historical snapshots. The existing lock is
+atomically replaced only after Debian 12, glibc 2.36, the FFmpeg 5 branch and all candidate values pass validation.
+If any step fails, the old lock remains in place. Review and commit the lock change only after testing the resulting
+AppImage. A tested AppImage is then the release artifact; the release process must upload that exact file rather
+than rebuilding it.
+
+Every build embeds `AppImageBuildManifest.tsv` under `usr/share/doc/retromind/` and writes the corresponding TSV
+beside the AppImage. It records source revisions, actual builder facts and Debian package versions, ELF dependency
+classification, and SHA-256 hashes of the native libraries actually placed in the AppDir. Only the external copy
+contains the finished AppImage's SHA-256, avoiding a circular checksum. ELF `DT_NEEDED` entries are treated as
+mandatory; optional helpers and intentionally omitted plugins are listed separately. Required host-provided glibc
+and compiler-runtime libraries are documented instead of being reported as missing bundle files.
+
+These mechanisms provide traceability and a reusable, locked environment. They do not by themselves make the
+output bit-for-bit reproducible: build timestamps, compiler/tool behavior, downloaded source archives and signing
+or packaging metadata can still affect bytes. The manifest explains what was used; the environment lock prevents
+unrequested base/package/.NET movement; true reproducibility would additionally require controlling every input,
+timestamp and nondeterministic build step and comparing independent builds.
 
 The bundled Legendary source revision and build-tool version are maintained centrally in
 `build/legendary-version.env`. Legendary's own `uv.lock` supplies the exact Python dependency versions and hashes.
@@ -249,6 +287,11 @@ Docker builders:
 ```bash
 RETROMIND_BUILDX_CACHE_LIMIT=10gb ./build/build-appimage.sh
 ```
+
+Docker caching is only an optimization. The committed OCI digest, snapshot timestamps and verified download
+hashes are the persistent environment definition when caches are empty or moved to another machine. The
+Dockerfile frontend is likewise pinned by OCI digest; Docker Engine and Buildx remain host tools and are part of
+the documented reproducibility boundary.
 
 After the first successful build with `retromind-appimage-v2`, the obsolete cache from the former builder can be
 removed once with `docker buildx rm retromind-appimage`.

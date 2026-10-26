@@ -12,10 +12,12 @@ It is designed to be portable, controller‑friendly and run well on Linux deskt
 - `Retromind-{{VERSION}}-x86_64.AppImage`
 - `Retromind-{{VERSION}}-x86_64.AppImage.zsync`
 - `Retromind-{{VERSION}}-linux-x86_64.AppImage.zsync` (legacy update-discovery metadata)
+- `Retromind-{{VERSION}}-x86_64.AppImage.manifest.tsv`
 
-SHA‑256 checksum: `checksum`
+SHA‑256 checksum: copy the `artifact` row from the external manifest.
 
-Upload all three files without renaming them. The legacy `.zsync` file lets AppImageUpdate clients from 0.1.9
+Upload all four files without renaming them. Release the already tested AppImage; do not rebuild it during the
+release step. The legacy `.zsync` file lets AppImageUpdate clients from 0.1.9
 and earlier discover the renamed AppImage without requiring a duplicate AppImage asset. Alpha/beta releases
 must be marked as a GitHub **prerelease** so AppImage update tools select the correct release channel.
 

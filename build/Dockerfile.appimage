@@ -1,12 +1,22 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
+# The canonical script must replace this sentinel from appimage-environment.env.
+# It is deliberately not a mutable fallback image tag.
+ARG DEBIAN_BOOKWORM_IMAGE=retromind-environment-lock-required
+ARG DEBIAN_SNAPSHOT_MAIN
+ARG DEBIAN_SNAPSHOT_SECURITY
 # The canonical build script passes this value from build/comet-version.env.
 # Keep the same pinned default so direct Dockerfile builds remain valid.
 ARG COMET_RUST_IMAGE=rust@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f
 FROM ${COMET_RUST_IMAGE} AS comet-builder
 
+ARG DEBIAN_SNAPSHOT_MAIN
+ARG DEBIAN_SNAPSHOT_SECURITY
+COPY build/configure-bookworm-snapshot.sh /usr/local/bin/configure-bookworm-snapshot
 COPY build/comet-version.env /tmp/comet-version.env
 
-RUN apt-get update \
+RUN configure-bookworm-snapshot "$DEBIAN_SNAPSHOT_MAIN" "$DEBIAN_SNAPSHOT_SECURITY" \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
        curl \
@@ -57,11 +67,16 @@ RUN --mount=type=cache,id=retromind-comet-cargo-home,target=/tmp/comet-cargo,sha
       exit 1; \
     fi
 
-FROM debian:bookworm AS legendary-builder
+FROM ${DEBIAN_BOOKWORM_IMAGE} AS legendary-builder
 
+ARG DEBIAN_SNAPSHOT_MAIN
+ARG DEBIAN_SNAPSHOT_SECURITY
+COPY build/configure-bookworm-snapshot.sh /usr/local/bin/configure-bookworm-snapshot
 COPY build/legendary-version.env /tmp/legendary-version.env
 
-RUN apt-get update \
+RUN configure-bookworm-snapshot "$DEBIAN_SNAPSHOT_MAIN" "$DEBIAN_SNAPSHOT_SECURITY" \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
        binutils \
        ca-certificates \
@@ -123,7 +138,14 @@ RUN set -eu; \
     printf '%s\n' "$output"; \
     printf '%s\n' "$output" | grep -F "legendary version \"${LEGENDARY_VERSION}\""
 
-FROM debian:bookworm
+FROM ${DEBIAN_BOOKWORM_IMAGE}
+
+ARG DEBIAN_SNAPSHOT_MAIN
+ARG DEBIAN_SNAPSHOT_SECURITY
+ARG DOTNET_SDK_VERSION
+ARG DOTNET_RUNTIME_VERSION
+ARG DOTNET_SDK_LINUX_X64_URL
+ARG DOTNET_SDK_LINUX_X64_SHA512
 
 LABEL org.retromind.appimage-builder="true"
 
@@ -138,9 +160,13 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 ENV DOTNET_NOLOGO=1
 
-RUN apt-get update \
+COPY build/configure-bookworm-snapshot.sh /usr/local/bin/configure-bookworm-snapshot
+RUN configure-bookworm-snapshot "$DEBIAN_SNAPSHOT_MAIN" "$DEBIAN_SNAPSHOT_SECURITY" \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
+       binutils \
        build-essential \
        curl \
        ffmpeg \
@@ -161,12 +187,16 @@ RUN apt-get update \
        libsdl2-2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
-    && chmod +x /tmp/dotnet-install.sh \
-    && /tmp/dotnet-install.sh --channel 10.0 --install-dir "$DOTNET_ROOT" \
+RUN curl --fail --location --retry 5 --retry-delay 2 --retry-connrefused \
+      -o /tmp/dotnet-sdk.tar.gz "$DOTNET_SDK_LINUX_X64_URL" \
+    && printf '%s  %s\n' "$DOTNET_SDK_LINUX_X64_SHA512" /tmp/dotnet-sdk.tar.gz | sha512sum --check --strict \
+    && mkdir -p "$DOTNET_ROOT" \
+    && tar -xzf /tmp/dotnet-sdk.tar.gz --no-same-owner -C "$DOTNET_ROOT" \
     && ln -sf "$DOTNET_ROOT/dotnet" /usr/bin/dotnet \
+    && test "$(dotnet --version)" = "$DOTNET_SDK_VERSION" \
+    && dotnet --list-runtimes | grep -Fx "Microsoft.NETCore.App $DOTNET_RUNTIME_VERSION [$DOTNET_ROOT/shared/Microsoft.NETCore.App]" \
     && dotnet --info \
-    && rm -f /tmp/dotnet-install.sh
+    && rm -f /tmp/dotnet-sdk.tar.gz
 
 WORKDIR /src
 COPY . /src
@@ -399,5 +429,20 @@ COPY --from=legendary-builder /out/legendary /out/tools/bin/legendary
 COPY --from=legendary-builder /out/licenses /out/legendary-licenses
 COPY --from=comet-builder /out/comet /out/tools/bin/comet
 COPY --from=comet-builder /out/licenses /out/comet-licenses
+
+COPY build/inspect-appimage-elf.sh /usr/local/bin/inspect-appimage-elf
+RUN set -eu; \
+    mkdir -p /out/build-environment; \
+    dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \
+      | sort > /out/build-environment/debian-packages.tsv; \
+    { \
+      printf 'debian-version\t'; cat /etc/debian_version; \
+      printf 'architecture\t%s\n' "$(dpkg --print-architecture)"; \
+      printf 'glibc-version\t%s\n' "$(getconf GNU_LIBC_VERSION | awk '{print $2}')"; \
+      printf 'dotnet-sdk-version\t%s\n' "$(dotnet --version)"; \
+      dotnet --list-runtimes | sed 's/^/dotnet-runtime\t/'; \
+    } > /out/build-environment/facts.tsv; \
+    test "$(getconf GNU_LIBC_VERSION)" = 'glibc 2.36'; \
+    inspect-appimage-elf /out /out/build-environment/elf-dependencies.tsv
 
 CMD ["bash", "-lc", "echo 'Retromind bookworm builder image ready.'"]
