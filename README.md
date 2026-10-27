@@ -253,9 +253,13 @@ than rebuilding it.
 Every build embeds `AppImageBuildManifest.tsv` under `usr/share/doc/retromind/` and writes the corresponding TSV
 beside the AppImage. It records source revisions, actual builder facts and Debian package versions, ELF dependency
 classification, and SHA-256 hashes of the native libraries actually placed in the AppDir. Only the external copy
-contains the finished AppImage's SHA-256, avoiding a circular checksum. ELF `DT_NEEDED` entries are treated as
-mandatory; optional helpers and intentionally omitted plugins are listed separately. Required host-provided glibc
-and compiler-runtime libraries are documented instead of being reported as missing bundle files.
+contains the finished AppImage's SHA-256, avoiding a circular checksum. Debian package rows are explicitly scoped
+to the `final-appimage-builder` stage; the separate Legendary and Comet build stages are identified by their source
+and builder pins instead. The final AppDir is checked with the pinned Debian 12 glibc loader under the actual VLC
+and bundled-helper library search profiles, including each ELF object's `RPATH`/`RUNPATH`. ELF `DT_NEEDED` entries
+are treated as mandatory, while required host-provided glibc and compiler-runtime libraries are documented instead
+of being reported as missing bundle files. This is not a complete analysis of libraries selected dynamically by
+application-specific `dlopen()` calls. Optional helpers and intentionally omitted plugins are listed separately.
 
 These mechanisms provide traceability and a reusable, locked environment. They do not by themselves make the
 output bit-for-bit reproducible: build timestamps, compiler/tool behavior, downloaded source archives and signing

@@ -442,7 +442,6 @@ RUN set -eu; \
       printf 'dotnet-sdk-version\t%s\n' "$(dotnet --version)"; \
       dotnet --list-runtimes | sed 's/^/dotnet-runtime\t/'; \
     } > /out/build-environment/facts.tsv; \
-    test "$(getconf GNU_LIBC_VERSION)" = 'glibc 2.36'; \
-    inspect-appimage-elf /out /out/build-environment/elf-dependencies.tsv
+    test "$(getconf GNU_LIBC_VERSION)" = 'glibc 2.36'
 
 CMD ["bash", "-lc", "echo 'Retromind bookworm builder image ready.'"]

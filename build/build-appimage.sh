@@ -391,6 +391,14 @@ else
   exit 1
 fi
 
+echo "Validate final AppDir ELF dependencies and ABI compatibility..."
+docker run --rm --platform linux/amd64 \
+  --user "$(id -u):$(id -g)" \
+  -v "$APPDIR:/appdir:ro" \
+  -v "$WORK_DIR/build-environment:/build-environment" \
+  "$BUILDER_IMAGE" \
+  inspect-appimage-elf /appdir /build-environment/elf-dependencies.tsv
+
 MANIFEST_INTERNAL_PATH="$DOC_DIR/AppImageBuildManifest.tsv"
 
 manifest_record() {
@@ -412,6 +420,7 @@ manifest_record environment debian-base-image "$DEBIAN_BOOKWORM_IMAGE" "immutabl
 manifest_record environment debian-main-snapshot "$DEBIAN_SNAPSHOT_MAIN" "bookworm and bookworm-updates"
 manifest_record environment debian-security-snapshot "$DEBIAN_SNAPSHOT_SECURITY" "bookworm-security"
 manifest_record environment dotnet-sdk-artifact "$DOTNET_SDK_LINUX_X64_URL" "SHA-512 $DOTNET_SDK_LINUX_X64_SHA512"
+manifest_record environment debian-package-list-scope final-appimage-builder "all debian-package rows were measured in the final AppImage builder stage"
 
 if [ ! -s "$WORK_DIR/build-environment/facts.tsv" ] ||
    [ ! -s "$WORK_DIR/build-environment/debian-packages.tsv" ] ||
