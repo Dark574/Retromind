@@ -1,0 +1,205 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:helpers="using:Retromind.Helpers"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="Transparent"
+
+             ext:ThemeProperties.Name="PlayStation 2"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.AccentColor="#3568FF"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.VideoSlotName="SystemPrimaryVideoSlot"
+             ext:ThemeProperties.VideoStretchMode="UniformToFill"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
+             ext:ThemeProperties.SecondaryVideoEnabled="False">
+
+    <UserControl.Resources>
+        <helpers:ThemeAssetToBitmapConverter x:Key="ThemeAssetConverter" />
+    </UserControl.Resources>
+
+    <Border Background="#03050D"
+            CornerRadius="8"
+            ClipToBounds="True">
+        <Grid>
+            <Rectangle>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#111B3E" Offset="0" />
+                        <GradientStop Color="#070B1B" Offset="0.5" />
+                        <GradientStop Color="#020308" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <Border Height="4"
+                    VerticalAlignment="Top"
+                    Opacity="0.96">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Color="#315BFF" Offset="0" />
+                        <GradientStop Color="#38A8FF" Offset="0.68" />
+                        <GradientStop Color="#173178" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <Grid ColumnDefinitions="0.82*,1.48*"
+                  Margin="44,34,38,30">
+
+                <Grid Grid.Column="0"
+                      RowDefinitions="Auto,Auto,*"
+                      Margin="0,12,36,10">
+                    <Grid Grid.Row="0" Height="112">
+                        <Image helpers:AsyncImageHelper.Url="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               MaxWidth="370"
+                               IsVisible="{Binding ElementName=ThemeRoot,
+                                                   Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+                                                   Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Name}"
+                                   FontSize="44"
+                                   FontWeight="Bold"
+                                   Foreground="#F2F5FF"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding ElementName=ThemeRoot,
+                                                       Path=(ext:ThemeProperties.SystemPreviewNode).PrimaryLogoAbsolutePath,
+                                                       Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,14,0,20">
+                        <Border Height="3"
+                                Background="#3568FF"
+                                HorizontalAlignment="Left"
+                                Width="124" />
+                        <Border Height="3"
+                                Background="#38A8FF"
+                                HorizontalAlignment="Left"
+                                Margin="124,0,0,0"
+                                Width="42" />
+                    </Grid>
+
+                    <Border Grid.Row="2"
+                            BorderBrush="#663568FF"
+                            BorderThickness="1,0,0,0"
+                            Padding="18,2,4,4"
+                            ClipToBounds="True">
+                        <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Description}"
+                                   FontSize="18"
+                                   LineHeight="27"
+                                   Foreground="#D7DDF0"
+                                   TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+
+                <!-- The shared preview is framed as a blue data portal. The original,
+                     brand-neutral console and wired controller overlap below it. -->
+                <Viewbox Grid.Column="1"
+                         Stretch="Uniform"
+                         StretchDirection="Both"
+                         ClipToBounds="False"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         MaxWidth="930"
+                         MaxHeight="830">
+                    <Canvas Width="1536" Height="1370">
+                        <Border Canvas.Left="78"
+                                Canvas.Top="36"
+                                Width="1300"
+                                Height="790"
+                                CornerRadius="28"
+                                Background="#B0040712"
+                                BorderBrush="#7038A8FF"
+                                BorderThickness="2" />
+
+                        <Border Canvas.Left="104"
+                                Canvas.Top="62"
+                                Width="1248"
+                                Height="738"
+                                CornerRadius="18"
+                                Background="#02030A"
+                                BorderBrush="#C03568FF"
+                                BorderThickness="4" />
+
+                        <!-- Exact 16:9 preview surface inside the portal. -->
+                        <Border x:Name="SystemPrimaryVideoSlot"
+                                Canvas.Left="150"
+                                Canvas.Top="86"
+                                Width="1152"
+                                Height="648"
+                                Background="#010207"
+                                ClipToBounds="True" />
+
+                        <Border Canvas.Left="134"
+                                Canvas.Top="70"
+                                Width="1184"
+                                Height="680"
+                                CornerRadius="10"
+                                BorderBrush="#8838A8FF"
+                                BorderThickness="2"
+                                IsHitTestVisible="False" />
+
+                        <Border Canvas.Left="88"
+                                Canvas.Top="118"
+                                Width="8"
+                                Height="260"
+                                Background="#3568FF" />
+                        <Border Canvas.Left="88"
+                                Canvas.Top="394"
+                                Width="8"
+                                Height="96"
+                                Background="#38A8FF" />
+                        <Border Canvas.Left="1360"
+                                Canvas.Top="476"
+                                Width="8"
+                                Height="238"
+                                Background="#3568FF" />
+
+                        <Image Source="{Binding $parent[UserControl],
+                                                Converter={StaticResource ThemeAssetConverter},
+                                                ConverterParameter=Images/ps2-inspired-console-controller.png}"
+                               Canvas.Left="510"
+                               Canvas.Top="676"
+                               Width="970"
+                               Height="647"
+                               Stretch="Fill"
+                               IsHitTestVisible="False" />
+
+                        <Border Canvas.Left="340"
+                                Canvas.Top="915"
+                                Width="430"
+                                Height="84"
+                                CornerRadius="8"
+                                Background="#B0070B1B"
+                                BorderBrush="#703568FF"
+                                BorderThickness="1">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="12"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="{x:Static resources:ThemeStrings.GameCountLabel}"
+                                           FontSize="17"
+                                           FontWeight="SemiBold"
+                                           Foreground="#B8C3E5"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding ElementName=ThemeRoot, Path=(ext:ThemeProperties.SystemPreviewNode).Items.Count}"
+                                           FontSize="26"
+                                           FontWeight="Bold"
+                                           Foreground="#5B86FF"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Canvas>
+                </Viewbox>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>
