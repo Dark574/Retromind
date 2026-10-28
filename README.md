@@ -283,7 +283,7 @@ AppImage itself.
 
 The script uses an isolated Buildx builder named `retromind-appimage-v2`. Its BuildKit configuration reserves a
 separate cache for downloaded and compiled Comet dependencies. After every build attempt, including a failed or
-interrupted one, the script removes its temporary export container and limits regular builder layers to 20 GB;
+interrupted one, the script removes its temporary export container and limits regular builder layers to 30 GB;
 the separate dependency cache is not included in that limit. Obsolete Retromind builder images are removed after
 a successful build. The regular-layer cache limit can be changed for a single build without affecting other
 Docker builders:
