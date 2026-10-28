@@ -15,6 +15,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Changed
 - keep the last successful Steam and GOG achievement progress and downloaded icons available for offline viewing after restarting Retromind while avoiding repeated service requests during normal library browsing
+- improve Linux display stability, HiDPI window sizing, native Wayland scrolling, and UI resource cleanup
 
 ### Fixed
 - refresh the context menu after a game is assigend to the GOG-Store
