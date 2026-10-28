@@ -97,6 +97,18 @@ internal sealed class Program
         var builder = AppBuilder.Configure<App>()
             .UsePlatformDetect();
 
+        if (OperatingSystem.IsLinux())
+        {
+            // Native X11 popup windows can retain their initially constrained size
+            // after a context menu finishes measuring. Keeping popups in Avalonia's
+            // overlay lets the normal layout pass size and reposition them correctly.
+            // Wayland ignores this X11-specific option; it also covers Wayland fallback.
+            builder = builder.With(new X11PlatformOptions
+            {
+                OverlayPopups = true,
+            });
+        }
+
         if (OperatingSystem.IsLinux() && useWayland)
         {
             // Wayland negotiates server-side decorations while creating the
