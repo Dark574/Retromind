@@ -6,20 +6,6 @@ namespace Retromind.Tests.Services.Stores.Epic;
 public sealed class LegendaryCliClientTests
 {
     [Fact]
-    public async Task GetVersionAsync_ParsesOfficialVersionFormat()
-    {
-        var runner = new FakeProcessRunner(
-            new LegendaryCliResult(0, "legendary version \"0.20.34\", codename \"Direct Intervention\"\n", string.Empty));
-        var client = new LegendaryCliClient(runner);
-
-        var version = await client.GetVersionAsync();
-
-        Assert.Equal("0.20.34", version.Version);
-        Assert.Equal("Direct Intervention", version.CodeName);
-        Assert.Equal(["--version"], Assert.Single(runner.Commands).Arguments);
-    }
-
-    [Fact]
     public async Task GetStatusAsync_ParsesAuthenticatedStatus()
     {
         const string json = """

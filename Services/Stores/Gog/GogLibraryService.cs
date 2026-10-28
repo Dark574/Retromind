@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -56,7 +55,7 @@ public sealed class GogLibraryService
             {
                 var pageRoot = await GetFilteredProductsPageAsync(accessToken, page, ct).ConfigureAwait(false);
 
-                var parsedTotalPages = ReadInt(pageRoot, "totalPages");
+                var parsedTotalPages = GogJsonValueReader.ReadInt32(pageRoot, "totalPages");
                 if (parsedTotalPages.HasValue && parsedTotalPages.Value > 0)
                     totalPages = parsedTotalPages.Value;
 
@@ -65,14 +64,14 @@ public sealed class GogLibraryService
 
                 foreach (var product in products.EnumerateArray())
                 {
-                    var storeGameId = ReadString(product, "id");
+                    var storeGameId = GogJsonValueReader.ReadString(product, "id");
                     if (string.IsNullOrWhiteSpace(storeGameId))
                         continue;
 
                     if (!seenGameIds.Add(storeGameId))
                         continue;
 
-                    var title = ReadString(product, "title");
+                    var title = GogJsonValueReader.ReadString(product, "title");
                     if (string.IsNullOrWhiteSpace(title))
                         title = $"GOG {storeGameId}";
 
@@ -146,36 +145,6 @@ public sealed class GogLibraryService
             return "Windows";
         if (supportsMac)
             return "Mac";
-
-        return null;
-    }
-
-    private static string? ReadString(JsonElement root, string propertyName)
-    {
-        if (!root.TryGetProperty(propertyName, out var value))
-            return null;
-
-        return value.ValueKind switch
-        {
-            JsonValueKind.String => value.GetString(),
-            JsonValueKind.Number => value.GetRawText(),
-            _ => null
-        };
-    }
-
-    private static int? ReadInt(JsonElement root, string propertyName)
-    {
-        if (!root.TryGetProperty(propertyName, out var value))
-            return null;
-
-        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var intValue))
-            return intValue;
-
-        if (value.ValueKind == JsonValueKind.String &&
-            int.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out intValue))
-        {
-            return intValue;
-        }
 
         return null;
     }

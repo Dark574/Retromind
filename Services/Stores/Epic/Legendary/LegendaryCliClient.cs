@@ -10,8 +10,6 @@ using Retromind.Helpers;
 
 namespace Retromind.Services.Stores.Epic.Legendary;
 
-internal sealed record LegendaryVersionInfo(string Version, string CodeName);
-
 internal sealed record LegendaryStatus(
     bool IsAuthenticated,
     string? AccountName,
@@ -68,7 +66,6 @@ internal sealed partial class LegendaryCliClient
 {
     internal static readonly Uri AuthorizationUri = new("https://legendary.gl/epiclogin");
 
-    private static readonly TimeSpan VersionTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan StatusTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan OnlineStatusTimeout = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan AuthenticationTimeout = TimeSpan.FromMinutes(2);
@@ -79,22 +76,6 @@ internal sealed partial class LegendaryCliClient
     public LegendaryCliClient(ILegendaryCliProcessRunner processRunner)
     {
         _processRunner = processRunner ?? throw new ArgumentNullException(nameof(processRunner));
-    }
-
-    internal async Task<LegendaryVersionInfo> GetVersionAsync(CancellationToken ct = default)
-    {
-        var result = await ExecuteAsync(
-                new LegendaryCliCommand("version check", ["--version"], VersionTimeout),
-                ct)
-            .ConfigureAwait(false);
-
-        var match = VersionOutputRegex().Match(result.StandardOutput.Trim());
-        if (!match.Success)
-            throw CreateInvalidOutputException("version check", result.StandardOutput, result.StandardError);
-
-        return new LegendaryVersionInfo(
-            match.Groups["version"].Value,
-            match.Groups["codename"].Value);
     }
 
     internal async Task<LegendaryStatus> GetStatusAsync(CancellationToken ct = default)
@@ -810,11 +791,6 @@ internal sealed partial class LegendaryCliClient
 
         return $": {detail}";
     }
-
-    [GeneratedRegex(
-        "^legendary\\s+version\\s+\"(?<version>[^\"]+)\",\\s+codename\\s+\"(?<codename>[^\"]*)\"$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex VersionOutputRegex();
 
     [GeneratedRegex(
         "(?<prefix>[\\\"']?(?:authorization_?code|authorizationCode|access_?token|accessToken|refresh_?token|refreshToken|exchange_?(?:code|token)|exchange(?:Code|Token)|-AUTH_(?:PASSWORD|LOGIN)|code|token|sid)[\\\"']?\\s*(?:=|:)\\s*[\\\"']?)[^\\s,\\\"'}&]+",

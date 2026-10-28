@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Models.Stores;
+using Retromind.Services.Stores.Gog;
 
 namespace Retromind.Services.Stores.Gog.Auth;
 
@@ -128,9 +128,11 @@ public sealed class GogOAuthClient
         using var json = JsonDocument.Parse(responseBody);
         var root = json.RootElement;
 
-        var accountId = ReadString(root, "userId") ?? ReadString(root, "id");
-        var displayName = ReadString(root, "username") ?? ReadString(root, "userName");
-        var email = ReadString(root, "email");
+        var accountId = GogJsonValueReader.ReadString(root, "userId") ??
+                        GogJsonValueReader.ReadString(root, "id");
+        var displayName = GogJsonValueReader.ReadString(root, "username") ??
+                          GogJsonValueReader.ReadString(root, "userName");
+        var email = GogJsonValueReader.ReadString(root, "email");
 
         if (string.IsNullOrWhiteSpace(accountId))
             accountId = !string.IsNullOrWhiteSpace(displayName) ? displayName : "gog-user";
@@ -161,10 +163,10 @@ public sealed class GogOAuthClient
         using var json = JsonDocument.Parse(responseBody);
         var root = json.RootElement;
 
-        var accessToken = ReadString(root, "access_token");
-        var refreshToken = ReadString(root, "refresh_token");
-        var userId = ReadString(root, "user_id");
-        var expiresIn = ReadInt(root, "expires_in");
+        var accessToken = GogJsonValueReader.ReadString(root, "access_token");
+        var refreshToken = GogJsonValueReader.ReadString(root, "refresh_token");
+        var userId = GogJsonValueReader.ReadString(root, "user_id");
+        var expiresIn = GogJsonValueReader.ReadInt32(root, "expires_in");
 
         if (string.IsNullOrWhiteSpace(accessToken) ||
             string.IsNullOrWhiteSpace(refreshToken) ||
@@ -178,36 +180,6 @@ public sealed class GogOAuthClient
         return new GogTokenSet(accessToken, refreshToken, userId, expiresAt);
     }
 
-    private static string? ReadString(JsonElement root, string propertyName)
-    {
-        if (!root.TryGetProperty(propertyName, out var value))
-            return null;
-
-        return value.ValueKind switch
-        {
-            JsonValueKind.String => value.GetString(),
-            JsonValueKind.Number => value.GetRawText(),
-            _ => null
-        };
-    }
-
-    private static int? ReadInt(JsonElement root, string propertyName)
-    {
-        if (!root.TryGetProperty(propertyName, out var value))
-            return null;
-
-        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var intValue))
-            return intValue;
-
-        if (value.ValueKind == JsonValueKind.String &&
-            int.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out intValue))
-        {
-            return intValue;
-        }
-
-        return null;
-    }
-
     private static string? ExtractErrorCode(string? jsonOrText)
     {
         if (string.IsNullOrWhiteSpace(jsonOrText))
@@ -217,7 +189,7 @@ public sealed class GogOAuthClient
         {
             using var json = JsonDocument.Parse(jsonOrText);
             var root = json.RootElement;
-            var error = ReadString(root, "error");
+            var error = GogJsonValueReader.ReadString(root, "error");
             if (!string.IsNullOrWhiteSpace(error))
                 return error;
         }

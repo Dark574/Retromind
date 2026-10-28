@@ -38,20 +38,6 @@ internal static class StoreProviderBadgeHelper
         return null;
     }
 
-    public static bool HasStoreAssociation(MediaItem? item)
-    {
-        if (item == null)
-            return false;
-
-        if (item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var storedProviderId) &&
-            !string.IsNullOrWhiteSpace(storedProviderId))
-        {
-            return true;
-        }
-
-        return GetProviderId(item) != null;
-    }
-
     public static string? GetBadgeText(MediaItem? item) =>
         GetBadgeText(GetProviderId(item));
 

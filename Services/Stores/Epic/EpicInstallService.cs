@@ -376,7 +376,7 @@ public sealed class EpicInstallService
             return new EpicInstallDirectoryAssessment(EpicInstallDirectoryStatus.InvalidPath, installPath);
         }
 
-        if (IsDangerousPath(fullPath))
+        if (StoreInstallPathSafety.IsDangerousInstallPath(fullPath))
             return new EpicInstallDirectoryAssessment(EpicInstallDirectoryStatus.DangerousPath, fullPath);
 
         try
@@ -491,31 +491,6 @@ public sealed class EpicInstallService
         {
             return false;
         }
-    }
-
-    private static bool IsDangerousPath(string fullPath)
-    {
-        var root = Path.GetPathRoot(fullPath);
-        if (string.IsNullOrWhiteSpace(root) || FileSystemPathIdentity.Equals(fullPath, root))
-            return true;
-
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrWhiteSpace(home) && FileSystemPathIdentity.Equals(fullPath, Path.GetFullPath(home)))
-            return true;
-        if (FileSystemPathIdentity.Equals(fullPath, AppPaths.DataRoot) ||
-            FileSystemPathIdentity.Equals(fullPath, AppPaths.LibraryRoot))
-        {
-            return true;
-        }
-
-        string[] blockedPaths = ["/usr", "/bin", "/sbin", "/etc", "/var", "/boot", "/dev", "/proc", "/sys"];
-        foreach (var blockedPath in blockedPaths)
-        {
-            if (IsEqualToOrBelow(fullPath, blockedPath))
-                return true;
-        }
-
-        return false;
     }
 
     private static bool ContainsSymbolicLinkInPath(string path)

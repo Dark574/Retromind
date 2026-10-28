@@ -9,6 +9,54 @@ namespace Retromind.Tests.Services.Stores.Epic;
 
 public sealed class EpicInstallServiceTests
 {
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AssessDirectory_RejectsInvalidPaths(string? installPath)
+    {
+        var assessment = CreateService().AssessDirectory(installPath, CreateEpicItem());
+
+        Assert.Equal(EpicInstallDirectoryStatus.InvalidPath, assessment.Status);
+        Assert.False(assessment.IsAllowed);
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/usr")]
+    [InlineData("/usr/local/share")]
+    [InlineData("/etc")]
+    [InlineData("/var/lib")]
+    public void AssessDirectory_RejectsDangerousLinuxPaths(string installPath)
+    {
+        var assessment = CreateService().AssessDirectory(installPath, CreateEpicItem());
+
+        Assert.Equal(EpicInstallDirectoryStatus.DangerousPath, assessment.Status);
+        Assert.False(assessment.IsAllowed);
+    }
+
+    [Fact]
+    public void AssessDirectory_RejectsUserHome()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        Assert.False(string.IsNullOrWhiteSpace(home));
+
+        var assessment = CreateService().AssessDirectory(home, CreateEpicItem());
+
+        Assert.Equal(EpicInstallDirectoryStatus.DangerousPath, assessment.Status);
+        Assert.False(assessment.IsAllowed);
+    }
+
+    [Theory]
+    [MemberData(nameof(RetromindRootPaths))]
+    public void AssessDirectory_RejectsRetromindRoots(string installPath)
+    {
+        var assessment = CreateService().AssessDirectory(installPath, CreateEpicItem());
+
+        Assert.Equal(EpicInstallDirectoryStatus.DangerousPath, assessment.Status);
+        Assert.False(assessment.IsAllowed);
+    }
+
     [Fact]
     public void AssessDirectory_AllowsNewAndEmptyDirectories()
     {
@@ -538,6 +586,12 @@ public sealed class EpicInstallServiceTests
           }
         ]
         """;
+
+    public static TheoryData<string> RetromindRootPaths => new()
+    {
+        AppPaths.DataRoot,
+        AppPaths.LibraryRoot
+    };
 
     private static EpicInstallService CreateService() =>
         new(new LegendaryCliClient(new UnusedProcessRunner()));

@@ -260,31 +260,8 @@ internal static class GogInstallDirectorySafety
         return assessment.Status == GogInstallDirectoryStatus.UnownedDirectory;
     }
 
-    public static bool IsDangerousPath(string fullPath)
-    {
-        if (string.IsNullOrWhiteSpace(fullPath))
-            return true;
-
-        var root = Path.GetPathRoot(fullPath);
-        if (string.IsNullOrWhiteSpace(root) || PathsEqual(fullPath, root))
-            return true;
-
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrWhiteSpace(home) && PathsEqual(fullPath, Path.GetFullPath(home)))
-            return true;
-
-        if (PathsEqual(fullPath, AppPaths.DataRoot) || PathsEqual(fullPath, AppPaths.LibraryRoot))
-            return true;
-
-        var blockedPaths = new[] { "/usr", "/bin", "/sbin", "/etc", "/var", "/boot", "/dev", "/proc", "/sys" };
-        foreach (var blocked in blockedPaths)
-        {
-            if (IsPathEqualToOrBelow(fullPath, blocked))
-                return true;
-        }
-
-        return false;
-    }
+    public static bool IsDangerousPath(string fullPath) =>
+        StoreInstallPathSafety.IsDangerousInstallPath(fullPath);
 
     /// <summary>
     /// Checks the target and every existing ancestor component for symbolic links.
@@ -340,14 +317,6 @@ internal static class GogInstallDirectorySafety
             ? fullParent
             : fullParent + Path.DirectorySeparatorChar;
         return fullPath.StartsWith(parentWithSeparator, comparison);
-    }
-
-    private static bool PathsEqual(string left, string right)
-    {
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        return string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), comparison);
     }
 
     private sealed record InstallMarker(
