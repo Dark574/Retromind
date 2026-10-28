@@ -90,6 +90,64 @@ public sealed class LibraryChangeTrackerTests
         tracker.StopTracking();
     }
 
+    [Fact]
+    public async Task NewChangeDuringSave_RemainsDirtyAfterOlderSaveCompletes()
+    {
+        var saveStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowFirstSaveToFinish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var saveCount = 0;
+        var roots = new ObservableCollection<MediaNode>();
+        var tracker = new LibraryChangeTracker(
+            new MediaDataService(),
+            (_, _) => { },
+            onStructureChanged: null,
+            onItemProtectionChanged: null,
+            onBeforeSaveMigration: null,
+            saveOperationOverride: async () =>
+            {
+                if (Interlocked.Increment(ref saveCount) != 1)
+                    return;
+
+                saveStarted.TrySetResult();
+                await allowFirstSaveToFinish.Task;
+            });
+        tracker.Initialize(roots);
+
+        roots.Add(new MediaNode("First"));
+        var firstSave = tracker.SaveIfDirtyAsync(force: false);
+        await saveStarted.Task;
+
+        roots.Add(new MediaNode("Second"));
+        allowFirstSaveToFinish.TrySetResult();
+        await firstSave;
+
+        Assert.True(tracker.IsDirty);
+        Assert.Equal(2, tracker.DirtyVersion);
+        Assert.Equal(1, saveCount);
+        tracker.StopTracking();
+    }
+
+    [Fact]
+    public async Task FailedSave_RetainsDirtyState()
+    {
+        var roots = new ObservableCollection<MediaNode>();
+        var tracker = new LibraryChangeTracker(
+            new MediaDataService(),
+            (_, _) => { },
+            onStructureChanged: null,
+            onItemProtectionChanged: null,
+            onBeforeSaveMigration: null,
+            saveOperationOverride: () => Task.FromException(new IOException("Test save failure")));
+        tracker.Initialize(roots);
+        roots.Add(new MediaNode("Unsaved"));
+
+        await Assert.ThrowsAsync<IOException>(() => tracker.SaveIfDirtyAsync(force: false));
+
+        Assert.True(tracker.IsDirty);
+        Assert.Equal(1, tracker.DirtyVersion);
+        tracker.StopTracking();
+    }
+
     private static LibraryChangeTracker CreateTracker()
         => new(new MediaDataService(), (_, _) => { });
 }

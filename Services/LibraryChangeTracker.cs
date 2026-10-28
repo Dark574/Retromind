@@ -17,6 +17,7 @@ namespace Retromind.Services;
 public class LibraryChangeTracker
 {
     private readonly MediaDataService _dataService;
+    private readonly Func<Task>? _saveOperationOverride;
     
     // Callbacks
     private readonly Action<object?, PropertyChangedEventArgs> _onItemPropertyChanged;
@@ -25,6 +26,7 @@ public class LibraryChangeTracker
     private readonly Func<ObservableCollection<MediaNode>, int>? _onBeforeSaveMigration;
 
     // Dirty state
+    private readonly object _stateLock = new();
     private bool _isLibraryDirty;
     private int _libraryDirtyVersion;
     
@@ -34,7 +36,6 @@ public class LibraryChangeTracker
     private ObservableCollection<MediaNode>? _trackedRoots;
     
     // Debounced save
-    private readonly object _saveTimerLock = new();
     private Timer? _saveTimer;
     private DateTime _saveDueAtUtc;
     private readonly TimeSpan _saveDebounce = TimeSpan.FromMilliseconds(800);
@@ -49,8 +50,23 @@ public class LibraryChangeTracker
     public event Action<Exception>? SaveFailed;
     public event Action? SaveSucceeded;
 
-    internal bool IsDirty => _isLibraryDirty;
-    internal int DirtyVersion => _libraryDirtyVersion;
+    internal bool IsDirty
+    {
+        get
+        {
+            lock (_stateLock)
+                return _isLibraryDirty;
+        }
+    }
+
+    internal int DirtyVersion
+    {
+        get
+        {
+            lock (_stateLock)
+                return _libraryDirtyVersion;
+        }
+    }
     
     public LibraryChangeTracker(
         MediaDataService dataService,
@@ -64,6 +80,24 @@ public class LibraryChangeTracker
         _onStructureChanged = onStructureChanged;
         _onItemProtectionChanged = onItemProtectionChanged;
         _onBeforeSaveMigration = onBeforeSaveMigration;
+    }
+
+    internal LibraryChangeTracker(
+        MediaDataService dataService,
+        Action<object?, PropertyChangedEventArgs> onItemPropertyChanged,
+        Action? onStructureChanged,
+        Action<MediaItem>? onItemProtectionChanged,
+        Func<ObservableCollection<MediaNode>, int>? onBeforeSaveMigration,
+        Func<Task> saveOperationOverride)
+        : this(
+            dataService,
+            onItemPropertyChanged,
+            onStructureChanged,
+            onItemProtectionChanged,
+            onBeforeSaveMigration)
+    {
+        _saveOperationOverride = saveOperationOverride ??
+            throw new ArgumentNullException(nameof(saveOperationOverride));
     }
     
     public void Initialize(ObservableCollection<MediaNode> roots)
@@ -88,8 +122,12 @@ public class LibraryChangeTracker
         _trackedRoots = null;
         _trackedItems.Clear();
         _trackedNodes.Clear();
-        _isLibraryDirty = false;
-        _libraryDirtyVersion = 0;
+
+        lock (_stateLock)
+        {
+            _isLibraryDirty = false;
+            _libraryDirtyVersion = 0;
+        }
     }
     
     public void StopTracking()
@@ -108,13 +146,25 @@ public class LibraryChangeTracker
         MarkDirtyCore();
     }
 
-    private void MarkDirtyCore()
+    private int MarkDirtyCore()
     {
-        _isLibraryDirty = true;
-        _libraryDirtyVersion++;
+        int version;
+        lock (_stateLock)
+        {
+            _isLibraryDirty = true;
+            version = ++_libraryDirtyVersion;
+
+            _saveDueAtUtc = DateTime.UtcNow + _saveDebounce;
+            _saveTimer ??= new Timer(
+                static state => ((LibraryChangeTracker)state!).OnSaveTimerElapsed(),
+                this,
+                Timeout.InfiniteTimeSpan,
+                Timeout.InfiniteTimeSpan);
+            _saveTimer.Change(_saveDebounce, Timeout.InfiniteTimeSpan);
+        }
+
         LibraryDirtyStateChanged?.Invoke();
-        
-        DebouncedSave();
+        return version;
     }
     
     public void MarkDirtyAndSaveSoon()
@@ -125,8 +175,7 @@ public class LibraryChangeTracker
             return;
         }
         
-        MarkDirty();
-        var version = _libraryDirtyVersion;
+        var version = MarkDirtyCore();
         _ = ObserveImmediateSaveAsync(version);
     }
 
@@ -143,24 +192,10 @@ public class LibraryChangeTracker
         }
     }
     
-    private void DebouncedSave()
-    {
-        lock (_saveTimerLock)
-        {
-            _saveDueAtUtc = DateTime.UtcNow + _saveDebounce;
-            _saveTimer ??= new Timer(
-                static state => ((LibraryChangeTracker)state!).OnSaveTimerElapsed(),
-                this,
-                Timeout.InfiniteTimeSpan,
-                Timeout.InfiniteTimeSpan);
-            _saveTimer.Change(_saveDebounce, Timeout.InfiniteTimeSpan);
-        }
-    }
-
     private void OnSaveTimerElapsed()
     {
         int version;
-        lock (_saveTimerLock)
+        lock (_stateLock)
         {
             if (_saveTimer == null || !_isLibraryDirty)
                 return;
@@ -192,7 +227,7 @@ public class LibraryChangeTracker
 
     private void StopDebouncedSave()
     {
-        lock (_saveTimerLock)
+        lock (_stateLock)
         {
             _saveDueAtUtc = DateTime.MaxValue;
             _saveTimer?.Dispose();
@@ -207,43 +242,66 @@ public class LibraryChangeTracker
     {
         // Re-check after waiting: a newer queued save may already have persisted
         // this version, or this expected version may have become obsolete.
-        if (!force && !_isLibraryDirty) return;
-        if (expectedVersion.HasValue && expectedVersion.Value != _libraryDirtyVersion) return;
+        int saveVersion;
+        lock (_stateLock)
+        {
+            if (!force && !_isLibraryDirty) return;
+            if (expectedVersion.HasValue && expectedVersion.Value != _libraryDirtyVersion) return;
 
-        var saveVersion = expectedVersion ?? _libraryDirtyVersion;
+            saveVersion = expectedVersion ?? _libraryDirtyVersion;
+        }
 
         try
         {
-            // 1. Migration (e.g. portable paths)
-            if (_trackedRoots != null && _onBeforeSaveMigration != null)
+            if (_saveOperationOverride != null)
             {
-                var migrated = await UiThreadHelper.InvokeAsync(() => _onBeforeSaveMigration(_trackedRoots!));
-                if (migrated > 0)
-                    Debug.WriteLine($"[LibraryTracker] Migrated {migrated} paths.");
+                await _saveOperationOverride().ConfigureAwait(false);
+            }
+            else if (!await PersistLibraryAsync().ConfigureAwait(false))
+            {
+                return;
             }
 
-            var snapshot = await UiThreadHelper.InvokeAsync(() =>
+            lock (_stateLock)
             {
-                return _trackedRoots != null ? _dataService.CreateSnapshot(_trackedRoots) : null;
-            }).ConfigureAwait(false);
-
-            if (snapshot == null) return;
-
-            var json = await Task.Run(() => _dataService.Serialize(snapshot)).ConfigureAwait(false);
-            await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
-
-            if (_libraryDirtyVersion == saveVersion)
-                _isLibraryDirty = false;
+                if (_libraryDirtyVersion == saveVersion)
+                    _isLibraryDirty = false;
+            }
 
             SaveSucceeded?.Invoke();
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[LibraryTracker] Save failed: {ex.Message}");
-            _isLibraryDirty = true;
+            lock (_stateLock)
+                _isLibraryDirty = true;
+
             SaveFailed?.Invoke(ex);
             throw;
         }
+    }
+
+    private async Task<bool> PersistLibraryAsync()
+    {
+        // 1. Migration (e.g. portable paths)
+        if (_trackedRoots != null && _onBeforeSaveMigration != null)
+        {
+            var migrated = await UiThreadHelper.InvokeAsync(() => _onBeforeSaveMigration(_trackedRoots!));
+            if (migrated > 0)
+                Debug.WriteLine($"[LibraryTracker] Migrated {migrated} paths.");
+        }
+
+        var snapshot = await UiThreadHelper.InvokeAsync(() =>
+        {
+            return _trackedRoots != null ? _dataService.CreateSnapshot(_trackedRoots) : null;
+        }).ConfigureAwait(false);
+
+        if (snapshot == null)
+            return false;
+
+        var json = await Task.Run(() => _dataService.Serialize(snapshot)).ConfigureAwait(false);
+        await _dataService.SaveJsonAsync(json).ConfigureAwait(false);
+        return true;
     }
     
     // --- Recursive tracking ---
