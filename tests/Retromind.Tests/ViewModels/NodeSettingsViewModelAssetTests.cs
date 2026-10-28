@@ -43,13 +43,39 @@ public sealed class NodeSettingsViewModelAssetTests
         Assert.NotEqual(sourcePath, asset.AbsolutePath);
     }
 
-    private static NodeSettingsViewModel CreateViewModel(MediaNode node)
+    [Fact]
+    public async Task Save_PortableModeNormalizesKnownNodeEnvironmentPathOnly()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+        var protonPath = temp.GetPath("Emulators", "ProtonVersions", "GE-Proton");
+        var customValue = temp.GetPath("custom", "unchanged");
+        var node = new MediaNode("Games")
+        {
+            EnvironmentOverrides = new Dictionary<string, string>
+            {
+                ["PROTONPATH"] = protonPath,
+                ["RETROMIND_CUSTOM"] = customValue
+            }
+        };
+        var settings = new AppSettings { PreferPortableLaunchPaths = true };
+        var viewModel = CreateViewModel(node, settings);
+
+        await viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(
+            Path.Combine("Emulators", "ProtonVersions", "GE-Proton"),
+            node.EnvironmentOverrides!["PROTONPATH"]);
+        Assert.Equal(customValue, node.EnvironmentOverrides["RETROMIND_CUSTOM"]);
+    }
+
+    private static NodeSettingsViewModel CreateViewModel(MediaNode node, AppSettings? settings = null)
     {
         var roots = new ObservableCollection<MediaNode> { node };
         return new NodeSettingsViewModel(
             node,
             roots,
-            new AppSettings(),
+            settings ?? new AppSettings(),
             new FileManagementService(AppPaths.LibraryRoot),
             [node.Name]);
     }

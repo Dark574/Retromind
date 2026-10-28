@@ -1208,6 +1208,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
                     overrides[row.Key.Trim()] = row.Value ?? string.Empty;
                 }
 
+                if (_settings.PreferPortableLaunchPaths)
+                    EnvironmentPathHelper.ConvertDataRootPathsToPortable(overrides);
+
                 _node.EnvironmentOverrides = overrides;
                 break;
         }

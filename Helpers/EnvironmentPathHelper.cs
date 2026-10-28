@@ -40,6 +40,42 @@ public static class EnvironmentPathHelper
         return AppPaths.ResolveDataPath(raw);
     }
 
+    public static int ConvertDataRootPathsToPortable(IDictionary<string, string>? overrides)
+    {
+        if (overrides is not { Count: > 0 })
+            return 0;
+
+        var convertedCount = 0;
+        foreach (var key in new List<string>(overrides.Keys))
+        {
+            if (!IsDataRootPathKey(key) ||
+                !overrides.TryGetValue(key, out var rawValue) ||
+                string.IsNullOrWhiteSpace(rawValue))
+            {
+                continue;
+            }
+
+            var value = rawValue.Trim();
+            if (!Path.IsPathRooted(value))
+                continue;
+
+            try
+            {
+                if (!PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(value, out var relativePath))
+                    continue;
+
+                overrides[key] = relativePath;
+                convertedCount++;
+            }
+            catch
+            {
+                // Invalid or unsupported custom values remain unchanged.
+            }
+        }
+
+        return convertedCount;
+    }
+
     internal static string? TryGetRealUserHomePath()
         => TryGetUserHomePathFromPasswd(Environment.UserName, PasswdPath);
 

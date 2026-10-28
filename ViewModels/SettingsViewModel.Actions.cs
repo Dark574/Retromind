@@ -839,23 +839,7 @@ public partial class SettingsViewModel
         emulator.XdgCachePath = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(emulator.XdgCachePath);
         emulator.XdgStatePath = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(emulator.XdgStatePath);
         PortablePathHelper.ConvertWrapperPathsToPortable(emulator.NativeWrappersOverride);
-
-        if (emulator.EnvironmentOverrides is not { Count: > 0 })
-            return;
-
-        var keys = emulator.EnvironmentOverrides.Keys.ToList();
-        foreach (var key in keys)
-        {
-            if (!EnvironmentPathHelper.IsDataRootPathKey(key))
-                continue;
-
-            if (!emulator.EnvironmentOverrides.TryGetValue(key, out var rawValue))
-                continue;
-
-            var converted = PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(rawValue);
-            if (!string.IsNullOrWhiteSpace(converted))
-                emulator.EnvironmentOverrides[key] = converted;
-        }
+        EnvironmentPathHelper.ConvertDataRootPathsToPortable(emulator.EnvironmentOverrides);
     }
 
     private async Task BrowseSteamLibraryPathAsync()

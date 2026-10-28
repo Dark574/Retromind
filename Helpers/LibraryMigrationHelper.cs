@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Linq;
 using Retromind.Models;
 
 namespace Retromind.Helpers;
@@ -15,18 +14,6 @@ namespace Retromind.Helpers;
 /// </summary>
 public static class LibraryMigrationHelper
 {
-    private static readonly HashSet<string> EnvironmentPathKeys = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "PROTONPATH",
-        "STEAM_COMPAT_DATA_PATH",
-        "HOME",
-        "DOTNET_CLI_HOME",
-        "XDG_CONFIG_HOME",
-        "XDG_DATA_HOME",
-        "XDG_CACHE_HOME",
-        "XDG_STATE_HOME"
-    };
-
     /// <summary>
     /// Scans the entire media tree and converts absolute launch-related paths
     /// that live inside AppPaths.DataRoot into portable relative paths.
@@ -70,7 +57,7 @@ public static class LibraryMigrationHelper
     {
         var migrated = 0;
 
-        migrated += MigrateEnvironmentOverrides(node.EnvironmentOverrides, dataRoot, dataRootWithSep);
+        migrated += EnvironmentPathHelper.ConvertDataRootPathsToPortable(node.EnvironmentOverrides);
         migrated += MigrateWrappers(node.NativeWrappersOverride, dataRoot, dataRootWithSep);
 
         // Migrate launch-related data for this node's items.
@@ -182,7 +169,7 @@ public static class LibraryMigrationHelper
         }
 
         migrated += MigrateWrappers(item.NativeWrappersOverride, dataRoot, dataRootWithSep);
-        migrated += MigrateEnvironmentOverrides(item.EnvironmentOverrides, dataRoot, dataRootWithSep);
+        migrated += EnvironmentPathHelper.ConvertDataRootPathsToPortable(item.EnvironmentOverrides);
         return migrated;
     }
 
@@ -236,34 +223,6 @@ public static class LibraryMigrationHelper
                 continue;
 
             wrapper.Path = relative;
-            migrated++;
-        }
-
-        return migrated;
-    }
-
-    private static int MigrateEnvironmentOverrides(
-        Dictionary<string, string>? overrides,
-        string dataRoot,
-        string dataRootWithSep)
-    {
-        if (overrides == null || overrides.Count == 0)
-            return 0;
-
-        var migrated = 0;
-        var keys = overrides.Keys.ToList();
-        foreach (var key in keys)
-        {
-            if (!EnvironmentPathKeys.Contains(key))
-                continue;
-
-            if (!overrides.TryGetValue(key, out var value))
-                continue;
-
-            if (!TryMakeDataRootRelative(value, dataRoot, dataRootWithSep, out var relative))
-                continue;
-
-            overrides[key] = relative;
             migrated++;
         }
 

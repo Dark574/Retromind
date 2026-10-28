@@ -5,6 +5,55 @@ namespace Retromind.Tests.Helpers;
 
 public sealed class EnvironmentPathHelperTests
 {
+    [Theory]
+    [InlineData("PROTONPATH")]
+    [InlineData("STEAM_COMPAT_DATA_PATH")]
+    [InlineData("HOME")]
+    [InlineData("DOTNET_CLI_HOME")]
+    [InlineData("XDG_CONFIG_HOME")]
+    [InlineData("XDG_DATA_HOME")]
+    [InlineData("XDG_CACHE_HOME")]
+    [InlineData("XDG_STATE_HOME")]
+    public void ConvertDataRootPathsToPortable_ConvertsKnownInternalPath(string key)
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(
+            ("APPIMAGE", temp.GetPath("Retromind.AppImage")),
+            ("APPDIR", null));
+        var overrides = new Dictionary<string, string>
+        {
+            [key] = temp.GetPath("Emulators", "Portable")
+        };
+
+        var converted = EnvironmentPathHelper.ConvertDataRootPathsToPortable(overrides);
+
+        Assert.Equal(1, converted);
+        Assert.Equal(Path.Combine("Emulators", "Portable"), overrides[key]);
+    }
+
+    [Fact]
+    public void ConvertDataRootPathsToPortable_LeavesExternalAndUnknownValuesUntouched()
+    {
+        using var portableRoot = new TemporaryDirectory();
+        using var externalRoot = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(
+            ("APPIMAGE", portableRoot.GetPath("Retromind.AppImage")),
+            ("APPDIR", null));
+        var externalHome = externalRoot.GetPath("home");
+        var customInternalValue = portableRoot.GetPath("custom", "value");
+        var overrides = new Dictionary<string, string>
+        {
+            ["HOME"] = externalHome,
+            ["RETROMIND_CUSTOM"] = customInternalValue
+        };
+
+        var converted = EnvironmentPathHelper.ConvertDataRootPathsToPortable(overrides);
+
+        Assert.Equal(0, converted);
+        Assert.Equal(externalHome, overrides["HOME"]);
+        Assert.Equal(customInternalValue, overrides["RETROMIND_CUSTOM"]);
+    }
+
     [Fact]
     public void TryGetUserHomePathFromPasswd_ReturnsMatchingNonEmptyHome()
     {

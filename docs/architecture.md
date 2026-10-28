@@ -147,6 +147,8 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
 
 ## Path and portability contract
 - persisted file paths are expected to be DataRoot-relative when possible
+- with portable launch paths enabled, every emulator, node, and item save normalizes known single-path
+  environment overrides inside DataRoot; item working-directory and XDG paths follow the same rule
 - path resolution for general runtime assets/documents uses `AppPaths.ResolveDataPathInsideRootOrEmpty`;
   runtime themes use the stricter `ThemePathResolver` boundary described below
 - escaping `DataRoot` is intentionally blocked (`TryResolveDataPathInsideRoot`)

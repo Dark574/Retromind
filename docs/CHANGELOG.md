@@ -18,6 +18,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Fixed
 - refresh the context menu after a game is assigend to the GOG-Store
+- keep node and per-game environment, working-directory, and XDG paths portable when editing launch settings
 - keep usable ComicVine search results and available cover artwork when one of its comic resource searches fails temporarily
 - keep copied Proton prefixes independent from the original Retromind installation when both locations remain available
 - re-enable launch and Store actions promptly after a GOG game closes while Comet cleanup and playtime synchronization continue in the background, with a bounded grace period when exiting Retromind

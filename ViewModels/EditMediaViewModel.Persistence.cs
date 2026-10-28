@@ -65,29 +65,12 @@ public partial class EditMediaViewModel
         _originalItem.LauncherArgs = LauncherArgs;
         _originalItem.Files = CloneFiles(_editedFiles);
 
-        _originalItem.WorkingDirectory = string.IsNullOrWhiteSpace(WorkingDirectory)
-            ? null
-            : WorkingDirectory.Trim();
-
-        _originalItem.XdgConfigPath = string.IsNullOrWhiteSpace(XdgConfigPath)
-            ? null
-            : XdgConfigPath.Trim();
-
-        _originalItem.XdgDataPath = string.IsNullOrWhiteSpace(XdgDataPath)
-            ? null
-            : XdgDataPath.Trim();
-
-        _originalItem.XdgCachePath = string.IsNullOrWhiteSpace(XdgCachePath)
-            ? null
-            : XdgCachePath.Trim();
-
-        _originalItem.XdgStatePath = string.IsNullOrWhiteSpace(XdgStatePath)
-            ? null
-            : XdgStatePath.Trim();
-
-        _originalItem.XdgBasePath = string.IsNullOrWhiteSpace(XdgBasePath)
-            ? null
-            : XdgBasePath.Trim();
+        _originalItem.WorkingDirectory = NormalizeOptionalPortableDataPath(WorkingDirectory);
+        _originalItem.XdgConfigPath = NormalizeOptionalPortableDataPath(XdgConfigPath);
+        _originalItem.XdgDataPath = NormalizeOptionalPortableDataPath(XdgDataPath);
+        _originalItem.XdgCachePath = NormalizeOptionalPortableDataPath(XdgCachePath);
+        _originalItem.XdgStatePath = NormalizeOptionalPortableDataPath(XdgStatePath);
+        _originalItem.XdgBasePath = NormalizeOptionalPortableDataPath(XdgBasePath);
 
         // Always store process monitor override (null when empty)
         _originalItem.OverrideWatchProcess = string.IsNullOrWhiteSpace(OverrideWatchProcess)
@@ -174,10 +157,22 @@ public partial class EditMediaViewModel
 
             _originalItem.EnvironmentOverrides[row.Key.Trim()] = row.Value ?? string.Empty;
         }
+
+        if (_settings.PreferPortableLaunchPaths)
+            EnvironmentPathHelper.ConvertDataRootPathsToPortable(_originalItem.EnvironmentOverrides);
     }
 
     private static string? NormalizeOptionalText(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private string? NormalizeOptionalPortableDataPath(string? value)
+    {
+        var normalized = NormalizeOptionalText(value);
+        if (!_settings.PreferPortableLaunchPaths || normalized == null)
+            return normalized;
+
+        return PortablePathHelper.ConvertPathToPortableIfInsideDataRootPreserveEmpty(normalized);
+    }
 
     private Dictionary<string, string> BuildCustomFieldsDictionary()
     {
