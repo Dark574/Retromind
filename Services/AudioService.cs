@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
+using Retromind.Models;
 
 namespace Retromind.Services;
 
@@ -19,7 +22,10 @@ public class AudioService
     // Default volume (0-100). ffplay accepts values > 100 for amplification, but we stick to standard range.
     private const int DefaultVolume = 70;
 
-    private Process? _currentProcess;
+    private readonly IErrorService _errorService;
+    private readonly Func<ProcessStartInfo, IAudioProcess?> _startProcess;
+    private IAudioProcess? _currentProcess;
+    private string? _currentPlayer;
 
     // Incrementing playback id to identify the currently active process.
     private int _playbackId;
@@ -31,6 +37,21 @@ public class AudioService
 
     // Token source to cancel pending playback requests if the user switches tracks quickly
     private CancellationTokenSource? _playbackCts;
+
+    public AudioService(IErrorService errorService)
+        : this(errorService, startInfo =>
+        {
+            var process = Process.Start(startInfo);
+            return process == null ? null : new AudioProcess(process);
+        })
+    {
+    }
+
+    internal AudioService(IErrorService errorService, Func<ProcessStartInfo, IAudioProcess?> startProcess)
+    {
+        _errorService = errorService ?? throw new ArgumentNullException(nameof(errorService));
+        _startProcess = startProcess ?? throw new ArgumentNullException(nameof(startProcess));
+    }
 
     /// <summary>
     /// Fired when the current track finishes playback naturally.
@@ -44,20 +65,23 @@ public class AudioService
     /// <param name="filePath">Full path to the audio file.</param>
     public async Task PlayMusicAsync(string filePath)
     {
+        var stopErrors = new List<ErrorReport>();
+        CancellationToken token;
         // 1. Cancel any pending playback task that hasn't started the process yet
         lock (_processLock)
         {
             _playbackCts?.Cancel();
             _playbackCts?.Dispose();
             _playbackCts = new CancellationTokenSource();
+            token = _playbackCts.Token;
             
             // Immediately stop current music to make UI feel responsive
-            StopMusicInternal();
+            StopMusicInternal(stopErrors);
         }
+        ReportErrors(stopErrors);
 
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
-        var token = _playbackCts.Token;
         var playbackId = Interlocked.Increment(ref _playbackId);
 
         // 2. Offload process creation to background thread
@@ -65,13 +89,18 @@ public class AudioService
         {
             if (token.IsCancellationRequested) return;
 
+            var errors = new List<ErrorReport>();
+            IAudioProcess? startedProcess = null;
+            var executableToken = filePath.EndsWith(".sid", StringComparison.OrdinalIgnoreCase)
+                ? "sidplayfp"
+                : PlayerExecutable;
             lock (_processLock)
             {
                 // Double-check cancellation after acquiring lock
                 if (token.IsCancellationRequested) return;
 
                 // Ensure clean state again (paranoid check against race conditions)
-                StopMusicInternal();
+                StopMusicInternal(errors);
 
                 try
                 {
@@ -86,7 +115,6 @@ public class AudioService
 
                     // Simple SID detection by extension
                     var isSid = filePath.EndsWith(".sid", StringComparison.OrdinalIgnoreCase);
-                    var executableToken = isSid ? "sidplayfp" : PlayerExecutable;
                     var bundledExecutable = AppImageToolResolver.ResolveBundledExecutable(executableToken);
                     var executablePath = bundledExecutable ?? executableToken;
 
@@ -139,20 +167,34 @@ public class AudioService
                     {
                         HostProcessEnvironmentSanitizer.Sanitize(startInfo);
                     }
-                    _currentProcess = Process.Start(startInfo);
+                    _currentPlayer = executableToken;
+                    _currentProcess = _startProcess(startInfo);
 
                     if (_currentProcess == null)
-                        return;
-
-                    _currentPlaybackId = playbackId;
-                    _ = MonitorProcessExitAsync(_currentProcess, playbackId, filePath, token);
+                    {
+                        errors.Add(CreateReport("Audio.StartFailed", ErrorSeverity.Warning,
+                            "The audio player could not be started.", "Start", executableToken,
+                            filePath: filePath));
+                    }
+                    else
+                    {
+                        _currentPlaybackId = playbackId;
+                        startedProcess = _currentProcess;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[AudioService] Failed to start audio player: {ex.Message}");
-                    Debug.WriteLine("[AudioService] Ensure ffmpeg/ffplay (and sidplayfp for SID files) is installed and in your PATH.");
+                    errors.Add(CreateReport("Audio.StartFailed", ErrorSeverity.Warning,
+                        "The audio player could not be started. Ensure ffplay (or sidplayfp for SID files) is installed and in PATH.",
+                        "Start", executableToken, ex, filePath));
                 }
             }
+
+            ReportErrors(errors);
+            // Even an already-completed process must be observed outside the start lock:
+            // its monitor can run synchronously through to diagnostic output.
+            if (startedProcess != null)
+                _ = MonitorProcessExitAsync(startedProcess, playbackId, filePath, token, executableToken);
         }, token);
     }
 
@@ -161,19 +203,21 @@ public class AudioService
     /// </summary>
     public void StopMusic()
     {
+        var errors = new List<ErrorReport>();
         lock (_processLock)
         {
             _playbackCts?.Cancel(); // Cancel pending starts
             _playbackCts?.Dispose();
             _playbackCts = null;
-            StopMusicInternal();
+            StopMusicInternal(errors);
         }
+        ReportErrors(errors);
     }
 
     /// <summary>
     /// Internal helper to kill the process. Must be called within a lock.
     /// </summary>
-    private void StopMusicInternal()
+    private void StopMusicInternal(List<ErrorReport> errors)
     {
         if (_currentProcess == null) return;
 
@@ -193,16 +237,17 @@ public class AudioService
         {
             // Process might have exited between check and kill, or access denied.
             // Usually safe to ignore during cleanup.
-            Debug.WriteLine($"[AudioService] Warning during stop: {ex.Message}");
+            errors.Add(CreateReport("Audio.StopFailed", ErrorSeverity.Diagnostic,
+                "The audio player could not be stopped cleanly.", "Stop", _currentPlayer, ex));
         }
         finally
         {
-            _currentProcess.Dispose();
-            _currentProcess = null;
+            DisposeCurrentProcess(errors);
         }
     }
 
-    private async Task MonitorProcessExitAsync(Process process, int playbackId, string filePath, CancellationToken token)
+    private async Task MonitorProcessExitAsync(
+        IAudioProcess process, int playbackId, string filePath, CancellationToken token, string player)
     {
         int exitCode;
         try
@@ -215,6 +260,7 @@ public class AudioService
             return;
         }
 
+        var errors = new List<ErrorReport>();
         lock (_processLock)
         {
             if (token.IsCancellationRequested ||
@@ -225,17 +271,87 @@ public class AudioService
                 return;
             }
 
-            _currentProcess.Dispose();
-            _currentProcess = null;
+            DisposeCurrentProcess(errors);
         }
+
+        ReportErrors(errors);
 
         if (exitCode != 0)
         {
-            Debug.WriteLine(
-                $"[AudioService] Player exited with code {exitCode}; playback will not be restarted: {filePath}");
+            ReportErrors([CreateReport("Audio.ProcessFailed", ErrorSeverity.Warning,
+                "The audio player exited unexpectedly; playback will not be restarted.",
+                "Playback", player, filePath: filePath, exitCode: exitCode)]);
             return;
         }
 
         MusicPlaybackEnded?.Invoke(filePath);
+    }
+
+    // Called only under _processLock. Reporting is deferred until after releasing it.
+    private void DisposeCurrentProcess(List<ErrorReport> errors)
+    {
+        try
+        {
+            _currentProcess?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            errors.Add(CreateReport("Audio.StopFailed", ErrorSeverity.Diagnostic,
+                "The audio player could not be cleaned up completely.", "Dispose", _currentPlayer, ex));
+        }
+        finally
+        {
+            _currentProcess = null;
+        }
+    }
+
+    private void ReportErrors(IEnumerable<ErrorReport> errors)
+    {
+        foreach (var error in errors)
+        {
+            try
+            {
+                _errorService.Report(error);
+            }
+            catch
+            {
+                // Even a failing error-service implementation must not affect playback cleanup.
+            }
+        }
+    }
+
+    private static ErrorReport CreateReport(
+        string code, ErrorSeverity severity, string message, string operation, string? player,
+        Exception? exception = null, string? filePath = null, int? exitCode = null)
+    {
+        var context = new Dictionary<string, string> { ["Operation"] = operation };
+        if (player != null)
+            context["Player"] = player;
+        if (filePath != null)
+            context["FilePath"] = filePath;
+        if (exitCode.HasValue)
+            context["ExitCode"] = exitCode.Value.ToString(CultureInfo.InvariantCulture);
+
+        return new ErrorReport(code, severity, nameof(AudioService), message, exception, Context: context);
+    }
+
+    // A narrow process boundary keeps regression tests independent of installed audio players.
+    internal interface IAudioProcess : IDisposable
+    {
+        bool HasExited { get; }
+        int ExitCode { get; }
+        void Kill();
+        bool WaitForExit(int milliseconds);
+        Task WaitForExitAsync();
+    }
+
+    private sealed class AudioProcess(Process process) : IAudioProcess
+    {
+        public bool HasExited => process.HasExited;
+        public int ExitCode => process.ExitCode;
+        public void Kill() => process.Kill();
+        public bool WaitForExit(int milliseconds) => process.WaitForExit(milliseconds);
+        public Task WaitForExitAsync() => process.WaitForExitAsync();
+        public void Dispose() => process.Dispose();
     }
 }

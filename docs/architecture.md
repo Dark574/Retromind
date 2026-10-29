@@ -198,9 +198,9 @@ and dispatcher/notification failures are contained strictly inside the output bo
 reported or printed with potentially sensitive exception details, and do not replace the original failure
 or prevent an independently requested notification.
 
-### Persistence integration and future callers
+### Persistence and audio integration, and future callers
 
-Only `MainWindowViewModel.ReportPersistenceSaveFailure()` uses the new service in this phase. It reports
+`MainWindowViewModel.ReportPersistenceSaveFailure()` reports
 `Persistence.SaveFailed` with severity `Error`, the existing localized `Persistence.SaveFailedFormat`
 message, the original exception, and `Operation=Save` context. Its existing atomic notification gate
 still permits only one notice until a successful save resets it. Each call is logged, including calls
@@ -211,6 +211,23 @@ Save operations, dirty tracking, settings debounces, and shutdown behavior are u
 flush, existing suppression prevents persistence-error dialogs; failure still returns `false`, skips
 cleanup, resumes launcher operation, and lets `MainWindow` own the existing exit-without-saving decision.
 The final settings-save catch and other error paths have not been migrated.
+
+`AudioService` receives `IErrorService` through constructor injection and reports audio failures only to
+the central diagnostic log by default, without a notification callback or dialogs:
+
+- `Audio.StartFailed` (`Warning`): the player could not be started, including a null process result.
+- `Audio.ProcessFailed` (`Warning`): the current player exits unexpectedly with a nonzero exit code.
+- `Audio.StopFailed` (`Diagnostic`): stopping, waiting during stop, or disposing the player fails.
+
+All audio reports use component `AudioService` and include the operation and player type (`ffplay` or
+`sidplayfp`), plus the file path or exit code where relevant. Failures captured under `_processLock` are
+reported after releasing it so synchronous central log writes never run under the process lock. Exit
+monitoring also begins outside the start lock, including for a process that has already exited. Cleanup
+finishes before reporting, and even an error-service implementation that throws cannot interrupt cleanup.
+Player selection, arguments, playback ordering, cancellation, and playback-ID guards remain owned by
+`AudioService`; missing files retain their existing treatment, intentional stops and superseded playback
+do not produce unexpected-exit reports, and failures never trigger automatic retries. A narrow internal
+process adapter permits deterministic regression tests without starting audio players.
 
 Future callers should first perform their own business error handling, then report a stable code,
 appropriate severity, component, understandable message, and useful non-secret operation/correlation data:

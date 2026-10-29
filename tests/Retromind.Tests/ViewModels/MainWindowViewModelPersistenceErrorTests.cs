@@ -84,7 +84,7 @@ public sealed class MainWindowViewModelPersistenceErrorTests
         tracker.SaveFailed += exception => Report(vm, exception);
         var launcher = new LauncherService(temp.RootPath, new AppSettings(),
             new LaunchLogService(temp.GetPath("Logs", "Launch")));
-        SetField(vm, "_audioService", new AudioService());
+        SetField(vm, "_audioService", new AudioService(errors));
         SetField(vm, "_launcherService", launcher);
         SetField(vm, "_libraryTracker", tracker);
 
