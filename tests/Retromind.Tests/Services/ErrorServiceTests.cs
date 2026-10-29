@@ -1,4 +1,6 @@
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Retromind.Models;
 using Retromind.Services;
 using Retromind.Tests.TestInfrastructure;
@@ -55,14 +57,24 @@ public sealed class ErrorServiceTests
         Assert.Equal("second", ReadMessage(LogPath(temp) + ".2"));
     }
 
-    [Fact]
-    public void Report_AppendsUntilSizeLimitAndSupportsNoArchives()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(9_999_999)]
+    public void Report_AppendsUntilSizeLimitAndSupportsNoArchives(int initialFractionTicks)
     {
         using var temp = new TemporaryDirectory();
         var service = new ErrorService(temp.GetPath("Logs", "Exceptions"));
         service.Report(Error("Größe 日本語"));
-        var size = new FileInfo(LogPath(temp)).Length;
-        service = new ErrorService(temp.GetPath("Logs", "Exceptions"), size * 2, archiveCount: 0);
+        var entry = JsonNode.Parse(File.ReadAllText(LogPath(temp)))!.AsObject();
+        var timestamp = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        entry["TimestampUtc"] = timestamp.AddTicks(initialFractionTicks);
+        File.WriteAllText(LogPath(temp), entry.ToJsonString() + "\n");
+
+        // JSON trims trailing fractional zeros. Allow two records with the longest
+        // timestamp even when the existing record has no fractional seconds.
+        entry["TimestampUtc"] = timestamp.AddTicks(9_999_999);
+        var maximumRecordBytes = Encoding.UTF8.GetByteCount(entry.ToJsonString() + "\n");
+        service = new ErrorService(temp.GetPath("Logs", "Exceptions"), maximumRecordBytes * 2, archiveCount: 0);
         service.Report(Error("Größe 日本語"));
         Assert.Equal(2, File.ReadAllLines(LogPath(temp)).Length);
         service.Report(Error("Größe 日本語"));
