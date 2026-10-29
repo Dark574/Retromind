@@ -19,6 +19,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - improve Linux display stability, HiDPI window sizing, native Wayland scrolling, and UI resource cleanup
 
 ### Fixed
+- warn when assets cannot be fully restored after a failed item move, list the affected locations, and avoid deleting the only remaining copy during rollback
 - keep Retromind-managed Wine and Proton prefixes portable when Wine assigns an external device to the previous games drive letter, and create portable prefix folder names consistently across filesystems
 - keep complete context menus visible without unexpected scroll controls on X11
 - refresh the context menu after a game is assigend to the GOG-Store

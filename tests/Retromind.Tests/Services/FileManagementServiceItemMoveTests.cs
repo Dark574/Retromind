@@ -75,8 +75,70 @@ public sealed class FileManagementServiceItemMoveTests
         var result = service.MoveItemAssets(item, ["Source"], ["BlockedTarget"], [item]);
 
         Assert.False(result.Success);
+        Assert.True(result.RollbackComplete);
+        Assert.Empty(result.RollbackAffectedPaths ?? []);
         Assert.True(File.Exists(sourceFile));
         Assert.Equal(originalRelativePath, item.Assets[0].RelativePath);
+    }
+
+    [Fact]
+    public void RollbackItemAssetTransfers_WhenSourceWasRecreated_PreservesTargetAndReportsIncompleteRollback()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+
+        var sourceFile = CreateAsset(temp, "Source", "Conflict__12345678_Cover_01.jpg");
+        var targetFile = temp.CreateFile(
+            Path.Combine("Library", "Target", AssetType.Cover.ToString(), Path.GetFileName(sourceFile)),
+            "moved image");
+        var transfer = new FileManagementService.ItemAssetTransfer
+        {
+            SourcePath = sourceFile,
+            TargetPath = targetFile,
+            CopySource = false,
+            Assets = []
+        };
+
+        var result = FileManagementService.RollbackItemAssetTransfers([transfer], [transfer]);
+
+        Assert.False(result.Complete);
+        Assert.Contains(targetFile, result.AffectedPaths);
+        Assert.Equal("image", File.ReadAllText(sourceFile));
+        Assert.Equal("moved image", File.ReadAllText(targetFile));
+    }
+
+    [Fact]
+    public void RollbackItemAssetTransfers_WhenCopiedSourceDisappeared_PreservesStagedCopyAndReportsIt()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+
+        var sourceFile = Path.Combine(
+            AppPaths.LibraryRoot,
+            "Source",
+            AssetType.Cover.ToString(),
+            "Missing__12345678_Cover_01.jpg");
+        var stagingFile = temp.CreateFile(
+            Path.Combine("Library", ".retromind_item_move_staging", "transaction", "000000.jpg"),
+            "only remaining image");
+        var transfer = new FileManagementService.ItemAssetTransfer
+        {
+            SourcePath = sourceFile,
+            TargetPath = Path.Combine(
+                AppPaths.LibraryRoot,
+                "Target",
+                AssetType.Cover.ToString(),
+                Path.GetFileName(sourceFile)),
+            CopySource = true,
+            Assets = [],
+            StagingPath = stagingFile
+        };
+
+        var result = FileManagementService.RollbackItemAssetTransfers([transfer], []);
+
+        Assert.False(result.Complete);
+        Assert.Contains(stagingFile, result.AffectedPaths);
+        Assert.Equal("only remaining image", File.ReadAllText(stagingFile));
     }
 
     private static string CreateAsset(TemporaryDirectory temp, string nodeName, string fileName)

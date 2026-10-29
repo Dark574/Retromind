@@ -326,6 +326,8 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="MoveMedia.ConfirmFormat" xml:space="preserve"><value>'{0}' von '{1}' nach '{2}' verschieben?&#xA;&#xA;Zugehörige Assets werden ebenfalls verschoben. Von der Kategorie geerbte Einstellungen können sich ändern.</value></data>
     <data name="MoveMedia.TargetChanged" xml:space="preserve"><value>Quell- oder Zielkategorie wurde zwischenzeitlich geändert. Bitte das Ziel erneut auswählen.</value></data>
     <data name="MoveMedia.AssetMoveFailedFormat" xml:space="preserve"><value>Das Medium konnte nicht verschoben werden, weil seine Assets nicht sicher verschoben werden konnten.&#xA;&#xA;{0}</value></data>
+    <data name="MoveMedia.AssetMoveRollbackIncomplete" xml:space="preserve"><value>Einige Asset-Änderungen konnten nicht automatisch rückgängig gemacht werden. Retromind belässt kollidierende Dateien an ihrem Speicherort, statt sie zu überschreiben. Bitte prüfen Sie die betroffenen Speicherorte, bevor Sie es erneut versuchen.</value></data>
+    <data name="MoveMedia.AssetMoveRollbackAffectedPathsFormat" xml:space="preserve"><value>Betroffene Speicherorte:&#xA;{0}</value></data>
     <data name="MoveMedia.CollectionMoveFailed" xml:space="preserve"><value>Die Kategoriezuordnung konnte nicht geändert werden.</value></data>
     <data name="Dialog.NoResult" xml:space="preserve"><value>Keine Ergebnisse gefunden (oder Filter leer).</value></data>
     <data name="Dialog.SearchTerm" xml:space="preserve"><value>Suchbegriff</value></data>

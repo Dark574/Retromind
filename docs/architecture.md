@@ -172,7 +172,8 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
   roots are preserved together with their metadata for manual cleanup
 - moving an item between nodes transfers its referenced assets through a staging transaction; failures roll
   files and the collection assignment back, while assets shared with another item or node are copied instead
-  of removing the shared source
+  of removing the shared source. An incomplete filesystem rollback preserves conflicting or sole remaining
+  files in place and surfaces their affected locations to the user
 - media-editor and node-settings artwork changes remain detached until Save; imports are copied first and
   item deletions are quarantined until the model update succeeds, so Cancel and failed file operations leave
   the original files and assignments intact

@@ -12,11 +12,17 @@ internal sealed record ItemAssetMoveResult(
     bool Success,
     int MovedFileCount,
     int CopiedFileCount,
-    string? ErrorMessage = null);
+    string? ErrorMessage = null,
+    bool RollbackComplete = true,
+    IReadOnlyList<string>? RollbackAffectedPaths = null);
+
+internal sealed record ItemAssetRollbackResult(
+    bool Complete,
+    IReadOnlyList<string> AffectedPaths);
 
 public partial class FileManagementService
 {
-    private sealed class ItemAssetTransfer
+    internal sealed class ItemAssetTransfer
     {
         public required string SourcePath { get; init; }
         public required string TargetPath { get; init; }
@@ -174,9 +180,15 @@ public partial class FileManagementService
         catch (Exception ex)
         {
             Debug.WriteLine($"[ItemMove] Asset move failed, rolling back: {ex}");
-            RollbackItemAssetTransfers(staged, committed);
-            RestoreOriginalAssetPaths(item, originalAssetPaths);
-            return new ItemAssetMoveResult(false, 0, 0, ex.Message);
+            var rollback = RollbackItemAssetTransfers(staged, committed);
+            var modelRollbackComplete = RestoreOriginalAssetPaths(item, originalAssetPaths);
+            return new ItemAssetMoveResult(
+                false,
+                0,
+                0,
+                ex.Message,
+                rollback.Complete && modelRollbackComplete,
+                rollback.AffectedPaths);
         }
         finally
         {
@@ -298,22 +310,46 @@ public partial class FileManagementService
                !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
     }
 
-    private static void RollbackItemAssetTransfers(
+    internal static ItemAssetRollbackResult RollbackItemAssetTransfers(
         IReadOnlyList<ItemAssetTransfer> staged,
         IReadOnlyList<ItemAssetTransfer> committed)
     {
+        var affectedPaths = new HashSet<string>(StringComparer.Ordinal);
+        var rollbackComplete = true;
+
         for (var index = committed.Count - 1; index >= 0; index--)
         {
             var transfer = committed[index];
             try
             {
                 if (!File.Exists(transfer.TargetPath))
+                {
+                    if (!File.Exists(transfer.SourcePath))
+                    {
+                        rollbackComplete = false;
+                        AddAffectedPath(affectedPaths, transfer.TargetPath);
+                        Debug.WriteLine(
+                            $"[ItemMove] Committed asset is missing from both source and target during rollback: '{transfer.SourcePath}'.");
+                    }
+
                     continue;
+                }
 
                 RequireSafeAssetMutationPath(transfer.TargetPath);
 
                 if (transfer.CopySource)
                 {
+                    // Never delete the committed copy if the original source disappeared.
+                    // The target may be the only remaining copy of the asset.
+                    if (!File.Exists(transfer.SourcePath))
+                    {
+                        rollbackComplete = false;
+                        AddAffectedPath(affectedPaths, transfer.TargetPath);
+                        Debug.WriteLine(
+                            $"[ItemMove] Rollback source is missing for copied asset '{transfer.SourcePath}'. Keeping committed target in place.");
+                        continue;
+                    }
+
                     File.Delete(transfer.TargetPath);
                     continue;
                 }
@@ -323,11 +359,21 @@ public partial class FileManagementService
                 if (!string.IsNullOrWhiteSpace(sourceDirectory))
                     Directory.CreateDirectory(sourceDirectory);
 
-                if (!File.Exists(transfer.SourcePath))
-                    File.Move(transfer.TargetPath, transfer.SourcePath);
+                if (File.Exists(transfer.SourcePath))
+                {
+                    rollbackComplete = false;
+                    AddAffectedPath(affectedPaths, transfer.TargetPath);
+                    Debug.WriteLine(
+                        $"[ItemMove] Rollback source already exists for '{transfer.SourcePath}'. Keeping committed target in place.");
+                    continue;
+                }
+
+                File.Move(transfer.TargetPath, transfer.SourcePath);
             }
             catch (Exception rollbackException)
             {
+                rollbackComplete = false;
+                AddExistingOrExpectedAffectedPath(affectedPaths, transfer, committedTransfer: true);
                 Debug.WriteLine($"[ItemMove] Failed to roll back committed asset: {rollbackException}");
             }
         }
@@ -338,12 +384,33 @@ public partial class FileManagementService
             try
             {
                 if (string.IsNullOrWhiteSpace(transfer.StagingPath) || !File.Exists(transfer.StagingPath))
+                {
+                    if (!File.Exists(transfer.SourcePath) && !File.Exists(transfer.TargetPath))
+                    {
+                        rollbackComplete = false;
+                        AddExistingOrExpectedAffectedPath(affectedPaths, transfer, committedTransfer: false);
+                        Debug.WriteLine(
+                            $"[ItemMove] Staged asset is missing from staging, source and target during rollback: '{transfer.SourcePath}'.");
+                    }
+
                     continue;
+                }
 
                 RequireSafeAssetMutationPath(transfer.StagingPath);
 
                 if (transfer.CopySource)
                 {
+                    // As in the committed phase, retain the staged copy if it became
+                    // the only remaining copy while the transaction was in progress.
+                    if (!File.Exists(transfer.SourcePath))
+                    {
+                        rollbackComplete = false;
+                        AddAffectedPath(affectedPaths, transfer.StagingPath);
+                        Debug.WriteLine(
+                            $"[ItemMove] Rollback source is missing for staged copy '{transfer.SourcePath}'. Keeping staging file in place.");
+                        continue;
+                    }
+
                     File.Delete(transfer.StagingPath);
                     continue;
                 }
@@ -353,14 +420,56 @@ public partial class FileManagementService
                 if (!string.IsNullOrWhiteSpace(sourceDirectory))
                     Directory.CreateDirectory(sourceDirectory);
 
-                if (!File.Exists(transfer.SourcePath))
-                    File.Move(transfer.StagingPath, transfer.SourcePath);
+                if (File.Exists(transfer.SourcePath))
+                {
+                    rollbackComplete = false;
+                    AddAffectedPath(affectedPaths, transfer.StagingPath);
+                    Debug.WriteLine(
+                        $"[ItemMove] Rollback source already exists for staged asset '{transfer.SourcePath}'. Keeping staging file in place.");
+                    continue;
+                }
+
+                File.Move(transfer.StagingPath, transfer.SourcePath);
             }
             catch (Exception rollbackException)
             {
+                rollbackComplete = false;
+                AddExistingOrExpectedAffectedPath(affectedPaths, transfer, committedTransfer: false);
                 Debug.WriteLine($"[ItemMove] Failed to roll back staged asset: {rollbackException}");
             }
         }
+
+        return new ItemAssetRollbackResult(rollbackComplete, affectedPaths.ToList());
+    }
+
+    private static void AddExistingOrExpectedAffectedPath(
+        ISet<string> affectedPaths,
+        ItemAssetTransfer transfer,
+        bool committedTransfer)
+    {
+        if (File.Exists(transfer.TargetPath))
+        {
+            AddAffectedPath(affectedPaths, transfer.TargetPath);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(transfer.StagingPath) && File.Exists(transfer.StagingPath))
+        {
+            AddAffectedPath(affectedPaths, transfer.StagingPath);
+            return;
+        }
+
+        AddAffectedPath(
+            affectedPaths,
+            committedTransfer || string.IsNullOrWhiteSpace(transfer.StagingPath)
+                ? transfer.TargetPath
+                : transfer.StagingPath);
+    }
+
+    private static void AddAffectedPath(ISet<string> affectedPaths, string? path)
+    {
+        if (!string.IsNullOrWhiteSpace(path))
+            affectedPaths.Add(path);
     }
 
     private static void CleanupOldItemAssetFolders(string sourceNodeFolder)
@@ -374,7 +483,7 @@ public partial class FileManagementService
         NodeAssetFolderHelper.DeleteDirectoryIfEmpty(sourceNodeFolder);
     }
 
-    private static void RestoreOriginalAssetPaths(
+    private static bool RestoreOriginalAssetPaths(
         MediaItem item,
         IReadOnlyDictionary<MediaAsset, string> originalAssetPaths)
     {
@@ -385,10 +494,12 @@ public partial class FileManagementService
 
             item.ResetActiveAssets();
             item.NotifyAssetPathsChanged();
+            return true;
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[ItemMove] Failed to restore an asset path after rollback: {ex}");
+            return false;
         }
     }
 

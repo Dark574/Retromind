@@ -123,7 +123,29 @@ public partial class MainWindowViewModel
             var format = T(
                 "MoveMedia.AssetMoveFailedFormat",
                 "The item could not be moved because its assets could not be moved safely.\n\n{0}");
-            await ShowInfoDialog(owner, string.Format(format, assetMove.ErrorMessage ?? string.Empty));
+            var message = string.Format(format, assetMove.ErrorMessage ?? string.Empty);
+            if (!assetMove.RollbackComplete)
+            {
+                message += "\n\n" + T(
+                    "MoveMedia.AssetMoveRollbackIncomplete",
+                    "Some asset changes could not be restored automatically. Retromind leaves conflicting files in place instead of overwriting them. Please check the affected locations before trying again.");
+
+                var affectedPaths = assetMove.RollbackAffectedPaths?
+                    .Where(path => !string.IsNullOrWhiteSpace(path))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                if (affectedPaths is { Count: > 0 })
+                {
+                    var affectedPathsFormat = T(
+                        "MoveMedia.AssetMoveRollbackAffectedPathsFormat",
+                        "Affected locations:\n{0}");
+                    message += "\n\n" + string.Format(
+                        affectedPathsFormat,
+                        string.Join(Environment.NewLine, affectedPaths.Select(path => $"• {path}")));
+                }
+            }
+
+            await ShowInfoDialog(owner, message);
             return false;
         }
 
