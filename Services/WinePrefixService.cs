@@ -74,7 +74,10 @@ public sealed class WinePrefixService
             PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDirectory, "c:", "../drive_c");
         }
 
-        EnsurePortableGamesMapping(prefixRoot, dosDevicesDirectory);
+        PrefixPathHelper.EnsurePortableGamesDriveMapping(
+            prefixRoot,
+            dosDevicesDirectory,
+            _libraryRootPath);
 
         if (runtime is WinePrefixRuntime.Proton or WinePrefixRuntime.Umu)
             startInfo.EnvironmentVariables["STEAM_COMPAT_DATA_PATH"] = prefixRoot;
@@ -156,24 +159,4 @@ public sealed class WinePrefixService
         return (prefixPath, usesNestedPfx ? pfxPath : prefixPath);
     }
 
-    private void EnsurePortableGamesMapping(string prefixRoot, string dosDevicesDirectory)
-    {
-        var libraryRoot = Path.GetFullPath(_libraryRootPath);
-        var prefixFullPath = Path.GetFullPath(prefixRoot);
-        var libraryRootWithSeparator = libraryRoot.EndsWith(Path.DirectorySeparatorChar)
-            ? libraryRoot
-            : libraryRoot + Path.DirectorySeparatorChar;
-
-        var isPrefixInsideLibrary =
-            prefixFullPath.StartsWith(libraryRootWithSeparator, FileSystemPathIdentity.Comparison) ||
-            FileSystemPathIdentity.Equals(prefixFullPath, libraryRoot);
-        if (!isPrefixInsideLibrary)
-            return;
-
-        var gamesRoot = Path.Combine(libraryRoot, "Games");
-        Directory.CreateDirectory(gamesRoot);
-
-        var relativeTarget = Path.GetRelativePath(dosDevicesDirectory, gamesRoot);
-        PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDirectory, "d:", relativeTarget);
-    }
 }

@@ -207,7 +207,7 @@ public sealed class GogInstallerExecutionServiceTests
         var result = await service.RunWindowsAsync(
             new GogWindowsInstallerExecutionRequest(
                 "789",
-                "Test Game",
+                "Test: Game",
                 null,
                 installPath,
                 winePath,
@@ -221,6 +221,13 @@ public sealed class GogInstallerExecutionServiceTests
         Assert.True(File.Exists(Path.Combine(installPath, "game.exe")));
         Assert.True(Directory.Exists(
             Path.Combine(temporaryDirectory.RootPath, "Library", "Prefixes", "gog_789_Test_Game")));
+        Assert.NotNull(new DirectoryInfo(Path.Combine(
+            temporaryDirectory.RootPath,
+            "Library",
+            "Prefixes",
+            "gog_789_Test_Game",
+            "dosdevices",
+            "r:")).LinkTarget);
         Assert.Contains("/DIR=Z:\\", string.Join('\n', output), StringComparison.Ordinal);
     }
 

@@ -600,7 +600,7 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
 
 Winetricks follows the same application/infrastructure boundary. `EditMediaViewModel` resolves the effective
 item/emulator environment and owns the process-log window, while `WinetricksService` owns prefix preparation,
-portable C:/D: mappings, Proton/UMU fallback selection, command construction, process execution, and the
+portable C: and collision-free games-drive mappings, Proton/UMU fallback selection, command construction, process execution, and the
 `winetricks.log` summary. The service receives plain request data and reports log lines through a callback; it has
 no dependency on Avalonia views or view models.
 

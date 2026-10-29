@@ -49,7 +49,7 @@ public sealed class WinetricksService
         var (compatRoot, winePrefix) = ResolvePrefixPaths(prefixRoot, isProton, isUmu);
         Directory.CreateDirectory(compatRoot);
         Directory.CreateDirectory(winePrefix);
-        EnsurePortableGamesDriveMapping(winePrefix);
+        EnsurePortableGamesDriveMapping(compatRoot, winePrefix);
     }
 
     public bool TryOpenPrefixFolder(string prefixRoot)
@@ -170,7 +170,7 @@ public sealed class WinetricksService
 
         Directory.CreateDirectory(compatRoot);
         Directory.CreateDirectory(winePrefix);
-        EnsurePortableGamesDriveMapping(winePrefix);
+        EnsurePortableGamesDriveMapping(compatRoot, winePrefix);
         ApplyPrefixEnvironment(environment, compatRoot, winePrefix, request.IsProton);
 
         var arguments = SplitArguments(request.Verbs);
@@ -378,7 +378,7 @@ public sealed class WinetricksService
         environment["WINEPREFIX"] = winePrefix;
     }
 
-    private void EnsurePortableGamesDriveMapping(string winePrefix)
+    private void EnsurePortableGamesDriveMapping(string compatRoot, string winePrefix)
     {
         if (string.IsNullOrWhiteSpace(winePrefix))
             return;
@@ -392,11 +392,10 @@ public sealed class WinetricksService
             Directory.CreateDirectory(driveCPath);
             PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDirectory, "c:", "../drive_c");
 
-            var gamesRoot = Path.Combine(_libraryRoot, "Games");
-            Directory.CreateDirectory(gamesRoot);
-
-            var relativeTarget = Path.GetRelativePath(dosDevicesDirectory, gamesRoot);
-            PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDirectory, "d:", relativeTarget);
+            PrefixPathHelper.EnsurePortableGamesDriveMapping(
+                compatRoot,
+                dosDevicesDirectory,
+                _libraryRoot);
         }
         catch
         {

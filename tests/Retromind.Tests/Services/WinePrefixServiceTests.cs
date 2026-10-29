@@ -29,7 +29,7 @@ public sealed class WinePrefixServiceTests
         Assert.False(startInfo.EnvironmentVariables.ContainsKey("STEAM_COMPAT_DATA_PATH"));
         Assert.True(Directory.Exists(Path.Combine(prefixPath, "drive_c")));
         Assert.Equal("../drive_c", new DirectoryInfo(Path.Combine(dosDevicesPath, "c:")).LinkTarget);
-        AssertMappingTargets(Path.Combine(dosDevicesPath, "d:"), Path.Combine(libraryRoot, "Games"));
+        AssertMappingTargets(Path.Combine(dosDevicesPath, "r:"), Path.Combine(libraryRoot, "Games"));
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class WinePrefixServiceTests
         Assert.False(Directory.Exists(Path.Combine(prefixRoot, "pfx")));
         Assert.False(Directory.Exists(Path.Combine(prefixRoot, "drive_c")));
         Assert.False(Directory.Exists(Path.Combine(dosDevicesPath, "c:")));
-        AssertMappingTargets(Path.Combine(dosDevicesPath, "d:"), Path.Combine(libraryRoot, "Games"));
+        AssertMappingTargets(Path.Combine(dosDevicesPath, "r:"), Path.Combine(libraryRoot, "Games"));
     }
 
     [Fact]
@@ -167,6 +167,7 @@ public sealed class WinePrefixServiceTests
 
         Assert.Equal(externalPrefix, item.PrefixPath);
         Assert.False(Directory.Exists(Path.Combine(externalPrefix, "dosdevices", "d:")));
+        Assert.False(Directory.Exists(Path.Combine(externalPrefix, "dosdevices", "r:")));
         Assert.False(Directory.Exists(Path.Combine(libraryRoot, "Games")));
     }
 
@@ -191,6 +192,7 @@ public sealed class WinePrefixServiceTests
 
         Assert.Equal(externalPrefix, item.PrefixPath);
         Assert.False(Directory.Exists(Path.Combine(externalPrefix, "dosdevices", "d:")));
+        Assert.False(Directory.Exists(Path.Combine(externalPrefix, "dosdevices", "r:")));
         Assert.False(Directory.Exists(Path.Combine(libraryRoot, "Games")));
     }
 

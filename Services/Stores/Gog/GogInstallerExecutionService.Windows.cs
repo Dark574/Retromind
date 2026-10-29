@@ -48,6 +48,11 @@ public sealed partial class GogInstallerExecutionService
         var prefixDrivePath = Path.Combine(prefixRoot, "drive_c");
         var windowsInstallDestinationPath = ToWineWindowsAbsolutePath(request.InstallPath);
 
+        PrefixPathHelper.EnsurePortableGamesDriveMapping(
+            prefixRoot,
+            Path.Combine(prefixRoot, "dosdevices"),
+            _libraryRoot);
+
         appendLog($"Windows prefix root: {prefixRoot}");
         appendLog($"Windows prefix dosdevices: {Path.Combine(prefixRoot, "dosdevices")}");
         GogInstallerProcessService.AppendWineDosDeviceMappings(appendLog, prefixRoot);

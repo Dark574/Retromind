@@ -18,7 +18,7 @@ public sealed class WinetricksServiceTests
         var dosDevices = Path.Combine(prefixRoot, "dosdevices");
         Assert.True(Directory.Exists(Path.Combine(prefixRoot, "drive_c")));
         Assert.Equal("../drive_c", new DirectoryInfo(Path.Combine(dosDevices, "c:")).LinkTarget);
-        Assert.NotNull(new DirectoryInfo(Path.Combine(dosDevices, "d:")).LinkTarget);
+        Assert.NotNull(new DirectoryInfo(Path.Combine(dosDevices, "r:")).LinkTarget);
         Assert.True(Directory.Exists(Path.Combine(libraryRoot, "Games")));
     }
 
