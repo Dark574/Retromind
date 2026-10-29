@@ -53,8 +53,7 @@ public class VideoSurfaceControl : Control
         if (oldSurface != null)
             oldSurface.FrameReady -= OnFrameReady;
 
-        _bitmap?.Dispose();
-        _bitmap = null;
+        DisposeBitmap(oldSurface);
 
         if (newSurface != null)
         {
@@ -83,8 +82,7 @@ public class VideoSurfaceControl : Control
         if (Surface != null)
             Surface.FrameReady -= OnFrameReady;
 
-        _bitmap?.Dispose();
-        _bitmap = null;
+        DisposeBitmap(Surface);
 
         base.OnDetachedFromVisualTree(e);
     }
@@ -115,6 +113,10 @@ public class VideoSurfaceControl : Control
         {
             CopyFrameAndInvalidate();
         }
+        catch (Exception ex) when (Surface is LibVlcVideoSurface)
+        {
+            ((LibVlcVideoSurface)Surface).ReportFailure("Video.PlaybackFailed", "RenderFrame", ex);
+        }
         finally
         {
             Volatile.Write(ref _frameCopyPending, 0);
@@ -130,16 +132,28 @@ public class VideoSurfaceControl : Control
         if (surface == null)
             return;
 
+        int width, height;
+        if (surface is LibVlcVideoSurface vlcSurface)
+        {
+            if (!vlcSurface.TryGetFrameSize(out width, out height))
+                return;
+        }
+        else
+        {
+            width = surface.Width;
+            height = surface.Height;
+        }
+
         // If we do not have a bitmap yet or the size changed, create it here.
-        if (surface.Width > 0 && surface.Height > 0)
+        if (width > 0 && height > 0)
         {
             if (_bitmap == null ||
-                _bitmap.PixelSize.Width != surface.Width ||
-                _bitmap.PixelSize.Height != surface.Height)
+                _bitmap.PixelSize.Width != width ||
+                _bitmap.PixelSize.Height != height)
             {
-                _bitmap?.Dispose();
+                DisposeBitmap(surface);
                 _bitmap = new WriteableBitmap(
-                    new PixelSize(surface.Width, surface.Height),
+                    new PixelSize(width, height),
                     new Vector(96, 96),
                     Avalonia.Platform.PixelFormat.Bgra8888,
                     Avalonia.Platform.AlphaFormat.Premul);
@@ -151,7 +165,7 @@ public class VideoSurfaceControl : Control
 
         using (var fb = _bitmap.Lock())
         {
-            var destSize = fb.RowBytes * fb.Size.Height;
+            var destSize = checked(fb.RowBytes * fb.Size.Height);
 
             if (surface is IFrameCopySource copySource)
             {
@@ -167,7 +181,7 @@ public class VideoSurfaceControl : Control
                 unsafe
                 {
                     // Compute source buffer size (Width * Height * 4 for BGRA32).
-                    var srcSize = surface.Width * surface.Height * 4;
+                    var srcSize = checked((long)width * height * 4);
 
                     var bytesToCopy = (long)Math.Min(destSize, srcSize);
 
@@ -181,6 +195,20 @@ public class VideoSurfaceControl : Control
         }
 
         InvalidateVisual();
+    }
+
+    private void DisposeBitmap(IVideoSurface? surface)
+    {
+        var bitmap = _bitmap;
+        _bitmap = null;
+        try
+        {
+            bitmap?.Dispose();
+        }
+        catch (Exception ex) when (surface is LibVlcVideoSurface)
+        {
+            ((LibVlcVideoSurface)surface).ReportFailure("Video.ResourceCleanupFailed", "DisposeBitmap", ex);
+        }
     }
 
     public override void Render(DrawingContext context)

@@ -536,6 +536,7 @@ public partial class MainWindowViewModel
             _retroAchievementsProgressService,
             _retroAchievementsBadgeService,
             _steamAchievementsProgressService,
+            _errorService,
             IsParentalFilterActive,
             startOnHome,
             _gogAchievementsProgressService,

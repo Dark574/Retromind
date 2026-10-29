@@ -198,7 +198,7 @@ and dispatcher/notification failures are contained strictly inside the output bo
 reported or printed with potentially sensitive exception details, and do not replace the original failure
 or prevent an independently requested notification.
 
-### Persistence and audio integration, and future callers
+### Persistence, audio, and video integration
 
 `MainWindowViewModel.ReportPersistenceSaveFailure()` reports
 `Persistence.SaveFailed` with severity `Error`, the existing localized `Persistence.SaveFailedFormat`
@@ -228,6 +228,55 @@ Player selection, arguments, playback ordering, cancellation, and playback-ID gu
 `AudioService`; missing files retain their existing treatment, intentional stops and superseded playback
 do not produce unexpected-exit reports, and failures never trigger automatic retries. A narrow internal
 process adapter permits deterministic regression tests without starting audio players.
+
+`BigModeViewModel` receives the same `IErrorService` from `MainWindowViewModel` when BigMode is created.
+The existing preview and background players remain in the view model; no video service is introduced.
+Video diagnostics use `Video.PlaybackFailed` (`Warning`), `Video.StopFailed` (`Diagnostic`), and
+`Video.ResourceCleanupFailed` (`Diagnostic`). Reports include operation, surface index (0/1 for preview
+A/B, 2 for the independent background channel, -1 for shared teardown), video path when available, and
+the original exception. Native format failures also record the requested width and height. There are
+no notification callbacks or dialogs. `Helpers/Video/VideoDiagnostics` only builds reports and dispatches
+them to the central service on a worker; it adds no log sink, retries, playback policy, or service boundary.
+Its guarded tasks keep synchronous log writes off VLC callbacks and the UI thread and out of buffer/media
+locks. These best-effort output tasks are not awaited by playback or native teardown; abrupt application
+exit can therefore interrupt a pending diagnostic write.
+
+BigMode observes failed `Play()` returns and `EncounteredError` events as well as existing exception
+paths. Diagnostic state tracks expected stops, current preview generation, player identity, and a single
+playback-failure notice per attempt, independently of the existing crossfade state. Theme/view switches,
+superseded starts, launch transitions, disposal, and cancellation do not become unexpected-playback reports.
+Actual exceptions from stopping or releasing resources are still diagnostic failures, including at shutdown.
+`LibVlcVideoSurface` reports native format/allocation and frame-listener failures; `VideoSurfaceControl`
+reports bitmap/render failures through its LibVLC surface. The originating component is retained in the report.
+
+Native setup validates dimensions before conversion or allocation: width and height must be positive and
+at most 16,384 pixels, and tightly packed BGRA data must fit the 256 MiB per-frame budget. Byte arithmetic
+uses unsigned 64-bit intermediates. Invalid dimensions, a null format pointer, and allocation failure return
+0, with zero pitch/lines and no published frame; managed setup exceptions never cross the native callback.
+Success returns one allocated picture buffer. Pixel-plane pointers are aligned to 32 bytes, while the
+original allocation is retained for freeing. The tightly packed row layout is unchanged; padded pitches
+and line counts are recommendations rather than requirements of the
+[LibVLC 3 callback contract](https://videolan.videolan.me/vlc-3.0/group__libvlc__media__player.html).
+Disposal and format setup check surface lifetime under the same lock. Normal native cleanup frees the
+buffer without disposing the reusable surface. Bitmap sizing takes a width/height snapshot under that lock
+so a concurrent format change cannot combine dimensions from different frames; renderer byte arithmetic
+is checked as well. Native callback pointers are still trusted inputs from VLC;
+arbitrary invalid non-null pointers or native decoder/driver crashes cannot be recovered by managed logging.
+
+The previous pending-media map could lose a reference: queue media M1 for surface A, reuse A with M2 before
+the delayed `Stopped` callback arrives, then queue M2. Assigning `_pendingDisposeMedia[0] = M2` replaced M1
+without disposing it. A deterministic regression test reproduces these two queue operations without loading
+VLC. Each surface now retains a list; the existing stop/idle disposal points drain every queued media, and
+final teardown snapshots and clears the lists under the media lock before disposing their contents. This
+changes ownership bookkeeping, not crossfade timing or stop policy. Actual decoder memory corruption from
+the former unchecked size arithmetic, and hardware-specific consequences of unaligned buffers, have not
+been reproduced with real playback; the invalid calculations and missing alignment guarantee are confirmed
+by code inspection and callback/buffer tests.
+The former lifetime check outside the buffer lock also allowed a format callback already waiting for that
+lock to allocate after disposal; a coordinated callback/dispose regression test confirms the corrected
+ordering without real playback. Native error events carry no media-generation ID: guards reject known stale
+generations and replaced players, but attributing an event emitted only after reuse of the same player still
+depends on VLC's event ordering. No such late-error misattribution has been reproduced.
 
 Future callers should first perform their own business error handling, then report a stable code,
 appropriate severity, component, understandable message, and useful non-secret operation/correlation data:
@@ -350,6 +399,9 @@ BigMode is an overlay workflow with clear host/VM split:
 - dual preview surfaces with crossfade and defensive playback sequencing; presentation state avoids stale
   frames and unnecessary restarts when multiple items share the same node fallback video
 - secondary background video channel support
+- owns preview/background player sequencing and reports video failures to `IErrorService`; native frame
+  allocation and callback safety remain in `LibVlcVideoSurface`, and bitmap presentation remains in
+  `VideoSurfaceControl`. Error reporting never performs playback recovery or changes crossfade generations
 - attract mode (theme-driven idle navigation)
 - circular carousel windows retain overlapping item containers during one-step navigation instead of rebuilding every card
 - root themes can opt into a non-persisted Home dashboard through `ThemeProperties.SupportsHome`; the user-facing

@@ -34,6 +34,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private Theme _theme;
     private readonly SoundEffectService _soundEffectService;
     private readonly GamepadService _gamepadService;
+    private readonly IErrorService _errorService;
 
     // --- Lifecycle / safety ---
     private int _disposed;
@@ -459,6 +460,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         IRetroAchievementsProgressService retroAchievementsProgressService,
         IRetroAchievementsBadgeService retroAchievementsBadgeService,
         ISteamAchievementsProgressService steamAchievementsProgressService,
+        IErrorService errorService,
         bool parentalFilterActive = false,
         bool startOnHome = false,
         IGogAchievementsProgressService? gogAchievementsProgressService = null,
@@ -470,6 +472,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         _theme = theme ?? throw new ArgumentNullException(nameof(theme));
         _soundEffectService = soundEffectService ?? throw new ArgumentNullException(nameof(soundEffectService));
         _gamepadService = gamepadService ?? throw new ArgumentNullException(nameof(gamepadService));
+        _errorService = errorService ?? throw new ArgumentNullException(nameof(errorService));
         _parentalFilterActive = parentalFilterActive;
         RetroAchievementsProgress = new RetroAchievementsProgressViewModel(
             _settings,
@@ -534,14 +537,14 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         _secondaryLibVlc = new LibVLC(enableDebugLogs: false, secondaryVlcOptions);
         
         // Video surfaces for callback rendering – main channel (A/B crossfade)
-        _videoSurfaceA = new LibVlcVideoSurface();
+        _videoSurfaceA = new LibVlcVideoSurface(report => OnVideoSurfaceError(0, report), 0);
         _videoSurfaceA.FrameReady += OnMainVideoFrameReadyA;
 
-        _videoSurfaceB = new LibVlcVideoSurface();
+        _videoSurfaceB = new LibVlcVideoSurface(report => OnVideoSurfaceError(1, report), 1);
         _videoSurfaceB.FrameReady += OnMainVideoFrameReadyB;
 
         // Second video channel
-        _secondaryVideoSurface = new LibVlcVideoSurface();
+        _secondaryVideoSurface = new LibVlcVideoSurface(report => OnVideoSurfaceError(2, report), 2);
         
         _mediaPlayerA = CreateMediaPlayerForSurface(_videoSurfaceA, index: 0);
         _mediaPlayerB = CreateMediaPlayerForSurface(_videoSurfaceB, index: 1);
@@ -564,6 +567,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             _secondaryVideoSurface.VideoDisplay);
 
         _secondaryPlayer.EndReached += OnSecondaryBackgroundEndReached;
+        _secondaryPlayer.EncounteredError += (_, _) =>
+        {
+            if (_secondaryPlayer is { } player)
+                OnVideoEncounteredError(2, player);
+        };
 
         ForceExitCommand = new AsyncRelayCommand(RequestBigModeCloseAsync);
 
@@ -716,6 +724,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         player.EndReached += (_, _) => OnPreviewEndReached(index);
         player.Stopped += (_, _) => OnPreviewStopped(index);
+        player.EncounteredError += (_, _) => OnVideoEncounteredError(index, player);
 
         return player;
     }
@@ -726,33 +735,34 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void UpdateSecondaryBackgroundVideo()
     {
+        ExpectVideoStop(2);
         // Stop previous content (best-effort)
         try
         {
             if (_secondaryPlayer is { IsPlaying: true })
                 _secondaryPlayer.Stop();
         }
-        catch
+        catch (Exception ex)
         {
-            // best effort
+            _ = ReportVideoIssueAsync("Video.StopFailed", "StopSecondaryForUpdate", 2, ex);
         }
 
         try
         {
             _secondaryPlayer?.Media?.Dispose();
         }
-        catch
+        catch (Exception ex)
         {
-            // ignore
+            _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeSecondaryPlayerMedia", 2, ex);
         }
 
         try
         {
             _secondaryBackgroundMedia?.Dispose();
         }
-        catch
+        catch (Exception ex)
         {
-            // ignore
+            _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeSecondaryMedia", 2, ex);
         }
 
         _secondaryBackgroundMedia = null;
@@ -775,6 +785,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             if (!ThemePathResolver.TryResolveThemeAssetPath(basePath, relative, out var candidate))
                 return;
 
+            _secondaryVideoSurface.VideoPath = candidate;
             var media = new Media(_secondaryLibVlc, new Uri(candidate));
             _secondaryBackgroundMedia = media;
             _secondaryPlayer.Media = media;
@@ -783,11 +794,12 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
             // Do not start yet; only start once the view is marked as ready
         }
-        catch
+        catch (Exception ex)
         {
             // If this fails, keep the secondary channel disabled
             SecondaryVideoHasContent = false;
             SecondaryVideoIsPlaying = false;
+            _ = ReportVideoIssueAsync("Video.PlaybackFailed", "PrepareSecondary", 2, ex);
         }
     }
 
@@ -806,28 +818,34 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         {
             if (!_secondaryPlayer.IsPlaying)
             {
-                _secondaryPlayer.Play();
+                BeginVideoPlayback(2, _secondaryVideoSurface?.VideoPath,
+                    System.Threading.Interlocked.Increment(ref _secondaryPlaybackGeneration));
+                if (!_secondaryPlayer.Play())
+                    _ = ReportVideoPlaybackFailureAsync(2, "PlaySecondary");
             }
 
             SecondaryVideoIsPlaying = true;
         }
-        catch
+        catch (Exception ex)
         {
             SecondaryVideoIsPlaying = false;
+            _ = ReportVideoPlaybackFailureAsync(2, "StartSecondary", ex, requirePlaybackExpected: false);
         }
     }
 
     private void StopSecondaryBackgroundVideo()
     {
+        ExpectVideoStop(2);
         try
         {
             // Keep the prepared Media assigned so playback can resume cheaply
             // after Home transitions or a tracked game session.
             _secondaryPlayer?.Stop();
         }
-        catch
+        catch (Exception ex)
         {
             // Background playback is best effort and must not block navigation or launching.
+            _ = ReportVideoIssueAsync("Video.StopFailed", "StopSecondary", 2, ex);
         }
 
         SecondaryVideoIsPlaying = false;
@@ -844,15 +862,25 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             if (_isLaunching || IsHomeActive || !SecondaryVideoHasContent || _secondaryPlayer == null)
                 return;
 
+            var operation = "StopSecondaryLoop";
+            ExpectVideoStop(2);
             try
             {
                 _secondaryPlayer.Stop();
-                _secondaryPlayer.Play();
+                operation = "LoopSecondary";
+                BeginVideoPlayback(2, _secondaryVideoSurface?.VideoPath,
+                    System.Threading.Interlocked.Increment(ref _secondaryPlaybackGeneration));
+                if (!_secondaryPlayer.Play())
+                    _ = ReportVideoPlaybackFailureAsync(2, operation);
                 SecondaryVideoIsPlaying = true;
             }
-            catch
+            catch (Exception ex)
             {
                 SecondaryVideoIsPlaying = false;
+                if (operation == "StopSecondaryLoop")
+                    _ = ReportVideoIssueAsync("Video.StopFailed", operation, 2, ex);
+                else
+                    _ = ReportVideoPlaybackFailureAsync(2, operation, ex);
             }
         }, DispatcherPriority.Background);
     }

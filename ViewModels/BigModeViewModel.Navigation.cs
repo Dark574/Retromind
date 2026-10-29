@@ -384,6 +384,10 @@ public partial class BigModeViewModel
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
             return;
 
+        ExpectVideoStop(0);
+        ExpectVideoStop(1);
+        ExpectVideoStop(2);
+
         ClearNodeFallbackOverrides(Items);
 
         _gamepadService.OnDirectionStateChanged -= OnGamepadDirectionStateChanged;
@@ -454,6 +458,7 @@ public partial class BigModeViewModel
             try
             {
                 // Stop & dispose secondary channel first
+                var operation = "StopSecondaryOnDispose";
                 try
                 {
                     if (secondaryPlayer != null)
@@ -461,22 +466,24 @@ public partial class BigModeViewModel
                         secondaryPlayer.EndReached -= OnSecondaryBackgroundEndReached;
                         // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
                         secondaryPlayer.Stop();
+                        operation = "DisposeSecondaryPlayer";
                         secondaryPlayer.Media = null;
                         secondaryPlayer.Dispose();
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync(operation == "StopSecondaryOnDispose" ? "Video.StopFailed" : "Video.ResourceCleanupFailed",
+                        operation, 2, ex);
                 }
 
                 try
                 {
                     _secondaryBackgroundMedia?.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeSecondaryMedia", 2, ex);
                 }
                 finally
                 {
@@ -484,43 +491,49 @@ public partial class BigModeViewModel
                 }
 
                 // Stop & dispose main channel
+                operation = "StopPreviewOnDispose";
                 try
                 {
                     if (mainPlayerA != null)
                     {
                         // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
                         mainPlayerA.Stop();
+                        operation = "DisposePreviewPlayer";
                         mainPlayerA.Media = null;
                         mainPlayerA.Dispose();
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync(operation == "StopPreviewOnDispose" ? "Video.StopFailed" : "Video.ResourceCleanupFailed",
+                        operation, 0, ex);
                 }
 
+                operation = "StopPreviewOnDispose";
                 try
                 {
                     if (mainPlayerB != null)
                     {
                         // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
                         mainPlayerB.Stop();
+                        operation = "DisposePreviewPlayer";
                         mainPlayerB.Media = null;
                         mainPlayerB.Dispose();
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync(operation == "StopPreviewOnDispose" ? "Video.StopFailed" : "Video.ResourceCleanupFailed",
+                        operation, 1, ex);
                 }
 
                 try
                 {
                     _currentPreviewMediaA?.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeCurrentPreviewMedia", 0, ex);
                 }
                 finally
                 {
@@ -531,9 +544,9 @@ public partial class BigModeViewModel
                 {
                     _currentPreviewMediaB?.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeCurrentPreviewMedia", 1, ex);
                 }
                 finally
                 {
@@ -542,26 +555,30 @@ public partial class BigModeViewModel
 
                 try
                 {
+                    KeyValuePair<int, List<LibVLCSharp.Shared.Media>>[] pending;
                     lock (_previewMediaLock)
                     {
-                        foreach (var media in _pendingDisposeMedia.Values)
+                        pending = _pendingDisposeMedia.ToArray();
+                        _pendingDisposeMedia.Clear();
+                    }
+                    foreach (var pair in pending)
+                    {
+                        foreach (var media in pair.Value)
                         {
                             try
                             {
                                 media.Dispose();
                             }
-                            catch
+                            catch (Exception ex)
                             {
-                                // ignore
+                                _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposePendingPreviewMedia", pair.Key, ex);
                             }
                         }
-
-                        _pendingDisposeMedia.Clear();
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DrainPendingPreviewMedia", -1, ex);
                 }
 
                 // Dispose LibVLC last
@@ -569,50 +586,51 @@ public partial class BigModeViewModel
                 {
                     vlc.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeLibVlc", 0, ex);
                 }
 
                 try
                 {
                     secondaryVlc.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeSecondaryLibVlc", 2, ex);
                 }
 
                 try
                 {
                     _videoSurfaceA.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeSurface", 0, ex);
                 }
 
                 try
                 {
                     _videoSurfaceB.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeSurface", 1, ex);
                 }
 
                 try
                 {
                     _secondaryVideoSurface?.Dispose();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeSurface", 2, ex);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Best-effort cleanup; shutdown should not crash because VLC cleanup failed.
+                _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeVideoResources", -1, ex);
             }
         });
     }

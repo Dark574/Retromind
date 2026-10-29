@@ -73,7 +73,7 @@ public partial class BigModeViewModel
     
     // Delay disposal of Media until VLC confirms Stop to avoid native crashes.
     private readonly Lock _previewMediaLock = new();
-    private readonly System.Collections.Generic.Dictionary<int, Media> _pendingDisposeMedia = new();
+    private readonly System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<Media>> _pendingDisposeMedia = new();
 
     // Tracks the expected frame generation so we can hide stale frames until the first new frame arrives.
     private int _expectedPreviewFrameGeneration;
@@ -198,14 +198,22 @@ public partial class BigModeViewModel
                 return;
 
             // Replay the current preview video from the beginning.
+            var operation = "StopPreviewLoop";
+            ExpectVideoStop(index);
             try
             {
                 player.Stop();
-                player.Play();
+                operation = "LoopPreview";
+                BeginVideoPlayback(index, GetSurface(index).VideoPath, Volatile.Read(ref _previewPlayGeneration));
+                if (!player.Play())
+                    _ = ReportVideoPlaybackFailureAsync(index, operation);
             }
-            catch
+            catch (Exception ex)
             {
-                // best-effort only
+                if (operation == "StopPreviewLoop")
+                    _ = ReportVideoIssueAsync("Video.StopFailed", operation, index, ex);
+                else
+                    _ = ReportVideoPlaybackFailureAsync(index, operation, ex);
             }
 
             // Defensive: ensure the background channel keeps running.
@@ -704,20 +712,28 @@ public partial class BigModeViewModel
             if (media == null)
                 return;
 
-            _pendingDisposeMedia[index] = media;
+            if (!_pendingDisposeMedia.TryGetValue(index, out var pending))
+                _pendingDisposeMedia[index] = pending = [];
+            pending.Add(media);
             SetPreviewMedia(index, null);
         }
     }
 
     private void ForceDisposePendingMedia(int index)
     {
-        Media? media;
+        System.Collections.Generic.List<Media>? pending;
         lock (_previewMediaLock)
         {
-            if (!_pendingDisposeMedia.Remove(index, out media))
+            if (!_pendingDisposeMedia.Remove(index, out pending))
                 return;
         }
 
+        foreach (var media in pending)
+            DisposePreviewMedia(index, media);
+    }
+
+    private void DisposePreviewMedia(int index, Media media)
+    {
         var player = GetMediaPlayer(index);
         if (player != null)
         {
@@ -726,9 +742,9 @@ public partial class BigModeViewModel
                 if (ReferenceEquals(player.Media, media))
                     player.Media = null;
             }
-            catch
+            catch (Exception ex)
             {
-                // ignore
+                _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DetachPreviewMedia", index, ex);
             }
         }
 
@@ -736,9 +752,9 @@ public partial class BigModeViewModel
         {
             media.Dispose();
         }
-        catch
+        catch (Exception ex)
         {
-            // best-effort only
+            _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposePreviewMedia", index, ex);
         }
     }
 
@@ -753,35 +769,7 @@ public partial class BigModeViewModel
 
     private void OnPreviewStopped(int index)
     {
-        Media? media;
-        lock (_previewMediaLock)
-        {
-            if (!_pendingDisposeMedia.Remove(index, out media))
-                return;
-        }
-
-        var player = GetMediaPlayer(index);
-        if (player != null)
-        {
-            try
-            {
-                if (ReferenceEquals(player.Media, media))
-                    player.Media = null;
-            }
-            catch
-            {
-                // ignore
-            }
-        }
-
-        try
-        {
-            media.Dispose();
-        }
-        catch
-        {
-            // best-effort only
-        }
+        ForceDisposePendingMedia(index);
     }
 
     private int GetInactivePreviewIndex()
@@ -806,16 +794,21 @@ public partial class BigModeViewModel
 
         if (forceRecreate && player is not null)
         {
+            ExpectVideoStop(index);
+            var operation = "StopRecreatedPlayer";
             try
             {
                 // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
                 player.Stop();
+                operation = "DisposeRecreatedPlayer";
                 player.Media = null;
                 player.Dispose();
             }
-            catch
+            catch (Exception ex)
             {
                 // Best-effort cleanup; fallback is simply to drop the reference.
+                _ = ReportVideoIssueAsync(operation == "StopRecreatedPlayer" ? "Video.StopFailed" : "Video.ResourceCleanupFailed",
+                    operation, index, ex);
             }
 
             player = null;
@@ -1070,11 +1063,12 @@ public partial class BigModeViewModel
                 () => StartPlaybackOnUiThread(videoPath, generation, targetIndex, oldIndex),
                 DispatcherPriority.Render).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
             // Preview startup is fire-and-forget. A closing dispatcher or a
             // playback failure must therefore not surface as an unobserved task.
             ClearPendingPreviewStart(generation);
+            _ = ReportVideoPlaybackFailureAsync(targetIndex, "StartAfterRender", ex, generation);
         }
     }
 
@@ -1107,6 +1101,7 @@ public partial class BigModeViewModel
             return;
         }
 
+        BeginVideoPlayback(targetIndex, GetSurface(targetIndex).VideoPath, generation, playbackExpected: false);
         try
         {
             // (Re)create MediaPlayer if needed and ensure a clean state.
@@ -1124,13 +1119,15 @@ public partial class BigModeViewModel
 
             DisposePendingMediaIfIdle(targetIndex);
 
+            BeginVideoPlayback(targetIndex, videoPath, generation);
             var media = new Media(_libVlc, new Uri(videoPath));
             SetPreviewMedia(targetIndex, media);
 
             player.Media = media;
             player.Mute = false;
             player.Volume = 0;
-            player.Play();
+            if (!player.Play())
+                _ = ReportVideoPlaybackFailureAsync(targetIndex, "Play", generation: generation);
 
             // Start audio immediately on playback start to avoid long delays
             // when the first video frame takes time to arrive.
@@ -1160,9 +1157,12 @@ public partial class BigModeViewModel
             // Defensive: keep the background channel alive after preview changes.
             EnsureSecondaryBackgroundPlayingIfReady();
         }
-        catch
+        catch (Exception ex)
         {
             // Best-effort: preview must never crash the UI.
+            GetSurface(targetIndex).VideoPath = videoPath;
+            _ = ReportVideoPlaybackFailureAsync(targetIndex, "StartPreview", ex, generation,
+                requirePlaybackExpected: false);
             if (targetIndex == 0)
                 _mainVideoIsPlayingA = false;
             else
@@ -1244,9 +1244,9 @@ public partial class BigModeViewModel
                 {
                     player.Pause();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // best-effort only
+                    _ = ReportVideoPlaybackFailureAsync(_pausedPreviewIndex, "PausePreview", ex);
                 }
             }
         }
@@ -1279,11 +1279,12 @@ public partial class BigModeViewModel
             {
                 try
                 {
-                    player.Play();
+                    if (!player.Play())
+                        _ = ReportVideoPlaybackFailureAsync(_pausedPreviewIndex, "ResumePreview");
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // best-effort only
+                    _ = ReportVideoPlaybackFailureAsync(_pausedPreviewIndex, "ResumePreview", ex);
                 }
             }
         }
@@ -1316,6 +1317,9 @@ public partial class BigModeViewModel
 
     private void StopPreviewPlayer(int index)
     {
+        if (index is not (0 or 1))
+            return;
+        ExpectVideoStop(index);
         var player = GetMediaPlayer(index);
         if (player != null)
         {
@@ -1324,9 +1328,9 @@ public partial class BigModeViewModel
                 // Stop regardless of IsPlaying to avoid stale audio on some VLC builds.
                 player.Stop();
             }
-            catch
+            catch (Exception ex)
             {
-                // best-effort only
+                _ = ReportVideoIssueAsync("Video.StopFailed", "StopPreview", index, ex);
             }
         }
 
