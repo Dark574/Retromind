@@ -28,6 +28,7 @@ public partial class MainWindowViewModel
 {
     private const int BulkSortedInsertThreshold = 32;
     private static readonly TimeSpan DelegatedLaunchGuardDuration = TimeSpan.FromSeconds(10);
+    private HelpGuidesView? _helpGuidesView;
 
     public enum NodeDropPosition
     {
@@ -72,6 +73,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenSetupSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenStatisticsCommand { get; private set; } = null!;
+    public IRelayCommand OpenHelpGuidesCommand { get; private set; } = null!;
     public IRelayCommand CloseGettingStartedCommand { get; private set; } = null!;
     public IAsyncRelayCommand CreateFirstCategoryCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenMetadataBackupsCommand { get; private set; } = null!;
@@ -113,7 +115,7 @@ public partial class MainWindowViewModel
     public string StatisticsButtonToolTip => T("Statistics.Title", "Library statistics");
     public string GogCheckUpdatesMenuText => T("Gog.Update.CheckNow", "Check for GOG updates");
     public string GogUpdateMenuText => T("Button_Update", "Update");
-    public string GogReinstallMenuText => T("Gog.Media.ReinstallMenu", "Reinstall / Switch Version");
+    public string GogReinstallMenuText => T("Button_ReinstallOrSwitchVersion", "Reinstall / Switch Version");
     public string GogUninstallMenuText => T("Gog.Uninstall.ContextMenu", "Uninstall");
     public string EpicCheckUpdatesMenuText => T("Epic.Update.CheckNow", "Check for Epic Games updates");
     public string EpicUpdateMenuText => T("Button_Update", "Update");
@@ -170,6 +172,7 @@ public partial class MainWindowViewModel
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenSetupSettingsCommand = new AsyncRelayCommand(OpenSetupSettingsAsync);
         OpenStatisticsCommand = new AsyncRelayCommand(OpenStatisticsAsync);
+        OpenHelpGuidesCommand = new RelayCommand(OpenHelpGuides);
         CloseGettingStartedCommand = new RelayCommand(CloseGettingStarted);
         CreateFirstCategoryCommand = new AsyncRelayCommand(CreateFirstCategoryAsync);
         OpenMetadataBackupsCommand = new AsyncRelayCommand(OpenMetadataBackupsFromMainWindowAsync);
@@ -1699,6 +1702,28 @@ public partial class MainWindowViewModel
         };
     }
 
+    private void OpenHelpGuides()
+    {
+        if (_helpGuidesView != null)
+        {
+            _helpGuidesView.WindowState = WindowState.Normal;
+            _helpGuidesView.Activate();
+            return;
+        }
+
+        var helpView = new HelpGuidesView
+        {
+            DataContext = new HelpGuidesViewModel()
+        };
+        _helpGuidesView = helpView;
+        helpView.Closed += (_, _) => _helpGuidesView = null;
+
+        if (CurrentWindow is { } owner)
+            helpView.Show(owner);
+        else
+            helpView.Show();
+    }
+
     private Task OpenSettingsAsync()
         => OpenSettingsAsync(initialTabIndex: null);
 
@@ -1769,6 +1794,7 @@ public partial class MainWindowViewModel
         };
 
         settingsVm.RequestClose += () => { dialog.Close(); };
+        settingsVm.RequestOpenHelpGuides += OpenHelpGuides;
         settingsVm.RequestSortPreviewRefresh += UpdateContent;
         settingsVm.RequestOpenMetadataBackups += async () =>
         {

@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Retromind.ViewModels"
+             x:Class="Retromind.Views.HelpWorkflowGuidesView"
+             x:DataType="vm:HelpGuidesViewModel">
+    <StackPanel Spacing="12">
+        <StackPanel Spacing="6" Margin="4,4,4,8">
+            <TextBlock Text="{Binding Title}"
+                       FontSize="22"
+                       FontWeight="Bold" />
+            <TextBlock Text="{Binding Intro}"
+                       FontSize="14"
+                       Opacity="0.72"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <ItemsControl ItemsSource="{Binding Guides}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="12" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:HelpWorkflowGuide">
+                    <Expander IsExpanded="False"
+                              HorizontalAlignment="Stretch"
+                              BorderBrush="Gray"
+                              BorderThickness="1"
+                              CornerRadius="4">
+                        <Expander.Header>
+                            <StackPanel Margin="12,8" Spacing="3">
+                                <TextBlock Text="{Binding Title}"
+                                           FontSize="16"
+                                           FontWeight="Bold" />
+                                <TextBlock Text="{Binding Description}"
+                                           Opacity="0.72"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Expander.Header>
+                        <TextBlock Text="{Binding Details}"
+                                   Margin="16,4,16,16"
+                                   LineHeight="22"
+                                   TextWrapping="Wrap" />
+                    </Expander>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</UserControl>

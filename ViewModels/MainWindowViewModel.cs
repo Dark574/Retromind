@@ -307,6 +307,10 @@ public partial class MainWindowViewModel : ViewModelBase
     public string GettingStartedNextStep => T(
         "GettingStarted.NextStep",
         "After creating a category, right-click it to import ROMs, Steam or Epic games, add GOG games, or create media manually.");
+    public string GettingStartedHelpLocation => T(
+        "GettingStarted.Help.Location",
+        "You can find more guides under Settings → Help.");
+    public string GettingStartedHelpText => T("Help.Workflows.Open", "Open workflow guides...");
     public string GettingStartedCloseText => T("GettingStarted.Close", "Close overview");
     public bool ShowLibraryGameCountSummary => TotalLibraryGameCount > 0;
     public int CurrentShownGameCount => _currentShownGameCount;

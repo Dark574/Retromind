@@ -41,7 +41,7 @@
     <data name="GettingStarted.Import.Title" xml:space="preserve"><value>Inhalte hinzufügen</value></data>
     <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf eine Kategorie, um ROMs oder Spiele aus Steam, Epic und GOG zu importieren oder Medien manuell anzulegen.</value></data>
     <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Wähle zuerst die Kategorie, in der die neuen Einträge abgelegt werden sollen.
-• Unter Importieren findest du ROM-Ordner sowie Steam- und Epic-Bibliotheken; GOG und manuelle Medien besitzen eigene Einträge.
+• Unter „Importieren“ findest du lokale ROM-Ordner sowie Steam-, Epic- und GOG-Spiele; „Medium hinzufügen“ legt Inhalte manuell an.
 • Lege vor einem ROM-Import das Spielsystem und den Standard-Emulator der Kategorie fest. So kann RetroAchievements unterstützte Spiele automatisch erkennen und die ROMs übernehmen den Emulator direkt. Bei bereits importierten ROMs lässt sich der Standard-Emulator in den Kategorieeinstellungen nachträglich auf vorhandene Einträge anwenden.</value></data>
     <data name="GettingStarted.Settings.Title" xml:space="preserve"><value>Emulatoren und Dienste einrichten</value></data>
     <data name="GettingStarted.Settings.Description" xml:space="preserve"><value>Richte Emulatoren, Metadatenanbieter, Bibliothekspfade und optional RetroAchievements ein.</value></data>
@@ -60,6 +60,88 @@
     <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Klicke mit der rechten Maustaste auf diese freie Fläche oder links auf die Kategorie, um Medien hinzuzufügen, einen ROM-Ordner oder Spiele aus Steam, Epic und GOG zu importieren.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Übersicht schließen</value></data>
     <data name="Settings_TabHelp" xml:space="preserve"><value>Hilfe</value></data>
+    <data name="Help.Window.Title" xml:space="preserve"><value>Retromind-Hilfe</value></data>
+    <data name="Help.Workflows.Title" xml:space="preserve"><value>Häufige Arbeitsabläufe</value></data>
+    <data name="Help.Workflows.Intro" xml:space="preserve"><value>Kurze Anleitungen für typische Aufgaben in Retromind.</value></data>
+    <data name="GettingStarted.Help.Location" xml:space="preserve"><value>Weitere Anleitungen findest du unter Einstellungen → Hilfe.</value></data>
+    <data name="Help.Workflows.Open" xml:space="preserve"><value>Anleitungen öffnen...</value></data>
+    <data name="Help.Workflow.Nodes.Title" xml:space="preserve"><value>Kategorien und Nodes strukturieren</value></data>
+    <data name="Help.Workflow.Nodes.Description" xml:space="preserve"><value>Baue eine vererbbare Bibliotheksstruktur auf, ohne jedes Item einzeln zu konfigurieren.</value></data>
+    <data name="Help.Workflow.Nodes.Details" xml:space="preserve"><value>• Lege übergeordnete Kategorien für Bereiche wie Spiele, Filme oder Bücher und darunter Kategorien für Systeme oder Sammlungen an.
+• Setze „Spielsystem für die Spieleerkennung“ und „Standard Emulator (für diesen Ordner)“ an der Kategorie, ab der sie gelten sollen; untergeordnete Nodes und Items erben diese Einstellungen.
+• Nutze „Erweiterte Startoptionen“ auf Node-Ebene, wenn sie für alle untergeordneten Inhalte gelten sollen. Einstellungen am Item haben Vorrang vor den Einstellungen des Nodes und können daher für gezielte Ausnahmen verwendet werden.
+• Aktiviere „Standard-Emulator auf vorhandene Einträge anwenden“, wenn bereits vorhandene Items einen geänderten Standard-Emulator ebenfalls übernehmen sollen.
+• BigMode-Themes lassen sich pro Kategorie festlegen und folgen nicht den Vererbungsregeln der Startkonfiguration.</value></data>
+    <data name="Help.Workflow.Emulator.Title" xml:space="preserve"><value>Emulatorprofil anlegen und zuweisen</value></data>
+    <data name="Help.Workflow.Emulator.Description" xml:space="preserve"><value>Verwende eine getestete Startkonfiguration gemeinsam für ein System oder eine Kategorie.</value></data>
+    <data name="Help.Workflow.Emulator.Details" xml:space="preserve"><value>• Öffne Emulatoren, füge ein Profil hinzu und wähle die ausführbare Datei aus.
+• Trage die Emulatorargumente ein und verwende {file} an der Stelle für das gewählte Spiel oder Medium.
+• Teste das Profil mit einem Item, bevor du es als Standard-Emulator einer Kategorie zuweist.
+• Lege gemeinsam genutzte Einstellungen am Emulator oder Node ab; nutze Item-Überschreibungen nur für Ausnahmen.
+• Die Reihenfolge von Wrappern ist relevant. Ordne Wrapper wie gamemoderun oder mangohud so an, wie sie den endgültigen Befehl umschließen sollen.</value></data>
+    <data name="Help.Workflow.RomBulk.Title" xml:space="preserve"><value>ROMs gesammelt importieren und Metadaten suchen</value></data>
+    <data name="Help.Workflow.RomBulk.Description" xml:space="preserve"><value>Importiere einen ROM-Ordner in eine vorbereitete Kategorie und ergänze anschließend Metadaten und Medien.</value></data>
+    <data name="Help.Workflow.RomBulk.Details" xml:space="preserve"><value>• Klicke im Bibliotheksbaum mit der rechten Maustaste auf die Zielkategorie und wähle „Einstellungen / Umbenennen...“. Setze „Spielsystem für die Spieleerkennung“ und unter Startoptionen „Standard Emulator (für diesen Ordner)“, damit importierte ROMs die richtige System- und Startkonfiguration erben.
+• Richte unter Einstellungen → Metadaten → Anbieter mindestens einen passenden Scraper ein. Lege unter Übernahme fest, welche Metadaten und Medientypen importiert und wie vorhandene Daten behandelt werden sollen.
+• Klicke im Bibliotheksbaum mit der rechten Maustaste auf die Zielkategorie und wähle „Importieren“ → „Lokaler Ordner (ROMs)...“.
+• Wähle den ROM-Ordner und bestätige oder bearbeite die kommagetrennte Liste der Dateiendungen. Retromind durchsucht auch Unterordner, überspringt von CUE-Dateien referenzierte Track-Dateien und fasst anhand der Dateinamen erkannte Multi-Disc-Spiele zusammen.
+• Der ROM-Import ist additiv. Du kannst ihn später mit demselben Ordner erneut auf der Kategorie ausführen; Retromind ergänzt nur ROMs mit einem noch nicht vorhandenen Startpfad und ersetzt oder löscht keine bestehenden Items.
+• Klicke nach dem Import erneut mit der rechten Maustaste auf die Zielkategorie und wähle „Metadaten suchen (alle)...“. Wähle im Dialog die Quelle und anschließend „Starten“. Die Suche umfasst die aktuelle Kategorie und ihre Unterkategorien.
+• Nicht eindeutige Treffer werden beim Massen-Scraping nicht automatisch übernommen. Nutze am betroffenen Item „Metadaten suchen...“, um den passenden Treffer manuell auszuwählen.</value></data>
+    <data name="Help.Workflow.Windows.Title" xml:space="preserve"><value>Windows-Spiel manuell installieren</value></data>
+    <data name="Help.Workflow.Windows.Description" xml:space="preserve"><value>Führe einen Installer mit System-Wine oder UMU/Proton aus und halte seinen Prefix portabel.</value></data>
+    <data name="Help.Workflow.Windows.Details" xml:space="preserve"><value>• Registriere die benötigte Wine- oder Proton-Version unter Einstellungen → Start. Lege anschließend unter Einstellungen → Emulatoren ein passendes Wine- beziehungsweise UMU-Profil an oder wähle ein vorhandenes. Verwende für Proton immer ein UMU-Profil.
+• Aktiviere im Emulator „Pro-Spiel Prefix verwenden (WINEPREFIX)“ und nutze {file} als Startargument.
+• Wähle beim Item dieses Emulatorprofil aus und starte den Installer über „Testweise starten (ohne Statistik)“. Der zugehörige Prefix wird beim ersten Start automatisch erstellt.
+• Im Windows-Installer steht Library/Games normalerweise als R: zur Verfügung. Ist dieser Buchstabe belegt, wählt Retromind ein anderes freies Laufwerk.
+• Eine .exe, die als „Nativ“ über System-Wine gestartet wird, verwendet dessen Standard-Prefix. Retrominds Runner, eigener Prefix und portables Spielelaufwerk werden dabei nicht angewendet.
+• Retromind legt automatisch erzeugte Prefixe standardmäßig unter Library/Prefixes ab. Der konkrete Pfad steht im Item unter Startoptionen als „PrefixPath (relativ zu Library/)“. Beim Löschen eines Items bleibt sein Prefix erhalten; trage diesen Pfad beim neuen Item ein, wenn du den Prefix wiederverwenden möchtest.</value></data>
+    <data name="Help.Workflow.Stores.Title" xml:space="preserve"><value>Store-Spiele importieren und verwalten</value></data>
+    <data name="Help.Workflow.Stores.Description" xml:space="preserve"><value>Importiere Steam-, GOG- und Epic-Spiele und verwalte Store-Verknüpfungen und Installationen.</value></data>
+    <data name="Help.Workflow.Stores.Details" xml:space="preserve"><value>• Massenimport: Klicke im Bibliotheksbaum mit der rechten Maustaste auf die Zielkategorie und wähle „Importieren“. „Steam-Spiele importieren...“ übernimmt nach der Bestätigung alle lokal erkannten Steam-Installationen. Bei „GOG-Spiele importieren...“ und „Epic-Spiele importieren...“ kannst du mehrere Titel markieren, bei Bedarf „Alle gefilterten auswählen“ nutzen und mit „Auswahl hinzufügen“ importieren.
+• Store-Importe sind additiv. Führe den Massenimport später einfach erneut auf derselben Kategorie aus, um neu hinzugekommene Spiele zu ergänzen. Bereits dort vorhandene Store-Spiele werden nicht erneut angelegt, ersetzt oder gelöscht.
+• Einzelimport: Öffne für GOG oder Epic denselben Importdialog, markiere nur einen Titel und wähle „Auswahl hinzufügen“. Der Steam-Import besitzt derzeit keine Einzelauswahl und importiert alle erkannten Steam-Spiele, die in der Zielkategorie noch nicht vorhanden sind.
+• Bestehendes Item verknüpfen: Klicke mit der rechten Maustaste auf das Item und wähle „Store“ → „Mit GOG-Spiel verknüpfen...“ oder „Mit Epic-Games-Spiel verknüpfen...“. Wähle das Spiel aus deiner Store-Bibliothek und bestätige mit „Spiel verknüpfen“. Vorhandene Dateien, Starteinstellungen, Medien und Metadaten bleiben erhalten.
+• Store wechseln: Wähle am Item unter „Store“ den Eintrag „Zu GOG wechseln...“ oder „Zu Epic Games wechseln...“. Eine von Retromind verwaltete Installation muss zuvor über „Store“ → „Deinstallieren“ entfernt werden; das Bibliotheks-Item bleibt dabei erhalten.
+• Installieren: Wähle bei einem importierten oder verknüpften, noch nicht installierten Titel „Store“ → „Installieren“. Wähle bei Windows-Spielen im Installationsdialog den gewünschten Wine-/Proton-Runner.
+• Updates und Reparatur: Nutze „Store“ → „Nach GOG-Updates suchen“ oder „Nach Epic-Games-Updates suchen“. Ist ein Update verfügbar, erscheint „Update“. GOG bietet außerdem „Neu installieren / Version wechseln“, Epic bietet „Installation reparieren“.
+• Deinstallation: „Store“ → „Deinstallieren“ entfernt die von Retromind verwaltete Installation, nicht das Bibliotheks-Item. Gemeinsam verwendete Prefixe sowie nicht eindeutig zur Installation gehörende Dateien bleiben erhalten.</value></data>
+    <data name="Help.Workflow.Metadata.Title" xml:space="preserve"><value>Metadaten und Bilder suchen</value></data>
+    <data name="Help.Workflow.Metadata.Description" xml:space="preserve"><value>Verbessere Suchtreffer und bestimme, welche gefundenen Daten übernommen werden.</value></data>
+    <data name="Help.Workflow.Metadata.Details" xml:space="preserve"><value>• Weise der Kategorie vor der Suche das richtige Spielsystem zu; Items erben es und können es einzeln überschreiben.
+• Konfiguriere unter Einstellungen → Metadaten → Anbieter die verfügbaren Scraper. Lege unter Übernahme fest, welche Metadaten und Medientypen übernommen werden.
+• Nutze die Item-Suche, um einen Treffer manuell zu prüfen, oder die Massensuche der Kategorie für viele Items.
+• Datei-Hashes können unterstützte ROMs zuverlässiger als Namen erkennen, wenn Anbieter und System dies unterstützen.
+• Vorhandene Medien werden entsprechend der Einstellung „Voreinstellung für vorhandene Medien“ beibehalten oder ergänzt.</value></data>
+    <data name="Help.Workflow.MultiDisc.Title" xml:space="preserve"><value>Spiele mit mehreren Discs einrichten</value></data>
+    <data name="Help.Workflow.MultiDisc.Description" xml:space="preserve"><value>Fasse alle Discs in einem Item zusammen und starte sie in einer eindeutigen Reihenfolge.</value></data>
+    <data name="Help.Workflow.MultiDisc.Details" xml:space="preserve"><value>• Klicke im Bibliotheksbaum mit der rechten Maustaste auf die gewünschte Kategorie und wähle „Medium hinzufügen“.
+• Markiere im Dateidialog alle Disc-Dateien desselben Spiels gleichzeitig. Bestätige anschließend die Frage „Soll daraus ein Multi-Disc-Eintrag erstellt werden?“ und vergib einen gemeinsamen Titel.
+• Retromind erkennt Bezeichnungen wie Disc, Disk oder CD samt Nummer aus den Dateinamen und sortiert die Dateien entsprechend. Ohne erkennbare Nummerierung wird nach Dateiname sortiert; benenne die Dateien deshalb vor dem Hinzufügen eindeutig.
+• Aktiviere im verwendeten Emulatorprofil „Playlist (.m3u) für Multi-Disc verwenden“, wenn der Emulator .m3u unterstützt. Retromind erzeugt beim Start eine portable Playlist und übergibt sie über {file}.
+• Ohne Playlist-Modus wird beim normalen Start Disc 1 verwendet.
+• Wähle alle Discs beim Anlegen gemeinsam aus. „Ändern“ unter Startoptionen ersetzt bei einem vorhandenen Item nur die primäre Startdatei.
+• Bewahre alle Disc-Pfade innerhalb des Retromind-Datenverzeichnisses auf, wenn die Einrichtung portabel bleiben soll.</value></data>
+    <data name="Help.Workflow.Portable.Title" xml:space="preserve"><value>Portable Retromind-Installation verschieben</value></data>
+    <data name="Help.Workflow.Portable.Description" xml:space="preserve"><value>Verschiebe das Datenverzeichnis, ohne Abhängigkeiten zum vorherigen Speicherort zu behalten.</value></data>
+    <data name="Help.Workflow.Portable.Details" xml:space="preserve"><value>• Aktiviere unter Einstellungen → Start „Startpfade relativ zum Retromind-Datenordner speichern (portabel)“, bevor du Starteinstellungen speicherst, die in das Datenverzeichnis zeigen.
+• Beende Retromind und kopiere die vollständige portable Datenstruktur einschließlich Library, Emulators, Tools und – falls verwendet – der portablen HOME-Daten.
+• Pfade innerhalb des Datenverzeichnisses werden, soweit unterstützt, relativ gespeichert; bewusst externe Pfade bleiben absolut.
+• Retromind repariert verwaltete Proton-Prefix-Links und portable Spielelaufwerke, wenn sie noch zum vorherigen Speicherort zeigen.
+• Teste einen nativen Titel, einen Emulator und einen Wine-/Proton-Titel, bevor du die ursprüngliche Kopie entfernst.</value></data>
+    <data name="Help.Workflow.Backup.Title" xml:space="preserve"><value>Bibliothek sichern und wiederherstellen</value></data>
+    <data name="Help.Workflow.Backup.Description" xml:space="preserve"><value>Schütze Einstellungen und Bibliotheksmetadaten und beachte, welche Daten nicht im Backup enthalten sind.</value></data>
+    <data name="Help.Workflow.Backup.Details" xml:space="preserve"><value>• Aktiviere unter Einstellungen → Daten „Automatische Metadaten-Backups erstellen“, wähle die gewünschten Sicherungszeitpunkte und nutze „Backups verwalten...“ zur Prüfung oder Wiederherstellung.
+• Ein Metadaten-Backup enthält Bibliotheksdatenbank und Einstellungen. Spiele, Bilder, Videos, Themes, Prefixes und portable HOME-Daten sind nicht enthalten.
+• Sichere das vollständige Retromind-Datenverzeichnis zusätzlich separat, wenn auch diese Dateien geschützt werden sollen.
+• Nach einer erfolgreichen Wiederherstellung wird Retromind geschlossen, damit der wiederhergestellte Zustand beim nächsten Start sauber geladen wird.</value></data>
+    <data name="Help.Workflow.Diagnostics.Title" xml:space="preserve"><value>Startprobleme untersuchen</value></data>
+    <data name="Help.Workflow.Diagnostics.Description" xml:space="preserve"><value>Sammle die entscheidenden Informationen, bevor du eine funktionierende Konfiguration veränderst.</value></data>
+    <data name="Help.Workflow.Diagnostics.Details" xml:space="preserve"><value>• Nutze „Testweise starten (ohne Statistik)“, damit fehlgeschlagene Versuche die Spielstatistik nicht verändern.
+• Prüfe das Prozessfenster und das gespeicherte Startlog auf Programm, Argumente, Arbeitsverzeichnis, Runner, Prefix und Exit-Code.
+• Vergleiche geerbte Emulator- und Node-Werte mit Item-Überschreibungen, besonders bei Wrappern, Umgebungsvariablen und Arbeitsverzeichnissen.
+• Prüfe, ob Medientyp und Emulator zur Datei passen: Eine native .exe verwendet unter Linux nicht automatisch ein Wine-/Proton-Profil von Retromind.
+• Kopiere bei Supportanfragen die „Supportinformationen“ aus der Hilfe und prüfe Startlogs vor dem Teilen.</value></data>
     <data name="Help.Contact.Title" xml:space="preserve"><value>Hilfe und Kontakt</value></data>
     <data name="Help.Contact.Description" xml:space="preserve"><value>Stelle öffentliche Fragen und tausche Ideen in den GitHub Discussions aus. Für private Anliegen kannst du das Retromind-Projekt per E-Mail kontaktieren.</value></data>
     <data name="Help.Contact.GitHubDiscussions" xml:space="preserve"><value>GitHub Discussions öffnen</value></data>

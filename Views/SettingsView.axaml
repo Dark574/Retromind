@@ -1247,6 +1247,27 @@
                         </Expander>
 
                         <Border Classes="section"
+                                Margin="0,12,0,0"
+                                HorizontalAlignment="Stretch">
+                            <StackPanel Spacing="8" DataContext="{Binding HelpGuides}">
+                                <TextBlock Text="{Binding Title}"
+                                           FontSize="16"
+                                           FontWeight="Bold" />
+                                <TextBlock Text="{Binding Intro}"
+                                           Opacity="0.72"
+                                           TextWrapping="Wrap" />
+                                <Button Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).OpenHelpGuidesCommand}"
+                                        HorizontalAlignment="Left"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="0,4">
+                                    <TextBlock Text="{Binding OpenText}"
+                                               TextDecorations="Underline" />
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="section"
                                 Margin="0,8,0,0"
                                 HorizontalAlignment="Stretch">
                             <StackPanel Spacing="10">

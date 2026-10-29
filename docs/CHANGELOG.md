@@ -12,6 +12,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Added
 - optionally synchronize achievements and completed playtime for linked GOG games and display GOG progress, rarity, unlock times, and privacy-safe hidden achievements in the desktop details and BigMode
 - new PlayStation 2 system theme
+- a separate Help window with practical guides for common workflows including nodes, emulators, Windows games, stores, metadata, portability, backups, and launch diagnostics
 
 ### Changed
 - keep the last successful Steam and GOG achievement progress and downloaded icons available for offline viewing after restarting Retromind while avoiding repeated service requests during normal library browsing

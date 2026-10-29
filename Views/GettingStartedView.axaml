@@ -21,7 +21,7 @@
                     BorderBrush="#44888888"
                     BorderThickness="1"
                     CornerRadius="12">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
                     <TextBlock Grid.Row="0"
                                Text="{Binding GettingStartedTitle}"
                                FontSize="30"
@@ -133,7 +133,25 @@
                                TextWrapping="Wrap"
                                Opacity="0.72" />
 
-                    <Button Grid.Row="4"
+                    <StackPanel Grid.Row="4"
+                                Margin="16,14,16,0"
+                                HorizontalAlignment="Center"
+                                Spacing="2">
+                        <TextBlock Text="{Binding GettingStartedHelpLocation}"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   Opacity="0.72" />
+                        <Button Command="{Binding OpenHelpGuidesCommand}"
+                                HorizontalAlignment="Center"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Opacity="0.9">
+                            <TextBlock Text="{Binding GettingStartedHelpText}"
+                                       TextDecorations="Underline" />
+                        </Button>
+                    </StackPanel>
+
+                    <Button Grid.Row="5"
                             Content="{Binding GettingStartedCloseText}"
                             Command="{Binding CloseGettingStartedCommand}"
                             Margin="0,20,0,0"

@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:views="clr-namespace:Retromind.Views"
+        x:Class="Retromind.Views.HelpGuidesView"
+        x:DataType="vm:HelpGuidesViewModel"
+        Title="{Binding WindowTitle}"
+        Width="820"
+        Height="720"
+        MinWidth="560"
+        MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        CanMaximize="False">
+    <Grid RowDefinitions="*,Auto" Margin="18">
+        <ScrollViewer Grid.Row="0"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <views:HelpWorkflowGuidesView DataContext="{Binding}" />
+        </ScrollViewer>
+
+        <Button Grid.Row="1"
+                Content="{Binding CloseText}"
+                Click="OnCloseClick"
+                HorizontalAlignment="Right"
+                Margin="0,16,0,0"
+                MinWidth="90" />
+    </Grid>
+</Window>

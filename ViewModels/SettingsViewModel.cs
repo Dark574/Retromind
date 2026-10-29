@@ -547,7 +547,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         "Right-click a category to import ROMs, Steam or Epic games, add GOG games, or create media manually.");
     public string GettingStartedImportDetails => T(
         "GettingStarted.Import.Details",
-        "• Select the category that should contain the new items.\n• Use Import for ROM folders, Steam or Epic libraries; GOG and manual media have their own entries.\n• Set the category's game system and default emulator before importing ROMs. This lets RetroAchievements identify supported games automatically and assigns the emulator immediately. For existing ROMs, the default emulator can later be applied to existing items in the category settings.");
+        "• Select the category that should contain the new items.\n• Under Import, choose local ROM folders or Steam, Epic and GOG games; Add Media creates content manually.\n• Set the category's game system and default emulator before importing ROMs. This lets RetroAchievements identify supported games automatically and assigns the emulator immediately. For existing ROMs, the default emulator can later be applied to existing items in the category settings.");
     public string GettingStartedSettingsTitle => T("GettingStarted.Settings.Title", "Configure integrations");
     public string GettingStartedSettingsDescription => T(
         "GettingStarted.Settings.Description",
@@ -562,6 +562,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public string GettingStartedRestoreDetails => T(
         "GettingStarted.Restore.Details",
         "• Open Backups and choose Manage backups to view the available archives.\n• A backup contains the library database and settings, but not games, artwork, videos, themes or portable HOME data.\n• Retromind closes after a successful restore so the restored state can be loaded cleanly on the next start.");
+    public HelpGuidesViewModel HelpGuides { get; } = new();
     public string HelpContactTitle => T("Help.Contact.Title", "Help and contact");
     public string HelpContactDescription => T(
         "Help.Contact.Description",
@@ -800,6 +801,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public IAsyncRelayCommand ChangeParentalPasswordCommand { get; }
     public IRelayCommand OpenGitHubDiscussionsCommand { get; }
     public IRelayCommand SendContactEmailCommand { get; }
+    public IRelayCommand OpenHelpGuidesCommand { get; }
     public IAsyncRelayCommand CopySupportDiagnosticsCommand { get; }
 
     // Emulator wrapper editor commands
@@ -824,6 +826,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     public event Action? RequestClose;
     public event Action? RequestSortPreviewRefresh;
+    public event Action? RequestOpenHelpGuides;
     
     /// <summary>
     /// Raised when the user explicitly requests to convert existing launch
@@ -950,6 +953,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
         OpenGitHubDiscussionsCommand = new RelayCommand(() => OpenHelpUri(GitHubDiscussionsUri));
         SendContactEmailCommand = new RelayCommand(() => OpenHelpUri(ContactEmailUri));
+        OpenHelpGuidesCommand = new RelayCommand(() => RequestOpenHelpGuides?.Invoke());
         CopySupportDiagnosticsCommand = new AsyncRelayCommand(CopySupportDiagnosticsAsync);
         
         // Emulator-wrapper commands

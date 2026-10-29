@@ -41,7 +41,7 @@
     <data name="GettingStarted.Import.Title" xml:space="preserve"><value>Add content</value></data>
     <data name="GettingStarted.Import.Description" xml:space="preserve"><value>Right-click a category to import ROMs or games from Steam, Epic and GOG, or create media manually.</value></data>
     <data name="GettingStarted.Import.Details" xml:space="preserve"><value>• Select the category that should contain the new items.
-• Use Import for ROM folders, Steam or Epic libraries; GOG and manual media have their own entries.
+• Under Import, choose local ROM folders or Steam, Epic and GOG games; Add Media creates content manually.
 • Set the category's game system and default emulator before importing ROMs. This lets RetroAchievements identify supported games automatically and assigns the emulator immediately. For existing ROMs, the default emulator can later be applied to existing items in the category settings.</value></data>
     <data name="GettingStarted.Settings.Title" xml:space="preserve"><value>Configure emulators and services</value></data>
     <data name="GettingStarted.Settings.Description" xml:space="preserve"><value>Set up emulators, metadata providers, library paths and optional RetroAchievements access.</value></data>
@@ -60,6 +60,88 @@
     <data name="GettingStarted.EmptyCategory.Description" xml:space="preserve"><value>Right-click this empty area or the category on the left to add media, import a ROM folder, or import games from Steam, Epic and GOG.</value></data>
     <data name="GettingStarted.Close" xml:space="preserve"><value>Close overview</value></data>
     <data name="Settings_TabHelp" xml:space="preserve"><value>Help</value></data>
+    <data name="Help.Window.Title" xml:space="preserve"><value>Retromind Help</value></data>
+    <data name="Help.Workflows.Title" xml:space="preserve"><value>Common workflows</value></data>
+    <data name="Help.Workflows.Intro" xml:space="preserve"><value>Short guides for common tasks in Retromind.</value></data>
+    <data name="GettingStarted.Help.Location" xml:space="preserve"><value>You can find more guides under Settings → Help.</value></data>
+    <data name="Help.Workflows.Open" xml:space="preserve"><value>Open workflow guides...</value></data>
+    <data name="Help.Workflow.Nodes.Title" xml:space="preserve"><value>Organize categories and nodes</value></data>
+    <data name="Help.Workflow.Nodes.Description" xml:space="preserve"><value>Build an inheritable library structure without configuring every item separately.</value></data>
+    <data name="Help.Workflow.Nodes.Details" xml:space="preserve"><value>• Create parent categories for broad areas such as Games, Movies or Books and child categories for systems or collections.
+• Set Game system for game identification and Default emulator (for this folder) on the category where they should begin to apply; child nodes and their items inherit them.
+• Use Advanced launch settings at node level when they should apply to every child. Item settings take precedence over node settings and can therefore be used for specific exceptions.
+• Enable Apply default emulator to existing items when existing items should adopt a changed default emulator too.
+• BigMode themes can be assigned per category and do not follow the launch-configuration inheritance rules.</value></data>
+    <data name="Help.Workflow.Emulator.Title" xml:space="preserve"><value>Create and assign an emulator profile</value></data>
+    <data name="Help.Workflow.Emulator.Description" xml:space="preserve"><value>Reuse one tested launch configuration for a system or category.</value></data>
+    <data name="Help.Workflow.Emulator.Details" xml:space="preserve"><value>• Open Emulators, add a profile, and select its executable.
+• Enter the emulator arguments and use {file} where the selected game or medium belongs.
+• Test the profile on one item before assigning it as a category's default emulator.
+• Put settings shared by many games on the emulator or node; use item overrides only for exceptions.
+• Wrapper order is significant. Keep wrappers such as gamemoderun or mangohud in the order in which they should wrap the final command.</value></data>
+    <data name="Help.Workflow.RomBulk.Title" xml:space="preserve"><value>Bulk-import ROMs and find metadata</value></data>
+    <data name="Help.Workflow.RomBulk.Description" xml:space="preserve"><value>Import a ROM folder into a prepared category, then add metadata and media.</value></data>
+    <data name="Help.Workflow.RomBulk.Details" xml:space="preserve"><value>• Right-click the target category in the library tree and choose Settings / Rename... Set Game system for game identification and, under Launch options, Default emulator (for this folder) so imported ROMs inherit the correct system and launch configuration.
+• Under Settings → Metadata → Providers, configure at least one suitable scraper. Under Import, choose which metadata and media types to import and how existing data should be handled.
+• Right-click the target category in the library tree and choose Import → Local folder (ROMs)...
+• Select the ROM folder and confirm or edit the comma-separated list of file extensions. Retromind also searches subfolders, skips track files referenced by CUE files and groups multi-disc games recognized from their filenames.
+• ROM imports are additive. You can run the same folder import on the category again later; Retromind only adds ROMs whose launch path is not already present and does not replace or delete existing items.
+• After importing, right-click the target category again and choose Search metadata (all)... Select the source in the dialog and then Launch. The search includes the current category and its child categories.
+• Ambiguous results are not applied automatically during bulk scraping. Use Search metadata... on the affected item to choose the correct result manually.</value></data>
+    <data name="Help.Workflow.Windows.Title" xml:space="preserve"><value>Install a Windows game manually</value></data>
+    <data name="Help.Workflow.Windows.Description" xml:space="preserve"><value>Run an installer with system Wine or UMU/Proton while keeping its prefix portable.</value></data>
+    <data name="Help.Workflow.Windows.Details" xml:space="preserve"><value>• Register the required Wine or Proton version under Settings → Launch. Then create a suitable Wine or UMU profile under Settings → Emulators, or select an existing one. Always use an UMU profile for Proton.
+• Enable Use per-game prefix (WINEPREFIX) on the emulator and use {file} as its launch argument.
+• Select that emulator profile on the item and start the installer through Test launch (without tracking). The corresponding prefix is created automatically on first launch.
+• In the Windows installer, Library/Games is normally available as R:. If that letter is occupied, Retromind chooses another free drive.
+• A .exe launched as Native through system Wine uses system Wine's default prefix. Retromind's runner, dedicated prefix and portable games drive are not applied.
+• Retromind stores automatically created prefixes under Library/Prefixes by default. The exact path is shown on the item under Launch options as PrefixPath (relative to Library/). Removing an item keeps its prefix; enter this path on the new item to reuse it.</value></data>
+    <data name="Help.Workflow.Stores.Title" xml:space="preserve"><value>Import and manage store games</value></data>
+    <data name="Help.Workflow.Stores.Description" xml:space="preserve"><value>Import Steam, GOG and Epic games and manage store links and installations.</value></data>
+    <data name="Help.Workflow.Stores.Details" xml:space="preserve"><value>• Bulk import: Right-click the target category in the library tree and choose Import. Import Steam games... adds all locally detected Steam installations after confirmation. With Import GOG games... and Import Epic games..., select several titles, optionally use Select all filtered, then choose Add selection.
+• Store imports are additive. Run the bulk import on the same category again later to add newly available games. Store games already present there are not created again, replaced or deleted.
+• Single import: Open the same import dialog for GOG or Epic, select only one title and choose Add selection. The Steam importer currently has no single-selection picker and imports all detected Steam games that are not already present in the target category.
+• Link an existing item: Right-click the item and choose Store → Link to GOG game... or Link to Epic Games title... Select the title from your store library and confirm with Link game. Existing files, launch settings, media and metadata are retained.
+• Switch stores: On the item, choose Store → Switch to GOG... or Switch to Epic Games... A Retromind-managed installation must first be removed through Store → Uninstall; the library item remains.
+• Install: For an imported or linked title that is not installed, choose Store → Install. For Windows games, select the desired Wine/Proton runner in the installation dialog.
+• Updates and repair: Use Store → Check for GOG updates or Check for Epic Games updates. When an update is available, Update appears. GOG also provides Reinstall / Switch Version; Epic provides Repair installation.
+• Uninstall: Store → Uninstall removes the Retromind-managed installation, not the library item. Shared prefixes and files that cannot be clearly attributed to the installation are retained.</value></data>
+    <data name="Help.Workflow.Metadata.Title" xml:space="preserve"><value>Find metadata and artwork</value></data>
+    <data name="Help.Workflow.Metadata.Description" xml:space="preserve"><value>Improve matching results and control which discovered data is adopted.</value></data>
+    <data name="Help.Workflow.Metadata.Details" xml:space="preserve"><value>• Assign the correct game system to the category before searching; items inherit it and may override it individually.
+• Under Settings → Metadata → Providers, configure the available scrapers. Under Import, choose which metadata and media types to copy.
+• Use the item search to review one result manually, or the category's bulk search for many items.
+• File hashes can identify supported ROMs more reliably than names when the provider and system support them.
+• Existing media is preserved or supplemented according to Default for existing media.</value></data>
+    <data name="Help.Workflow.MultiDisc.Title" xml:space="preserve"><value>Configure multi-disc games</value></data>
+    <data name="Help.Workflow.MultiDisc.Description" xml:space="preserve"><value>Keep all discs on one item and launch them in a predictable order.</value></data>
+    <data name="Help.Workflow.MultiDisc.Details" xml:space="preserve"><value>• Right-click the desired category in the library tree and choose Add Media.
+• Select all disc files for the same game at once in the file dialog. Then confirm Combine them into one multi-disc item? and enter a shared title.
+• Retromind recognizes labels such as Disc, Disk or CD with their number in filenames and sorts the files accordingly. Without recognizable numbering, it sorts by filename, so name the files clearly before adding them.
+• Enable Use playlist (.m3u) for multi-disc items in the emulator profile when the emulator supports .m3u. Retromind creates a portable playlist at launch and passes it through {file}.
+• Without playlist mode, Disc 1 is used for the normal launch.
+• Select all discs together when creating the item. Change under Launch options only replaces the primary launch file of an existing item.
+• Keep all disc paths inside the Retromind data location when the setup should remain portable.</value></data>
+    <data name="Help.Workflow.Portable.Title" xml:space="preserve"><value>Move a portable Retromind installation</value></data>
+    <data name="Help.Workflow.Portable.Description" xml:space="preserve"><value>Relocate the data directory without retaining dependencies on its old location.</value></data>
+    <data name="Help.Workflow.Portable.Details" xml:space="preserve"><value>• Under Settings → Launch, enable Store launch file paths relative to Retromind data folder (portable) before saving launch settings that point inside the data directory.
+• Close Retromind and copy the complete portable data structure, including Library, Emulators, Tools and portable HOME data when used.
+• Paths inside the data root are stored relatively where supported; intentionally external paths remain absolute.
+• Retromind repairs managed Proton-prefix links and portable games-drive mappings when they still point to the previous location.
+• Test one native title, one emulator and one Wine/Proton title before removing the original copy.</value></data>
+    <data name="Help.Workflow.Backup.Title" xml:space="preserve"><value>Back up and restore the library</value></data>
+    <data name="Help.Workflow.Backup.Description" xml:space="preserve"><value>Protect settings and library metadata while understanding what is outside the backup.</value></data>
+    <data name="Help.Workflow.Backup.Details" xml:space="preserve"><value>• Under Settings → Data, enable Create automatic metadata backups, choose the desired triggers and use Manage backups... for inspection or restore.
+• A metadata backup contains the library database and settings. It does not contain games, artwork, videos, themes, prefixes or portable HOME data.
+• Back up the complete Retromind data directory separately when those files must be protected too.
+• Retromind closes after a successful restore so the restored state is loaded cleanly on the next start.</value></data>
+    <data name="Help.Workflow.Diagnostics.Title" xml:space="preserve"><value>Investigate launch problems</value></data>
+    <data name="Help.Workflow.Diagnostics.Description" xml:space="preserve"><value>Collect the useful evidence before changing a working configuration.</value></data>
+    <data name="Help.Workflow.Diagnostics.Details" xml:space="preserve"><value>• Use Test launch (without tracking) so failed attempts do not alter play statistics.
+• Check the process window and the saved launch log for the executable, arguments, working directory, runner, prefix and exit code.
+• Compare inherited emulator and node values with item overrides, especially wrappers, environment variables and working directories.
+• Verify that the selected media type and emulator match the file: a Native .exe on Linux does not automatically use a Retromind Wine/Proton profile.
+• Copy Support information from Help when requesting assistance, and review launch logs before sharing them.</value></data>
     <data name="Help.Contact.Title" xml:space="preserve"><value>Help and contact</value></data>
     <data name="Help.Contact.Description" xml:space="preserve"><value>Ask public questions and exchange ideas in GitHub Discussions. For private matters, contact the Retromind project by email.</value></data>
     <data name="Help.Contact.GitHubDiscussions" xml:space="preserve"><value>Open GitHub Discussions</value></data>
