@@ -145,6 +145,90 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
 - metadata backups intentionally exclude `Library/`, themes, portable HOME data, runners, games, media,
   external saves, and host-secret-store credentials; full portable-folder copies remain the disaster backup
 
+## Central error output
+
+`IErrorService` is singleton infrastructure for classification, durable diagnostics, and optional user
+notifications. `ErrorService` has no dependency on store, scraper, launcher, or file-management services.
+It never decides whether an operation should abort, retry, roll back, recover, or allow shutdown. Those
+decisions and exception propagation remain with the calling service or UI orchestrator. There is no
+global exception handler, automatic exception swallowing for business operations, or result hierarchy.
+
+### Public contract and classification
+
+- `IErrorService.Report(ErrorReport error, Func<Task>? notifyUser = null)` writes one diagnostic record
+  and optionally schedules the supplied notification on the Avalonia UI thread through `UiThreadHelper`.
+  Notifications are explicit; severity alone never opens a dialog. The callback owns its localized
+  presentation, window selection, and any UI-specific reset behavior.
+- `ErrorReport` is an output-only record with a stable `Code`, caller-selected `Severity`, originating
+  `Component`, understandable/localizable `Message`, optional `Exception`, optional `CorrelationId`,
+  optional string dictionary `Context`, and optional `SensitiveValues` for known credentials in free text.
+  It does not change library/settings serialization contracts. Exception output includes inner exceptions
+  and available stack traces; arbitrary `Exception.Data` objects are not serialized.
+- `ErrorSeverity.Diagnostic`: technical information useful for investigation, without a user action.
+- `ErrorSeverity.Warning`: a limitation or degraded behavior that may need attention.
+- `ErrorSeverity.Error`: the requested operation failed.
+- `ErrorSeverity.Critical`: a serious failure threatening continued application operation or data integrity.
+  Even critical severity performs no automatic recovery or shutdown.
+
+### Storage, retention, and sensitive data
+
+DI resolves the directory with `Path.Combine(AppPaths.DataRoot, "Logs", "Exceptions")`, preserving the
+existing AppImage/data-root rules. It is created lazily. `Logs/Launch/` and `LaunchLogService` remain
+unchanged. Central records are UTF-8 JSON Lines in `Logs/Exceptions/errors.jsonl`, with UTC timestamps.
+Writes and rotation are synchronous and serialized inside the singleton, with no background queue to drain
+at shutdown. A nonempty file rotates before an append would exceed 1 MiB. The three newest archives are
+`errors.jsonl.1` through `.3`, with `.1` the newest; older archives are replaced. Constructor parameters
+allow a different byte threshold and archive count (including zero). A single record may exceed a custom
+threshold smaller than the record; the next append rotates it. Individual records are limited to 64 KiB;
+oversized reports retain shortened core fields, omit context, and include `Truncated: true`.
+New Unix log files are created with owner-only read/write permissions.
+
+Redaction happens before JSON serialization and before truncation, across the message, exception chain,
+code, component, correlation ID, context keys, and context values. The existing `LaunchSecretRedactor`
+sensitive-name policy and command-argument redaction are reused without changing launch logs. Additional
+handling covers JSON/key-value credentials, authentication and cookie headers, Bearer/Basic credentials,
+and URL userinfo. Sensitive context keys have their values replaced, and those original values plus
+explicit `SensitiveValues` are also removed wherever they occur in free text. This helper is static
+infrastructure, not a dependency on the launcher service.
+
+Callers must avoid request payloads and credentials in diagnostic context. Pattern matching cannot
+identify an arbitrary unlabeled secret: supply it through `SensitiveValues` when free text may contain it.
+Those values are used only for redaction and are never serialized. Logging/redaction/rotation failures
+and dispatcher/notification failures are contained strictly inside the output boundary, never recursively
+reported or printed with potentially sensitive exception details, and do not replace the original failure
+or prevent an independently requested notification.
+
+### Persistence integration and future callers
+
+Only `MainWindowViewModel.ReportPersistenceSaveFailure()` uses the new service in this phase. It reports
+`Persistence.SaveFailed` with severity `Error`, the existing localized `Persistence.SaveFailedFormat`
+message, the original exception, and `Operation=Save` context. Its existing atomic notification gate
+still permits only one notice until a successful save resets it. Each call is logged, including calls
+whose notice is suppressed. Missing dialog owners and failed dialogs retain their existing gate reset.
+No extra logging-failure dialog is shown.
+
+Save operations, dirty tracking, settings debounces, and shutdown behavior are unchanged. During the final
+flush, existing suppression prevents persistence-error dialogs; failure still returns `false`, skips
+cleanup, resumes launcher operation, and lets `MainWindow` own the existing exit-without-saving decision.
+The final settings-save catch and other error paths have not been migrated.
+
+Future callers should first perform their own business error handling, then report a stable code,
+appropriate severity, component, understandable message, and useful non-secret operation/correlation data:
+
+```csharp
+errorService.Report(new ErrorReport(
+    "Component.OperationFailed",
+    ErrorSeverity.Error,
+    nameof(MyService),
+    "The requested operation could not be completed.",
+    exception,
+    CorrelationId: operationId));
+```
+
+UI orchestrators may supply `notifyUser` when user feedback is needed and own any duplicate-notification
+policy. Business services can report without UI dependencies. Reporting does not consume an exception or
+change the caller's return/throw/recovery policy; no additional services are migrated automatically.
+
 ## Path and portability contract
 - persisted file paths are expected to be DataRoot-relative when possible
 - with portable launch paths enabled, every emulator, node, and item save normalizes known single-path

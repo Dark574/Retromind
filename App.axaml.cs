@@ -284,6 +284,8 @@ public partial class App : Application
         services.AddSingleton<MediaDataService>();
         services.AddSingleton<MetadataBackupService>();
         services.AddSingleton<LibraryHealthService>();
+        services.AddSingleton<IErrorService>(_ => new ErrorService(
+            Path.Combine(AppPaths.DataRoot, "Logs", "Exceptions")));
         services.AddSingleton<FileManagementService>(_ => new FileManagementService(libraryPath));
         services.AddSingleton(_ => new LaunchLogService(
             Path.Combine(AppPaths.DataRoot, "Logs", "Launch")));

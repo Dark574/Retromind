@@ -46,6 +46,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly MediaDataService _dataService;
     private readonly MetadataBackupService _metadataBackupService;
     private readonly LibraryHealthService _libraryHealthService;
+    private readonly IErrorService _errorService;
     private readonly FileManagementService _fileService;
     private readonly WinetricksService _winetricksService;
     private readonly ImportService _importService;
@@ -455,12 +456,14 @@ public partial class MainWindowViewModel : ViewModelBase
         ISteamAchievementsProgressService steamAchievementsProgressService,
         IGogAchievementsProgressService gogAchievementsProgressService,
         ScraperCredentialService scraperCredentialService,
+        IErrorService errorService,
         LibraryHealthService? libraryHealthService = null)
     {
         _audioService = audioService;
         _dataService = dataService;
         _metadataBackupService = metadataBackupService;
         _libraryHealthService = libraryHealthService ?? new LibraryHealthService();
+        _errorService = errorService;
         _fileService = fileService;
         _winetricksService = winetricksService;
         _importService = importService;
@@ -1017,15 +1020,21 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void ReportPersistenceSaveFailure(Exception exception)
     {
-        Debug.WriteLine($"[Persistence] Save failed: {exception}");
+        var showNotice = Volatile.Read(ref _suppressPersistenceErrorNotice) == 0 &&
+                         Interlocked.CompareExchange(ref _persistenceErrorNoticeShown, 1, 0) == 0;
+        var format = T(
+            "Persistence.SaveFailedFormat",
+            "Retromind could not save its data.\n\n{0}\n\nUnsaved changes remain in memory. Please check free disk space and write permissions.");
+        var message = string.Format(format, exception.Message);
 
-        if (Volatile.Read(ref _suppressPersistenceErrorNotice) != 0 ||
-            Interlocked.CompareExchange(ref _persistenceErrorNoticeShown, 1, 0) != 0)
-        {
-            return;
-        }
-
-        UiThreadHelper.Post(async () =>
+        _errorService.Report(new ErrorReport(
+            "Persistence.SaveFailed",
+            ErrorSeverity.Error,
+            nameof(MainWindowViewModel),
+            message,
+            exception,
+            Context: new Dictionary<string, string> { ["Operation"] = "Save" }),
+            notifyUser: showNotice ? async () =>
         {
             try
             {
@@ -1035,17 +1044,14 @@ public partial class MainWindowViewModel : ViewModelBase
                     return;
                 }
 
-                var format = T(
-                    "Persistence.SaveFailedFormat",
-                    "Retromind could not save its data.\n\n{0}\n\nUnsaved changes remain in memory. Please check free disk space and write permissions.");
-                await ShowInfoDialog(owner, string.Format(format, exception.Message));
+                await ShowInfoDialog(owner, message);
             }
             catch (Exception dialogException)
             {
                 Debug.WriteLine($"[Persistence] Could not show save failure: {dialogException.Message}");
                 ClearPersistenceSaveFailure();
             }
-        });
+        } : null);
     }
 
     private void ClearPersistenceSaveFailure()
