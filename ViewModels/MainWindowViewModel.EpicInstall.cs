@@ -268,7 +268,11 @@ public partial class MainWindowViewModel
 
             _libraryTracker.MarkDirty();
             NotifyPlayAvailabilityChanged();
-            await SaveData();
+            if (!await SaveData())
+            {
+                AppendProcessLog(progressVm, OperationSavePendingMessage());
+                return true; // Physical success; keep the editor's launch configuration in sync.
+            }
             AppendProcessLog(progressVm, T("Epic.Install.Success", "Installation completed."));
             return true;
         }

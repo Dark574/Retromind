@@ -261,7 +261,13 @@ public partial class MainWindowViewModel
 
                 UpdateInstalledGogDlcState(item, entry, platform.Value, installerPackage);
                 _libraryTracker.MarkDirty();
-                await SaveData();
+                if (!await SaveData())
+                {
+                    var message = OperationSavePendingMessage();
+                    AppendProcessLog(progressLogVm, message);
+                    // Retain applied DLC state and staging. Do not classify the completed installer as failed.
+                    return new GogDlcInstallBatchResult(installedProductIds, message);
+                }
                 installedProductIds.Add(entry.ProductId);
                 if (isUpdate)
                     updatedCount++;
@@ -452,7 +458,11 @@ public partial class MainWindowViewModel
             result.InstalledProductIds.Contains(target.CatalogItem.ProductId));
         var allDlcsUpdated = updatedCount == plan.Targets.Count && plan.Unavailable.Count == 0;
         SetGogDlcUpdateAvailability(item, !allDlcsUpdated);
-        await SaveData();
+        if (!await SaveData())
+        {
+            AppendProcessLog(progressLogVm, OperationSavePendingMessage());
+            return;
+        }
 
         AppendProcessLog(
             progressLogVm,

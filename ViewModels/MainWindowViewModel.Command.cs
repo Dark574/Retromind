@@ -1444,8 +1444,11 @@ public partial class MainWindowViewModel
 
             // after successfull deinstall: reload the library
             _libraryTracker.MarkDirty();
-            await SaveData();
+            var saved = await SaveData();
             NotifyPlayAvailabilityChanged();
+
+            if (!saved)
+                return true; // Confirms the physical uninstall; the central notice explains the pending save.
 
             await ShowInfoDialog(
                 owner,
@@ -1858,8 +1861,8 @@ public partial class MainWindowViewModel
             OnPropertyChanged(nameof(ShowStoreBadges));
             _metadataService.ClearProviderCache();
             NotifyNodeCommandsCanExecuteChanged();
-            var settingsSaved = await SaveData();
-            if (settingsSaved && !_settingsService.HasLoadFailure)
+            var saveResult = await SaveDataWithStatusAsync();
+            if (saveResult.SettingsSaved)
             {
                 settingsVm.CompleteAchievementSecretChanges();
                 settingsVm.CompleteScraperCredentialChanges();
@@ -2288,7 +2291,7 @@ public partial class MainWindowViewModel
         if (mergeTarget == null)
             SelectedNode = sourceNode;
         if (parentChanged)
-            await SaveData().ConfigureAwait(false);
+            return await SaveData().ConfigureAwait(false);
         return true;
     }
 

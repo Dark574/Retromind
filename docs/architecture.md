@@ -98,6 +98,53 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
 - title sorting remains a live preview while the dialog is open and is restored if the dialog closes
   without saving
 
+### Explicit save results and callers
+
+`MainWindowViewModel.SaveData()` returns `true` only when the tracked library is clean after its save
+and the current settings snapshot was written without an outstanding save failure or a newer settings
+edit. A clean, tracked library needs no further write. `LibraryChangeTracker.SaveIfDirtyAsync()` itself
+returns `Task`, not a persistence acknowledgement: it may skip clean/stale work or an unavailable snapshot.
+The view model therefore also checks tracking and dirty state. A library-load failure, an untracked
+library, or `SettingsService.HasLoadFailure` prevents a full-success result; the existing protections
+against overwriting unreadable data remain in force. Healthy stores may still be saved independently.
+Skipping a protected store does not fabricate a write exception or another dialog; startup already
+explains the load failure.
+
+This is not an atomic transaction across the two files. A library failure stops that explicit attempt
+before settings are written; settings can fail after the library was successfully saved. Internally,
+the settings-dialog completion also receives `SettingsSaved`, which confirms the actual settings write
+independently of full success. Credential changes are completed when that write occurred, avoiding a
+credential rollback that would contradict already-persisted settings. Existing credential rollback
+handling remains in place when settings were not written.
+
+Callers distinguish durable completion from applied in-memory or filesystem work:
+
+- Media moves and category moves between parents return the save result. A failed save does not undo
+  the completed asset move or category assignment; retry saves the changed library. Reordering within
+  one parent retains its existing in-memory acceptance and debounced-save behavior.
+- Imports, edits, scraping, statistics and bulk edits retain their applied changes on a failed save.
+  They rely on the central persistence notice rather than claiming durable success or adding dialogs.
+- Existing deletion and runner-removal gates still require confirmed persistence before subsequent
+  destructive work. Runner-assignment replacement and achievement identification keep their existing
+  explicit unsaved-change feedback.
+- GOG/Epic installation, update and repair callbacks retain their physical-success boolean contract so
+  the media editor reloads the actual launch configuration. They replace their ordinary completion text
+  with a localized pending-save message when persistence fails. GOG installer staging is retained in that
+  case. DLC batches stop further installations after such a failure, retain applied state and staging,
+  and do not report an all-success result. GOG uninstall suppresses its success dialog on save failure
+  while still acknowledging the completed physical uninstall. Epic uninstall retains its separate
+  `StateSaved` result and existing deletion gate.
+
+Library save failures retain dirty state and version; later explicit/debounced saves can retry. Settings
+failures leave the live settings available for a later save. There is no automatic rollback of completed
+library, file or installation work. Process crashes before a successful retry can still lose in-memory
+metadata. There is no cross-file journal or new retry framework.
+
+Shutdown deliberately keeps its separate safe-close contract: protected stores are skipped rather than
+overwritten. A real final-write failure still cancels cleanup and returns control to the existing
+exit-without-saving decision; the stricter full-save result does not trap users with unreadable startup
+data in the application.
+
 ### Secret storage and cache boundaries
 - `ISecretStore` is shared by store authentication and account integrations. On Linux the composite
   implementation prefers the host Secret Service and falls back to session-only memory when persistent
@@ -307,14 +354,18 @@ or prevent an independently requested notification.
 `MainWindowViewModel.ReportPersistenceSaveFailure()` reports
 `Persistence.SaveFailed` with severity `Error`, the existing localized `Persistence.SaveFailedFormat`
 message, the original exception, and `Operation=Save` context. Its existing atomic notification gate
-still permits only one notice until a successful save resets it. Each call is logged, including calls
-whose notice is suppressed. Missing dialog owners and failed dialogs retain their existing gate reset.
-No extra logging-failure dialog is shown.
+permits only one notice while a persistence failure remains unresolved. Library failures are diagnosed
+by the tracker event, without a duplicate report from the explicit-save catch. Separate library/settings
+failure state prevents a successful write to one store from clearing the other store's failure. Settings
+completion also checks edit and failure generations so an older success cannot clear a newer failure.
+The gate resets after both stores are healthy, tracked and clean. Each actual failed attempt is still
+logged, including attempts whose notice is suppressed. Missing dialog owners and failed dialogs retain
+their existing presentation-gate reset without clearing the underlying failure state. No extra
+logging-failure dialog is shown.
 
-Save operations, dirty tracking, settings debounces, and shutdown behavior are unchanged. During the final
-flush, existing suppression prevents persistence-error dialogs; failure still returns `false`, skips
-cleanup, resumes launcher operation, and lets `MainWindow` own the existing exit-without-saving decision.
-The final settings-save catch and other error paths have not been migrated.
+During the final flush, existing suppression prevents persistence-error dialogs; failure still returns
+`false`, skips cleanup, resumes launcher operation, and lets `MainWindow` own the existing
+exit-without-saving decision. The final settings-save catch and other error paths have not been migrated.
 
 `AudioService` receives `IErrorService` through constructor injection and reports audio failures only to
 the central diagnostic log by default, without a notification callback or dialogs:

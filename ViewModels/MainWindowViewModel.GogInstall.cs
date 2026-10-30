@@ -381,7 +381,11 @@ public partial class MainWindowViewModel
 
             _libraryTracker.MarkDirty();
             NotifyPlayAvailabilityChanged();
-            await SaveData();
+            if (!await SaveData())
+            {
+                AppendProcessLog(progressLogVm, OperationSavePendingMessage());
+                return true; // Physical success; preserve staging while metadata is unsaved.
+            }
 
             if (installRequest.DeleteStagingAfterSuccess)
             {

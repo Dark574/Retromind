@@ -62,7 +62,8 @@ public partial class MainWindowViewModel
                 status.IsUpdateAvailable ? "true" : "false";
             _libraryTracker.MarkDirty();
             NotifyPlayAvailabilityChanged();
-            await SaveData();
+            if (!await SaveData())
+                return; // The central persistence notice already explains the unsaved metadata.
 
             await ShowInfoDialog(
                 owner,
@@ -243,7 +244,11 @@ public partial class MainWindowViewModel
                 item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] = "false";
             _libraryTracker.MarkDirty();
             NotifyPlayAvailabilityChanged();
-            await SaveData();
+            if (!await SaveData())
+            {
+                AppendProcessLog(progressVm, OperationSavePendingMessage());
+                return true; // The completed update/repair and its launch configuration are retained.
+            }
             AppendProcessLog(
                 progressVm,
                 isRepair

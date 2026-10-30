@@ -178,9 +178,9 @@ public partial class MainWindowViewModel
             _currentSettings.LastSelectedMediaId = null;
 
         _audioService.StopMusic();
-        await SaveData();
+        var saved = await SaveData();
         RefreshContentAfterMediaCollectionChange();
-        return true;
+        return saved; // The move remains applied and dirty if persistence failed; never roll its files back here.
     }
 
     private static void CollectNodeAssetReferencesRecursive(MediaNode node, ICollection<MediaAsset> target)

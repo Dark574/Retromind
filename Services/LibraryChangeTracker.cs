@@ -50,6 +50,8 @@ public class LibraryChangeTracker
     public event Action<Exception>? SaveFailed;
     public event Action? SaveSucceeded;
 
+    internal bool IsTracking => _trackedRoots != null;
+
     internal bool IsDirty
     {
         get

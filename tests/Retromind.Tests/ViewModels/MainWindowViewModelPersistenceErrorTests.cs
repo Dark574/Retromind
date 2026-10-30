@@ -19,7 +19,7 @@ public sealed class MainWindowViewModelPersistenceErrorTests
         var failure = new IOException("Disk full");
 
         Report(vm, failure);
-        Report(vm, failure); // Library event followed by SaveData's catch, or another debounce.
+        Report(vm, failure); // A separate failed attempt is diagnosed, but does not open another notice.
 
         Assert.Equal(2, errors.Reports.Count);
         Assert.Single(errors.Notifications);
@@ -30,7 +30,7 @@ public sealed class MainWindowViewModelPersistenceErrorTests
         var format = Strings.ResourceManager.GetString("Persistence.SaveFailedFormat", Strings.Culture)!;
         Assert.Equal(string.Format(format, failure.Message), report.Message);
 
-        Invoke(vm, "ClearPersistenceSaveFailure");
+        Invoke(vm, "ResetPersistenceErrorNotice");
         Report(vm, failure);
         Assert.Equal(2, errors.Notifications.Count);
     }
@@ -118,6 +118,7 @@ public sealed class MainWindowViewModelPersistenceErrorTests
     {
         var vm = (MainWindowViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainWindowViewModel));
         SetField(vm, "_errorService", errors);
+        SetField(vm, "_persistenceStateLock", new object());
         return vm;
     }
 

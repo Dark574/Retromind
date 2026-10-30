@@ -1608,4 +1608,5 @@ Die vorhandenen Dateien und Starteinstellungen bleiben unverändert. Das Retromi
     <data name="Settings.GogGalaxy.SectionTitle" xml:space="preserve"><value>GOG-Galaxy-Dienste (experimentell)</value></data>
     <data name="Settings.GogGalaxy.Enable" xml:space="preserve"><value>GOG-Galaxy-Dienste für verknüpfte Spiele aktivieren</value></data>
     <data name="Settings.GogGalaxy.Hint" xml:space="preserve"><value>Zeigt den GOG-Achievement-Fortschritt an, synchronisiert abgeschlossene Spielzeitsitzungen und startet den von Retromind mitgelieferten Comet-Dienst, während ein geeignetes Spiel läuft. Comet kann Achievements bei kompatiblen Spielen und Laufzeitumgebungen synchronisieren. Die Unterstützung nativer Linux-Spiele sowie von Wine, Proton und UMU ist vom jeweiligen Titel abhängig.</value></data>
+    <data name="Persistence.OperationSavePending" xml:space="preserve"><value>Der Vorgang wurde ausgeführt, seine Änderungen konnten aber nicht vollständig gespeichert werden. Die Änderungen bleiben im Arbeitsspeicher; bereits ausgeführte Schritte bleiben erhalten.</value></data>
 </root>
